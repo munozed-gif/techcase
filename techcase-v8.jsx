@@ -775,11 +775,10 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
       { id: "profile",   icon: "👤", label: "My Profile" },
     ],
     client: [
-      { id: "dashboard",    icon: "🏠", label: "Dashboard" },
-      { id: "cases",        icon: "📋", label: "My Cases" },
-      { id: "consultants",  icon: "🧑‍💼", label: "Consultants" },
-      { id: "db-connections", icon: "🔌", label: "DB Access" },
-      { id: "team-members", icon: "🤝", label: "My Team" },
+      { id: "dashboard",       icon: "🏠", label: "Dashboard" },
+      { id: "cases",           icon: "📋", label: "My Cases" },
+      { id: "consultants",     icon: "🧑‍💼", label: "Consultants" },
+      { id: "client-profile",  icon: "🏢", label: "Company Profile" },
     ],
   };
 
@@ -2997,6 +2996,586 @@ function ClientTeamList({ client, auth }) {
 }
 
 // ============================================================
+// CLIENT PROFILE VIEW
+// ============================================================
+function useClientProfile(userId) {
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchProfile = useCallback(async () => {
+    if (!userId) return;
+    const { data } = await supabase
+      .from("client_profiles")
+      .select("*")
+      .eq("id", userId)
+      .single();
+    setProfile(data);
+    setLoading(false);
+  }, [userId]);
+
+  useEffect(() => { fetchProfile(); }, [fetchProfile]);
+
+  async function updateProfile(updates) {
+    const { data, error } = await supabase
+      .from("client_profiles")
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq("id", userId)
+      .select().single();
+    if (error) throw error;
+    setProfile(data);
+    return data;
+  }
+
+  return { profile, loading, updateProfile, refetch: fetchProfile };
+}
+
+function ClientProfileView({ auth }) {
+  const { profile, loading, updateProfile } = useClientProfile(auth.user?.id);
+  const { sla, updateSla }                  = useSlaConfig(auth.user?.id);
+  const { connections, addConnection, deleteConnection } = useDbConnections(auth.user?.id);
+  const { members, addMember }              = useClientTeamMembers(auth.user?.id);
+
+  const [tab, setTab]         = useState("overview");
+  const [editing, setEditing] = useState(false);
+  const [form, setForm]       = useState({});
+  const [saving, setSaving]   = useState(false);
+
+  // DB connection form
+  const [showAddConn, setShowAddConn] = useState(false);
+  const [connForm, setConnForm] = useState({ db_type: "postgresql", host: "", port: 5432, db_name: "", username: "", notes: "" });
+  const [savingConn, setSavingConn] = useState(false);
+
+  // Team member form
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [memberForm, setMemberForm] = useState({ full_name: "", email: "", role_title: "", phone: "", is_primary: false });
+  const [savingMember, setSavingMember] = useState(false);
+
+  // SLA edit
+  const [slaEditing, setSlaEditing] = useState(false);
+  const [slaForm, setSlaForm] = useState({});
+  const [savingSla, setSavingSla] = useState(false);
+
+  useEffect(() => {
+    if (profile && !editing) setForm({
+      company_name:          profile.company_name ?? "",
+      industry:              profile.industry ?? "",
+      company_size:          profile.company_size ?? "",
+      founded_year:          profile.founded_year ?? "",
+      hq_location:           profile.hq_location ?? "",
+      website:               profile.website ?? "",
+      description:           profile.description ?? "",
+      contact_name:          profile.contact_name ?? "",
+      contact_title:         profile.contact_title ?? "",
+      contact_email:         profile.contact_email ?? "",
+      contact_phone:         profile.contact_phone ?? "",
+      linkedin_url:          profile.linkedin_url ?? "",
+      budget:                profile.budget ?? "",
+      _categories:           profile.preferred_categories?.join(", ") ?? "",
+      notes:                 profile.notes ?? "",
+    });
+  }, [profile, editing]);
+
+  useEffect(() => {
+    if (sla && !slaEditing) setSlaForm({
+      tier:                   sla.tier ?? "standard",
+      response_time_hours:    sla.response_time_hours ?? 24,
+      resolution_time_hours:  sla.resolution_time_hours ?? 72,
+      uptime_guarantee_pct:   sla.uptime_guarantee_pct ?? 99,
+      dedicated_consultant:   sla.dedicated_consultant ?? false,
+      priority_support:       sla.priority_support ?? false,
+      notes:                  sla.notes ?? "",
+    });
+  }, [sla, slaEditing]);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await updateProfile({
+        ...form,
+        founded_year: form.founded_year ? Number(form.founded_year) : null,
+        preferred_categories: form._categories
+          ? form._categories.split(",").map(s => s.trim()).filter(Boolean)
+          : [],
+      });
+      setEditing(false);
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  async function handleSaveSla() {
+    setSavingSla(true);
+    try { await updateSla(slaForm); setSlaEditing(false); }
+    catch (e) { alert(e.message); }
+    setSavingSla(false);
+  }
+
+  async function handleAddConn() {
+    if (!connForm.host || !connForm.db_name) return;
+    setSavingConn(true);
+    try {
+      await addConnection(connForm);
+      setConnForm({ db_type: "postgresql", host: "", port: 5432, db_name: "", username: "", notes: "" });
+      setShowAddConn(false);
+    } catch (e) { alert(e.message); }
+    setSavingConn(false);
+  }
+
+  async function handleAddMember() {
+    if (!memberForm.full_name || !memberForm.email) return;
+    setSavingMember(true);
+    try {
+      await addMember(memberForm);
+      setMemberForm({ full_name: "", email: "", role_title: "", phone: "", is_primary: false });
+      setShowAddMember(false);
+    } catch (e) { alert(e.message); }
+    setSavingMember(false);
+  }
+
+  if (loading) return <Spinner />;
+
+  const tierColors = { standard: "bg-gray-100 text-gray-700", premium: "bg-blue-100 text-blue-700", enterprise: "bg-purple-100 text-purple-700" };
+  const dbTypeColors = { postgresql: "bg-blue-100 text-blue-700", mysql: "bg-orange-100 text-orange-700", mssql: "bg-red-100 text-red-700", mongodb: "bg-green-100 text-green-700", other: "bg-gray-100 text-gray-700" };
+
+  const tabs = [
+    { id: "overview",     label: "Overview" },
+    { id: "sla",          label: "SLA Config" },
+    { id: "connections",  label: `DB Connections (${connections.length})` },
+    { id: "team",         label: `Team (${members.length})` },
+  ];
+
+  return (
+    <div>
+      {/* Header card */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+        <div className="flex items-start gap-5">
+          <div className="w-16 h-16 rounded-2xl bg-indigo-600 flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
+            {profile?.company_name?.[0] ?? auth.profile?.full_name?.[0] ?? "C"}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold text-gray-900">
+              {profile?.company_name || auth.profile?.full_name || "My Company"}
+            </h1>
+            <p className="text-gray-500 text-sm mt-0.5">
+              {[profile?.industry, profile?.hq_location].filter(Boolean).join(" · ") || "Edit your company profile below"}
+            </p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {profile?.company_size && <Badge className="bg-gray-100 text-gray-600">{profile.company_size}</Badge>}
+              {profile?.founded_year && <Badge className="bg-gray-100 text-gray-600">Est. {profile.founded_year}</Badge>}
+              {profile?.budget && <Badge className="bg-green-100 text-green-700">💰 {profile.budget}</Badge>}
+            </div>
+          </div>
+          <button onClick={() => setEditing(p => !p)}
+            className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-xl hover:bg-gray-50 flex-shrink-0">
+            {editing ? "Cancel" : "Edit Profile"}
+          </button>
+        </div>
+      </div>
+
+      {/* Edit form */}
+      {editing && (
+        <div className="bg-white rounded-2xl border border-indigo-200 shadow-sm p-6 mb-6">
+          <h3 className="font-semibold text-gray-900 mb-5">Edit Company Profile</h3>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Company Name" value={form.company_name}
+              onChange={e => setForm(p => ({ ...p, company_name: e.target.value }))} />
+            <Input label="Industry" value={form.industry}
+              onChange={e => setForm(p => ({ ...p, industry: e.target.value }))}
+              placeholder="e.g. Financial Services" />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <Input label="Company Size" value={form.company_size}
+              onChange={e => setForm(p => ({ ...p, company_size: e.target.value }))}
+              placeholder="e.g. 500–1,000 employees" />
+            <Input label="Founded Year" type="number" value={form.founded_year}
+              onChange={e => setForm(p => ({ ...p, founded_year: e.target.value }))} />
+            <Input label="Headquarters" value={form.hq_location}
+              onChange={e => setForm(p => ({ ...p, hq_location: e.target.value }))}
+              placeholder="City, Country" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Website" value={form.website}
+              onChange={e => setForm(p => ({ ...p, website: e.target.value }))}
+              placeholder="https://yourcompany.com" />
+            <Input label="LinkedIn" value={form.linkedin_url}
+              onChange={e => setForm(p => ({ ...p, linkedin_url: e.target.value }))}
+              placeholder="https://linkedin.com/company/..." />
+          </div>
+          <Textarea label="Description" value={form.description}
+            onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+            placeholder="What does your company do?" />
+
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3 mt-1">Primary Contact</div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Contact Name" value={form.contact_name}
+              onChange={e => setForm(p => ({ ...p, contact_name: e.target.value }))} />
+            <Input label="Contact Title" value={form.contact_title}
+              onChange={e => setForm(p => ({ ...p, contact_title: e.target.value }))} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Contact Email" type="email" value={form.contact_email}
+              onChange={e => setForm(p => ({ ...p, contact_email: e.target.value }))} />
+            <Input label="Contact Phone" value={form.contact_phone}
+              onChange={e => setForm(p => ({ ...p, contact_phone: e.target.value }))} />
+          </div>
+
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3 mt-1">Consulting Preferences</div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Annual Budget" value={form.budget}
+              onChange={e => setForm(p => ({ ...p, budget: e.target.value }))}
+              placeholder="e.g. $500K annual consulting" />
+            <Input label="Preferred Categories (comma-separated)" value={form._categories}
+              onChange={e => setForm(p => ({ ...p, _categories: e.target.value }))}
+              placeholder="Cloud, AI, ERP" />
+          </div>
+          <Textarea label="Internal Notes" value={form.notes}
+            onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+            placeholder="Special requirements, vetting notes…" />
+
+          <div className="flex justify-end gap-3 mt-2">
+            <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+            <button onClick={handleSave} disabled={saving}
+              className="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+              {saving ? "Saving…" : "Save Profile"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 w-fit flex-wrap">
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+              tab === t.id ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* OVERVIEW TAB */}
+      {tab === "overview" && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+          {profile?.description && (
+            <div>
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">About</div>
+              <p className="text-gray-700 text-sm leading-relaxed">{profile.description}</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+            {profile?.industry     && <div><span className="text-gray-400">Industry: </span><strong>{profile.industry}</strong></div>}
+            {profile?.company_size && <div><span className="text-gray-400">Size: </span><strong>{profile.company_size}</strong></div>}
+            {profile?.founded_year && <div><span className="text-gray-400">Founded: </span><strong>{profile.founded_year}</strong></div>}
+            {profile?.hq_location  && <div><span className="text-gray-400">HQ: </span><strong>{profile.hq_location}</strong></div>}
+            {profile?.budget       && <div><span className="text-gray-400">Budget: </span><strong>{profile.budget}</strong></div>}
+          </div>
+
+          <div className="flex gap-3 flex-wrap">
+            {profile?.website && (
+              <a href={profile.website} target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:underline">
+                🌐 Website
+              </a>
+            )}
+            {profile?.linkedin_url && (
+              <a href={profile.linkedin_url} target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:underline">
+                🔗 LinkedIn
+              </a>
+            )}
+          </div>
+
+          {profile?.preferred_categories?.length > 0 && (
+            <div>
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Preferred Consulting Areas</div>
+              <div className="flex flex-wrap gap-2">
+                {profile.preferred_categories.map(c => (
+                  <span key={c} className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-medium">{c}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="border-t border-gray-100 pt-4">
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Primary Contact</div>
+            {profile?.contact_name ? (
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">
+                  {profile.contact_name[0]}
+                </div>
+                <div className="text-sm space-y-0.5">
+                  <div className="font-semibold text-gray-900">{profile.contact_name}</div>
+                  {profile.contact_title && <div className="text-gray-500">{profile.contact_title}</div>}
+                  <div className="flex gap-4 text-gray-400 text-xs">
+                    {profile.contact_email && <span>📧 {profile.contact_email}</span>}
+                    {profile.contact_phone && <span>📞 {profile.contact_phone}</span>}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">No contact set. Edit profile to add one.</p>
+            )}
+          </div>
+
+          {profile?.notes && (
+            <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-sm">
+              <div className="font-medium text-amber-800 mb-1">Notes</div>
+              <p className="text-gray-700">{profile.notes}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SLA TAB */}
+      {tab === "sla" && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="font-bold text-gray-900">SLA Configuration</h2>
+              <p className="text-sm text-gray-400 mt-0.5">Service level targets for your cases</p>
+            </div>
+            <button onClick={() => setSlaEditing(p => !p)}
+              className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-xl hover:bg-gray-50">
+              {slaEditing ? "Cancel" : "Edit SLA"}
+            </button>
+          </div>
+
+          {slaEditing ? (
+            <div className="space-y-4">
+              <Select label="SLA Tier" value={slaForm.tier}
+                onChange={e => setSlaForm(p => ({ ...p, tier: e.target.value }))}
+                options={[
+                  { value: "standard",   label: "Standard" },
+                  { value: "premium",    label: "Premium" },
+                  { value: "enterprise", label: "Enterprise" },
+                ]} />
+              <div className="grid grid-cols-3 gap-3">
+                <Input label="Response Time (hrs)" type="number" value={slaForm.response_time_hours}
+                  onChange={e => setSlaForm(p => ({ ...p, response_time_hours: Number(e.target.value) }))} />
+                <Input label="Resolution Time (hrs)" type="number" value={slaForm.resolution_time_hours}
+                  onChange={e => setSlaForm(p => ({ ...p, resolution_time_hours: Number(e.target.value) }))} />
+                <Input label="Uptime Guarantee (%)" type="number" value={slaForm.uptime_guarantee_pct}
+                  onChange={e => setSlaForm(p => ({ ...p, uptime_guarantee_pct: Number(e.target.value) }))} />
+              </div>
+              <div className="flex gap-6">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={slaForm.dedicated_consultant}
+                    onChange={e => setSlaForm(p => ({ ...p, dedicated_consultant: e.target.checked }))}
+                    className="rounded accent-indigo-600" />
+                  Dedicated Consultant
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={slaForm.priority_support}
+                    onChange={e => setSlaForm(p => ({ ...p, priority_support: e.target.checked }))}
+                    className="rounded accent-indigo-600" />
+                  Priority Support
+                </label>
+              </div>
+              <Textarea label="Notes" value={slaForm.notes}
+                onChange={e => setSlaForm(p => ({ ...p, notes: e.target.value }))}
+                placeholder="Additional SLA terms…" />
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setSlaEditing(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+                <button onClick={handleSaveSla} disabled={savingSla}
+                  className="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+                  {savingSla ? "Saving…" : "Save SLA"}
+                </button>
+              </div>
+            </div>
+          ) : sla ? (
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                <Badge className={tierColors[sla.tier] ?? tierColors.standard}>{cap(sla.tier)} Tier</Badge>
+                {sla.priority_support    && <Badge className="bg-orange-100 text-orange-700">Priority Support</Badge>}
+                {sla.dedicated_consultant && <Badge className="bg-green-100 text-green-700">Dedicated Consultant</Badge>}
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-gray-50 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold text-gray-900">{sla.response_time_hours}h</div>
+                  <div className="text-xs text-gray-500 mt-1">Response Time</div>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold text-gray-900">{sla.resolution_time_hours}h</div>
+                  <div className="text-xs text-gray-500 mt-1">Resolution Time</div>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold text-gray-900">{sla.uptime_guarantee_pct}%</div>
+                  <div className="text-xs text-gray-500 mt-1">Uptime SLA</div>
+                </div>
+              </div>
+              {sla.notes && (
+                <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4 text-sm text-gray-700">
+                  <div className="font-medium text-yellow-800 mb-1">Notes</div>
+                  {sla.notes}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-400">
+              <div className="text-3xl mb-2">📋</div>
+              <p className="text-sm mb-4">No SLA configured yet.</p>
+              <button onClick={() => setSlaEditing(true)}
+                className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700">
+                Configure SLA
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* DB CONNECTIONS TAB */}
+      {tab === "connections" && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="font-bold text-gray-900">Database Connections</h2>
+              <p className="text-sm text-gray-400 mt-0.5">{connections.length} connection{connections.length !== 1 ? "s" : ""} configured</p>
+            </div>
+            <button onClick={() => setShowAddConn(p => !p)}
+              className="px-4 py-2 text-sm bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700">
+              + Add Connection
+            </button>
+          </div>
+
+          {showAddConn && (
+            <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <Select label="Database Type" value={connForm.db_type}
+                  onChange={e => setConnForm(p => ({ ...p, db_type: e.target.value }))}
+                  options={["postgresql","mysql","mssql","oracle","mongodb","other"].map(t => ({ value: t, label: t.toUpperCase() }))} />
+                <Input label="Host / Server" value={connForm.host}
+                  onChange={e => setConnForm(p => ({ ...p, host: e.target.value }))} placeholder="db.example.com" />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <Input label="Port" type="number" value={connForm.port}
+                  onChange={e => setConnForm(p => ({ ...p, port: Number(e.target.value) }))} />
+                <Input label="Database Name" value={connForm.db_name}
+                  onChange={e => setConnForm(p => ({ ...p, db_name: e.target.value }))} />
+                <Input label="Username" value={connForm.username}
+                  onChange={e => setConnForm(p => ({ ...p, username: e.target.value }))} />
+              </div>
+              <Textarea label="Notes" value={connForm.notes}
+                onChange={e => setConnForm(p => ({ ...p, notes: e.target.value }))}
+                placeholder="VPN requirements, access instructions…" />
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setShowAddConn(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+                <button onClick={handleAddConn} disabled={savingConn}
+                  className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+                  {savingConn ? "Adding…" : "Add Connection"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {connections.map(conn => (
+              <div key={conn.id} className="border border-gray-100 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Badge className={dbTypeColors[conn.db_type] ?? dbTypeColors.other}>{conn.db_type?.toUpperCase()}</Badge>
+                    <span className="font-mono text-sm font-semibold text-gray-800">{conn.db_name}</span>
+                  </div>
+                  <button onClick={() => deleteConnection(conn.id)}
+                    className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded border border-red-100 hover:bg-red-50">
+                    Remove
+                  </button>
+                </div>
+                <div className="text-xs text-gray-500 font-mono">
+                  {conn.username && <span>{conn.username}@</span>}{conn.host}:{conn.port}
+                </div>
+                {conn.notes && <p className="text-xs text-gray-400 mt-2">{conn.notes}</p>}
+              </div>
+            ))}
+            {connections.length === 0 && (
+              <div className="text-center py-8 text-gray-400">
+                <div className="text-3xl mb-2">🔌</div>
+                <p className="text-sm">No database connections yet. Add one above.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TEAM TAB */}
+      {tab === "team" && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="font-bold text-gray-900">Team Members</h2>
+              <p className="text-sm text-gray-400 mt-0.5">Stakeholders and points of contact</p>
+            </div>
+            <button onClick={() => setShowAddMember(p => !p)}
+              className="px-4 py-2 text-sm bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700">
+              + Add Member
+            </button>
+          </div>
+
+          {showAddMember && (
+            <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Full Name" value={memberForm.full_name}
+                  onChange={e => setMemberForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Jane Smith" />
+                <Input label="Email" type="email" value={memberForm.email}
+                  onChange={e => setMemberForm(p => ({ ...p, email: e.target.value }))} placeholder="jane@company.com" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Role / Title" value={memberForm.role_title}
+                  onChange={e => setMemberForm(p => ({ ...p, role_title: e.target.value }))} placeholder="IT Manager" />
+                <Input label="Phone" value={memberForm.phone}
+                  onChange={e => setMemberForm(p => ({ ...p, phone: e.target.value }))} placeholder="+1 555 000 0000" />
+              </div>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={memberForm.is_primary}
+                  onChange={e => setMemberForm(p => ({ ...p, is_primary: e.target.checked }))}
+                  className="rounded accent-indigo-600" />
+                Primary contact
+              </label>
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setShowAddMember(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+                <button onClick={handleAddMember} disabled={savingMember}
+                  className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+                  {savingMember ? "Adding…" : "Add Member"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {members.map(m => (
+              <div key={m.id} className="border border-gray-100 rounded-xl p-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">
+                    {m.full_name?.[0]}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-900 truncate">{m.full_name}</span>
+                      {m.is_primary && <Badge className="bg-indigo-100 text-indigo-700">Primary</Badge>}
+                    </div>
+                    {m.role_title && <div className="text-xs text-gray-500">{m.role_title}</div>}
+                  </div>
+                </div>
+                <div className="text-xs text-gray-400 space-y-0.5">
+                  {m.email && <div>📧 {m.email}</div>}
+                  {m.phone && <div>📞 {m.phone}</div>}
+                </div>
+              </div>
+            ))}
+            {members.length === 0 && (
+              <div className="col-span-full text-center py-8 text-gray-400">
+                <div className="text-3xl mb-2">👥</div>
+                <p className="text-sm">No team members added yet.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
 // ROOT APP
 // ============================================================
 export default function App() {
@@ -3041,6 +3620,7 @@ export default function App() {
       case "sla":            return (auth.isAdmin || auth.isManager) ? <SlaView auth={auth} /> : <Dashboard auth={auth} />;
       case "db-connections": return <DbConnectionsView auth={auth} />;
       case "team-members":   return <ClientTeamView auth={auth} />;
+      case "client-profile": return auth.isClient ? <ClientProfileView auth={auth} /> : <Dashboard auth={auth} />;
       case "notifications":  return <NotificationsView />;
       default:               return <Dashboard auth={auth} />;
     }
