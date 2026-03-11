@@ -1134,7 +1134,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete }) {
   const myApp = applications.find(a => a.consultant_id === auth.user?.id);
   const doneMilestones = milestones.filter(m => m.is_done).length;
   const milestonePct = milestones.length ? Math.round((doneMilestones / milestones.length) * 100) : 0;
-  const canAddSubCase = (auth.isAdmin || auth.isManager) &&
+  const canAddSubCase = (auth.isAdmin || auth.isManager || auth.isClient) &&
     !["completed", "cancelled"].includes(caseData.status);
 
   async function handleApply() {
