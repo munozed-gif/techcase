@@ -114,6 +114,40 @@ function useDbConnections(clientId) {
   return { connections, addConnection, deleteConnection, refetch: fetchConnections };
 }
 
+function useSubCases(parentCaseId) {
+  const [subCases, setSubCases] = useState([]);
+  const [loading, setLoading]   = useState(true);
+
+  const fetchSubCases = useCallback(async () => {
+    if (!parentCaseId) { setLoading(false); return; }
+    const { data } = await supabase
+      .from("cases")
+      .select(`
+        *,
+        client:client_id(id, full_name, client_profiles(company_name)),
+        manager:manager_id(id, full_name)
+      `)
+      .eq("parent_case_id", parentCaseId)
+      .order("created_at");
+    setSubCases(data ?? []);
+    setLoading(false);
+  }, [parentCaseId]);
+
+  useEffect(() => { fetchSubCases(); }, [fetchSubCases]);
+
+  async function createSubCase(data) {
+    const { data: row, error } = await supabase
+      .from("cases")
+      .insert({ ...data, parent_case_id: parentCaseId })
+      .select().single();
+    if (error) throw error;
+    await fetchSubCases();
+    return row;
+  }
+
+  return { subCases, loading, createSubCase, refetch: fetchSubCases };
+}
+
 function useClientTeamMembers(clientId) {
   const [members, setMembers] = useState([]);
   const fetchMembers = useCallback(async () => {
@@ -1083,6 +1117,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete }) {
   const { applications, apply, reviewApplication } = useApplications(caseData.id);
   const { milestones, toggleMilestone, addMilestone } = useMilestones(caseData.id);
   const { comments, addComment } = useCaseComments(caseData.id);
+  const { subCases, createSubCase } = useSubCases(caseData.id);
   const [showApply, setShowApply]   = useState(false);
   const [appForm, setAppForm]       = useState({ cover_letter: "", proposed_rate: "", time_commitment: 20 });
   const [submitting, setSubmitting] = useState(false);
@@ -1091,10 +1126,16 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete }) {
   const [commentForm, setCommentForm]  = useState({ body: "", hoursLogged: 0, progressUpdate: "", isInternal: false });
   const [sendingComment, setSendingComment] = useState(false);
   const [progressPct, setProgressPct] = useState(caseData.progress_pct ?? 0);
+  const [showSubCaseForm, setShowSubCaseForm] = useState(false);
+  const [subCaseForm, setSubCaseForm] = useState({ title: "", description: "", priority: "medium", status: "open" });
+  const [savingSubCase, setSavingSubCase] = useState(false);
+  const [selectedSubCase, setSelectedSubCase] = useState(null);
 
   const myApp = applications.find(a => a.consultant_id === auth.user?.id);
   const doneMilestones = milestones.filter(m => m.is_done).length;
   const milestonePct = milestones.length ? Math.round((doneMilestones / milestones.length) * 100) : 0;
+  const canAddSubCase = (auth.isAdmin || auth.isManager) &&
+    !["completed", "cancelled"].includes(caseData.status);
 
   async function handleApply() {
     setSubmitting(true);
@@ -1132,10 +1173,26 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete }) {
     setSendingComment(false);
   }
 
+  async function handleCreateSubCase() {
+    if (!subCaseForm.title.trim()) return;
+    setSavingSubCase(true);
+    try {
+      await createSubCase({
+        ...subCaseForm,
+        client_id: caseData.client_id,
+        manager_id: caseData.manager_id,
+      });
+      setSubCaseForm({ title: "", description: "", priority: "medium", status: "open" });
+      setShowSubCaseForm(false);
+    } catch (e) { alert(e.message); }
+    setSavingSubCase(false);
+  }
+
   const tabs = [
     { id: "detail",     label: "Details" },
     { id: "milestones", label: `Milestones (${doneMilestones}/${milestones.length})` },
     { id: "comments",   label: `Activity (${comments.length})` },
+    { id: "subcases",   label: `Sub-cases (${subCases.length})` },
     ...(auth.isAdmin || auth.isManager ? [{ id: "applications", label: `Applications (${applications.length})` }] : []),
   ];
 
@@ -1357,6 +1414,111 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete }) {
               {sendingComment ? "Posting…" : "Post Comment"}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Sub-cases Tab */}
+      {activeTab === "subcases" && (
+        <div className="space-y-3">
+          {/* Header row with add button */}
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-500">
+              {subCases.length === 0
+                ? "No sub-cases yet."
+                : `${subCases.length} sub-case${subCases.length !== 1 ? "s" : ""}`}
+            </p>
+            {canAddSubCase && !showSubCaseForm && (
+              <button onClick={() => setShowSubCaseForm(true)}
+                className="px-4 py-1.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700">
+                + New Sub-case
+              </button>
+            )}
+          </div>
+
+          {/* Create sub-case form */}
+          {showSubCaseForm && (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 space-y-3">
+              <h4 className="font-semibold text-gray-900 text-sm">New Sub-case</h4>
+              <Input label="Title" value={subCaseForm.title}
+                onChange={e => setSubCaseForm(p => ({ ...p, title: e.target.value }))}
+                placeholder="Sub-case title…" />
+              <Textarea label="Description" value={subCaseForm.description}
+                onChange={e => setSubCaseForm(p => ({ ...p, description: e.target.value }))}
+                placeholder="What needs to be done in this sub-case?" />
+              <div className="grid grid-cols-2 gap-3">
+                <Select label="Priority" value={subCaseForm.priority}
+                  onChange={e => setSubCaseForm(p => ({ ...p, priority: e.target.value }))}
+                  options={["low","medium","high","critical"].map(s => ({ value: s, label: cap(s) }))} />
+                <Select label="Initial Status" value={subCaseForm.status}
+                  onChange={e => setSubCaseForm(p => ({ ...p, status: e.target.value }))}
+                  options={["open","in_progress"].map(s => ({ value: s, label: cap(fmt(s)) }))} />
+              </div>
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setShowSubCaseForm(false)}
+                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
+                <button onClick={handleCreateSubCase} disabled={savingSubCase}
+                  className="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+                  {savingSubCase ? "Creating…" : "Create Sub-case"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Sub-case list */}
+          <div className="space-y-2">
+            {subCases.map(sc => (
+              <div key={sc.id}
+                className="border border-gray-100 rounded-xl p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                onClick={() => setSelectedSubCase(sc)}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-gray-900 text-sm">{sc.title}</span>
+                      <Badge className={STATUS_COLORS[sc.status]}>{cap(fmt(sc.status))}</Badge>
+                      <Badge className={PRIORITY_COLORS[sc.priority]}>{cap(sc.priority)}</Badge>
+                    </div>
+                    {sc.description && (
+                      <p className="text-xs text-gray-500 mt-1 line-clamp-1">{sc.description}</p>
+                    )}
+                    <div className="flex gap-3 mt-1.5 text-xs text-gray-400">
+                      {sc.due_date && <span>Due: {fmtDate(sc.due_date)}</span>}
+                      {sc.progress_pct > 0 && <span>Progress: {sc.progress_pct}%</span>}
+                    </div>
+                  </div>
+                  <span className="text-gray-300 text-sm flex-shrink-0">›</span>
+                </div>
+                {sc.progress_pct > 0 && (
+                  <div className="h-1 bg-gray-100 rounded-full mt-3 overflow-hidden">
+                    <div className="h-full bg-indigo-400 rounded-full"
+                      style={{ width: `${sc.progress_pct}%` }} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Inline sub-case detail */}
+          {selectedSubCase && (
+            <div className="border-2 border-indigo-200 rounded-2xl p-5 mt-3">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-bold text-gray-900">{selectedSubCase.title}</h4>
+                <button onClick={() => setSelectedSubCase(null)}
+                  className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+              </div>
+              <CaseDetail
+                caseData={selectedSubCase}
+                auth={auth}
+                onStatusChange={async (id, status) => {
+                  await supabase.from("cases").update({ status }).eq("id", id);
+                  setSelectedSubCase(prev => ({ ...prev, status }));
+                }}
+                onDelete={async () => {
+                  await supabase.from("cases").delete().eq("id", selectedSubCase.id);
+                  setSelectedSubCase(null);
+                }}
+              />
+            </div>
+          )}
         </div>
       )}
 
