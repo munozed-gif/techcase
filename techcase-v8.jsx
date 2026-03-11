@@ -23,6 +23,113 @@ const supabase = createClient(
 // HOOKS
 // ============================================================
 
+function useMilestones(caseId) {
+  const [milestones, setMilestones] = useState([]);
+  const fetchMilestones = useCallback(async () => {
+    if (!caseId) return;
+    const { data } = await supabase.from("case_milestones")
+      .select("*").eq("case_id", caseId).order("position");
+    setMilestones(data ?? []);
+  }, [caseId]);
+  useEffect(() => { fetchMilestones(); }, [fetchMilestones]);
+
+  async function toggleMilestone(id, isDone) {
+    await supabase.from("case_milestones")
+      .update({ is_done: !isDone, done_at: !isDone ? new Date().toISOString() : null })
+      .eq("id", id);
+    await fetchMilestones();
+  }
+  async function addMilestone(title) {
+    await supabase.from("case_milestones")
+      .insert({ case_id: caseId, title, position: milestones.length + 1 });
+    await fetchMilestones();
+  }
+  return { milestones, toggleMilestone, addMilestone, refetch: fetchMilestones };
+}
+
+function useCaseComments(caseId) {
+  const [comments, setComments] = useState([]);
+  const fetchComments = useCallback(async () => {
+    if (!caseId) return;
+    const { data } = await supabase.from("case_comments")
+      .select("*, author:author_id(full_name, avatar_url, role)")
+      .eq("case_id", caseId).order("created_at", { ascending: true });
+    setComments(data ?? []);
+  }, [caseId]);
+  useEffect(() => { fetchComments(); }, [fetchComments]);
+
+  async function addComment({ body, hoursLogged = 0, progressUpdate = null, isInternal = false }) {
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from("case_comments").insert({
+      case_id: caseId, author_id: user.id, body,
+      hours_logged: hoursLogged, progress_update: progressUpdate, is_internal: isInternal,
+    });
+    if (progressUpdate !== null) {
+      await supabase.from("cases").update({ progress_pct: progressUpdate }).eq("id", caseId);
+    }
+    await fetchComments();
+  }
+  return { comments, addComment, refetch: fetchComments };
+}
+
+function useSlaConfig(clientId) {
+  const [sla, setSla] = useState(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    if (!clientId) { setLoading(false); return; }
+    (async () => {
+      const { data } = await supabase.from("sla_configs")
+        .select("*").eq("client_id", clientId).single();
+      setSla(data);
+      setLoading(false);
+    })();
+  }, [clientId]);
+  async function updateSla(updates) {
+    const { data, error } = await supabase.from("sla_configs")
+      .upsert({ client_id: clientId, ...updates }).select().single();
+    if (error) throw error;
+    setSla(data);
+    return data;
+  }
+  return { sla, loading, updateSla };
+}
+
+function useDbConnections(clientId) {
+  const [connections, setConnections] = useState([]);
+  const fetchConnections = useCallback(async () => {
+    if (!clientId) return;
+    const { data } = await supabase.from("db_connections")
+      .select("*").eq("client_id", clientId).order("created_at");
+    setConnections(data ?? []);
+  }, [clientId]);
+  useEffect(() => { fetchConnections(); }, [fetchConnections]);
+  async function addConnection(conn) {
+    await supabase.from("db_connections").insert({ ...conn, client_id: clientId });
+    await fetchConnections();
+  }
+  async function deleteConnection(id) {
+    await supabase.from("db_connections").delete().eq("id", id);
+    await fetchConnections();
+  }
+  return { connections, addConnection, deleteConnection, refetch: fetchConnections };
+}
+
+function useClientTeamMembers(clientId) {
+  const [members, setMembers] = useState([]);
+  const fetchMembers = useCallback(async () => {
+    if (!clientId) return;
+    const { data } = await supabase.from("client_team_members")
+      .select("*").eq("client_id", clientId).order("created_at");
+    setMembers(data ?? []);
+  }, [clientId]);
+  useEffect(() => { fetchMembers(); }, [fetchMembers]);
+  async function addMember(member) {
+    await supabase.from("client_team_members").insert({ ...member, client_id: clientId });
+    await fetchMembers();
+  }
+  return { members, addMember, refetch: fetchMembers };
+}
+
 function useAuth() {
   const [user, setUser]       = useState(null);
   const [profile, setProfile] = useState(null);
@@ -363,7 +470,7 @@ function useLeaderboard(entityId = null) {
     (async () => {
       setLoading(true);
       let query = supabase.from("consultant_profiles").select(`
-        id, headline, skills, years_experience,
+        id, headline, skills, years_experience, expertise_level, availability_type,
         user:id(full_name, avatar_url),
         ratings(score),
         applications(id, status),
@@ -609,17 +716,23 @@ function AuthScreen({ onAuth }) {
 function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
   const navItems = {
     admin: [
-      { id: "dashboard", icon: "🏠", label: "Dashboard" },
-      { id: "cases",     icon: "📋", label: "Cases" },
-      { id: "arena",     icon: "⚔️",  label: "Arena" },
-      { id: "users",     icon: "👥", label: "Users" },
-      { id: "reports",   icon: "📊", label: "Reports" },
+      { id: "dashboard",    icon: "🏠", label: "Dashboard" },
+      { id: "cases",        icon: "📋", label: "Cases" },
+      { id: "arena",        icon: "⚔️",  label: "Arena" },
+      { id: "users",        icon: "👥", label: "Users" },
+      { id: "sla",          icon: "📑", label: "SLA Config" },
+      { id: "db-connections", icon: "🔌", label: "DB Connections" },
+      { id: "team-members", icon: "🤝", label: "Client Teams" },
+      { id: "reports",      icon: "📊", label: "Reports" },
     ],
     manager: [
-      { id: "dashboard", icon: "🏠", label: "Dashboard" },
-      { id: "cases",     icon: "📋", label: "Cases" },
-      { id: "arena",     icon: "⚔️",  label: "Arena" },
-      { id: "consultants", icon: "🧑‍💼", label: "Consultants" },
+      { id: "dashboard",    icon: "🏠", label: "Dashboard" },
+      { id: "cases",        icon: "📋", label: "Cases" },
+      { id: "arena",        icon: "⚔️",  label: "Arena" },
+      { id: "consultants",  icon: "🧑‍💼", label: "Consultants" },
+      { id: "sla",          icon: "📑", label: "SLA Config" },
+      { id: "db-connections", icon: "🔌", label: "DB Connections" },
+      { id: "team-members", icon: "🤝", label: "Client Teams" },
     ],
     consultant: [
       { id: "dashboard", icon: "🏠", label: "Dashboard" },
@@ -628,9 +741,11 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
       { id: "profile",   icon: "👤", label: "My Profile" },
     ],
     client: [
-      { id: "dashboard", icon: "🏠", label: "Dashboard" },
-      { id: "cases",     icon: "📋", label: "My Cases" },
-      { id: "consultants", icon: "🧑‍💼", label: "Consultants" },
+      { id: "dashboard",    icon: "🏠", label: "Dashboard" },
+      { id: "cases",        icon: "📋", label: "My Cases" },
+      { id: "consultants",  icon: "🧑‍💼", label: "Consultants" },
+      { id: "db-connections", icon: "🔌", label: "DB Access" },
+      { id: "team-members", icon: "🤝", label: "My Team" },
     ],
   };
 
@@ -966,11 +1081,20 @@ function CasesView({ auth }) {
 
 function CaseDetail({ caseData, auth, onStatusChange, onDelete }) {
   const { applications, apply, reviewApplication } = useApplications(caseData.id);
-  const [showApply, setShowApply] = useState(false);
-  const [appForm, setAppForm]     = useState({ cover_letter: "", proposed_rate: "", time_commitment: 20 });
+  const { milestones, toggleMilestone, addMilestone } = useMilestones(caseData.id);
+  const { comments, addComment } = useCaseComments(caseData.id);
+  const [showApply, setShowApply]   = useState(false);
+  const [appForm, setAppForm]       = useState({ cover_letter: "", proposed_rate: "", time_commitment: 20 });
   const [submitting, setSubmitting] = useState(false);
+  const [activeTab, setActiveTab]   = useState("detail");
+  const [newMilestone, setNewMilestone] = useState("");
+  const [commentForm, setCommentForm]  = useState({ body: "", hoursLogged: 0, progressUpdate: "", isInternal: false });
+  const [sendingComment, setSendingComment] = useState(false);
+  const [progressPct, setProgressPct] = useState(caseData.progress_pct ?? 0);
 
   const myApp = applications.find(a => a.consultant_id === auth.user?.id);
+  const doneMilestones = milestones.filter(m => m.is_done).length;
+  const milestonePct = milestones.length ? Math.round((doneMilestones / milestones.length) * 100) : 0;
 
   async function handleApply() {
     setSubmitting(true);
@@ -986,120 +1110,283 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete }) {
     setSubmitting(false);
   }
 
+  async function handleAddMilestone() {
+    if (!newMilestone.trim()) return;
+    await addMilestone(newMilestone.trim());
+    setNewMilestone("");
+  }
+
+  async function handleComment() {
+    if (!commentForm.body.trim()) return;
+    setSendingComment(true);
+    try {
+      await addComment({
+        body: commentForm.body,
+        hoursLogged: Number(commentForm.hoursLogged) || 0,
+        progressUpdate: commentForm.progressUpdate !== "" ? Number(commentForm.progressUpdate) : null,
+        isInternal: commentForm.isInternal,
+      });
+      if (commentForm.progressUpdate !== "") setProgressPct(Number(commentForm.progressUpdate));
+      setCommentForm({ body: "", hoursLogged: 0, progressUpdate: "", isInternal: false });
+    } catch (e) { alert(e.message); }
+    setSendingComment(false);
+  }
+
+  const tabs = [
+    { id: "detail",     label: "Details" },
+    { id: "milestones", label: `Milestones (${doneMilestones}/${milestones.length})` },
+    { id: "comments",   label: `Activity (${comments.length})` },
+    ...(auth.isAdmin || auth.isManager ? [{ id: "applications", label: `Applications (${applications.length})` }] : []),
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* Meta */}
-      <div className="flex flex-wrap gap-2">
-        <Badge className={STATUS_COLORS[caseData.status]}>{cap(fmt(caseData.status))}</Badge>
-        <Badge className={PRIORITY_COLORS[caseData.priority]}>{cap(caseData.priority)}</Badge>
+    <div className="space-y-4">
+      {/* Progress Bar */}
+      <div>
+        <div className="flex justify-between text-xs text-gray-500 mb-1">
+          <span>Overall Progress</span>
+          <span className="font-semibold text-gray-800">{progressPct}%</span>
+        </div>
+        <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-full bg-indigo-500 rounded-full transition-all"
+            style={{ width: `${progressPct}%` }} />
+        </div>
+        {milestones.length > 0 && (
+          <div className="text-xs text-gray-400 mt-1">Milestones: {milestonePct}% complete</div>
+        )}
       </div>
 
-      <p className="text-gray-700 text-sm leading-relaxed">{caseData.description || "No description provided."}</p>
-
-      <div className="grid grid-cols-2 gap-4 text-sm">
-        {caseData.budget && <div><span className="text-gray-400">Budget: </span><span className="font-medium">${Number(caseData.budget).toLocaleString()}</span></div>}
-        {caseData.due_date && <div><span className="text-gray-400">Due: </span><span className="font-medium">{fmtDate(caseData.due_date)}</span></div>}
-        {caseData.client?.full_name && <div><span className="text-gray-400">Client: </span><span className="font-medium">{caseData.client.full_name}</span></div>}
-        {caseData.manager?.full_name && <div><span className="text-gray-400">Manager: </span><span className="font-medium">{caseData.manager.full_name}</span></div>}
+      {/* Tabs */}
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setActiveTab(t.id)}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+              activeTab === t.id ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      {caseData.skills_required?.length > 0 && (
-        <div>
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Skills Required</div>
+      {/* Detail Tab */}
+      {activeTab === "detail" && (
+        <div className="space-y-4">
           <div className="flex flex-wrap gap-2">
-            {caseData.skills_required.map(s => (
-              <span key={s} className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs">{s}</span>
-            ))}
+            <Badge className={STATUS_COLORS[caseData.status]}>{cap(fmt(caseData.status))}</Badge>
+            <Badge className={PRIORITY_COLORS[caseData.priority]}>{cap(caseData.priority)}</Badge>
+            {caseData.parent_case_id && (
+              <Badge className="bg-purple-100 text-purple-700">Sub-case</Badge>
+            )}
           </div>
-        </div>
-      )}
-
-      {/* Applications section — manager/admin view */}
-      {(auth.isAdmin || auth.isManager) && (
-        <div>
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-            Applications ({applications.length})
+          <p className="text-gray-700 text-sm leading-relaxed">{caseData.description || "No description provided."}</p>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            {caseData.budget && <div><span className="text-gray-400">Budget: </span><span className="font-medium">${Number(caseData.budget).toLocaleString()}</span></div>}
+            {caseData.due_date && <div><span className="text-gray-400">Due: </span><span className="font-medium">{fmtDate(caseData.due_date)}</span></div>}
+            {caseData.client?.full_name && <div><span className="text-gray-400">Client: </span><span className="font-medium">{caseData.client.full_name}</span></div>}
+            {caseData.manager?.full_name && <div><span className="text-gray-400">Manager: </span><span className="font-medium">{caseData.manager.full_name}</span></div>}
           </div>
-          <div className="space-y-3">
-            {applications.map(app => (
-              <div key={app.id} className="border border-gray-100 rounded-xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="font-medium text-sm">{app.consultant?.full_name}</div>
-                  <Badge className={APP_STATUS_COLORS[app.status]}>{cap(app.status)}</Badge>
-                </div>
-                {app.cover_letter && <p className="text-xs text-gray-500 mb-3 line-clamp-2">{app.cover_letter}</p>}
-                {app.status === "pending" && (
-                  <div className="flex gap-2 mt-2">
-                    <button onClick={() => reviewApplication(app.id, "accepted")}
-                      className="px-3 py-1 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">Accept</button>
-                    <button onClick={() => reviewApplication(app.id, "rejected")}
-                      className="px-3 py-1 bg-red-100 text-red-700 text-xs rounded-lg hover:bg-red-200">Reject</button>
-                    <button onClick={() => reviewApplication(app.id, "under_review")}
-                      className="px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-lg hover:bg-blue-200">Review</button>
-                  </div>
-                )}
-              </div>
-            ))}
-            {applications.length === 0 && <p className="text-sm text-gray-400">No applications yet.</p>}
-          </div>
-        </div>
-      )}
-
-      {/* Consultant apply section */}
-      {auth.isConsultant && caseData.status === "open" && (
-        <div className="border-t border-gray-100 pt-4">
-          {myApp ? (
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Your application: </span>
-              <Badge className={APP_STATUS_COLORS[myApp.status]}>{cap(myApp.status)}</Badge>
-            </div>
-          ) : showApply ? (
+          {caseData.skills_required?.length > 0 && (
             <div>
-              <Textarea label="Cover Letter" value={appForm.cover_letter}
-                onChange={e => setAppForm(p => ({ ...p, cover_letter: e.target.value }))}
-                placeholder="Why are you a good fit for this case?" />
-              <div className="grid grid-cols-2 gap-3">
-                <Input label="Proposed Rate ($/hr)" type="number" value={appForm.proposed_rate}
-                  onChange={e => setAppForm(p => ({ ...p, proposed_rate: e.target.value }))} />
-                <Input label="Time Commitment (%)" type="number" min="0" max="100"
-                  value={appForm.time_commitment}
-                  onChange={e => setAppForm(p => ({ ...p, time_commitment: e.target.value }))} />
-              </div>
-              <div className="flex gap-3">
-                <button onClick={handleApply} disabled={submitting}
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2 rounded-xl disabled:opacity-50">
-                  {submitting ? "Submitting…" : "Submit Application"}
-                </button>
-                <button onClick={() => setShowApply(false)}
-                  className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Skills Required</div>
+              <div className="flex flex-wrap gap-2">
+                {caseData.skills_required.map(s => (
+                  <span key={s} className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs">{s}</span>
+                ))}
               </div>
             </div>
-          ) : (
-            <button onClick={() => setShowApply(true)}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors">
-              Apply to This Case
-            </button>
+          )}
+
+          {/* Consultant apply section */}
+          {auth.isConsultant && caseData.status === "open" && (
+            <div className="border-t border-gray-100 pt-4">
+              {myApp ? (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Your application: </span>
+                  <Badge className={APP_STATUS_COLORS[myApp.status]}>{cap(myApp.status)}</Badge>
+                </div>
+              ) : showApply ? (
+                <div>
+                  <Textarea label="Cover Letter" value={appForm.cover_letter}
+                    onChange={e => setAppForm(p => ({ ...p, cover_letter: e.target.value }))}
+                    placeholder="Why are you a good fit for this case?" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input label="Proposed Rate ($/hr)" type="number" value={appForm.proposed_rate}
+                      onChange={e => setAppForm(p => ({ ...p, proposed_rate: e.target.value }))} />
+                    <Input label="Time Commitment (%)" type="number" min="0" max="100"
+                      value={appForm.time_commitment}
+                      onChange={e => setAppForm(p => ({ ...p, time_commitment: e.target.value }))} />
+                  </div>
+                  <div className="flex gap-3">
+                    <button onClick={handleApply} disabled={submitting}
+                      className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2 rounded-xl disabled:opacity-50">
+                      {submitting ? "Submitting…" : "Submit Application"}
+                    </button>
+                    <button onClick={() => setShowApply(false)}
+                      className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => setShowApply(true)}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors">
+                  Apply to This Case
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Admin / Manager status controls */}
+          {(auth.isAdmin || auth.isManager) && (
+            <div className="border-t border-gray-100 pt-4 flex flex-wrap gap-2">
+              {["open","in_progress","on_hold","completed","cancelled"]
+                .filter(s => s !== caseData.status)
+                .map(s => (
+                  <button key={s} onClick={() => onStatusChange(caseData.id, s)}
+                    className="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600">
+                    → {cap(fmt(s))}
+                  </button>
+                ))}
+              {auth.isAdmin && (
+                <button onClick={onDelete}
+                  className="ml-auto px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50">
+                  Delete
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}
 
-      {/* Admin / Manager status controls */}
-      {(auth.isAdmin || auth.isManager) && (
-        <div className="border-t border-gray-100 pt-4 flex flex-wrap gap-2">
-          {["open","in_progress","on_hold","completed","cancelled"]
-            .filter(s => s !== caseData.status)
-            .map(s => (
-              <button key={s} onClick={() => onStatusChange(caseData.id, s)}
-                className="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600">
-                → {cap(fmt(s))}
-              </button>
-            ))}
-          {auth.isAdmin && (
-            <button onClick={onDelete}
-              className="ml-auto px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50">
-              Delete
-            </button>
+      {/* Milestones Tab */}
+      {activeTab === "milestones" && (
+        <div className="space-y-3">
+          {milestones.length > 0 && (
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-4">
+              <div className="h-full bg-emerald-500 transition-all" style={{ width: `${milestonePct}%` }} />
+            </div>
           )}
+          {milestones.map(m => (
+            <div key={m.id} className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:bg-gray-50 cursor-pointer"
+              onClick={() => toggleMilestone(m.id, m.is_done)}>
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                m.is_done ? "bg-emerald-500 border-emerald-500" : "border-gray-300"}`}>
+                {m.is_done && <span className="text-white text-xs">✓</span>}
+              </div>
+              <span className={`text-sm flex-1 ${m.is_done ? "line-through text-gray-400" : "text-gray-800"}`}>
+                {m.title}
+              </span>
+              {m.is_done && m.done_at && (
+                <span className="text-xs text-gray-300">{fmtDate(m.done_at)}</span>
+              )}
+            </div>
+          ))}
+          {milestones.length === 0 && (
+            <p className="text-sm text-gray-400 text-center py-4">No milestones yet. Add one below.</p>
+          )}
+          {(auth.isAdmin || auth.isManager || auth.isConsultant) && (
+            <div className="flex gap-2 mt-4">
+              <input value={newMilestone} onChange={e => setNewMilestone(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleAddMilestone()}
+                placeholder="Add milestone…"
+                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <button onClick={handleAddMilestone}
+                className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700">
+                Add
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Activity / Comments Tab */}
+      {activeTab === "comments" && (
+        <div className="space-y-4">
+          <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+            {comments.map(c => (
+              <div key={c.id} className={`rounded-xl p-4 text-sm border ${c.is_internal ? "bg-amber-50 border-amber-200" : "bg-gray-50 border-gray-100"}`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-indigo-200 text-indigo-700 text-xs flex items-center justify-center font-bold">
+                      {c.author?.full_name?.[0] ?? "?"}
+                    </div>
+                    <span className="font-medium text-gray-900">{c.author?.full_name ?? "Unknown"}</span>
+                    {c.is_internal && <Badge className="bg-amber-200 text-amber-800">Internal</Badge>}
+                  </div>
+                  <span className="text-xs text-gray-400">{fmtDate(c.created_at)}</span>
+                </div>
+                <p className="text-gray-700 leading-relaxed">{c.body}</p>
+                <div className="flex gap-4 mt-2 text-xs text-gray-400">
+                  {c.hours_logged > 0 && <span>⏱ {c.hours_logged}h logged</span>}
+                  {c.progress_update !== null && <span>📈 Progress → {c.progress_update}%</span>}
+                </div>
+              </div>
+            ))}
+            {comments.length === 0 && (
+              <p className="text-sm text-gray-400 text-center py-4">No activity yet.</p>
+            )}
+          </div>
+
+          {/* Add comment */}
+          <div className="border border-gray-200 rounded-xl p-4 space-y-3">
+            <Textarea label="Comment / Update" value={commentForm.body}
+              onChange={e => setCommentForm(p => ({ ...p, body: e.target.value }))}
+              placeholder="Add a note, progress update, or comment…" />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Hours Logged</label>
+                <input type="number" min="0" value={commentForm.hoursLogged}
+                  onChange={e => setCommentForm(p => ({ ...p, hoursLogged: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Update Progress % (optional)</label>
+                <input type="number" min="0" max="100" value={commentForm.progressUpdate}
+                  onChange={e => setCommentForm(p => ({ ...p, progressUpdate: e.target.value }))}
+                  placeholder="e.g. 75"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+            </div>
+            {(auth.isAdmin || auth.isManager) && (
+              <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+                <input type="checkbox" checked={commentForm.isInternal}
+                  onChange={e => setCommentForm(p => ({ ...p, isInternal: e.target.checked }))}
+                  className="rounded accent-indigo-600" />
+                Internal note (not visible to clients)
+              </label>
+            )}
+            <button onClick={handleComment} disabled={sendingComment}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2 rounded-xl disabled:opacity-50">
+              {sendingComment ? "Posting…" : "Post Comment"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Applications Tab */}
+      {activeTab === "applications" && (auth.isAdmin || auth.isManager) && (
+        <div className="space-y-3">
+          {applications.map(app => (
+            <div key={app.id} className="border border-gray-100 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="font-medium text-sm">{app.consultant?.full_name}</div>
+                <Badge className={APP_STATUS_COLORS[app.status]}>{cap(app.status)}</Badge>
+              </div>
+              {app.cover_letter && <p className="text-xs text-gray-500 mb-3 line-clamp-2">{app.cover_letter}</p>}
+              <div className="flex gap-3 text-xs text-gray-400 mb-2">
+                {app.proposed_rate && <span>💰 ${app.proposed_rate}/hr</span>}
+                {app.time_commitment && <span>⏱ {app.time_commitment}% time</span>}
+              </div>
+              {app.status === "pending" && (
+                <div className="flex gap-2 mt-2">
+                  <button onClick={() => reviewApplication(app.id, "accepted")}
+                    className="px-3 py-1 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">Accept</button>
+                  <button onClick={() => reviewApplication(app.id, "rejected")}
+                    className="px-3 py-1 bg-red-100 text-red-700 text-xs rounded-lg hover:bg-red-200">Reject</button>
+                  <button onClick={() => reviewApplication(app.id, "under_review")}
+                    className="px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-lg hover:bg-blue-200">Review</button>
+                </div>
+              )}
+            </div>
+          ))}
+          {applications.length === 0 && <p className="text-sm text-gray-400">No applications yet.</p>}
         </div>
       )}
     </div>
@@ -1325,6 +1612,8 @@ function ProfileView({ auth }) {
       years_experience: profile.years_experience ?? 0,
       external_occupancy_pct: profile.external_occupancy_pct ?? 0,
       travel_available: profile.travel_available ?? false,
+      expertise_level: profile.expertise_level ?? "mid",
+      availability_type: profile.availability_type ?? "project_based",
       _skills: profile.skills?.join(", ") ?? "",
     });
   }, [profile, editing]);
@@ -1391,6 +1680,12 @@ function ProfileView({ auth }) {
               )}
               {profile?.hourly_rate && <span>💰 ${profile.hourly_rate}/hr</span>}
               {profile?.travel_available && <span>✈️ Travel available</span>}
+              {profile?.expertise_level && (
+                <Badge className="bg-violet-100 text-violet-700">{cap(profile.expertise_level)}</Badge>
+              )}
+              {profile?.availability_type && (
+                <Badge className="bg-teal-100 text-teal-700">{cap(fmt(profile.availability_type))}</Badge>
+              )}
             </div>
           </div>
           <button onClick={() => setEditing(p => !p)}
@@ -1438,6 +1733,24 @@ function ProfileView({ auth }) {
               onChange={e => setForm(p => ({ ...p, hourly_rate: e.target.value }))} />
             <Input label="Years Experience" type="number" value={form.years_experience}
               onChange={e => setForm(p => ({ ...p, years_experience: e.target.value }))} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Select label="Expertise Level" value={form.expertise_level ?? "mid"}
+              onChange={e => setForm(p => ({ ...p, expertise_level: e.target.value }))}
+              options={[
+                { value: "junior",  label: "Junior" },
+                { value: "mid",     label: "Mid-Level" },
+                { value: "senior",  label: "Senior" },
+                { value: "expert",  label: "Expert / Principal" },
+              ]} />
+            <Select label="Availability Type" value={form.availability_type ?? "project_based"}
+              onChange={e => setForm(p => ({ ...p, availability_type: e.target.value }))}
+              options={[
+                { value: "full_time",     label: "Full-Time" },
+                { value: "part_time",     label: "Part-Time" },
+                { value: "contract",      label: "Contract" },
+                { value: "project_based", label: "Project-Based" },
+              ]} />
           </div>
           <Input label="LinkedIn URL" value={form.linkedin_url}
             onChange={e => setForm(p => ({ ...p, linkedin_url: e.target.value }))}
@@ -1679,6 +1992,14 @@ function ConsultantsView({ auth }) {
                 <span className="text-gray-400">({c.ratingCount})</span>
               </div>
             )}
+            <div className="flex flex-wrap gap-1 mb-2">
+              {c.expertise_level && (
+                <Badge className="bg-violet-100 text-violet-700">{cap(c.expertise_level)}</Badge>
+              )}
+              {c.availability_type && (
+                <Badge className="bg-teal-100 text-teal-700">{cap(fmt(c.availability_type))}</Badge>
+              )}
+            </div>
             {c.skills?.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {c.skills.slice(0, 4).map(s => (
@@ -1749,6 +2070,16 @@ function ConsultantDetailModal({ consultantId, auth }) {
         {profile?.years_experience && <div><span className="text-gray-400">Experience: </span><strong>{profile.years_experience}y</strong></div>}
         <div><span className="text-gray-400">Availability: </span><strong className={availability > 30 ? "text-green-600" : "text-orange-500"}>{availability}% free</strong></div>
         {profile?.travel_available && <div>✈️ Travel available</div>}
+        {profile?.expertise_level && (
+          <div><span className="text-gray-400">Level: </span>
+            <Badge className="bg-violet-100 text-violet-700 ml-1">{cap(profile.expertise_level)}</Badge>
+          </div>
+        )}
+        {profile?.availability_type && (
+          <div><span className="text-gray-400">Type: </span>
+            <Badge className="bg-teal-100 text-teal-700 ml-1">{cap(fmt(profile.availability_type))}</Badge>
+          </div>
+        )}
       </div>
 
       {profile?.skills?.length > 0 && (
@@ -1983,6 +2314,527 @@ function ReportsView() {
 }
 
 // ============================================================
+// SLA CONFIG VIEW (Admin / Manager)
+// ============================================================
+function SlaView({ auth }) {
+  const [clients, setClients] = useState([]);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("users")
+        .select("id, full_name, email, client_profiles(company_name)")
+        .eq("role", "client")
+        .order("full_name");
+      setClients(data ?? []);
+      setLoading(false);
+    })();
+  }, []);
+
+  if (loading) return <Spinner />;
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">SLA Configuration</h1>
+        <p className="text-gray-500 text-sm mt-1">Service Level Agreement settings per client</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Client list */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Clients</div>
+          <div className="space-y-1">
+            {clients.map(c => (
+              <button key={c.id} onClick={() => setSelectedClient(c)}
+                className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-colors ${
+                  selectedClient?.id === c.id ? "bg-indigo-50 text-indigo-700 font-medium" : "text-gray-700 hover:bg-gray-50"}`}>
+                <div className="font-medium">{c.client_profiles?.company_name ?? c.full_name}</div>
+                <div className="text-xs text-gray-400">{c.email}</div>
+              </button>
+            ))}
+            {clients.length === 0 && <p className="text-sm text-gray-400 text-center py-4">No clients found</p>}
+          </div>
+        </div>
+
+        {/* SLA Detail */}
+        <div className="lg:col-span-2">
+          {selectedClient
+            ? <SlaClientDetail client={selectedClient} auth={auth} />
+            : <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center text-gray-400">
+                <div className="text-4xl mb-3">📋</div>
+                <p>Select a client to view or edit their SLA configuration</p>
+              </div>
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SlaClientDetail({ client, auth }) {
+  const { sla, loading, updateSla } = useSlaConfig(client.id);
+  const [editing, setEditing]       = useState(false);
+  const [form, setForm]             = useState({});
+  const [saving, setSaving]         = useState(false);
+
+  useEffect(() => {
+    if (sla) setForm({
+      tier: sla.tier ?? "standard",
+      response_time_hours: sla.response_time_hours ?? 24,
+      resolution_time_hours: sla.resolution_time_hours ?? 72,
+      uptime_guarantee_pct: sla.uptime_guarantee_pct ?? 99,
+      dedicated_consultant: sla.dedicated_consultant ?? false,
+      priority_support: sla.priority_support ?? false,
+      notes: sla.notes ?? "",
+    });
+    else setForm({
+      tier: "standard", response_time_hours: 24, resolution_time_hours: 72,
+      uptime_guarantee_pct: 99, dedicated_consultant: false, priority_support: false, notes: "",
+    });
+  }, [sla]);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await updateSla(form);
+      setEditing(false);
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  if (loading) return <Spinner />;
+
+  const tierColors = { standard: "bg-gray-100 text-gray-700", premium: "bg-blue-100 text-blue-700", enterprise: "bg-purple-100 text-purple-700" };
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="font-bold text-gray-900">{client.client_profiles?.company_name ?? client.full_name}</h2>
+          <p className="text-sm text-gray-400">{client.email}</p>
+        </div>
+        {(auth.isAdmin || auth.isManager) && (
+          <button onClick={() => setEditing(p => !p)}
+            className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-xl hover:bg-gray-50">
+            {editing ? "Cancel" : "Edit SLA"}
+          </button>
+        )}
+      </div>
+
+      {editing ? (
+        <div className="space-y-4">
+          <Select label="SLA Tier" value={form.tier}
+            onChange={e => setForm(p => ({ ...p, tier: e.target.value }))}
+            options={[
+              { value: "standard",   label: "Standard" },
+              { value: "premium",    label: "Premium" },
+              { value: "enterprise", label: "Enterprise" },
+            ]} />
+          <div className="grid grid-cols-3 gap-3">
+            <Input label="Response Time (hrs)" type="number" value={form.response_time_hours}
+              onChange={e => setForm(p => ({ ...p, response_time_hours: Number(e.target.value) }))} />
+            <Input label="Resolution Time (hrs)" type="number" value={form.resolution_time_hours}
+              onChange={e => setForm(p => ({ ...p, resolution_time_hours: Number(e.target.value) }))} />
+            <Input label="Uptime Guarantee (%)" type="number" value={form.uptime_guarantee_pct}
+              onChange={e => setForm(p => ({ ...p, uptime_guarantee_pct: Number(e.target.value) }))} />
+          </div>
+          <div className="flex gap-6">
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input type="checkbox" checked={form.dedicated_consultant}
+                onChange={e => setForm(p => ({ ...p, dedicated_consultant: e.target.checked }))}
+                className="rounded accent-indigo-600" />
+              Dedicated Consultant
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input type="checkbox" checked={form.priority_support}
+                onChange={e => setForm(p => ({ ...p, priority_support: e.target.checked }))}
+                className="rounded accent-indigo-600" />
+              Priority Support
+            </label>
+          </div>
+          <Textarea label="Notes" value={form.notes}
+            onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+            placeholder="Additional SLA terms or notes…" />
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+            <button onClick={handleSave} disabled={saving}
+              className="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+              {saving ? "Saving…" : "Save SLA"}
+            </button>
+          </div>
+        </div>
+      ) : sla ? (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Badge className={tierColors[sla.tier] ?? tierColors.standard}>{cap(sla.tier)} Tier</Badge>
+            {sla.priority_support && <Badge className="bg-orange-100 text-orange-700">Priority Support</Badge>}
+            {sla.dedicated_consultant && <Badge className="bg-green-100 text-green-700">Dedicated Consultant</Badge>}
+          </div>
+          <div className="grid grid-cols-3 gap-4 text-sm">
+            <div className="bg-gray-50 rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-gray-900">{sla.response_time_hours}h</div>
+              <div className="text-xs text-gray-500 mt-1">Response Time</div>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-gray-900">{sla.resolution_time_hours}h</div>
+              <div className="text-xs text-gray-500 mt-1">Resolution Time</div>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-gray-900">{sla.uptime_guarantee_pct}%</div>
+              <div className="text-xs text-gray-500 mt-1">Uptime SLA</div>
+            </div>
+          </div>
+          {sla.notes && (
+            <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4 text-sm text-gray-700">
+              <div className="font-medium text-yellow-800 mb-1">Notes</div>
+              {sla.notes}
+            </div>
+          )}
+          <div className="text-xs text-gray-400">Last updated: {fmtDate(sla.updated_at ?? sla.created_at)}</div>
+        </div>
+      ) : (
+        <div className="text-center py-8 text-gray-400">
+          <div className="text-3xl mb-2">📄</div>
+          <p className="text-sm">No SLA configured for this client.</p>
+          {(auth.isAdmin || auth.isManager) && (
+            <button onClick={() => setEditing(true)}
+              className="mt-4 px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700">
+              Configure SLA
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// DB CONNECTIONS VIEW (Admin / Manager / Client)
+// ============================================================
+function DbConnectionsView({ auth }) {
+  const [clients, setClients]         = useState([]);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [loadingClients, setLoadingClients] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      let clientId = auth.isClient ? auth.user?.id : null;
+      if (clientId) {
+        // Client sees their own
+        const { data } = await supabase.from("users")
+          .select("id, full_name, email, client_profiles(company_name)").eq("id", clientId).single();
+        if (data) { setClients([data]); setSelectedClient(data); }
+      } else {
+        const { data } = await supabase.from("users")
+          .select("id, full_name, email, client_profiles(company_name)")
+          .eq("role", "client").order("full_name");
+        setClients(data ?? []);
+      }
+      setLoadingClients(false);
+    })();
+  }, [auth]);
+
+  if (loadingClients) return <Spinner />;
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Database Connections</h1>
+        <p className="text-gray-500 text-sm mt-1">Manage client database connection details</p>
+      </div>
+
+      <div className={`grid gap-6 ${auth.isClient ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-3"}`}>
+        {!auth.isClient && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Clients</div>
+            <div className="space-y-1">
+              {clients.map(c => (
+                <button key={c.id} onClick={() => setSelectedClient(c)}
+                  className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-colors ${
+                    selectedClient?.id === c.id ? "bg-indigo-50 text-indigo-700 font-medium" : "text-gray-700 hover:bg-gray-50"}`}>
+                  <div className="font-medium">{c.client_profiles?.company_name ?? c.full_name}</div>
+                  <div className="text-xs text-gray-400">{c.email}</div>
+                </button>
+              ))}
+              {clients.length === 0 && <p className="text-sm text-gray-400 text-center py-4">No clients found</p>}
+            </div>
+          </div>
+        )}
+
+        <div className={auth.isClient ? "" : "lg:col-span-2"}>
+          {selectedClient
+            ? <DbConnectionsList client={selectedClient} auth={auth} />
+            : <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center text-gray-400">
+                <div className="text-4xl mb-3">🔌</div>
+                <p>Select a client to view their database connections</p>
+              </div>
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DbConnectionsList({ client, auth }) {
+  const { connections, addConnection, deleteConnection } = useDbConnections(client.id);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm]       = useState({ db_type: "postgresql", host: "", port: 5432, db_name: "", username: "", notes: "" });
+  const [saving, setSaving]   = useState(false);
+
+  async function handleAdd() {
+    if (!form.host || !form.db_name) return;
+    setSaving(true);
+    try {
+      await addConnection(form);
+      setForm({ db_type: "postgresql", host: "", port: 5432, db_name: "", username: "", notes: "" });
+      setShowAdd(false);
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  const dbTypeColors = { postgresql: "bg-blue-100 text-blue-700", mysql: "bg-orange-100 text-orange-700", mssql: "bg-red-100 text-red-700", oracle: "bg-red-100 text-red-700", mongodb: "bg-green-100 text-green-700", other: "bg-gray-100 text-gray-700" };
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="font-bold text-gray-900">{client.client_profiles?.company_name ?? client.full_name}</h2>
+          <p className="text-sm text-gray-400">{connections.length} connection{connections.length !== 1 ? "s" : ""}</p>
+        </div>
+        {(auth.isAdmin || auth.isManager) && (
+          <button onClick={() => setShowAdd(p => !p)}
+            className="px-4 py-2 text-sm bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700">
+            + Add Connection
+          </button>
+        )}
+      </div>
+
+      {showAdd && (
+        <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <Select label="Database Type" value={form.db_type}
+              onChange={e => setForm(p => ({ ...p, db_type: e.target.value }))}
+              options={["postgresql","mysql","mssql","oracle","mongodb","other"].map(t => ({ value: t, label: t.toUpperCase() }))} />
+            <Input label="Host / Server" value={form.host}
+              onChange={e => setForm(p => ({ ...p, host: e.target.value }))} placeholder="db.example.com" />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <Input label="Port" type="number" value={form.port}
+              onChange={e => setForm(p => ({ ...p, port: Number(e.target.value) }))} />
+            <Input label="Database Name" value={form.db_name}
+              onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} />
+            <Input label="Username" value={form.username}
+              onChange={e => setForm(p => ({ ...p, username: e.target.value }))} />
+          </div>
+          <Textarea label="Notes" value={form.notes}
+            onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+            placeholder="Access instructions, VPN requirements…" />
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+            <button onClick={handleAdd} disabled={saving}
+              className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+              {saving ? "Adding…" : "Add Connection"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {connections.map(conn => (
+          <div key={conn.id} className="border border-gray-100 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Badge className={dbTypeColors[conn.db_type] ?? dbTypeColors.other}>{conn.db_type?.toUpperCase()}</Badge>
+                <span className="font-mono text-sm text-gray-800">{conn.db_name}</span>
+              </div>
+              {(auth.isAdmin || auth.isManager) && (
+                <button onClick={() => deleteConnection(conn.id)}
+                  className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded border border-red-100 hover:bg-red-50">
+                  Remove
+                </button>
+              )}
+            </div>
+            <div className="text-xs text-gray-500 font-mono">
+              {conn.username && <span>{conn.username}@</span>}{conn.host}:{conn.port}
+            </div>
+            {conn.notes && <p className="text-xs text-gray-400 mt-2">{conn.notes}</p>}
+          </div>
+        ))}
+        {connections.length === 0 && (
+          <div className="text-center py-8 text-gray-400">
+            <div className="text-3xl mb-2">🔌</div>
+            <p className="text-sm">No database connections configured.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// CLIENT TEAM MEMBERS VIEW
+// ============================================================
+function ClientTeamView({ auth }) {
+  const [clients, setClients]           = useState([]);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [loadingClients, setLoadingClients] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      let clientId = auth.isClient ? auth.user?.id : null;
+      if (clientId) {
+        const { data } = await supabase.from("users")
+          .select("id, full_name, email, client_profiles(company_name)").eq("id", clientId).single();
+        if (data) { setClients([data]); setSelectedClient(data); }
+      } else {
+        const { data } = await supabase.from("users")
+          .select("id, full_name, email, client_profiles(company_name)")
+          .eq("role", "client").order("full_name");
+        setClients(data ?? []);
+      }
+      setLoadingClients(false);
+    })();
+  }, [auth]);
+
+  if (loadingClients) return <Spinner />;
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Client Team Members</h1>
+        <p className="text-gray-500 text-sm mt-1">Stakeholders and points of contact per client</p>
+      </div>
+
+      <div className={`grid gap-6 ${auth.isClient ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-3"}`}>
+        {!auth.isClient && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Clients</div>
+            <div className="space-y-1">
+              {clients.map(c => (
+                <button key={c.id} onClick={() => setSelectedClient(c)}
+                  className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-colors ${
+                    selectedClient?.id === c.id ? "bg-indigo-50 text-indigo-700 font-medium" : "text-gray-700 hover:bg-gray-50"}`}>
+                  <div className="font-medium">{c.client_profiles?.company_name ?? c.full_name}</div>
+                  <div className="text-xs text-gray-400">{c.email}</div>
+                </button>
+              ))}
+              {clients.length === 0 && <p className="text-sm text-gray-400 text-center py-4">No clients</p>}
+            </div>
+          </div>
+        )}
+
+        <div className={auth.isClient ? "" : "lg:col-span-2"}>
+          {selectedClient
+            ? <ClientTeamList client={selectedClient} auth={auth} />
+            : <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center text-gray-400">
+                <div className="text-4xl mb-3">👥</div>
+                <p>Select a client to view their team members</p>
+              </div>
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ClientTeamList({ client, auth }) {
+  const { members, addMember } = useClientTeamMembers(client.id);
+  const [showAdd, setShowAdd]  = useState(false);
+  const [form, setForm]        = useState({ full_name: "", email: "", role_title: "", phone: "", is_primary: false });
+  const [saving, setSaving]    = useState(false);
+
+  async function handleAdd() {
+    if (!form.full_name || !form.email) return;
+    setSaving(true);
+    try {
+      await addMember(form);
+      setForm({ full_name: "", email: "", role_title: "", phone: "", is_primary: false });
+      setShowAdd(false);
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="font-bold text-gray-900">{client.client_profiles?.company_name ?? client.full_name}</h2>
+          <p className="text-sm text-gray-400">{members.length} team member{members.length !== 1 ? "s" : ""}</p>
+        </div>
+        {(auth.isAdmin || auth.isManager || auth.isClient) && (
+          <button onClick={() => setShowAdd(p => !p)}
+            className="px-4 py-2 text-sm bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700">
+            + Add Member
+          </button>
+        )}
+      </div>
+
+      {showAdd && (
+        <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Full Name" value={form.full_name}
+              onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Jane Smith" />
+            <Input label="Email" type="email" value={form.email}
+              onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="jane@company.com" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Role / Title" value={form.role_title}
+              onChange={e => setForm(p => ({ ...p, role_title: e.target.value }))} placeholder="IT Manager" />
+            <Input label="Phone" value={form.phone}
+              onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="+1 555 000 0000" />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" checked={form.is_primary}
+              onChange={e => setForm(p => ({ ...p, is_primary: e.target.checked }))}
+              className="rounded accent-indigo-600" />
+            Primary contact
+          </label>
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+            <button onClick={handleAdd} disabled={saving}
+              className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+              {saving ? "Adding…" : "Add Member"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {members.map(m => (
+          <div key={m.id} className="border border-gray-100 rounded-xl p-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">
+                {m.full_name?.[0]}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-gray-900 truncate">{m.full_name}</span>
+                  {m.is_primary && <Badge className="bg-indigo-100 text-indigo-700">Primary</Badge>}
+                </div>
+                {m.role_title && <div className="text-xs text-gray-500">{m.role_title}</div>}
+              </div>
+            </div>
+            <div className="text-xs text-gray-400 space-y-0.5">
+              {m.email && <div>📧 {m.email}</div>}
+              {m.phone && <div>📞 {m.phone}</div>}
+            </div>
+          </div>
+        ))}
+        {members.length === 0 && (
+          <div className="col-span-full text-center py-8 text-gray-400">
+            <div className="text-3xl mb-2">👥</div>
+            <p className="text-sm">No team members added yet.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // ROOT APP
 // ============================================================
 export default function App() {
@@ -2016,16 +2868,19 @@ export default function App() {
 
   function renderView() {
     switch (activeView) {
-      case "dashboard":    return <Dashboard auth={auth} />;
-      case "cases":        return <CasesView auth={auth} />;
-      case "my-cases":     return <CasesView auth={auth} />;
-      case "arena":        return <ArenaView auth={auth} />;
-      case "profile":      return <ProfileView auth={auth} />;
-      case "consultants":  return <ConsultantsView auth={auth} />;
-      case "users":        return auth.isAdmin ? <UsersView /> : <Dashboard auth={auth} />;
-      case "reports":      return auth.isAdmin ? <ReportsView /> : <Dashboard auth={auth} />;
-      case "notifications":return <NotificationsView />;
-      default:             return <Dashboard auth={auth} />;
+      case "dashboard":      return <Dashboard auth={auth} />;
+      case "cases":          return <CasesView auth={auth} />;
+      case "my-cases":       return <CasesView auth={auth} />;
+      case "arena":          return <ArenaView auth={auth} />;
+      case "profile":        return <ProfileView auth={auth} />;
+      case "consultants":    return <ConsultantsView auth={auth} />;
+      case "users":          return auth.isAdmin ? <UsersView /> : <Dashboard auth={auth} />;
+      case "reports":        return auth.isAdmin ? <ReportsView /> : <Dashboard auth={auth} />;
+      case "sla":            return (auth.isAdmin || auth.isManager) ? <SlaView auth={auth} /> : <Dashboard auth={auth} />;
+      case "db-connections": return <DbConnectionsView auth={auth} />;
+      case "team-members":   return <ClientTeamView auth={auth} />;
+      case "notifications":  return <NotificationsView />;
+      default:               return <Dashboard auth={auth} />;
     }
   }
 
