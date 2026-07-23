@@ -1141,8 +1141,9 @@ function CasesView({ auth }) {
   async function handleCreate() {
     setSaving(true);
     try {
+      const { _skills, ...caseData } = form;
       await createCase({
-        ...form,
+        ...caseData,
         client_id: auth.isClient ? auth.user?.id : form.client_id,
         manager_id: auth.isManager ? auth.user?.id : form.manager_id,
       });
