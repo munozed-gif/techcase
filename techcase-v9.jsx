@@ -399,6 +399,7 @@ function useCases(filters = {}) {
     if (filters.status)    query = query.eq("status", filters.status);
     if (filters.priority)  query = query.eq("priority", filters.priority);
     if (filters.search)    query = query.ilike("title", `%${filters.search}%`);
+    if (filters.client_id) query = query.eq("client_id", filters.client_id);
 
     const { data, error } = await query;
     if (error) setError(error.message);
@@ -1132,6 +1133,7 @@ function CasesView({ auth }) {
   const { cases, loading, createCase, updateCase, deleteCase } = useCases({
     status: statusFilter || undefined,
     search: search || undefined,
+    client_id: auth.isClient ? auth.user?.id : undefined,
   });
 
   const displayed = showFavOnly ? cases.filter(c => isFavorite(c.id)) : cases;
