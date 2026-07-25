@@ -2146,9 +2146,10 @@ function ProfileView({ auth }) {
   async function handleSave() {
     setSaving(true);
     try {
+      const { _skills, ...profileData } = form;
       await updateProfile({
-        ...form,
-        skills: form._skills?.split(",").map(s => s.trim()).filter(Boolean) ?? [],
+        ...profileData,
+        skills: _skills?.split(",").map(s => s.trim()).filter(Boolean) ?? [],
         hourly_rate: form.hourly_rate ? Number(form.hourly_rate) : null,
         years_experience: Number(form.years_experience),
         external_occupancy_pct: Number(form.external_occupancy_pct),
@@ -3534,11 +3535,12 @@ function ClientProfileView({ auth }) {
   async function handleSave() {
     setSaving(true);
     try {
+      const { _categories, ...profileData } = form;
       await updateProfile({
-        ...form,
+        ...profileData,
         founded_year: form.founded_year ? Number(form.founded_year) : null,
-        preferred_categories: form._categories
-          ? form._categories.split(",").map(s => s.trim()).filter(Boolean)
+        preferred_categories: _categories
+          ? _categories.split(",").map(s => s.trim()).filter(Boolean)
           : [],
       });
       setEditing(false);
