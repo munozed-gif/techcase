@@ -2155,8 +2155,8 @@ function ProfileView({ auth }) {
         ...profileData,
         skills: _skills?.split(",").map(s => s.trim()).filter(Boolean) ?? [],
         hourly_rate: form.hourly_rate ? Number(form.hourly_rate) : null,
-        years_experience: Number(form.years_experience),
-        external_occupancy_pct: Number(form.external_occupancy_pct),
+        years_experience: Number(form.years_experience) || 0,
+        external_occupancy_pct: Number(form.external_occupancy_pct) || 0,
       });
       setEditing(false);
     } catch (e) { alert(e.message); }
