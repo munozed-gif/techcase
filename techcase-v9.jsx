@@ -1136,7 +1136,11 @@ function CasesView({ auth }) {
     client_id: auth.isClient ? auth.user?.id : undefined,
   });
 
-  const displayed = showFavOnly ? cases.filter(c => isFavorite(c.id)) : cases;
+  const visibleCases = auth.isConsultant
+    ? cases.filter(c => c.case_assignments?.some(a => a.consultant_id === auth.user?.id))
+    : cases;
+
+  const displayed = showFavOnly ? visibleCases.filter(c => isFavorite(c.id)) : visibleCases;
 
   async function handleCreate() {
     setSaving(true);
