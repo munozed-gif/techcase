@@ -594,9 +594,23 @@ function useConsultantProfile(consultantId) {
 
   async function updateProfile(updates) {
     const { data, error } = await supabase.from("consultant_profiles")
-      .upsert({ id: consultantId, ...updates }, { onConflict: "id" }).select().single();
+      .update(updates)
+      .eq("id", consultantId)
+      .select()
+      .single();
     if (error) throw error;
-    if (!data) throw new Error("Update returned no data — check RLS policies on consultant_profiles in Supabase (the row may be blocked from SELECT after upsert).");
+    if (!data) {
+      // Row may not exist yet — insert it
+      const { data: inserted, error: insertError } = await supabase
+        .from("consultant_profiles")
+        .insert({ id: consultantId, ...updates })
+        .select()
+        .single();
+      if (insertError) throw insertError;
+      if (!inserted) throw new Error("Profile save failed silently — check RLS policies on consultant_profiles in Supabase.");
+      setProfile(prev => ({ ...prev, ...inserted }));
+      return inserted;
+    }
     setProfile(prev => ({ ...prev, ...data }));
     return data;
   }
