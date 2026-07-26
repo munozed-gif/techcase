@@ -594,7 +594,7 @@ function useConsultantProfile(consultantId) {
 
   async function updateProfile(updates) {
     const { data, error } = await supabase.from("consultant_profiles")
-      .update(updates).eq("id", consultantId).select().single();
+      .upsert({ id: consultantId, ...updates }).select().single();
     if (error) throw error;
     setProfile(prev => ({ ...prev, ...data }));
     return data;
@@ -3467,8 +3467,7 @@ function useClientProfile(userId) {
   async function updateProfile(updates) {
     const { data, error } = await supabase
       .from("client_profiles")
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq("id", userId)
+      .upsert({ id: userId, ...updates, updated_at: new Date().toISOString() })
       .select().single();
     if (error) throw error;
     setProfile(data);
