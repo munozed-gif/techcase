@@ -594,8 +594,9 @@ function useConsultantProfile(consultantId) {
 
   async function updateProfile(updates) {
     const { data, error } = await supabase.from("consultant_profiles")
-      .upsert({ id: consultantId, ...updates }).select().single();
+      .upsert({ id: consultantId, ...updates }, { onConflict: "id" }).select().single();
     if (error) throw error;
+    if (!data) throw new Error("Update returned no data — check RLS policies on consultant_profiles in Supabase (the row may be blocked from SELECT after upsert).");
     setProfile(prev => ({ ...prev, ...data }));
     return data;
   }
