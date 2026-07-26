@@ -4224,8 +4224,7 @@ function KanbanView({ auth }) {
 
   const filteredCases = cases.filter(c => {
     if (auth.isClient)     return c.client_id === auth.user?.id;
-    if (auth.isConsultant) return c.case_assignments?.some(a => a.consultant_id === auth.user?.id)
-                                  || c.status === "open";
+    if (auth.isConsultant) return c.case_assignments?.some(a => a.consultant_id === auth.user?.id);
     return true;
   });
 
