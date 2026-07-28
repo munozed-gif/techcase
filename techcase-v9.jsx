@@ -902,10 +902,10 @@ function AuthScreen({ onAuth }) {
     try {
       if (mode === "signin") {
         await auth.signIn(email, password);
-        onAuth(false);
+        onAuth(null);
       } else {
         await auth.signUp(email, password, name, role);
-        onAuth(role === "consultant");
+        onAuth(role); // pass role so App can show the right onboarding
       }
     } catch (e) {
       setError(e.message || JSON.stringify(e) || "Signup failed. Check the browser console for details.");
@@ -3616,11 +3616,18 @@ function useClientProfile(userId) {
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
   async function updateProfile(updates) {
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from("client_profiles")
       .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq("id", userId);
+      .eq("id", userId)
+      .select("id");
     if (error) throw error;
+    if (!updated || updated.length === 0) {
+      const { error: ie } = await supabase
+        .from("client_profiles")
+        .insert({ id: userId, ...updates });
+      if (ie) throw new Error(`Profile create failed: ${ie.message}`);
+    }
     await fetchProfile();
   }
 
@@ -5067,14 +5074,257 @@ function ConsultantOnboardingView({ auth, onComplete }) {
 }
 
 // ============================================================
+// CLIENT ONBOARDING WIZARD
+// ============================================================
+
+const ONBOARDING_STEPS_CLIENT = [
+  { id: "company", label: "Company Info",   icon: "🏢", desc: "Basic company details" },
+  { id: "contact", label: "Primary Contact",icon: "👤", desc: "Who we'll work with" },
+  { id: "prefs",   label: "Preferences",    icon: "⚙️",  desc: "Consulting needs & budget" },
+];
+
+function ClientOnboardingView({ auth, onComplete }) {
+  const { profile, loading, updateProfile } = useClientProfile(auth.user?.id);
+  const [step, setSt]   = useState(0);
+  const [saving, setSaving] = useState(false);
+
+  const [companyForm, setCompanyForm] = useState({
+    company_name: "", industry: "", company_size: "",
+    founded_year: "", hq_location: "", website: "", description: "",
+  });
+  const [contactForm, setContactForm] = useState({
+    contact_name: "", contact_title: "", contact_email: "", contact_phone: "",
+  });
+  const [prefsForm, setPrefsForm] = useState({
+    budget: "", _categories: "", notes: "",
+  });
+
+  useEffect(() => {
+    if (profile) {
+      setCompanyForm(f => ({
+        company_name:  profile.company_name  ?? f.company_name,
+        industry:      profile.industry      ?? f.industry,
+        company_size:  profile.company_size  ?? f.company_size,
+        founded_year:  profile.founded_year  ?? f.founded_year,
+        hq_location:   profile.hq_location   ?? f.hq_location,
+        website:       profile.website       ?? f.website,
+        description:   profile.description   ?? f.description,
+      }));
+      setContactForm(f => ({
+        contact_name:  profile.contact_name  ?? f.contact_name,
+        contact_title: profile.contact_title ?? f.contact_title,
+        contact_email: profile.contact_email ?? f.contact_email,
+        contact_phone: profile.contact_phone ?? f.contact_phone,
+      }));
+      setPrefsForm(f => ({
+        budget:       profile.budget                          ?? f.budget,
+        _categories:  profile.preferred_categories?.join(", ") ?? f._categories,
+        notes:        profile.notes                           ?? f.notes,
+      }));
+    }
+  }, [profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (loading) return <Spinner />;
+
+  const total  = ONBOARDING_STEPS_CLIENT.length;
+  const isLast = step === total - 1;
+
+  async function handleNext() {
+    setSaving(true);
+    try {
+      if (step === 0) {
+        await updateProfile({
+          ...companyForm,
+          founded_year: companyForm.founded_year ? Number(companyForm.founded_year) : null,
+        });
+      } else if (step === 1) {
+        await updateProfile(contactForm);
+      } else {
+        const { _categories, ...rest } = prefsForm;
+        await updateProfile({
+          ...rest,
+          preferred_categories: _categories.split(",").map(s => s.trim()).filter(Boolean),
+        });
+      }
+      if (!isLast) setSt(s => s + 1);
+      else onComplete();
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  function skip() { if (!isLast) setSt(s => s + 1); else onComplete(); }
+
+  return (
+    <div className="max-w-2xl mx-auto py-8">
+      <div className="text-center mb-8">
+        <div className="inline-flex items-center justify-center w-14 h-14 bg-indigo-600 rounded-2xl mb-4 shadow-lg">
+          <span className="text-white text-xl font-bold">TC</span>
+        </div>
+        <h1 className="text-2xl font-bold text-gray-900">Set Up Your Company Profile</h1>
+        <p className="text-gray-500 mt-1 text-sm">Help consultants understand your needs — takes 3 minutes.</p>
+      </div>
+
+      <OnboardingRoadmap steps={ONBOARDING_STEPS_CLIENT} current={step} />
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+
+        {/* ── Step 0: Company Info ── */}
+        {step === 0 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Company Information</h2>
+            <p className="text-sm text-gray-500 mb-5">Tell consultants about your organization.</p>
+            <Input label="Company Name *" value={companyForm.company_name}
+              onChange={e => setCompanyForm(p => ({ ...p, company_name: e.target.value }))}
+              placeholder="Acme Corporation" />
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Industry" value={companyForm.industry}
+                onChange={e => setCompanyForm(p => ({ ...p, industry: e.target.value }))}
+                placeholder="e.g. Financial Services" />
+              <Input label="Company Size" value={companyForm.company_size}
+                onChange={e => setCompanyForm(p => ({ ...p, company_size: e.target.value }))}
+                placeholder="e.g. 500–1,000 employees" />
+              <Input label="Founded Year" type="number" value={companyForm.founded_year}
+                onChange={e => setCompanyForm(p => ({ ...p, founded_year: e.target.value }))} />
+              <Input label="HQ Location" value={companyForm.hq_location}
+                onChange={e => setCompanyForm(p => ({ ...p, hq_location: e.target.value }))}
+                placeholder="City, Country" />
+            </div>
+            <Input label="Website" value={companyForm.website}
+              onChange={e => setCompanyForm(p => ({ ...p, website: e.target.value }))}
+              placeholder="https://yourcompany.com" />
+            <Textarea label="Description" value={companyForm.description}
+              onChange={e => setCompanyForm(p => ({ ...p, description: e.target.value }))}
+              placeholder="What does your company do?" />
+          </>
+        )}
+
+        {/* ── Step 1: Primary Contact ── */}
+        {step === 1 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Primary Contact</h2>
+            <p className="text-sm text-gray-500 mb-5">Who should consultants contact for this account?</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Full Name" value={contactForm.contact_name}
+                onChange={e => setContactForm(p => ({ ...p, contact_name: e.target.value }))}
+                placeholder="Jane Smith" />
+              <Input label="Title / Role" value={contactForm.contact_title}
+                onChange={e => setContactForm(p => ({ ...p, contact_title: e.target.value }))}
+                placeholder="VP of Technology" />
+              <Input label="Email" type="email" value={contactForm.contact_email}
+                onChange={e => setContactForm(p => ({ ...p, contact_email: e.target.value }))}
+                placeholder="jane@company.com" />
+              <Input label="Phone" value={contactForm.contact_phone}
+                onChange={e => setContactForm(p => ({ ...p, contact_phone: e.target.value }))}
+                placeholder="+1 555 000 0000" />
+            </div>
+          </>
+        )}
+
+        {/* ── Step 2: Consulting Preferences ── */}
+        {step === 2 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Consulting Preferences</h2>
+            <p className="text-sm text-gray-500 mb-5">Help us match you with the right consultants.</p>
+            <Input label="Annual Consulting Budget" value={prefsForm.budget}
+              onChange={e => setPrefsForm(p => ({ ...p, budget: e.target.value }))}
+              placeholder="e.g. $500K annual consulting" />
+            <Input label="Areas of Interest (comma-separated)" value={prefsForm._categories}
+              onChange={e => setPrefsForm(p => ({ ...p, _categories: e.target.value }))}
+              placeholder="Cloud, AI, ERP, Cybersecurity" />
+            <Textarea label="Additional Notes" value={prefsForm.notes}
+              onChange={e => setPrefsForm(p => ({ ...p, notes: e.target.value }))}
+              placeholder="Special requirements, compliance needs, vetting criteria…" />
+          </>
+        )}
+      </div>
+
+      {/* ── Navigation ── */}
+      <div className="flex items-center justify-between">
+        <button onClick={() => step > 0 ? setSt(s => s - 1) : null}
+          className={`px-4 py-2 text-sm border border-gray-200 rounded-xl transition-colors ${
+            step > 0 ? "text-gray-600 hover:bg-gray-50" : "invisible"}`}>
+          ← Back
+        </button>
+        <div className="flex items-center gap-3">
+          {step > 0 && (
+            <button onClick={skip} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-600">
+              Skip
+            </button>
+          )}
+          <button onClick={handleNext}
+            disabled={saving || (step === 0 && !companyForm.company_name.trim())}
+            className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors">
+            {saving ? "Saving…" : isLast ? "Complete Setup →" : "Save & Continue →"}
+          </button>
+        </div>
+      </div>
+
+      <p className="text-center text-xs text-gray-400 mt-4">
+        <button onClick={onComplete} className="hover:text-gray-600 underline underline-offset-2">
+          Skip all and go to dashboard
+        </button>
+      </p>
+    </div>
+  );
+}
+
+// ============================================================
+// MANAGER / ADMIN WELCOME SCREEN
+// ============================================================
+function ManagerAdminWelcomeView({ auth, onComplete }) {
+  const roleInfo = {
+    manager: {
+      icon: "📋",
+      title: "Welcome, Manager!",
+      desc: "You have full access to manage cases, assign consultants, review the kanban board, configure SLAs, and run reports.",
+      highlights: ["Create & manage cases", "Assign consultants", "Track progress on Kanban", "Configure SLA rules", "Generate reports"],
+    },
+    admin: {
+      icon: "⚙️",
+      title: "Welcome, Administrator!",
+      desc: "You have complete platform access including user management, all cases, system configuration, and reporting.",
+      highlights: ["Manage all users & roles", "Full case oversight", "Configure system settings", "DB connections", "Arena & leaderboard"],
+    },
+  };
+  const info = roleInfo[auth.role] ?? roleInfo.manager;
+
+  return (
+    <div className="max-w-lg mx-auto py-16 text-center">
+      <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-6 shadow-lg text-3xl">
+        {info.icon}
+      </div>
+      <h1 className="text-2xl font-bold text-gray-900 mb-2">{info.title}</h1>
+      <p className="text-gray-500 text-sm mb-8">{info.desc}</p>
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-8 text-left">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Your Access Includes</p>
+        <ul className="space-y-2">
+          {info.highlights.map(h => (
+            <li key={h} className="flex items-center gap-3 text-sm text-gray-700">
+              <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-bold flex-shrink-0">✓</span>
+              {h}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <button onClick={onComplete}
+        className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-colors shadow">
+        Go to Dashboard →
+      </button>
+    </div>
+  );
+}
+
+// ============================================================
 // ROOT APP
 // ============================================================
 export default function App() {
   const auth = useAuth();
-  const [activeView, setActiveView]   = useState("dashboard");
-  const [authed, setAuthed]           = useState(false);
-  const [onboarding, setOnboarding]   = useState(false);
-  const { unreadCount }               = useNotifications();
+  const [activeView, setActiveView]     = useState("dashboard");
+  const [authed, setAuthed]             = useState(false);
+  const [onboardingRole, setOnboarding] = useState(null); // role string or null
+  const { unreadCount }                 = useNotifications();
 
   // Sync authed state with auth session
   useEffect(() => {
@@ -5090,21 +5340,38 @@ export default function App() {
   }
 
   if (!authed || !auth.user) {
-    return <AuthScreen onAuth={(isNewConsultant = false) => {
+    return <AuthScreen onAuth={(newRole = null) => {
       setAuthed(true);
-      if (isNewConsultant) setOnboarding(true);
+      if (newRole) setOnboarding(newRole);
     }} />;
   }
 
-  // New consultant completing onboarding — full-screen wizard, no sidebar
-  // Don't check auth.isConsultant here: profile may not be loaded yet right after signup
-  if (onboarding && auth.user) {
+  function completeOnboarding(view = "dashboard") {
+    setOnboarding(null);
+    setActiveView(view);
+  }
+
+  // Show role-specific onboarding wizard for new signups — full-screen, no sidebar
+  if (onboardingRole && auth.user) {
+    const bg = "min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6";
+    if (onboardingRole === "consultant") {
+      return (
+        <div className={bg}>
+          <ConsultantOnboardingView auth={auth} onComplete={() => completeOnboarding("profile")} />
+        </div>
+      );
+    }
+    if (onboardingRole === "client") {
+      return (
+        <div className={bg}>
+          <ClientOnboardingView auth={auth} onComplete={() => completeOnboarding("client-profile")} />
+        </div>
+      );
+    }
+    // manager / admin — welcome screen
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
-        <ConsultantOnboardingView
-          auth={auth}
-          onComplete={() => { setOnboarding(false); setActiveView("profile"); }}
-        />
+      <div className={bg}>
+        <ManagerAdminWelcomeView auth={auth} onComplete={() => completeOnboarding("dashboard")} />
       </div>
     );
   }
@@ -5112,7 +5379,7 @@ export default function App() {
   async function handleSignOut() {
     await auth.signOut();
     setAuthed(false);
-    setOnboarding(false);
+    setOnboarding(null);
     setActiveView("dashboard");
   }
 
