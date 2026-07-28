@@ -570,38 +570,54 @@ function useFavorites() {
   return { favorites, isFavorite, toggle };
 }
 
-function useConsultantProfile(consultantId) {
+function useConsultantProfile(consultantId, profileId) {
   const [profile, setProfile]       = useState(null);
   const [availability, setAvailability] = useState(null);
   const [loading, setLoading]       = useState(true);
 
+  const resolvedId = profileId ?? consultantId;
+
   const fetchProfile = useCallback(async () => {
-    if (!consultantId) return;
+    if (!resolvedId) return;
     setLoading(true);
-    // Fetch via users table so PostgREST resolves the FK automatically,
-    // regardless of whether consultant_profiles uses id or user_id as the FK column.
-    const { data: userData } = await supabase
-      .from("users")
-      .select(`consultant_profiles(*, work_authorizations(*), consultant_customers(*),
-        consultant_projects(*), case_assignments(time_commitment, case:case_id(id, title, status)))`)
-      .eq("id", consultantId)
-      .single();
-    const cp = userData?.consultant_profiles;
-    const resolved = Array.isArray(cp) ? cp[0] : cp;
-    setProfile(resolved ?? null);
+    const { data } = await supabase.from("consultant_profiles")
+      .select(`*, work_authorizations(*), consultant_customers(*),
+        consultant_projects(*), case_assignments(time_commitment, case:case_id(id, title, status))`)
+      .eq("id", resolvedId).single();
+    setProfile(data ?? null);
     const { data: avail } = await supabase.rpc("get_consultant_availability",
-      { p_consultant_id: consultantId });
+      { p_consultant_id: resolvedId });
     setAvailability(avail);
     setLoading(false);
-  }, [consultantId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedId]);
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
   async function updateProfile(updates) {
-    // Use profile.id (the real PK of the row) not consultantId (auth user id)
-    const profileId = profile?.id ?? consultantId;
     const { error } = await supabase.from("consultant_profiles")
-      .update(updates).eq("id", profileId);
+      .update(updates).eq("id", resolvedId);
+    if (error) throw error;
+    await fetchProfile();
+  }
+
+  async function addCustomer(data) {
+    const { error } = await supabase.from("consultant_customers")
+      .insert({ ...data, consultant_id: resolvedId });
+    if (error) throw error;
+    await fetchProfile();
+  }
+
+  async function addProject(data) {
+    const { error } = await supabase.from("consultant_projects")
+      .insert({ ...data, consultant_id: resolvedId });
+    if (error) throw error;
+    await fetchProfile();
+  }
+
+  async function addWorkAuth(data) {
+    const { error } = await supabase.from("work_authorizations")
+      .insert({ ...data, consultant_id: resolvedId });
     if (error) throw error;
     await fetchProfile();
   }
@@ -615,7 +631,7 @@ function useConsultantProfile(consultantId) {
     return publicUrl;
   }
 
-  return { profile, availability, loading, updateProfile, uploadPhoto, refetch: fetchProfile };
+  return { profile, availability, loading, updateProfile, uploadPhoto, addCustomer, addProject, addWorkAuth, refetch: fetchProfile };
 }
 
 function useNotifications() {
@@ -2130,7 +2146,11 @@ function ArenaView({ auth }) {
 // CONSULTANT PROFILE VIEW
 // ============================================================
 function ProfileView({ auth }) {
-  const { profile, availability, loading, updateProfile, uploadPhoto } = useConsultantProfile(auth.user?.id);
+  // Extract the real consultant_profiles id from auth (useAuth already fetched it via FK join)
+  const cpRaw = auth.profile?.consultant_profiles;
+  const realProfileId = Array.isArray(cpRaw) ? cpRaw[0]?.id : cpRaw?.id;
+  const { profile, availability, loading, updateProfile, uploadPhoto, addCustomer, addProject, addWorkAuth } =
+    useConsultantProfile(auth.user?.id, realProfileId);
   const { ratings, avgRating } = useRatings(auth.user?.id);
   const [profileTab, setProfileTab] = useState("overview");
   const [editing, setEditing]       = useState(false);
@@ -2186,6 +2206,35 @@ function ProfileView({ auth }) {
   const freeAvail = Math.max(0, 100 - totalUsed);
 
   const tabs = ["overview", "experience", "skills", "ratings"];
+
+  const [custForm, setCustForm] = useState({ company_name: "", role_held: "", start_date: "", end_date: "", description: "" });
+  const [projForm, setProjForm] = useState({ title: "", client_name: "", url: "", description: "", _tech: "" });
+  const [authForm, setAuthForm] = useState({ country_name: "", country_code: "", auth_type: "citizen" });
+  const [savingExp, setSavingExp] = useState(false);
+
+  async function handleAddCustomer() {
+    setSavingExp(true);
+    try { await addCustomer(custForm); setCustForm({ company_name: "", role_held: "", start_date: "", end_date: "", description: "" }); }
+    catch (e) { alert(e.message); }
+    setSavingExp(false);
+  }
+
+  async function handleAddProject() {
+    setSavingExp(true);
+    try {
+      const { _tech, ...rest } = projForm;
+      await addProject({ ...rest, tech_stack: _tech.split(",").map(s => s.trim()).filter(Boolean) });
+      setProjForm({ title: "", client_name: "", url: "", description: "", _tech: "" });
+    } catch (e) { alert(e.message); }
+    setSavingExp(false);
+  }
+
+  async function handleAddWorkAuth() {
+    setSavingExp(true);
+    try { await addWorkAuth(authForm); setAuthForm({ country_name: "", country_code: "", auth_type: "citizen" }); }
+    catch (e) { alert(e.message); }
+    setSavingExp(false);
+  }
 
   return (
     <div>
@@ -2363,85 +2412,125 @@ function ProfileView({ auth }) {
       )}
 
       {profileTab === "experience" && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <h3 className="font-semibold text-gray-900 mb-4">Past Customers</h3>
-          {(profile?.consultant_customers?.length ?? 0) === 0 ? (
-            <p className="text-sm text-gray-400">No customers added yet.</p>
-          ) : (
-            <div className="space-y-3">
-              {profile?.consultant_customers?.map(c => (
-                <div key={c.id} className="border border-gray-100 rounded-xl p-4">
-                  <div className="font-medium text-gray-900">{c.company_name}</div>
-                  {c.role_held && <div className="text-sm text-gray-500">{c.role_held}</div>}
-                  {(c.start_date || c.end_date) && (
-                    <div className="text-xs text-gray-400 mt-1">
-                      {fmtDate(c.start_date)} – {c.end_date ? fmtDate(c.end_date) : "Present"}
+        <div className="space-y-6">
+          {/* Past Customers */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <h3 className="font-semibold text-gray-900 mb-4">Past Customers</h3>
+            {(profile?.consultant_customers?.length ?? 0) === 0
+              ? <p className="text-sm text-gray-400 mb-4">No customers added yet.</p>
+              : <div className="space-y-3 mb-4">
+                  {profile.consultant_customers.map(c => (
+                    <div key={c.id} className="border border-gray-100 rounded-xl p-4">
+                      <div className="font-medium text-gray-900">{c.company_name}</div>
+                      {c.role_held && <div className="text-sm text-gray-500">{c.role_held}</div>}
+                      {(c.start_date || c.end_date) && (
+                        <div className="text-xs text-gray-400 mt-1">
+                          {fmtDate(c.start_date)} – {c.end_date ? fmtDate(c.end_date) : "Present"}
+                        </div>
+                      )}
+                      {c.description && <p className="text-sm text-gray-600 mt-2">{c.description}</p>}
                     </div>
-                  )}
-                  {c.description && <p className="text-sm text-gray-600 mt-2">{c.description}</p>}
-                </div>
-              ))}
+                  ))}
+                </div>}
+            <div className="border-t border-gray-100 pt-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Add Customer</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Company Name" value={custForm.company_name} onChange={e => setCustForm(p => ({ ...p, company_name: e.target.value }))} />
+                <Input label="Role Held" value={custForm.role_held} onChange={e => setCustForm(p => ({ ...p, role_held: e.target.value }))} />
+                <Input label="Start Date" type="date" value={custForm.start_date} onChange={e => setCustForm(p => ({ ...p, start_date: e.target.value }))} />
+                <Input label="End Date" type="date" value={custForm.end_date} onChange={e => setCustForm(p => ({ ...p, end_date: e.target.value }))} placeholder="Leave blank if current" />
+              </div>
+              <Textarea label="Description" value={custForm.description} onChange={e => setCustForm(p => ({ ...p, description: e.target.value }))} />
+              <button onClick={handleAddCustomer} disabled={savingExp || !custForm.company_name}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                {savingExp ? "Saving…" : "+ Add Customer"}
+              </button>
             </div>
-          )}
+          </div>
 
-          <h3 className="font-semibold text-gray-900 mb-4 mt-6">Projects</h3>
-          {(profile?.consultant_projects?.length ?? 0) === 0 ? (
-            <p className="text-sm text-gray-400">No projects added yet.</p>
-          ) : (
-            <div className="space-y-3">
-              {profile?.consultant_projects?.map(p => (
-                <div key={p.id} className="border border-gray-100 rounded-xl p-4">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="font-medium text-gray-900">{p.title}</div>
-                      {p.client_name && <div className="text-xs text-gray-400">{p.client_name}</div>}
+          {/* Projects */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <h3 className="font-semibold text-gray-900 mb-4">Projects</h3>
+            {(profile?.consultant_projects?.length ?? 0) === 0
+              ? <p className="text-sm text-gray-400 mb-4">No projects added yet.</p>
+              : <div className="space-y-3 mb-4">
+                  {profile.consultant_projects.map(p => (
+                    <div key={p.id} className="border border-gray-100 rounded-xl p-4">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="font-medium text-gray-900">{p.title}</div>
+                          {p.client_name && <div className="text-xs text-gray-400">{p.client_name}</div>}
+                        </div>
+                        {p.url && <a href={p.url} target="_blank" rel="noreferrer" className="text-xs text-indigo-600 hover:underline">View →</a>}
+                      </div>
+                      {p.description && <p className="text-sm text-gray-600 mt-2">{p.description}</p>}
+                      {p.tech_stack?.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {p.tech_stack.map(s => <span key={s} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{s}</span>)}
+                        </div>
+                      )}
                     </div>
-                    {p.url && <a href={p.url} target="_blank" rel="noreferrer" className="text-xs text-indigo-600 hover:underline">View →</a>}
-                  </div>
-                  {p.description && <p className="text-sm text-gray-600 mt-2">{p.description}</p>}
-                  {p.tech_stack?.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {p.tech_stack.map(s => (
-                        <span key={s} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{s}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+                  ))}
+                </div>}
+            <div className="border-t border-gray-100 pt-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Add Project</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Title" value={projForm.title} onChange={e => setProjForm(p => ({ ...p, title: e.target.value }))} />
+                <Input label="Client Name" value={projForm.client_name} onChange={e => setProjForm(p => ({ ...p, client_name: e.target.value }))} />
+                <Input label="URL" value={projForm.url} onChange={e => setProjForm(p => ({ ...p, url: e.target.value }))} />
+                <Input label="Tech Stack (comma-separated)" value={projForm._tech} onChange={e => setProjForm(p => ({ ...p, _tech: e.target.value }))} />
+              </div>
+              <Textarea label="Description" value={projForm.description} onChange={e => setProjForm(p => ({ ...p, description: e.target.value }))} />
+              <button onClick={handleAddProject} disabled={savingExp || !projForm.title}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                {savingExp ? "Saving…" : "+ Add Project"}
+              </button>
             </div>
-          )}
+          </div>
         </div>
       )}
 
       {profileTab === "skills" && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <h3 className="font-semibold text-gray-900 mb-4">Skills</h3>
-          {(profile?.skills?.length ?? 0) === 0 ? (
-            <p className="text-sm text-gray-400">No skills added yet.</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {profile?.skills?.map(s => (
-                <span key={s} className="px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-medium">{s}</span>
-              ))}
-            </div>
-          )}
+        <div className="space-y-6">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <h3 className="font-semibold text-gray-900 mb-4">Skills</h3>
+            {(profile?.skills?.length ?? 0) === 0
+              ? <p className="text-sm text-gray-400 mb-2">No skills yet — add them via Edit Profile.</p>
+              : <div className="flex flex-wrap gap-2">{profile.skills.map(s => (
+                  <span key={s} className="px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-medium">{s}</span>
+                ))}</div>}
+            <p className="text-xs text-gray-400 mt-3">Edit skills using the comma-separated field in Edit Profile.</p>
+          </div>
 
-          <h3 className="font-semibold text-gray-900 mb-4 mt-6">Work Authorization</h3>
-          {(profile?.work_authorizations?.length ?? 0) === 0 ? (
-            <p className="text-sm text-gray-400">No work authorizations added.</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {profile?.work_authorizations?.map(w => (
-                <div key={w.id} className="border border-gray-100 rounded-xl p-3 flex items-center gap-3">
-                  <div className="text-2xl">{w.country_code === "US" ? "🇺🇸" : w.country_code === "GB" ? "🇬🇧" : "🌐"}</div>
-                  <div>
-                    <div className="text-sm font-medium">{w.country_name}</div>
-                    <div className="text-xs text-gray-400 capitalize">{fmt(w.auth_type)}</div>
-                  </div>
-                </div>
-              ))}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <h3 className="font-semibold text-gray-900 mb-4">Work Authorization</h3>
+            {(profile?.work_authorizations?.length ?? 0) === 0
+              ? <p className="text-sm text-gray-400 mb-4">No work authorizations added.</p>
+              : <div className="grid grid-cols-2 gap-3 mb-4">
+                  {profile.work_authorizations.map(w => (
+                    <div key={w.id} className="border border-gray-100 rounded-xl p-3 flex items-center gap-3">
+                      <div className="text-2xl">{w.country_code === "US" ? "🇺🇸" : w.country_code === "GB" ? "🇬🇧" : "🌐"}</div>
+                      <div>
+                        <div className="text-sm font-medium">{w.country_name}</div>
+                        <div className="text-xs text-gray-400 capitalize">{fmt(w.auth_type)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>}
+            <div className="border-t border-gray-100 pt-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Add Authorization</p>
+              <div className="grid grid-cols-3 gap-3">
+                <Input label="Country Name" value={authForm.country_name} onChange={e => setAuthForm(p => ({ ...p, country_name: e.target.value }))} />
+                <Input label="Country Code" value={authForm.country_code} onChange={e => setAuthForm(p => ({ ...p, country_code: e.target.value.toUpperCase() }))} placeholder="US" />
+                <Select label="Auth Type" value={authForm.auth_type} onChange={e => setAuthForm(p => ({ ...p, auth_type: e.target.value }))}
+                  options={[{ value: "citizen", label: "Citizen" }, { value: "permanent_resident", label: "Permanent Resident" }, { value: "work_visa", label: "Work Visa" }, { value: "other", label: "Other" }]} />
+              </div>
+              <button onClick={handleAddWorkAuth} disabled={savingExp || !authForm.country_name}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                {savingExp ? "Saving…" : "+ Add Authorization"}
+              </button>
             </div>
-          )}
+          </div>
         </div>
       )}
 
