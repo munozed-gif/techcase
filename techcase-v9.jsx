@@ -881,10 +881,11 @@ function AuthScreen({ onAuth }) {
     try {
       if (mode === "signin") {
         await auth.signIn(email, password);
+        onAuth(false);
       } else {
         await auth.signUp(email, password, name, role);
+        onAuth(role === "consultant");
       }
-      onAuth();
     } catch (e) {
       setError(e.message);
     }
@@ -4632,12 +4633,426 @@ function TimeEntriesView({ auth }) {
 }
 
 // ============================================================
+// CONSULTANT ONBOARDING WIZARD
+// ============================================================
+
+const ONBOARDING_STEPS = [
+  { id: "basics",    label: "Basic Info",          icon: "👤", desc: "Headline, bio & rates" },
+  { id: "workauth",  label: "Work Authorization",  icon: "🌍", desc: "Countries you can work in" },
+  { id: "customers", label: "Past Customers",      icon: "💼", desc: "Employer & client history" },
+  { id: "projects",  label: "Projects",            icon: "🚀", desc: "Portfolio & past work" },
+  { id: "skills",    label: "Skills",              icon: "⚡", desc: "Technical expertise" },
+];
+
+function OnboardingRoadmap({ steps, current }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-8">
+      <div className="relative flex items-start justify-between">
+        {/* Connector line behind circles */}
+        <div className="absolute top-5 left-5 right-5 h-0.5 bg-gray-200 z-0" />
+        {steps.map((s, i) => {
+          const done   = i < current;
+          const active = i === current;
+          return (
+            <div key={s.id} className="relative z-10 flex flex-col items-center flex-1 gap-2">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-bold transition-all ${
+                done   ? "bg-emerald-500 text-white shadow"
+                       : active ? "bg-indigo-600 text-white shadow-lg ring-4 ring-indigo-100"
+                                : "bg-white border-2 border-gray-200 text-gray-400"}`}>
+                {done ? "✓" : s.icon}
+              </div>
+              <div className="text-center px-1">
+                <div className={`text-xs font-semibold leading-tight ${
+                  active ? "text-indigo-600" : done ? "text-emerald-600" : "text-gray-400"}`}>
+                  {s.label}
+                </div>
+                <div className="text-xs text-gray-400 mt-0.5 hidden sm:block">{s.desc}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {/* Mini progress bar */}
+      <div className="mt-5 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <div className="h-full bg-indigo-600 rounded-full transition-all duration-500"
+          style={{ width: `${(current / (steps.length - 1)) * 100}%` }} />
+      </div>
+      <p className="text-xs text-gray-400 text-right mt-1">
+        Step {current + 1} of {steps.length}
+      </p>
+    </div>
+  );
+}
+
+function ConsultantOnboardingView({ auth, onComplete }) {
+  const { profile, loading, updateProfile, addCustomer, addProject, addWorkAuth } =
+    useConsultantProfile(auth.user?.id);
+
+  const [step, setSt]    = useState(0);
+  const [saving, setSaving] = useState(false);
+
+  const [basicsForm, setBasicsForm] = useState({
+    headline: "", bio: "", linkedin_url: "",
+    hourly_rate: "", years_experience: 0,
+    external_occupancy_pct: 0, travel_available: false,
+    expertise_level: "mid", availability_type: "project_based",
+  });
+  const [authForm, setAuthForm]   = useState({ country_name: "", country_code: "", auth_type: "citizen" });
+  const [custForm, setCustForm]   = useState({ company_name: "", role_held: "", start_date: "", end_date: "", description: "" });
+  const [projForm, setProjForm]   = useState({ title: "", client_name: "", url: "", description: "", _tech: "" });
+  const [skillInput, setSkillInput] = useState("");
+
+  useEffect(() => {
+    if (profile) {
+      setBasicsForm(f => ({
+        ...f,
+        headline:               profile.headline               ?? f.headline,
+        bio:                    profile.bio                    ?? f.bio,
+        linkedin_url:           profile.linkedin_url           ?? f.linkedin_url,
+        hourly_rate:            profile.hourly_rate            ?? f.hourly_rate,
+        years_experience:       profile.years_experience       ?? f.years_experience,
+        external_occupancy_pct: profile.external_occupancy_pct ?? f.external_occupancy_pct,
+        travel_available:       profile.travel_available       ?? f.travel_available,
+        expertise_level:        profile.expertise_level        ?? f.expertise_level,
+        availability_type:      profile.availability_type      ?? f.availability_type,
+      }));
+    }
+  }, [profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (loading) return <Spinner />;
+
+  const total  = ONBOARDING_STEPS.length;
+  const isLast = step === total - 1;
+
+  async function saveBasics() {
+    setSaving(true);
+    try {
+      await updateProfile({
+        ...basicsForm,
+        hourly_rate:            basicsForm.hourly_rate ? Number(basicsForm.hourly_rate) : null,
+        years_experience:       Number(basicsForm.years_experience) || 0,
+        external_occupancy_pct: Number(basicsForm.external_occupancy_pct) || 0,
+      });
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  async function handleNext() {
+    if (step === 0) await saveBasics();
+    if (!isLast) setSt(s => s + 1);
+    else onComplete();
+  }
+
+  function skip() {
+    if (!isLast) setSt(s => s + 1);
+    else onComplete();
+  }
+
+  async function handleAddWorkAuth() {
+    if (!authForm.country_name) return;
+    setSaving(true);
+    try { await addWorkAuth(authForm); setAuthForm({ country_name: "", country_code: "", auth_type: "citizen" }); }
+    catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  async function handleAddCustomer() {
+    if (!custForm.company_name) return;
+    setSaving(true);
+    try { await addCustomer(custForm); setCustForm({ company_name: "", role_held: "", start_date: "", end_date: "", description: "" }); }
+    catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  async function handleAddProject() {
+    if (!projForm.title) return;
+    setSaving(true);
+    try {
+      const { _tech, ...rest } = projForm;
+      await addProject({ ...rest, tech_stack: _tech.split(",").map(s => s.trim()).filter(Boolean) });
+      setProjForm({ title: "", client_name: "", url: "", description: "", _tech: "" });
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  async function handleAddSkill() {
+    const val = skillInput.trim();
+    if (!val) return;
+    setSaving(true);
+    try {
+      const current = profile?.skills ?? [];
+      if (!current.includes(val)) await updateProfile({ skills: [...current, val] });
+      setSkillInput("");
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto py-8">
+      <div className="text-center mb-8">
+        <div className="inline-flex items-center justify-center w-14 h-14 bg-indigo-600 rounded-2xl mb-4 shadow-lg">
+          <span className="text-white text-xl font-bold">TC</span>
+        </div>
+        <h1 className="text-2xl font-bold text-gray-900">Complete Your Profile</h1>
+        <p className="text-gray-500 mt-1 text-sm">Help clients find and evaluate you — takes about 5 minutes.</p>
+      </div>
+
+      <OnboardingRoadmap steps={ONBOARDING_STEPS} current={step} />
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+
+        {/* ── Step 0: Basic Info ── */}
+        {step === 0 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Basic Information</h2>
+            <p className="text-sm text-gray-500 mb-5">This is the first thing clients see about you.</p>
+            <Input label="Professional Headline *" value={basicsForm.headline}
+              onChange={e => setBasicsForm(p => ({ ...p, headline: e.target.value }))}
+              placeholder="Senior SAP Consultant & Solution Architect" />
+            <Textarea label="Bio" value={basicsForm.bio}
+              onChange={e => setBasicsForm(p => ({ ...p, bio: e.target.value }))}
+              placeholder="Tell clients about your background and expertise…" />
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Hourly Rate ($)" type="number" value={basicsForm.hourly_rate}
+                onChange={e => setBasicsForm(p => ({ ...p, hourly_rate: e.target.value }))} />
+              <Input label="Years of Experience" type="number" value={basicsForm.years_experience}
+                onChange={e => setBasicsForm(p => ({ ...p, years_experience: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Select label="Expertise Level" value={basicsForm.expertise_level}
+                onChange={e => setBasicsForm(p => ({ ...p, expertise_level: e.target.value }))}
+                options={[
+                  { value: "junior", label: "Junior" },
+                  { value: "mid",    label: "Mid-Level" },
+                  { value: "senior", label: "Senior" },
+                  { value: "lead",   label: "Lead / Principal" },
+                ]} />
+              <Select label="Availability Type" value={basicsForm.availability_type}
+                onChange={e => setBasicsForm(p => ({ ...p, availability_type: e.target.value }))}
+                options={[
+                  { value: "full_time",     label: "Full-Time" },
+                  { value: "part_time",     label: "Part-Time" },
+                  { value: "contract",      label: "Contract" },
+                  { value: "project_based", label: "Project-Based" },
+                ]} />
+            </div>
+            <Input label="LinkedIn URL" value={basicsForm.linkedin_url}
+              onChange={e => setBasicsForm(p => ({ ...p, linkedin_url: e.target.value }))}
+              placeholder="https://linkedin.com/in/yourprofile" />
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                External Occupancy: {basicsForm.external_occupancy_pct}%
+              </label>
+              <input type="range" min="0" max="100" value={basicsForm.external_occupancy_pct}
+                onChange={e => setBasicsForm(p => ({ ...p, external_occupancy_pct: Number(e.target.value) }))}
+                className="w-full accent-indigo-600" />
+            </div>
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input type="checkbox" checked={basicsForm.travel_available}
+                onChange={e => setBasicsForm(p => ({ ...p, travel_available: e.target.checked }))}
+                className="rounded accent-indigo-600" />
+              Available for travel
+            </label>
+          </>
+        )}
+
+        {/* ── Step 1: Work Authorization ── */}
+        {step === 1 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Work Authorization</h2>
+            <p className="text-sm text-gray-500 mb-5">Add the countries where you're legally authorized to work.</p>
+            {(profile?.work_authorizations?.length ?? 0) > 0 && (
+              <div className="grid grid-cols-2 gap-3 mb-5">
+                {profile.work_authorizations.map(w => (
+                  <div key={w.id} className="border border-gray-100 rounded-xl p-3 flex items-center gap-3">
+                    <span className="text-2xl">{w.country_code === "US" ? "🇺🇸" : w.country_code === "GB" ? "🇬🇧" : "🌐"}</span>
+                    <div>
+                      <div className="text-sm font-medium">{w.country_name}</div>
+                      <div className="text-xs text-gray-400 capitalize">{fmt(w.auth_type)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className={`${(profile?.work_authorizations?.length ?? 0) > 0 ? "border-t border-gray-100 pt-5" : ""}`}>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Add a Country</p>
+              <div className="grid grid-cols-3 gap-3">
+                <Input label="Country Name" value={authForm.country_name}
+                  onChange={e => setAuthForm(p => ({ ...p, country_name: e.target.value }))}
+                  placeholder="United States" />
+                <Input label="Code" value={authForm.country_code}
+                  onChange={e => setAuthForm(p => ({ ...p, country_code: e.target.value.toUpperCase() }))}
+                  placeholder="US" />
+                <Select label="Auth Type" value={authForm.auth_type}
+                  onChange={e => setAuthForm(p => ({ ...p, auth_type: e.target.value }))}
+                  options={[
+                    { value: "citizen",            label: "Citizen" },
+                    { value: "permanent_resident", label: "Perm. Resident" },
+                    { value: "work_visa",          label: "Work Visa" },
+                    { value: "other",              label: "Other" },
+                  ]} />
+              </div>
+              <button onClick={handleAddWorkAuth} disabled={saving || !authForm.country_name}
+                className="mt-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                {saving ? "Saving…" : "+ Add Country"}
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ── Step 2: Past Customers ── */}
+        {step === 2 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Past Customers</h2>
+            <p className="text-sm text-gray-500 mb-5">Add companies or clients you've worked with.</p>
+            {(profile?.consultant_customers?.length ?? 0) > 0 && (
+              <div className="space-y-3 mb-5">
+                {profile.consultant_customers.map(c => (
+                  <div key={c.id} className="border border-gray-100 rounded-xl p-4">
+                    <div className="font-medium text-gray-900">{c.company_name}</div>
+                    {c.role_held && <div className="text-sm text-gray-500">{c.role_held}</div>}
+                    {(c.start_date || c.end_date) && (
+                      <div className="text-xs text-gray-400 mt-1">
+                        {fmtDate(c.start_date)} – {c.end_date ? fmtDate(c.end_date) : "Present"}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className={`${(profile?.consultant_customers?.length ?? 0) > 0 ? "border-t border-gray-100 pt-5" : ""}`}>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Add a Customer</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Company Name" value={custForm.company_name}
+                  onChange={e => setCustForm(p => ({ ...p, company_name: e.target.value }))} />
+                <Input label="Role Held" value={custForm.role_held}
+                  onChange={e => setCustForm(p => ({ ...p, role_held: e.target.value }))} />
+                <Input label="Start Date" type="date" value={custForm.start_date}
+                  onChange={e => setCustForm(p => ({ ...p, start_date: e.target.value }))} />
+                <Input label="End Date" type="date" value={custForm.end_date}
+                  onChange={e => setCustForm(p => ({ ...p, end_date: e.target.value }))}/>
+              </div>
+              <Textarea label="Description" value={custForm.description}
+                onChange={e => setCustForm(p => ({ ...p, description: e.target.value }))} />
+              <button onClick={handleAddCustomer} disabled={saving || !custForm.company_name}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                {saving ? "Saving…" : "+ Add Customer"}
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ── Step 3: Projects ── */}
+        {step === 3 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Projects</h2>
+            <p className="text-sm text-gray-500 mb-5">Showcase portfolio projects and past deliverables.</p>
+            {(profile?.consultant_projects?.length ?? 0) > 0 && (
+              <div className="space-y-3 mb-5">
+                {profile.consultant_projects.map(p => (
+                  <div key={p.id} className="border border-gray-100 rounded-xl p-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="font-medium text-gray-900">{p.title}</div>
+                        {p.client_name && <div className="text-xs text-gray-400">{p.client_name}</div>}
+                      </div>
+                      {p.url && <a href={p.url} target="_blank" rel="noreferrer" className="text-xs text-indigo-600 hover:underline">View →</a>}
+                    </div>
+                    {p.tech_stack?.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {p.tech_stack.map(s => <span key={s} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{s}</span>)}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className={`${(profile?.consultant_projects?.length ?? 0) > 0 ? "border-t border-gray-100 pt-5" : ""}`}>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Add a Project</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Title" value={projForm.title}
+                  onChange={e => setProjForm(p => ({ ...p, title: e.target.value }))} />
+                <Input label="Client Name" value={projForm.client_name}
+                  onChange={e => setProjForm(p => ({ ...p, client_name: e.target.value }))} />
+                <Input label="URL" value={projForm.url}
+                  onChange={e => setProjForm(p => ({ ...p, url: e.target.value }))} />
+                <Input label="Tech Stack (comma-separated)" value={projForm._tech}
+                  onChange={e => setProjForm(p => ({ ...p, _tech: e.target.value }))} />
+              </div>
+              <Textarea label="Description" value={projForm.description}
+                onChange={e => setProjForm(p => ({ ...p, description: e.target.value }))} />
+              <button onClick={handleAddProject} disabled={saving || !projForm.title}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                {saving ? "Saving…" : "+ Add Project"}
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ── Step 4: Skills ── */}
+        {step === 4 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Skills</h2>
+            <p className="text-sm text-gray-500 mb-5">Add your technical skills and areas of expertise.</p>
+            {(profile?.skills?.length ?? 0) > 0 && (
+              <div className="flex flex-wrap gap-2 mb-5">
+                {profile.skills.map(s => (
+                  <span key={s} className="px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-medium">{s}</span>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input value={skillInput} onChange={e => setSkillInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAddSkill(); } }}
+                placeholder="e.g. SAP S/4HANA, React, Python…"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <button onClick={handleAddSkill} disabled={saving || !skillInput.trim()}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                {saving ? "…" : "+ Add"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── Navigation ── */}
+      <div className="flex items-center justify-between">
+        <button onClick={() => step > 0 ? setSt(s => s - 1) : null}
+          className={`px-4 py-2 text-sm border border-gray-200 rounded-xl transition-colors ${
+            step > 0 ? "text-gray-600 hover:bg-gray-50 hover:text-gray-900" : "invisible"}`}>
+          ← Back
+        </button>
+        <div className="flex items-center gap-3">
+          {step > 0 && (
+            <button onClick={skip} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-600">
+              Skip
+            </button>
+          )}
+          <button onClick={handleNext}
+            disabled={saving || (step === 0 && !basicsForm.headline.trim())}
+            className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors">
+            {saving ? "Saving…" : isLast ? "Complete Profile →" : step === 0 ? "Save & Continue →" : "Continue →"}
+          </button>
+        </div>
+      </div>
+
+      <p className="text-center text-xs text-gray-400 mt-4">
+        <button onClick={onComplete} className="hover:text-gray-600 underline underline-offset-2">
+          Skip all and go to profile
+        </button>
+      </p>
+    </div>
+  );
+}
+
+// ============================================================
 // ROOT APP
 // ============================================================
 export default function App() {
   const auth = useAuth();
   const [activeView, setActiveView]   = useState("dashboard");
   const [authed, setAuthed]           = useState(false);
+  const [onboarding, setOnboarding]   = useState(false);
   const { unreadCount }               = useNotifications();
 
   // Sync authed state with auth session
@@ -4654,12 +5069,28 @@ export default function App() {
   }
 
   if (!authed || !auth.user) {
-    return <AuthScreen onAuth={() => setAuthed(true)} />;
+    return <AuthScreen onAuth={(isNewConsultant = false) => {
+      setAuthed(true);
+      if (isNewConsultant) setOnboarding(true);
+    }} />;
+  }
+
+  // New consultant completing onboarding — full-screen wizard, no sidebar
+  if (onboarding && auth.isConsultant) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
+        <ConsultantOnboardingView
+          auth={auth}
+          onComplete={() => { setOnboarding(false); setActiveView("profile"); }}
+        />
+      </div>
+    );
   }
 
   async function handleSignOut() {
     await auth.signOut();
     setAuthed(false);
+    setOnboarding(false);
     setActiveView("dashboard");
   }
 
