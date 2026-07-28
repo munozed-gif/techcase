@@ -595,9 +595,16 @@ function useConsultantProfile(consultantId, profileId) {
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
   async function updateProfile(updates) {
-    const { error } = await supabase.from("consultant_profiles")
-      .update(updates).eq("id", resolvedId);
+    // Strategy 1: update by resolvedId
+    const { error, count } = await supabase.from("consultant_profiles")
+      .update(updates).eq("id", resolvedId).select("id", { count: "exact", head: true });
     if (error) throw error;
+    if (count === 0) {
+      // Strategy 2: insert new row (first-time save)
+      const { error: ie } = await supabase.from("consultant_profiles")
+        .insert({ id: resolvedId, ...updates });
+      if (ie) throw new Error(`Save failed: ${ie.message}. Check RLS policies on consultant_profiles.`);
+    }
     await fetchProfile();
   }
 
@@ -2202,6 +2209,16 @@ function ProfileView({ auth }) {
 
   if (loading) return <Spinner />;
 
+  // Temporary debug — shows IDs to diagnose profile save issue
+  const debugPanel = (
+    <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-3 mb-4 text-xs font-mono space-y-1">
+      <div><strong>auth.user.id:</strong> {auth.user?.id ?? "null"}</div>
+      <div><strong>realProfileId:</strong> {realProfileId ?? "null"}</div>
+      <div><strong>profile?.id:</strong> {profile?.id ?? "null"}</div>
+      <div><strong>profile?.headline:</strong> {profile?.headline ?? "null"}</div>
+    </div>
+  );
+
   // Availability breakdown
   const activeCaseCommitment = profile?.case_assignments
     ?.filter(a => ["open","in_progress"].includes(a.case?.status))
@@ -2238,6 +2255,7 @@ function ProfileView({ auth }) {
 
   return (
     <div>
+      {debugPanel}
       {/* Profile Header */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
         <div className="flex items-start gap-5">
@@ -2495,11 +2513,28 @@ function ProfileView({ auth }) {
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <h3 className="font-semibold text-gray-900 mb-4">Skills</h3>
             {(profile?.skills?.length ?? 0) === 0
-              ? <p className="text-sm text-gray-400 mb-2">No skills yet — add them via Edit Profile.</p>
-              : <div className="flex flex-wrap gap-2">{profile.skills.map(s => (
+              ? <p className="text-sm text-gray-400 mb-4">No skills added yet.</p>
+              : <div className="flex flex-wrap gap-2 mb-4">{profile.skills.map(s => (
                   <span key={s} className="px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-medium">{s}</span>
                 ))}</div>}
-            <p className="text-xs text-gray-400 mt-3">Edit skills using the comma-separated field in Edit Profile.</p>
+            <div className="flex gap-2 mt-2">
+              <input id="new-skill-input" placeholder="Add a skill…"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <button disabled={savingExp} onClick={async () => {
+                const input = document.getElementById("new-skill-input");
+                const val = input?.value?.trim();
+                if (!val) return;
+                setSavingExp(true);
+                try {
+                  const current = profile?.skills ?? [];
+                  if (!current.includes(val)) await updateProfile({ skills: [...current, val] });
+                  input.value = "";
+                } catch (e) { alert(e.message); }
+                setSavingExp(false);
+              }} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                {savingExp ? "…" : "+ Add"}
+              </button>
+            </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
