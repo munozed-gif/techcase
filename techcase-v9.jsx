@@ -2195,6 +2195,11 @@ function ProfileView({ auth }) {
     try { await uploadPhoto(file); } catch (e) { alert(e.message); }
   }
 
+  const [custForm, setCustForm] = useState({ company_name: "", role_held: "", start_date: "", end_date: "", description: "" });
+  const [projForm, setProjForm] = useState({ title: "", client_name: "", url: "", description: "", _tech: "" });
+  const [authForm, setAuthForm] = useState({ country_name: "", country_code: "", auth_type: "citizen" });
+  const [savingExp, setSavingExp] = useState(false);
+
   if (loading) return <Spinner />;
 
   // Availability breakdown
@@ -2206,11 +2211,6 @@ function ProfileView({ auth }) {
   const freeAvail = Math.max(0, 100 - totalUsed);
 
   const tabs = ["overview", "experience", "skills", "ratings"];
-
-  const [custForm, setCustForm] = useState({ company_name: "", role_held: "", start_date: "", end_date: "", description: "" });
-  const [projForm, setProjForm] = useState({ title: "", client_name: "", url: "", description: "", _tech: "" });
-  const [authForm, setAuthForm] = useState({ country_name: "", country_code: "", auth_type: "citizen" });
-  const [savingExp, setSavingExp] = useState(false);
 
   async function handleAddCustomer() {
     setSavingExp(true);
