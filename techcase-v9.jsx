@@ -337,12 +337,33 @@ function useAuth() {
   }, []);
 
   async function fetchProfile(userId) {
-    const { data } = await supabase
+    let { data } = await supabase
       .from("users")
       .select("*, consultant_profiles(*), client_profiles(*)")
       .eq("id", userId)
       .single();
-    setProfile(data);
+
+    if (!data) {
+      // Trigger may have failed — try creating the public.users row client-side
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const meta = user.user_metadata ?? {};
+        await supabase.from("users").insert({
+          id: user.id,
+          email: user.email,
+          full_name: meta.full_name || user.email.split("@")[0],
+          role: meta.role || "consultant",
+        });
+        const { data: retry } = await supabase
+          .from("users")
+          .select("*, consultant_profiles(*), client_profiles(*)")
+          .eq("id", userId)
+          .single();
+        data = retry;
+      }
+    }
+
+    setProfile(data ?? null);
     setLoading(false);
   }
 
@@ -5076,7 +5097,8 @@ export default function App() {
   }
 
   // New consultant completing onboarding — full-screen wizard, no sidebar
-  if (onboarding && auth.isConsultant) {
+  // Don't check auth.isConsultant here: profile may not be loaded yet right after signup
+  if (onboarding && auth.user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
         <ConsultantOnboardingView
