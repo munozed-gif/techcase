@@ -595,15 +595,14 @@ function useConsultantProfile(consultantId, profileId) {
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
   async function updateProfile(updates) {
-    // Strategy 1: update by resolvedId
-    const { error, count } = await supabase.from("consultant_profiles")
-      .update(updates).eq("id", resolvedId).select("id", { count: "exact", head: true });
+    const { data: updated, error } = await supabase.from("consultant_profiles")
+      .update(updates).eq("id", resolvedId).select("id");
     if (error) throw error;
-    if (count === 0) {
-      // Strategy 2: insert new row (first-time save)
+    if (!updated || updated.length === 0) {
+      // No row exists yet — insert for first time
       const { error: ie } = await supabase.from("consultant_profiles")
         .insert({ id: resolvedId, ...updates });
-      if (ie) throw new Error(`Save failed: ${ie.message}. Check RLS policies on consultant_profiles.`);
+      if (ie) throw new Error(`Profile create failed: ${ie.message}`);
     }
     await fetchProfile();
   }
