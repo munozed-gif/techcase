@@ -942,9 +942,7 @@ function AuthScreen({ onAuth }) {
               <Select label="Role" value={role} onChange={e => setRole(e.target.value)}
                 options={[
                   { value: "consultant", label: "Consultant" },
-                  { value: "manager",    label: "Manager" },
                   { value: "client",     label: "Client" },
-                  { value: "admin",      label: "Admin" },
                 ]} />
             </>
           )}
@@ -2844,18 +2842,20 @@ function NotificationsView() {
 // USERS ADMIN VIEW
 // ============================================================
 function UsersView() {
-  const [users, setUsers]   = useState([]);
+  const [users, setUsers]     = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [addForm, setAddForm] = useState({ full_name: "", email: "", role: "manager", password: "" });
+  const [adding, setAdding]   = useState(false);
+  const [addError, setAddError] = useState("");
+
+  async function loadUsers() {
+    const { data } = await supabase.from("users").select("*").order("created_at", { ascending: false });
+    setUsers(data ?? []);
+  }
 
   useEffect(() => {
-    (async () => {
-      const { data } = await supabase
-        .from("users")
-        .select("*")
-        .order("created_at", { ascending: false });
-      setUsers(data ?? []);
-      setLoading(false);
-    })();
+    (async () => { await loadUsers(); setLoading(false); })();
   }, []);
 
   async function toggleActive(userId, isActive) {
@@ -2863,14 +2863,93 @@ function UsersView() {
     setUsers(p => p.map(u => u.id === userId ? { ...u, is_active: !isActive } : u));
   }
 
+  async function handleCreateUser() {
+    setAddError("");
+    if (!addForm.full_name || !addForm.email || !addForm.password) {
+      setAddError("Name, email and password are required."); return;
+    }
+    setAdding(true);
+    try {
+      // Use a separate client with no session persistence so the admin stays logged in
+      const tmpClient = createClient(
+        import.meta.env.VITE_SUPABASE_URL || "",
+        import.meta.env.VITE_SUPABASE_ANON_KEY || "",
+        { auth: { persistSession: false } }
+      );
+      const { error } = await tmpClient.auth.signUp({
+        email: addForm.email,
+        password: addForm.password,
+        options: { data: { full_name: addForm.full_name, role: addForm.role } },
+      });
+      await tmpClient.auth.signOut();
+      if (error) throw error;
+      await loadUsers();
+      setShowAdd(false);
+      setAddForm({ full_name: "", email: "", role: "manager", password: "" });
+    } catch (e) {
+      setAddError(e.message || JSON.stringify(e));
+    }
+    setAdding(false);
+  }
+
   if (loading) return <Spinner />;
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Users</h1>
-        <p className="text-gray-500 text-sm mt-1">{users.length} total users</p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Users</h1>
+          <p className="text-gray-500 text-sm mt-1">{users.length} total users</p>
+        </div>
+        <button onClick={() => { setShowAdd(true); setAddError(""); }}
+          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors">
+          + Add User
+        </button>
       </div>
+
+      {/* Add User Modal */}
+      {showAdd && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-semibold text-gray-900">Create User Account</h2>
+              <button onClick={() => setShowAdd(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-xs text-amber-800">
+              This form creates Manager and Admin accounts. Consultant and Client users self-register.
+            </div>
+            <Input label="Full Name" value={addForm.full_name}
+              onChange={e => setAddForm(p => ({ ...p, full_name: e.target.value }))}
+              placeholder="Jane Smith" />
+            <Input label="Email" type="email" value={addForm.email}
+              onChange={e => setAddForm(p => ({ ...p, email: e.target.value }))}
+              placeholder="jane@company.com" />
+            <Select label="Role" value={addForm.role}
+              onChange={e => setAddForm(p => ({ ...p, role: e.target.value }))}
+              options={[
+                { value: "manager",    label: "Manager" },
+                { value: "admin",      label: "Admin" },
+                { value: "consultant", label: "Consultant" },
+                { value: "client",     label: "Client" },
+              ]} />
+            <Input label="Temporary Password" type="password" value={addForm.password}
+              onChange={e => setAddForm(p => ({ ...p, password: e.target.value }))}
+              placeholder="Min. 6 characters" />
+            {addError && (
+              <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{addError}</div>
+            )}
+            <div className="flex justify-end gap-3 mt-2">
+              <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">
+                Cancel
+              </button>
+              <button onClick={handleCreateUser} disabled={adding}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                {adding ? "Creating…" : "Create Account"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <table className="w-full text-sm">
