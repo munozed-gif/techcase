@@ -887,7 +887,7 @@ function AuthScreen({ onAuth }) {
         onAuth(role === "consultant");
       }
     } catch (e) {
-      setError(e.message);
+      setError(e.message || JSON.stringify(e) || "Signup failed. Check the browser console for details.");
     }
     setLoading(false);
   }
