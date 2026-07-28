@@ -2231,9 +2231,10 @@ function ProfileView({ auth }) {
     </div>
   );
 
-  // Availability breakdown (case_assignments fetched separately via RPC)
+  // Availability breakdown
+  const activeCaseCommitment = 0; // case_assignments removed from join; RPC provides totals
   const extOccupancy = profile?.external_occupancy_pct ?? 0;
-  const totalUsed = Math.min(100, extOccupancy);
+  const totalUsed = Math.min(100, activeCaseCommitment + extOccupancy);
   const freeAvail = Math.max(0, 100 - totalUsed);
 
   const tabs = ["overview", "experience", "skills", "ratings"];
