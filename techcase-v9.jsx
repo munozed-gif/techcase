@@ -593,26 +593,10 @@ function useConsultantProfile(consultantId) {
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
   async function updateProfile(updates) {
-    const { data, error } = await supabase.from("consultant_profiles")
-      .update(updates)
-      .eq("id", consultantId)
-      .select()
-      .single();
+    const { error } = await supabase.from("consultant_profiles")
+      .update(updates).eq("id", consultantId);
     if (error) throw error;
-    if (!data) {
-      // Row may not exist yet — insert it
-      const { data: inserted, error: insertError } = await supabase
-        .from("consultant_profiles")
-        .insert({ id: consultantId, ...updates })
-        .select()
-        .single();
-      if (insertError) throw insertError;
-      if (!inserted) throw new Error("Profile save failed silently — check RLS policies on consultant_profiles in Supabase.");
-      setProfile(prev => ({ ...prev, ...inserted }));
-      return inserted;
-    }
-    setProfile(prev => ({ ...prev, ...data }));
-    return data;
+    await fetchProfile();
   }
 
   async function uploadPhoto(file) {
@@ -3480,13 +3464,12 @@ function useClientProfile(userId) {
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
   async function updateProfile(updates) {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("client_profiles")
-      .upsert({ id: userId, ...updates, updated_at: new Date().toISOString() })
-      .select().single();
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq("id", userId);
     if (error) throw error;
-    setProfile(data);
-    return data;
+    await fetchProfile();
   }
 
   return { profile, loading, updateProfile, refetch: fetchProfile };
