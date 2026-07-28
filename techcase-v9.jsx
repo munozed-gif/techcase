@@ -574,17 +574,29 @@ function useConsultantProfile(consultantId, profileId) {
   const [profile, setProfile]       = useState(null);
   const [availability, setAvailability] = useState(null);
   const [loading, setLoading]       = useState(true);
+  const [profileError, setProfileError] = useState(null);
 
   const resolvedId = profileId ?? consultantId;
 
   const fetchProfile = useCallback(async () => {
     if (!resolvedId) return;
     setLoading(true);
-    const { data } = await supabase.from("consultant_profiles")
-      .select(`*, work_authorizations(*), consultant_customers(*),
-        consultant_projects(*), case_assignments(time_commitment, case:case_id(id, title, status))`)
-      .eq("id", resolvedId).single();
-    setProfile(data ?? null);
+    setProfileError(null);
+
+    // Avoid the case_assignments nested join — it requires a FK from case_assignments
+    // to consultant_profiles which may not exist. Fetch core + safe related tables only.
+    const { data, error } = await supabase.from("consultant_profiles")
+      .select(`*, work_authorizations(*), consultant_customers(*), consultant_projects(*)`)
+      .eq("id", resolvedId)
+      .maybeSingle();
+
+    if (error) {
+      setProfileError(error.message);
+      console.error("fetchProfile error:", error.message);
+    } else {
+      setProfile(data ?? null);
+    }
+
     const { data: avail } = await supabase.rpc("get_consultant_availability",
       { p_consultant_id: resolvedId });
     setAvailability(avail);
@@ -637,7 +649,7 @@ function useConsultantProfile(consultantId, profileId) {
     return publicUrl;
   }
 
-  return { profile, availability, loading, updateProfile, uploadPhoto, addCustomer, addProject, addWorkAuth, refetch: fetchProfile };
+  return { profile, availability, loading, profileError, updateProfile, uploadPhoto, addCustomer, addProject, addWorkAuth, refetch: fetchProfile };
 }
 
 function useNotifications() {
@@ -2155,7 +2167,7 @@ function ProfileView({ auth }) {
   // Extract the real consultant_profiles id from auth (useAuth already fetched it via FK join)
   const cpRaw = auth.profile?.consultant_profiles;
   const realProfileId = Array.isArray(cpRaw) ? cpRaw[0]?.id : cpRaw?.id;
-  const { profile, availability, loading, updateProfile, uploadPhoto, addCustomer, addProject, addWorkAuth } =
+  const { profile, availability, loading, profileError, updateProfile, uploadPhoto, addCustomer, addProject, addWorkAuth } =
     useConsultantProfile(auth.user?.id, realProfileId);
   const { ratings, avgRating } = useRatings(auth.user?.id);
   const [profileTab, setProfileTab] = useState("overview");
@@ -2208,22 +2220,20 @@ function ProfileView({ auth }) {
 
   if (loading) return <Spinner />;
 
-  // Temporary debug — shows IDs to diagnose profile save issue
+  // Temporary debug — shows IDs and any fetch error to diagnose profile save issue
   const debugPanel = (
     <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-3 mb-4 text-xs font-mono space-y-1">
       <div><strong>auth.user.id:</strong> {auth.user?.id ?? "null"}</div>
       <div><strong>realProfileId:</strong> {realProfileId ?? "null"}</div>
       <div><strong>profile?.id:</strong> {profile?.id ?? "null"}</div>
       <div><strong>profile?.headline:</strong> {profile?.headline ?? "null"}</div>
+      {profileError && <div className="text-red-600"><strong>fetchError:</strong> {profileError}</div>}
     </div>
   );
 
-  // Availability breakdown
-  const activeCaseCommitment = profile?.case_assignments
-    ?.filter(a => ["open","in_progress"].includes(a.case?.status))
-    ?.reduce((sum, a) => sum + (a.time_commitment ?? 0), 0) ?? 0;
+  // Availability breakdown (case_assignments fetched separately via RPC)
   const extOccupancy = profile?.external_occupancy_pct ?? 0;
-  const totalUsed = Math.min(100, activeCaseCommitment + extOccupancy);
+  const totalUsed = Math.min(100, extOccupancy);
   const freeAvail = Math.max(0, 100 - totalUsed);
 
   const tabs = ["overview", "experience", "skills", "ratings"];
