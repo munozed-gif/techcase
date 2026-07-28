@@ -578,12 +578,17 @@ function useConsultantProfile(consultantId) {
   const fetchProfile = useCallback(async () => {
     if (!consultantId) return;
     setLoading(true);
-    const { data } = await supabase.from("consultant_profiles")
-      .select(`*, user:id(full_name, email, avatar_url),
-        work_authorizations(*), consultant_customers(*), consultant_projects(*),
-        case_assignments(time_commitment, case:case_id(id, title, status))`)
-      .eq("id", consultantId).single();
-    setProfile(data);
+    // Fetch via users table so PostgREST resolves the FK automatically,
+    // regardless of whether consultant_profiles uses id or user_id as the FK column.
+    const { data: userData } = await supabase
+      .from("users")
+      .select(`consultant_profiles(*, work_authorizations(*), consultant_customers(*),
+        consultant_projects(*), case_assignments(time_commitment, case:case_id(id, title, status)))`)
+      .eq("id", consultantId)
+      .single();
+    const cp = userData?.consultant_profiles;
+    const resolved = Array.isArray(cp) ? cp[0] : cp;
+    setProfile(resolved ?? null);
     const { data: avail } = await supabase.rpc("get_consultant_availability",
       { p_consultant_id: consultantId });
     setAvailability(avail);
@@ -593,8 +598,10 @@ function useConsultantProfile(consultantId) {
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
   async function updateProfile(updates) {
+    // Use profile.id (the real PK of the row) not consultantId (auth user id)
+    const profileId = profile?.id ?? consultantId;
     const { error } = await supabase.from("consultant_profiles")
-      .update(updates).eq("id", consultantId);
+      .update(updates).eq("id", profileId);
     if (error) throw error;
     await fetchProfile();
   }
