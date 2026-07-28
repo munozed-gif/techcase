@@ -2220,16 +2220,6 @@ function ProfileView({ auth }) {
 
   if (loading) return <Spinner />;
 
-  // Temporary debug — shows IDs and any fetch error to diagnose profile save issue
-  const debugPanel = (
-    <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-3 mb-4 text-xs font-mono space-y-1">
-      <div><strong>auth.user.id:</strong> {auth.user?.id ?? "null"}</div>
-      <div><strong>realProfileId:</strong> {realProfileId ?? "null"}</div>
-      <div><strong>profile?.id:</strong> {profile?.id ?? "null"}</div>
-      <div><strong>profile?.headline:</strong> {profile?.headline ?? "null"}</div>
-      {profileError && <div className="text-red-600"><strong>fetchError:</strong> {profileError}</div>}
-    </div>
-  );
 
   // Availability breakdown
   const activeCaseCommitment = 0; // case_assignments removed from join; RPC provides totals
@@ -2265,7 +2255,6 @@ function ProfileView({ auth }) {
 
   return (
     <div>
-      {debugPanel}
       {/* Profile Header */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
         <div className="flex items-start gap-5">
