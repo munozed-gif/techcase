@@ -2148,17 +2148,17 @@ function ProfileView({ auth }) {
   const fileRef = useRef();
 
   useEffect(() => {
-    if (profile && !editing) setForm({
-      headline: profile.headline ?? "",
-      bio: profile.bio ?? "",
-      linkedin_url: profile.linkedin_url ?? "",
-      hourly_rate: profile.hourly_rate ?? "",
-      years_experience: profile.years_experience ?? 0,
-      external_occupancy_pct: profile.external_occupancy_pct ?? 0,
-      travel_available: profile.travel_available ?? false,
-      expertise_level: profile.expertise_level ?? "mid",
-      availability_type: profile.availability_type ?? "project_based",
-      _skills: profile.skills?.join(", ") ?? "",
+    if (!editing) setForm({
+      headline: profile?.headline ?? "",
+      bio: profile?.bio ?? "",
+      linkedin_url: profile?.linkedin_url ?? "",
+      hourly_rate: profile?.hourly_rate ?? "",
+      years_experience: profile?.years_experience ?? 0,
+      external_occupancy_pct: profile?.external_occupancy_pct ?? 0,
+      travel_available: profile?.travel_available ?? false,
+      expertise_level: profile?.expertise_level ?? "mid",
+      availability_type: profile?.availability_type ?? "project_based",
+      _skills: profile?.skills?.join(", ") ?? "",
     });
   }, [profile, editing]);
 
@@ -3519,22 +3519,22 @@ function ClientProfileView({ auth }) {
   const [savingSla, setSavingSla] = useState(false);
 
   useEffect(() => {
-    if (profile && !editing) setForm({
-      company_name:          profile.company_name ?? "",
-      industry:              profile.industry ?? "",
-      company_size:          profile.company_size ?? "",
-      founded_year:          profile.founded_year ?? "",
-      hq_location:           profile.hq_location ?? "",
-      website:               profile.website ?? "",
-      description:           profile.description ?? "",
-      contact_name:          profile.contact_name ?? "",
-      contact_title:         profile.contact_title ?? "",
-      contact_email:         profile.contact_email ?? "",
-      contact_phone:         profile.contact_phone ?? "",
-      linkedin_url:          profile.linkedin_url ?? "",
-      budget:                profile.budget ?? "",
-      _categories:           profile.preferred_categories?.join(", ") ?? "",
-      notes:                 profile.notes ?? "",
+    if (!editing) setForm({
+      company_name:          profile?.company_name ?? "",
+      industry:              profile?.industry ?? "",
+      company_size:          profile?.company_size ?? "",
+      founded_year:          profile?.founded_year ?? "",
+      hq_location:           profile?.hq_location ?? "",
+      website:               profile?.website ?? "",
+      description:           profile?.description ?? "",
+      contact_name:          profile?.contact_name ?? "",
+      contact_title:         profile?.contact_title ?? "",
+      contact_email:         profile?.contact_email ?? "",
+      contact_phone:         profile?.contact_phone ?? "",
+      linkedin_url:          profile?.linkedin_url ?? "",
+      budget:                profile?.budget ?? "",
+      _categories:           profile?.preferred_categories?.join(", ") ?? "",
+      notes:                 profile?.notes ?? "",
     });
   }, [profile, editing]);
 
