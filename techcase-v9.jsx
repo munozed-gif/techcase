@@ -1181,6 +1181,19 @@ function Dashboard({ auth }) {
 // CREATE CASE WIZARD
 // ============================================================
 
+function daysFromNow(n) {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+const SLA_PRESETS = [
+  { value: "standard", label: "Standard — 30 days", days: 30 },
+  { value: "express",  label: "Express — 14 days",  days: 14 },
+  { value: "critical", label: "Critical — 7 days",  days: 7 },
+  { value: "custom",   label: "Custom date",         days: null },
+];
+
 const CREATE_CASE_STEPS = [
   { id: "basics",     label: "Case Info",  icon: "📋", desc: "Title & description" },
   { id: "scope",      label: "Scope",      icon: "💰", desc: "Budget, dates & skills" },
@@ -1192,8 +1205,8 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
   const [step, setSt]       = useState(0);
   const [creating, setCreating] = useState(false);
 
-  const [basics, setBasics] = useState({ title: "", description: "", priority: "medium", status: "open" });
-  const [scope, setScope]   = useState({ budget: "", due_date: "", _skills: "", client_id: auth.isClient ? auth.user?.id : "" });
+  const [basics, setBasics] = useState({ title: "", description: "", priority: "medium" });
+  const [scope, setScope]   = useState({ budget: "", due_date: daysFromNow(30), sla: "standard", _skills: "", client_id: auth.isClient ? auth.user?.id : "" });
   const [milestones, setMs] = useState([]);
   const [mlForm, setMlForm] = useState({ title: "", due_date: "", description: "" });
   const [clients, setClients] = useState([]);
@@ -1212,9 +1225,10 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
   async function handleCreate() {
     setCreating(true);
     try {
-      const { _skills, client_id, ...rest } = scope;
+      const { _skills, client_id, sla, ...rest } = scope;
       const newCase = await createCase({
         ...basics,
+        status: "open",
         ...rest,
         budget: scope.budget ? Number(scope.budget) : null,
         skills_required: _skills.split(",").map(s => s.trim()).filter(Boolean),
@@ -1269,9 +1283,11 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
               <Select label="Priority" value={basics.priority}
                 onChange={e => setBasics(p => ({ ...p, priority: e.target.value }))}
                 options={["low","medium","high","critical"].map(s => ({ value: s, label: cap(s) }))} />
-              <Select label="Initial Status" value={basics.status}
-                onChange={e => setBasics(p => ({ ...p, status: e.target.value }))}
-                options={["open","in_progress","on_hold"].map(s => ({ value: s, label: cap(fmt(s)) }))} />
+              <div className="flex items-end pb-1">
+                <span className="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 w-full">
+                  Status: <span className="font-semibold text-indigo-600">Open</span> (set automatically)
+                </span>
+              </div>
             </div>
           </>
         )}
@@ -1300,9 +1316,30 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
               <Input label="Budget ($)" type="number" value={scope.budget}
                 onChange={e => setScope(p => ({ ...p, budget: e.target.value }))}
                 placeholder="e.g. 50000" />
-              <Input label="Due Date" type="date" value={scope.due_date}
-                onChange={e => setScope(p => ({ ...p, due_date: e.target.value }))} />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">SLA / Timeline</label>
+                <select value={scope.sla}
+                  onChange={e => {
+                    const preset = SLA_PRESETS.find(p => p.value === e.target.value);
+                    setScope(p => ({
+                      ...p,
+                      sla: e.target.value,
+                      due_date: preset?.days ? daysFromNow(preset.days) : p.due_date,
+                    }));
+                  }}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  {SLA_PRESETS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
             </div>
+            {scope.sla === "custom" ? (
+              <Input label="Custom Due Date" type="date" value={scope.due_date}
+                onChange={e => setScope(p => ({ ...p, due_date: e.target.value }))} />
+            ) : (
+              <p className="text-xs text-gray-400 -mt-1 mb-2">
+                Calculated due date: <span className="font-semibold text-gray-700">{fmtDate(scope.due_date)}</span>
+              </p>
+            )}
             <Input label="Skills Required (comma-separated)" value={scope._skills}
               onChange={e => setScope(p => ({ ...p, _skills: e.target.value }))}
               placeholder="SAP S/4HANA, ABAP, Fiori" />
@@ -1362,7 +1399,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
                 {basics.description && <p className="text-sm text-gray-500 mt-1 leading-relaxed">{basics.description}</p>}
                 <div className="flex gap-2 mt-3">
                   <Badge className={PRIORITY_COLORS[basics.priority]}>{cap(basics.priority)}</Badge>
-                  <Badge className={STATUS_COLORS[basics.status]}>{cap(fmt(basics.status))}</Badge>
+                  <Badge className={STATUS_COLORS["open"]}>Open</Badge>
                 </div>
               </div>
               <div className="border border-gray-100 rounded-xl p-4">
@@ -1372,7 +1409,13 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
                     <div><span className="text-gray-400">Budget:</span> <span className="font-medium ml-1">${Number(scope.budget).toLocaleString()}</span></div>
                   )}
                   {scope.due_date && (
-                    <div><span className="text-gray-400">Due:</span> <span className="font-medium ml-1">{fmtDate(scope.due_date)}</span></div>
+                    <div>
+                      <span className="text-gray-400">Due:</span>
+                      <span className="font-medium ml-1">{fmtDate(scope.due_date)}</span>
+                      {scope.sla !== "custom" && (
+                        <span className="ml-1 text-xs text-indigo-500">({SLA_PRESETS.find(p => p.value === scope.sla)?.label})</span>
+                      )}
+                    </div>
                   )}
                 </div>
                 {scope._skills && (
@@ -1402,6 +1445,12 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
                       ))}
                     </ul>}
               </div>
+
+              {/* Primary create button — inside the card for visibility */}
+              <button onClick={handleCreate} disabled={creating}
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-base font-bold rounded-xl disabled:opacity-50 transition-colors shadow-sm">
+                {creating ? "Creating case…" : "✓ Create Case"}
+              </button>
             </div>
           </>
         )}
