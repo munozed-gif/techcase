@@ -1446,11 +1446,13 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
                     </ul>}
               </div>
 
-              {/* Primary create button — inside the card for visibility */}
-              <button onClick={handleCreate} disabled={creating}
-                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-base font-bold rounded-xl disabled:opacity-50 transition-colors shadow-sm">
-                {creating ? "Creating case…" : "✓ Create Case"}
-              </button>
+              {/* Primary create button */}
+              <div className="pt-2">
+                <button onClick={handleCreate} disabled={creating}
+                  className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-lg font-bold rounded-2xl disabled:opacity-50 transition-all shadow-lg hover:shadow-xl ring-4 ring-indigo-100">
+                  {creating ? "⏳ Creating case…" : "✓  Create Case"}
+                </button>
+              </div>
             </div>
           </>
         )}
