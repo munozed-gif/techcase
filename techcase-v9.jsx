@@ -1652,6 +1652,10 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete }) {
   const canAddSubCase = (auth.isAdmin || auth.isManager || auth.isClient) &&
     !["completed", "cancelled"].includes(caseData.status);
 
+  const canDelete =
+    caseData.status === "open" &&
+    (auth.isAdmin || auth.isManager || (auth.isClient && caseData.client_id === auth.user?.id));
+
   async function handleApply() {
     setSubmitting(true);
     try {
@@ -1724,6 +1728,20 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete }) {
       setShowTimeForm(false);
     } catch (e) { alert(e.message); }
     setSavingTime(false);
+  }
+
+  async function handleDelete() {
+    const blockers = [];
+    if (applications.length > 0) blockers.push(`${applications.length} application(s)`);
+    if (timeEntries.length > 0)  blockers.push(`${timeEntries.length} time entr${timeEntries.length === 1 ? "y" : "ies"}`);
+    if (documents.length > 0)    blockers.push(`${documents.length} document(s)`);
+    if (subCases.length > 0)     blockers.push(`${subCases.length} sub-case(s)`);
+    if (blockers.length > 0) {
+      alert(`Cannot delete: this case has ${blockers.join(", ")}.\n\nRemove them first, or change the status to "Cancelled" instead.`);
+      return;
+    }
+    if (!window.confirm(`Permanently delete "${caseData.title}"? This cannot be undone.`)) return;
+    try { await onDelete(); } catch (e) { alert(e.message); }
   }
 
   const tabs = [
@@ -1841,12 +1859,19 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete }) {
                     → {cap(fmt(s))}
                   </button>
                 ))}
-              {auth.isAdmin && (
-                <button onClick={onDelete}
-                  className="ml-auto px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50">
-                  Delete
-                </button>
-              )}
+            </div>
+          )}
+
+          {/* Delete — visible to creator (client) or admin/manager when case is Open with no dependencies */}
+          {canDelete && (
+            <div className="border-t border-red-50 pt-4 mt-2">
+              <button onClick={handleDelete}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-xl hover:bg-red-50 transition-colors">
+                🗑 Delete Case
+              </button>
+              <p className="text-xs text-gray-400 mt-1.5">
+                Only available while the case is <strong>Open</strong> and has no applications, time entries, documents, or sub-cases.
+              </p>
             </div>
           )}
         </div>
