@@ -1446,39 +1446,32 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
                     </ul>}
               </div>
 
-              {/* Primary create button */}
-              <div className="pt-2">
-                <button onClick={handleCreate} disabled={creating}
-                  className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-lg font-bold rounded-2xl disabled:opacity-50 transition-all shadow-lg hover:shadow-xl ring-4 ring-indigo-100">
-                  {creating ? "⏳ Creating case…" : "✓  Create Case"}
-                </button>
-              </div>
             </div>
           </>
         )}
       </div>
 
-      {/* ── Navigation ── */}
-      <div className="flex items-center justify-between">
+      {/* ── Navigation — sticky so it stays visible without scrolling ── */}
+      <div className="sticky bottom-0 bg-white border-t-2 border-gray-100 shadow-xl rounded-2xl px-6 py-4 flex items-center justify-between mt-4">
         <button onClick={() => step > 0 ? setSt(s => s - 1) : onCancel()}
-          className="px-4 py-2 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">
+          className="px-5 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors font-medium">
           {step === 0 ? "✕ Cancel" : "← Back"}
         </button>
         <div className="flex items-center gap-3">
           {step === 2 && (
-            <button onClick={() => setSt(s => s + 1)} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-600">
+            <button onClick={() => setSt(s => s + 1)} className="px-4 py-2.5 text-sm text-gray-400 hover:text-gray-600 border border-gray-200 rounded-xl">
               Skip
             </button>
           )}
           {!isLast ? (
             <button onClick={() => setSt(s => s + 1)}
               disabled={step === 0 && !basics.title.trim()}
-              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors">
+              className="px-7 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
               Continue →
             </button>
           ) : (
             <button onClick={handleCreate} disabled={creating}
-              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors">
+              className="px-7 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
               {creating ? "Creating…" : "✓ Create Case"}
             </button>
           )}
