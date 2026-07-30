@@ -1695,8 +1695,9 @@ function CasesView({ auth }) {
   const [selectedCase, setSelected]   = useState(null);
   const [showCreate, setShowCreate]   = useState(false);
   const [applyingToCase, setApplying] = useState(null);
-  const [showFavOnly, setShowFavOnly] = useState(false);
-  const { isFavorite, toggle }      = useFavorites();
+  const [showFavOnly, setShowFavOnly]   = useState(false);
+  const [showMyCasesOnly, setMyOnly]    = useState(false);
+  const { isFavorite, toggle }          = useFavorites();
 
   const { cases, loading, createCase, updateCase, deleteCase } = useCases({
     status: statusFilter || undefined,
@@ -1704,10 +1705,12 @@ function CasesView({ auth }) {
     client_id: auth.isClient ? auth.user?.id : undefined,
   });
 
-  const visibleCases = auth.isConsultant
-    ? cases.filter(c => c.case_assignments?.some(a => a.consultant_id === auth.user?.id))
-    : cases;
-
+  // Consultants see ALL cases by default so they can browse and apply.
+  // "My Cases" toggle narrows to only their assigned ones.
+  let visibleCases = cases;
+  if (auth.isConsultant && showMyCasesOnly) {
+    visibleCases = cases.filter(c => c.case_assignments?.some(a => a.consultant_id === auth.user?.id));
+  }
   const displayed = showFavOnly ? visibleCases.filter(c => isFavorite(c.id)) : visibleCases;
 
   async function handleStatusChange(caseId, status) {
@@ -1772,12 +1775,20 @@ function CasesView({ auth }) {
           ))}
         </select>
         {auth.isConsultant && (
-          <button onClick={() => setShowFavOnly(p => !p)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
-              showFavOnly ? "bg-yellow-50 border-yellow-300 text-yellow-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"
-            }`}>
-            {showFavOnly ? "★ Saved" : "☆ Saved"}
-          </button>
+          <>
+            <button onClick={() => setMyOnly(p => !p)}
+              className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
+                showMyCasesOnly ? "bg-indigo-50 border-indigo-300 text-indigo-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"
+              }`}>
+              {showMyCasesOnly ? "👤 My Cases" : "👤 My Cases"}
+            </button>
+            <button onClick={() => setShowFavOnly(p => !p)}
+              className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
+                showFavOnly ? "bg-yellow-50 border-yellow-300 text-yellow-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"
+              }`}>
+              {showFavOnly ? "★ Saved" : "☆ Saved"}
+            </button>
+          </>
         )}
       </div>
 
