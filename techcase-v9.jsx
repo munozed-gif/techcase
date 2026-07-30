@@ -1178,6 +1178,266 @@ function Dashboard({ auth }) {
 }
 
 // ============================================================
+// CREATE CASE WIZARD
+// ============================================================
+
+const CREATE_CASE_STEPS = [
+  { id: "basics",     label: "Case Info",  icon: "📋", desc: "Title & description" },
+  { id: "scope",      label: "Scope",      icon: "💰", desc: "Budget, dates & skills" },
+  { id: "milestones", label: "Milestones", icon: "🏁", desc: "Key deliverables" },
+  { id: "review",     label: "Review",     icon: "✅", desc: "Confirm & create" },
+];
+
+function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
+  const [step, setSt]       = useState(0);
+  const [creating, setCreating] = useState(false);
+
+  const [basics, setBasics] = useState({ title: "", description: "", priority: "medium", status: "open" });
+  const [scope, setScope]   = useState({ budget: "", due_date: "", _skills: "", client_id: auth.isClient ? auth.user?.id : "" });
+  const [milestones, setMs] = useState([]);
+  const [mlForm, setMlForm] = useState({ title: "", due_date: "", description: "" });
+  const [clients, setClients] = useState([]);
+
+  useEffect(() => {
+    if (auth.isAdmin || auth.isManager) {
+      supabase.from("users")
+        .select("id, full_name, client_profiles(company_name)")
+        .eq("role", "client")
+        .then(({ data }) => setClients(data ?? []));
+    }
+  }, []);
+
+  const isLast = step === CREATE_CASE_STEPS.length - 1;
+
+  async function handleCreate() {
+    setCreating(true);
+    try {
+      const { _skills, client_id, ...rest } = scope;
+      const newCase = await createCase({
+        ...basics,
+        ...rest,
+        budget: scope.budget ? Number(scope.budget) : null,
+        skills_required: _skills.split(",").map(s => s.trim()).filter(Boolean),
+        client_id:  auth.isClient  ? auth.user?.id : client_id || null,
+        manager_id: auth.isManager ? auth.user?.id : null,
+      });
+      if (milestones.length > 0 && newCase?.id) {
+        await supabase.from("case_milestones").insert(
+          milestones.map(m => ({ ...m, case_id: newCase.id }))
+        );
+      }
+      onComplete(newCase?.id);
+    } catch (e) { alert(e.message); }
+    setCreating(false);
+  }
+
+  function addMilestone() {
+    if (!mlForm.title.trim()) return;
+    setMs(p => [...p, mlForm]);
+    setMlForm({ title: "", due_date: "", description: "" });
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto py-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">New Case</h1>
+          <p className="text-gray-500 text-sm mt-0.5">Walk through each step to set up your case.</p>
+        </div>
+        <button onClick={onCancel}
+          className="text-sm text-gray-400 hover:text-gray-600 border border-gray-200 px-3 py-1.5 rounded-xl hover:bg-gray-50">
+          ✕ Cancel
+        </button>
+      </div>
+
+      <OnboardingRoadmap steps={CREATE_CASE_STEPS} current={step} />
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+
+        {/* ── Step 0: Case Info ── */}
+        {step === 0 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Case Information</h2>
+            <p className="text-sm text-gray-500 mb-5">Describe what this case is about.</p>
+            <Input label="Title *" value={basics.title}
+              onChange={e => setBasics(p => ({ ...p, title: e.target.value }))}
+              placeholder="e.g. SAP S/4HANA Migration" />
+            <Textarea label="Description" value={basics.description}
+              onChange={e => setBasics(p => ({ ...p, description: e.target.value }))}
+              placeholder="Describe the requirements, objectives and deliverables…" />
+            <div className="grid grid-cols-2 gap-3">
+              <Select label="Priority" value={basics.priority}
+                onChange={e => setBasics(p => ({ ...p, priority: e.target.value }))}
+                options={["low","medium","high","critical"].map(s => ({ value: s, label: cap(s) }))} />
+              <Select label="Initial Status" value={basics.status}
+                onChange={e => setBasics(p => ({ ...p, status: e.target.value }))}
+                options={["open","in_progress","on_hold"].map(s => ({ value: s, label: cap(fmt(s)) }))} />
+            </div>
+          </>
+        )}
+
+        {/* ── Step 1: Scope ── */}
+        {step === 1 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Scope & Budget</h2>
+            <p className="text-sm text-gray-500 mb-5">Set the budget, timeline and required expertise.</p>
+            {(auth.isAdmin || auth.isManager) && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
+                <select value={scope.client_id}
+                  onChange={e => setScope(p => ({ ...p, client_id: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="">— Select client —</option>
+                  {clients.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.client_profiles?.company_name || c.full_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Budget ($)" type="number" value={scope.budget}
+                onChange={e => setScope(p => ({ ...p, budget: e.target.value }))}
+                placeholder="e.g. 50000" />
+              <Input label="Due Date" type="date" value={scope.due_date}
+                onChange={e => setScope(p => ({ ...p, due_date: e.target.value }))} />
+            </div>
+            <Input label="Skills Required (comma-separated)" value={scope._skills}
+              onChange={e => setScope(p => ({ ...p, _skills: e.target.value }))}
+              placeholder="SAP S/4HANA, ABAP, Fiori" />
+          </>
+        )}
+
+        {/* ── Step 2: Milestones ── */}
+        {step === 2 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Milestones</h2>
+            <p className="text-sm text-gray-500 mb-5">Define key deliverables. You can skip and add them later from the case detail.</p>
+            {milestones.length > 0 && (
+              <div className="space-y-2 mb-5">
+                {milestones.map((m, i) => (
+                  <div key={i} className="flex items-center justify-between border border-gray-100 rounded-xl px-4 py-3">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{m.title}</div>
+                      {m.due_date && <div className="text-xs text-gray-400 mt-0.5">{fmtDate(m.due_date)}</div>}
+                      {m.description && <div className="text-xs text-gray-400">{m.description}</div>}
+                    </div>
+                    <button onClick={() => setMs(p => p.filter((_, j) => j !== i))}
+                      className="text-xs text-red-400 hover:text-red-600 ml-4">Remove</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className={milestones.length > 0 ? "border-t border-gray-100 pt-5" : ""}>
+              {milestones.length > 0 && (
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Add Another</p>
+              )}
+              <Input label="Milestone Title" value={mlForm.title}
+                onChange={e => setMlForm(p => ({ ...p, title: e.target.value }))}
+                placeholder="e.g. Discovery & Requirements" />
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Due Date" type="date" value={mlForm.due_date}
+                  onChange={e => setMlForm(p => ({ ...p, due_date: e.target.value }))} />
+              </div>
+              <Textarea label="Notes (optional)" value={mlForm.description}
+                onChange={e => setMlForm(p => ({ ...p, description: e.target.value }))} />
+              <button onClick={addMilestone} disabled={!mlForm.title.trim()}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                + Add Milestone
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ── Step 3: Review ── */}
+        {step === 3 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Review & Create</h2>
+            <p className="text-sm text-gray-500 mb-5">Confirm everything looks right.</p>
+            <div className="space-y-4">
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Case Info</p>
+                <p className="font-semibold text-gray-900 text-base">{basics.title}</p>
+                {basics.description && <p className="text-sm text-gray-500 mt-1 leading-relaxed">{basics.description}</p>}
+                <div className="flex gap-2 mt-3">
+                  <Badge className={PRIORITY_COLORS[basics.priority]}>{cap(basics.priority)}</Badge>
+                  <Badge className={STATUS_COLORS[basics.status]}>{cap(fmt(basics.status))}</Badge>
+                </div>
+              </div>
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Scope</p>
+                <div className="grid grid-cols-2 gap-y-2 text-sm">
+                  {scope.budget && (
+                    <div><span className="text-gray-400">Budget:</span> <span className="font-medium ml-1">${Number(scope.budget).toLocaleString()}</span></div>
+                  )}
+                  {scope.due_date && (
+                    <div><span className="text-gray-400">Due:</span> <span className="font-medium ml-1">{fmtDate(scope.due_date)}</span></div>
+                  )}
+                </div>
+                {scope._skills && (
+                  <div className="flex flex-wrap gap-1 mt-3">
+                    {scope._skills.split(",").map(s => s.trim()).filter(Boolean).map(s => (
+                      <span key={s} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-lg text-xs">{s}</span>
+                    ))}
+                  </div>
+                )}
+                {!scope.budget && !scope.due_date && !scope._skills && (
+                  <p className="text-sm text-gray-400 italic">No scope details added.</p>
+                )}
+              </div>
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+                  Milestones {milestones.length > 0 ? `(${milestones.length})` : ""}
+                </p>
+                {milestones.length === 0
+                  ? <p className="text-sm text-gray-400 italic">No milestones — can be added after creation.</p>
+                  : <ul className="space-y-1.5">
+                      {milestones.map((m, i) => (
+                        <li key={i} className="flex items-center gap-2 text-sm text-gray-700">
+                          <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full flex-shrink-0" />
+                          <span className="font-medium">{m.title}</span>
+                          {m.due_date && <span className="text-gray-400 text-xs">— {fmtDate(m.due_date)}</span>}
+                        </li>
+                      ))}
+                    </ul>}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── Navigation ── */}
+      <div className="flex items-center justify-between">
+        <button onClick={() => step > 0 ? setSt(s => s - 1) : onCancel()}
+          className="px-4 py-2 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">
+          {step === 0 ? "✕ Cancel" : "← Back"}
+        </button>
+        <div className="flex items-center gap-3">
+          {step === 2 && (
+            <button onClick={() => setSt(s => s + 1)} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-600">
+              Skip
+            </button>
+          )}
+          {!isLast ? (
+            <button onClick={() => setSt(s => s + 1)}
+              disabled={step === 0 && !basics.title.trim()}
+              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors">
+              Continue →
+            </button>
+          ) : (
+            <button onClick={handleCreate} disabled={creating}
+              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors">
+              {creating ? "Creating…" : "✓ Create Case"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // CASES VIEW
 // ============================================================
 function CasesView({ auth }) {
@@ -1185,8 +1445,6 @@ function CasesView({ auth }) {
   const [statusFilter, setStatus]   = useState("");
   const [selectedCase, setSelected] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm]             = useState({});
-  const [saving, setSaving]         = useState(false);
   const [showFavOnly, setShowFavOnly] = useState(false);
   const { isFavorite, toggle }      = useFavorites();
 
@@ -1202,27 +1460,25 @@ function CasesView({ auth }) {
 
   const displayed = showFavOnly ? visibleCases.filter(c => isFavorite(c.id)) : visibleCases;
 
-  async function handleCreate() {
-    setSaving(true);
-    try {
-      const { _skills, ...caseData } = form;
-      await createCase({
-        ...caseData,
-        client_id: auth.isClient ? auth.user?.id : form.client_id,
-        manager_id: auth.isManager ? auth.user?.id : form.manager_id,
-      });
-      setShowCreate(false);
-      setForm({});
-    } catch (e) { alert(e.message); }
-    setSaving(false);
-  }
-
   async function handleStatusChange(caseId, status) {
     await updateCase(caseId, { status });
     if (selectedCase?.id === caseId) setSelected(prev => ({ ...prev, status }));
   }
 
   if (loading) return <Spinner />;
+
+  if (showCreate) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
+        <CreateCaseWizard
+          auth={auth}
+          createCase={createCase}
+          onComplete={() => setShowCreate(false)}
+          onCancel={() => setShowCreate(false)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -1312,40 +1568,6 @@ function CasesView({ auth }) {
         )}
       </Modal>
 
-      {/* Create Case Modal */}
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="New Case">
-        <Input label="Title" value={form.title ?? ""} onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
-          placeholder="Case title" />
-        <Textarea label="Description" value={form.description ?? ""}
-          onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-          placeholder="Describe the case requirements…" />
-        <div className="grid grid-cols-2 gap-3">
-          <Select label="Status" value={form.status ?? "open"}
-            onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
-            options={["open","in_progress","on_hold"].map(s => ({ value: s, label: cap(fmt(s)) }))} />
-          <Select label="Priority" value={form.priority ?? "medium"}
-            onChange={e => setForm(p => ({ ...p, priority: e.target.value }))}
-            options={["low","medium","high","critical"].map(s => ({ value: s, label: cap(s) }))} />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Input label="Budget ($)" type="number" value={form.budget ?? ""}
-            onChange={e => setForm(p => ({ ...p, budget: e.target.value }))} />
-          <Input label="Due Date" type="date" value={form.due_date ?? ""}
-            onChange={e => setForm(p => ({ ...p, due_date: e.target.value }))} />
-        </div>
-        <Input label="Skills Required (comma-separated)" value={form._skills ?? ""}
-          onChange={e => setForm(p => ({ ...p, _skills: e.target.value,
-            skills_required: e.target.value.split(",").map(s => s.trim()).filter(Boolean) }))}
-          placeholder="React, Node.js, PostgreSQL" />
-        <div className="flex justify-end gap-3 mt-2">
-          <button onClick={() => setShowCreate(false)}
-            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
-          <button onClick={handleCreate} disabled={saving}
-            className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
-            {saving ? "Creating…" : "Create Case"}
-          </button>
-        </div>
-      </Modal>
     </div>
   );
 }
