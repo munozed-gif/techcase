@@ -1482,13 +1482,219 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
 }
 
 // ============================================================
+// APPLY WIZARD
+// ============================================================
+
+const APPLY_STEPS = [
+  { id: "brief",  label: "Case Brief",  icon: "📋", desc: "What you're applying for" },
+  { id: "pitch",  label: "Your Pitch",  icon: "✍️",  desc: "Why you're the right fit" },
+  { id: "terms",  label: "Terms",       icon: "💼", desc: "Rate & availability" },
+  { id: "review", label: "Review",      icon: "✅", desc: "Confirm & submit" },
+];
+
+function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
+  const [step, setSt]           = useState(0);
+  const [submitting, setSubmit] = useState(false);
+  const [pitch, setPitch]       = useState({ cover_letter: "" });
+  const [terms, setTerms]       = useState({ proposed_rate: "", time_commitment: 20 });
+
+  const isLast = step === APPLY_STEPS.length - 1;
+
+  async function handleSubmit() {
+    setSubmit(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase.from("applications").insert({
+        case_id: caseData.id,
+        consultant_id: user.id,
+        cover_letter: pitch.cover_letter || null,
+        proposed_rate: terms.proposed_rate ? Number(terms.proposed_rate) : null,
+        time_commitment: Number(terms.time_commitment),
+      });
+      if (error) throw error;
+      onComplete();
+    } catch (e) { alert(e.message); }
+    setSubmit(false);
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto py-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Apply to Case</h1>
+          <p className="text-gray-500 text-sm mt-0.5 truncate max-w-sm">{caseData.title}</p>
+        </div>
+        <button onClick={onCancel}
+          className="text-sm text-gray-400 hover:text-gray-600 border border-gray-200 px-3 py-1.5 rounded-xl hover:bg-gray-50">
+          ✕ Cancel
+        </button>
+      </div>
+
+      <OnboardingRoadmap steps={APPLY_STEPS} current={step} />
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-4">
+
+        {/* Step 0 — Case Brief */}
+        {step === 0 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Case Brief</h2>
+            <p className="text-sm text-gray-500 mb-5">Review the case details before you apply.</p>
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <span className="font-bold text-gray-900 text-base">{caseData.title}</span>
+                  <Badge className={PRIORITY_COLORS[caseData.priority]}>{cap(caseData.priority)}</Badge>
+                </div>
+                {caseData.description && (
+                  <p className="text-sm text-gray-600 leading-relaxed">{caseData.description}</p>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                {caseData.budget && (
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <div className="text-xs text-gray-400 mb-0.5">Budget</div>
+                    <div className="font-semibold text-gray-800">${Number(caseData.budget).toLocaleString()}</div>
+                  </div>
+                )}
+                {caseData.due_date && (
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <div className="text-xs text-gray-400 mb-0.5">Due Date</div>
+                    <div className="font-semibold text-gray-800">{fmtDate(caseData.due_date)}</div>
+                  </div>
+                )}
+                {caseData.client?.client_profiles?.company_name && (
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <div className="text-xs text-gray-400 mb-0.5">Client</div>
+                    <div className="font-semibold text-gray-800">{caseData.client.client_profiles.company_name}</div>
+                  </div>
+                )}
+              </div>
+              {caseData.skills_required?.length > 0 && (
+                <div>
+                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Skills Required</div>
+                  <div className="flex flex-wrap gap-2">
+                    {caseData.skills_required.map(s => (
+                      <span key={s} className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-medium">{s}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Step 1 — Your Pitch */}
+        {step === 1 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Your Pitch</h2>
+            <p className="text-sm text-gray-500 mb-5">Tell the client why you're the right consultant for this case.</p>
+            <Textarea label="Cover Letter" value={pitch.cover_letter}
+              onChange={e => setPitch(p => ({ ...p, cover_letter: e.target.value }))}
+              placeholder={`Hi, I'm interested in "${caseData.title}".\n\nI have experience with ${(caseData.skills_required ?? []).slice(0, 2).join(" and ") || "the required technologies"} and believe I can deliver strong results because…`} />
+            <p className="text-xs text-gray-400 mt-1">Tip: mention specific past projects, technologies you've mastered, and your approach to this type of work.</p>
+          </>
+        )}
+
+        {/* Step 2 — Terms */}
+        {step === 2 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Your Terms</h2>
+            <p className="text-sm text-gray-500 mb-5">Set your proposed rate and how much of your time you'd dedicate to this case.</p>
+            <Input label="Proposed Rate ($/hr)" type="number" value={terms.proposed_rate}
+              onChange={e => setTerms(p => ({ ...p, proposed_rate: e.target.value }))}
+              placeholder="e.g. 150" />
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Time Commitment — <span className="text-indigo-600 font-bold">{terms.time_commitment}%</span> of your available time
+              </label>
+              <input type="range" min="10" max="100" step="10"
+                value={terms.time_commitment}
+                onChange={e => setTerms(p => ({ ...p, time_commitment: Number(e.target.value) }))}
+                className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-indigo-600" />
+              <div className="flex justify-between text-xs text-gray-400 mt-1.5">
+                <span>10%</span><span>50%</span><span>100%</span>
+              </div>
+              <p className="text-xs text-gray-400 mt-3">
+                {terms.time_commitment <= 25 && "Part-time — a few hours per week alongside other engagements."}
+                {terms.time_commitment > 25 && terms.time_commitment <= 60 && "Half-time — significant focus on this case with room for others."}
+                {terms.time_commitment > 60 && terms.time_commitment < 100 && "Mostly dedicated — this case would be your primary engagement."}
+                {terms.time_commitment === 100 && "Full-time — this would be your sole engagement during the case."}
+              </p>
+            </div>
+          </>
+        )}
+
+        {/* Step 3 — Review */}
+        {step === 3 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Review & Submit</h2>
+            <p className="text-sm text-gray-500 mb-5">Confirm your application before sending it.</p>
+            <div className="space-y-4">
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Applying To</p>
+                <p className="font-semibold text-gray-900">{caseData.title}</p>
+                {caseData.client?.client_profiles?.company_name && (
+                  <p className="text-sm text-gray-500 mt-0.5">{caseData.client.client_profiles.company_name}</p>
+                )}
+              </div>
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Your Pitch</p>
+                {pitch.cover_letter
+                  ? <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{pitch.cover_letter}</p>
+                  : <p className="text-sm text-gray-400 italic">No cover letter — you can add one to strengthen your application.</p>}
+              </div>
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Terms</p>
+                <div className="flex gap-6 text-sm">
+                  <div>
+                    <div className="text-gray-400 text-xs mb-0.5">Proposed Rate</div>
+                    <div className="font-semibold text-gray-900">
+                      {terms.proposed_rate ? `$${Number(terms.proposed_rate).toLocaleString()}/hr` : <span className="text-gray-400 italic">Not specified</span>}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-gray-400 text-xs mb-0.5">Time Commitment</div>
+                    <div className="font-semibold text-gray-900">{terms.time_commitment}%</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Sticky nav */}
+      <div className="sticky bottom-0 bg-white border-t-2 border-gray-100 shadow-xl rounded-2xl px-6 py-4 flex items-center justify-between">
+        <button onClick={() => step > 0 ? setSt(s => s - 1) : onCancel()}
+          className="px-5 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors font-medium">
+          {step === 0 ? "✕ Cancel" : "← Back"}
+        </button>
+        {!isLast ? (
+          <button onClick={() => setSt(s => s + 1)}
+            className="px-7 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-colors shadow-md">
+            Continue →
+          </button>
+        ) : (
+          <button onClick={handleSubmit} disabled={submitting}
+            className="px-7 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
+            {submitting ? "Submitting…" : "✓ Submit Application"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // CASES VIEW
 // ============================================================
 function CasesView({ auth }) {
-  const [search, setSearch]         = useState("");
-  const [statusFilter, setStatus]   = useState("");
-  const [selectedCase, setSelected] = useState(null);
-  const [showCreate, setShowCreate] = useState(false);
+  const [search, setSearch]           = useState("");
+  const [statusFilter, setStatus]     = useState("");
+  const [selectedCase, setSelected]   = useState(null);
+  const [showCreate, setShowCreate]   = useState(false);
+  const [applyingToCase, setApplying] = useState(null);
   const [showFavOnly, setShowFavOnly] = useState(false);
   const { isFavorite, toggle }      = useFavorites();
 
@@ -1519,6 +1725,19 @@ function CasesView({ auth }) {
           createCase={createCase}
           onComplete={() => setShowCreate(false)}
           onCancel={() => setShowCreate(false)}
+        />
+      </div>
+    );
+  }
+
+  if (applyingToCase) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
+        <ApplyWizard
+          caseData={applyingToCase}
+          auth={auth}
+          onComplete={() => setApplying(null)}
+          onCancel={() => setApplying(null)}
         />
       </div>
     );
@@ -1608,6 +1827,7 @@ function CasesView({ auth }) {
             caseData={selectedCase} auth={auth}
             onStatusChange={handleStatusChange}
             onDelete={async () => { await deleteCase(selectedCase.id); setSelected(null); }}
+            onApply={() => { setApplying(selectedCase); setSelected(null); }}
           />
         )}
       </Modal>
@@ -1616,16 +1836,14 @@ function CasesView({ auth }) {
   );
 }
 
-function CaseDetail({ caseData, auth, onStatusChange, onDelete }) {
+function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
   const { applications, apply, reviewApplication } = useApplications(caseData.id);
   const { milestones, toggleMilestone, addMilestone } = useMilestones(caseData.id);
   const { comments, addComment } = useCaseComments(caseData.id);
   const { subCases, createSubCase } = useSubCases(caseData.id);
   const { documents, addDocument, deleteDocument } = useCaseDocuments(caseData.id);
   const { entries: timeEntries, addTimeEntry, approveEntry } = useTimeEntries(caseData.id);
-  const [showApply, setShowApply]   = useState(false);
-  const [appForm, setAppForm]       = useState({ cover_letter: "", proposed_rate: "", time_commitment: 20 });
-  const [submitting, setSubmitting] = useState(false);
+
   const [activeTab, setActiveTab]   = useState("detail");
   const [newMilestone, setNewMilestone] = useState("");
   const [commentForm, setCommentForm]  = useState({ body: "", hoursLogged: 0, progressUpdate: "", isInternal: false });
@@ -1655,20 +1873,6 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete }) {
   const canDelete =
     caseData.status === "open" &&
     (auth.isAdmin || auth.isManager || (auth.isClient && caseData.client_id === auth.user?.id));
-
-  async function handleApply() {
-    setSubmitting(true);
-    try {
-      await apply({
-        caseId: caseData.id,
-        coverLetter: appForm.cover_letter,
-        proposedRate: appForm.proposed_rate ? Number(appForm.proposed_rate) : null,
-        timeCommitment: Number(appForm.time_commitment),
-      });
-      setShowApply(false);
-    } catch (e) { alert(e.message); }
-    setSubmitting(false);
-  }
 
   async function handleAddMilestone() {
     if (!newMilestone.trim()) return;
@@ -1818,33 +2022,12 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete }) {
                   <span className="text-sm text-gray-600">Your application: </span>
                   <Badge className={APP_STATUS_COLORS[myApp.status]}>{cap(myApp.status)}</Badge>
                 </div>
-              ) : showApply ? (
-                <div>
-                  <Textarea label="Cover Letter" value={appForm.cover_letter}
-                    onChange={e => setAppForm(p => ({ ...p, cover_letter: e.target.value }))}
-                    placeholder="Why are you a good fit for this case?" />
-                  <div className="grid grid-cols-2 gap-3">
-                    <Input label="Proposed Rate ($/hr)" type="number" value={appForm.proposed_rate}
-                      onChange={e => setAppForm(p => ({ ...p, proposed_rate: e.target.value }))} />
-                    <Input label="Time Commitment (%)" type="number" min="0" max="100"
-                      value={appForm.time_commitment}
-                      onChange={e => setAppForm(p => ({ ...p, time_commitment: e.target.value }))} />
-                  </div>
-                  <div className="flex gap-3">
-                    <button onClick={handleApply} disabled={submitting}
-                      className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2 rounded-xl disabled:opacity-50">
-                      {submitting ? "Submitting…" : "Submit Application"}
-                    </button>
-                    <button onClick={() => setShowApply(false)}
-                      className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
-                  </div>
-                </div>
-              ) : (
-                <button onClick={() => setShowApply(true)}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors">
-                  Apply to This Case
+              ) : onApply ? (
+                <button onClick={onApply}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors shadow-sm">
+                  Apply to This Case →
                 </button>
-              )}
+              ) : null}
             </div>
           )}
 
