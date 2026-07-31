@@ -705,25 +705,51 @@ function useConsultantProfile(consultantId, profileId) {
   return { profile, availability, loading, profileError, updateProfile, uploadPhoto, addCustomer, addProject, addWorkAuth, refetch: fetchProfile };
 }
 
-function useNotifications() {
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount]     = useState(0);
+// Lightweight hook used only in App for the sidebar badge — separate channel name
+function useUnreadCount() {
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      const { count } = await supabase.from("notifications")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id).eq("is_read", false);
+      setUnreadCount(count ?? 0);
+    })();
+    const ch = supabase.channel("notif-badge-rt")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" },
+        () => setUnreadCount(p => p + 1))
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, []);
+
+  return unreadCount;
+}
+
+// Full hook used only inside NotificationsView
+function useNotifications() {
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount]     = useState(0);
+  const [loading, setLoading]             = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoading(false); return; }
       const { data } = await supabase.from("notifications")
         .select("*").eq("user_id", user.id)
         .order("created_at", { ascending: false }).limit(50);
       setNotifications(data ?? []);
-      setUnreadCount(data?.filter(n => !n.is_read).length ?? 0);
+      setUnreadCount((data ?? []).filter(n => !n.is_read).length);
+      setLoading(false);
     })();
-    const channel = supabase.channel("notifications-rt")
+    const ch = supabase.channel("notif-view-rt")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" },
         payload => { setNotifications(p => [payload.new, ...p]); setUnreadCount(p => p + 1); })
       .subscribe();
-    return () => supabase.removeChannel(channel);
+    return () => supabase.removeChannel(ch);
   }, []);
 
   async function markRead(id) {
@@ -740,7 +766,7 @@ function useNotifications() {
     setUnreadCount(0);
   }
 
-  return { notifications, unreadCount, markRead, markAllRead };
+  return { notifications, unreadCount, loading, markRead, markAllRead };
 }
 
 function useLeaderboard() {
@@ -3649,7 +3675,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
 // NOTIFICATIONS VIEW
 // ============================================================
 function NotificationsView() {
-  const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
+  const { notifications, unreadCount, loading, markRead, markAllRead } = useNotifications();
 
   return (
     <div>
@@ -3666,8 +3692,10 @@ function NotificationsView() {
         )}
       </div>
 
-      {notifications.length === 0 ? (
-        <EmptyState icon="🔔" title="All caught up!" subtitle="No notifications yet" />
+      {loading ? (
+        <Spinner />
+      ) : notifications.length === 0 ? (
+        <EmptyState icon="🔔" title="All caught up!" subtitle="Notifications will appear here when cases are updated, applications change status, or you receive messages." />
       ) : (
         <div className="space-y-2">
           {notifications.map(n => (
@@ -6253,7 +6281,7 @@ export default function App() {
   const [activeView, setActiveView]     = useState("dashboard");
   const [authed, setAuthed]             = useState(false);
   const [onboardingRole, setOnboarding] = useState(null); // role string or null
-  const { unreadCount }                 = useNotifications();
+  const unreadCount                     = useUnreadCount();
 
   // Sync authed state with auth session
   useEffect(() => {
