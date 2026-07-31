@@ -591,6 +591,38 @@ function useFavorites() {
   return { favorites, isFavorite, toggle };
 }
 
+function useFollowedClients() {
+  const [followed, setFollowed] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from("followed_clients")
+        .select("client_user_id").eq("consultant_id", user.id);
+      setFollowed(data?.map(f => f.client_user_id) ?? []);
+    })();
+  }, []);
+
+  function isFollowing(clientUserId) { return !!clientUserId && followed.includes(clientUserId); }
+
+  async function toggle(clientUserId) {
+    if (!clientUserId) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (isFollowing(clientUserId)) {
+      await supabase.from("followed_clients")
+        .delete().eq("consultant_id", user.id).eq("client_user_id", clientUserId);
+      setFollowed(prev => prev.filter(id => id !== clientUserId));
+    } else {
+      await supabase.from("followed_clients")
+        .insert({ consultant_id: user.id, client_user_id: clientUserId });
+      setFollowed(prev => [...prev, clientUserId]);
+    }
+  }
+
+  return { followed, isFollowing, toggle };
+}
+
 function useConsultantProfile(consultantId, profileId) {
   const [profile, setProfile]       = useState(null);
   const [availability, setAvailability] = useState(null);
@@ -757,6 +789,16 @@ const ROLE_COLORS = {
   consultant: { bg: "bg-green-100",  text: "text-green-800",  dot: "bg-green-500" },
   client:     { bg: "bg-orange-100", text: "text-orange-800", dot: "bg-orange-500" },
 };
+
+const SAP_AREAS = [
+  "SAP S/4HANA", "SAP BW / Analytics", "SAP FICO", "SAP MM/SD",
+  "SAP HCM", "SAP Basis / Infrastructure", "SAP Fiori / UI5",
+  "SAP Integration (CPI/PI)", "Other SAP",
+];
+const INDUSTRY_AREAS = [
+  "Technology", "Finance & Banking", "Healthcare", "Legal",
+  "Manufacturing", "Retail & Commerce", "Energy & Utilities", "Public Sector", "Other",
+];
 
 const STATUS_COLORS = {
   open:        "bg-emerald-100 text-emerald-800",
@@ -1086,8 +1128,13 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
 function Dashboard({ auth }) {
   const { cases, loading: casesLoading } = useCases();
   const { applications } = useApplications();
-  const [applyingToCase, setApplying] = useState(null);
-  const [activeTab, setActiveTab]     = useState(null);
+  const [applyingToCase, setApplying]   = useState(null);
+  const [activeTab, setActiveTab]       = useState(null);
+  const [availTab, setAvailTab]         = useState("following");
+  const [filterSap, setFilterSap]       = useState("");
+  const [filterIndustry, setFilterInd]  = useState("");
+  const [filterStartFrom, setStartFrom] = useState("");
+  const { isFollowing, toggle: toggleFollow } = useFollowedClients();
 
   // Pre-compute filtered sets
   const myApplications   = applications.filter(a => a.consultant_id === auth.user?.id);
@@ -1098,6 +1145,15 @@ function Dashboard({ auth }) {
       .map(a => a.case_id ?? a.id)
   );
   const availableCases   = cases.filter(c => c.status === "open" && !appliedCaseIds.has(c.id) && !assignedCaseIds.has(c.id));
+
+  const filteredAvailable = availableCases.filter(c => {
+    if (filterSap       && c.area_sap      !== filterSap)      return false;
+    if (filterIndustry  && c.area_industry !== filterIndustry) return false;
+    if (filterStartFrom && c.start_date    && c.start_date < filterStartFrom) return false;
+    return true;
+  });
+  const followingCases = filteredAvailable.filter(c => isFollowing(c.client_id));
+  const otherCases     = filteredAvailable.filter(c => !isFollowing(c.client_id));
   const assignedCases    = cases.filter(c => c.case_assignments?.some(a => a.consultant_id === auth.user?.id));
   const myCases          = cases.filter(c => c.client_id === auth.user?.id);
   const managedCases     = cases.filter(c => c.manager_id === auth.user?.id);
@@ -1259,40 +1315,113 @@ function Dashboard({ auth }) {
           {/* Available Cases — consultants only */}
           {auth.isConsultant && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-6">
-              <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              {/* Header */}
+              <div className="p-5 border-b border-gray-100 flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">Available Cases</h2>
                   <p className="text-xs text-gray-400 mt-0.5">Open cases you can apply to</p>
                 </div>
                 <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-lg">
-                  {availableCases.length} open
+                  {filteredAvailable.length} open
                 </span>
               </div>
+
+              {/* Filters */}
+              <div className="px-5 py-3 border-b border-gray-100 flex flex-wrap gap-2 bg-gray-50/50">
+                <select value={filterSap} onChange={e => setFilterSap(e.target.value)}
+                  className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="">All SAP Areas</option>
+                  {SAP_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+                <select value={filterIndustry} onChange={e => setFilterInd(e.target.value)}
+                  className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="">All Industries</option>
+                  {INDUSTRY_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+                <input type="date" value={filterStartFrom} onChange={e => setStartFrom(e.target.value)}
+                  title="Start date from"
+                  className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                {(filterSap || filterIndustry || filterStartFrom) && (
+                  <button onClick={() => { setFilterSap(""); setFilterInd(""); setStartFrom(""); }}
+                    className="text-xs text-gray-400 hover:text-gray-600 px-2">✕ Clear</button>
+                )}
+              </div>
+
+              {/* Tabs */}
+              <div className="flex border-b border-gray-100">
+                {[
+                  { id: "following", label: `⭐ Following`, count: followingCases.length },
+                  { id: "all",       label: "All Cases",    count: otherCases.length },
+                ].map(t => (
+                  <button key={t.id} onClick={() => setAvailTab(t.id)}
+                    className={`px-5 py-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-1.5 ${
+                      availTab === t.id
+                        ? "border-indigo-600 text-indigo-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700"
+                    }`}>
+                    {t.label}
+                    <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{t.count}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* List */}
               <div className="divide-y divide-gray-50">
-                {availableCases.length === 0 ? (
-                  <div className="p-8 text-center text-gray-400 text-sm">No open cases available right now — check back soon.</div>
-                ) : availableCases.map(c => (
-                  <div key={c.id} className="p-4 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className="font-semibold text-gray-900 text-sm">{c.title}</span>
-                          <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
-                        </div>
-                        {c.description && <p className="text-xs text-gray-500 line-clamp-2 mb-2">{c.description}</p>}
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400">
-                          {c.due_date && <span>Due: {fmtDate(c.due_date)}</span>}
-                          {c.budget && <span>Budget: ${Number(c.budget).toLocaleString()}</span>}
-                          {c.skills_required?.length > 0 && <span>Skills: {c.skills_required.slice(0, 3).join(", ")}{c.skills_required.length > 3 ? "…" : ""}</span>}
+                {(() => {
+                  const list = availTab === "following" ? followingCases : otherCases;
+                  if (list.length === 0) {
+                    return (
+                      <div className="p-8 text-center text-gray-400 text-sm">
+                        {availTab === "following"
+                          ? "No cases from companies you follow. Use ♡ on any case to follow that company and see their cases here first."
+                          : "No other open cases right now."}
+                      </div>
+                    );
+                  }
+                  return list.map(c => {
+                    const companyName = c.client?.client_profiles?.company_name || c.client?.full_name;
+                    const following   = isFollowing(c.client_id);
+                    return (
+                      <div key={c.id} className="p-4 hover:bg-gray-50 transition-colors">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            {/* Title + badges */}
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <span className="font-semibold text-gray-900 text-sm">{c.title}</span>
+                              <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
+                              {c.area_sap      && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{c.area_sap}</span>}
+                              {c.area_industry && <span className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium">{c.area_industry}</span>}
+                            </div>
+                            {/* Company + follow button */}
+                            {companyName && (
+                              <div className="flex items-center gap-1 mb-1.5">
+                                <span className="text-xs text-gray-500 font-medium">{companyName}</span>
+                                <button onClick={e => { e.stopPropagation(); toggleFollow(c.client_id); }}
+                                  title={following ? "Unfollow this company" : "Follow this company"}
+                                  className={`text-base leading-none transition-colors ${following ? "text-rose-500 hover:text-rose-400" : "text-gray-300 hover:text-rose-400"}`}>
+                                  {following ? "♥" : "♡"}
+                                </button>
+                              </div>
+                            )}
+                            {c.description && <p className="text-xs text-gray-500 line-clamp-2 mb-2">{c.description}</p>}
+                            <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400">
+                              {c.start_date && <span>Starts: {fmtDate(c.start_date)}</span>}
+                              {c.due_date   && <span>Due: {fmtDate(c.due_date)}</span>}
+                              {c.budget     && <span>Budget: ${Number(c.budget).toLocaleString()}</span>}
+                              {c.skills_required?.length > 0 && (
+                                <span>Skills: {c.skills_required.slice(0, 3).join(", ")}{c.skills_required.length > 3 ? "…" : ""}</span>
+                              )}
+                            </div>
+                          </div>
+                          <button onClick={() => setApplying(c)}
+                            className="flex-shrink-0 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm">
+                            Apply →
+                          </button>
                         </div>
                       </div>
-                      <button onClick={() => setApplying(c)}
-                        className="flex-shrink-0 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm">
-                        Apply →
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  });
+                })()}
               </div>
             </div>
           )}
@@ -1359,8 +1488,8 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
   const [step, setSt]       = useState(0);
   const [creating, setCreating] = useState(false);
 
-  const [basics, setBasics] = useState({ title: "", description: "", priority: "medium" });
-  const [scope, setScope]   = useState({ budget: "", due_date: daysFromNow(30), sla: "standard", _skills: "", client_id: auth.isClient ? auth.user?.id : "" });
+  const [basics, setBasics] = useState({ title: "", description: "", priority: "medium", area_sap: "", area_industry: "" });
+  const [scope, setScope]   = useState({ budget: "", start_date: "", due_date: daysFromNow(30), sla: "standard", _skills: "", client_id: auth.isClient ? auth.user?.id : "" });
   const [milestones, setMs] = useState([]);
   const [mlForm, setMlForm] = useState({ title: "", due_date: "", description: "" });
   const [clients, setClients] = useState([]);
@@ -1383,6 +1512,8 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
       const newCase = await createCase({
         ...basics,
         status: "open",
+        area_sap:      basics.area_sap || null,
+        area_industry: basics.area_industry || null,
         ...rest,
         budget: scope.budget ? Number(scope.budget) : null,
         skills_required: _skills.split(",").map(s => s.trim()).filter(Boolean),
@@ -1443,6 +1574,26 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
                 </span>
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">SAP Area</label>
+                <select value={basics.area_sap}
+                  onChange={e => setBasics(p => ({ ...p, area_sap: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="">— None / Not applicable —</option>
+                  {SAP_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+                <select value={basics.area_industry}
+                  onChange={e => setBasics(p => ({ ...p, area_industry: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="">— Select industry —</option>
+                  {INDUSTRY_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
+            </div>
           </>
         )}
 
@@ -1494,6 +1645,8 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
                 Calculated due date: <span className="font-semibold text-gray-700">{fmtDate(scope.due_date)}</span>
               </p>
             )}
+            <Input label="Expected Start Date" type="date" value={scope.start_date}
+              onChange={e => setScope(p => ({ ...p, start_date: e.target.value }))} />
             <Input label="Skills Required (comma-separated)" value={scope._skills}
               onChange={e => setScope(p => ({ ...p, _skills: e.target.value }))}
               placeholder="SAP S/4HANA, ABAP, Fiori" />
@@ -1551,14 +1704,19 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Case Info</p>
                 <p className="font-semibold text-gray-900 text-base">{basics.title}</p>
                 {basics.description && <p className="text-sm text-gray-500 mt-1 leading-relaxed">{basics.description}</p>}
-                <div className="flex gap-2 mt-3">
+                <div className="flex flex-wrap gap-2 mt-3">
                   <Badge className={PRIORITY_COLORS[basics.priority]}>{cap(basics.priority)}</Badge>
                   <Badge className={STATUS_COLORS["open"]}>Open</Badge>
+                  {basics.area_sap && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs">{basics.area_sap}</span>}
+                  {basics.area_industry && <span className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded-lg text-xs">{basics.area_industry}</span>}
                 </div>
               </div>
               <div className="border border-gray-100 rounded-xl p-4">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Scope</p>
                 <div className="grid grid-cols-2 gap-y-2 text-sm">
+                  {scope.start_date && (
+                    <div><span className="text-gray-400">Starts:</span> <span className="font-medium ml-1">{fmtDate(scope.start_date)}</span></div>
+                  )}
                   {scope.budget && (
                     <div><span className="text-gray-400">Budget:</span> <span className="font-medium ml-1">${Number(scope.budget).toLocaleString()}</span></div>
                   )}
