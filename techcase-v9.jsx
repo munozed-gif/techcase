@@ -743,39 +743,48 @@ function useNotifications() {
   return { notifications, unreadCount, markRead, markAllRead };
 }
 
-function useLeaderboard(entityId = null) {
+function useLeaderboard() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      let query = supabase.from("consultant_profiles").select(`
-        id, headline, skills, years_experience, expertise_level, availability_type,
-        user:id(full_name, avatar_url),
-        ratings(score),
-        applications(id, status),
-        case_assignments(case_id)
-      `);
-      if (entityId) query = query.eq("entity_id", entityId);
-      const { data } = await query;
-      if (!data) { setLoading(false); return; }
-      const ranked = data.map(c => {
-        const scores = c.ratings?.map(r => r.score) ?? [];
-        const avgRating = scores.length
+      // 1. Fetch all consultant profiles
+      const { data: profiles } = await supabase
+        .from("consultant_profiles")
+        .select("id, headline, skills, years_experience, expertise_level, availability_type, hourly_rate");
+
+      if (!profiles?.length) { setLoading(false); return; }
+
+      const ids = profiles.map(p => p.id);
+
+      // 2. Fetch users, ratings, applications keyed by consultant user-id in parallel
+      const [{ data: usersData }, { data: ratingsData }, { data: appsData }] = await Promise.all([
+        supabase.from("users").select("id, full_name, avatar_url").in("id", ids),
+        supabase.from("ratings").select("consultant_id, score").in("consultant_id", ids),
+        supabase.from("applications").select("consultant_id, status").in("consultant_id", ids),
+      ]);
+
+      const ranked = profiles.map(c => {
+        const scores      = (ratingsData ?? []).filter(r => r.consultant_id === c.id).map(r => r.score);
+        const apps        = (appsData    ?? []).filter(a => a.consultant_id === c.id);
+        const avgRating   = scores.length
           ? parseFloat((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2)) : 0;
         return {
           ...c,
+          user:          (usersData ?? []).find(u => u.id === c.id) ?? null,
           avgRating,
           ratingCount:   scores.length,
-          acceptedCases: c.applications?.filter(a => a.status === "accepted").length ?? 0,
-          totalApps:     c.applications?.length ?? 0,
+          acceptedCases: apps.filter(a => a.status === "accepted").length,
+          totalApps:     apps.length,
         };
       }).sort((a, b) => b.avgRating - a.avgRating || b.acceptedCases - a.acceptedCases);
+
       setLeaderboard(ranked);
       setLoading(false);
     })();
-  }, [entityId]);
+  }, []);
 
   return { leaderboard, loading };
 }
