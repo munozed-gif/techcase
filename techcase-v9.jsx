@@ -1086,6 +1086,20 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
 function Dashboard({ auth }) {
   const { cases, loading: casesLoading } = useCases();
   const { applications } = useApplications();
+  const [applyingToCase, setApplying] = useState(null);
+
+  const myApplications = applications.filter(a => a.consultant_id === auth.user?.id);
+  const appliedCaseIds = new Set(myApplications.map(a => a.case_id));
+  const assignedCaseIds = new Set(
+    cases.flatMap(c => c.case_assignments ?? [])
+      .filter(a => a.consultant_id === auth.user?.id)
+      .map(a => a.case_id ?? a.id)
+  );
+  const availableCases = cases.filter(c =>
+    c.status === "open" &&
+    !appliedCaseIds.has(c.id) &&
+    !assignedCaseIds.has(c.id)
+  );
 
   const stats = {
     admin: [
@@ -1123,6 +1137,19 @@ function Dashboard({ auth }) {
 
   if (casesLoading) return <Spinner />;
 
+  if (applyingToCase) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
+        <ApplyWizard
+          caseData={applyingToCase}
+          auth={auth}
+          onComplete={() => setApplying(null)}
+          onCancel={() => setApplying(null)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="mb-8">
@@ -1145,13 +1172,65 @@ function Dashboard({ auth }) {
         ))}
       </div>
 
+      {/* Available Cases — consultants only */}
+      {auth.isConsultant && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-6">
+          <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Available Cases</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Open cases you can apply to</p>
+            </div>
+            <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-lg">
+              {availableCases.length} open
+            </span>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {availableCases.length === 0 ? (
+              <div className="p-8 text-center text-gray-400 text-sm">
+                No open cases available right now — check back soon.
+              </div>
+            ) : availableCases.map(c => (
+              <div key={c.id} className="p-4 hover:bg-gray-50 transition-colors">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="font-semibold text-gray-900 text-sm">{c.title}</span>
+                      <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
+                    </div>
+                    {c.description && (
+                      <p className="text-xs text-gray-500 line-clamp-2 mb-2">{c.description}</p>
+                    )}
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400">
+                      {c.due_date && <span>Due: {fmtDate(c.due_date)}</span>}
+                      {c.budget && <span>Budget: ${Number(c.budget).toLocaleString()}</span>}
+                      {c.skills_required?.length > 0 && (
+                        <span>Skills: {c.skills_required.slice(0, 3).join(", ")}{c.skills_required.length > 3 ? "…" : ""}</span>
+                      )}
+                    </div>
+                  </div>
+                  <button onClick={() => setApplying(c)}
+                    className="flex-shrink-0 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm">
+                    Apply →
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Recent Cases */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
         <div className="p-6 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-gray-900">Recent Cases</h2>
+          <h2 className="text-lg font-bold text-gray-900">
+            {auth.isConsultant ? "My Assigned Cases" : "Recent Cases"}
+          </h2>
         </div>
         <div className="divide-y divide-gray-50">
-          {cases.slice(0, 5).map(c => (
+          {(auth.isConsultant
+            ? cases.filter(c => c.case_assignments?.some(a => a.consultant_id === auth.user?.id))
+            : cases.slice(0, 5)
+          ).map(c => (
             <div key={c.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 font-bold text-sm">
@@ -1694,10 +1773,8 @@ function CasesView({ auth }) {
   const [statusFilter, setStatus]     = useState("");
   const [selectedCase, setSelected]   = useState(null);
   const [showCreate, setShowCreate]   = useState(false);
-  const [applyingToCase, setApplying] = useState(null);
-  const [showFavOnly, setShowFavOnly]   = useState(false);
-  const [showMyCasesOnly, setMyOnly]    = useState(false);
-  const { isFavorite, toggle }          = useFavorites();
+  const [showFavOnly, setShowFavOnly] = useState(false);
+  const { isFavorite, toggle }        = useFavorites();
 
   const { cases, loading, createCase, updateCase, deleteCase } = useCases({
     status: statusFilter || undefined,
@@ -1705,12 +1782,10 @@ function CasesView({ auth }) {
     client_id: auth.isClient ? auth.user?.id : undefined,
   });
 
-  // Consultants see ALL cases by default so they can browse and apply.
-  // "My Cases" toggle narrows to only their assigned ones.
-  let visibleCases = cases;
-  if (auth.isConsultant && showMyCasesOnly) {
-    visibleCases = cases.filter(c => c.case_assignments?.some(a => a.consultant_id === auth.user?.id));
-  }
+  // Consultants see only their assigned cases here; open cases to apply to are on the Dashboard.
+  const visibleCases = auth.isConsultant
+    ? cases.filter(c => c.case_assignments?.some(a => a.consultant_id === auth.user?.id))
+    : cases;
   const displayed = showFavOnly ? visibleCases.filter(c => isFavorite(c.id)) : visibleCases;
 
   async function handleStatusChange(caseId, status) {
@@ -1728,19 +1803,6 @@ function CasesView({ auth }) {
           createCase={createCase}
           onComplete={() => setShowCreate(false)}
           onCancel={() => setShowCreate(false)}
-        />
-      </div>
-    );
-  }
-
-  if (applyingToCase) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
-        <ApplyWizard
-          caseData={applyingToCase}
-          auth={auth}
-          onComplete={() => setApplying(null)}
-          onCancel={() => setApplying(null)}
         />
       </div>
     );
@@ -1775,20 +1837,12 @@ function CasesView({ auth }) {
           ))}
         </select>
         {auth.isConsultant && (
-          <>
-            <button onClick={() => setMyOnly(p => !p)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
-                showMyCasesOnly ? "bg-indigo-50 border-indigo-300 text-indigo-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"
-              }`}>
-              {showMyCasesOnly ? "👤 My Cases" : "👤 My Cases"}
-            </button>
-            <button onClick={() => setShowFavOnly(p => !p)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
-                showFavOnly ? "bg-yellow-50 border-yellow-300 text-yellow-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"
-              }`}>
-              {showFavOnly ? "★ Saved" : "☆ Saved"}
-            </button>
-          </>
+          <button onClick={() => setShowFavOnly(p => !p)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
+              showFavOnly ? "bg-yellow-50 border-yellow-300 text-yellow-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"
+            }`}>
+            {showFavOnly ? "★ Saved" : "☆ Saved"}
+          </button>
         )}
       </div>
 
@@ -1838,7 +1892,6 @@ function CasesView({ auth }) {
             caseData={selectedCase} auth={auth}
             onStatusChange={handleStatusChange}
             onDelete={async () => { await deleteCase(selectedCase.id); setSelected(null); }}
-            onApply={() => { setApplying(selectedCase); setSelected(null); }}
           />
         )}
       </Modal>
