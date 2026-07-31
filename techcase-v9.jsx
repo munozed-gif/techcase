@@ -1130,7 +1130,7 @@ function Dashboard({ auth }) {
   const { applications } = useApplications();
   const [applyingToCase, setApplying]   = useState(null);
   const [activeTab, setActiveTab]       = useState(null);
-  const [availTab, setAvailTab]         = useState("following");
+  const [availTab, setAvailTab]         = useState("all");
   const [filterSap, setFilterSap]       = useState("");
   const [filterIndustry, setFilterInd]  = useState("");
   const [filterStartFrom, setStartFrom] = useState("");
@@ -1350,8 +1350,8 @@ function Dashboard({ auth }) {
               {/* Tabs */}
               <div className="flex border-b border-gray-100">
                 {[
-                  { id: "following", label: `⭐ Following`, count: followingCases.length },
-                  { id: "all",       label: "All Cases",    count: otherCases.length },
+                  { id: "all",       label: "All Cases",    count: filteredAvailable.length },
+                  { id: "following", label: "⭐ Following",  count: followingCases.length },
                 ].map(t => (
                   <button key={t.id} onClick={() => setAvailTab(t.id)}
                     className={`px-5 py-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-1.5 ${
@@ -1368,13 +1368,13 @@ function Dashboard({ auth }) {
               {/* List */}
               <div className="divide-y divide-gray-50">
                 {(() => {
-                  const list = availTab === "following" ? followingCases : otherCases;
+                  const list = availTab === "following" ? followingCases : filteredAvailable;
                   if (list.length === 0) {
                     return (
                       <div className="p-8 text-center text-gray-400 text-sm">
                         {availTab === "following"
-                          ? "No cases from companies you follow. Use ♡ on any case to follow that company and see their cases here first."
-                          : "No other open cases right now."}
+                          ? "No cases from companies you follow yet. Click ♡ on any case card to follow that company."
+                          : "No open cases available right now."}
                       </div>
                     );
                   }
