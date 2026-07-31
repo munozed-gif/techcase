@@ -1087,52 +1087,55 @@ function Dashboard({ auth }) {
   const { cases, loading: casesLoading } = useCases();
   const { applications } = useApplications();
   const [applyingToCase, setApplying] = useState(null);
+  const [activeTab, setActiveTab]     = useState(null);
 
-  const myApplications = applications.filter(a => a.consultant_id === auth.user?.id);
-  const appliedCaseIds = new Set(myApplications.map(a => a.case_id));
-  const assignedCaseIds = new Set(
+  // Pre-compute filtered sets
+  const myApplications   = applications.filter(a => a.consultant_id === auth.user?.id);
+  const appliedCaseIds   = new Set(myApplications.map(a => a.case_id));
+  const assignedCaseIds  = new Set(
     cases.flatMap(c => c.case_assignments ?? [])
       .filter(a => a.consultant_id === auth.user?.id)
       .map(a => a.case_id ?? a.id)
   );
-  const availableCases = cases.filter(c =>
-    c.status === "open" &&
-    !appliedCaseIds.has(c.id) &&
-    !assignedCaseIds.has(c.id)
-  );
+  const availableCases   = cases.filter(c => c.status === "open" && !appliedCaseIds.has(c.id) && !assignedCaseIds.has(c.id));
+  const assignedCases    = cases.filter(c => c.case_assignments?.some(a => a.consultant_id === auth.user?.id));
+  const myCases          = cases.filter(c => c.client_id === auth.user?.id);
+  const managedCases     = cases.filter(c => c.manager_id === auth.user?.id);
 
-  const stats = {
+  // Stat tiles — each carries its pre-filtered items and type for the list panel
+  const statDefs = {
     admin: [
-      { label: "Total Cases",     value: cases.length,                                    icon: "📋", color: "indigo" },
-      { label: "Open Cases",      value: cases.filter(c => c.status === "open").length,   icon: "🟢", color: "green" },
-      { label: "In Progress",     value: cases.filter(c => c.status === "in_progress").length, icon: "🔵", color: "blue" },
-      { label: "Applications",    value: applications.length,                             icon: "📝", color: "purple" },
+      { id: "total",    label: "Total Cases",  icon: "📋", color: "indigo", type: "cases",        items: cases },
+      { id: "open",     label: "Open Cases",   icon: "🟢", color: "green",  type: "cases",        items: cases.filter(c => c.status === "open") },
+      { id: "progress", label: "In Progress",  icon: "🔵", color: "blue",   type: "cases",        items: cases.filter(c => c.status === "in_progress") },
+      { id: "apps",     label: "Applications", icon: "📝", color: "purple", type: "applications", items: applications },
     ],
     manager: [
-      { label: "My Cases",        value: cases.filter(c => c.manager_id === auth.user?.id).length, icon: "📋", color: "indigo" },
-      { label: "Open",            value: cases.filter(c => c.status === "open").length,   icon: "🟢", color: "green" },
-      { label: "Pending Reviews", value: applications.filter(a => a.status === "pending").length, icon: "⏳", color: "yellow" },
+      { id: "mycases",  label: "My Cases",        icon: "📋", color: "indigo", type: "cases",        items: managedCases },
+      { id: "open",     label: "Open Cases",       icon: "🟢", color: "green",  type: "cases",        items: cases.filter(c => c.status === "open") },
+      { id: "pending",  label: "Pending Reviews",  icon: "⏳", color: "yellow", type: "applications", items: applications.filter(a => a.status === "pending") },
     ],
     consultant: [
-      { label: "My Applications", value: applications.filter(a => a.consultant_id === auth.user?.id).length, icon: "📝", color: "indigo" },
-      { label: "Accepted",        value: applications.filter(a => a.consultant_id === auth.user?.id && a.status === "accepted").length, icon: "✅", color: "green" },
-      { label: "Open Cases",      value: cases.filter(c => c.status === "open").length,   icon: "🔓", color: "blue" },
+      { id: "myapps",   label: "My Applications", icon: "📝", color: "indigo", type: "applications", items: myApplications },
+      { id: "accepted", label: "Accepted",         icon: "✅", color: "green",  type: "applications", items: myApplications.filter(a => a.status === "accepted") },
+      { id: "open",     label: "Open Cases",       icon: "🔓", color: "blue",   type: "cases",        items: availableCases },
     ],
     client: [
-      { label: "My Cases",        value: cases.filter(c => c.client_id === auth.user?.id).length, icon: "📋", color: "indigo" },
-      { label: "Active",          value: cases.filter(c => c.client_id === auth.user?.id && c.status === "in_progress").length, icon: "🔵", color: "blue" },
-      { label: "Completed",       value: cases.filter(c => c.client_id === auth.user?.id && c.status === "completed").length, icon: "✅", color: "green" },
+      { id: "mycases",   label: "My Cases",   icon: "📋", color: "indigo", type: "cases", items: myCases },
+      { id: "active",    label: "Active",     icon: "🔵", color: "blue",   type: "cases", items: myCases.filter(c => c.status === "in_progress") },
+      { id: "completed", label: "Completed",  icon: "✅", color: "green",  type: "cases", items: myCases.filter(c => c.status === "completed") },
     ],
   };
 
-  const myStats = stats[auth.role] ?? [];
+  const myStats    = statDefs[auth.role] ?? [];
+  const activeStat = myStats.find(s => s.id === activeTab);
 
   const colorMap = {
-    indigo: "bg-indigo-50 text-indigo-600",
-    green:  "bg-green-50 text-green-600",
-    blue:   "bg-blue-50 text-blue-600",
-    purple: "bg-purple-50 text-purple-600",
-    yellow: "bg-yellow-50 text-yellow-600",
+    indigo: { icon: "bg-indigo-50 text-indigo-600", ring: "ring-indigo-400 bg-indigo-50" },
+    green:  { icon: "bg-green-50 text-green-600",   ring: "ring-green-400 bg-green-50" },
+    blue:   { icon: "bg-blue-50 text-blue-600",     ring: "ring-blue-400 bg-blue-50" },
+    purple: { icon: "bg-purple-50 text-purple-600", ring: "ring-purple-400 bg-purple-50" },
+    yellow: { icon: "bg-yellow-50 text-yellow-600", ring: "ring-yellow-400 bg-yellow-50" },
   };
 
   if (casesLoading) return <Spinner />;
@@ -1159,99 +1162,171 @@ function Dashboard({ auth }) {
         <p className="text-gray-500 mt-1">Here's what's happening on the platform today.</p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {myStats.map((s, i) => (
-          <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl text-xl mb-3 ${colorMap[s.color]}`}>
-              {s.icon}
-            </div>
-            <div className="text-3xl font-bold text-gray-900">{s.value}</div>
-            <div className="text-sm text-gray-500 mt-1">{s.label}</div>
-          </div>
-        ))}
+      {/* Clickable stat tiles */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {myStats.map(s => {
+          const isActive = activeTab === s.id;
+          return (
+            <button key={s.id}
+              onClick={() => setActiveTab(t => t === s.id ? null : s.id)}
+              className={`text-left bg-white rounded-2xl p-6 shadow-sm border transition-all ${
+                isActive ? `ring-2 ${colorMap[s.color].ring} border-transparent` : "border-gray-100 hover:shadow-md hover:border-gray-200"
+              }`}>
+              <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl text-xl mb-3 ${colorMap[s.color].icon}`}>
+                {s.icon}
+              </div>
+              <div className="text-3xl font-bold text-gray-900">{s.items.length}</div>
+              <div className="text-sm text-gray-500 mt-1">{s.label}</div>
+              {isActive && <div className="text-xs text-gray-400 mt-1.5 font-medium">▲ showing list</div>}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Available Cases — consultants only */}
-      {auth.isConsultant && (
+      {/* Filtered list panel — shown when a stat tile is active */}
+      {activeStat && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-6">
-          <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">Available Cases</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Open cases you can apply to</p>
+          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{activeStat.icon}</span>
+              <h2 className="text-base font-bold text-gray-900">{activeStat.label}</h2>
+              <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs font-semibold rounded-lg">{activeStat.items.length}</span>
             </div>
-            <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-lg">
-              {availableCases.length} open
-            </span>
+            <button onClick={() => setActiveTab(null)} className="text-gray-400 hover:text-gray-600 text-sm">✕ Close</button>
           </div>
-          <div className="divide-y divide-gray-50">
-            {availableCases.length === 0 ? (
-              <div className="p-8 text-center text-gray-400 text-sm">
-                No open cases available right now — check back soon.
-              </div>
-            ) : availableCases.map(c => (
-              <div key={c.id} className="p-4 hover:bg-gray-50 transition-colors">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="font-semibold text-gray-900 text-sm">{c.title}</span>
-                      <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
-                    </div>
-                    {c.description && (
-                      <p className="text-xs text-gray-500 line-clamp-2 mb-2">{c.description}</p>
-                    )}
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400">
+          <div className="divide-y divide-gray-50 max-h-96 overflow-y-auto">
+            {activeStat.items.length === 0 && (
+              <div className="p-8 text-center text-gray-400 text-sm">Nothing here yet.</div>
+            )}
+
+            {/* Case rows */}
+            {activeStat.type === "cases" && activeStat.items.map(c => (
+              <div key={c.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="w-9 h-9 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 font-bold text-sm flex-shrink-0">
+                    {c.title?.[0]}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-medium text-gray-900 text-sm truncate">{c.title}</div>
+                    <div className="text-xs text-gray-400 mt-0.5 flex gap-2 flex-wrap">
                       {c.due_date && <span>Due: {fmtDate(c.due_date)}</span>}
-                      {c.budget && <span>Budget: ${Number(c.budget).toLocaleString()}</span>}
-                      {c.skills_required?.length > 0 && (
-                        <span>Skills: {c.skills_required.slice(0, 3).join(", ")}{c.skills_required.length > 3 ? "…" : ""}</span>
-                      )}
+                      {c.budget && <span>${Number(c.budget).toLocaleString()}</span>}
                     </div>
                   </div>
-                  <button onClick={() => setApplying(c)}
-                    className="flex-shrink-0 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm">
-                    Apply →
-                  </button>
                 </div>
+                <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+                  <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
+                  <Badge className={STATUS_COLORS[c.status]}>{cap(fmt(c.status))}</Badge>
+                  {activeStat.id === "open" && auth.isConsultant && !appliedCaseIds.has(c.id) && (
+                    <button onClick={() => setApplying(c)}
+                      className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors">
+                      Apply →
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {/* Application rows */}
+            {activeStat.type === "applications" && activeStat.items.map(a => (
+              <div key={a.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="w-9 h-9 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600 font-bold text-sm flex-shrink-0">
+                    {(a.case?.title ?? a.consultant?.full_name ?? "?")?.[0]}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-medium text-gray-900 text-sm truncate">
+                      {a.case?.title ?? "Unknown case"}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-0.5 flex gap-2 flex-wrap">
+                      {a.consultant?.full_name && <span>{a.consultant.full_name}</span>}
+                      {a.proposed_rate && <span>${a.proposed_rate}/hr</span>}
+                      {a.time_commitment && <span>{a.time_commitment}% time</span>}
+                      {a.submitted_at && <span>{fmtDate(a.submitted_at)}</span>}
+                    </div>
+                  </div>
+                </div>
+                <Badge className={APP_STATUS_COLORS[a.status]}>{cap(a.status)}</Badge>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Recent Cases */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-        <div className="p-6 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-gray-900">
-            {auth.isConsultant ? "My Assigned Cases" : "Recent Cases"}
-          </h2>
-        </div>
-        <div className="divide-y divide-gray-50">
-          {(auth.isConsultant
-            ? cases.filter(c => c.case_assignments?.some(a => a.consultant_id === auth.user?.id))
-            : cases.slice(0, 5)
-          ).map(c => (
-            <div key={c.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 font-bold text-sm">
-                  {c.title?.[0]}
-                </div>
+      {/* Default content when no stat tile is active */}
+      {!activeTab && (
+        <>
+          {/* Available Cases — consultants only */}
+          {auth.isConsultant && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-6">
+              <div className="p-6 border-b border-gray-100 flex items-center justify-between">
                 <div>
-                  <div className="font-medium text-gray-900 text-sm">{c.title}</div>
-                  <div className="text-xs text-gray-400">{fmtDate(c.created_at)}</div>
+                  <h2 className="text-lg font-bold text-gray-900">Available Cases</h2>
+                  <p className="text-xs text-gray-400 mt-0.5">Open cases you can apply to</p>
                 </div>
+                <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-lg">
+                  {availableCases.length} open
+                </span>
               </div>
-              <div className="flex items-center gap-2">
-                <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
-                <Badge className={STATUS_COLORS[c.status]}>{cap(fmt(c.status))}</Badge>
+              <div className="divide-y divide-gray-50">
+                {availableCases.length === 0 ? (
+                  <div className="p-8 text-center text-gray-400 text-sm">No open cases available right now — check back soon.</div>
+                ) : availableCases.map(c => (
+                  <div key={c.id} className="p-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="font-semibold text-gray-900 text-sm">{c.title}</span>
+                          <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
+                        </div>
+                        {c.description && <p className="text-xs text-gray-500 line-clamp-2 mb-2">{c.description}</p>}
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400">
+                          {c.due_date && <span>Due: {fmtDate(c.due_date)}</span>}
+                          {c.budget && <span>Budget: ${Number(c.budget).toLocaleString()}</span>}
+                          {c.skills_required?.length > 0 && <span>Skills: {c.skills_required.slice(0, 3).join(", ")}{c.skills_required.length > 3 ? "…" : ""}</span>}
+                        </div>
+                      </div>
+                      <button onClick={() => setApplying(c)}
+                        className="flex-shrink-0 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm">
+                        Apply →
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
-          {cases.length === 0 && (
-            <div className="p-8 text-center text-gray-400 text-sm">No cases yet</div>
           )}
-        </div>
-      </div>
+
+          {/* Recent / Assigned Cases */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+            <div className="p-6 border-b border-gray-100">
+              <h2 className="text-lg font-bold text-gray-900">
+                {auth.isConsultant ? "My Assigned Cases" : "Recent Cases"}
+              </h2>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {(auth.isConsultant ? assignedCases : cases.slice(0, 5)).map(c => (
+                <div key={c.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 font-bold text-sm">
+                      {c.title?.[0]}
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-900 text-sm">{c.title}</div>
+                      <div className="text-xs text-gray-400">{fmtDate(c.created_at)}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
+                    <Badge className={STATUS_COLORS[c.status]}>{cap(fmt(c.status))}</Badge>
+                  </div>
+                </div>
+              ))}
+              {cases.length === 0 && <div className="p-8 text-center text-gray-400 text-sm">No cases yet</div>}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
