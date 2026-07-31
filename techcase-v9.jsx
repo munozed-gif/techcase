@@ -2757,10 +2757,70 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
 // ARENA (COMPETITIVE BIDDING)
 // ============================================================
 function ArenaView({ auth }) {
-  const [arenaTab, setArenaTab]       = useState("leaderboard");
+  const [arenaTab, setArenaTab]         = useState("cases");
+  const [applyingToCase, setApplying]   = useState(null);
   const { leaderboard, loading: lbLoading } = useLeaderboard();
-  const { cases } = useCases({ status: "open" });
-  const { applications } = useApplications();
+  const { cases, loading: casesLoading }    = useCases();
+  const { applications }                    = useApplications();
+
+  const openCases       = cases.filter(c => c.status === "open");
+  const myApplications  = applications.filter(a => a.consultant_id === auth.user?.id);
+  const appliedCaseIds  = new Set(myApplications.map(a => a.case_id));
+
+  const renderCases = () => {
+    if (casesLoading) return <Spinner />;
+    if (openCases.length === 0) return (
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center text-gray-400 text-sm">
+        No open cases available right now.
+      </div>
+    );
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {openCases.map(c => {
+          const companyName  = c.client?.client_profiles?.company_name || c.client?.full_name;
+          const alreadyApplied = appliedCaseIds.has(c.id);
+          const appCount     = c.applications?.[0]?.count ?? 0;
+          return (
+            <div key={c.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <h3 className="font-semibold text-gray-900 text-sm leading-snug">{c.title}</h3>
+                <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
+              </div>
+              <div className="flex flex-wrap gap-1 mb-2">
+                {c.area_sap      && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{c.area_sap}</span>}
+                {c.area_industry && <span className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium">{c.area_industry}</span>}
+              </div>
+              {companyName && <p className="text-xs text-indigo-600 font-medium mb-1">{companyName}</p>}
+              {c.description && <p className="text-xs text-gray-400 line-clamp-2 mb-3">{c.description}</p>}
+              <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 mb-3">
+                {c.start_date && <span>Starts: {fmtDate(c.start_date)}</span>}
+                {c.due_date   && <span>Due: {fmtDate(c.due_date)}</span>}
+                {c.budget     && <span>Budget: ${Number(c.budget).toLocaleString()}</span>}
+              </div>
+              {c.skills_required?.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-3">
+                  {c.skills_required.slice(0, 3).map(s => (
+                    <span key={s} className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded text-xs">{s}</span>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-xs text-gray-400">{appCount} applicant{appCount !== 1 ? "s" : ""}</span>
+                {auth.isConsultant && (
+                  alreadyApplied
+                    ? <span className="text-xs text-green-600 font-semibold">✓ Applied</span>
+                    : <button onClick={() => setApplying(c)}
+                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors">
+                        Apply →
+                      </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   const renderLeaderboard = () => {
     if (lbLoading) return <Spinner />;
@@ -2910,40 +2970,50 @@ function ArenaView({ auth }) {
     );
   };
 
+  if (applyingToCase) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
+        <ApplyWizard
+          caseData={applyingToCase}
+          auth={auth}
+          onComplete={() => setApplying(null)}
+          onCancel={() => setApplying(null)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Arena</h1>
-        <p className="text-gray-500 text-sm mt-1">Competitive bidding & consultant rankings</p>
-      </div>
-
-      {/* Open cases for consultants */}
-      {auth.isConsultant && cases.length > 0 && (
-        <div className="mb-6 bg-indigo-50 border border-indigo-100 rounded-2xl p-4">
-          <div className="text-sm font-semibold text-indigo-800 mb-2">
-            🔓 {cases.length} open case{cases.length !== 1 ? "s" : ""} available
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {cases.slice(0, 4).map(c => (
-              <span key={c.id} className="text-xs bg-white text-indigo-700 border border-indigo-200 rounded-lg px-2 py-1">
-                {c.title}
-              </span>
-            ))}
-          </div>
+      <div className="mb-6 flex items-end justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Arena</h1>
+          <p className="text-gray-500 text-sm mt-1">Open cases & consultant rankings</p>
         </div>
-      )}
+        {openCases.length > 0 && (
+          <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-semibold rounded-xl">
+            {openCases.length} open case{openCases.length !== 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
 
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 w-fit">
-        {["leaderboard", "cards", "compare"].map(t => (
-          <button key={t} onClick={() => setArenaTab(t)}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all capitalize ${
-              arenaTab === t ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
-            {t === "leaderboard" ? "🏆 Leaderboard" : t === "cards" ? "🃏 Cards" : "⚖️ Compare"}
+        {[
+          { id: "cases",       label: "📋 Open Cases" },
+          { id: "leaderboard", label: "🏆 Leaderboard" },
+          { id: "cards",       label: "🃏 Cards" },
+          { id: "compare",     label: "⚖️ Compare" },
+        ].map(t => (
+          <button key={t.id} onClick={() => setArenaTab(t.id)}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+              arenaTab === t.id ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
+            {t.label}
           </button>
         ))}
       </div>
 
+      {arenaTab === "cases"       && renderCases()}
       {arenaTab === "leaderboard" && renderLeaderboard()}
       {arenaTab === "cards"       && renderCards()}
       {arenaTab === "compare"     && renderCompare()}
