@@ -964,80 +964,244 @@ function Select({ label, options, ...props }) {
 // AUTH SCREEN
 // ============================================================
 function AuthScreen({ onAuth }) {
-  const [mode, setMode]       = useState("signin");
-  const [email, setEmail]     = useState("");
-  const [password, setPass]   = useState("");
-  const [name, setName]       = useState("");
-  const [role, setRole]       = useState("consultant");
-  const [error, setError]     = useState("");
-  const [loading, setLoading] = useState(false);
+  const [mode, setMode]         = useState("signin");
+  // Sign-in fields
+  const [siEmail, setSiEmail]   = useState("");
+  const [siPass,  setSiPass]    = useState("");
+  // Sign-up wizard
+  const [step, setStep]         = useState(0);
+  const [email, setEmail]       = useState("");
+  const [codeSent, setCodeSent] = useState(false);
+  const [code, setCode]         = useState("");
+  const [role, setRole]         = useState("");
+  const [name, setName]         = useState("");
+  const [password, setPass]     = useState("");
+  const [confirmPass, setConf]  = useState("");
+
+  const [error, setError]   = useState("");
+  const [loading, setLoad]  = useState(false);
   const auth = useAuth();
 
-  async function handleSubmit() {
-    setError("");
-    setLoading(true);
-    try {
-      if (mode === "signin") {
-        await auth.signIn(email, password);
-        onAuth(null);
-      } else {
-        await auth.signUp(email, password, name, role);
-        onAuth(role); // pass role so App can show the right onboarding
-      }
-    } catch (e) {
-      setError(e.message || JSON.stringify(e) || "Signup failed. Check the browser console for details.");
-    }
-    setLoading(false);
+  const SIGNUP_STEPS = [
+    { id: "verify",  label: "Verify",  icon: "✉️" },
+    { id: "role",    label: "Role",    icon: "👤" },
+    { id: "profile", label: "Profile", icon: "📝" },
+  ];
+
+  function switchMode(m) { setMode(m); setError(""); setStep(0); setCodeSent(false); setCode(""); }
+
+  // ── Sign in ──────────────────────────────────────────────────
+  async function handleSignIn() {
+    setError(""); setLoad(true);
+    try { await auth.signIn(siEmail, siPass); onAuth(null); }
+    catch (e) { setError(e.message); }
+    setLoad(false);
   }
+
+  // ── Step 0a: send OTP ─────────────────────────────────────────
+  async function sendCode() {
+    if (!email.trim()) { setError("Enter your email first."); return; }
+    setError(""); setLoad(true);
+    const { error: err } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: { shouldCreateUser: true },
+    });
+    if (err) setError(err.message);
+    else { setCodeSent(true); setCode(""); }
+    setLoad(false);
+  }
+
+  // ── Step 0b: verify OTP ───────────────────────────────────────
+  async function verifyCode() {
+    if (code.length < 6) { setError("Enter the 6-digit code from your email."); return; }
+    setError(""); setLoad(true);
+    const { data, error: err } = await supabase.auth.verifyOtp({
+      email: email.trim(), token: code, type: "email",
+    });
+    if (err) { setError(err.message); setLoad(false); return; }
+    // Check if this is an existing user with a completed profile
+    const { data: existing } = await supabase
+      .from("users").select("role").eq("id", data.user?.id).maybeSingle();
+    if (existing?.role) { onAuth(null); return; } // returning user → dashboard
+    setStep(1);
+    setLoad(false);
+  }
+
+  // ── Step 1: role chosen ───────────────────────────────────────
+  function selectRole(r) { setRole(r); setError(""); setStep(2); }
+
+  // ── Step 2: create account ────────────────────────────────────
+  async function createAccount() {
+    if (!name.trim()) { setError("Enter your full name."); return; }
+    if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    if (password !== confirmPass) { setError("Passwords don't match."); return; }
+    setError(""); setLoad(true);
+    try {
+      await supabase.auth.updateUser({
+        password,
+        data: { full_name: name.trim(), role },
+      });
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.from("users").upsert(
+        { id: user.id, email: user.email, full_name: name.trim(), role },
+        { onConflict: "id" }
+      );
+      onAuth(role);
+    } catch (e) { setError(e.message); }
+    setLoad(false);
+  }
+
+  const logo = (
+    <div className="text-center mb-8">
+      <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-4 shadow-lg">
+        <span className="text-white text-2xl font-bold">TC</span>
+      </div>
+      <h1 className="text-3xl font-bold text-gray-900">TechCase</h1>
+      <p className="text-gray-500 mt-1">Consultant case management platform</p>
+    </div>
+  );
+
+  const tabs = (
+    <div className="flex rounded-xl bg-gray-100 p-1 mb-6">
+      {[["signin", "Sign In"], ["signup", "Create Account"]].map(([m, label]) => (
+        <button key={m} onClick={() => switchMode(m)}
+          className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
+            mode === m ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
+  const errorBox = error && (
+    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{error}</div>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-4 shadow-lg">
-            <span className="text-white text-2xl font-bold">TC</span>
+        {logo}
+
+        {/* ── SIGN IN ── */}
+        {mode === "signin" && (
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            {tabs}
+            <Input label="Email" type="email" value={siEmail}
+              onChange={e => setSiEmail(e.target.value)} placeholder="you@company.com" />
+            <Input label="Password" type="password" value={siPass}
+              onChange={e => setSiPass(e.target.value)} placeholder="••••••••" />
+            {errorBox}
+            <button onClick={handleSignIn} disabled={loading}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 mt-2">
+              {loading ? "Signing in…" : "Sign In"}
+            </button>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">TechCase</h1>
-          <p className="text-gray-500 mt-1">Consultant case management platform</p>
-        </div>
+        )}
 
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <div className="flex rounded-lg bg-gray-100 p-1 mb-6">
-            {["signin", "signup"].map(m => (
-              <button key={m} onClick={() => setMode(m)}
-                className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
-                  mode === m ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
-                {m === "signin" ? "Sign In" : "Create Account"}
-              </button>
-            ))}
+        {/* ── SIGN UP WIZARD ── */}
+        {mode === "signup" && (
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            {tabs}
+
+            {/* Step progress */}
+            <div className="flex items-center mb-8 relative">
+              <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200 z-0" />
+              {SIGNUP_STEPS.map((s, i) => (
+                <div key={s.id} className="relative z-10 flex flex-col items-center flex-1 gap-1.5">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ring-2 transition-all ${
+                    i < step  ? "bg-emerald-500 text-white ring-emerald-200"
+                    : i === step ? "bg-indigo-600 text-white ring-indigo-200"
+                                 : "bg-white text-gray-400 ring-gray-200"}`}>
+                    {i < step ? "✓" : i + 1}
+                  </div>
+                  <span className={`text-xs font-medium ${i === step ? "text-indigo-600" : i < step ? "text-emerald-600" : "text-gray-400"}`}>
+                    {s.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Step 0 — Email verification */}
+            {step === 0 && (
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 mb-1">Verify your email</h2>
+                <p className="text-sm text-gray-500 mb-5">We'll send a 6-digit code to confirm it's you.</p>
+                <Input label="Email" type="email" value={email}
+                  onChange={e => setEmail(e.target.value)} placeholder="you@company.com" />
+                {!codeSent ? (
+                  <button onClick={sendCode} disabled={loading}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50">
+                    {loading ? "Sending…" : "Send Verification Code →"}
+                  </button>
+                ) : (
+                  <>
+                    <div className="mb-4 p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-sm text-indigo-700">
+                      ✉️ Code sent to <strong>{email}</strong> — check your inbox.
+                    </div>
+                    <Input label="6-digit Verification Code" value={code}
+                      onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="123456" />
+                    <div className="flex gap-2 mt-2">
+                      <button onClick={sendCode} disabled={loading}
+                        className="flex-1 border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium py-2.5 rounded-xl text-sm transition-colors">
+                        Resend
+                      </button>
+                      <button onClick={verifyCode} disabled={loading || code.length < 6}
+                        className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors disabled:opacity-50">
+                        {loading ? "Verifying…" : "Verify →"}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Step 1 — Role selection */}
+            {step === 1 && (
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 mb-1">What brings you here?</h2>
+                <p className="text-sm text-gray-500 mb-5">Choose your account type to get the right experience.</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { role: "consultant", icon: "🧑‍💼", label: "Consultant", desc: "I offer expertise and work on cases" },
+                    { role: "client",     icon: "🏢",   label: "Company / Client", desc: "I post cases and hire consultants" },
+                  ].map(opt => (
+                    <button key={opt.role} onClick={() => selectRole(opt.role)}
+                      className="flex flex-col items-center gap-2 p-5 border-2 border-gray-200 hover:border-indigo-400 hover:bg-indigo-50 rounded-2xl transition-all text-center group">
+                      <span className="text-3xl">{opt.icon}</span>
+                      <span className="font-semibold text-gray-900 text-sm group-hover:text-indigo-700">{opt.label}</span>
+                      <span className="text-xs text-gray-500 leading-snug">{opt.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Step 2 — Profile details */}
+            {step === 2 && (
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 mb-1">Almost there!</h2>
+                <p className="text-sm text-gray-500 mb-5">Set your name and a password for your account.</p>
+                <Input label="Full Name" value={name}
+                  onChange={e => setName(e.target.value)} placeholder="Jane Smith" />
+                <Input label="Password" type="password" value={password}
+                  onChange={e => setPass(e.target.value)} placeholder="At least 6 characters" />
+                <Input label="Confirm Password" type="password" value={confirmPass}
+                  onChange={e => setConf(e.target.value)} placeholder="••••••••" />
+                <button onClick={createAccount} disabled={loading}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 mt-2">
+                  {loading ? "Creating account…" : "Create Account →"}
+                </button>
+                <button onClick={() => setStep(1)}
+                  className="w-full mt-3 text-sm text-gray-400 hover:text-gray-600 transition-colors">
+                  ← Back
+                </button>
+              </div>
+            )}
+
+            {errorBox}
           </div>
-
-          {mode === "signup" && (
-            <>
-              <Input label="Full Name" value={name} onChange={e => setName(e.target.value)}
-                placeholder="Jane Smith" />
-              <Select label="Role" value={role} onChange={e => setRole(e.target.value)}
-                options={[
-                  { value: "consultant", label: "Consultant" },
-                  { value: "client",     label: "Client" },
-                ]} />
-            </>
-          )}
-
-          <Input label="Email" type="email" value={email}
-            onChange={e => setEmail(e.target.value)} placeholder="you@company.com" />
-          <Input label="Password" type="password" value={password}
-            onChange={e => setPass(e.target.value)} placeholder="••••••••" />
-
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
-          )}
-
-          <button onClick={handleSubmit} disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-50">
-            {loading ? "Please wait…" : mode === "signin" ? "Sign In" : "Create Account"}
-          </button>
-        </div>
+        )}
       </div>
     </div>
   );
