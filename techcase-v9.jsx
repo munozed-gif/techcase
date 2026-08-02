@@ -1002,12 +1002,31 @@ function AuthScreen({ onAuth }) {
   async function sendCode() {
     if (!email.trim()) { setError("Enter your email first."); return; }
     setError(""); setLoad(true);
-    const { error: err } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: { shouldCreateUser: true },
-    });
-    if (err) setError(err.message);
-    else { setCodeSent(true); setCode(""); }
+    try {
+      const { error: err } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: { shouldCreateUser: true },
+      });
+      if (err) {
+        console.error("sendCode error:", err);
+        const msg = err.message || err.error_description || err.msg
+          || (typeof err === "string" ? err : null)
+          || "Could not send code — check your email and try again.";
+        // Surface friendly messages for common cases
+        if (msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("too many"))
+          setError("Too many requests — please wait a minute and try again.");
+        else if (msg.toLowerCase().includes("smtp") || msg.toLowerCase().includes("email"))
+          setError("Email delivery error. Ensure custom SMTP is configured in Supabase → Authentication → SMTP Settings.");
+        else
+          setError(msg);
+      } else {
+        setCodeSent(true);
+        setCode("");
+      }
+    } catch (e) {
+      console.error("sendCode exception:", e);
+      setError(e?.message || "Unexpected error — please try again.");
+    }
     setLoad(false);
   }
 
