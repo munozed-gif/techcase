@@ -1003,16 +1003,17 @@ function AuthScreen({ onAuth }) {
     if (!email.trim()) { setError("Enter your email first."); return; }
     setError(""); setLoad(true);
     try {
-      const { error: err } = await supabase.auth.signInWithOtp({
+      // Use signUp so new emails are created; existing emails get a fresh OTP too.
+      // A random temp password is replaced in step 3 via updateUser().
+      const { error: err } = await supabase.auth.signUp({
         email: email.trim(),
-        options: { shouldCreateUser: true },
+        password: `tmp_${Math.random().toString(36).slice(2)}${Date.now()}`,
       });
       if (err) {
         console.error("sendCode error:", err);
         const msg = err.message || err.error_description || err.msg
           || (typeof err === "string" ? err : null)
           || "Could not send code — check your email and try again.";
-        // Surface friendly messages for common cases
         if (msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("too many"))
           setError("Too many requests — please wait a minute and try again.");
         else if (msg.toLowerCase().includes("smtp") || msg.toLowerCase().includes("email"))
@@ -1034,11 +1035,17 @@ function AuthScreen({ onAuth }) {
   async function verifyCode() {
     if (code.length < 4) { setError("Enter the verification code from your email."); return; }
     setError(""); setLoad(true);
+    // type 'signup' matches the OTP sent by supabase.auth.signUp()
     const { data, error: err } = await supabase.auth.verifyOtp({
-      email: email.trim(), token: code, type: "email",
+      email: email.trim(), token: code, type: "signup",
     });
-    if (err) { setError(err.message); setLoad(false); return; }
-    // Check if this is an existing user with a completed profile
+    if (err) {
+      console.error("verifyCode error:", err);
+      setError(err.message || "Invalid or expired code — try resending.");
+      setLoad(false);
+      return;
+    }
+    // Check if this user already completed their profile
     const { data: existing } = await supabase
       .from("users").select("role").eq("id", data.user?.id).maybeSingle();
     if (existing?.role) { onAuth(null); return; } // returning user → dashboard
