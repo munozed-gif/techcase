@@ -1032,7 +1032,7 @@ function AuthScreen({ onAuth }) {
 
   // ── Step 0b: verify OTP ───────────────────────────────────────
   async function verifyCode() {
-    if (code.length < 6) { setError("Enter the 6-digit code from your email."); return; }
+    if (code.length < 4) { setError("Enter the verification code from your email."); return; }
     setError(""); setLoad(true);
     const { data, error: err } = await supabase.auth.verifyOtp({
       email: email.trim(), token: code, type: "email",
@@ -1144,7 +1144,7 @@ function AuthScreen({ onAuth }) {
             {step === 0 && (
               <div>
                 <h2 className="text-lg font-bold text-gray-900 mb-1">Verify your email</h2>
-                <p className="text-sm text-gray-500 mb-5">We'll send a 6-digit code to confirm it's you.</p>
+                <p className="text-sm text-gray-500 mb-5">We'll send a verification code to confirm it's you.</p>
                 <Input label="Email" type="email" value={email}
                   onChange={e => setEmail(e.target.value)} placeholder="you@company.com" />
                 {!codeSent ? (
@@ -1157,15 +1157,15 @@ function AuthScreen({ onAuth }) {
                     <div className="mb-4 p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-sm text-indigo-700">
                       ✉️ Code sent to <strong>{email}</strong> — check your inbox.
                     </div>
-                    <Input label="6-digit Verification Code" value={code}
-                      onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                      placeholder="123456" />
+                    <Input label="Verification Code" value={code}
+                      onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                      placeholder="Enter code from email" />
                     <div className="flex gap-2 mt-2">
                       <button onClick={sendCode} disabled={loading}
                         className="flex-1 border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium py-2.5 rounded-xl text-sm transition-colors">
                         Resend
                       </button>
-                      <button onClick={verifyCode} disabled={loading || code.length < 6}
+                      <button onClick={verifyCode} disabled={loading || code.length < 4}
                         className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors disabled:opacity-50">
                         {loading ? "Verifying…" : "Verify →"}
                       </button>
