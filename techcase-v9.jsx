@@ -1012,32 +1012,34 @@ function AuthScreen({ onAuth }) {
     if (!email.trim()) { setError("Enter your email first."); return; }
     setError(""); setLoad(true);
     try {
-      // signInWithOtp with shouldCreateUser:true creates new accounts AND
-      // sends the "Magic link or OTP" email template (the one you configured
-      // with {{ .Token }}). Works for both new and existing emails.
-      const { error: err } = await supabase.auth.signInWithOtp({
+      // signUp is the correct API for new account creation.
+      // A random temp password is used here; the real password is set in Step 2.
+      const tempPass = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2).toUpperCase() + "1!";
+      const { data, error: err } = await supabase.auth.signUp({
         email: email.trim(),
-        options: { shouldCreateUser: true },
+        password: tempPass,
       });
       if (err) {
-        console.error("sendCode error:", err);
-        const msg = err.message || err.error_description || err.msg
-          || (typeof err === "string" ? err : null)
-          || "Could not send code — check your email and try again.";
-        if (msg.toLowerCase().includes("signup") || msg.toLowerCase().includes("sign up") || msg.toLowerCase().includes("disabled"))
-          setError("New sign-ups are disabled. Go to Supabase → Authentication → Settings and turn off \"Disable sign-ups\".");
+        const msg = err.message || err.error_description || String(err)
+          || "Could not send code — try again.";
+        if (msg.toLowerCase().includes("already registered") || msg.toLowerCase().includes("already exists"))
+          setError("This email already has an account — use Sign In instead.");
         else if (msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("too many"))
           setError("Too many requests — please wait a minute and try again.");
+        else if (msg.toLowerCase().includes("signup") || msg.toLowerCase().includes("disabled"))
+          setError("Sign-ups are disabled. Go to Supabase → Authentication → Settings and turn off \"Disable sign-ups\".");
         else if (msg.toLowerCase().includes("smtp") || msg.toLowerCase().includes("email"))
           setError("Email delivery error. Ensure custom SMTP is configured in Supabase → Authentication → SMTP Settings.");
         else
           setError(msg);
+      } else if (data.user && data.user.identities?.length === 0) {
+        // Supabase returns an empty identities array when the email already exists
+        setError("This email already has an account — use Sign In instead.");
       } else {
         setCodeSent(true);
         setCode("");
       }
     } catch (e) {
-      console.error("sendCode exception:", e);
       setError(e?.message || "Unexpected error — please try again.");
     }
     setLoad(false);
@@ -1047,12 +1049,11 @@ function AuthScreen({ onAuth }) {
   async function verifyCode() {
     if (code.length < 4) { setError("Enter the verification code from your email."); return; }
     setError(""); setLoad(true);
-    // type:'email' matches the token sent by signInWithOtp
+    // type:'signup' matches the token sent by signUp
     const { data, error: err } = await supabase.auth.verifyOtp({
-      email: email.trim(), token: code, type: "email",
+      email: email.trim(), token: code, type: "signup",
     });
     if (err) {
-      console.error("verifyCode error:", err);
       setError(err.message || "Invalid or expired code — try resending.");
       setLoad(false);
       return;
