@@ -1,0 +1,6665 @@
+// ============================================================
+// TECHCASE v9 — Invoices, Kanban, Documents & Time Tracking
+// ============================================================
+// New in v9 (over v8):
+//   - Invoice & Billing Management
+//   - Case Document Attachments (Supabase Storage bucket: case-documents)
+//   - Time Entries with manager approval workflow
+//   - Kanban Board View (visual case pipeline)
+//   - Enhanced Reports (hours, revenue, conversion)
+//
+// New DB tables needed:
+//   invoices (id, case_id, client_id, consultant_id, invoice_number,
+//             amount, status[draft/sent/paid/overdue], issue_date,
+//             due_date, notes, created_at)
+//   time_entries (id, case_id, consultant_id, date, hours,
+//                 description, is_billable, is_approved,
+//                 approved_by, created_at)
+//   case_documents (id, case_id, uploaded_by, file_name, file_url,
+//                   file_type, file_size_kb, notes, created_at)
+// ============================================================
+
+import { useState, useEffect, useCallback, useRef } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+// ============================================================
+// SUPABASE CLIENT
+// ============================================================
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL || "",
+  import.meta.env.VITE_SUPABASE_ANON_KEY || ""
+);
+
+// ============================================================
+// HOOKS
+// ============================================================
+
+function useMilestones(caseId) {
+  const [milestones, setMilestones] = useState([]);
+  const fetchMilestones = useCallback(async () => {
+    if (!caseId) return;
+    const { data } = await supabase.from("case_milestones")
+      .select("*").eq("case_id", caseId).order("position");
+    setMilestones(data ?? []);
+  }, [caseId]);
+  useEffect(() => { fetchMilestones(); }, [fetchMilestones]);
+
+  async function toggleMilestone(id, isDone) {
+    await supabase.from("case_milestones")
+      .update({ is_done: !isDone, done_at: !isDone ? new Date().toISOString() : null })
+      .eq("id", id);
+    await fetchMilestones();
+  }
+  async function addMilestone(title) {
+    await supabase.from("case_milestones")
+      .insert({ case_id: caseId, title, position: milestones.length + 1 });
+    await fetchMilestones();
+  }
+  return { milestones, toggleMilestone, addMilestone, refetch: fetchMilestones };
+}
+
+function useCaseComments(caseId) {
+  const [comments, setComments] = useState([]);
+  const fetchComments = useCallback(async () => {
+    if (!caseId) return;
+    const { data } = await supabase.from("case_comments")
+      .select("*, author:author_id(full_name, avatar_url, role)")
+      .eq("case_id", caseId).order("created_at", { ascending: true });
+    setComments(data ?? []);
+  }, [caseId]);
+  useEffect(() => { fetchComments(); }, [fetchComments]);
+
+  async function addComment({ body, hoursLogged = 0, progressUpdate = null, isInternal = false }) {
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from("case_comments").insert({
+      case_id: caseId, author_id: user.id, body,
+      hours_logged: hoursLogged, progress_update: progressUpdate, is_internal: isInternal,
+    });
+    if (progressUpdate !== null) {
+      await supabase.from("cases").update({ progress_pct: progressUpdate }).eq("id", caseId);
+    }
+    await fetchComments();
+  }
+  return { comments, addComment, refetch: fetchComments };
+}
+
+function useSlaConfig(clientId) {
+  const [sla, setSla] = useState(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    if (!clientId) { setLoading(false); return; }
+    (async () => {
+      const { data } = await supabase.from("sla_configs")
+        .select("*").eq("client_id", clientId).single();
+      setSla(data);
+      setLoading(false);
+    })();
+  }, [clientId]);
+  async function updateSla(updates) {
+    const { data, error } = await supabase.from("sla_configs")
+      .upsert({ client_id: clientId, ...updates }).select().single();
+    if (error) throw error;
+    setSla(data);
+    return data;
+  }
+  return { sla, loading, updateSla };
+}
+
+function useDbConnections(clientId) {
+  const [connections, setConnections] = useState([]);
+  const fetchConnections = useCallback(async () => {
+    if (!clientId) return;
+    const { data } = await supabase.from("db_connections")
+      .select("*").eq("client_id", clientId).order("created_at");
+    setConnections(data ?? []);
+  }, [clientId]);
+  useEffect(() => { fetchConnections(); }, [fetchConnections]);
+  async function addConnection(conn) {
+    await supabase.from("db_connections").insert({ ...conn, client_id: clientId });
+    await fetchConnections();
+  }
+  async function deleteConnection(id) {
+    await supabase.from("db_connections").delete().eq("id", id);
+    await fetchConnections();
+  }
+  return { connections, addConnection, deleteConnection, refetch: fetchConnections };
+}
+
+function useSubCases(parentCaseId) {
+  const [subCases, setSubCases] = useState([]);
+  const [loading, setLoading]   = useState(true);
+
+  const fetchSubCases = useCallback(async () => {
+    if (!parentCaseId) { setLoading(false); return; }
+    const { data } = await supabase
+      .from("cases")
+      .select(`
+        *,
+        client:client_id(id, full_name, client_profiles(company_name)),
+        manager:manager_id(id, full_name)
+      `)
+      .eq("parent_case_id", parentCaseId)
+      .order("created_at");
+    setSubCases(data ?? []);
+    setLoading(false);
+  }, [parentCaseId]);
+
+  useEffect(() => { fetchSubCases(); }, [fetchSubCases]);
+
+  async function createSubCase(data) {
+    const { data: row, error } = await supabase
+      .from("cases")
+      .insert({ ...data, parent_case_id: parentCaseId })
+      .select().single();
+    if (error) throw error;
+    await fetchSubCases();
+    return row;
+  }
+
+  return { subCases, loading, createSubCase, refetch: fetchSubCases };
+}
+
+function useClientTeamMembers(clientId) {
+  const [members, setMembers] = useState([]);
+  const fetchMembers = useCallback(async () => {
+    if (!clientId) return;
+    const { data } = await supabase.from("client_team_members")
+      .select("*").eq("client_id", clientId).order("created_at");
+    setMembers(data ?? []);
+  }, [clientId]);
+  useEffect(() => { fetchMembers(); }, [fetchMembers]);
+  async function addMember(member) {
+    await supabase.from("client_team_members").insert({ ...member, client_id: clientId });
+    await fetchMembers();
+  }
+  return { members, addMember, refetch: fetchMembers };
+}
+
+
+// ============================================================
+// V9 NEW HOOKS
+// ============================================================
+
+function useInvoices(filters = {}) {
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const filterKey = JSON.stringify(filters);
+
+  const fetchInvoices = useCallback(async () => {
+    setLoading(true);
+    let query = supabase
+      .from("invoices")
+      .select(`*, client:client_id(id, full_name, client_profiles(company_name)),
+               case:case_id(id, title), consultant:consultant_id(id, full_name)`)
+      .order("created_at", { ascending: false });
+    if (filters.client_id) query = query.eq("client_id", filters.client_id);
+    if (filters.status)    query = query.eq("status", filters.status);
+    if (filters.case_id)   query = query.eq("case_id", filters.case_id);
+    const { data } = await query;
+    setInvoices(data ?? []);
+    setLoading(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterKey]);
+
+  useEffect(() => { fetchInvoices(); }, [fetchInvoices]);
+
+  async function createInvoice(data) {
+    const { data: row, error } = await supabase.from("invoices").insert(data).select().single();
+    if (error) throw error;
+    await fetchInvoices();
+    return row;
+  }
+
+  async function updateInvoice(id, updates) {
+    const { data: row, error } = await supabase.from("invoices").update(updates).eq("id", id).select().single();
+    if (error) throw error;
+    await fetchInvoices();
+    return row;
+  }
+
+  async function deleteInvoice(id) {
+    const { error } = await supabase.from("invoices").delete().eq("id", id);
+    if (error) throw error;
+    await fetchInvoices();
+  }
+
+  return { invoices, loading, createInvoice, updateInvoice, deleteInvoice, refetch: fetchInvoices };
+}
+
+function useTimeEntries(caseId = null) {
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchEntries = useCallback(async () => {
+    setLoading(true);
+    let query = supabase
+      .from("time_entries")
+      .select(`*, consultant:consultant_id(id, full_name, avatar_url),
+               case:case_id(id, title), approver:approved_by(full_name)`)
+      .order("date", { ascending: false });
+    if (caseId) query = query.eq("case_id", caseId);
+    const { data } = await query;
+    setEntries(data ?? []);
+    setLoading(false);
+  }, [caseId]);
+
+  useEffect(() => { fetchEntries(); }, [fetchEntries]);
+
+  async function addTimeEntry(data) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: row, error } = await supabase.from("time_entries")
+      .insert({ ...data, consultant_id: user.id }).select().single();
+    if (error) throw error;
+    await fetchEntries();
+    return row;
+  }
+
+  async function approveEntry(id, approved) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from("time_entries")
+      .update({ is_approved: approved, approved_by: approved ? user.id : null }).eq("id", id);
+    if (error) throw error;
+    await fetchEntries();
+  }
+
+  async function deleteEntry(id) {
+    const { error } = await supabase.from("time_entries").delete().eq("id", id);
+    if (error) throw error;
+    await fetchEntries();
+  }
+
+  return { entries, loading, addTimeEntry, approveEntry, deleteEntry, refetch: fetchEntries };
+}
+
+function useCaseDocuments(caseId) {
+  const [documents, setDocuments] = useState([]);
+  const [loading, setLoading]     = useState(true);
+
+  const fetchDocs = useCallback(async () => {
+    if (!caseId) { setLoading(false); return; }
+    const { data } = await supabase.from("case_documents")
+      .select("*, uploader:uploaded_by(full_name)")
+      .eq("case_id", caseId).order("created_at", { ascending: false });
+    setDocuments(data ?? []);
+    setLoading(false);
+  }, [caseId]);
+
+  useEffect(() => { fetchDocs(); }, [fetchDocs]);
+
+  async function addDocument(file, notes = "") {
+    const { data: { user } } = await supabase.auth.getUser();
+    const path = `${caseId}/${Date.now()}-${file.name}`;
+    const { error: uploadError } = await supabase.storage
+      .from("case-documents").upload(path, file, { upsert: false });
+    if (uploadError) throw uploadError;
+    const { data: { publicUrl } } = supabase.storage.from("case-documents").getPublicUrl(path);
+    const ext = file.name.split(".").pop();
+    const { error } = await supabase.from("case_documents").insert({
+      case_id: caseId, uploaded_by: user.id,
+      file_name: file.name, file_url: publicUrl,
+      file_type: file.type || ext,
+      file_size_kb: Math.round(file.size / 1024),
+      notes,
+    });
+    if (error) throw error;
+    await fetchDocs();
+  }
+
+  async function deleteDocument(id, fileUrl) {
+    if (fileUrl) {
+      const pathPart = fileUrl.split("/case-documents/")[1];
+      if (pathPart) await supabase.storage.from("case-documents").remove([pathPart]);
+    }
+    await supabase.from("case_documents").delete().eq("id", id);
+    await fetchDocs();
+  }
+
+  return { documents, loading, addDocument, deleteDocument, refetch: fetchDocs };
+}
+
+function useAuth() {
+  const [user, setUser]       = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) fetchProfile(session.user.id);
+      else setLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) fetchProfile(session.user.id);
+      else { setProfile(null); setLoading(false); }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  async function fetchProfile(userId) {
+    let { data } = await supabase
+      .from("users")
+      .select("*, consultant_profiles(*), client_profiles(*)")
+      .eq("id", userId)
+      .single();
+
+    if (!data) {
+      // Trigger may have failed — try creating the public.users row client-side
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const meta = user.user_metadata ?? {};
+        await supabase.from("users").insert({
+          id: user.id,
+          email: user.email,
+          full_name: meta.full_name || user.email.split("@")[0],
+          role: meta.role || "consultant",
+        });
+        const { data: retry } = await supabase
+          .from("users")
+          .select("*, consultant_profiles(*), client_profiles(*)")
+          .eq("id", userId)
+          .single();
+        data = retry;
+      }
+    }
+
+    setProfile(data ?? null);
+    setLoading(false);
+  }
+
+  async function signIn(email, password) {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    return data;
+  }
+
+  async function signUp(email, password, fullName, role = "consultant") {
+    const { data, error } = await supabase.auth.signUp({
+      email, password,
+      options: { data: { full_name: fullName, role } }
+    });
+    if (error) throw error;
+    return data;
+  }
+
+  async function signOut() {
+    await supabase.auth.signOut();
+  }
+
+  return {
+    user, profile, loading,
+    role: profile?.role ?? null,
+    signIn, signUp, signOut,
+    isAdmin:      profile?.role === "admin",
+    isManager:    profile?.role === "manager",
+    isConsultant: profile?.role === "consultant",
+    isClient:     profile?.role === "client",
+  };
+}
+
+function useCases(filters = {}) {
+  const [cases, setCases]     = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
+  const filterKey = JSON.stringify(filters);
+
+  const fetchCases = useCallback(async () => {
+    setLoading(true);
+    let query = supabase
+      .from("cases")
+      .select(`
+        *,
+        client:client_id(id, full_name, email, client_profiles(company_name)),
+        manager:manager_id(id, full_name, email),
+        case_assignments(consultant_id, time_commitment,
+          users:consultant_id(id, full_name, avatar_url)),
+        applications(count)
+      `)
+      .order("created_at", { ascending: false });
+
+    if (filters.status)    query = query.eq("status", filters.status);
+    if (filters.priority)  query = query.eq("priority", filters.priority);
+    if (filters.search)    query = query.ilike("title", `%${filters.search}%`);
+    if (filters.client_id) query = query.eq("client_id", filters.client_id);
+
+    const { data, error } = await query;
+    if (error) setError(error.message);
+    else setCases(data ?? []);
+    setLoading(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterKey]);
+
+  useEffect(() => { fetchCases(); }, [fetchCases]);
+
+  useEffect(() => {
+    const channel = supabase.channel("cases-rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "cases" }, fetchCases)
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [fetchCases]);
+
+  async function createCase(data) {
+    const { data: row, error } = await supabase.from("cases").insert(data).select().single();
+    if (error) throw error;
+    await fetchCases();
+    return row;
+  }
+
+  async function updateCase(id, updates) {
+    const { data: row, error } = await supabase.from("cases").update(updates).eq("id", id).select().single();
+    if (error) throw error;
+    await fetchCases();
+    return row;
+  }
+
+  async function deleteCase(id) {
+    const { error } = await supabase.from("cases").delete().eq("id", id);
+    if (error) throw error;
+    await fetchCases();
+  }
+
+  return { cases, loading, error, createCase, updateCase, deleteCase, refetch: fetchCases };
+}
+
+function useApplications(caseId = null) {
+  const [applications, setApplications] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchApps = useCallback(async () => {
+    setLoading(true);
+    let query = supabase
+      .from("applications")
+      .select(`
+        *,
+        consultant:consultant_id(id, full_name, email, avatar_url,
+          consultant_profiles(headline, skills, hourly_rate, years_experience,
+            external_occupancy_pct, travel_available)),
+        case:case_id(id, title, status)
+      `)
+      .order("submitted_at", { ascending: false });
+    if (caseId) query = query.eq("case_id", caseId);
+    const { data } = await query;
+    setApplications(data ?? []);
+    setLoading(false);
+  }, [caseId]);
+
+  useEffect(() => { fetchApps(); }, [fetchApps]);
+
+  async function apply({ caseId: cId, coverLetter, proposedRate, timeCommitment }) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from("applications").insert({
+      case_id: cId, consultant_id: user.id,
+      cover_letter: coverLetter, proposed_rate: proposedRate,
+      time_commitment: timeCommitment,
+    }).select().single();
+    if (error) throw error;
+    await fetchApps();
+    return data;
+  }
+
+  async function reviewApplication(appId, status, notes) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from("applications")
+      .update({ status, notes, reviewed_at: new Date().toISOString(), reviewed_by: user.id })
+      .eq("id", appId).select().single();
+    if (error) throw error;
+    if (status === "accepted") {
+      const app = applications.find(a => a.id === appId);
+      if (app) await supabase.from("case_assignments").upsert({
+        case_id: app.case_id, consultant_id: app.consultant_id,
+        time_commitment: app.time_commitment,
+      });
+    }
+    await fetchApps();
+    return data;
+  }
+
+  async function withdraw(appId) {
+    const { error } = await supabase.from("applications")
+      .update({ status: "withdrawn" }).eq("id", appId);
+    if (error) throw error;
+    await fetchApps();
+  }
+
+  return { applications, loading, apply, reviewApplication, withdraw, refetch: fetchApps };
+}
+
+function useRatings(consultantId = null) {
+  const [ratings, setRatings]     = useState([]);
+  const [avgRating, setAvgRating] = useState(null);
+  const [loading, setLoading]     = useState(true);
+
+  useEffect(() => {
+    if (!consultantId) return;
+    (async () => {
+      setLoading(true);
+      const { data } = await supabase.from("ratings")
+        .select("*, rater:rated_by(full_name, avatar_url), case:case_id(title)")
+        .eq("consultant_id", consultantId).eq("is_public", true)
+        .order("created_at", { ascending: false });
+      setRatings(data ?? []);
+      const { data: avg } = await supabase.rpc("get_consultant_avg_rating", { p_consultant_id: consultantId });
+      setAvgRating(avg);
+      setLoading(false);
+    })();
+  }, [consultantId]);
+
+  async function submitRating({ caseId, score, comment }) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from("ratings").upsert({
+      consultant_id: consultantId, case_id: caseId,
+      rated_by: user.id, score, comment,
+    }).select().single();
+    if (error) throw error;
+    const newRatings = [...ratings.filter(r => r.rated_by !== user.id), data];
+    setRatings(newRatings);
+    const sum = newRatings.reduce((a, r) => a + r.score, 0);
+    setAvgRating(parseFloat((sum / newRatings.length).toFixed(2)));
+    return data;
+  }
+
+  return { ratings, avgRating, loading, submitRating };
+}
+
+function useFavorites() {
+  const [favorites, setFavorites] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from("favorites")
+        .select("case_id").eq("consultant_id", user.id);
+      setFavorites(data?.map(f => f.case_id) ?? []);
+    })();
+  }, []);
+
+  function isFavorite(caseId) { return favorites.includes(caseId); }
+
+  async function toggle(caseId) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (isFavorite(caseId)) {
+      await supabase.from("favorites")
+        .delete().eq("consultant_id", user.id).eq("case_id", caseId);
+      setFavorites(prev => prev.filter(id => id !== caseId));
+    } else {
+      await supabase.from("favorites").insert({ consultant_id: user.id, case_id: caseId });
+      setFavorites(prev => [...prev, caseId]);
+    }
+  }
+
+  return { favorites, isFavorite, toggle };
+}
+
+function useFollowedClients() {
+  const [followed, setFollowed] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from("followed_clients")
+        .select("client_user_id").eq("consultant_id", user.id);
+      setFollowed(data?.map(f => f.client_user_id) ?? []);
+    })();
+  }, []);
+
+  function isFollowing(clientUserId) { return !!clientUserId && followed.includes(clientUserId); }
+
+  async function toggle(clientUserId) {
+    if (!clientUserId) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (isFollowing(clientUserId)) {
+      await supabase.from("followed_clients")
+        .delete().eq("consultant_id", user.id).eq("client_user_id", clientUserId);
+      setFollowed(prev => prev.filter(id => id !== clientUserId));
+    } else {
+      await supabase.from("followed_clients")
+        .insert({ consultant_id: user.id, client_user_id: clientUserId });
+      setFollowed(prev => [...prev, clientUserId]);
+    }
+  }
+
+  return { followed, isFollowing, toggle };
+}
+
+function useConsultantProfile(consultantId, profileId) {
+  const [profile, setProfile]       = useState(null);
+  const [availability, setAvailability] = useState(null);
+  const [loading, setLoading]       = useState(true);
+  const [profileError, setProfileError] = useState(null);
+
+  const resolvedId = profileId ?? consultantId;
+
+  const fetchProfile = useCallback(async () => {
+    if (!resolvedId) return;
+    setLoading(true);
+    setProfileError(null);
+
+    // Avoid the case_assignments nested join — it requires a FK from case_assignments
+    // to consultant_profiles which may not exist. Fetch core + safe related tables only.
+    const { data, error } = await supabase.from("consultant_profiles")
+      .select(`*, work_authorizations(*), consultant_customers(*), consultant_projects(*)`)
+      .eq("id", resolvedId)
+      .maybeSingle();
+
+    if (error) {
+      setProfileError(error.message);
+      console.error("fetchProfile error:", error.message);
+    } else {
+      setProfile(data ?? null);
+    }
+
+    const { data: avail } = await supabase.rpc("get_consultant_availability",
+      { p_consultant_id: resolvedId });
+    setAvailability(avail);
+    setLoading(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedId]);
+
+  useEffect(() => { fetchProfile(); }, [fetchProfile]);
+
+  async function updateProfile(updates) {
+    const { data: updated, error } = await supabase.from("consultant_profiles")
+      .update(updates).eq("id", resolvedId).select("id");
+    if (error) throw error;
+    if (!updated || updated.length === 0) {
+      // No row exists yet — insert for first time
+      const { error: ie } = await supabase.from("consultant_profiles")
+        .insert({ id: resolvedId, ...updates });
+      if (ie) throw new Error(`Profile create failed: ${ie.message}`);
+    }
+    await fetchProfile();
+  }
+
+  async function addCustomer(data) {
+    const { error } = await supabase.from("consultant_customers")
+      .insert({ ...data, consultant_id: resolvedId });
+    if (error) throw error;
+    await fetchProfile();
+  }
+
+  async function addProject(data) {
+    const { error } = await supabase.from("consultant_projects")
+      .insert({ ...data, consultant_id: resolvedId });
+    if (error) throw error;
+    await fetchProfile();
+  }
+
+  async function addWorkAuth(data) {
+    const { error } = await supabase.from("work_authorizations")
+      .insert({ ...data, consultant_id: resolvedId });
+    if (error) throw error;
+    await fetchProfile();
+  }
+
+  async function uploadPhoto(file) {
+    const ext = file.name.split(".").pop();
+    const path = `avatars/${consultantId}.${ext}`;
+    await supabase.storage.from("profiles").upload(path, file, { upsert: true });
+    const { data: { publicUrl } } = supabase.storage.from("profiles").getPublicUrl(path);
+    await updateProfile({ photo_url: publicUrl });
+    return publicUrl;
+  }
+
+  return { profile, availability, loading, profileError, updateProfile, uploadPhoto, addCustomer, addProject, addWorkAuth, refetch: fetchProfile };
+}
+
+// Lightweight hook used only in App for the sidebar badge — separate channel name
+function useUnreadCount() {
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { count } = await supabase.from("notifications")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id).eq("is_read", false);
+      setUnreadCount(count ?? 0);
+    })();
+    const ch = supabase.channel("notif-badge-rt")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" },
+        () => setUnreadCount(p => p + 1))
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, []);
+
+  return unreadCount;
+}
+
+// Full hook used only inside NotificationsView
+function useNotifications() {
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount]     = useState(0);
+  const [loading, setLoading]             = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoading(false); return; }
+      const { data } = await supabase.from("notifications")
+        .select("*").eq("user_id", user.id)
+        .order("created_at", { ascending: false }).limit(50);
+      setNotifications(data ?? []);
+      setUnreadCount((data ?? []).filter(n => !n.is_read).length);
+      setLoading(false);
+    })();
+    const ch = supabase.channel("notif-view-rt")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" },
+        payload => { setNotifications(p => [payload.new, ...p]); setUnreadCount(p => p + 1); })
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, []);
+
+  async function markRead(id) {
+    await supabase.from("notifications").update({ is_read: true }).eq("id", id);
+    setNotifications(p => p.map(n => n.id === id ? { ...n, is_read: true } : n));
+    setUnreadCount(p => Math.max(0, p - 1));
+  }
+
+  async function markAllRead() {
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from("notifications").update({ is_read: true })
+      .eq("user_id", user.id).eq("is_read", false);
+    setNotifications(p => p.map(n => ({ ...n, is_read: true })));
+    setUnreadCount(0);
+  }
+
+  return { notifications, unreadCount, loading, markRead, markAllRead };
+}
+
+function useLeaderboard() {
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      // 1. Fetch all consultant profiles
+      const { data: profiles } = await supabase
+        .from("consultant_profiles")
+        .select("id, headline, skills, years_experience, expertise_level, availability_type, hourly_rate");
+
+      if (!profiles?.length) { setLoading(false); return; }
+
+      const ids = profiles.map(p => p.id);
+
+      // 2. Fetch users, ratings, applications keyed by consultant user-id in parallel
+      const [{ data: usersData }, { data: ratingsData }, { data: appsData }] = await Promise.all([
+        supabase.from("users").select("id, full_name, avatar_url").in("id", ids),
+        supabase.from("ratings").select("consultant_id, score").in("consultant_id", ids),
+        supabase.from("applications").select("consultant_id, status").in("consultant_id", ids),
+      ]);
+
+      const ranked = profiles.map(c => {
+        const scores      = (ratingsData ?? []).filter(r => r.consultant_id === c.id).map(r => r.score);
+        const apps        = (appsData    ?? []).filter(a => a.consultant_id === c.id);
+        const avgRating   = scores.length
+          ? parseFloat((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2)) : 0;
+        return {
+          ...c,
+          user:          (usersData ?? []).find(u => u.id === c.id) ?? null,
+          avgRating,
+          ratingCount:   scores.length,
+          acceptedCases: apps.filter(a => a.status === "accepted").length,
+          totalApps:     apps.length,
+        };
+      }).sort((a, b) => b.avgRating - a.avgRating || b.acceptedCases - a.acceptedCases);
+
+      setLeaderboard(ranked);
+      setLoading(false);
+    })();
+  }, []);
+
+  return { leaderboard, loading };
+}
+
+// ============================================================
+// UTILITIES
+// ============================================================
+const ROLE_COLORS = {
+  admin:      { bg: "bg-purple-100", text: "text-purple-800", dot: "bg-purple-500" },
+  manager:    { bg: "bg-blue-100",   text: "text-blue-800",   dot: "bg-blue-500" },
+  consultant: { bg: "bg-green-100",  text: "text-green-800",  dot: "bg-green-500" },
+  client:     { bg: "bg-orange-100", text: "text-orange-800", dot: "bg-orange-500" },
+};
+
+const SAP_AREAS = [
+  "SAP S/4HANA", "SAP BW / Analytics", "SAP FICO", "SAP MM/SD",
+  "SAP HCM", "SAP Basis / Infrastructure", "SAP Fiori / UI5",
+  "SAP Integration (CPI/PI)", "Other SAP",
+];
+const INDUSTRY_AREAS = [
+  "Technology", "Finance & Banking", "Healthcare", "Legal",
+  "Manufacturing", "Retail & Commerce", "Energy & Utilities", "Public Sector", "Other",
+];
+
+const STATUS_COLORS = {
+  open:        "bg-emerald-100 text-emerald-800",
+  in_progress: "bg-blue-100 text-blue-800",
+  on_hold:     "bg-yellow-100 text-yellow-800",
+  completed:   "bg-gray-100 text-gray-800",
+  cancelled:   "bg-red-100 text-red-800",
+};
+
+const PRIORITY_COLORS = {
+  low:      "bg-slate-100 text-slate-600",
+  medium:   "bg-yellow-100 text-yellow-700",
+  high:     "bg-orange-100 text-orange-700",
+  critical: "bg-red-100 text-red-700",
+};
+
+const APP_STATUS_COLORS = {
+  pending:      "bg-yellow-100 text-yellow-800",
+  under_review: "bg-blue-100 text-blue-800",
+  accepted:     "bg-green-100 text-green-800",
+  rejected:     "bg-red-100 text-red-800",
+  withdrawn:    "bg-gray-100 text-gray-600",
+};
+
+
+const INVOICE_STATUS_COLORS = {
+  draft:   "bg-gray-100 text-gray-600",
+  sent:    "bg-blue-100 text-blue-700",
+  paid:    "bg-green-100 text-green-700",
+  overdue: "bg-red-100 text-red-700",
+};
+
+function fmt(val) { return val?.replace(/_/g, " ") ?? "—"; }
+function cap(val) { return val ? val.charAt(0).toUpperCase() + val.slice(1) : ""; }
+function fmtDate(d) {
+  if (!d) return "—";
+  return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+function stars(n, max = 5) {
+  return Array.from({ length: max }, (_, i) => (
+    <span key={i} className={i < Math.round(n) ? "text-yellow-400" : "text-gray-300"}>★</span>
+  ));
+}
+
+// ============================================================
+// UI PRIMITIVES
+// ============================================================
+function Badge({ children, className = "" }) {
+  return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${className}`}>{children}</span>;
+}
+
+function Spinner() {
+  return (
+    <div className="flex items-center justify-center h-48">
+      <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+    </div>
+  );
+}
+
+function EmptyState({ icon, title, subtitle, action }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <div className="text-5xl mb-4">{icon}</div>
+      <h3 className="text-lg font-semibold text-gray-800 mb-1">{title}</h3>
+      <p className="text-sm text-gray-500 mb-4">{subtitle}</p>
+      {action}
+    </div>
+  );
+}
+
+function Modal({ open, onClose, title, children, wide = false }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className={`bg-white rounded-2xl shadow-2xl w-full ${wide ? "max-w-3xl" : "max-w-lg"} max-h-[90vh] overflow-y-auto`}>
+        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+          <h2 className="text-xl font-bold text-gray-900">{title}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+        </div>
+        <div className="p-6">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function Input({ label, ...props }) {
+  return (
+    <div className="mb-4">
+      {label && <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>}
+      <input
+        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        {...props}
+      />
+    </div>
+  );
+}
+
+function Textarea({ label, ...props }) {
+  return (
+    <div className="mb-4">
+      {label && <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>}
+      <textarea
+        rows={4}
+        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+        {...props}
+      />
+    </div>
+  );
+}
+
+function Select({ label, options, ...props }) {
+  return (
+    <div className="mb-4">
+      {label && <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>}
+      <select
+        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+        {...props}
+      >
+        {options.map(o => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+// ============================================================
+// AUTH SCREEN
+// ============================================================
+function AuthScreen({ onAuth }) {
+  const [mode, setMode]         = useState("signin");
+  // Sign-in fields
+  const [siEmail, setSiEmail]   = useState("");
+  const [siPass,  setSiPass]    = useState("");
+  // Sign-up wizard
+  const [step, setStep]         = useState(0);
+  const [email, setEmail]       = useState("");
+  const [codeSent, setCodeSent] = useState(false);
+  const [code, setCode]         = useState("");
+  const [role, setRole]         = useState("");
+  const [name, setName]         = useState("");
+  const [password, setPass]     = useState("");
+  const [confirmPass, setConf]  = useState("");
+  // Consultant-specific
+  const [headline, setHeadline]       = useState("");
+  const [skills, setSkills]           = useState("");
+  const [yearsExp, setYearsExp]       = useState("");
+  const [hourlyRate, setHourly]       = useState("");
+  const [expertiseLevel, setExpertise]= useState("mid");
+  // Client-specific
+  const [companyName, setCompany]     = useState("");
+  const [industry, setIndustry]       = useState("");
+
+  const [error, setError]   = useState("");
+  const [loading, setLoad]  = useState(false);
+  const auth = useAuth();
+
+  const SIGNUP_STEPS = [
+    { id: "verify",  label: "Verify",  icon: "✉️" },
+    { id: "role",    label: "Role",    icon: "👤" },
+    { id: "profile", label: "Profile", icon: "📝" },
+  ];
+
+  function switchMode(m) { setMode(m); setError(""); setStep(0); setCodeSent(false); setCode(""); }
+
+  // ── Sign in ──────────────────────────────────────────────────
+  async function handleSignIn() {
+    setError(""); setLoad(true);
+    try { await auth.signIn(siEmail, siPass); onAuth(null); }
+    catch (e) { setError(e.message); }
+    setLoad(false);
+  }
+
+  // ── Step 0a: send OTP ─────────────────────────────────────────
+  async function sendCode() {
+    if (!email.trim()) { setError("Enter your email first."); return; }
+    setError(""); setLoad(true);
+    try {
+      // signUp is the correct API for new account creation.
+      // A random temp password is used here; the real password is set in Step 2.
+      const tempPass = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2).toUpperCase() + "1!";
+      const { data, error: err } = await supabase.auth.signUp({
+        email: email.trim(),
+        password: tempPass,
+      });
+      if (err) {
+        const msg = err.message || err.error_description || String(err)
+          || "Could not send code — try again.";
+        if (msg.toLowerCase().includes("already registered") || msg.toLowerCase().includes("already exists"))
+          setError("This email already has an account — use Sign In instead.");
+        else if (msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("too many"))
+          setError("Too many requests — please wait a minute and try again.");
+        else if (msg.toLowerCase().includes("signup") || msg.toLowerCase().includes("disabled"))
+          setError("Sign-ups are disabled. Go to Supabase → Authentication → Settings and turn off \"Disable sign-ups\".");
+        else if (msg.toLowerCase().includes("smtp") || msg.toLowerCase().includes("email"))
+          setError("Email delivery error. Ensure custom SMTP is configured in Supabase → Authentication → SMTP Settings.");
+        else
+          setError(msg);
+      } else if (data.user && data.user.identities?.length === 0) {
+        // Supabase returns an empty identities array when the email already exists
+        setError("This email already has an account — use Sign In instead.");
+      } else {
+        setCodeSent(true);
+        setCode("");
+      }
+    } catch (e) {
+      setError(e?.message || "Unexpected error — please try again.");
+    }
+    setLoad(false);
+  }
+
+  // ── Step 0b: verify OTP ───────────────────────────────────────
+  async function verifyCode() {
+    if (code.length < 4) { setError("Enter the verification code from your email."); return; }
+    setError(""); setLoad(true);
+    // type:'signup' matches the token sent by signUp
+    const { data, error: err } = await supabase.auth.verifyOtp({
+      email: email.trim(), token: code, type: "signup",
+    });
+    if (err) {
+      setError(err.message || "Invalid or expired code — try resending.");
+      setLoad(false);
+      return;
+    }
+    // Check if this user already completed their profile
+    const { data: existing } = await supabase
+      .from("users").select("role").eq("id", data.user?.id).maybeSingle();
+    if (existing?.role) { onAuth(null); return; } // returning user → dashboard
+    setStep(1);
+    setLoad(false);
+  }
+
+  // ── Step 1: role chosen ───────────────────────────────────────
+  function selectRole(r) { setRole(r); setError(""); setStep(2); }
+
+  // ── Step 2: create account ────────────────────────────────────
+  async function createAccount() {
+    if (!name.trim()) { setError("Enter your full name."); return; }
+    if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    if (password !== confirmPass) { setError("Passwords don't match."); return; }
+    if (role === "consultant" && !headline.trim()) { setError("Enter a professional headline."); return; }
+    if (role === "client" && !companyName.trim()) { setError("Enter your company name."); return; }
+    setError(""); setLoad(true);
+    try {
+      await supabase.auth.updateUser({
+        password,
+        data: { full_name: name.trim(), role },
+      });
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.from("users").upsert(
+        { id: user.id, email: user.email, full_name: name.trim(), role },
+        { onConflict: "id" }
+      );
+      if (role === "consultant") {
+        const skillsArr = skills.split(",").map(s => s.trim()).filter(Boolean);
+        await supabase.from("consultant_profiles").upsert({
+          id: user.id,
+          headline: headline.trim(),
+          skills: skillsArr,
+          years_experience: yearsExp ? parseInt(yearsExp, 10) : null,
+          hourly_rate: hourlyRate ? parseFloat(hourlyRate) : null,
+          expertise_level: expertiseLevel,
+        }, { onConflict: "id" });
+      }
+      if (role === "client") {
+        await supabase.from("client_profiles").upsert({
+          id: user.id,
+          company_name: companyName.trim(),
+          industry: industry || null,
+        }, { onConflict: "id" });
+      }
+      onAuth(role);
+    } catch (e) { setError(e.message); }
+    setLoad(false);
+  }
+
+  const logo = (
+    <div className="text-center mb-8">
+      <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-4 shadow-lg">
+        <span className="text-white text-2xl font-bold">TC</span>
+      </div>
+      <h1 className="text-3xl font-bold text-gray-900">TechCase</h1>
+      <p className="text-gray-500 mt-1">Consultant case management platform</p>
+    </div>
+  );
+
+  const tabs = (
+    <div className="flex rounded-xl bg-gray-100 p-1 mb-6">
+      {[["signin", "Sign In"], ["signup", "Create Account"]].map(([m, label]) => (
+        <button key={m} onClick={() => switchMode(m)}
+          className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
+            mode === m ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
+  const errorBox = error && (
+    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{error}</div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {logo}
+
+        {/* ── SIGN IN ── */}
+        {mode === "signin" && (
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            {tabs}
+            <Input label="Email" type="email" value={siEmail}
+              onChange={e => setSiEmail(e.target.value)} placeholder="you@company.com" />
+            <Input label="Password" type="password" value={siPass}
+              onChange={e => setSiPass(e.target.value)} placeholder="••••••••" />
+            {errorBox}
+            <button onClick={handleSignIn} disabled={loading}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 mt-2">
+              {loading ? "Signing in…" : "Sign In"}
+            </button>
+          </div>
+        )}
+
+        {/* ── SIGN UP WIZARD ── */}
+        {mode === "signup" && (
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            {tabs}
+
+            {/* Step progress */}
+            <div className="flex items-center mb-8 relative">
+              <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200 z-0" />
+              {SIGNUP_STEPS.map((s, i) => (
+                <div key={s.id} className="relative z-10 flex flex-col items-center flex-1 gap-1.5">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ring-2 transition-all ${
+                    i < step  ? "bg-emerald-500 text-white ring-emerald-200"
+                    : i === step ? "bg-indigo-600 text-white ring-indigo-200"
+                                 : "bg-white text-gray-400 ring-gray-200"}`}>
+                    {i < step ? "✓" : i + 1}
+                  </div>
+                  <span className={`text-xs font-medium ${i === step ? "text-indigo-600" : i < step ? "text-emerald-600" : "text-gray-400"}`}>
+                    {s.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Step 0 — Email verification */}
+            {step === 0 && (
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 mb-1">Verify your email</h2>
+                <p className="text-sm text-gray-500 mb-5">We'll send a verification code to confirm it's you.</p>
+                <Input label="Email" type="email" value={email}
+                  onChange={e => setEmail(e.target.value)} placeholder="you@company.com" />
+                {!codeSent ? (
+                  <button onClick={sendCode} disabled={loading}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50">
+                    {loading ? "Sending…" : "Send Verification Code →"}
+                  </button>
+                ) : (
+                  <>
+                    <div className="mb-4 p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-sm text-indigo-700">
+                      ✉️ Code sent to <strong>{email}</strong> — check your inbox.
+                    </div>
+                    <Input label="Verification Code" value={code}
+                      onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                      placeholder="Enter code from email" />
+                    <div className="flex gap-2 mt-2">
+                      <button onClick={sendCode} disabled={loading}
+                        className="flex-1 border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium py-2.5 rounded-xl text-sm transition-colors">
+                        Resend
+                      </button>
+                      <button onClick={verifyCode} disabled={loading || code.length < 4}
+                        className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors disabled:opacity-50">
+                        {loading ? "Verifying…" : "Verify →"}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Step 1 — Role selection */}
+            {step === 1 && (
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 mb-1">What brings you here?</h2>
+                <p className="text-sm text-gray-500 mb-5">Choose your account type to get the right experience.</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { role: "consultant", icon: "🧑‍💼", label: "Consultant", desc: "I offer expertise and work on cases" },
+                    { role: "client",     icon: "🏢",   label: "Company / Client", desc: "I post cases and hire consultants" },
+                  ].map(opt => (
+                    <button key={opt.role} onClick={() => selectRole(opt.role)}
+                      className="flex flex-col items-center gap-2 p-5 border-2 border-gray-200 hover:border-indigo-400 hover:bg-indigo-50 rounded-2xl transition-all text-center group">
+                      <span className="text-3xl">{opt.icon}</span>
+                      <span className="font-semibold text-gray-900 text-sm group-hover:text-indigo-700">{opt.label}</span>
+                      <span className="text-xs text-gray-500 leading-snug">{opt.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Step 2 — Profile details */}
+            {step === 2 && (
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 mb-1">
+                  {role === "consultant" ? "Build your consultant profile" : "Set up your company profile"}
+                </h2>
+                <p className="text-sm text-gray-500 mb-5">
+                  {role === "consultant"
+                    ? "Help clients find you with the right details."
+                    : "Tell consultants about your company."}
+                </p>
+
+                {/* ── Common fields ── */}
+                <Input label="Full Name" value={name}
+                  onChange={e => setName(e.target.value)} placeholder="Jane Smith" />
+                <Input label="Password" type="password" value={password}
+                  onChange={e => setPass(e.target.value)} placeholder="At least 6 characters" />
+                <Input label="Confirm Password" type="password" value={confirmPass}
+                  onChange={e => setConf(e.target.value)} placeholder="••••••••" />
+
+                {/* ── Consultant fields ── */}
+                {role === "consultant" && (<>
+                  <div className="border-t border-gray-100 my-4" />
+                  <Input label="Professional Headline" value={headline}
+                    onChange={e => setHeadline(e.target.value)}
+                    placeholder="e.g. SAP FICO Consultant · 8 yrs" />
+                  <Input label="Skills (comma-separated)" value={skills}
+                    onChange={e => setSkills(e.target.value)}
+                    placeholder="e.g. SAP, FICO, Finance, ERP" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input label="Years of Experience" type="number" value={yearsExp}
+                      onChange={e => setYearsExp(e.target.value)} placeholder="8" />
+                    <Input label="Hourly Rate (USD)" type="number" value={hourlyRate}
+                      onChange={e => setHourly(e.target.value)} placeholder="150" />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Expertise Level</label>
+                    <select value={expertiseLevel} onChange={e => setExpertise(e.target.value)}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
+                      <option value="junior">Junior</option>
+                      <option value="mid">Mid-Level</option>
+                      <option value="senior">Senior</option>
+                      <option value="expert">Expert / Principal</option>
+                    </select>
+                  </div>
+                </>)}
+
+                {/* ── Client fields ── */}
+                {role === "client" && (<>
+                  <div className="border-t border-gray-100 my-4" />
+                  <Input label="Company Name" value={companyName}
+                    onChange={e => setCompany(e.target.value)} placeholder="Acme Corp" />
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+                    <select value={industry} onChange={e => setIndustry(e.target.value)}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
+                      <option value="">Select industry…</option>
+                      <option value="technology">Technology</option>
+                      <option value="finance">Finance & Banking</option>
+                      <option value="healthcare">Healthcare</option>
+                      <option value="manufacturing">Manufacturing</option>
+                      <option value="retail">Retail & E-commerce</option>
+                      <option value="energy">Energy & Utilities</option>
+                      <option value="logistics">Logistics & Supply Chain</option>
+                      <option value="professional_services">Professional Services</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </>)}
+
+                <button onClick={createAccount} disabled={loading}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 mt-2">
+                  {loading ? "Creating account…" : "Create Account →"}
+                </button>
+                <button onClick={() => setStep(1)}
+                  className="w-full mt-3 text-sm text-gray-400 hover:text-gray-600 transition-colors">
+                  ← Back
+                </button>
+              </div>
+            )}
+
+            {errorBox}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// SIDEBAR NAV
+// ============================================================
+function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
+  const navItems = {
+    admin: [
+      { id: "dashboard",    icon: "🏠", label: "Dashboard" },
+      { id: "cases",        icon: "📋", label: "Cases" },
+      { id: "kanban",       icon: "📌", label: "Kanban" },
+      { id: "arena",        icon: "⚔️",  label: "Arena" },
+      { id: "invoices",     icon: "🧾", label: "Invoices" },
+      { id: "time",         icon: "⏱", label: "Time Entries" },
+      { id: "users",        icon: "👥", label: "Users" },
+      { id: "sla",          icon: "📑", label: "SLA Config" },
+      { id: "db-connections", icon: "🔌", label: "DB Connections" },
+      { id: "team-members", icon: "🤝", label: "Client Teams" },
+      { id: "reports",      icon: "📊", label: "Reports" },
+    ],
+    manager: [
+      { id: "dashboard",    icon: "🏠", label: "Dashboard" },
+      { id: "cases",        icon: "📋", label: "Cases" },
+      { id: "kanban",       icon: "📌", label: "Kanban" },
+      { id: "arena",        icon: "⚔️",  label: "Arena" },
+      { id: "invoices",     icon: "🧾", label: "Invoices" },
+      { id: "time",         icon: "⏱", label: "Time Entries" },
+      { id: "consultants",  icon: "🧑‍💼", label: "Consultants" },
+      { id: "sla",          icon: "📑", label: "SLA Config" },
+      { id: "db-connections", icon: "🔌", label: "DB Connections" },
+      { id: "team-members", icon: "🤝", label: "Client Teams" },
+    ],
+    consultant: [
+      { id: "dashboard", icon: "🏠", label: "Dashboard" },
+      { id: "arena",     icon: "⚔️",  label: "Arena" },
+      { id: "kanban",    icon: "📌", label: "Kanban" },
+      { id: "my-cases",  icon: "📋", label: "My Cases" },
+      { id: "time",      icon: "⏱", label: "Time Entries" },
+      { id: "profile",   icon: "👤", label: "My Profile" },
+    ],
+    client: [
+      { id: "dashboard",       icon: "🏠", label: "Dashboard" },
+      { id: "cases",           icon: "📋", label: "My Cases" },
+      { id: "kanban",          icon: "📌", label: "Kanban" },
+      { id: "invoices",        icon: "🧾", label: "Invoices" },
+      { id: "consultants",     icon: "🧑‍💼", label: "Consultants" },
+      { id: "client-profile",  icon: "🏢", label: "Company Profile" },
+    ],
+  };
+
+  const items = navItems[role] ?? [];
+
+  return (
+    <aside className="w-64 bg-gray-900 text-white flex flex-col h-screen fixed left-0 top-0 z-40">
+      {/* Logo */}
+      <div className="p-6 border-b border-gray-800">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center">
+            <span className="text-white text-sm font-bold">TC</span>
+          </div>
+          <div>
+            <div className="font-bold text-white">TechCase</div>
+            <div className="text-xs text-gray-400 capitalize">{role} Portal</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        {items.map(item => (
+          <button key={item.id} onClick={() => onNav(item.id)}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+              activeView === item.id
+                ? "bg-indigo-600 text-white"
+                : "text-gray-400 hover:bg-gray-800 hover:text-white"}`}>
+            <span className="text-base">{item.icon}</span>
+            {item.label}
+          </button>
+        ))}
+
+        {/* Notifications */}
+        <button onClick={() => onNav("notifications")}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+            activeView === "notifications"
+              ? "bg-indigo-600 text-white"
+              : "text-gray-400 hover:bg-gray-800 hover:text-white"}`}>
+          <span className="text-base">🔔</span>
+          Notifications
+          {unreadCount > 0 && (
+            <span className="ml-auto bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
+        </button>
+      </nav>
+
+      {/* User footer */}
+      <div className="p-4 border-t border-gray-800">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold">
+            {profile?.full_name?.[0] ?? "?"}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-white truncate">{profile?.full_name ?? "User"}</div>
+            <div className="text-xs text-gray-400 truncate">{profile?.email}</div>
+          </div>
+        </div>
+        <button onClick={onSignOut}
+          className="w-full text-sm text-gray-400 hover:text-white py-1.5 px-3 rounded-lg hover:bg-gray-800 transition-colors text-left">
+          Sign Out
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function Dashboard({ auth }) {
+  const { cases, loading: casesLoading } = useCases();
+  const { applications } = useApplications();
+  const [applyingToCase, setApplying]   = useState(null);
+  const [activeTab, setActiveTab]       = useState(null);
+  const [availTab, setAvailTab]         = useState("all");
+  const [filterSap, setFilterSap]       = useState("");
+  const [filterIndustry, setFilterInd]  = useState("");
+  const [filterStartFrom, setStartFrom] = useState("");
+  const { isFollowing, toggle: toggleFollow } = useFollowedClients();
+
+  // Pre-compute filtered sets
+  const myApplications   = applications.filter(a => a.consultant_id === auth.user?.id);
+  const appliedCaseIds   = new Set(myApplications.map(a => a.case_id));
+  const assignedCaseIds  = new Set(
+    cases.flatMap(c => c.case_assignments ?? [])
+      .filter(a => a.consultant_id === auth.user?.id)
+      .map(a => a.case_id ?? a.id)
+  );
+  const availableCases   = cases.filter(c => c.status === "open" && !appliedCaseIds.has(c.id) && !assignedCaseIds.has(c.id));
+
+  const filteredAvailable = availableCases.filter(c => {
+    if (filterSap       && c.area_sap      !== filterSap)      return false;
+    if (filterIndustry  && c.area_industry !== filterIndustry) return false;
+    if (filterStartFrom && c.start_date    && c.start_date < filterStartFrom) return false;
+    return true;
+  });
+  const followingCases = filteredAvailable.filter(c => isFollowing(c.client_id));
+  const otherCases     = filteredAvailable.filter(c => !isFollowing(c.client_id));
+  const assignedCases    = cases.filter(c => c.case_assignments?.some(a => a.consultant_id === auth.user?.id));
+  const myCases          = cases.filter(c => c.client_id === auth.user?.id);
+  const managedCases     = cases.filter(c => c.manager_id === auth.user?.id);
+
+  // Stat tiles — each carries its pre-filtered items and type for the list panel
+  const statDefs = {
+    admin: [
+      { id: "total",    label: "Total Cases",  icon: "📋", color: "indigo", type: "cases",        items: cases },
+      { id: "open",     label: "Open Cases",   icon: "🟢", color: "green",  type: "cases",        items: cases.filter(c => c.status === "open") },
+      { id: "progress", label: "In Progress",  icon: "🔵", color: "blue",   type: "cases",        items: cases.filter(c => c.status === "in_progress") },
+      { id: "apps",     label: "Applications", icon: "📝", color: "purple", type: "applications", items: applications },
+    ],
+    manager: [
+      { id: "mycases",  label: "My Cases",        icon: "📋", color: "indigo", type: "cases",        items: managedCases },
+      { id: "open",     label: "Open Cases",       icon: "🟢", color: "green",  type: "cases",        items: cases.filter(c => c.status === "open") },
+      { id: "pending",  label: "Pending Reviews",  icon: "⏳", color: "yellow", type: "applications", items: applications.filter(a => a.status === "pending") },
+    ],
+    consultant: [
+      { id: "myapps",   label: "My Applications", icon: "📝", color: "indigo", type: "applications", items: myApplications },
+      { id: "accepted", label: "Accepted",         icon: "✅", color: "green",  type: "applications", items: myApplications.filter(a => a.status === "accepted") },
+      { id: "open",     label: "Open Cases",       icon: "🔓", color: "blue",   type: "cases",        items: availableCases },
+    ],
+    client: [
+      { id: "mycases",   label: "My Cases",   icon: "📋", color: "indigo", type: "cases", items: myCases },
+      { id: "active",    label: "Active",     icon: "🔵", color: "blue",   type: "cases", items: myCases.filter(c => c.status === "in_progress") },
+      { id: "completed", label: "Completed",  icon: "✅", color: "green",  type: "cases", items: myCases.filter(c => c.status === "completed") },
+    ],
+  };
+
+  const myStats    = statDefs[auth.role] ?? [];
+  const activeStat = myStats.find(s => s.id === activeTab);
+
+  const colorMap = {
+    indigo: { icon: "bg-indigo-50 text-indigo-600", ring: "ring-indigo-400 bg-indigo-50" },
+    green:  { icon: "bg-green-50 text-green-600",   ring: "ring-green-400 bg-green-50" },
+    blue:   { icon: "bg-blue-50 text-blue-600",     ring: "ring-blue-400 bg-blue-50" },
+    purple: { icon: "bg-purple-50 text-purple-600", ring: "ring-purple-400 bg-purple-50" },
+    yellow: { icon: "bg-yellow-50 text-yellow-600", ring: "ring-yellow-400 bg-yellow-50" },
+  };
+
+  if (casesLoading) return <Spinner />;
+
+  if (applyingToCase) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
+        <ApplyWizard
+          caseData={applyingToCase}
+          auth={auth}
+          onComplete={() => setApplying(null)}
+          onCancel={() => setApplying(null)}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900">
+          Welcome back, {auth.profile?.full_name?.split(" ")[0] ?? "there"} 👋
+        </h1>
+        <p className="text-gray-500 mt-1">Here's what's happening on the platform today.</p>
+      </div>
+
+      {/* Clickable stat tiles */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {myStats.map(s => {
+          const isActive = activeTab === s.id;
+          return (
+            <button key={s.id}
+              onClick={() => setActiveTab(t => t === s.id ? null : s.id)}
+              className={`text-left bg-white rounded-2xl p-6 shadow-sm border transition-all ${
+                isActive ? `ring-2 ${colorMap[s.color].ring} border-transparent` : "border-gray-100 hover:shadow-md hover:border-gray-200"
+              }`}>
+              <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl text-xl mb-3 ${colorMap[s.color].icon}`}>
+                {s.icon}
+              </div>
+              <div className="text-3xl font-bold text-gray-900">{s.items.length}</div>
+              <div className="text-sm text-gray-500 mt-1">{s.label}</div>
+              {isActive && <div className="text-xs text-gray-400 mt-1.5 font-medium">▲ showing list</div>}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Filtered list panel — shown when a stat tile is active */}
+      {activeStat && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-6">
+          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{activeStat.icon}</span>
+              <h2 className="text-base font-bold text-gray-900">{activeStat.label}</h2>
+              <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs font-semibold rounded-lg">{activeStat.items.length}</span>
+            </div>
+            <button onClick={() => setActiveTab(null)} className="text-gray-400 hover:text-gray-600 text-sm">✕ Close</button>
+          </div>
+          <div className="divide-y divide-gray-50 max-h-96 overflow-y-auto">
+            {activeStat.items.length === 0 && (
+              <div className="p-8 text-center text-gray-400 text-sm">Nothing here yet.</div>
+            )}
+
+            {/* Case rows */}
+            {activeStat.type === "cases" && activeStat.items.map(c => (
+              <div key={c.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="w-9 h-9 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 font-bold text-sm flex-shrink-0">
+                    {c.title?.[0]}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-medium text-gray-900 text-sm truncate">{c.title}</div>
+                    <div className="text-xs text-gray-400 mt-0.5 flex gap-2 flex-wrap">
+                      {c.due_date && <span>Due: {fmtDate(c.due_date)}</span>}
+                      {c.budget && <span>${Number(c.budget).toLocaleString()}</span>}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+                  <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
+                  <Badge className={STATUS_COLORS[c.status]}>{cap(fmt(c.status))}</Badge>
+                  {activeStat.id === "open" && auth.isConsultant && !appliedCaseIds.has(c.id) && (
+                    <button onClick={() => setApplying(c)}
+                      className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors">
+                      Apply →
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {/* Application rows */}
+            {activeStat.type === "applications" && activeStat.items.map(a => (
+              <div key={a.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="w-9 h-9 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600 font-bold text-sm flex-shrink-0">
+                    {(a.case?.title ?? a.consultant?.full_name ?? "?")?.[0]}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-medium text-gray-900 text-sm truncate">
+                      {a.case?.title ?? "Unknown case"}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-0.5 flex gap-2 flex-wrap">
+                      {a.consultant?.full_name && <span>{a.consultant.full_name}</span>}
+                      {a.proposed_rate && <span>${a.proposed_rate}/hr</span>}
+                      {a.time_commitment && <span>{a.time_commitment}% time</span>}
+                      {a.submitted_at && <span>{fmtDate(a.submitted_at)}</span>}
+                    </div>
+                  </div>
+                </div>
+                <Badge className={APP_STATUS_COLORS[a.status]}>{cap(a.status)}</Badge>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Default content when no stat tile is active */}
+      {!activeTab && (
+        <>
+          {/* Available Cases — consultants only */}
+          {auth.isConsultant && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-6">
+              {/* Header */}
+              <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Available Cases</h2>
+                  <p className="text-xs text-gray-400 mt-0.5">Open cases you can apply to</p>
+                </div>
+                <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-lg">
+                  {filteredAvailable.length} open
+                </span>
+              </div>
+
+              {/* Filters */}
+              <div className="px-5 py-3 border-b border-gray-100 flex flex-wrap gap-2 bg-gray-50/50">
+                <select value={filterSap} onChange={e => setFilterSap(e.target.value)}
+                  className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="">All SAP Areas</option>
+                  {SAP_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+                <select value={filterIndustry} onChange={e => setFilterInd(e.target.value)}
+                  className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="">All Industries</option>
+                  {INDUSTRY_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+                <input type="date" value={filterStartFrom} onChange={e => setStartFrom(e.target.value)}
+                  title="Start date from"
+                  className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                {(filterSap || filterIndustry || filterStartFrom) && (
+                  <button onClick={() => { setFilterSap(""); setFilterInd(""); setStartFrom(""); }}
+                    className="text-xs text-gray-400 hover:text-gray-600 px-2">✕ Clear</button>
+                )}
+              </div>
+
+              {/* Tabs */}
+              <div className="flex border-b border-gray-100">
+                {[
+                  { id: "all",       label: "All Cases",    count: filteredAvailable.length },
+                  { id: "following", label: "⭐ Following",  count: followingCases.length },
+                ].map(t => (
+                  <button key={t.id} onClick={() => setAvailTab(t.id)}
+                    className={`px-5 py-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-1.5 ${
+                      availTab === t.id
+                        ? "border-indigo-600 text-indigo-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700"
+                    }`}>
+                    {t.label}
+                    <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{t.count}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* List */}
+              <div className="divide-y divide-gray-50">
+                {(() => {
+                  const list = availTab === "following" ? followingCases : filteredAvailable;
+                  if (list.length === 0) {
+                    return (
+                      <div className="p-8 text-center text-gray-400 text-sm">
+                        {availTab === "following"
+                          ? "No cases from companies you follow yet. Click ♡ on any case card to follow that company."
+                          : "No open cases available right now."}
+                      </div>
+                    );
+                  }
+                  return list.map(c => {
+                    const companyName = c.client?.client_profiles?.company_name || c.client?.full_name;
+                    const following   = isFollowing(c.client_id);
+                    return (
+                      <div key={c.id} className="p-4 hover:bg-gray-50 transition-colors">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            {/* Title + badges */}
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <span className="font-semibold text-gray-900 text-sm">{c.title}</span>
+                              <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
+                              {c.area_sap      && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{c.area_sap}</span>}
+                              {c.area_industry && <span className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium">{c.area_industry}</span>}
+                            </div>
+                            {/* Company + follow button */}
+                            {companyName && (
+                              <div className="flex items-center gap-1 mb-1.5">
+                                <span className="text-xs text-gray-500 font-medium">{companyName}</span>
+                                <button onClick={e => { e.stopPropagation(); toggleFollow(c.client_id); }}
+                                  title={following ? "Unfollow this company" : "Follow this company"}
+                                  className={`text-base leading-none transition-colors ${following ? "text-rose-500 hover:text-rose-400" : "text-gray-300 hover:text-rose-400"}`}>
+                                  {following ? "♥" : "♡"}
+                                </button>
+                              </div>
+                            )}
+                            {c.description && <p className="text-xs text-gray-500 line-clamp-2 mb-2">{c.description}</p>}
+                            <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400">
+                              {c.start_date && <span>Starts: {fmtDate(c.start_date)}</span>}
+                              {c.due_date   && <span>Due: {fmtDate(c.due_date)}</span>}
+                              {c.budget     && <span>Budget: ${Number(c.budget).toLocaleString()}</span>}
+                              {c.skills_required?.length > 0 && (
+                                <span>Skills: {c.skills_required.slice(0, 3).join(", ")}{c.skills_required.length > 3 ? "…" : ""}</span>
+                              )}
+                            </div>
+                          </div>
+                          <button onClick={() => setApplying(c)}
+                            className="flex-shrink-0 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm">
+                            Apply →
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+          )}
+
+          {/* Recent / Assigned Cases */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+            <div className="p-6 border-b border-gray-100">
+              <h2 className="text-lg font-bold text-gray-900">
+                {auth.isConsultant ? "My Assigned Cases" : "Recent Cases"}
+              </h2>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {(auth.isConsultant ? assignedCases : cases.slice(0, 5)).map(c => (
+                <div key={c.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 font-bold text-sm">
+                      {c.title?.[0]}
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-900 text-sm">{c.title}</div>
+                      <div className="text-xs text-gray-400">{fmtDate(c.created_at)}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
+                    <Badge className={STATUS_COLORS[c.status]}>{cap(fmt(c.status))}</Badge>
+                  </div>
+                </div>
+              ))}
+              {cases.length === 0 && <div className="p-8 text-center text-gray-400 text-sm">No cases yet</div>}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// CREATE CASE WIZARD
+// ============================================================
+
+function daysFromNow(n) {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+const SLA_PRESETS = [
+  { value: "standard", label: "Standard — 30 days", days: 30 },
+  { value: "express",  label: "Express — 14 days",  days: 14 },
+  { value: "critical", label: "Critical — 7 days",  days: 7 },
+  { value: "custom",   label: "Custom date",         days: null },
+];
+
+const CREATE_CASE_STEPS = [
+  { id: "basics",     label: "Case Info",  icon: "📋", desc: "Title & description" },
+  { id: "scope",      label: "Scope",      icon: "💰", desc: "Budget, dates & skills" },
+  { id: "milestones", label: "Milestones", icon: "🏁", desc: "Key deliverables" },
+  { id: "review",     label: "Review",     icon: "✅", desc: "Confirm & create" },
+];
+
+function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
+  const [step, setSt]       = useState(0);
+  const [creating, setCreating] = useState(false);
+
+  const [basics, setBasics] = useState({ title: "", description: "", priority: "medium", area_sap: "", area_industry: "" });
+  const [scope, setScope]   = useState({ budget: "", start_date: "", due_date: daysFromNow(30), sla: "standard", _skills: "", client_id: auth.isClient ? auth.user?.id : "" });
+  const [milestones, setMs] = useState([]);
+  const [mlForm, setMlForm] = useState({ title: "", due_date: "", description: "" });
+  const [clients, setClients] = useState([]);
+
+  useEffect(() => {
+    if (auth.isAdmin || auth.isManager) {
+      supabase.from("users")
+        .select("id, full_name, client_profiles(company_name)")
+        .eq("role", "client")
+        .then(({ data }) => setClients(data ?? []));
+    }
+  }, []);
+
+  const isLast = step === CREATE_CASE_STEPS.length - 1;
+
+  async function handleCreate() {
+    setCreating(true);
+    try {
+      const { _skills, client_id, sla, ...rest } = scope;
+      const newCase = await createCase({
+        ...basics,
+        status: "open",
+        area_sap:      basics.area_sap || null,
+        area_industry: basics.area_industry || null,
+        ...rest,
+        budget: scope.budget ? Number(scope.budget) : null,
+        skills_required: _skills.split(",").map(s => s.trim()).filter(Boolean),
+        client_id:  auth.isClient  ? auth.user?.id : client_id || null,
+        manager_id: auth.isManager ? auth.user?.id : null,
+      });
+      if (milestones.length > 0 && newCase?.id) {
+        await supabase.from("case_milestones").insert(
+          milestones.map(m => ({ ...m, case_id: newCase.id }))
+        );
+      }
+      onComplete(newCase?.id);
+    } catch (e) { alert(e.message); }
+    setCreating(false);
+  }
+
+  function addMilestone() {
+    if (!mlForm.title.trim()) return;
+    setMs(p => [...p, mlForm]);
+    setMlForm({ title: "", due_date: "", description: "" });
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto py-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">New Case</h1>
+          <p className="text-gray-500 text-sm mt-0.5">Walk through each step to set up your case.</p>
+        </div>
+        <button onClick={onCancel}
+          className="text-sm text-gray-400 hover:text-gray-600 border border-gray-200 px-3 py-1.5 rounded-xl hover:bg-gray-50">
+          ✕ Cancel
+        </button>
+      </div>
+
+      <OnboardingRoadmap steps={CREATE_CASE_STEPS} current={step} />
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+
+        {/* ── Step 0: Case Info ── */}
+        {step === 0 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Case Information</h2>
+            <p className="text-sm text-gray-500 mb-5">Describe what this case is about.</p>
+            <Input label="Title *" value={basics.title}
+              onChange={e => setBasics(p => ({ ...p, title: e.target.value }))}
+              placeholder="e.g. SAP S/4HANA Migration" />
+            <Textarea label="Description" value={basics.description}
+              onChange={e => setBasics(p => ({ ...p, description: e.target.value }))}
+              placeholder="Describe the requirements, objectives and deliverables…" />
+            <div className="grid grid-cols-2 gap-3">
+              <Select label="Priority" value={basics.priority}
+                onChange={e => setBasics(p => ({ ...p, priority: e.target.value }))}
+                options={["low","medium","high","critical"].map(s => ({ value: s, label: cap(s) }))} />
+              <div className="flex items-end pb-1">
+                <span className="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 w-full">
+                  Status: <span className="font-semibold text-indigo-600">Open</span> (set automatically)
+                </span>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">SAP Area</label>
+                <select value={basics.area_sap}
+                  onChange={e => setBasics(p => ({ ...p, area_sap: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="">— None / Not applicable —</option>
+                  {SAP_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+                <select value={basics.area_industry}
+                  onChange={e => setBasics(p => ({ ...p, area_industry: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="">— Select industry —</option>
+                  {INDUSTRY_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ── Step 1: Scope ── */}
+        {step === 1 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Scope & Budget</h2>
+            <p className="text-sm text-gray-500 mb-5">Set the budget, timeline and required expertise.</p>
+            {(auth.isAdmin || auth.isManager) && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
+                <select value={scope.client_id}
+                  onChange={e => setScope(p => ({ ...p, client_id: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="">— Select client —</option>
+                  {clients.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.client_profiles?.company_name || c.full_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Budget ($)" type="number" value={scope.budget}
+                onChange={e => setScope(p => ({ ...p, budget: e.target.value }))}
+                placeholder="e.g. 50000" />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">SLA / Timeline</label>
+                <select value={scope.sla}
+                  onChange={e => {
+                    const preset = SLA_PRESETS.find(p => p.value === e.target.value);
+                    setScope(p => ({
+                      ...p,
+                      sla: e.target.value,
+                      due_date: preset?.days ? daysFromNow(preset.days) : p.due_date,
+                    }));
+                  }}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  {SLA_PRESETS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+            </div>
+            {scope.sla === "custom" ? (
+              <Input label="Custom Due Date" type="date" value={scope.due_date}
+                onChange={e => setScope(p => ({ ...p, due_date: e.target.value }))} />
+            ) : (
+              <p className="text-xs text-gray-400 -mt-1 mb-2">
+                Calculated due date: <span className="font-semibold text-gray-700">{fmtDate(scope.due_date)}</span>
+              </p>
+            )}
+            <Input label="Expected Start Date" type="date" value={scope.start_date}
+              onChange={e => setScope(p => ({ ...p, start_date: e.target.value }))} />
+            <Input label="Skills Required (comma-separated)" value={scope._skills}
+              onChange={e => setScope(p => ({ ...p, _skills: e.target.value }))}
+              placeholder="SAP S/4HANA, ABAP, Fiori" />
+          </>
+        )}
+
+        {/* ── Step 2: Milestones ── */}
+        {step === 2 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Milestones</h2>
+            <p className="text-sm text-gray-500 mb-5">Define key deliverables. You can skip and add them later from the case detail.</p>
+            {milestones.length > 0 && (
+              <div className="space-y-2 mb-5">
+                {milestones.map((m, i) => (
+                  <div key={i} className="flex items-center justify-between border border-gray-100 rounded-xl px-4 py-3">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{m.title}</div>
+                      {m.due_date && <div className="text-xs text-gray-400 mt-0.5">{fmtDate(m.due_date)}</div>}
+                      {m.description && <div className="text-xs text-gray-400">{m.description}</div>}
+                    </div>
+                    <button onClick={() => setMs(p => p.filter((_, j) => j !== i))}
+                      className="text-xs text-red-400 hover:text-red-600 ml-4">Remove</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className={milestones.length > 0 ? "border-t border-gray-100 pt-5" : ""}>
+              {milestones.length > 0 && (
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Add Another</p>
+              )}
+              <Input label="Milestone Title" value={mlForm.title}
+                onChange={e => setMlForm(p => ({ ...p, title: e.target.value }))}
+                placeholder="e.g. Discovery & Requirements" />
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Due Date" type="date" value={mlForm.due_date}
+                  onChange={e => setMlForm(p => ({ ...p, due_date: e.target.value }))} />
+              </div>
+              <Textarea label="Notes (optional)" value={mlForm.description}
+                onChange={e => setMlForm(p => ({ ...p, description: e.target.value }))} />
+              <button onClick={addMilestone} disabled={!mlForm.title.trim()}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                + Add Milestone
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ── Step 3: Review ── */}
+        {step === 3 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Review & Create</h2>
+            <p className="text-sm text-gray-500 mb-5">Confirm everything looks right.</p>
+            <div className="space-y-4">
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Case Info</p>
+                <p className="font-semibold text-gray-900 text-base">{basics.title}</p>
+                {basics.description && <p className="text-sm text-gray-500 mt-1 leading-relaxed">{basics.description}</p>}
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <Badge className={PRIORITY_COLORS[basics.priority]}>{cap(basics.priority)}</Badge>
+                  <Badge className={STATUS_COLORS["open"]}>Open</Badge>
+                  {basics.area_sap && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs">{basics.area_sap}</span>}
+                  {basics.area_industry && <span className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded-lg text-xs">{basics.area_industry}</span>}
+                </div>
+              </div>
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Scope</p>
+                <div className="grid grid-cols-2 gap-y-2 text-sm">
+                  {scope.start_date && (
+                    <div><span className="text-gray-400">Starts:</span> <span className="font-medium ml-1">{fmtDate(scope.start_date)}</span></div>
+                  )}
+                  {scope.budget && (
+                    <div><span className="text-gray-400">Budget:</span> <span className="font-medium ml-1">${Number(scope.budget).toLocaleString()}</span></div>
+                  )}
+                  {scope.due_date && (
+                    <div>
+                      <span className="text-gray-400">Due:</span>
+                      <span className="font-medium ml-1">{fmtDate(scope.due_date)}</span>
+                      {scope.sla !== "custom" && (
+                        <span className="ml-1 text-xs text-indigo-500">({SLA_PRESETS.find(p => p.value === scope.sla)?.label})</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {scope._skills && (
+                  <div className="flex flex-wrap gap-1 mt-3">
+                    {scope._skills.split(",").map(s => s.trim()).filter(Boolean).map(s => (
+                      <span key={s} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-lg text-xs">{s}</span>
+                    ))}
+                  </div>
+                )}
+                {!scope.budget && !scope.due_date && !scope._skills && (
+                  <p className="text-sm text-gray-400 italic">No scope details added.</p>
+                )}
+              </div>
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+                  Milestones {milestones.length > 0 ? `(${milestones.length})` : ""}
+                </p>
+                {milestones.length === 0
+                  ? <p className="text-sm text-gray-400 italic">No milestones — can be added after creation.</p>
+                  : <ul className="space-y-1.5">
+                      {milestones.map((m, i) => (
+                        <li key={i} className="flex items-center gap-2 text-sm text-gray-700">
+                          <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full flex-shrink-0" />
+                          <span className="font-medium">{m.title}</span>
+                          {m.due_date && <span className="text-gray-400 text-xs">— {fmtDate(m.due_date)}</span>}
+                        </li>
+                      ))}
+                    </ul>}
+              </div>
+
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── Navigation — sticky so it stays visible without scrolling ── */}
+      <div className="sticky bottom-0 bg-white border-t-2 border-gray-100 shadow-xl rounded-2xl px-6 py-4 flex items-center justify-between mt-4">
+        <button onClick={() => step > 0 ? setSt(s => s - 1) : onCancel()}
+          className="px-5 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors font-medium">
+          {step === 0 ? "✕ Cancel" : "← Back"}
+        </button>
+        <div className="flex items-center gap-3">
+          {step === 2 && (
+            <button onClick={() => setSt(s => s + 1)} className="px-4 py-2.5 text-sm text-gray-400 hover:text-gray-600 border border-gray-200 rounded-xl">
+              Skip
+            </button>
+          )}
+          {!isLast ? (
+            <button onClick={() => setSt(s => s + 1)}
+              disabled={step === 0 && !basics.title.trim()}
+              className="px-7 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
+              Continue →
+            </button>
+          ) : (
+            <button onClick={handleCreate} disabled={creating}
+              className="px-7 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
+              {creating ? "Creating…" : "✓ Create Case"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// APPLY WIZARD
+// ============================================================
+
+const APPLY_STEPS = [
+  { id: "brief",  label: "Case Brief",  icon: "📋", desc: "What you're applying for" },
+  { id: "pitch",  label: "Your Pitch",  icon: "✍️",  desc: "Why you're the right fit" },
+  { id: "terms",  label: "Terms",       icon: "💼", desc: "Rate & availability" },
+  { id: "review", label: "Review",      icon: "✅", desc: "Confirm & submit" },
+];
+
+function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
+  const [step, setSt]           = useState(0);
+  const [submitting, setSubmit] = useState(false);
+  const [pitch, setPitch]       = useState({ cover_letter: "" });
+  const [terms, setTerms]       = useState({ proposed_rate: "", time_commitment: 20 });
+
+  const isLast = step === APPLY_STEPS.length - 1;
+
+  async function handleSubmit() {
+    setSubmit(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase.from("applications").insert({
+        case_id: caseData.id,
+        consultant_id: user.id,
+        cover_letter: pitch.cover_letter || null,
+        proposed_rate: terms.proposed_rate ? Number(terms.proposed_rate) : null,
+        time_commitment: Number(terms.time_commitment),
+      });
+      if (error) throw error;
+      onComplete();
+    } catch (e) { alert(e.message); }
+    setSubmit(false);
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto py-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Apply to Case</h1>
+          <p className="text-gray-500 text-sm mt-0.5 truncate max-w-sm">{caseData.title}</p>
+        </div>
+        <button onClick={onCancel}
+          className="text-sm text-gray-400 hover:text-gray-600 border border-gray-200 px-3 py-1.5 rounded-xl hover:bg-gray-50">
+          ✕ Cancel
+        </button>
+      </div>
+
+      <OnboardingRoadmap steps={APPLY_STEPS} current={step} />
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-4">
+
+        {/* Step 0 — Case Brief */}
+        {step === 0 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Case Brief</h2>
+            <p className="text-sm text-gray-500 mb-5">Review the case details before you apply.</p>
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <span className="font-bold text-gray-900 text-base">{caseData.title}</span>
+                  <Badge className={PRIORITY_COLORS[caseData.priority]}>{cap(caseData.priority)}</Badge>
+                </div>
+                {caseData.description && (
+                  <p className="text-sm text-gray-600 leading-relaxed">{caseData.description}</p>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                {caseData.budget && (
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <div className="text-xs text-gray-400 mb-0.5">Budget</div>
+                    <div className="font-semibold text-gray-800">${Number(caseData.budget).toLocaleString()}</div>
+                  </div>
+                )}
+                {caseData.due_date && (
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <div className="text-xs text-gray-400 mb-0.5">Due Date</div>
+                    <div className="font-semibold text-gray-800">{fmtDate(caseData.due_date)}</div>
+                  </div>
+                )}
+                {caseData.client?.client_profiles?.company_name && (
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <div className="text-xs text-gray-400 mb-0.5">Client</div>
+                    <div className="font-semibold text-gray-800">{caseData.client.client_profiles.company_name}</div>
+                  </div>
+                )}
+              </div>
+              {caseData.skills_required?.length > 0 && (
+                <div>
+                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Skills Required</div>
+                  <div className="flex flex-wrap gap-2">
+                    {caseData.skills_required.map(s => (
+                      <span key={s} className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-medium">{s}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Step 1 — Your Pitch */}
+        {step === 1 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Your Pitch</h2>
+            <p className="text-sm text-gray-500 mb-5">Tell the client why you're the right consultant for this case.</p>
+            <Textarea label="Cover Letter" value={pitch.cover_letter}
+              onChange={e => setPitch(p => ({ ...p, cover_letter: e.target.value }))}
+              placeholder={`Hi, I'm interested in "${caseData.title}".\n\nI have experience with ${(caseData.skills_required ?? []).slice(0, 2).join(" and ") || "the required technologies"} and believe I can deliver strong results because…`} />
+            <p className="text-xs text-gray-400 mt-1">Tip: mention specific past projects, technologies you've mastered, and your approach to this type of work.</p>
+          </>
+        )}
+
+        {/* Step 2 — Terms */}
+        {step === 2 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Your Terms</h2>
+            <p className="text-sm text-gray-500 mb-5">Set your proposed rate and how much of your time you'd dedicate to this case.</p>
+            <Input label="Proposed Rate ($/hr)" type="number" value={terms.proposed_rate}
+              onChange={e => setTerms(p => ({ ...p, proposed_rate: e.target.value }))}
+              placeholder="e.g. 150" />
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Time Commitment — <span className="text-indigo-600 font-bold">{terms.time_commitment}%</span> of your available time
+              </label>
+              <input type="range" min="10" max="100" step="10"
+                value={terms.time_commitment}
+                onChange={e => setTerms(p => ({ ...p, time_commitment: Number(e.target.value) }))}
+                className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-indigo-600" />
+              <div className="flex justify-between text-xs text-gray-400 mt-1.5">
+                <span>10%</span><span>50%</span><span>100%</span>
+              </div>
+              <p className="text-xs text-gray-400 mt-3">
+                {terms.time_commitment <= 25 && "Part-time — a few hours per week alongside other engagements."}
+                {terms.time_commitment > 25 && terms.time_commitment <= 60 && "Half-time — significant focus on this case with room for others."}
+                {terms.time_commitment > 60 && terms.time_commitment < 100 && "Mostly dedicated — this case would be your primary engagement."}
+                {terms.time_commitment === 100 && "Full-time — this would be your sole engagement during the case."}
+              </p>
+            </div>
+          </>
+        )}
+
+        {/* Step 3 — Review */}
+        {step === 3 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Review & Submit</h2>
+            <p className="text-sm text-gray-500 mb-5">Confirm your application before sending it.</p>
+            <div className="space-y-4">
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Applying To</p>
+                <p className="font-semibold text-gray-900">{caseData.title}</p>
+                {caseData.client?.client_profiles?.company_name && (
+                  <p className="text-sm text-gray-500 mt-0.5">{caseData.client.client_profiles.company_name}</p>
+                )}
+              </div>
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Your Pitch</p>
+                {pitch.cover_letter
+                  ? <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{pitch.cover_letter}</p>
+                  : <p className="text-sm text-gray-400 italic">No cover letter — you can add one to strengthen your application.</p>}
+              </div>
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Terms</p>
+                <div className="flex gap-6 text-sm">
+                  <div>
+                    <div className="text-gray-400 text-xs mb-0.5">Proposed Rate</div>
+                    <div className="font-semibold text-gray-900">
+                      {terms.proposed_rate ? `$${Number(terms.proposed_rate).toLocaleString()}/hr` : <span className="text-gray-400 italic">Not specified</span>}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-gray-400 text-xs mb-0.5">Time Commitment</div>
+                    <div className="font-semibold text-gray-900">{terms.time_commitment}%</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Sticky nav */}
+      <div className="sticky bottom-0 bg-white border-t-2 border-gray-100 shadow-xl rounded-2xl px-6 py-4 flex items-center justify-between">
+        <button onClick={() => step > 0 ? setSt(s => s - 1) : onCancel()}
+          className="px-5 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors font-medium">
+          {step === 0 ? "✕ Cancel" : "← Back"}
+        </button>
+        {!isLast ? (
+          <button onClick={() => setSt(s => s + 1)}
+            className="px-7 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-colors shadow-md">
+            Continue →
+          </button>
+        ) : (
+          <button onClick={handleSubmit} disabled={submitting}
+            className="px-7 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
+            {submitting ? "Submitting…" : "✓ Submit Application"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// CASES VIEW
+// ============================================================
+function CasesView({ auth }) {
+  const [search, setSearch]           = useState("");
+  const [statusFilter, setStatus]     = useState("");
+  const [selectedCase, setSelected]   = useState(null);
+  const [showCreate, setShowCreate]   = useState(false);
+  const [showFavOnly, setShowFavOnly] = useState(false);
+  const { isFavorite, toggle }        = useFavorites();
+
+  const { cases, loading, createCase, updateCase, deleteCase } = useCases({
+    status: statusFilter || undefined,
+    search: search || undefined,
+    client_id: auth.isClient ? auth.user?.id : undefined,
+  });
+
+  // Consultants see only their assigned cases here; open cases to apply to are on the Dashboard.
+  const visibleCases = auth.isConsultant
+    ? cases.filter(c => c.case_assignments?.some(a => a.consultant_id === auth.user?.id))
+    : cases;
+  const displayed = showFavOnly ? visibleCases.filter(c => isFavorite(c.id)) : visibleCases;
+
+  async function handleStatusChange(caseId, status) {
+    await updateCase(caseId, { status });
+    if (selectedCase?.id === caseId) setSelected(prev => ({ ...prev, status }));
+  }
+
+  if (loading) return <Spinner />;
+
+  if (showCreate) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
+        <CreateCaseWizard
+          auth={auth}
+          createCase={createCase}
+          onComplete={() => setShowCreate(false)}
+          onCancel={() => setShowCreate(false)}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Cases</h1>
+          <p className="text-gray-500 text-sm mt-1">{displayed.length} case{displayed.length !== 1 ? "s" : ""}</p>
+        </div>
+        {(auth.isAdmin || auth.isManager || auth.isClient) && (
+          <button onClick={() => setShowCreate(true)}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
+            + New Case
+          </button>
+        )}
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3 mb-6">
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Search cases…"
+          className="border border-gray-200 rounded-xl px-4 py-2 text-sm flex-1 min-w-48 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        <select value={statusFilter} onChange={e => setStatus(e.target.value)}
+          className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <option value="">All Statuses</option>
+          {["open","in_progress","on_hold","completed","cancelled"].map(s => (
+            <option key={s} value={s}>{cap(fmt(s))}</option>
+          ))}
+        </select>
+        {auth.isConsultant && (
+          <button onClick={() => setShowFavOnly(p => !p)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
+              showFavOnly ? "bg-yellow-50 border-yellow-300 text-yellow-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"
+            }`}>
+            {showFavOnly ? "★ Saved" : "☆ Saved"}
+          </button>
+        )}
+      </div>
+
+      {/* Cases Grid */}
+      {displayed.length === 0 ? (
+        <EmptyState icon="📋" title="No cases found" subtitle="Adjust your filters or create a new case" />
+      ) : (
+        <div className="grid gap-4">
+          {displayed.map(c => (
+            <div key={c.id}
+              className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer p-5"
+              onClick={() => setSelected(c)}>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <h3 className="font-semibold text-gray-900 truncate">{c.title}</h3>
+                    <Badge className={STATUS_COLORS[c.status]}>{cap(fmt(c.status))}</Badge>
+                    <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
+                  </div>
+                  <p className="text-sm text-gray-500 line-clamp-2">{c.description}</p>
+                  <div className="flex items-center gap-4 mt-3 text-xs text-gray-400">
+                    {c.skills_required?.length > 0 && (
+                      <span>Skills: {c.skills_required.slice(0, 3).join(", ")}{c.skills_required.length > 3 ? "…" : ""}</span>
+                    )}
+                    {c.due_date && <span>Due: {fmtDate(c.due_date)}</span>}
+                    {c.budget && <span>Budget: ${Number(c.budget).toLocaleString()}</span>}
+                    <span>{c.applications?.[0]?.count ?? 0} applicant{c.applications?.[0]?.count !== 1 ? "s" : ""}</span>
+                  </div>
+                </div>
+                {auth.isConsultant && (
+                  <button onClick={e => { e.stopPropagation(); toggle(c.id); }}
+                    className="text-xl text-yellow-400 hover:text-yellow-500 transition-colors flex-shrink-0">
+                    {isFavorite(c.id) ? "★" : "☆"}
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Case Detail Modal */}
+      <Modal open={!!selectedCase} onClose={() => setSelected(null)}
+        title={selectedCase?.title ?? ""} wide>
+        {selectedCase && (
+          <CaseDetail
+            caseData={selectedCase} auth={auth}
+            onStatusChange={handleStatusChange}
+            onDelete={async () => { await deleteCase(selectedCase.id); setSelected(null); }}
+          />
+        )}
+      </Modal>
+
+    </div>
+  );
+}
+
+function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
+  const { applications, apply, reviewApplication } = useApplications(caseData.id);
+  const { milestones, toggleMilestone, addMilestone } = useMilestones(caseData.id);
+  const { comments, addComment } = useCaseComments(caseData.id);
+  const { subCases, createSubCase } = useSubCases(caseData.id);
+  const { documents, addDocument, deleteDocument } = useCaseDocuments(caseData.id);
+  const { entries: timeEntries, addTimeEntry, approveEntry } = useTimeEntries(caseData.id);
+
+  const [activeTab, setActiveTab]   = useState("detail");
+  const [newMilestone, setNewMilestone] = useState("");
+  const [commentForm, setCommentForm]  = useState({ body: "", hoursLogged: 0, progressUpdate: "", isInternal: false });
+  const [sendingComment, setSendingComment] = useState(false);
+  const [progressPct, setProgressPct] = useState(caseData.progress_pct ?? 0);
+  const [showSubCaseForm, setShowSubCaseForm] = useState(false);
+  const [subCaseForm, setSubCaseForm] = useState({ title: "", description: "", priority: "medium", status: "open" });
+  const [savingSubCase, setSavingSubCase] = useState(false);
+  const [selectedSubCase, setSelectedSubCase] = useState(null);
+  // V9 Document state
+  const docFileRef = useRef();
+  const [docNotes, setDocNotes]         = useState("");
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [showDocForm, setShowDocForm]   = useState(false);
+  const [pendingDocFile, setPendingDocFile] = useState(null);
+  // V9 Time entry state
+  const [showTimeForm, setShowTimeForm] = useState(false);
+  const [timeForm, setTimeForm]         = useState({ date: new Date().toISOString().slice(0, 10), hours: 1, description: "", is_billable: true });
+  const [savingTime, setSavingTime]     = useState(false);
+
+  const myApp = applications.find(a => a.consultant_id === auth.user?.id);
+  const doneMilestones = milestones.filter(m => m.is_done).length;
+  const milestonePct = milestones.length ? Math.round((doneMilestones / milestones.length) * 100) : 0;
+  const canAddSubCase = (auth.isAdmin || auth.isManager || auth.isClient) &&
+    !["completed", "cancelled"].includes(caseData.status);
+
+  const canDelete =
+    caseData.status === "open" &&
+    (auth.isAdmin || auth.isManager || (auth.isClient && caseData.client_id === auth.user?.id));
+
+  async function handleAddMilestone() {
+    if (!newMilestone.trim()) return;
+    await addMilestone(newMilestone.trim());
+    setNewMilestone("");
+  }
+
+  async function handleComment() {
+    if (!commentForm.body.trim()) return;
+    setSendingComment(true);
+    try {
+      await addComment({
+        body: commentForm.body,
+        hoursLogged: Number(commentForm.hoursLogged) || 0,
+        progressUpdate: commentForm.progressUpdate !== "" ? Number(commentForm.progressUpdate) : null,
+        isInternal: commentForm.isInternal,
+      });
+      if (commentForm.progressUpdate !== "") setProgressPct(Number(commentForm.progressUpdate));
+      setCommentForm({ body: "", hoursLogged: 0, progressUpdate: "", isInternal: false });
+    } catch (e) { alert(e.message); }
+    setSendingComment(false);
+  }
+
+  async function handleCreateSubCase() {
+    if (!subCaseForm.title.trim()) return;
+    setSavingSubCase(true);
+    try {
+      await createSubCase({
+        ...subCaseForm,
+        client_id: caseData.client_id,
+        manager_id: caseData.manager_id,
+      });
+      setSubCaseForm({ title: "", description: "", priority: "medium", status: "open" });
+      setShowSubCaseForm(false);
+    } catch (e) { alert(e.message); }
+    setSavingSubCase(false);
+  }
+
+  const totalTimeHours = timeEntries.reduce((s, e) => s + (e.hours ?? 0), 0);
+
+  async function handleDocUpload() {
+    if (!pendingDocFile) return;
+    setUploadingDoc(true);
+    try {
+      await addDocument(pendingDocFile, docNotes);
+      setPendingDocFile(null); setDocNotes(""); setShowDocForm(false);
+    } catch (e) { alert(e.message); }
+    setUploadingDoc(false);
+  }
+
+  async function handleTimeLog() {
+    if (!timeForm.hours || !timeForm.description.trim()) return;
+    setSavingTime(true);
+    try {
+      await addTimeEntry({ ...timeForm, case_id: caseData.id, hours: Number(timeForm.hours) });
+      setTimeForm({ date: new Date().toISOString().slice(0, 10), hours: 1, description: "", is_billable: true });
+      setShowTimeForm(false);
+    } catch (e) { alert(e.message); }
+    setSavingTime(false);
+  }
+
+  async function handleDelete() {
+    const blockers = [];
+    if (applications.length > 0) blockers.push(`${applications.length} application(s)`);
+    if (timeEntries.length > 0)  blockers.push(`${timeEntries.length} time entr${timeEntries.length === 1 ? "y" : "ies"}`);
+    if (documents.length > 0)    blockers.push(`${documents.length} document(s)`);
+    if (subCases.length > 0)     blockers.push(`${subCases.length} sub-case(s)`);
+    if (blockers.length > 0) {
+      alert(`Cannot delete: this case has ${blockers.join(", ")}.\n\nRemove them first, or change the status to "Cancelled" instead.`);
+      return;
+    }
+    if (!window.confirm(`Permanently delete "${caseData.title}"? This cannot be undone.`)) return;
+    try { await onDelete(); } catch (e) { alert(e.message); }
+  }
+
+  const tabs = [
+    { id: "detail",     label: "Details" },
+    { id: "milestones", label: `Milestones (${doneMilestones}/${milestones.length})` },
+    { id: "comments",   label: `Activity (${comments.length})` },
+    { id: "subcases",   label: `Sub-cases (${subCases.length})` },
+    { id: "documents",  label: `Docs (${documents.length})` },
+    { id: "time",       label: `Time (${totalTimeHours.toFixed(1)}h)` },
+    ...(auth.isAdmin || auth.isManager ? [{ id: "applications", label: `Applications (${applications.length})` }] : []),
+  ];
+
+  return (
+    <div className="space-y-4">
+      {/* Progress Bar */}
+      <div>
+        <div className="flex justify-between text-xs text-gray-500 mb-1">
+          <span>Overall Progress</span>
+          <span className="font-semibold text-gray-800">{progressPct}%</span>
+        </div>
+        <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-full bg-indigo-500 rounded-full transition-all"
+            style={{ width: `${progressPct}%` }} />
+        </div>
+        {milestones.length > 0 && (
+          <div className="text-xs text-gray-400 mt-1">Milestones: {milestonePct}% complete</div>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setActiveTab(t.id)}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+              activeTab === t.id ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Detail Tab */}
+      {activeTab === "detail" && (
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <Badge className={STATUS_COLORS[caseData.status]}>{cap(fmt(caseData.status))}</Badge>
+            <Badge className={PRIORITY_COLORS[caseData.priority]}>{cap(caseData.priority)}</Badge>
+            {caseData.parent_case_id && (
+              <Badge className="bg-purple-100 text-purple-700">Sub-case</Badge>
+            )}
+          </div>
+          <p className="text-gray-700 text-sm leading-relaxed">{caseData.description || "No description provided."}</p>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            {caseData.budget && <div><span className="text-gray-400">Budget: </span><span className="font-medium">${Number(caseData.budget).toLocaleString()}</span></div>}
+            {caseData.due_date && <div><span className="text-gray-400">Due: </span><span className="font-medium">{fmtDate(caseData.due_date)}</span></div>}
+            {caseData.client?.full_name && <div><span className="text-gray-400">Client: </span><span className="font-medium">{caseData.client.full_name}</span></div>}
+            {caseData.manager?.full_name && <div><span className="text-gray-400">Manager: </span><span className="font-medium">{caseData.manager.full_name}</span></div>}
+          </div>
+          {caseData.skills_required?.length > 0 && (
+            <div>
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Skills Required</div>
+              <div className="flex flex-wrap gap-2">
+                {caseData.skills_required.map(s => (
+                  <span key={s} className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs">{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Consultant apply section */}
+          {auth.isConsultant && caseData.status === "open" && (
+            <div className="border-t border-gray-100 pt-4">
+              {myApp ? (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Your application: </span>
+                  <Badge className={APP_STATUS_COLORS[myApp.status]}>{cap(myApp.status)}</Badge>
+                </div>
+              ) : onApply ? (
+                <button onClick={onApply}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors shadow-sm">
+                  Apply to This Case →
+                </button>
+              ) : null}
+            </div>
+          )}
+
+          {/* Admin / Manager status controls */}
+          {(auth.isAdmin || auth.isManager) && (
+            <div className="border-t border-gray-100 pt-4 flex flex-wrap gap-2">
+              {["open","in_progress","on_hold","completed","cancelled"]
+                .filter(s => s !== caseData.status)
+                .map(s => (
+                  <button key={s} onClick={() => onStatusChange(caseData.id, s)}
+                    className="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600">
+                    → {cap(fmt(s))}
+                  </button>
+                ))}
+            </div>
+          )}
+
+          {/* Delete — visible to creator (client) or admin/manager when case is Open with no dependencies */}
+          {canDelete && (
+            <div className="border-t border-red-50 pt-4 mt-2">
+              <button onClick={handleDelete}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-xl hover:bg-red-50 transition-colors">
+                🗑 Delete Case
+              </button>
+              <p className="text-xs text-gray-400 mt-1.5">
+                Only available while the case is <strong>Open</strong> and has no applications, time entries, documents, or sub-cases.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Milestones Tab */}
+      {activeTab === "milestones" && (
+        <div className="space-y-3">
+          {milestones.length > 0 && (
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-4">
+              <div className="h-full bg-emerald-500 transition-all" style={{ width: `${milestonePct}%` }} />
+            </div>
+          )}
+          {milestones.map(m => (
+            <div key={m.id} className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:bg-gray-50 cursor-pointer"
+              onClick={() => toggleMilestone(m.id, m.is_done)}>
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                m.is_done ? "bg-emerald-500 border-emerald-500" : "border-gray-300"}`}>
+                {m.is_done && <span className="text-white text-xs">✓</span>}
+              </div>
+              <span className={`text-sm flex-1 ${m.is_done ? "line-through text-gray-400" : "text-gray-800"}`}>
+                {m.title}
+              </span>
+              {m.is_done && m.done_at && (
+                <span className="text-xs text-gray-300">{fmtDate(m.done_at)}</span>
+              )}
+            </div>
+          ))}
+          {milestones.length === 0 && (
+            <p className="text-sm text-gray-400 text-center py-4">No milestones yet. Add one below.</p>
+          )}
+          {(auth.isAdmin || auth.isManager || auth.isConsultant) && (
+            <div className="flex gap-2 mt-4">
+              <input value={newMilestone} onChange={e => setNewMilestone(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleAddMilestone()}
+                placeholder="Add milestone…"
+                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <button onClick={handleAddMilestone}
+                className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700">
+                Add
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Activity / Comments Tab */}
+      {activeTab === "comments" && (
+        <div className="space-y-4">
+          <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+            {comments.map(c => (
+              <div key={c.id} className={`rounded-xl p-4 text-sm border ${c.is_internal ? "bg-amber-50 border-amber-200" : "bg-gray-50 border-gray-100"}`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-indigo-200 text-indigo-700 text-xs flex items-center justify-center font-bold">
+                      {c.author?.full_name?.[0] ?? "?"}
+                    </div>
+                    <span className="font-medium text-gray-900">{c.author?.full_name ?? "Unknown"}</span>
+                    {c.is_internal && <Badge className="bg-amber-200 text-amber-800">Internal</Badge>}
+                  </div>
+                  <span className="text-xs text-gray-400">{fmtDate(c.created_at)}</span>
+                </div>
+                <p className="text-gray-700 leading-relaxed">{c.body}</p>
+                <div className="flex gap-4 mt-2 text-xs text-gray-400">
+                  {c.hours_logged > 0 && <span>⏱ {c.hours_logged}h logged</span>}
+                  {c.progress_update !== null && <span>📈 Progress → {c.progress_update}%</span>}
+                </div>
+              </div>
+            ))}
+            {comments.length === 0 && (
+              <p className="text-sm text-gray-400 text-center py-4">No activity yet.</p>
+            )}
+          </div>
+
+          {/* Add comment */}
+          <div className="border border-gray-200 rounded-xl p-4 space-y-3">
+            <Textarea label="Comment / Update" value={commentForm.body}
+              onChange={e => setCommentForm(p => ({ ...p, body: e.target.value }))}
+              placeholder="Add a note, progress update, or comment…" />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Hours Logged</label>
+                <input type="number" min="0" value={commentForm.hoursLogged}
+                  onChange={e => setCommentForm(p => ({ ...p, hoursLogged: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Update Progress % (optional)</label>
+                <input type="number" min="0" max="100" value={commentForm.progressUpdate}
+                  onChange={e => setCommentForm(p => ({ ...p, progressUpdate: e.target.value }))}
+                  placeholder="e.g. 75"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+            </div>
+            {(auth.isAdmin || auth.isManager) && (
+              <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+                <input type="checkbox" checked={commentForm.isInternal}
+                  onChange={e => setCommentForm(p => ({ ...p, isInternal: e.target.checked }))}
+                  className="rounded accent-indigo-600" />
+                Internal note (not visible to clients)
+              </label>
+            )}
+            <button onClick={handleComment} disabled={sendingComment}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2 rounded-xl disabled:opacity-50">
+              {sendingComment ? "Posting…" : "Post Comment"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Sub-cases Tab */}
+      {activeTab === "subcases" && (
+        <div className="space-y-3">
+          {/* Header row with add button */}
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-500">
+              {subCases.length === 0
+                ? "No sub-cases yet."
+                : `${subCases.length} sub-case${subCases.length !== 1 ? "s" : ""}`}
+            </p>
+            {canAddSubCase && !showSubCaseForm && (
+              <button onClick={() => setShowSubCaseForm(true)}
+                className="px-4 py-1.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700">
+                + New Sub-case
+              </button>
+            )}
+          </div>
+
+          {/* Create sub-case form */}
+          {showSubCaseForm && (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 space-y-3">
+              <h4 className="font-semibold text-gray-900 text-sm">New Sub-case</h4>
+              <Input label="Title" value={subCaseForm.title}
+                onChange={e => setSubCaseForm(p => ({ ...p, title: e.target.value }))}
+                placeholder="Sub-case title…" />
+              <Textarea label="Description" value={subCaseForm.description}
+                onChange={e => setSubCaseForm(p => ({ ...p, description: e.target.value }))}
+                placeholder="What needs to be done in this sub-case?" />
+              <div className="grid grid-cols-2 gap-3">
+                <Select label="Priority" value={subCaseForm.priority}
+                  onChange={e => setSubCaseForm(p => ({ ...p, priority: e.target.value }))}
+                  options={["low","medium","high","critical"].map(s => ({ value: s, label: cap(s) }))} />
+                <Select label="Initial Status" value={subCaseForm.status}
+                  onChange={e => setSubCaseForm(p => ({ ...p, status: e.target.value }))}
+                  options={["open","in_progress"].map(s => ({ value: s, label: cap(fmt(s)) }))} />
+              </div>
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setShowSubCaseForm(false)}
+                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
+                <button onClick={handleCreateSubCase} disabled={savingSubCase}
+                  className="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+                  {savingSubCase ? "Creating…" : "Create Sub-case"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Sub-case list */}
+          <div className="space-y-2">
+            {subCases.map(sc => (
+              <div key={sc.id}
+                className="border border-gray-100 rounded-xl p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                onClick={() => setSelectedSubCase(sc)}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-gray-900 text-sm">{sc.title}</span>
+                      <Badge className={STATUS_COLORS[sc.status]}>{cap(fmt(sc.status))}</Badge>
+                      <Badge className={PRIORITY_COLORS[sc.priority]}>{cap(sc.priority)}</Badge>
+                    </div>
+                    {sc.description && (
+                      <p className="text-xs text-gray-500 mt-1 line-clamp-1">{sc.description}</p>
+                    )}
+                    <div className="flex gap-3 mt-1.5 text-xs text-gray-400">
+                      {sc.due_date && <span>Due: {fmtDate(sc.due_date)}</span>}
+                      {sc.progress_pct > 0 && <span>Progress: {sc.progress_pct}%</span>}
+                    </div>
+                  </div>
+                  <span className="text-gray-300 text-sm flex-shrink-0">›</span>
+                </div>
+                {sc.progress_pct > 0 && (
+                  <div className="h-1 bg-gray-100 rounded-full mt-3 overflow-hidden">
+                    <div className="h-full bg-indigo-400 rounded-full"
+                      style={{ width: `${sc.progress_pct}%` }} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Inline sub-case detail */}
+          {selectedSubCase && (
+            <div className="border-2 border-indigo-200 rounded-2xl p-5 mt-3">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-bold text-gray-900">{selectedSubCase.title}</h4>
+                <button onClick={() => setSelectedSubCase(null)}
+                  className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+              </div>
+              <CaseDetail
+                caseData={selectedSubCase}
+                auth={auth}
+                onStatusChange={async (id, status) => {
+                  await supabase.from("cases").update({ status }).eq("id", id);
+                  setSelectedSubCase(prev => ({ ...prev, status }));
+                }}
+                onDelete={async () => {
+                  await supabase.from("cases").delete().eq("id", selectedSubCase.id);
+                  setSelectedSubCase(null);
+                }}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Applications Tab */}
+      {activeTab === "applications" && (auth.isAdmin || auth.isManager) && (
+        <div className="space-y-3">
+          {applications.map(app => (
+            <div key={app.id} className="border border-gray-100 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="font-medium text-sm">{app.consultant?.full_name}</div>
+                <Badge className={APP_STATUS_COLORS[app.status]}>{cap(app.status)}</Badge>
+              </div>
+              {app.cover_letter && <p className="text-xs text-gray-500 mb-3 line-clamp-2">{app.cover_letter}</p>}
+              <div className="flex gap-3 text-xs text-gray-400 mb-2">
+                {app.proposed_rate && <span>💰 ${app.proposed_rate}/hr</span>}
+                {app.time_commitment && <span>⏱ {app.time_commitment}% time</span>}
+              </div>
+              {app.status === "pending" && (
+                <div className="flex gap-2 mt-2">
+                  <button onClick={() => reviewApplication(app.id, "accepted")}
+                    className="px-3 py-1 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">Accept</button>
+                  <button onClick={() => reviewApplication(app.id, "rejected")}
+                    className="px-3 py-1 bg-red-100 text-red-700 text-xs rounded-lg hover:bg-red-200">Reject</button>
+                  <button onClick={() => reviewApplication(app.id, "under_review")}
+                    className="px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-lg hover:bg-blue-200">Review</button>
+                </div>
+              )}
+            </div>
+          ))}
+          {applications.length === 0 && <p className="text-sm text-gray-400">No applications yet.</p>}
+        </div>
+      )}
+
+      {/* V9 Documents Tab */}
+      {activeTab === "documents" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-semibold text-gray-700">{documents.length} document{documents.length !== 1 ? "s" : ""}</div>
+            <button onClick={() => setShowDocForm(p => !p)}
+              className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700">
+              + Upload
+            </button>
+          </div>
+          {showDocForm && (
+            <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">File</label>
+                <input ref={docFileRef} type="file"
+                  onChange={e => setPendingDocFile(e.target.files?.[0] ?? null)}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
+              </div>
+              <Textarea label="Notes (optional)" value={docNotes}
+                onChange={e => setDocNotes(e.target.value)} placeholder="Description of this document…" />
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => { setShowDocForm(false); setPendingDocFile(null); setDocNotes(""); }}
+                  className="px-3 py-1.5 text-sm text-gray-500">Cancel</button>
+                <button onClick={handleDocUpload} disabled={!pendingDocFile || uploadingDoc}
+                  className="px-4 py-1.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                  {uploadingDoc ? "Uploading…" : "Upload"}
+                </button>
+              </div>
+            </div>
+          )}
+          <div className="space-y-2">
+            {documents.map(doc => (
+              <div key={doc.id} className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:bg-gray-50">
+                <div className="text-2xl flex-shrink-0">
+                  {doc.file_type?.includes("pdf") ? "📄" : doc.file_type?.includes("image") ? "🖼️" : "📎"}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <a href={doc.file_url} target="_blank" rel="noreferrer"
+                    className="font-medium text-sm text-indigo-600 hover:underline truncate block">{doc.file_name}</a>
+                  <div className="text-xs text-gray-400 mt-0.5">
+                    {doc.file_size_kb ? `${doc.file_size_kb} KB · ` : ""}
+                    {doc.uploader?.full_name ?? "Unknown"} · {fmtDate(doc.created_at)}
+                  </div>
+                  {doc.notes && <p className="text-xs text-gray-500 mt-0.5">{doc.notes}</p>}
+                </div>
+                {(auth.isAdmin || auth.isManager) && (
+                  <button onClick={() => deleteDocument(doc.id, doc.file_url)}
+                    className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded border border-red-100 hover:bg-red-50 flex-shrink-0">
+                    Remove
+                  </button>
+                )}
+              </div>
+            ))}
+            {documents.length === 0 && (
+              <div className="text-center py-8 text-gray-400">
+                <div className="text-3xl mb-2">📎</div>
+                <p className="text-sm">No documents uploaded yet.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* V9 Time Entries Tab */}
+      {activeTab === "time" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-semibold text-gray-700">
+              Total: <span className="text-indigo-600">{totalTimeHours.toFixed(1)}h</span>
+              {" · "}Billable: <span className="text-green-600">{timeEntries.filter(e => e.is_billable).reduce((s, e) => s + e.hours, 0).toFixed(1)}h</span>
+            </div>
+            {auth.isConsultant && (
+              <button onClick={() => setShowTimeForm(p => !p)}
+                className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700">
+                + Log Time
+              </button>
+            )}
+          </div>
+          {showTimeForm && (
+            <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Date" type="date" value={timeForm.date}
+                  onChange={e => setTimeForm(p => ({ ...p, date: e.target.value }))} />
+                <Input label="Hours" type="number" min="0.25" step="0.25" value={timeForm.hours}
+                  onChange={e => setTimeForm(p => ({ ...p, hours: e.target.value }))} />
+              </div>
+              <Textarea label="Description" value={timeForm.description}
+                onChange={e => setTimeForm(p => ({ ...p, description: e.target.value }))}
+                placeholder="What did you work on?" />
+              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input type="checkbox" checked={timeForm.is_billable}
+                  onChange={e => setTimeForm(p => ({ ...p, is_billable: e.target.checked }))}
+                  className="rounded accent-indigo-600" />
+                Billable
+              </label>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setShowTimeForm(false)} className="px-3 py-1.5 text-sm text-gray-500">Cancel</button>
+                <button onClick={handleTimeLog} disabled={savingTime}
+                  className="px-4 py-1.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                  {savingTime ? "Saving…" : "Log Time"}
+                </button>
+              </div>
+            </div>
+          )}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 text-left">
+                  <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">Date</th>
+                  <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">Consultant</th>
+                  <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">Hours</th>
+                  <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">Description</th>
+                  <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">Billable</th>
+                  <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {timeEntries.map(e => (
+                  <tr key={e.id} className="hover:bg-gray-50">
+                    <td className="py-2 text-gray-600">{fmtDate(e.date)}</td>
+                    <td className="py-2 text-gray-700">{e.consultant?.full_name ?? "—"}</td>
+                    <td className="py-2 font-semibold text-indigo-700">{e.hours}h</td>
+                    <td className="py-2 text-gray-500 max-w-xs truncate">{e.description}</td>
+                    <td className="py-2">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${e.is_billable ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                        {e.is_billable ? "Yes" : "No"}
+                      </span>
+                    </td>
+                    <td className="py-2">
+                      {e.is_approved
+                        ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">✓ Approved</span>
+                        : (auth.isAdmin || auth.isManager)
+                          ? <button onClick={() => approveEntry(e.id, true)}
+                              className="text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 px-2 py-0.5 rounded-full hover:bg-yellow-100">
+                              Approve
+                            </button>
+                          : <span className="text-xs text-gray-400">Pending</span>
+                      }
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {timeEntries.length === 0 && (
+              <div className="text-center py-8 text-gray-400">
+                <div className="text-3xl mb-2">⏱</div>
+                <p className="text-sm">No time entries logged yet.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// ARENA (COMPETITIVE BIDDING)
+// ============================================================
+function ArenaView({ auth }) {
+  const [arenaTab, setArenaTab]         = useState("cases");
+  const [applyingToCase, setApplying]   = useState(null);
+  const { leaderboard, loading: lbLoading } = useLeaderboard();
+  const { cases, loading: casesLoading }    = useCases();
+  const { applications }                    = useApplications();
+
+  const openCases       = cases.filter(c => c.status === "open");
+  const myApplications  = applications.filter(a => a.consultant_id === auth.user?.id);
+  const appliedCaseIds  = new Set(myApplications.map(a => a.case_id));
+
+  const renderCases = () => {
+    if (casesLoading) return <Spinner />;
+    if (openCases.length === 0) return (
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center text-gray-400 text-sm">
+        No open cases available right now.
+      </div>
+    );
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {openCases.map(c => {
+          const companyName  = c.client?.client_profiles?.company_name || c.client?.full_name;
+          const alreadyApplied = appliedCaseIds.has(c.id);
+          const appCount     = c.applications?.[0]?.count ?? 0;
+          return (
+            <div key={c.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <h3 className="font-semibold text-gray-900 text-sm leading-snug">{c.title}</h3>
+                <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
+              </div>
+              <div className="flex flex-wrap gap-1 mb-2">
+                {c.area_sap      && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{c.area_sap}</span>}
+                {c.area_industry && <span className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium">{c.area_industry}</span>}
+              </div>
+              {companyName && <p className="text-xs text-indigo-600 font-medium mb-1">{companyName}</p>}
+              {c.description && <p className="text-xs text-gray-400 line-clamp-2 mb-3">{c.description}</p>}
+              <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 mb-3">
+                {c.start_date && <span>Starts: {fmtDate(c.start_date)}</span>}
+                {c.due_date   && <span>Due: {fmtDate(c.due_date)}</span>}
+                {c.budget     && <span>Budget: ${Number(c.budget).toLocaleString()}</span>}
+              </div>
+              {c.skills_required?.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-3">
+                  {c.skills_required.slice(0, 3).map(s => (
+                    <span key={s} className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded text-xs">{s}</span>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-xs text-gray-400">{appCount} applicant{appCount !== 1 ? "s" : ""}</span>
+                {auth.isConsultant && (
+                  alreadyApplied
+                    ? <span className="text-xs text-green-600 font-semibold">✓ Applied</span>
+                    : <button onClick={() => setApplying(c)}
+                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors">
+                        Apply →
+                      </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderLeaderboard = () => {
+    if (lbLoading) return <Spinner />;
+    return (
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-100">
+              <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Rank</th>
+              <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Consultant</th>
+              <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Avg Rating</th>
+              <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Cases Won</th>
+              <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Applications</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {leaderboard.map((c, i) => (
+              <tr key={c.id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-5 py-4">
+                  <span className={`font-bold ${i === 0 ? "text-yellow-500" : i === 1 ? "text-gray-400" : i === 2 ? "text-orange-400" : "text-gray-300"}`}>
+                    {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}
+                  </span>
+                </td>
+                <td className="px-5 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">
+                      {c.user?.full_name?.[0]}
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-900">{c.user?.full_name}</div>
+                      <div className="text-xs text-gray-400">{c.headline ?? `${c.years_experience ?? 0}y experience`}</div>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-5 py-4">
+                  <div className="flex items-center gap-1">
+                    <span className="font-semibold text-gray-900">{c.avgRating > 0 ? c.avgRating : "—"}</span>
+                    {c.avgRating > 0 && <span className="text-yellow-400 text-xs">{stars(c.avgRating)}</span>}
+                    <span className="text-xs text-gray-400 ml-1">({c.ratingCount})</span>
+                  </div>
+                </td>
+                <td className="px-5 py-4">
+                  <span className="font-semibold text-gray-900">{c.acceptedCases}</span>
+                </td>
+                <td className="px-5 py-4">
+                  <span className="text-gray-600">{c.totalApps}</span>
+                </td>
+              </tr>
+            ))}
+            {leaderboard.length === 0 && (
+              <tr><td colSpan={5} className="px-5 py-12 text-center text-gray-400 text-sm">No consultants yet</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  const renderCards = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {leaderboard.map((c, i) => (
+        <div key={c.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
+              {c.user?.full_name?.[0]}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-gray-900 truncate">{c.user?.full_name}</div>
+              <div className="text-xs text-gray-400">{c.headline ?? "Consultant"}</div>
+              {c.avgRating > 0 && (
+                <div className="flex items-center gap-1 mt-1">
+                  {stars(c.avgRating)}
+                  <span className="text-xs text-gray-500">{c.avgRating}</span>
+                </div>
+              )}
+            </div>
+            <span className="text-lg">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : ""}</span>
+          </div>
+          <div className="flex gap-4 text-xs text-gray-500">
+            <span><strong className="text-gray-800">{c.acceptedCases}</strong> won</span>
+            <span><strong className="text-gray-800">{c.totalApps}</strong> apps</span>
+            <span><strong className="text-gray-800">{c.ratingCount}</strong> ratings</span>
+          </div>
+          {c.skills?.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1">
+              {c.skills.slice(0, 4).map(s => (
+                <span key={s} className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded text-xs">{s}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+
+  const renderCompare = () => {
+    const top3 = leaderboard.slice(0, 3);
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {top3.map((c, i) => {
+          const medals = ["🥇", "🥈", "🥉"];
+          const appRate = c.totalApps > 0 ? Math.round((c.acceptedCases / c.totalApps) * 100) : 0;
+          return (
+            <div key={c.id} className={`bg-white rounded-2xl border-2 shadow-sm p-6 ${
+              i === 0 ? "border-yellow-300" : i === 1 ? "border-gray-300" : "border-orange-300"}`}>
+              <div className="text-center mb-4">
+                <div className="text-4xl mb-2">{medals[i]}</div>
+                <div className="text-3xl font-bold bg-indigo-100 text-indigo-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto text-2xl mb-2">
+                  {c.user?.full_name?.[0]}
+                </div>
+                <div className="font-bold text-gray-900">{c.user?.full_name}</div>
+              </div>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Avg Rating</span>
+                  <span className="font-semibold">{c.avgRating || "—"} / 5</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Win Rate</span>
+                  <span className="font-semibold">{appRate}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Cases Won</span>
+                  <span className="font-semibold">{c.acceptedCases}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Experience</span>
+                  <span className="font-semibold">{c.years_experience ?? 0}y</span>
+                </div>
+                {/* Bar: avg rating */}
+                <div className="pt-1">
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-indigo-500 rounded-full transition-all"
+                      style={{ width: `${(c.avgRating / 5) * 100}%` }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {top3.length < 3 && (
+          <div className="col-span-full text-center text-gray-400 py-8 text-sm">
+            Need at least 3 consultants to compare
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  if (applyingToCase) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
+        <ApplyWizard
+          caseData={applyingToCase}
+          auth={auth}
+          onComplete={() => setApplying(null)}
+          onCancel={() => setApplying(null)}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="mb-6 flex items-end justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Arena</h1>
+          <p className="text-gray-500 text-sm mt-1">Open cases & consultant rankings</p>
+        </div>
+        {openCases.length > 0 && (
+          <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-semibold rounded-xl">
+            {openCases.length} open case{openCases.length !== 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 w-fit">
+        {[
+          { id: "cases",       label: "📋 Open Cases" },
+          { id: "leaderboard", label: "🏆 Leaderboard" },
+          { id: "cards",       label: "🃏 Cards" },
+          { id: "compare",     label: "⚖️ Compare" },
+        ].map(t => (
+          <button key={t.id} onClick={() => setArenaTab(t.id)}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+              arenaTab === t.id ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {arenaTab === "cases"       && renderCases()}
+      {arenaTab === "leaderboard" && renderLeaderboard()}
+      {arenaTab === "cards"       && renderCards()}
+      {arenaTab === "compare"     && renderCompare()}
+    </div>
+  );
+}
+
+// ============================================================
+// CONSULTANT PROFILE VIEW
+// ============================================================
+function ProfileView({ auth }) {
+  // Extract the real consultant_profiles id from auth (useAuth already fetched it via FK join)
+  const cpRaw = auth.profile?.consultant_profiles;
+  const realProfileId = Array.isArray(cpRaw) ? cpRaw[0]?.id : cpRaw?.id;
+  const { profile, availability, loading, profileError, updateProfile, uploadPhoto, addCustomer, addProject, addWorkAuth } =
+    useConsultantProfile(auth.user?.id, realProfileId);
+  const { ratings, avgRating } = useRatings(auth.user?.id);
+  const [profileTab, setProfileTab] = useState("overview");
+  const [editing, setEditing]       = useState(false);
+  const [form, setForm]             = useState({});
+  const [saving, setSaving]         = useState(false);
+  const fileRef = useRef();
+
+  useEffect(() => {
+    if (!editing) setForm({
+      headline: profile?.headline ?? "",
+      bio: profile?.bio ?? "",
+      linkedin_url: profile?.linkedin_url ?? "",
+      hourly_rate: profile?.hourly_rate ?? "",
+      years_experience: profile?.years_experience ?? 0,
+      external_occupancy_pct: profile?.external_occupancy_pct ?? 0,
+      travel_available: profile?.travel_available ?? false,
+      expertise_level: profile?.expertise_level ?? "mid",
+      availability_type: profile?.availability_type ?? "project_based",
+      _skills: profile?.skills?.join(", ") ?? "",
+    });
+  }, [profile, editing]);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const { _skills, ...profileData } = form;
+      await updateProfile({
+        ...profileData,
+        skills: _skills?.split(",").map(s => s.trim()).filter(Boolean) ?? [],
+        hourly_rate: form.hourly_rate ? Number(form.hourly_rate) : null,
+        years_experience: Number(form.years_experience) || 0,
+        external_occupancy_pct: Number(form.external_occupancy_pct) || 0,
+      });
+      setEditing(false);
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  async function handlePhotoUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try { await uploadPhoto(file); } catch (e) { alert(e.message); }
+  }
+
+  const [custForm, setCustForm] = useState({ company_name: "", role_held: "", start_date: "", end_date: "", description: "" });
+  const [projForm, setProjForm] = useState({ title: "", client_name: "", url: "", description: "", _tech: "" });
+  const [authForm, setAuthForm] = useState({ country_name: "", country_code: "", auth_type: "citizen" });
+  const [savingExp, setSavingExp] = useState(false);
+
+  if (loading) return <Spinner />;
+
+
+  // Availability breakdown
+  const activeCaseCommitment = 0; // case_assignments removed from join; RPC provides totals
+  const extOccupancy = profile?.external_occupancy_pct ?? 0;
+  const totalUsed = Math.min(100, activeCaseCommitment + extOccupancy);
+  const freeAvail = Math.max(0, 100 - totalUsed);
+
+  const tabs = ["overview", "experience", "skills", "ratings"];
+
+  async function handleAddCustomer() {
+    setSavingExp(true);
+    try { await addCustomer(custForm); setCustForm({ company_name: "", role_held: "", start_date: "", end_date: "", description: "" }); }
+    catch (e) { alert(e.message); }
+    setSavingExp(false);
+  }
+
+  async function handleAddProject() {
+    setSavingExp(true);
+    try {
+      const { _tech, ...rest } = projForm;
+      await addProject({ ...rest, tech_stack: _tech.split(",").map(s => s.trim()).filter(Boolean) });
+      setProjForm({ title: "", client_name: "", url: "", description: "", _tech: "" });
+    } catch (e) { alert(e.message); }
+    setSavingExp(false);
+  }
+
+  async function handleAddWorkAuth() {
+    setSavingExp(true);
+    try { await addWorkAuth(authForm); setAuthForm({ country_name: "", country_code: "", auth_type: "citizen" }); }
+    catch (e) { alert(e.message); }
+    setSavingExp(false);
+  }
+
+  return (
+    <div>
+      {/* Profile Header */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+        <div className="flex items-start gap-5">
+          <div className="relative">
+            <div className="w-20 h-20 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-600 text-2xl font-bold overflow-hidden">
+              {profile?.photo_url
+                ? <img src={profile.photo_url} alt="avatar" className="w-full h-full object-cover" />
+                : auth.profile?.full_name?.[0]}
+            </div>
+            <button onClick={() => fileRef.current?.click()}
+              className="absolute -bottom-1 -right-1 w-6 h-6 bg-indigo-600 text-white rounded-full text-xs flex items-center justify-center hover:bg-indigo-700">
+              +
+            </button>
+            <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
+          </div>
+          <div className="flex-1">
+            <h1 className="text-xl font-bold text-gray-900">{auth.profile?.full_name}</h1>
+            <p className="text-gray-500 text-sm">{profile?.headline || "Add a headline…"}</p>
+            <div className="flex items-center gap-3 mt-2 flex-wrap text-sm text-gray-500">
+              {avgRating && (
+                <span className="flex items-center gap-1">
+                  {stars(avgRating)} <strong className="text-gray-900">{avgRating}</strong>
+                  <span className="text-gray-400">({ratings.length} ratings)</span>
+                </span>
+              )}
+              {profile?.hourly_rate && <span>💰 ${profile.hourly_rate}/hr</span>}
+              {profile?.travel_available && <span>✈️ Travel available</span>}
+              {profile?.expertise_level && (
+                <Badge className="bg-violet-100 text-violet-700">{cap(profile.expertise_level)}</Badge>
+              )}
+              {profile?.availability_type && (
+                <Badge className="bg-teal-100 text-teal-700">{cap(fmt(profile.availability_type))}</Badge>
+              )}
+            </div>
+          </div>
+          <button onClick={() => setEditing(p => !p)}
+            className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-xl hover:bg-gray-50">
+            {editing ? "Cancel" : "Edit Profile"}
+          </button>
+        </div>
+
+        {/* Availability bar */}
+        <div className="mt-5">
+          <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+            <span>Availability</span>
+            <span className="font-semibold text-gray-800">{freeAvail}% free</span>
+          </div>
+          <div className="h-3 bg-gray-100 rounded-full overflow-hidden flex">
+            {activeCaseCommitment > 0 && (
+              <div className="h-full bg-blue-400 transition-all" style={{ width: `${activeCaseCommitment}%` }}
+                title={`Case commitment: ${activeCaseCommitment}%`} />
+            )}
+            {extOccupancy > 0 && (
+              <div className="h-full bg-orange-300 transition-all" style={{ width: `${extOccupancy}%` }}
+                title={`External: ${extOccupancy}%`} />
+            )}
+            <div className="h-full bg-emerald-200 transition-all" style={{ width: `${freeAvail}%` }}
+              title={`Available: ${freeAvail}%`} />
+          </div>
+          <div className="flex gap-3 mt-1.5 text-xs text-gray-400">
+            <span className="flex items-center gap-1"><span className="w-2 h-2 bg-blue-400 rounded-full inline-block"/>Cases ({activeCaseCommitment}%)</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 bg-orange-300 rounded-full inline-block"/>External ({extOccupancy}%)</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 bg-emerald-200 rounded-full inline-block"/>Free ({freeAvail}%)</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Edit form */}
+      {editing && (
+        <div className="bg-white rounded-2xl border border-indigo-200 shadow-sm p-6 mb-6">
+          <h3 className="font-semibold text-gray-900 mb-4">Edit Profile</h3>
+          <Input label="Headline" value={form.headline} onChange={e => setForm(p => ({ ...p, headline: e.target.value }))}
+            placeholder="Senior Full-Stack Consultant" />
+          <Textarea label="Bio" value={form.bio} onChange={e => setForm(p => ({ ...p, bio: e.target.value }))}
+            placeholder="Tell clients about your background and expertise…" />
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Hourly Rate ($)" type="number" value={form.hourly_rate}
+              onChange={e => setForm(p => ({ ...p, hourly_rate: e.target.value }))} />
+            <Input label="Years Experience" type="number" value={form.years_experience}
+              onChange={e => setForm(p => ({ ...p, years_experience: e.target.value }))} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Select label="Expertise Level" value={form.expertise_level ?? "mid"}
+              onChange={e => setForm(p => ({ ...p, expertise_level: e.target.value }))}
+              options={[
+                { value: "junior",  label: "Junior" },
+                { value: "mid",     label: "Mid-Level" },
+                { value: "senior",  label: "Senior" },
+                { value: "expert",  label: "Expert / Principal" },
+              ]} />
+            <Select label="Availability Type" value={form.availability_type ?? "project_based"}
+              onChange={e => setForm(p => ({ ...p, availability_type: e.target.value }))}
+              options={[
+                { value: "full_time",     label: "Full-Time" },
+                { value: "part_time",     label: "Part-Time" },
+                { value: "contract",      label: "Contract" },
+                { value: "project_based", label: "Project-Based" },
+              ]} />
+          </div>
+          <Input label="LinkedIn URL" value={form.linkedin_url}
+            onChange={e => setForm(p => ({ ...p, linkedin_url: e.target.value }))}
+            placeholder="https://linkedin.com/in/yourprofile" />
+          <Input label="Skills (comma-separated)" value={form._skills}
+            onChange={e => setForm(p => ({ ...p, _skills: e.target.value }))}
+            placeholder="React, Node.js, AWS, PostgreSQL" />
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              External Occupancy: {form.external_occupancy_pct}%
+            </label>
+            <input type="range" min="0" max="100" value={form.external_occupancy_pct}
+              onChange={e => setForm(p => ({ ...p, external_occupancy_pct: Number(e.target.value) }))}
+              className="w-full accent-indigo-600" />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-gray-700 mb-4 cursor-pointer">
+            <input type="checkbox" checked={form.travel_available}
+              onChange={e => setForm(p => ({ ...p, travel_available: e.target.checked }))}
+              className="rounded accent-indigo-600" />
+            Available for travel
+          </label>
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+            <button onClick={handleSave} disabled={saving}
+              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+              {saving ? "Saving…" : "Save Changes"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 w-fit">
+        {tabs.map(t => (
+          <button key={t} onClick={() => setProfileTab(t)}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all capitalize ${
+              profileTab === t ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      {profileTab === "overview" && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h3 className="font-semibold text-gray-900 mb-3">About</h3>
+          <p className="text-gray-600 text-sm leading-relaxed">{profile?.bio || "No bio yet. Edit your profile to add one."}</p>
+          {profile?.linkedin_url && (
+            <a href={profile.linkedin_url} target="_blank" rel="noreferrer"
+              className="inline-flex items-center gap-2 mt-4 text-sm text-indigo-600 hover:underline">
+              🔗 LinkedIn Profile
+            </a>
+          )}
+          {/* Active cases */}
+          {profile?.case_assignments?.length > 0 && (
+            <div className="mt-5">
+              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Active Cases</h4>
+              <div className="space-y-2">
+                {profile.case_assignments
+                  .filter(a => ["open","in_progress"].includes(a.case?.status))
+                  .map(a => (
+                    <div key={a.case?.id} className="flex items-center justify-between text-sm border border-gray-100 rounded-xl px-4 py-2">
+                      <span className="font-medium text-gray-800">{a.case?.title}</span>
+                      <div className="flex items-center gap-2">
+                        <Badge className={STATUS_COLORS[a.case?.status]}>{cap(fmt(a.case?.status))}</Badge>
+                        <span className="text-gray-400 text-xs">{a.time_commitment}%</span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {profileTab === "experience" && (
+        <div className="space-y-6">
+          {/* Past Customers */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <h3 className="font-semibold text-gray-900 mb-4">Past Customers</h3>
+            {(profile?.consultant_customers?.length ?? 0) === 0
+              ? <p className="text-sm text-gray-400 mb-4">No customers added yet.</p>
+              : <div className="space-y-3 mb-4">
+                  {profile.consultant_customers.map(c => (
+                    <div key={c.id} className="border border-gray-100 rounded-xl p-4">
+                      <div className="font-medium text-gray-900">{c.company_name}</div>
+                      {c.role_held && <div className="text-sm text-gray-500">{c.role_held}</div>}
+                      {(c.start_date || c.end_date) && (
+                        <div className="text-xs text-gray-400 mt-1">
+                          {fmtDate(c.start_date)} – {c.end_date ? fmtDate(c.end_date) : "Present"}
+                        </div>
+                      )}
+                      {c.description && <p className="text-sm text-gray-600 mt-2">{c.description}</p>}
+                    </div>
+                  ))}
+                </div>}
+            <div className="border-t border-gray-100 pt-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Add Customer</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Company Name" value={custForm.company_name} onChange={e => setCustForm(p => ({ ...p, company_name: e.target.value }))} />
+                <Input label="Role Held" value={custForm.role_held} onChange={e => setCustForm(p => ({ ...p, role_held: e.target.value }))} />
+                <Input label="Start Date" type="date" value={custForm.start_date} onChange={e => setCustForm(p => ({ ...p, start_date: e.target.value }))} />
+                <Input label="End Date" type="date" value={custForm.end_date} onChange={e => setCustForm(p => ({ ...p, end_date: e.target.value }))} placeholder="Leave blank if current" />
+              </div>
+              <Textarea label="Description" value={custForm.description} onChange={e => setCustForm(p => ({ ...p, description: e.target.value }))} />
+              <button onClick={handleAddCustomer} disabled={savingExp || !custForm.company_name}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                {savingExp ? "Saving…" : "+ Add Customer"}
+              </button>
+            </div>
+          </div>
+
+          {/* Projects */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <h3 className="font-semibold text-gray-900 mb-4">Projects</h3>
+            {(profile?.consultant_projects?.length ?? 0) === 0
+              ? <p className="text-sm text-gray-400 mb-4">No projects added yet.</p>
+              : <div className="space-y-3 mb-4">
+                  {profile.consultant_projects.map(p => (
+                    <div key={p.id} className="border border-gray-100 rounded-xl p-4">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="font-medium text-gray-900">{p.title}</div>
+                          {p.client_name && <div className="text-xs text-gray-400">{p.client_name}</div>}
+                        </div>
+                        {p.url && <a href={p.url} target="_blank" rel="noreferrer" className="text-xs text-indigo-600 hover:underline">View →</a>}
+                      </div>
+                      {p.description && <p className="text-sm text-gray-600 mt-2">{p.description}</p>}
+                      {p.tech_stack?.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {p.tech_stack.map(s => <span key={s} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{s}</span>)}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>}
+            <div className="border-t border-gray-100 pt-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Add Project</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Title" value={projForm.title} onChange={e => setProjForm(p => ({ ...p, title: e.target.value }))} />
+                <Input label="Client Name" value={projForm.client_name} onChange={e => setProjForm(p => ({ ...p, client_name: e.target.value }))} />
+                <Input label="URL" value={projForm.url} onChange={e => setProjForm(p => ({ ...p, url: e.target.value }))} />
+                <Input label="Tech Stack (comma-separated)" value={projForm._tech} onChange={e => setProjForm(p => ({ ...p, _tech: e.target.value }))} />
+              </div>
+              <Textarea label="Description" value={projForm.description} onChange={e => setProjForm(p => ({ ...p, description: e.target.value }))} />
+              <button onClick={handleAddProject} disabled={savingExp || !projForm.title}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                {savingExp ? "Saving…" : "+ Add Project"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {profileTab === "skills" && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <h3 className="font-semibold text-gray-900 mb-4">Skills</h3>
+            {(profile?.skills?.length ?? 0) === 0
+              ? <p className="text-sm text-gray-400 mb-4">No skills added yet.</p>
+              : <div className="flex flex-wrap gap-2 mb-4">{profile.skills.map(s => (
+                  <span key={s} className="px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-medium">{s}</span>
+                ))}</div>}
+            <div className="flex gap-2 mt-2">
+              <input id="new-skill-input" placeholder="Add a skill…"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <button disabled={savingExp} onClick={async () => {
+                const input = document.getElementById("new-skill-input");
+                const val = input?.value?.trim();
+                if (!val) return;
+                setSavingExp(true);
+                try {
+                  const current = profile?.skills ?? [];
+                  if (!current.includes(val)) await updateProfile({ skills: [...current, val] });
+                  input.value = "";
+                } catch (e) { alert(e.message); }
+                setSavingExp(false);
+              }} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                {savingExp ? "…" : "+ Add"}
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <h3 className="font-semibold text-gray-900 mb-4">Work Authorization</h3>
+            {(profile?.work_authorizations?.length ?? 0) === 0
+              ? <p className="text-sm text-gray-400 mb-4">No work authorizations added.</p>
+              : <div className="grid grid-cols-2 gap-3 mb-4">
+                  {profile.work_authorizations.map(w => (
+                    <div key={w.id} className="border border-gray-100 rounded-xl p-3 flex items-center gap-3">
+                      <div className="text-2xl">{w.country_code === "US" ? "🇺🇸" : w.country_code === "GB" ? "🇬🇧" : "🌐"}</div>
+                      <div>
+                        <div className="text-sm font-medium">{w.country_name}</div>
+                        <div className="text-xs text-gray-400 capitalize">{fmt(w.auth_type)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>}
+            <div className="border-t border-gray-100 pt-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Add Authorization</p>
+              <div className="grid grid-cols-3 gap-3">
+                <Input label="Country Name" value={authForm.country_name} onChange={e => setAuthForm(p => ({ ...p, country_name: e.target.value }))} />
+                <Input label="Country Code" value={authForm.country_code} onChange={e => setAuthForm(p => ({ ...p, country_code: e.target.value.toUpperCase() }))} placeholder="US" />
+                <Select label="Auth Type" value={authForm.auth_type} onChange={e => setAuthForm(p => ({ ...p, auth_type: e.target.value }))}
+                  options={[{ value: "citizen", label: "Citizen" }, { value: "permanent_resident", label: "Permanent Resident" }, { value: "work_visa", label: "Work Visa" }, { value: "other", label: "Other" }]} />
+              </div>
+              <button onClick={handleAddWorkAuth} disabled={savingExp || !authForm.country_name}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                {savingExp ? "Saving…" : "+ Add Authorization"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {profileTab === "ratings" && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          {avgRating && (
+            <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
+              <div className="text-5xl font-bold text-gray-900">{avgRating}</div>
+              <div>
+                <div className="flex text-yellow-400 text-xl">{stars(avgRating)}</div>
+                <div className="text-sm text-gray-500 mt-1">{ratings.length} rating{ratings.length !== 1 ? "s" : ""}</div>
+              </div>
+            </div>
+          )}
+          {ratings.length === 0 ? (
+            <p className="text-sm text-gray-400">No ratings yet.</p>
+          ) : (
+            <div className="space-y-4">
+              {ratings.map(r => (
+                <div key={r.id} className="border border-gray-100 rounded-xl p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-xs font-bold">
+                        {r.rater?.full_name?.[0]}
+                      </div>
+                      <span className="text-sm font-medium">{r.rater?.full_name}</span>
+                    </div>
+                    <div className="flex text-yellow-400">{stars(r.score)}</div>
+                  </div>
+                  {r.comment && <p className="text-sm text-gray-600">{r.comment}</p>}
+                  {r.case?.title && <div className="text-xs text-gray-400 mt-1">On: {r.case.title}</div>}
+                  <div className="text-xs text-gray-300 mt-1">{fmtDate(r.created_at)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// CONSULTANTS DIRECTORY (Manager / Client View)
+// ============================================================
+function ConsultantsView({ auth }) {
+  const [search, setSearch]   = useState("");
+  const [selected, setSelected] = useState(null);
+  const { leaderboard, loading } = useLeaderboard();
+
+  const filtered = leaderboard.filter(c =>
+    !search || c.user?.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+    c.skills?.some(s => s.toLowerCase().includes(search.toLowerCase()))
+  );
+
+  if (loading) return <Spinner />;
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Consultants</h1>
+      </div>
+      <input value={search} onChange={e => setSearch(e.target.value)}
+        placeholder="Search by name or skill…"
+        className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm mb-6 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filtered.map(c => (
+          <div key={c.id} onClick={() => setSelected(c)}
+            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 cursor-pointer hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-lg">
+                {c.user?.full_name?.[0]}
+              </div>
+              <div>
+                <div className="font-semibold text-gray-900">{c.user?.full_name}</div>
+                <div className="text-xs text-gray-400">{c.headline ?? `${c.years_experience ?? 0}y exp`}</div>
+              </div>
+            </div>
+            {c.avgRating > 0 && (
+              <div className="flex items-center gap-1 text-sm mb-3">
+                {stars(c.avgRating)}
+                <span className="text-gray-600 ml-1">{c.avgRating}</span>
+                <span className="text-gray-400">({c.ratingCount})</span>
+              </div>
+            )}
+            <div className="flex flex-wrap gap-1 mb-2">
+              {c.expertise_level && (
+                <Badge className="bg-violet-100 text-violet-700">{cap(c.expertise_level)}</Badge>
+              )}
+              {c.availability_type && (
+                <Badge className="bg-teal-100 text-teal-700">{cap(fmt(c.availability_type))}</Badge>
+              )}
+            </div>
+            {c.skills?.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {c.skills.slice(0, 4).map(s => (
+                  <span key={s} className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded text-xs">{s}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+        {filtered.length === 0 && (
+          <div className="col-span-full">
+            <EmptyState icon="🧑‍💼" title="No consultants found" subtitle="Try a different search" />
+          </div>
+        )}
+      </div>
+
+      {/* Consultant Detail Modal */}
+      <Modal open={!!selected} onClose={() => setSelected(null)} title={selected?.user?.full_name ?? ""} wide>
+        {selected && <ConsultantDetailModal consultantId={selected.id} auth={auth} />}
+      </Modal>
+    </div>
+  );
+}
+
+function ConsultantDetailModal({ consultantId, auth }) {
+  const { profile, availability, loading } = useConsultantProfile(consultantId);
+  const { ratings, avgRating }             = useRatings(consultantId);
+  const [ratingForm, setRatingForm]        = useState({ score: 5, comment: "" });
+  const [ratingModal, setRatingModal]      = useState(false);
+  const { submitRating }                   = useRatings(consultantId);
+
+  if (loading) return <Spinner />;
+
+  async function handleRate() {
+    try {
+      await submitRating({ score: ratingForm.score, comment: ratingForm.comment });
+      setRatingModal(false);
+    } catch(e) { alert(e.message); }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-4">
+        <div className="w-16 h-16 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center text-2xl font-bold">
+          {profile?.user?.full_name?.[0]}
+        </div>
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">{profile?.user?.full_name}</h2>
+          <p className="text-gray-500 text-sm">{profile?.headline}</p>
+          {avgRating && (
+            <div className="flex items-center gap-1 mt-1">{stars(avgRating)}
+              <span className="text-sm text-gray-600 ml-1">{avgRating} ({ratings.length})</span>
+            </div>
+          )}
+        </div>
+        {(auth.isAdmin || auth.isManager || auth.isClient) && (
+          <button onClick={() => setRatingModal(true)}
+            className="ml-auto px-4 py-2 text-sm bg-yellow-50 border border-yellow-200 text-yellow-700 rounded-xl hover:bg-yellow-100">
+            ★ Rate
+          </button>
+        )}
+      </div>
+
+      {profile?.bio && <p className="text-sm text-gray-600">{profile.bio}</p>}
+
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        {profile?.hourly_rate && <div><span className="text-gray-400">Rate: </span><strong>${profile.hourly_rate}/hr</strong></div>}
+        {profile?.years_experience && <div><span className="text-gray-400">Experience: </span><strong>{profile.years_experience}y</strong></div>}
+        <div><span className="text-gray-400">Availability: </span><strong className={availability > 30 ? "text-green-600" : "text-orange-500"}>{availability}% free</strong></div>
+        {profile?.travel_available && <div>✈️ Travel available</div>}
+        {profile?.expertise_level && (
+          <div><span className="text-gray-400">Level: </span>
+            <Badge className="bg-violet-100 text-violet-700 ml-1">{cap(profile.expertise_level)}</Badge>
+          </div>
+        )}
+        {profile?.availability_type && (
+          <div><span className="text-gray-400">Type: </span>
+            <Badge className="bg-teal-100 text-teal-700 ml-1">{cap(fmt(profile.availability_type))}</Badge>
+          </div>
+        )}
+      </div>
+
+      {profile?.skills?.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {profile.skills.map(s => (
+            <span key={s} className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs">{s}</span>
+          ))}
+        </div>
+      )}
+
+      {ratingModal && (
+        <div className="border border-yellow-200 rounded-xl p-4 bg-yellow-50">
+          <h4 className="font-semibold text-gray-900 mb-3">Submit Rating</h4>
+          <div className="flex gap-2 mb-3">
+            {[1,2,3,4,5].map(n => (
+              <button key={n} onClick={() => setRatingForm(p => ({ ...p, score: n }))}
+                className={`text-2xl ${n <= ratingForm.score ? "text-yellow-400" : "text-gray-300"}`}>★</button>
+            ))}
+          </div>
+          <Textarea label="Comment" value={ratingForm.comment}
+            onChange={e => setRatingForm(p => ({ ...p, comment: e.target.value }))}
+            placeholder="Share your experience working with this consultant…" />
+          <div className="flex gap-2">
+            <button onClick={handleRate}
+              className="px-4 py-2 bg-yellow-500 text-white text-sm font-semibold rounded-xl hover:bg-yellow-600">
+              Submit Rating
+            </button>
+            <button onClick={() => setRatingModal(false)}
+              className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// NOTIFICATIONS VIEW
+// ============================================================
+function NotificationsView() {
+  const { notifications, unreadCount, loading, markRead, markAllRead } = useNotifications();
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
+          {unreadCount > 0 && <p className="text-sm text-gray-500 mt-1">{unreadCount} unread</p>}
+        </div>
+        {unreadCount > 0 && (
+          <button onClick={markAllRead}
+            className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+            Mark all read
+          </button>
+        )}
+      </div>
+
+      {loading ? (
+        <Spinner />
+      ) : notifications.length === 0 ? (
+        <EmptyState icon="🔔" title="All caught up!" subtitle="Notifications will appear here when cases are updated, applications change status, or you receive messages." />
+      ) : (
+        <div className="space-y-2">
+          {notifications.map(n => (
+            <div key={n.id} onClick={() => !n.is_read && markRead(n.id)}
+              className={`flex items-start gap-4 p-4 rounded-2xl border cursor-pointer transition-colors ${
+                n.is_read ? "bg-white border-gray-100" : "bg-indigo-50 border-indigo-100 hover:bg-indigo-100"}`}>
+              <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${n.is_read ? "bg-gray-200" : "bg-indigo-500"}`} />
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-sm text-gray-900">{n.title}</div>
+                {n.body && <div className="text-sm text-gray-500 mt-0.5">{n.body}</div>}
+                <div className="text-xs text-gray-400 mt-1">{fmtDate(n.created_at)}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// USERS ADMIN VIEW
+// ============================================================
+function UsersView() {
+  const [users, setUsers]     = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [addForm, setAddForm] = useState({ full_name: "", email: "", role: "manager", password: "" });
+  const [adding, setAdding]   = useState(false);
+  const [addError, setAddError] = useState("");
+
+  async function loadUsers() {
+    const { data } = await supabase.from("users").select("*").order("created_at", { ascending: false });
+    setUsers(data ?? []);
+  }
+
+  useEffect(() => {
+    (async () => { await loadUsers(); setLoading(false); })();
+  }, []);
+
+  async function toggleActive(userId, isActive) {
+    await supabase.from("users").update({ is_active: !isActive }).eq("id", userId);
+    setUsers(p => p.map(u => u.id === userId ? { ...u, is_active: !isActive } : u));
+  }
+
+  async function handleCreateUser() {
+    setAddError("");
+    if (!addForm.full_name || !addForm.email || !addForm.password) {
+      setAddError("Name, email and password are required."); return;
+    }
+    setAdding(true);
+    try {
+      // Use a separate client with no session persistence so the admin stays logged in
+      const tmpClient = createClient(
+        import.meta.env.VITE_SUPABASE_URL || "",
+        import.meta.env.VITE_SUPABASE_ANON_KEY || "",
+        { auth: { persistSession: false } }
+      );
+      const { error } = await tmpClient.auth.signUp({
+        email: addForm.email,
+        password: addForm.password,
+        options: { data: { full_name: addForm.full_name, role: addForm.role } },
+      });
+      await tmpClient.auth.signOut();
+      if (error) throw error;
+      await loadUsers();
+      setShowAdd(false);
+      setAddForm({ full_name: "", email: "", role: "manager", password: "" });
+    } catch (e) {
+      setAddError(e.message || JSON.stringify(e));
+    }
+    setAdding(false);
+  }
+
+  if (loading) return <Spinner />;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Users</h1>
+          <p className="text-gray-500 text-sm mt-1">{users.length} total users</p>
+        </div>
+        <button onClick={() => { setShowAdd(true); setAddError(""); }}
+          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors">
+          + Add User
+        </button>
+      </div>
+
+      {/* Add User Modal */}
+      {showAdd && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-semibold text-gray-900">Create User Account</h2>
+              <button onClick={() => setShowAdd(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-xs text-amber-800">
+              This form creates Manager and Admin accounts. Consultant and Client users self-register.
+            </div>
+            <Input label="Full Name" value={addForm.full_name}
+              onChange={e => setAddForm(p => ({ ...p, full_name: e.target.value }))}
+              placeholder="Jane Smith" />
+            <Input label="Email" type="email" value={addForm.email}
+              onChange={e => setAddForm(p => ({ ...p, email: e.target.value }))}
+              placeholder="jane@company.com" />
+            <Select label="Role" value={addForm.role}
+              onChange={e => setAddForm(p => ({ ...p, role: e.target.value }))}
+              options={[
+                { value: "manager",    label: "Manager" },
+                { value: "admin",      label: "Admin" },
+                { value: "consultant", label: "Consultant" },
+                { value: "client",     label: "Client" },
+              ]} />
+            <Input label="Temporary Password" type="password" value={addForm.password}
+              onChange={e => setAddForm(p => ({ ...p, password: e.target.value }))}
+              placeholder="Min. 6 characters" />
+            {addError && (
+              <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{addError}</div>
+            )}
+            <div className="flex justify-end gap-3 mt-2">
+              <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">
+                Cancel
+              </button>
+              <button onClick={handleCreateUser} disabled={adding}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                {adding ? "Creating…" : "Create Account"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-100">
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">User</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Role</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Joined</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+              <th className="px-5 py-3" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {users.map(u => {
+              const rc = ROLE_COLORS[u.role] ?? ROLE_COLORS.consultant;
+              return (
+                <tr key={u.id} className="hover:bg-gray-50">
+                  <td className="px-5 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">
+                        {u.full_name?.[0]}
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900">{u.full_name}</div>
+                        <div className="text-xs text-gray-400">{u.email}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    <Badge className={`${rc.bg} ${rc.text}`}>{cap(u.role)}</Badge>
+                  </td>
+                  <td className="px-5 py-4 text-gray-500">{fmtDate(u.created_at)}</td>
+                  <td className="px-5 py-4">
+                    <span className={`inline-flex items-center gap-1 text-xs font-medium ${u.is_active ? "text-green-700" : "text-gray-400"}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${u.is_active ? "bg-green-500" : "bg-gray-300"}`} />
+                      {u.is_active ? "Active" : "Inactive"}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4 text-right">
+                    <button onClick={() => toggleActive(u.id, u.is_active)}
+                      className="text-xs text-gray-400 hover:text-gray-700 border border-gray-200 px-3 py-1 rounded-lg hover:bg-gray-50">
+                      {u.is_active ? "Deactivate" : "Activate"}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// REPORTS VIEW (Admin)
+// ============================================================
+function ReportsView() {
+  const { cases } = useCases();
+  const { applications } = useApplications();
+  const { invoices } = useInvoices();
+  const { entries: timeEntries } = useTimeEntries();
+
+  const byStatus = ["open","in_progress","on_hold","completed","cancelled"].map(s => ({
+    label: cap(fmt(s)),
+    count: cases.filter(c => c.status === s).length,
+    color: s === "open" ? "bg-emerald-400" : s === "in_progress" ? "bg-blue-400" :
+           s === "on_hold" ? "bg-yellow-400" : s === "completed" ? "bg-gray-300" : "bg-red-300",
+  }));
+
+  const totalApps = applications.length;
+  const acceptedApps = applications.filter(a => a.status === "accepted").length;
+  const conversionRate = totalApps > 0 ? Math.round((acceptedApps / totalApps) * 100) : 0;
+
+  const byAppStatus = ["pending","under_review","accepted","rejected","withdrawn"].map(s => ({
+    label: cap(fmt(s)),
+    count: applications.filter(a => a.status === s).length,
+  }));
+
+  const totalInvoiced    = invoices.reduce((s, i) => s + (i.amount ?? 0), 0);
+  const totalPaid        = invoices.filter(i => i.status === "paid").reduce((s, i) => s + (i.amount ?? 0), 0);
+  const totalOutstanding = invoices.filter(i => ["sent","overdue"].includes(i.status)).reduce((s, i) => s + (i.amount ?? 0), 0);
+  const totalHours       = timeEntries.reduce((s, e) => s + (e.hours ?? 0), 0);
+  const billableHours    = timeEntries.filter(e => e.is_billable).reduce((s, e) => s + (e.hours ?? 0), 0);
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
+        <p className="text-gray-500 text-sm mt-1">Platform analytics overview</p>
+      </div>
+
+      {/* KPI row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {[
+          { label: "Total Cases",     value: cases.length,                     icon: "📋" },
+          { label: "Conversion Rate", value: `${conversionRate}%`,             icon: "🎯" },
+          { label: "Hours Logged",    value: `${totalHours.toFixed(0)}h`,      icon: "⏱" },
+          { label: "Revenue (Paid)",  value: `$${totalPaid.toLocaleString()}`, icon: "💰" },
+        ].map(s => (
+          <div key={s.label} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <div className="text-2xl mb-2">{s.icon}</div>
+            <div className="text-2xl font-bold text-gray-900">{s.value}</div>
+            <div className="text-xs text-gray-500 mt-1">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Cases by status */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h2 className="font-bold text-gray-900 mb-5">Cases by Status</h2>
+          <div className="space-y-3">
+            {byStatus.map(s => (
+              <div key={s.label}>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-gray-600">{s.label}</span>
+                  <span className="font-semibold text-gray-900">{s.count}</span>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className={`h-full ${s.color} rounded-full transition-all`}
+                    style={{ width: cases.length ? `${(s.count / cases.length) * 100}%` : "0%" }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Applications by status */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h2 className="font-bold text-gray-900 mb-5">Applications by Status</h2>
+          <div className="space-y-3">
+            {byAppStatus.map(s => (
+              <div key={s.label}>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-gray-600">{s.label}</span>
+                  <span className="font-semibold text-gray-900">{s.count}</span>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-indigo-400 rounded-full transition-all"
+                    style={{ width: totalApps ? `${(s.count / totalApps) * 100}%` : "0%" }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Revenue overview */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h2 className="font-bold text-gray-900 mb-5">Revenue Overview</h2>
+          <div className="space-y-4">
+            {[
+              { label: "Total Invoiced",  value: totalInvoiced,    color: "bg-indigo-400" },
+              { label: "Paid",            value: totalPaid,         color: "bg-green-400" },
+              { label: "Outstanding",     value: totalOutstanding,  color: "bg-orange-400" },
+            ].map(s => (
+              <div key={s.label}>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-gray-600">{s.label}</span>
+                  <span className="font-semibold text-gray-900">${s.value.toLocaleString()}</span>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className={`h-full ${s.color} rounded-full transition-all`}
+                    style={{ width: totalInvoiced ? `${(s.value / totalInvoiced) * 100}%` : "0%" }} />
+                </div>
+              </div>
+            ))}
+            <div className="pt-2 border-t border-gray-100 text-sm text-gray-500">
+              {invoices.length} invoice{invoices.length !== 1 ? "s" : ""} total ·{" "}
+              {invoices.filter(i => i.status === "overdue").length} overdue
+            </div>
+          </div>
+        </div>
+
+        {/* Time tracking */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h2 className="font-bold text-gray-900 mb-5">Time Tracking</h2>
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="bg-blue-50 rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-blue-700">{totalHours.toFixed(1)}h</div>
+              <div className="text-xs text-blue-500 mt-1">Total Logged</div>
+            </div>
+            <div className="bg-green-50 rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-green-700">{billableHours.toFixed(1)}h</div>
+              <div className="text-xs text-green-500 mt-1">Billable</div>
+            </div>
+          </div>
+          <div className="text-sm text-gray-500">
+            <div className="flex justify-between mb-1">
+              <span>Approved entries</span>
+              <span className="font-medium">{timeEntries.filter(e => e.is_approved).length} / {timeEntries.length}</span>
+            </div>
+            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-full bg-green-400 rounded-full"
+                style={{ width: timeEntries.length ? `${(timeEntries.filter(e => e.is_approved).length / timeEntries.length) * 100}%` : "0%" }} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// SLA CONFIG VIEW (Admin / Manager)
+// ============================================================
+function SlaView({ auth }) {
+  const [clients, setClients] = useState([]);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("users")
+        .select("id, full_name, email, client_profiles(company_name)")
+        .eq("role", "client")
+        .order("full_name");
+      setClients(data ?? []);
+      setLoading(false);
+    })();
+  }, []);
+
+  if (loading) return <Spinner />;
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">SLA Configuration</h1>
+        <p className="text-gray-500 text-sm mt-1">Service Level Agreement settings per client</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Client list */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Clients</div>
+          <div className="space-y-1">
+            {clients.map(c => (
+              <button key={c.id} onClick={() => setSelectedClient(c)}
+                className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-colors ${
+                  selectedClient?.id === c.id ? "bg-indigo-50 text-indigo-700 font-medium" : "text-gray-700 hover:bg-gray-50"}`}>
+                <div className="font-medium">{c.client_profiles?.company_name ?? c.full_name}</div>
+                <div className="text-xs text-gray-400">{c.email}</div>
+              </button>
+            ))}
+            {clients.length === 0 && <p className="text-sm text-gray-400 text-center py-4">No clients found</p>}
+          </div>
+        </div>
+
+        {/* SLA Detail */}
+        <div className="lg:col-span-2">
+          {selectedClient
+            ? <SlaClientDetail client={selectedClient} auth={auth} />
+            : <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center text-gray-400">
+                <div className="text-4xl mb-3">📋</div>
+                <p>Select a client to view or edit their SLA configuration</p>
+              </div>
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SlaClientDetail({ client, auth }) {
+  const { sla, loading, updateSla } = useSlaConfig(client.id);
+  const [editing, setEditing]       = useState(false);
+  const [form, setForm]             = useState({});
+  const [saving, setSaving]         = useState(false);
+
+  useEffect(() => {
+    if (sla) setForm({
+      tier: sla.tier ?? "standard",
+      response_time_hours: sla.response_time_hours ?? 24,
+      resolution_time_hours: sla.resolution_time_hours ?? 72,
+      uptime_guarantee_pct: sla.uptime_guarantee_pct ?? 99,
+      dedicated_consultant: sla.dedicated_consultant ?? false,
+      priority_support: sla.priority_support ?? false,
+      notes: sla.notes ?? "",
+    });
+    else setForm({
+      tier: "standard", response_time_hours: 24, resolution_time_hours: 72,
+      uptime_guarantee_pct: 99, dedicated_consultant: false, priority_support: false, notes: "",
+    });
+  }, [sla]);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await updateSla(form);
+      setEditing(false);
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  if (loading) return <Spinner />;
+
+  const tierColors = { standard: "bg-gray-100 text-gray-700", premium: "bg-blue-100 text-blue-700", enterprise: "bg-purple-100 text-purple-700" };
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="font-bold text-gray-900">{client.client_profiles?.company_name ?? client.full_name}</h2>
+          <p className="text-sm text-gray-400">{client.email}</p>
+        </div>
+        {(auth.isAdmin || auth.isManager) && (
+          <button onClick={() => setEditing(p => !p)}
+            className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-xl hover:bg-gray-50">
+            {editing ? "Cancel" : "Edit SLA"}
+          </button>
+        )}
+      </div>
+
+      {editing ? (
+        <div className="space-y-4">
+          <Select label="SLA Tier" value={form.tier}
+            onChange={e => setForm(p => ({ ...p, tier: e.target.value }))}
+            options={[
+              { value: "standard",   label: "Standard" },
+              { value: "premium",    label: "Premium" },
+              { value: "enterprise", label: "Enterprise" },
+            ]} />
+          <div className="grid grid-cols-3 gap-3">
+            <Input label="Response Time (hrs)" type="number" value={form.response_time_hours}
+              onChange={e => setForm(p => ({ ...p, response_time_hours: Number(e.target.value) }))} />
+            <Input label="Resolution Time (hrs)" type="number" value={form.resolution_time_hours}
+              onChange={e => setForm(p => ({ ...p, resolution_time_hours: Number(e.target.value) }))} />
+            <Input label="Uptime Guarantee (%)" type="number" value={form.uptime_guarantee_pct}
+              onChange={e => setForm(p => ({ ...p, uptime_guarantee_pct: Number(e.target.value) }))} />
+          </div>
+          <div className="flex gap-6">
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input type="checkbox" checked={form.dedicated_consultant}
+                onChange={e => setForm(p => ({ ...p, dedicated_consultant: e.target.checked }))}
+                className="rounded accent-indigo-600" />
+              Dedicated Consultant
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input type="checkbox" checked={form.priority_support}
+                onChange={e => setForm(p => ({ ...p, priority_support: e.target.checked }))}
+                className="rounded accent-indigo-600" />
+              Priority Support
+            </label>
+          </div>
+          <Textarea label="Notes" value={form.notes}
+            onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+            placeholder="Additional SLA terms or notes…" />
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+            <button onClick={handleSave} disabled={saving}
+              className="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+              {saving ? "Saving…" : "Save SLA"}
+            </button>
+          </div>
+        </div>
+      ) : sla ? (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Badge className={tierColors[sla.tier] ?? tierColors.standard}>{cap(sla.tier)} Tier</Badge>
+            {sla.priority_support && <Badge className="bg-orange-100 text-orange-700">Priority Support</Badge>}
+            {sla.dedicated_consultant && <Badge className="bg-green-100 text-green-700">Dedicated Consultant</Badge>}
+          </div>
+          <div className="grid grid-cols-3 gap-4 text-sm">
+            <div className="bg-gray-50 rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-gray-900">{sla.response_time_hours}h</div>
+              <div className="text-xs text-gray-500 mt-1">Response Time</div>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-gray-900">{sla.resolution_time_hours}h</div>
+              <div className="text-xs text-gray-500 mt-1">Resolution Time</div>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-gray-900">{sla.uptime_guarantee_pct}%</div>
+              <div className="text-xs text-gray-500 mt-1">Uptime SLA</div>
+            </div>
+          </div>
+          {sla.notes && (
+            <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4 text-sm text-gray-700">
+              <div className="font-medium text-yellow-800 mb-1">Notes</div>
+              {sla.notes}
+            </div>
+          )}
+          <div className="text-xs text-gray-400">Last updated: {fmtDate(sla.updated_at ?? sla.created_at)}</div>
+        </div>
+      ) : (
+        <div className="text-center py-8 text-gray-400">
+          <div className="text-3xl mb-2">📄</div>
+          <p className="text-sm">No SLA configured for this client.</p>
+          {(auth.isAdmin || auth.isManager) && (
+            <button onClick={() => setEditing(true)}
+              className="mt-4 px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700">
+              Configure SLA
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// DB CONNECTIONS VIEW (Admin / Manager / Client)
+// ============================================================
+function DbConnectionsView({ auth }) {
+  const [clients, setClients]         = useState([]);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [loadingClients, setLoadingClients] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      let clientId = auth.isClient ? auth.user?.id : null;
+      if (clientId) {
+        // Client sees their own
+        const { data } = await supabase.from("users")
+          .select("id, full_name, email, client_profiles(company_name)").eq("id", clientId).single();
+        if (data) { setClients([data]); setSelectedClient(data); }
+      } else {
+        const { data } = await supabase.from("users")
+          .select("id, full_name, email, client_profiles(company_name)")
+          .eq("role", "client").order("full_name");
+        setClients(data ?? []);
+      }
+      setLoadingClients(false);
+    })();
+  }, [auth]);
+
+  if (loadingClients) return <Spinner />;
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Database Connections</h1>
+        <p className="text-gray-500 text-sm mt-1">Manage client database connection details</p>
+      </div>
+
+      <div className={`grid gap-6 ${auth.isClient ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-3"}`}>
+        {!auth.isClient && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Clients</div>
+            <div className="space-y-1">
+              {clients.map(c => (
+                <button key={c.id} onClick={() => setSelectedClient(c)}
+                  className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-colors ${
+                    selectedClient?.id === c.id ? "bg-indigo-50 text-indigo-700 font-medium" : "text-gray-700 hover:bg-gray-50"}`}>
+                  <div className="font-medium">{c.client_profiles?.company_name ?? c.full_name}</div>
+                  <div className="text-xs text-gray-400">{c.email}</div>
+                </button>
+              ))}
+              {clients.length === 0 && <p className="text-sm text-gray-400 text-center py-4">No clients found</p>}
+            </div>
+          </div>
+        )}
+
+        <div className={auth.isClient ? "" : "lg:col-span-2"}>
+          {selectedClient
+            ? <DbConnectionsList client={selectedClient} auth={auth} />
+            : <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center text-gray-400">
+                <div className="text-4xl mb-3">🔌</div>
+                <p>Select a client to view their database connections</p>
+              </div>
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DbConnectionsList({ client, auth }) {
+  const { connections, addConnection, deleteConnection } = useDbConnections(client.id);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm]       = useState({ db_type: "postgresql", host: "", port: 5432, db_name: "", username: "", notes: "" });
+  const [saving, setSaving]   = useState(false);
+
+  async function handleAdd() {
+    if (!form.host || !form.db_name) return;
+    setSaving(true);
+    try {
+      await addConnection(form);
+      setForm({ db_type: "postgresql", host: "", port: 5432, db_name: "", username: "", notes: "" });
+      setShowAdd(false);
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  const dbTypeColors = { postgresql: "bg-blue-100 text-blue-700", mysql: "bg-orange-100 text-orange-700", mssql: "bg-red-100 text-red-700", oracle: "bg-red-100 text-red-700", mongodb: "bg-green-100 text-green-700", other: "bg-gray-100 text-gray-700" };
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="font-bold text-gray-900">{client.client_profiles?.company_name ?? client.full_name}</h2>
+          <p className="text-sm text-gray-400">{connections.length} connection{connections.length !== 1 ? "s" : ""}</p>
+        </div>
+        {(auth.isAdmin || auth.isManager) && (
+          <button onClick={() => setShowAdd(p => !p)}
+            className="px-4 py-2 text-sm bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700">
+            + Add Connection
+          </button>
+        )}
+      </div>
+
+      {showAdd && (
+        <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <Select label="Database Type" value={form.db_type}
+              onChange={e => setForm(p => ({ ...p, db_type: e.target.value }))}
+              options={["postgresql","mysql","mssql","oracle","mongodb","other"].map(t => ({ value: t, label: t.toUpperCase() }))} />
+            <Input label="Host / Server" value={form.host}
+              onChange={e => setForm(p => ({ ...p, host: e.target.value }))} placeholder="db.example.com" />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <Input label="Port" type="number" value={form.port}
+              onChange={e => setForm(p => ({ ...p, port: Number(e.target.value) }))} />
+            <Input label="Database Name" value={form.db_name}
+              onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} />
+            <Input label="Username" value={form.username}
+              onChange={e => setForm(p => ({ ...p, username: e.target.value }))} />
+          </div>
+          <Textarea label="Notes" value={form.notes}
+            onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+            placeholder="Access instructions, VPN requirements…" />
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+            <button onClick={handleAdd} disabled={saving}
+              className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+              {saving ? "Adding…" : "Add Connection"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {connections.map(conn => (
+          <div key={conn.id} className="border border-gray-100 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Badge className={dbTypeColors[conn.db_type] ?? dbTypeColors.other}>{conn.db_type?.toUpperCase()}</Badge>
+                <span className="font-mono text-sm text-gray-800">{conn.db_name}</span>
+              </div>
+              {(auth.isAdmin || auth.isManager) && (
+                <button onClick={() => deleteConnection(conn.id)}
+                  className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded border border-red-100 hover:bg-red-50">
+                  Remove
+                </button>
+              )}
+            </div>
+            <div className="text-xs text-gray-500 font-mono">
+              {conn.username && <span>{conn.username}@</span>}{conn.host}:{conn.port}
+            </div>
+            {conn.notes && <p className="text-xs text-gray-400 mt-2">{conn.notes}</p>}
+          </div>
+        ))}
+        {connections.length === 0 && (
+          <div className="text-center py-8 text-gray-400">
+            <div className="text-3xl mb-2">🔌</div>
+            <p className="text-sm">No database connections configured.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// CLIENT TEAM MEMBERS VIEW
+// ============================================================
+function ClientTeamView({ auth }) {
+  const [clients, setClients]           = useState([]);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [loadingClients, setLoadingClients] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      let clientId = auth.isClient ? auth.user?.id : null;
+      if (clientId) {
+        const { data } = await supabase.from("users")
+          .select("id, full_name, email, client_profiles(company_name)").eq("id", clientId).single();
+        if (data) { setClients([data]); setSelectedClient(data); }
+      } else {
+        const { data } = await supabase.from("users")
+          .select("id, full_name, email, client_profiles(company_name)")
+          .eq("role", "client").order("full_name");
+        setClients(data ?? []);
+      }
+      setLoadingClients(false);
+    })();
+  }, [auth]);
+
+  if (loadingClients) return <Spinner />;
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Client Team Members</h1>
+        <p className="text-gray-500 text-sm mt-1">Stakeholders and points of contact per client</p>
+      </div>
+
+      <div className={`grid gap-6 ${auth.isClient ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-3"}`}>
+        {!auth.isClient && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Clients</div>
+            <div className="space-y-1">
+              {clients.map(c => (
+                <button key={c.id} onClick={() => setSelectedClient(c)}
+                  className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-colors ${
+                    selectedClient?.id === c.id ? "bg-indigo-50 text-indigo-700 font-medium" : "text-gray-700 hover:bg-gray-50"}`}>
+                  <div className="font-medium">{c.client_profiles?.company_name ?? c.full_name}</div>
+                  <div className="text-xs text-gray-400">{c.email}</div>
+                </button>
+              ))}
+              {clients.length === 0 && <p className="text-sm text-gray-400 text-center py-4">No clients</p>}
+            </div>
+          </div>
+        )}
+
+        <div className={auth.isClient ? "" : "lg:col-span-2"}>
+          {selectedClient
+            ? <ClientTeamList client={selectedClient} auth={auth} />
+            : <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center text-gray-400">
+                <div className="text-4xl mb-3">👥</div>
+                <p>Select a client to view their team members</p>
+              </div>
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ClientTeamList({ client, auth }) {
+  const { members, addMember } = useClientTeamMembers(client.id);
+  const [showAdd, setShowAdd]  = useState(false);
+  const [form, setForm]        = useState({ full_name: "", email: "", role_title: "", phone: "", is_primary: false });
+  const [saving, setSaving]    = useState(false);
+
+  async function handleAdd() {
+    if (!form.full_name || !form.email) return;
+    setSaving(true);
+    try {
+      await addMember(form);
+      setForm({ full_name: "", email: "", role_title: "", phone: "", is_primary: false });
+      setShowAdd(false);
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="font-bold text-gray-900">{client.client_profiles?.company_name ?? client.full_name}</h2>
+          <p className="text-sm text-gray-400">{members.length} team member{members.length !== 1 ? "s" : ""}</p>
+        </div>
+        {(auth.isAdmin || auth.isManager || auth.isClient) && (
+          <button onClick={() => setShowAdd(p => !p)}
+            className="px-4 py-2 text-sm bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700">
+            + Add Member
+          </button>
+        )}
+      </div>
+
+      {showAdd && (
+        <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Full Name" value={form.full_name}
+              onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Jane Smith" />
+            <Input label="Email" type="email" value={form.email}
+              onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="jane@company.com" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Role / Title" value={form.role_title}
+              onChange={e => setForm(p => ({ ...p, role_title: e.target.value }))} placeholder="IT Manager" />
+            <Input label="Phone" value={form.phone}
+              onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="+1 555 000 0000" />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" checked={form.is_primary}
+              onChange={e => setForm(p => ({ ...p, is_primary: e.target.checked }))}
+              className="rounded accent-indigo-600" />
+            Primary contact
+          </label>
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+            <button onClick={handleAdd} disabled={saving}
+              className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+              {saving ? "Adding…" : "Add Member"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {members.map(m => (
+          <div key={m.id} className="border border-gray-100 rounded-xl p-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">
+                {m.full_name?.[0]}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-gray-900 truncate">{m.full_name}</span>
+                  {m.is_primary && <Badge className="bg-indigo-100 text-indigo-700">Primary</Badge>}
+                </div>
+                {m.role_title && <div className="text-xs text-gray-500">{m.role_title}</div>}
+              </div>
+            </div>
+            <div className="text-xs text-gray-400 space-y-0.5">
+              {m.email && <div>📧 {m.email}</div>}
+              {m.phone && <div>📞 {m.phone}</div>}
+            </div>
+          </div>
+        ))}
+        {members.length === 0 && (
+          <div className="col-span-full text-center py-8 text-gray-400">
+            <div className="text-3xl mb-2">👥</div>
+            <p className="text-sm">No team members added yet.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// CLIENT PROFILE VIEW
+// ============================================================
+function useClientProfile(userId) {
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchProfile = useCallback(async () => {
+    if (!userId) return;
+    const { data } = await supabase
+      .from("client_profiles")
+      .select("*")
+      .eq("id", userId)
+      .single();
+    setProfile(data);
+    setLoading(false);
+  }, [userId]);
+
+  useEffect(() => { fetchProfile(); }, [fetchProfile]);
+
+  async function updateProfile(updates) {
+    const { data: updated, error } = await supabase
+      .from("client_profiles")
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq("id", userId)
+      .select("id");
+    if (error) throw error;
+    if (!updated || updated.length === 0) {
+      const { error: ie } = await supabase
+        .from("client_profiles")
+        .insert({ id: userId, ...updates });
+      if (ie) throw new Error(`Profile create failed: ${ie.message}`);
+    }
+    await fetchProfile();
+  }
+
+  return { profile, loading, updateProfile, refetch: fetchProfile };
+}
+
+function ClientProfileView({ auth }) {
+  const { profile, loading, updateProfile } = useClientProfile(auth.user?.id);
+  const { sla, updateSla }                  = useSlaConfig(auth.user?.id);
+  const { connections, addConnection, deleteConnection } = useDbConnections(auth.user?.id);
+  const { members, addMember }              = useClientTeamMembers(auth.user?.id);
+
+  const [tab, setTab]         = useState("overview");
+  const [editing, setEditing] = useState(false);
+  const [form, setForm]       = useState({});
+  const [saving, setSaving]   = useState(false);
+
+  // DB connection form
+  const [showAddConn, setShowAddConn] = useState(false);
+  const [connForm, setConnForm] = useState({ db_type: "postgresql", host: "", port: 5432, db_name: "", username: "", notes: "" });
+  const [savingConn, setSavingConn] = useState(false);
+
+  // Team member form
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [memberForm, setMemberForm] = useState({ full_name: "", email: "", role_title: "", phone: "", is_primary: false });
+  const [savingMember, setSavingMember] = useState(false);
+
+  // SLA edit
+  const [slaEditing, setSlaEditing] = useState(false);
+  const [slaForm, setSlaForm] = useState({});
+  const [savingSla, setSavingSla] = useState(false);
+
+  useEffect(() => {
+    if (!editing) setForm({
+      company_name:          profile?.company_name ?? "",
+      industry:              profile?.industry ?? "",
+      company_size:          profile?.company_size ?? "",
+      founded_year:          profile?.founded_year ?? "",
+      hq_location:           profile?.hq_location ?? "",
+      website:               profile?.website ?? "",
+      description:           profile?.description ?? "",
+      contact_name:          profile?.contact_name ?? "",
+      contact_title:         profile?.contact_title ?? "",
+      contact_email:         profile?.contact_email ?? "",
+      contact_phone:         profile?.contact_phone ?? "",
+      linkedin_url:          profile?.linkedin_url ?? "",
+      budget:                profile?.budget ?? "",
+      _categories:           profile?.preferred_categories?.join(", ") ?? "",
+      notes:                 profile?.notes ?? "",
+    });
+  }, [profile, editing]);
+
+  useEffect(() => {
+    if (sla && !slaEditing) setSlaForm({
+      tier:                   sla.tier ?? "standard",
+      response_time_hours:    sla.response_time_hours ?? 24,
+      resolution_time_hours:  sla.resolution_time_hours ?? 72,
+      uptime_guarantee_pct:   sla.uptime_guarantee_pct ?? 99,
+      dedicated_consultant:   sla.dedicated_consultant ?? false,
+      priority_support:       sla.priority_support ?? false,
+      notes:                  sla.notes ?? "",
+    });
+  }, [sla, slaEditing]);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const { _categories, ...profileData } = form;
+      await updateProfile({
+        ...profileData,
+        founded_year: form.founded_year ? Number(form.founded_year) : null,
+        preferred_categories: _categories
+          ? _categories.split(",").map(s => s.trim()).filter(Boolean)
+          : [],
+      });
+      setEditing(false);
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  async function handleSaveSla() {
+    setSavingSla(true);
+    try { await updateSla(slaForm); setSlaEditing(false); }
+    catch (e) { alert(e.message); }
+    setSavingSla(false);
+  }
+
+  async function handleAddConn() {
+    if (!connForm.host || !connForm.db_name) return;
+    setSavingConn(true);
+    try {
+      await addConnection(connForm);
+      setConnForm({ db_type: "postgresql", host: "", port: 5432, db_name: "", username: "", notes: "" });
+      setShowAddConn(false);
+    } catch (e) { alert(e.message); }
+    setSavingConn(false);
+  }
+
+  async function handleAddMember() {
+    if (!memberForm.full_name || !memberForm.email) return;
+    setSavingMember(true);
+    try {
+      await addMember(memberForm);
+      setMemberForm({ full_name: "", email: "", role_title: "", phone: "", is_primary: false });
+      setShowAddMember(false);
+    } catch (e) { alert(e.message); }
+    setSavingMember(false);
+  }
+
+  if (loading) return <Spinner />;
+
+  const tierColors = { standard: "bg-gray-100 text-gray-700", premium: "bg-blue-100 text-blue-700", enterprise: "bg-purple-100 text-purple-700" };
+  const dbTypeColors = { postgresql: "bg-blue-100 text-blue-700", mysql: "bg-orange-100 text-orange-700", mssql: "bg-red-100 text-red-700", mongodb: "bg-green-100 text-green-700", other: "bg-gray-100 text-gray-700" };
+
+  const tabs = [
+    { id: "overview",     label: "Overview" },
+    { id: "sla",          label: "SLA Config" },
+    { id: "connections",  label: `DB Connections (${connections.length})` },
+    { id: "team",         label: `Team (${members.length})` },
+  ];
+
+  return (
+    <div>
+      {/* Header card */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+        <div className="flex items-start gap-5">
+          <div className="w-16 h-16 rounded-2xl bg-indigo-600 flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
+            {profile?.company_name?.[0] ?? auth.profile?.full_name?.[0] ?? "C"}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold text-gray-900">
+              {profile?.company_name || auth.profile?.full_name || "My Company"}
+            </h1>
+            <p className="text-gray-500 text-sm mt-0.5">
+              {[profile?.industry, profile?.hq_location].filter(Boolean).join(" · ") || "Edit your company profile below"}
+            </p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {profile?.company_size && <Badge className="bg-gray-100 text-gray-600">{profile.company_size}</Badge>}
+              {profile?.founded_year && <Badge className="bg-gray-100 text-gray-600">Est. {profile.founded_year}</Badge>}
+              {profile?.budget && <Badge className="bg-green-100 text-green-700">💰 {profile.budget}</Badge>}
+            </div>
+          </div>
+          <button onClick={() => setEditing(p => !p)}
+            className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-xl hover:bg-gray-50 flex-shrink-0">
+            {editing ? "Cancel" : "Edit Profile"}
+          </button>
+        </div>
+      </div>
+
+      {/* Edit form */}
+      {editing && (
+        <div className="bg-white rounded-2xl border border-indigo-200 shadow-sm p-6 mb-6">
+          <h3 className="font-semibold text-gray-900 mb-5">Edit Company Profile</h3>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Company Name" value={form.company_name}
+              onChange={e => setForm(p => ({ ...p, company_name: e.target.value }))} />
+            <Input label="Industry" value={form.industry}
+              onChange={e => setForm(p => ({ ...p, industry: e.target.value }))}
+              placeholder="e.g. Financial Services" />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <Input label="Company Size" value={form.company_size}
+              onChange={e => setForm(p => ({ ...p, company_size: e.target.value }))}
+              placeholder="e.g. 500–1,000 employees" />
+            <Input label="Founded Year" type="number" value={form.founded_year}
+              onChange={e => setForm(p => ({ ...p, founded_year: e.target.value }))} />
+            <Input label="Headquarters" value={form.hq_location}
+              onChange={e => setForm(p => ({ ...p, hq_location: e.target.value }))}
+              placeholder="City, Country" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Website" value={form.website}
+              onChange={e => setForm(p => ({ ...p, website: e.target.value }))}
+              placeholder="https://yourcompany.com" />
+            <Input label="LinkedIn" value={form.linkedin_url}
+              onChange={e => setForm(p => ({ ...p, linkedin_url: e.target.value }))}
+              placeholder="https://linkedin.com/company/..." />
+          </div>
+          <Textarea label="Description" value={form.description}
+            onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+            placeholder="What does your company do?" />
+
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3 mt-1">Primary Contact</div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Contact Name" value={form.contact_name}
+              onChange={e => setForm(p => ({ ...p, contact_name: e.target.value }))} />
+            <Input label="Contact Title" value={form.contact_title}
+              onChange={e => setForm(p => ({ ...p, contact_title: e.target.value }))} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Contact Email" type="email" value={form.contact_email}
+              onChange={e => setForm(p => ({ ...p, contact_email: e.target.value }))} />
+            <Input label="Contact Phone" value={form.contact_phone}
+              onChange={e => setForm(p => ({ ...p, contact_phone: e.target.value }))} />
+          </div>
+
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3 mt-1">Consulting Preferences</div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Annual Budget" value={form.budget}
+              onChange={e => setForm(p => ({ ...p, budget: e.target.value }))}
+              placeholder="e.g. $500K annual consulting" />
+            <Input label="Preferred Categories (comma-separated)" value={form._categories}
+              onChange={e => setForm(p => ({ ...p, _categories: e.target.value }))}
+              placeholder="Cloud, AI, ERP" />
+          </div>
+          <Textarea label="Internal Notes" value={form.notes}
+            onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+            placeholder="Special requirements, vetting notes…" />
+
+          <div className="flex justify-end gap-3 mt-2">
+            <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+            <button onClick={handleSave} disabled={saving}
+              className="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+              {saving ? "Saving…" : "Save Profile"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 w-fit flex-wrap">
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+              tab === t.id ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* OVERVIEW TAB */}
+      {tab === "overview" && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+          {profile?.description && (
+            <div>
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">About</div>
+              <p className="text-gray-700 text-sm leading-relaxed">{profile.description}</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+            {profile?.industry     && <div><span className="text-gray-400">Industry: </span><strong>{profile.industry}</strong></div>}
+            {profile?.company_size && <div><span className="text-gray-400">Size: </span><strong>{profile.company_size}</strong></div>}
+            {profile?.founded_year && <div><span className="text-gray-400">Founded: </span><strong>{profile.founded_year}</strong></div>}
+            {profile?.hq_location  && <div><span className="text-gray-400">HQ: </span><strong>{profile.hq_location}</strong></div>}
+            {profile?.budget       && <div><span className="text-gray-400">Budget: </span><strong>{profile.budget}</strong></div>}
+          </div>
+
+          <div className="flex gap-3 flex-wrap">
+            {profile?.website && (
+              <a href={profile.website} target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:underline">
+                🌐 Website
+              </a>
+            )}
+            {profile?.linkedin_url && (
+              <a href={profile.linkedin_url} target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:underline">
+                🔗 LinkedIn
+              </a>
+            )}
+          </div>
+
+          {profile?.preferred_categories?.length > 0 && (
+            <div>
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Preferred Consulting Areas</div>
+              <div className="flex flex-wrap gap-2">
+                {profile.preferred_categories.map(c => (
+                  <span key={c} className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-medium">{c}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="border-t border-gray-100 pt-4">
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Primary Contact</div>
+            {profile?.contact_name ? (
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">
+                  {profile.contact_name[0]}
+                </div>
+                <div className="text-sm space-y-0.5">
+                  <div className="font-semibold text-gray-900">{profile.contact_name}</div>
+                  {profile.contact_title && <div className="text-gray-500">{profile.contact_title}</div>}
+                  <div className="flex gap-4 text-gray-400 text-xs">
+                    {profile.contact_email && <span>📧 {profile.contact_email}</span>}
+                    {profile.contact_phone && <span>📞 {profile.contact_phone}</span>}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">No contact set. Edit profile to add one.</p>
+            )}
+          </div>
+
+          {profile?.notes && (
+            <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-sm">
+              <div className="font-medium text-amber-800 mb-1">Notes</div>
+              <p className="text-gray-700">{profile.notes}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SLA TAB */}
+      {tab === "sla" && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="font-bold text-gray-900">SLA Configuration</h2>
+              <p className="text-sm text-gray-400 mt-0.5">Service level targets for your cases</p>
+            </div>
+            <button onClick={() => setSlaEditing(p => !p)}
+              className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-xl hover:bg-gray-50">
+              {slaEditing ? "Cancel" : "Edit SLA"}
+            </button>
+          </div>
+
+          {slaEditing ? (
+            <div className="space-y-4">
+              <Select label="SLA Tier" value={slaForm.tier}
+                onChange={e => setSlaForm(p => ({ ...p, tier: e.target.value }))}
+                options={[
+                  { value: "standard",   label: "Standard" },
+                  { value: "premium",    label: "Premium" },
+                  { value: "enterprise", label: "Enterprise" },
+                ]} />
+              <div className="grid grid-cols-3 gap-3">
+                <Input label="Response Time (hrs)" type="number" value={slaForm.response_time_hours}
+                  onChange={e => setSlaForm(p => ({ ...p, response_time_hours: Number(e.target.value) }))} />
+                <Input label="Resolution Time (hrs)" type="number" value={slaForm.resolution_time_hours}
+                  onChange={e => setSlaForm(p => ({ ...p, resolution_time_hours: Number(e.target.value) }))} />
+                <Input label="Uptime Guarantee (%)" type="number" value={slaForm.uptime_guarantee_pct}
+                  onChange={e => setSlaForm(p => ({ ...p, uptime_guarantee_pct: Number(e.target.value) }))} />
+              </div>
+              <div className="flex gap-6">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={slaForm.dedicated_consultant}
+                    onChange={e => setSlaForm(p => ({ ...p, dedicated_consultant: e.target.checked }))}
+                    className="rounded accent-indigo-600" />
+                  Dedicated Consultant
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={slaForm.priority_support}
+                    onChange={e => setSlaForm(p => ({ ...p, priority_support: e.target.checked }))}
+                    className="rounded accent-indigo-600" />
+                  Priority Support
+                </label>
+              </div>
+              <Textarea label="Notes" value={slaForm.notes}
+                onChange={e => setSlaForm(p => ({ ...p, notes: e.target.value }))}
+                placeholder="Additional SLA terms…" />
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setSlaEditing(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+                <button onClick={handleSaveSla} disabled={savingSla}
+                  className="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+                  {savingSla ? "Saving…" : "Save SLA"}
+                </button>
+              </div>
+            </div>
+          ) : sla ? (
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                <Badge className={tierColors[sla.tier] ?? tierColors.standard}>{cap(sla.tier)} Tier</Badge>
+                {sla.priority_support    && <Badge className="bg-orange-100 text-orange-700">Priority Support</Badge>}
+                {sla.dedicated_consultant && <Badge className="bg-green-100 text-green-700">Dedicated Consultant</Badge>}
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-gray-50 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold text-gray-900">{sla.response_time_hours}h</div>
+                  <div className="text-xs text-gray-500 mt-1">Response Time</div>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold text-gray-900">{sla.resolution_time_hours}h</div>
+                  <div className="text-xs text-gray-500 mt-1">Resolution Time</div>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold text-gray-900">{sla.uptime_guarantee_pct}%</div>
+                  <div className="text-xs text-gray-500 mt-1">Uptime SLA</div>
+                </div>
+              </div>
+              {sla.notes && (
+                <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4 text-sm text-gray-700">
+                  <div className="font-medium text-yellow-800 mb-1">Notes</div>
+                  {sla.notes}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-400">
+              <div className="text-3xl mb-2">📋</div>
+              <p className="text-sm mb-4">No SLA configured yet.</p>
+              <button onClick={() => setSlaEditing(true)}
+                className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700">
+                Configure SLA
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* DB CONNECTIONS TAB */}
+      {tab === "connections" && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="font-bold text-gray-900">Database Connections</h2>
+              <p className="text-sm text-gray-400 mt-0.5">{connections.length} connection{connections.length !== 1 ? "s" : ""} configured</p>
+            </div>
+            <button onClick={() => setShowAddConn(p => !p)}
+              className="px-4 py-2 text-sm bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700">
+              + Add Connection
+            </button>
+          </div>
+
+          {showAddConn && (
+            <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <Select label="Database Type" value={connForm.db_type}
+                  onChange={e => setConnForm(p => ({ ...p, db_type: e.target.value }))}
+                  options={["postgresql","mysql","mssql","oracle","mongodb","other"].map(t => ({ value: t, label: t.toUpperCase() }))} />
+                <Input label="Host / Server" value={connForm.host}
+                  onChange={e => setConnForm(p => ({ ...p, host: e.target.value }))} placeholder="db.example.com" />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <Input label="Port" type="number" value={connForm.port}
+                  onChange={e => setConnForm(p => ({ ...p, port: Number(e.target.value) }))} />
+                <Input label="Database Name" value={connForm.db_name}
+                  onChange={e => setConnForm(p => ({ ...p, db_name: e.target.value }))} />
+                <Input label="Username" value={connForm.username}
+                  onChange={e => setConnForm(p => ({ ...p, username: e.target.value }))} />
+              </div>
+              <Textarea label="Notes" value={connForm.notes}
+                onChange={e => setConnForm(p => ({ ...p, notes: e.target.value }))}
+                placeholder="VPN requirements, access instructions…" />
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setShowAddConn(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+                <button onClick={handleAddConn} disabled={savingConn}
+                  className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+                  {savingConn ? "Adding…" : "Add Connection"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {connections.map(conn => (
+              <div key={conn.id} className="border border-gray-100 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Badge className={dbTypeColors[conn.db_type] ?? dbTypeColors.other}>{conn.db_type?.toUpperCase()}</Badge>
+                    <span className="font-mono text-sm font-semibold text-gray-800">{conn.db_name}</span>
+                  </div>
+                  <button onClick={() => deleteConnection(conn.id)}
+                    className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded border border-red-100 hover:bg-red-50">
+                    Remove
+                  </button>
+                </div>
+                <div className="text-xs text-gray-500 font-mono">
+                  {conn.username && <span>{conn.username}@</span>}{conn.host}:{conn.port}
+                </div>
+                {conn.notes && <p className="text-xs text-gray-400 mt-2">{conn.notes}</p>}
+              </div>
+            ))}
+            {connections.length === 0 && (
+              <div className="text-center py-8 text-gray-400">
+                <div className="text-3xl mb-2">🔌</div>
+                <p className="text-sm">No database connections yet. Add one above.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TEAM TAB */}
+      {tab === "team" && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="font-bold text-gray-900">Team Members</h2>
+              <p className="text-sm text-gray-400 mt-0.5">Stakeholders and points of contact</p>
+            </div>
+            <button onClick={() => setShowAddMember(p => !p)}
+              className="px-4 py-2 text-sm bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700">
+              + Add Member
+            </button>
+          </div>
+
+          {showAddMember && (
+            <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Full Name" value={memberForm.full_name}
+                  onChange={e => setMemberForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Jane Smith" />
+                <Input label="Email" type="email" value={memberForm.email}
+                  onChange={e => setMemberForm(p => ({ ...p, email: e.target.value }))} placeholder="jane@company.com" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Role / Title" value={memberForm.role_title}
+                  onChange={e => setMemberForm(p => ({ ...p, role_title: e.target.value }))} placeholder="IT Manager" />
+                <Input label="Phone" value={memberForm.phone}
+                  onChange={e => setMemberForm(p => ({ ...p, phone: e.target.value }))} placeholder="+1 555 000 0000" />
+              </div>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={memberForm.is_primary}
+                  onChange={e => setMemberForm(p => ({ ...p, is_primary: e.target.checked }))}
+                  className="rounded accent-indigo-600" />
+                Primary contact
+              </label>
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setShowAddMember(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+                <button onClick={handleAddMember} disabled={savingMember}
+                  className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+                  {savingMember ? "Adding…" : "Add Member"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {members.map(m => (
+              <div key={m.id} className="border border-gray-100 rounded-xl p-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">
+                    {m.full_name?.[0]}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-900 truncate">{m.full_name}</span>
+                      {m.is_primary && <Badge className="bg-indigo-100 text-indigo-700">Primary</Badge>}
+                    </div>
+                    {m.role_title && <div className="text-xs text-gray-500">{m.role_title}</div>}
+                  </div>
+                </div>
+                <div className="text-xs text-gray-400 space-y-0.5">
+                  {m.email && <div>📧 {m.email}</div>}
+                  {m.phone && <div>📞 {m.phone}</div>}
+                </div>
+              </div>
+            ))}
+            {members.length === 0 && (
+              <div className="col-span-full text-center py-8 text-gray-400">
+                <div className="text-3xl mb-2">👥</div>
+                <p className="text-sm">No team members added yet.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// V9: INVOICES VIEW
+// ============================================================
+function InvoicesView({ auth }) {
+  const clientFilter = auth.isClient ? { client_id: auth.user?.id } : {};
+  const { invoices, loading, createInvoice, updateInvoice, deleteInvoice } = useInvoices(clientFilter);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [showCreate, setShowCreate]     = useState(false);
+  const [form, setForm]                 = useState({ invoice_number: "", amount: "", status: "draft", due_date: "", notes: "", case_id: "" });
+  const [saving, setSaving]             = useState(false);
+  const [cases, setCases]               = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      let q = supabase.from("cases").select("id, title, client_id").order("title");
+      if (auth.isClient) q = q.eq("client_id", auth.user?.id);
+      const { data } = await q;
+      setCases(data ?? []);
+    })();
+  }, [auth]);
+
+  const displayed = statusFilter ? invoices.filter(i => i.status === statusFilter) : invoices;
+  const totalBilled      = invoices.reduce((s, i) => s + (i.amount ?? 0), 0);
+  const totalPaid        = invoices.filter(i => i.status === "paid").reduce((s, i) => s + (i.amount ?? 0), 0);
+  const totalOutstanding = invoices.filter(i => ["sent","overdue"].includes(i.status)).reduce((s, i) => s + (i.amount ?? 0), 0);
+
+  async function handleCreate() {
+    setSaving(true);
+    try {
+      await createInvoice({
+        ...form,
+        amount: Number(form.amount),
+        client_id: auth.isClient ? auth.user?.id : form.client_id,
+        invoice_number: form.invoice_number || `INV-${Date.now()}`,
+      });
+      setShowCreate(false);
+      setForm({ invoice_number: "", amount: "", status: "draft", due_date: "", notes: "", case_id: "" });
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  if (loading) return <Spinner />;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Invoices</h1>
+          <p className="text-gray-500 text-sm mt-1">{invoices.length} invoice{invoices.length !== 1 ? "s" : ""}</p>
+        </div>
+        {(auth.isAdmin || auth.isManager) && (
+          <button onClick={() => setShowCreate(true)}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-xl text-sm">
+            + New Invoice
+          </button>
+        )}
+      </div>
+
+      {/* Summary */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        {[
+          { label: "Total Billed",  value: `$${totalBilled.toLocaleString()}`,      color: "bg-indigo-50 text-indigo-700" },
+          { label: "Paid",          value: `$${totalPaid.toLocaleString()}`,         color: "bg-green-50 text-green-700" },
+          { label: "Outstanding",   value: `$${totalOutstanding.toLocaleString()}`,  color: "bg-orange-50 text-orange-700" },
+        ].map(s => (
+          <div key={s.label} className={`rounded-2xl p-5 ${s.color}`}>
+            <div className="text-xl font-bold">{s.value}</div>
+            <div className="text-xs mt-1 opacity-80">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filter */}
+      <div className="mb-4">
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <option value="">All Statuses</option>
+          {["draft","sent","paid","overdue"].map(s => <option key={s} value={s}>{cap(s)}</option>)}
+        </select>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-100">
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Invoice #</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Client</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Case</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Amount</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Due Date</th>
+              {(auth.isAdmin || auth.isManager) && <th className="px-5 py-3" />}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {displayed.map(inv => (
+              <tr key={inv.id} className="hover:bg-gray-50">
+                <td className="px-5 py-4 font-mono text-sm text-gray-700">{inv.invoice_number || `INV-${inv.id?.slice(0,8)}`}</td>
+                <td className="px-5 py-4">
+                  <div className="font-medium text-gray-900">{inv.client?.client_profiles?.company_name ?? inv.client?.full_name ?? "—"}</div>
+                </td>
+                <td className="px-5 py-4 text-gray-500">{inv.case?.title ?? "—"}</td>
+                <td className="px-5 py-4 font-semibold text-gray-900">${(inv.amount ?? 0).toLocaleString()}</td>
+                <td className="px-5 py-4">
+                  <Badge className={INVOICE_STATUS_COLORS[inv.status] ?? INVOICE_STATUS_COLORS.draft}>{cap(inv.status)}</Badge>
+                </td>
+                <td className="px-5 py-4 text-gray-500">{fmtDate(inv.due_date)}</td>
+                {(auth.isAdmin || auth.isManager) && (
+                  <td className="px-5 py-4">
+                    <div className="flex gap-1">
+                      {inv.status === "draft" && (
+                        <button onClick={() => updateInvoice(inv.id, { status: "sent" })}
+                          className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded border border-blue-100 hover:bg-blue-100">
+                          Send
+                        </button>
+                      )}
+                      {inv.status === "sent" && (
+                        <button onClick={() => updateInvoice(inv.id, { status: "paid" })}
+                          className="text-xs px-2 py-1 bg-green-50 text-green-700 rounded border border-green-100 hover:bg-green-100">
+                          Mark Paid
+                        </button>
+                      )}
+                      {(inv.status === "sent" || inv.status === "draft") && (
+                        <button onClick={() => updateInvoice(inv.id, { status: "overdue" })}
+                          className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded border border-red-100 hover:bg-red-100">
+                          Overdue
+                        </button>
+                      )}
+                      <button onClick={() => deleteInvoice(inv.id)}
+                        className="text-xs px-2 py-1 bg-gray-50 text-gray-500 rounded border border-gray-100 hover:bg-gray-100">
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                )}
+              </tr>
+            ))}
+            {displayed.length === 0 && (
+              <tr><td colSpan={7} className="px-5 py-12 text-center text-gray-400 text-sm">No invoices found</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Create Invoice Modal */}
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="New Invoice">
+        <Input label="Invoice Number" value={form.invoice_number}
+          onChange={e => setForm(p => ({ ...p, invoice_number: e.target.value }))}
+          placeholder="INV-2024-001" />
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Amount ($)" type="number" value={form.amount}
+            onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} />
+          <Select label="Status" value={form.status}
+            onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
+            options={["draft","sent","paid","overdue"].map(s => ({ value: s, label: cap(s) }))} />
+        </div>
+        <Input label="Due Date" type="date" value={form.due_date}
+          onChange={e => setForm(p => ({ ...p, due_date: e.target.value }))} />
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Case</label>
+          <select value={form.case_id} onChange={e => setForm(p => ({ ...p, case_id: e.target.value }))}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+            <option value="">— Select case (optional) —</option>
+            {cases.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+          </select>
+        </div>
+        <Textarea label="Notes" value={form.notes}
+          onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+          placeholder="Payment terms, line items…" />
+        <div className="flex justify-end gap-3 mt-2">
+          <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+          <button onClick={handleCreate} disabled={saving}
+            className="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+            {saving ? "Creating…" : "Create Invoice"}
+          </button>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ============================================================
+// V9: KANBAN VIEW
+// ============================================================
+const KANBAN_COLUMNS = [
+  { id: "open",        label: "Open",        headerColor: "border-t-emerald-400", bg: "bg-emerald-50/50" },
+  { id: "in_progress", label: "In Progress",  headerColor: "border-t-blue-400",   bg: "bg-blue-50/50" },
+  { id: "on_hold",     label: "On Hold",      headerColor: "border-t-yellow-400", bg: "bg-yellow-50/50" },
+  { id: "completed",   label: "Completed",    headerColor: "border-t-gray-300",   bg: "bg-gray-50/50" },
+];
+
+function KanbanView({ auth }) {
+  const { cases, loading, updateCase } = useCases();
+  const [selectedCase, setSelectedCase] = useState(null);
+  const [movingId, setMovingId]         = useState(null);
+
+  const filteredCases = cases.filter(c => {
+    if (auth.isClient)     return c.client_id === auth.user?.id;
+    if (auth.isConsultant) return c.case_assignments?.some(a => a.consultant_id === auth.user?.id);
+    return true;
+  });
+
+  async function handleMove(caseId, newStatus) {
+    if (newStatus === cases.find(c => c.id === caseId)?.status) return;
+    setMovingId(caseId);
+    try { await updateCase(caseId, { status: newStatus }); }
+    catch (e) { alert(e.message); }
+    setMovingId(null);
+  }
+
+  if (loading) return <Spinner />;
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Kanban Board</h1>
+        <p className="text-gray-500 text-sm mt-1">Visual case pipeline · {filteredCases.length} cases</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
+        {KANBAN_COLUMNS.map(col => {
+          const colCases = filteredCases.filter(c => c.status === col.id);
+          return (
+            <div key={col.id} className={`rounded-2xl border-t-4 ${col.headerColor} ${col.bg} border border-gray-100 shadow-sm`}>
+              <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+                <span className="font-semibold text-gray-800 text-sm">{col.label}</span>
+                <span className="text-xs text-gray-400 bg-white rounded-full px-2 py-0.5 border border-gray-100">{colCases.length}</span>
+              </div>
+              <div className="p-3 space-y-2 min-h-20">
+                {colCases.map(c => (
+                  <div key={c.id}
+                    className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => setSelectedCase(c)}>
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <span className="font-medium text-sm text-gray-900 line-clamp-2 flex-1">{c.title}</span>
+                      <Badge className={`${PRIORITY_COLORS[c.priority]} flex-shrink-0 text-xs`}>{cap(c.priority)?.[0]}</Badge>
+                    </div>
+                    {c.client?.client_profiles?.company_name && (
+                      <div className="text-xs text-gray-400 mb-2">{c.client.client_profiles.company_name}</div>
+                    )}
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="flex -space-x-1">
+                        {(c.case_assignments ?? []).slice(0, 3).map((a, i) => (
+                          <div key={i} className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 text-xs flex items-center justify-center border-2 border-white font-bold">
+                            {a.users?.full_name?.[0] ?? "?"}
+                          </div>
+                        ))}
+                      </div>
+                      {c.due_date && <span className="text-xs text-gray-400">{fmtDate(c.due_date)}</span>}
+                    </div>
+                    {(auth.isAdmin || auth.isManager) && (
+                      <div className="mt-2 pt-2 border-t border-gray-50" onClick={e => e.stopPropagation()}>
+                        <select disabled={movingId === c.id}
+                          value={c.status}
+                          onChange={e => handleMove(c.id, e.target.value)}
+                          className="w-full text-xs border border-gray-100 rounded-lg px-2 py-1 bg-gray-50 text-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-400 disabled:opacity-50">
+                          {KANBAN_COLUMNS.map(col2 => (
+                            <option key={col2.id} value={col2.id}>{col2.label}</option>
+                          ))}
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {colCases.length === 0 && (
+                  <div className="text-center py-6 text-gray-300 text-xs">Empty</div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <Modal open={!!selectedCase} onClose={() => setSelectedCase(null)}
+        title={selectedCase?.title ?? ""} wide>
+        {selectedCase && (
+          <CaseDetail
+            caseData={selectedCase} auth={auth}
+            onStatusChange={async (id, status) => {
+              await updateCase(id, { status });
+              setSelectedCase(prev => ({ ...prev, status }));
+            }}
+            onDelete={async () => { await updateCase(selectedCase.id, { status: "cancelled" }); setSelectedCase(null); }}
+          />
+        )}
+      </Modal>
+    </div>
+  );
+}
+
+// ============================================================
+// V9: TIME ENTRIES VIEW
+// ============================================================
+function TimeEntriesView({ auth }) {
+  const { entries, loading, addTimeEntry, approveEntry, deleteEntry } = useTimeEntries();
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo]     = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm]         = useState({ case_id: "", date: new Date().toISOString().slice(0, 10), hours: 1, description: "", is_billable: true });
+  const [saving, setSaving]     = useState(false);
+  const [cases, setCases]       = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      let q = supabase.from("cases").select("id, title").order("title");
+      if (auth.isConsultant) {
+        const { data: assignments } = await supabase.from("case_assignments")
+          .select("case_id").eq("consultant_id", auth.user?.id);
+        const ids = (assignments ?? []).map(a => a.case_id);
+        if (ids.length) q = q.in("id", ids); else { setCases([]); return; }
+      }
+      const { data } = await q;
+      setCases(data ?? []);
+    })();
+  }, [auth]);
+
+  const filtered = entries.filter(e => {
+    if (auth.isConsultant && e.consultant_id !== auth.user?.id) return false;
+    if (dateFrom && e.date < dateFrom) return false;
+    if (dateTo   && e.date > dateTo)   return false;
+    return true;
+  });
+
+  const totalH    = filtered.reduce((s, e) => s + (e.hours ?? 0), 0);
+  const billableH = filtered.filter(e => e.is_billable).reduce((s, e) => s + (e.hours ?? 0), 0);
+
+  async function handleAdd() {
+    if (!form.hours || !form.description.trim()) return;
+    setSaving(true);
+    try {
+      await addTimeEntry({ ...form, hours: Number(form.hours) });
+      setForm({ case_id: "", date: new Date().toISOString().slice(0, 10), hours: 1, description: "", is_billable: true });
+      setShowForm(false);
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  if (loading) return <Spinner />;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Time Entries</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            {filtered.length} entries · {totalH.toFixed(1)}h total · {billableH.toFixed(1)}h billable
+          </p>
+        </div>
+        {auth.isConsultant && (
+          <button onClick={() => setShowForm(p => !p)}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-xl text-sm">
+            + Log Time
+          </button>
+        )}
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3 mb-6">
+        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        <span className="self-center text-gray-400 text-sm">to</span>
+        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        {(dateFrom || dateTo) && (
+          <button onClick={() => { setDateFrom(""); setDateTo(""); }}
+            className="px-3 py-2 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50">
+            Clear
+          </button>
+        )}
+      </div>
+
+      {/* Add form */}
+      {showForm && (
+        <div className="bg-white rounded-2xl border border-indigo-200 shadow-sm p-6 mb-6">
+          <h3 className="font-semibold text-gray-900 mb-4">Log Time Entry</h3>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Case</label>
+            <select value={form.case_id} onChange={e => setForm(p => ({ ...p, case_id: e.target.value }))}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+              <option value="">— Select case —</option>
+              {cases.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Date" type="date" value={form.date}
+              onChange={e => setForm(p => ({ ...p, date: e.target.value }))} />
+            <Input label="Hours" type="number" min="0.25" step="0.25" value={form.hours}
+              onChange={e => setForm(p => ({ ...p, hours: e.target.value }))} />
+          </div>
+          <Textarea label="Description" value={form.description}
+            onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+            placeholder="Describe what you worked on…" />
+          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer mb-4">
+            <input type="checkbox" checked={form.is_billable}
+              onChange={e => setForm(p => ({ ...p, is_billable: e.target.checked }))}
+              className="rounded accent-indigo-600" />
+            Billable
+          </label>
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+            <button onClick={handleAdd} disabled={saving}
+              className="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+              {saving ? "Saving…" : "Log Time"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Table */}
+      {filtered.length === 0 ? (
+        <EmptyState icon="⏱" title="No time entries" subtitle={auth.isConsultant ? "Log your first entry above" : "No entries logged yet"} />
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-100">
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
+                {!auth.isConsultant && <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Consultant</th>}
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Case</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Hours</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Description</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Billable</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Approved</th>
+                {(auth.isAdmin || auth.isManager) && <th className="px-5 py-3" />}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {filtered.map(e => (
+                <tr key={e.id} className="hover:bg-gray-50">
+                  <td className="px-5 py-3 text-gray-600 whitespace-nowrap">{fmtDate(e.date)}</td>
+                  {!auth.isConsultant && (
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-600 text-xs flex items-center justify-center font-bold">
+                          {e.consultant?.full_name?.[0]}
+                        </div>
+                        <span className="text-gray-700">{e.consultant?.full_name}</span>
+                      </div>
+                    </td>
+                  )}
+                  <td className="px-5 py-3 text-gray-500">{e.case?.title ?? "—"}</td>
+                  <td className="px-5 py-3 font-semibold text-indigo-700">{e.hours}h</td>
+                  <td className="px-5 py-3 text-gray-500 max-w-xs truncate">{e.description}</td>
+                  <td className="px-5 py-3">
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${e.is_billable ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                      {e.is_billable ? "Billable" : "Non-billable"}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3">
+                    {e.is_approved
+                      ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">✓ Approved</span>
+                      : (auth.isAdmin || auth.isManager)
+                        ? <button onClick={() => approveEntry(e.id, true)}
+                            className="text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 px-2 py-0.5 rounded-full hover:bg-yellow-100">
+                            Approve
+                          </button>
+                        : <span className="text-xs text-gray-400">Pending</span>
+                    }
+                  </td>
+                  {(auth.isAdmin || auth.isManager) && (
+                    <td className="px-5 py-3">
+                      <button onClick={() => deleteEntry(e.id)}
+                        className="text-xs text-red-400 hover:text-red-600 border border-red-100 px-2 py-0.5 rounded hover:bg-red-50">
+                        Delete
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// CONSULTANT ONBOARDING WIZARD
+// ============================================================
+
+const ONBOARDING_STEPS = [
+  { id: "basics",    label: "Basic Info",          icon: "👤", desc: "Headline, bio & rates" },
+  { id: "workauth",  label: "Work Authorization",  icon: "🌍", desc: "Countries you can work in" },
+  { id: "customers", label: "Past Customers",      icon: "💼", desc: "Employer & client history" },
+  { id: "projects",  label: "Projects",            icon: "🚀", desc: "Portfolio & past work" },
+  { id: "skills",    label: "Skills",              icon: "⚡", desc: "Technical expertise" },
+];
+
+function OnboardingRoadmap({ steps, current }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-8">
+      <div className="relative flex items-start justify-between">
+        {/* Connector line behind circles */}
+        <div className="absolute top-5 left-5 right-5 h-0.5 bg-gray-200 z-0" />
+        {steps.map((s, i) => {
+          const done   = i < current;
+          const active = i === current;
+          return (
+            <div key={s.id} className="relative z-10 flex flex-col items-center flex-1 gap-2">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-bold transition-all ${
+                done   ? "bg-emerald-500 text-white shadow"
+                       : active ? "bg-indigo-600 text-white shadow-lg ring-4 ring-indigo-100"
+                                : "bg-white border-2 border-gray-200 text-gray-400"}`}>
+                {done ? "✓" : s.icon}
+              </div>
+              <div className="text-center px-1">
+                <div className={`text-xs font-semibold leading-tight ${
+                  active ? "text-indigo-600" : done ? "text-emerald-600" : "text-gray-400"}`}>
+                  {s.label}
+                </div>
+                <div className="text-xs text-gray-400 mt-0.5 hidden sm:block">{s.desc}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {/* Mini progress bar */}
+      <div className="mt-5 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <div className="h-full bg-indigo-600 rounded-full transition-all duration-500"
+          style={{ width: `${(current / (steps.length - 1)) * 100}%` }} />
+      </div>
+      <p className="text-xs text-gray-400 text-right mt-1">
+        Step {current + 1} of {steps.length}
+      </p>
+    </div>
+  );
+}
+
+function ConsultantOnboardingView({ auth, onComplete }) {
+  const { profile, loading, updateProfile, addCustomer, addProject, addWorkAuth } =
+    useConsultantProfile(auth.user?.id);
+
+  const [step, setSt]    = useState(0);
+  const [saving, setSaving] = useState(false);
+
+  const [basicsForm, setBasicsForm] = useState({
+    headline: "", bio: "", linkedin_url: "",
+    hourly_rate: "", years_experience: 0,
+    external_occupancy_pct: 0, travel_available: false,
+    expertise_level: "mid", availability_type: "project_based",
+  });
+  const [authForm, setAuthForm]   = useState({ country_name: "", country_code: "", auth_type: "citizen" });
+  const [custForm, setCustForm]   = useState({ company_name: "", role_held: "", start_date: "", end_date: "", description: "" });
+  const [projForm, setProjForm]   = useState({ title: "", client_name: "", url: "", description: "", _tech: "" });
+  const [skillInput, setSkillInput] = useState("");
+
+  useEffect(() => {
+    if (profile) {
+      setBasicsForm(f => ({
+        ...f,
+        headline:               profile.headline               ?? f.headline,
+        bio:                    profile.bio                    ?? f.bio,
+        linkedin_url:           profile.linkedin_url           ?? f.linkedin_url,
+        hourly_rate:            profile.hourly_rate            ?? f.hourly_rate,
+        years_experience:       profile.years_experience       ?? f.years_experience,
+        external_occupancy_pct: profile.external_occupancy_pct ?? f.external_occupancy_pct,
+        travel_available:       profile.travel_available       ?? f.travel_available,
+        expertise_level:        profile.expertise_level        ?? f.expertise_level,
+        availability_type:      profile.availability_type      ?? f.availability_type,
+      }));
+    }
+  }, [profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (loading) return <Spinner />;
+
+  const total  = ONBOARDING_STEPS.length;
+  const isLast = step === total - 1;
+
+  async function saveBasics() {
+    setSaving(true);
+    try {
+      await updateProfile({
+        ...basicsForm,
+        hourly_rate:            basicsForm.hourly_rate ? Number(basicsForm.hourly_rate) : null,
+        years_experience:       Number(basicsForm.years_experience) || 0,
+        external_occupancy_pct: Number(basicsForm.external_occupancy_pct) || 0,
+      });
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  async function handleNext() {
+    if (step === 0) await saveBasics();
+    if (!isLast) setSt(s => s + 1);
+    else onComplete();
+  }
+
+  function skip() {
+    if (!isLast) setSt(s => s + 1);
+    else onComplete();
+  }
+
+  async function handleAddWorkAuth() {
+    if (!authForm.country_name) return;
+    setSaving(true);
+    try { await addWorkAuth(authForm); setAuthForm({ country_name: "", country_code: "", auth_type: "citizen" }); }
+    catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  async function handleAddCustomer() {
+    if (!custForm.company_name) return;
+    setSaving(true);
+    try { await addCustomer(custForm); setCustForm({ company_name: "", role_held: "", start_date: "", end_date: "", description: "" }); }
+    catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  async function handleAddProject() {
+    if (!projForm.title) return;
+    setSaving(true);
+    try {
+      const { _tech, ...rest } = projForm;
+      await addProject({ ...rest, tech_stack: _tech.split(",").map(s => s.trim()).filter(Boolean) });
+      setProjForm({ title: "", client_name: "", url: "", description: "", _tech: "" });
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  async function handleAddSkill() {
+    const val = skillInput.trim();
+    if (!val) return;
+    setSaving(true);
+    try {
+      const current = profile?.skills ?? [];
+      if (!current.includes(val)) await updateProfile({ skills: [...current, val] });
+      setSkillInput("");
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto py-8">
+      <div className="text-center mb-8">
+        <div className="inline-flex items-center justify-center w-14 h-14 bg-indigo-600 rounded-2xl mb-4 shadow-lg">
+          <span className="text-white text-xl font-bold">TC</span>
+        </div>
+        <h1 className="text-2xl font-bold text-gray-900">Complete Your Profile</h1>
+        <p className="text-gray-500 mt-1 text-sm">Help clients find and evaluate you — takes about 5 minutes.</p>
+      </div>
+
+      <OnboardingRoadmap steps={ONBOARDING_STEPS} current={step} />
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+
+        {/* ── Step 0: Basic Info ── */}
+        {step === 0 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Basic Information</h2>
+            <p className="text-sm text-gray-500 mb-5">This is the first thing clients see about you.</p>
+            <Input label="Professional Headline *" value={basicsForm.headline}
+              onChange={e => setBasicsForm(p => ({ ...p, headline: e.target.value }))}
+              placeholder="Senior SAP Consultant & Solution Architect" />
+            <Textarea label="Bio" value={basicsForm.bio}
+              onChange={e => setBasicsForm(p => ({ ...p, bio: e.target.value }))}
+              placeholder="Tell clients about your background and expertise…" />
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Hourly Rate ($)" type="number" value={basicsForm.hourly_rate}
+                onChange={e => setBasicsForm(p => ({ ...p, hourly_rate: e.target.value }))} />
+              <Input label="Years of Experience" type="number" value={basicsForm.years_experience}
+                onChange={e => setBasicsForm(p => ({ ...p, years_experience: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Select label="Expertise Level" value={basicsForm.expertise_level}
+                onChange={e => setBasicsForm(p => ({ ...p, expertise_level: e.target.value }))}
+                options={[
+                  { value: "junior", label: "Junior" },
+                  { value: "mid",    label: "Mid-Level" },
+                  { value: "senior", label: "Senior" },
+                  { value: "lead",   label: "Lead / Principal" },
+                ]} />
+              <Select label="Availability Type" value={basicsForm.availability_type}
+                onChange={e => setBasicsForm(p => ({ ...p, availability_type: e.target.value }))}
+                options={[
+                  { value: "full_time",     label: "Full-Time" },
+                  { value: "part_time",     label: "Part-Time" },
+                  { value: "contract",      label: "Contract" },
+                  { value: "project_based", label: "Project-Based" },
+                ]} />
+            </div>
+            <Input label="LinkedIn URL" value={basicsForm.linkedin_url}
+              onChange={e => setBasicsForm(p => ({ ...p, linkedin_url: e.target.value }))}
+              placeholder="https://linkedin.com/in/yourprofile" />
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                External Occupancy: {basicsForm.external_occupancy_pct}%
+              </label>
+              <input type="range" min="0" max="100" value={basicsForm.external_occupancy_pct}
+                onChange={e => setBasicsForm(p => ({ ...p, external_occupancy_pct: Number(e.target.value) }))}
+                className="w-full accent-indigo-600" />
+            </div>
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input type="checkbox" checked={basicsForm.travel_available}
+                onChange={e => setBasicsForm(p => ({ ...p, travel_available: e.target.checked }))}
+                className="rounded accent-indigo-600" />
+              Available for travel
+            </label>
+          </>
+        )}
+
+        {/* ── Step 1: Work Authorization ── */}
+        {step === 1 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Work Authorization</h2>
+            <p className="text-sm text-gray-500 mb-5">Add the countries where you're legally authorized to work.</p>
+            {(profile?.work_authorizations?.length ?? 0) > 0 && (
+              <div className="grid grid-cols-2 gap-3 mb-5">
+                {profile.work_authorizations.map(w => (
+                  <div key={w.id} className="border border-gray-100 rounded-xl p-3 flex items-center gap-3">
+                    <span className="text-2xl">{w.country_code === "US" ? "🇺🇸" : w.country_code === "GB" ? "🇬🇧" : "🌐"}</span>
+                    <div>
+                      <div className="text-sm font-medium">{w.country_name}</div>
+                      <div className="text-xs text-gray-400 capitalize">{fmt(w.auth_type)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className={`${(profile?.work_authorizations?.length ?? 0) > 0 ? "border-t border-gray-100 pt-5" : ""}`}>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Add a Country</p>
+              <div className="grid grid-cols-3 gap-3">
+                <Input label="Country Name" value={authForm.country_name}
+                  onChange={e => setAuthForm(p => ({ ...p, country_name: e.target.value }))}
+                  placeholder="United States" />
+                <Input label="Code" value={authForm.country_code}
+                  onChange={e => setAuthForm(p => ({ ...p, country_code: e.target.value.toUpperCase() }))}
+                  placeholder="US" />
+                <Select label="Auth Type" value={authForm.auth_type}
+                  onChange={e => setAuthForm(p => ({ ...p, auth_type: e.target.value }))}
+                  options={[
+                    { value: "citizen",            label: "Citizen" },
+                    { value: "permanent_resident", label: "Perm. Resident" },
+                    { value: "work_visa",          label: "Work Visa" },
+                    { value: "other",              label: "Other" },
+                  ]} />
+              </div>
+              <button onClick={handleAddWorkAuth} disabled={saving || !authForm.country_name}
+                className="mt-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                {saving ? "Saving…" : "+ Add Country"}
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ── Step 2: Past Customers ── */}
+        {step === 2 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Past Customers</h2>
+            <p className="text-sm text-gray-500 mb-5">Add companies or clients you've worked with.</p>
+            {(profile?.consultant_customers?.length ?? 0) > 0 && (
+              <div className="space-y-3 mb-5">
+                {profile.consultant_customers.map(c => (
+                  <div key={c.id} className="border border-gray-100 rounded-xl p-4">
+                    <div className="font-medium text-gray-900">{c.company_name}</div>
+                    {c.role_held && <div className="text-sm text-gray-500">{c.role_held}</div>}
+                    {(c.start_date || c.end_date) && (
+                      <div className="text-xs text-gray-400 mt-1">
+                        {fmtDate(c.start_date)} – {c.end_date ? fmtDate(c.end_date) : "Present"}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className={`${(profile?.consultant_customers?.length ?? 0) > 0 ? "border-t border-gray-100 pt-5" : ""}`}>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Add a Customer</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Company Name" value={custForm.company_name}
+                  onChange={e => setCustForm(p => ({ ...p, company_name: e.target.value }))} />
+                <Input label="Role Held" value={custForm.role_held}
+                  onChange={e => setCustForm(p => ({ ...p, role_held: e.target.value }))} />
+                <Input label="Start Date" type="date" value={custForm.start_date}
+                  onChange={e => setCustForm(p => ({ ...p, start_date: e.target.value }))} />
+                <Input label="End Date" type="date" value={custForm.end_date}
+                  onChange={e => setCustForm(p => ({ ...p, end_date: e.target.value }))}/>
+              </div>
+              <Textarea label="Description" value={custForm.description}
+                onChange={e => setCustForm(p => ({ ...p, description: e.target.value }))} />
+              <button onClick={handleAddCustomer} disabled={saving || !custForm.company_name}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                {saving ? "Saving…" : "+ Add Customer"}
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ── Step 3: Projects ── */}
+        {step === 3 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Projects</h2>
+            <p className="text-sm text-gray-500 mb-5">Showcase portfolio projects and past deliverables.</p>
+            {(profile?.consultant_projects?.length ?? 0) > 0 && (
+              <div className="space-y-3 mb-5">
+                {profile.consultant_projects.map(p => (
+                  <div key={p.id} className="border border-gray-100 rounded-xl p-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="font-medium text-gray-900">{p.title}</div>
+                        {p.client_name && <div className="text-xs text-gray-400">{p.client_name}</div>}
+                      </div>
+                      {p.url && <a href={p.url} target="_blank" rel="noreferrer" className="text-xs text-indigo-600 hover:underline">View →</a>}
+                    </div>
+                    {p.tech_stack?.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {p.tech_stack.map(s => <span key={s} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{s}</span>)}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className={`${(profile?.consultant_projects?.length ?? 0) > 0 ? "border-t border-gray-100 pt-5" : ""}`}>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Add a Project</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Title" value={projForm.title}
+                  onChange={e => setProjForm(p => ({ ...p, title: e.target.value }))} />
+                <Input label="Client Name" value={projForm.client_name}
+                  onChange={e => setProjForm(p => ({ ...p, client_name: e.target.value }))} />
+                <Input label="URL" value={projForm.url}
+                  onChange={e => setProjForm(p => ({ ...p, url: e.target.value }))} />
+                <Input label="Tech Stack (comma-separated)" value={projForm._tech}
+                  onChange={e => setProjForm(p => ({ ...p, _tech: e.target.value }))} />
+              </div>
+              <Textarea label="Description" value={projForm.description}
+                onChange={e => setProjForm(p => ({ ...p, description: e.target.value }))} />
+              <button onClick={handleAddProject} disabled={saving || !projForm.title}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                {saving ? "Saving…" : "+ Add Project"}
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ── Step 4: Skills ── */}
+        {step === 4 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Skills</h2>
+            <p className="text-sm text-gray-500 mb-5">Add your technical skills and areas of expertise.</p>
+            {(profile?.skills?.length ?? 0) > 0 && (
+              <div className="flex flex-wrap gap-2 mb-5">
+                {profile.skills.map(s => (
+                  <span key={s} className="px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-medium">{s}</span>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input value={skillInput} onChange={e => setSkillInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAddSkill(); } }}
+                placeholder="e.g. SAP S/4HANA, React, Python…"
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <button onClick={handleAddSkill} disabled={saving || !skillInput.trim()}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                {saving ? "…" : "+ Add"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── Navigation ── */}
+      <div className="flex items-center justify-between">
+        <button onClick={() => step > 0 ? setSt(s => s - 1) : null}
+          className={`px-4 py-2 text-sm border border-gray-200 rounded-xl transition-colors ${
+            step > 0 ? "text-gray-600 hover:bg-gray-50 hover:text-gray-900" : "invisible"}`}>
+          ← Back
+        </button>
+        <div className="flex items-center gap-3">
+          {step > 0 && (
+            <button onClick={skip} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-600">
+              Skip
+            </button>
+          )}
+          <button onClick={handleNext}
+            disabled={saving || (step === 0 && !basicsForm.headline.trim())}
+            className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors">
+            {saving ? "Saving…" : isLast ? "Complete Profile →" : step === 0 ? "Save & Continue →" : "Continue →"}
+          </button>
+        </div>
+      </div>
+
+      <p className="text-center text-xs text-gray-400 mt-4">
+        <button onClick={onComplete} className="hover:text-gray-600 underline underline-offset-2">
+          Skip all and go to profile
+        </button>
+      </p>
+    </div>
+  );
+}
+
+// ============================================================
+// CLIENT ONBOARDING WIZARD
+// ============================================================
+
+const ONBOARDING_STEPS_CLIENT = [
+  { id: "company", label: "Company Info",   icon: "🏢", desc: "Basic company details" },
+  { id: "contact", label: "Primary Contact",icon: "👤", desc: "Who we'll work with" },
+  { id: "prefs",   label: "Preferences",    icon: "⚙️",  desc: "Consulting needs & budget" },
+];
+
+function ClientOnboardingView({ auth, onComplete }) {
+  const { profile, loading, updateProfile } = useClientProfile(auth.user?.id);
+  const [step, setSt]   = useState(0);
+  const [saving, setSaving] = useState(false);
+
+  const [companyForm, setCompanyForm] = useState({
+    company_name: "", industry: "", company_size: "",
+    founded_year: "", hq_location: "", website: "", description: "",
+  });
+  const [contactForm, setContactForm] = useState({
+    contact_name: "", contact_title: "", contact_email: "", contact_phone: "",
+  });
+  const [prefsForm, setPrefsForm] = useState({
+    budget: "", _categories: "", notes: "",
+  });
+
+  useEffect(() => {
+    if (profile) {
+      setCompanyForm(f => ({
+        company_name:  profile.company_name  ?? f.company_name,
+        industry:      profile.industry      ?? f.industry,
+        company_size:  profile.company_size  ?? f.company_size,
+        founded_year:  profile.founded_year  ?? f.founded_year,
+        hq_location:   profile.hq_location   ?? f.hq_location,
+        website:       profile.website       ?? f.website,
+        description:   profile.description   ?? f.description,
+      }));
+      setContactForm(f => ({
+        contact_name:  profile.contact_name  ?? f.contact_name,
+        contact_title: profile.contact_title ?? f.contact_title,
+        contact_email: profile.contact_email ?? f.contact_email,
+        contact_phone: profile.contact_phone ?? f.contact_phone,
+      }));
+      setPrefsForm(f => ({
+        budget:       profile.budget                          ?? f.budget,
+        _categories:  profile.preferred_categories?.join(", ") ?? f._categories,
+        notes:        profile.notes                           ?? f.notes,
+      }));
+    }
+  }, [profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (loading) return <Spinner />;
+
+  const total  = ONBOARDING_STEPS_CLIENT.length;
+  const isLast = step === total - 1;
+
+  async function handleNext() {
+    setSaving(true);
+    try {
+      if (step === 0) {
+        await updateProfile({
+          ...companyForm,
+          founded_year: companyForm.founded_year ? Number(companyForm.founded_year) : null,
+        });
+      } else if (step === 1) {
+        await updateProfile(contactForm);
+      } else {
+        const { _categories, ...rest } = prefsForm;
+        await updateProfile({
+          ...rest,
+          preferred_categories: _categories.split(",").map(s => s.trim()).filter(Boolean),
+        });
+      }
+      if (!isLast) setSt(s => s + 1);
+      else onComplete();
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  function skip() { if (!isLast) setSt(s => s + 1); else onComplete(); }
+
+  return (
+    <div className="max-w-2xl mx-auto py-8">
+      <div className="text-center mb-8">
+        <div className="inline-flex items-center justify-center w-14 h-14 bg-indigo-600 rounded-2xl mb-4 shadow-lg">
+          <span className="text-white text-xl font-bold">TC</span>
+        </div>
+        <h1 className="text-2xl font-bold text-gray-900">Set Up Your Company Profile</h1>
+        <p className="text-gray-500 mt-1 text-sm">Help consultants understand your needs — takes 3 minutes.</p>
+      </div>
+
+      <OnboardingRoadmap steps={ONBOARDING_STEPS_CLIENT} current={step} />
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+
+        {/* ── Step 0: Company Info ── */}
+        {step === 0 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Company Information</h2>
+            <p className="text-sm text-gray-500 mb-5">Tell consultants about your organization.</p>
+            <Input label="Company Name *" value={companyForm.company_name}
+              onChange={e => setCompanyForm(p => ({ ...p, company_name: e.target.value }))}
+              placeholder="Acme Corporation" />
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Industry" value={companyForm.industry}
+                onChange={e => setCompanyForm(p => ({ ...p, industry: e.target.value }))}
+                placeholder="e.g. Financial Services" />
+              <Input label="Company Size" value={companyForm.company_size}
+                onChange={e => setCompanyForm(p => ({ ...p, company_size: e.target.value }))}
+                placeholder="e.g. 500–1,000 employees" />
+              <Input label="Founded Year" type="number" value={companyForm.founded_year}
+                onChange={e => setCompanyForm(p => ({ ...p, founded_year: e.target.value }))} />
+              <Input label="HQ Location" value={companyForm.hq_location}
+                onChange={e => setCompanyForm(p => ({ ...p, hq_location: e.target.value }))}
+                placeholder="City, Country" />
+            </div>
+            <Input label="Website" value={companyForm.website}
+              onChange={e => setCompanyForm(p => ({ ...p, website: e.target.value }))}
+              placeholder="https://yourcompany.com" />
+            <Textarea label="Description" value={companyForm.description}
+              onChange={e => setCompanyForm(p => ({ ...p, description: e.target.value }))}
+              placeholder="What does your company do?" />
+          </>
+        )}
+
+        {/* ── Step 1: Primary Contact ── */}
+        {step === 1 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Primary Contact</h2>
+            <p className="text-sm text-gray-500 mb-5">Who should consultants contact for this account?</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Full Name" value={contactForm.contact_name}
+                onChange={e => setContactForm(p => ({ ...p, contact_name: e.target.value }))}
+                placeholder="Jane Smith" />
+              <Input label="Title / Role" value={contactForm.contact_title}
+                onChange={e => setContactForm(p => ({ ...p, contact_title: e.target.value }))}
+                placeholder="VP of Technology" />
+              <Input label="Email" type="email" value={contactForm.contact_email}
+                onChange={e => setContactForm(p => ({ ...p, contact_email: e.target.value }))}
+                placeholder="jane@company.com" />
+              <Input label="Phone" value={contactForm.contact_phone}
+                onChange={e => setContactForm(p => ({ ...p, contact_phone: e.target.value }))}
+                placeholder="+1 555 000 0000" />
+            </div>
+          </>
+        )}
+
+        {/* ── Step 2: Consulting Preferences ── */}
+        {step === 2 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Consulting Preferences</h2>
+            <p className="text-sm text-gray-500 mb-5">Help us match you with the right consultants.</p>
+            <Input label="Annual Consulting Budget" value={prefsForm.budget}
+              onChange={e => setPrefsForm(p => ({ ...p, budget: e.target.value }))}
+              placeholder="e.g. $500K annual consulting" />
+            <Input label="Areas of Interest (comma-separated)" value={prefsForm._categories}
+              onChange={e => setPrefsForm(p => ({ ...p, _categories: e.target.value }))}
+              placeholder="Cloud, AI, ERP, Cybersecurity" />
+            <Textarea label="Additional Notes" value={prefsForm.notes}
+              onChange={e => setPrefsForm(p => ({ ...p, notes: e.target.value }))}
+              placeholder="Special requirements, compliance needs, vetting criteria…" />
+          </>
+        )}
+      </div>
+
+      {/* ── Navigation ── */}
+      <div className="flex items-center justify-between">
+        <button onClick={() => step > 0 ? setSt(s => s - 1) : null}
+          className={`px-4 py-2 text-sm border border-gray-200 rounded-xl transition-colors ${
+            step > 0 ? "text-gray-600 hover:bg-gray-50" : "invisible"}`}>
+          ← Back
+        </button>
+        <div className="flex items-center gap-3">
+          {step > 0 && (
+            <button onClick={skip} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-600">
+              Skip
+            </button>
+          )}
+          <button onClick={handleNext}
+            disabled={saving || (step === 0 && !companyForm.company_name.trim())}
+            className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors">
+            {saving ? "Saving…" : isLast ? "Complete Setup →" : "Save & Continue →"}
+          </button>
+        </div>
+      </div>
+
+      <p className="text-center text-xs text-gray-400 mt-4">
+        <button onClick={onComplete} className="hover:text-gray-600 underline underline-offset-2">
+          Skip all and go to dashboard
+        </button>
+      </p>
+    </div>
+  );
+}
+
+// ============================================================
+// MANAGER / ADMIN WELCOME SCREEN
+// ============================================================
+function ManagerAdminWelcomeView({ auth, onComplete }) {
+  const roleInfo = {
+    manager: {
+      icon: "📋",
+      title: "Welcome, Manager!",
+      desc: "You have full access to manage cases, assign consultants, review the kanban board, configure SLAs, and run reports.",
+      highlights: ["Create & manage cases", "Assign consultants", "Track progress on Kanban", "Configure SLA rules", "Generate reports"],
+    },
+    admin: {
+      icon: "⚙️",
+      title: "Welcome, Administrator!",
+      desc: "You have complete platform access including user management, all cases, system configuration, and reporting.",
+      highlights: ["Manage all users & roles", "Full case oversight", "Configure system settings", "DB connections", "Arena & leaderboard"],
+    },
+  };
+  const info = roleInfo[auth.role] ?? roleInfo.manager;
+
+  return (
+    <div className="max-w-lg mx-auto py-16 text-center">
+      <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-6 shadow-lg text-3xl">
+        {info.icon}
+      </div>
+      <h1 className="text-2xl font-bold text-gray-900 mb-2">{info.title}</h1>
+      <p className="text-gray-500 text-sm mb-8">{info.desc}</p>
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-8 text-left">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Your Access Includes</p>
+        <ul className="space-y-2">
+          {info.highlights.map(h => (
+            <li key={h} className="flex items-center gap-3 text-sm text-gray-700">
+              <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-bold flex-shrink-0">✓</span>
+              {h}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <button onClick={onComplete}
+        className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-colors shadow">
+        Go to Dashboard →
+      </button>
+    </div>
+  );
+}
+
+// ============================================================
+// ROOT APP
+// ============================================================
+export default function App() {
+  const auth = useAuth();
+  const [activeView, setActiveView]     = useState("dashboard");
+  const [authed, setAuthed]             = useState(false);
+  const [onboardingRole, setOnboarding] = useState(null); // role string or null
+  const unreadCount                     = useUnreadCount();
+
+  // Sync authed state with auth session
+  useEffect(() => {
+    if (!auth.loading) setAuthed(!!auth.user);
+  }, [auth.loading, auth.user]);
+
+  if (auth.loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!authed || !auth.user) {
+    return <AuthScreen onAuth={(newRole = null) => {
+      setAuthed(true);
+      if (newRole) setOnboarding(newRole);
+    }} />;
+  }
+
+  function completeOnboarding(view = "dashboard") {
+    setOnboarding(null);
+    setActiveView(view);
+  }
+
+  // Show role-specific onboarding wizard for new signups — full-screen, no sidebar
+  if (onboardingRole && auth.user) {
+    const bg = "min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6";
+    if (onboardingRole === "consultant") {
+      return (
+        <div className={bg}>
+          <ConsultantOnboardingView auth={auth} onComplete={() => completeOnboarding("profile")} />
+        </div>
+      );
+    }
+    if (onboardingRole === "client") {
+      return (
+        <div className={bg}>
+          <ClientOnboardingView auth={auth} onComplete={() => completeOnboarding("client-profile")} />
+        </div>
+      );
+    }
+    // manager / admin — welcome screen
+    return (
+      <div className={bg}>
+        <ManagerAdminWelcomeView auth={auth} onComplete={() => completeOnboarding("dashboard")} />
+      </div>
+    );
+  }
+
+  async function handleSignOut() {
+    await auth.signOut();
+    setAuthed(false);
+    setOnboarding(null);
+    setActiveView("dashboard");
+  }
+
+  function renderView() {
+    switch (activeView) {
+      case "dashboard":      return <Dashboard auth={auth} />;
+      case "cases":          return <CasesView auth={auth} />;
+      case "my-cases":       return <CasesView auth={auth} />;
+      case "arena":          return <ArenaView auth={auth} />;
+      case "profile":        return <ProfileView auth={auth} />;
+      case "consultants":    return <ConsultantsView auth={auth} />;
+      case "users":          return auth.isAdmin ? <UsersView /> : <Dashboard auth={auth} />;
+      case "reports":        return auth.isAdmin ? <ReportsView /> : <Dashboard auth={auth} />;
+      case "sla":            return (auth.isAdmin || auth.isManager) ? <SlaView auth={auth} /> : <Dashboard auth={auth} />;
+      case "db-connections": return <DbConnectionsView auth={auth} />;
+      case "team-members":   return <ClientTeamView auth={auth} />;
+      case "client-profile": return auth.isClient ? <ClientProfileView auth={auth} /> : <Dashboard auth={auth} />;
+      case "notifications":  return <NotificationsView />;
+      case "invoices":       return <InvoicesView auth={auth} />;
+      case "kanban":         return <KanbanView auth={auth} />;
+      case "time":           return <TimeEntriesView auth={auth} />;
+      default:               return <Dashboard auth={auth} />;
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Sidebar
+        role={auth.role}
+        activeView={activeView}
+        onNav={setActiveView}
+        onSignOut={handleSignOut}
+        profile={auth.profile}
+        unreadCount={unreadCount}
+      />
+      <main className="ml-64 p-8 min-h-screen">
+        <div className="max-w-5xl mx-auto">
+          {renderView()}
+        </div>
+      </main>
+    </div>
+  );
+}
+
