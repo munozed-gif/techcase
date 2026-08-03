@@ -1003,18 +1003,21 @@ function AuthScreen({ onAuth }) {
     if (!email.trim()) { setError("Enter your email first."); return; }
     setError(""); setLoad(true);
     try {
-      // Use signUp so new emails are created; existing emails get a fresh OTP too.
-      // A random temp password is replaced in step 3 via updateUser().
-      const { error: err } = await supabase.auth.signUp({
+      // signInWithOtp with shouldCreateUser:true creates new accounts AND
+      // sends the "Magic link or OTP" email template (the one you configured
+      // with {{ .Token }}). Works for both new and existing emails.
+      const { error: err } = await supabase.auth.signInWithOtp({
         email: email.trim(),
-        password: `tmp_${Math.random().toString(36).slice(2)}${Date.now()}`,
+        options: { shouldCreateUser: true },
       });
       if (err) {
         console.error("sendCode error:", err);
         const msg = err.message || err.error_description || err.msg
           || (typeof err === "string" ? err : null)
           || "Could not send code — check your email and try again.";
-        if (msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("too many"))
+        if (msg.toLowerCase().includes("signup") || msg.toLowerCase().includes("sign up") || msg.toLowerCase().includes("disabled"))
+          setError("New sign-ups are disabled. Go to Supabase → Authentication → Settings and turn off \"Disable sign-ups\".");
+        else if (msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("too many"))
           setError("Too many requests — please wait a minute and try again.");
         else if (msg.toLowerCase().includes("smtp") || msg.toLowerCase().includes("email"))
           setError("Email delivery error. Ensure custom SMTP is configured in Supabase → Authentication → SMTP Settings.");
@@ -1035,9 +1038,9 @@ function AuthScreen({ onAuth }) {
   async function verifyCode() {
     if (code.length < 4) { setError("Enter the verification code from your email."); return; }
     setError(""); setLoad(true);
-    // type 'signup' matches the OTP sent by supabase.auth.signUp()
+    // type:'email' matches the token sent by signInWithOtp
     const { data, error: err } = await supabase.auth.verifyOtp({
-      email: email.trim(), token: code, type: "signup",
+      email: email.trim(), token: code, type: "email",
     });
     if (err) {
       console.error("verifyCode error:", err);
