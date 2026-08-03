@@ -1020,8 +1020,13 @@ function AuthScreen({ onAuth }) {
         password: tempPass,
       });
       if (err) {
-        const msg = err.message || err.error_description || String(err)
-          || "Could not send code — try again.";
+        console.error("sendCode error:", err);
+        // Extract a readable message — guard against Supabase returning "{}" as message
+        const raw = err.message || err.error_description || err.msg || "";
+        const isUseless = !raw || raw === "{}" || raw === "[object Object]";
+        const msg = isUseless
+          ? (err.status ? `Auth error ${err.status} — check Supabase configuration.` : "Could not send code — check your Supabase settings and try again.")
+          : raw;
         if (msg.toLowerCase().includes("already registered") || msg.toLowerCase().includes("already exists"))
           setError("This email already has an account — use Sign In instead.");
         else if (msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("too many"))
@@ -1032,7 +1037,7 @@ function AuthScreen({ onAuth }) {
           setError("Email delivery error. Ensure custom SMTP is configured in Supabase → Authentication → SMTP Settings.");
         else
           setError(msg);
-      } else if (data.user && data.user.identities?.length === 0) {
+      } else if (!data?.user || data.user.identities?.length === 0) {
         // Supabase returns an empty identities array when the email already exists
         setError("This email already has an account — use Sign In instead.");
       } else {
@@ -1040,7 +1045,8 @@ function AuthScreen({ onAuth }) {
         setCode("");
       }
     } catch (e) {
-      setError(e?.message || "Unexpected error — please try again.");
+      console.error("sendCode exception:", e);
+      setError(e?.message || e?.toString() || "Unexpected error — please try again.");
     }
     setLoad(false);
   }
