@@ -977,6 +977,15 @@ function AuthScreen({ onAuth }) {
   const [name, setName]         = useState("");
   const [password, setPass]     = useState("");
   const [confirmPass, setConf]  = useState("");
+  // Consultant-specific
+  const [headline, setHeadline]       = useState("");
+  const [skills, setSkills]           = useState("");
+  const [yearsExp, setYearsExp]       = useState("");
+  const [hourlyRate, setHourly]       = useState("");
+  const [expertiseLevel, setExpertise]= useState("mid");
+  // Client-specific
+  const [companyName, setCompany]     = useState("");
+  const [industry, setIndustry]       = useState("");
 
   const [error, setError]   = useState("");
   const [loading, setLoad]  = useState(false);
@@ -1064,6 +1073,8 @@ function AuthScreen({ onAuth }) {
     if (!name.trim()) { setError("Enter your full name."); return; }
     if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
     if (password !== confirmPass) { setError("Passwords don't match."); return; }
+    if (role === "consultant" && !headline.trim()) { setError("Enter a professional headline."); return; }
+    if (role === "client" && !companyName.trim()) { setError("Enter your company name."); return; }
     setError(""); setLoad(true);
     try {
       await supabase.auth.updateUser({
@@ -1075,6 +1086,24 @@ function AuthScreen({ onAuth }) {
         { id: user.id, email: user.email, full_name: name.trim(), role },
         { onConflict: "id" }
       );
+      if (role === "consultant") {
+        const skillsArr = skills.split(",").map(s => s.trim()).filter(Boolean);
+        await supabase.from("consultant_profiles").upsert({
+          id: user.id,
+          headline: headline.trim(),
+          skills: skillsArr,
+          years_experience: yearsExp ? parseInt(yearsExp, 10) : null,
+          hourly_rate: hourlyRate ? parseFloat(hourlyRate) : null,
+          expertise_level: expertiseLevel,
+        }, { onConflict: "id" });
+      }
+      if (role === "client") {
+        await supabase.from("client_profiles").upsert({
+          id: user.id,
+          company_name: companyName.trim(),
+          industry: industry || null,
+        }, { onConflict: "id" });
+      }
       onAuth(role);
     } catch (e) { setError(e.message); }
     setLoad(false);
@@ -1209,14 +1238,73 @@ function AuthScreen({ onAuth }) {
             {/* Step 2 — Profile details */}
             {step === 2 && (
               <div>
-                <h2 className="text-lg font-bold text-gray-900 mb-1">Almost there!</h2>
-                <p className="text-sm text-gray-500 mb-5">Set your name and a password for your account.</p>
+                <h2 className="text-lg font-bold text-gray-900 mb-1">
+                  {role === "consultant" ? "Build your consultant profile" : "Set up your company profile"}
+                </h2>
+                <p className="text-sm text-gray-500 mb-5">
+                  {role === "consultant"
+                    ? "Help clients find you with the right details."
+                    : "Tell consultants about your company."}
+                </p>
+
+                {/* ── Common fields ── */}
                 <Input label="Full Name" value={name}
                   onChange={e => setName(e.target.value)} placeholder="Jane Smith" />
                 <Input label="Password" type="password" value={password}
                   onChange={e => setPass(e.target.value)} placeholder="At least 6 characters" />
                 <Input label="Confirm Password" type="password" value={confirmPass}
                   onChange={e => setConf(e.target.value)} placeholder="••••••••" />
+
+                {/* ── Consultant fields ── */}
+                {role === "consultant" && (<>
+                  <div className="border-t border-gray-100 my-4" />
+                  <Input label="Professional Headline" value={headline}
+                    onChange={e => setHeadline(e.target.value)}
+                    placeholder="e.g. SAP FICO Consultant · 8 yrs" />
+                  <Input label="Skills (comma-separated)" value={skills}
+                    onChange={e => setSkills(e.target.value)}
+                    placeholder="e.g. SAP, FICO, Finance, ERP" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input label="Years of Experience" type="number" value={yearsExp}
+                      onChange={e => setYearsExp(e.target.value)} placeholder="8" />
+                    <Input label="Hourly Rate (USD)" type="number" value={hourlyRate}
+                      onChange={e => setHourly(e.target.value)} placeholder="150" />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Expertise Level</label>
+                    <select value={expertiseLevel} onChange={e => setExpertise(e.target.value)}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
+                      <option value="junior">Junior</option>
+                      <option value="mid">Mid-Level</option>
+                      <option value="senior">Senior</option>
+                      <option value="expert">Expert / Principal</option>
+                    </select>
+                  </div>
+                </>)}
+
+                {/* ── Client fields ── */}
+                {role === "client" && (<>
+                  <div className="border-t border-gray-100 my-4" />
+                  <Input label="Company Name" value={companyName}
+                    onChange={e => setCompany(e.target.value)} placeholder="Acme Corp" />
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+                    <select value={industry} onChange={e => setIndustry(e.target.value)}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
+                      <option value="">Select industry…</option>
+                      <option value="technology">Technology</option>
+                      <option value="finance">Finance & Banking</option>
+                      <option value="healthcare">Healthcare</option>
+                      <option value="manufacturing">Manufacturing</option>
+                      <option value="retail">Retail & E-commerce</option>
+                      <option value="energy">Energy & Utilities</option>
+                      <option value="logistics">Logistics & Supply Chain</option>
+                      <option value="professional_services">Professional Services</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </>)}
+
                 <button onClick={createAccount} disabled={loading}
                   className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 mt-2">
                   {loading ? "Creating account…" : "Create Account →"}
