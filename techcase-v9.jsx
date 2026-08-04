@@ -21,6 +21,13 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
+import {
+  LayoutDashboard, FolderOpen, LayoutGrid, Target, Receipt, Clock,
+  Users, UserCheck, Settings, Database, Handshake, BarChart2, User,
+  Building2, Bell, FileText, DollarSign, Flag, CheckCircle2, PenLine,
+  Briefcase, Globe, Rocket, Zap, Phone, SlidersHorizontal, Check,
+  Activity, Inbox, ClipboardList,
+} from "lucide-react";
 
 // ============================================================
 // SUPABASE CLIENT
@@ -1232,12 +1239,12 @@ function AuthScreen({ onAuth }) {
                 <p className="text-sm text-gray-500 mb-5">Choose your account type to get the right experience.</p>
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { role: "consultant", icon: "🧑‍💼", label: "Consultant", desc: "I offer expertise and work on cases" },
-                    { role: "client",     icon: "🏢",   label: "Company / Client", desc: "I post cases and hire consultants" },
+                    { role: "consultant", Icon: Briefcase, label: "Consultant",       desc: "I offer expertise and work on cases" },
+                    { role: "client",     Icon: Building2, label: "Company / Client", desc: "I post cases and hire consultants" },
                   ].map(opt => (
                     <button key={opt.role} onClick={() => selectRole(opt.role)}
                       className="flex flex-col items-center gap-2 p-5 border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 rounded-2xl transition-all text-center group">
-                      <span className="text-3xl">{opt.icon}</span>
+                      <opt.Icon className="w-8 h-8 text-blue-600 group-hover:text-blue-700" />
                       <span className="font-semibold text-gray-900 text-sm group-hover:text-blue-700">{opt.label}</span>
                       <span className="text-xs text-gray-500 leading-snug">{opt.desc}</span>
                     </button>
@@ -1341,45 +1348,45 @@ function AuthScreen({ onAuth }) {
 function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
   const navItems = {
     admin: [
-      { id: "dashboard",    icon: "🏠", label: "Dashboard" },
-      { id: "cases",        icon: "📋", label: "Cases" },
-      { id: "kanban",       icon: "📌", label: "Kanban" },
-      { id: "arena",        icon: "⚔️",  label: "Arena" },
-      { id: "invoices",     icon: "🧾", label: "Invoices" },
-      { id: "time",         icon: "⏱", label: "Time Entries" },
-      { id: "users",        icon: "👥", label: "Users" },
-      { id: "sla",          icon: "📑", label: "SLA Config" },
-      { id: "db-connections", icon: "🔌", label: "DB Connections" },
-      { id: "team-members", icon: "🤝", label: "Client Teams" },
-      { id: "reports",      icon: "📊", label: "Reports" },
+      { id: "dashboard",      Icon: LayoutDashboard, label: "Dashboard" },
+      { id: "cases",          Icon: FolderOpen,      label: "Cases" },
+      { id: "kanban",         Icon: LayoutGrid,      label: "Kanban" },
+      { id: "arena",          Icon: Target,          label: "Arena" },
+      { id: "invoices",       Icon: Receipt,         label: "Invoices" },
+      { id: "time",           Icon: Clock,           label: "Time Entries" },
+      { id: "users",          Icon: Users,           label: "Users" },
+      { id: "sla",            Icon: Settings,        label: "SLA Config" },
+      { id: "db-connections", Icon: Database,        label: "DB Connections" },
+      { id: "team-members",   Icon: Handshake,       label: "Client Teams" },
+      { id: "reports",        Icon: BarChart2,       label: "Reports" },
     ],
     manager: [
-      { id: "dashboard",    icon: "🏠", label: "Dashboard" },
-      { id: "cases",        icon: "📋", label: "Cases" },
-      { id: "kanban",       icon: "📌", label: "Kanban" },
-      { id: "arena",        icon: "⚔️",  label: "Arena" },
-      { id: "invoices",     icon: "🧾", label: "Invoices" },
-      { id: "time",         icon: "⏱", label: "Time Entries" },
-      { id: "consultants",  icon: "🧑‍💼", label: "Consultants" },
-      { id: "sla",          icon: "📑", label: "SLA Config" },
-      { id: "db-connections", icon: "🔌", label: "DB Connections" },
-      { id: "team-members", icon: "🤝", label: "Client Teams" },
+      { id: "dashboard",      Icon: LayoutDashboard, label: "Dashboard" },
+      { id: "cases",          Icon: FolderOpen,      label: "Cases" },
+      { id: "kanban",         Icon: LayoutGrid,      label: "Kanban" },
+      { id: "arena",          Icon: Target,          label: "Arena" },
+      { id: "invoices",       Icon: Receipt,         label: "Invoices" },
+      { id: "time",           Icon: Clock,           label: "Time Entries" },
+      { id: "consultants",    Icon: UserCheck,       label: "Consultants" },
+      { id: "sla",            Icon: Settings,        label: "SLA Config" },
+      { id: "db-connections", Icon: Database,        label: "DB Connections" },
+      { id: "team-members",   Icon: Handshake,       label: "Client Teams" },
     ],
     consultant: [
-      { id: "dashboard", icon: "🏠", label: "Dashboard" },
-      { id: "arena",     icon: "⚔️",  label: "Arena" },
-      { id: "kanban",    icon: "📌", label: "Kanban" },
-      { id: "my-cases",  icon: "📋", label: "My Cases" },
-      { id: "time",      icon: "⏱", label: "Time Entries" },
-      { id: "profile",   icon: "👤", label: "My Profile" },
+      { id: "dashboard", Icon: LayoutDashboard, label: "Dashboard" },
+      { id: "arena",     Icon: Target,          label: "Arena" },
+      { id: "kanban",    Icon: LayoutGrid,      label: "Kanban" },
+      { id: "my-cases",  Icon: FolderOpen,      label: "My Cases" },
+      { id: "time",      Icon: Clock,           label: "Time Entries" },
+      { id: "profile",   Icon: User,            label: "My Profile" },
     ],
     client: [
-      { id: "dashboard",       icon: "🏠", label: "Dashboard" },
-      { id: "cases",           icon: "📋", label: "My Cases" },
-      { id: "kanban",          icon: "📌", label: "Kanban" },
-      { id: "invoices",        icon: "🧾", label: "Invoices" },
-      { id: "consultants",     icon: "🧑‍💼", label: "Consultants" },
-      { id: "client-profile",  icon: "🏢", label: "Company Profile" },
+      { id: "dashboard",      Icon: LayoutDashboard, label: "Dashboard" },
+      { id: "cases",          Icon: FolderOpen,      label: "My Cases" },
+      { id: "kanban",         Icon: LayoutGrid,      label: "Kanban" },
+      { id: "invoices",       Icon: Receipt,         label: "Invoices" },
+      { id: "consultants",    Icon: UserCheck,       label: "Consultants" },
+      { id: "client-profile", Icon: Building2,       label: "Company Profile" },
     ],
   };
 
@@ -1410,7 +1417,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
               activeView === item.id
                 ? "bg-blue-600 text-white shadow-md"
                 : "text-blue-200 hover:bg-blue-900 hover:text-white"}`}>
-            <span className="text-base">{item.icon}</span>
+            <item.Icon className="w-[18px] h-[18px] flex-shrink-0" />
             {item.label}
           </button>
         ))}
@@ -1421,7 +1428,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
             activeView === "notifications"
               ? "bg-blue-600 text-white shadow-md"
               : "text-blue-200 hover:bg-blue-900 hover:text-white"}`}>
-          <span className="text-base">🔔</span>
+          <Bell className="w-[18px] h-[18px] flex-shrink-0" />
           Notifications
           {unreadCount > 0 && (
             <span className="ml-auto bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
@@ -1490,25 +1497,25 @@ function Dashboard({ auth }) {
   // Stat tiles — each carries its pre-filtered items and type for the list panel
   const statDefs = {
     admin: [
-      { id: "total",    label: "Total Cases",  icon: "📋", color: "blue", type: "cases",        items: cases },
-      { id: "open",     label: "Open Cases",   icon: "🟢", color: "green",  type: "cases",        items: cases.filter(c => c.status === "open") },
-      { id: "progress", label: "In Progress",  icon: "🔵", color: "blue",   type: "cases",        items: cases.filter(c => c.status === "in_progress") },
-      { id: "apps",     label: "Applications", icon: "📝", color: "purple", type: "applications", items: applications },
+      { id: "total",    label: "Total Cases",  Icon: FolderOpen,    color: "blue",   type: "cases",        items: cases },
+      { id: "open",     label: "Open Cases",   Icon: Inbox,         color: "green",  type: "cases",        items: cases.filter(c => c.status === "open") },
+      { id: "progress", label: "In Progress",  Icon: Activity,      color: "blue",   type: "cases",        items: cases.filter(c => c.status === "in_progress") },
+      { id: "apps",     label: "Applications", Icon: ClipboardList, color: "purple", type: "applications", items: applications },
     ],
     manager: [
-      { id: "mycases",  label: "My Cases",        icon: "📋", color: "blue", type: "cases",        items: managedCases },
-      { id: "open",     label: "Open Cases",       icon: "🟢", color: "green",  type: "cases",        items: cases.filter(c => c.status === "open") },
-      { id: "pending",  label: "Pending Reviews",  icon: "⏳", color: "yellow", type: "applications", items: applications.filter(a => a.status === "pending") },
+      { id: "mycases",  label: "My Cases",       Icon: FolderOpen,    color: "blue",   type: "cases",        items: managedCases },
+      { id: "open",     label: "Open Cases",      Icon: Inbox,         color: "green",  type: "cases",        items: cases.filter(c => c.status === "open") },
+      { id: "pending",  label: "Pending Reviews", Icon: Clock,         color: "yellow", type: "applications", items: applications.filter(a => a.status === "pending") },
     ],
     consultant: [
-      { id: "myapps",   label: "My Applications", icon: "📝", color: "blue", type: "applications", items: myApplications },
-      { id: "accepted", label: "Accepted",         icon: "✅", color: "green",  type: "applications", items: myApplications.filter(a => a.status === "accepted") },
-      { id: "open",     label: "Open Cases",       icon: "🔓", color: "blue",   type: "cases",        items: availableCases },
+      { id: "myapps",   label: "My Applications", Icon: ClipboardList, color: "blue",  type: "applications", items: myApplications },
+      { id: "accepted", label: "Accepted",         Icon: CheckCircle2,  color: "green", type: "applications", items: myApplications.filter(a => a.status === "accepted") },
+      { id: "open",     label: "Open Cases",       Icon: Inbox,         color: "blue",  type: "cases",        items: availableCases },
     ],
     client: [
-      { id: "mycases",   label: "My Cases",   icon: "📋", color: "blue", type: "cases", items: myCases },
-      { id: "active",    label: "Active",     icon: "🔵", color: "blue",   type: "cases", items: myCases.filter(c => c.status === "in_progress") },
-      { id: "completed", label: "Completed",  icon: "✅", color: "green",  type: "cases", items: myCases.filter(c => c.status === "completed") },
+      { id: "mycases",   label: "My Cases",  Icon: FolderOpen,   color: "blue",  type: "cases", items: myCases },
+      { id: "active",    label: "Active",    Icon: Activity,     color: "blue",  type: "cases", items: myCases.filter(c => c.status === "in_progress") },
+      { id: "completed", label: "Completed", Icon: CheckCircle2, color: "green", type: "cases", items: myCases.filter(c => c.status === "completed") },
     ],
   };
 
@@ -1557,8 +1564,8 @@ function Dashboard({ auth }) {
               className={`text-left bg-white rounded-2xl p-6 shadow-sm border transition-all ${
                 isActive ? `ring-2 ${colorMap[s.color].ring} border-transparent` : "border-gray-100 hover:shadow-md hover:border-gray-200"
               }`}>
-              <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl text-xl mb-3 ${colorMap[s.color].icon}`}>
-                {s.icon}
+              <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl mb-3 ${colorMap[s.color].icon}`}>
+                <s.Icon className="w-5 h-5" />
               </div>
               <div className="text-3xl font-bold text-gray-900">{s.items.length}</div>
               <div className="text-sm text-gray-500 mt-1">{s.label}</div>
@@ -1573,7 +1580,7 @@ function Dashboard({ auth }) {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-6">
           <div className="p-5 border-b border-gray-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-lg">{activeStat.icon}</span>
+              <activeStat.Icon className="w-5 h-5 text-gray-500" />
               <h2 className="text-base font-bold text-gray-900">{activeStat.label}</h2>
               <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs font-semibold rounded-lg">{activeStat.items.length}</span>
             </div>
@@ -1807,10 +1814,10 @@ const SLA_PRESETS = [
 ];
 
 const CREATE_CASE_STEPS = [
-  { id: "basics",     label: "Case Info",  icon: "📋", desc: "Title & description" },
-  { id: "scope",      label: "Scope",      icon: "💰", desc: "Budget, dates & skills" },
-  { id: "milestones", label: "Milestones", icon: "🏁", desc: "Key deliverables" },
-  { id: "review",     label: "Review",     icon: "✅", desc: "Confirm & create" },
+  { id: "basics",     label: "Case Info",  Icon: FileText,     desc: "Title & description" },
+  { id: "scope",      label: "Scope",      Icon: DollarSign,   desc: "Budget, dates & skills" },
+  { id: "milestones", label: "Milestones", Icon: Flag,         desc: "Key deliverables" },
+  { id: "review",     label: "Review",     Icon: CheckCircle2, desc: "Confirm & create" },
 ];
 
 function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
@@ -2127,9 +2134,9 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
 // ============================================================
 
 const APPLY_STEPS = [
-  { id: "brief",  label: "Case Brief",  icon: "📋", desc: "What you're applying for" },
-  { id: "pitch",  label: "Your Pitch",  icon: "✍️",  desc: "Why you're the right fit" },
-  { id: "terms",  label: "Terms",       icon: "💼", desc: "Rate & availability" },
+  { id: "brief",  label: "Case Brief",  Icon: FileText,  desc: "What you're applying for" },
+  { id: "pitch",  label: "Your Pitch",  Icon: PenLine,   desc: "Why you're the right fit" },
+  { id: "terms",  label: "Terms",       Icon: Briefcase, desc: "Rate & availability" },
   { id: "review", label: "Review",      icon: "✅", desc: "Confirm & submit" },
 ];
 
@@ -5916,11 +5923,11 @@ function TimeEntriesView({ auth }) {
 // ============================================================
 
 const ONBOARDING_STEPS = [
-  { id: "basics",    label: "Basic Info",          icon: "👤", desc: "Headline, bio & rates" },
-  { id: "workauth",  label: "Work Authorization",  icon: "🌍", desc: "Countries you can work in" },
-  { id: "customers", label: "Past Customers",      icon: "💼", desc: "Employer & client history" },
-  { id: "projects",  label: "Projects",            icon: "🚀", desc: "Portfolio & past work" },
-  { id: "skills",    label: "Skills",              icon: "⚡", desc: "Technical expertise" },
+  { id: "basics",    label: "Basic Info",          Icon: User,      desc: "Headline, bio & rates" },
+  { id: "workauth",  label: "Work Authorization",  Icon: Globe,     desc: "Countries you can work in" },
+  { id: "customers", label: "Past Customers",      Icon: Briefcase, desc: "Employer & client history" },
+  { id: "projects",  label: "Projects",            Icon: Rocket,    desc: "Portfolio & past work" },
+  { id: "skills",    label: "Skills",              Icon: Zap,       desc: "Technical expertise" },
 ];
 
 function OnboardingRoadmap({ steps, current }) {
@@ -5934,11 +5941,11 @@ function OnboardingRoadmap({ steps, current }) {
           const active = i === current;
           return (
             <div key={s.id} className="relative z-10 flex flex-col items-center flex-1 gap-2">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-bold transition-all ${
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
                 done   ? "bg-emerald-500 text-white shadow"
                        : active ? "bg-blue-600 text-white shadow-lg ring-4 ring-blue-100"
                                 : "bg-white border-2 border-gray-200 text-gray-400"}`}>
-                {done ? "✓" : s.icon}
+                {done ? <Check className="w-4 h-4" /> : <s.Icon className="w-4 h-4" />}
               </div>
               <div className="text-center px-1">
                 <div className={`text-xs font-semibold leading-tight ${
@@ -6329,9 +6336,9 @@ function ConsultantOnboardingView({ auth, onComplete }) {
 // ============================================================
 
 const ONBOARDING_STEPS_CLIENT = [
-  { id: "company", label: "Company Info",   icon: "🏢", desc: "Basic company details" },
-  { id: "contact", label: "Primary Contact",icon: "👤", desc: "Who we'll work with" },
-  { id: "prefs",   label: "Preferences",    icon: "⚙️",  desc: "Consulting needs & budget" },
+  { id: "company", label: "Company Info",    Icon: Building2,         desc: "Basic company details" },
+  { id: "contact", label: "Primary Contact", Icon: Phone,             desc: "Who we'll work with" },
+  { id: "prefs",   label: "Preferences",     Icon: SlidersHorizontal, desc: "Consulting needs & budget" },
 ];
 
 function ClientOnboardingView({ auth, onComplete }) {
