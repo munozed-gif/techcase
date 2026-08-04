@@ -819,7 +819,7 @@ function useLeaderboard() {
 // UTILITIES
 // ============================================================
 const ROLE_COLORS = {
-  admin:      { bg: "bg-purple-100", text: "text-purple-800", dot: "bg-purple-500" },
+  admin:      { bg: "bg-violet-100", text: "text-violet-800", dot: "bg-violet-500" },
   manager:    { bg: "bg-blue-100",   text: "text-blue-800",   dot: "bg-blue-500" },
   consultant: { bg: "bg-green-100",  text: "text-green-800",  dot: "bg-green-500" },
   client:     { bg: "bg-orange-100", text: "text-orange-800", dot: "bg-orange-500" },
@@ -888,7 +888,7 @@ function Badge({ children, className = "" }) {
 function Spinner() {
   return (
     <div className="flex items-center justify-center h-48">
-      <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+      <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
     </div>
   );
 }
@@ -922,9 +922,9 @@ function Modal({ open, onClose, title, children, wide = false }) {
 function Input({ label, ...props }) {
   return (
     <div className="mb-4">
-      {label && <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>}
+      {label && <label className="block text-sm font-medium text-[#1C3557] mb-1">{label}</label>}
       <input
-        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        className="w-full bg-gray-100 border-0 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm"
         {...props}
       />
     </div>
@@ -937,7 +937,7 @@ function Textarea({ label, ...props }) {
       {label && <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>}
       <textarea
         rows={4}
-        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
         {...props}
       />
     </div>
@@ -949,7 +949,7 @@ function Select({ label, options, ...props }) {
     <div className="mb-4">
       {label && <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>}
       <select
-        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
         {...props}
       >
         {options.map(o => (
@@ -1118,11 +1118,15 @@ function AuthScreen({ onAuth }) {
 
   const logo = (
     <div className="text-center mb-8">
-      <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-4 shadow-lg">
-        <span className="text-white text-2xl font-bold">TC</span>
+      <div className="inline-flex items-center justify-center mb-4">
+        <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+          <polygon points="40,4 74,22 74,58 40,76 6,58 6,22" fill="#1A4B8C" stroke="#5B9BD5" strokeWidth="3"/>
+          <circle cx="40" cy="40" r="22" fill="#153A6E"/>
+          <text x="40" y="46" textAnchor="middle" fill="#93C5FD" fontSize="16" fontWeight="bold" fontFamily="Arial, sans-serif">TC</text>
+        </svg>
       </div>
-      <h1 className="text-3xl font-bold text-gray-900">TechCase</h1>
-      <p className="text-gray-500 mt-1">Consultant case management platform</p>
+      <h1 className="text-3xl font-bold text-[#1C3557]">TechCase</h1>
+      <p className="text-blue-500 mt-1">Consultant case management platform</p>
     </div>
   );
 
@@ -1143,7 +1147,7 @@ function AuthScreen({ onAuth }) {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#D0E8F7] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {logo}
 
@@ -1157,7 +1161,7 @@ function AuthScreen({ onAuth }) {
               onChange={e => setSiPass(e.target.value)} placeholder="••••••••" />
             {errorBox}
             <button onClick={handleSignIn} disabled={loading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 mt-2">
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 mt-2">
               {loading ? "Signing in…" : "Sign In"}
             </button>
           </div>
@@ -1174,12 +1178,12 @@ function AuthScreen({ onAuth }) {
               {SIGNUP_STEPS.map((s, i) => (
                 <div key={s.id} className="relative z-10 flex flex-col items-center flex-1 gap-1.5">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ring-2 transition-all ${
-                    i < step  ? "bg-emerald-500 text-white ring-emerald-200"
-                    : i === step ? "bg-indigo-600 text-white ring-indigo-200"
-                                 : "bg-white text-gray-400 ring-gray-200"}`}>
+                    i < step  ? "bg-emerald-500 text-white ring-emerald-100"
+                    : i === step ? "bg-[#1C3557] text-white ring-blue-200"
+                                 : "bg-gray-100 text-gray-400 ring-gray-200"}`}>
                     {i < step ? "✓" : i + 1}
                   </div>
-                  <span className={`text-xs font-medium ${i === step ? "text-indigo-600" : i < step ? "text-emerald-600" : "text-gray-400"}`}>
+                  <span className={`text-xs font-medium ${i === step ? "text-[#1C3557]" : i < step ? "text-emerald-600" : "text-gray-400"}`}>
                     {s.label}
                   </span>
                 </div>
@@ -1195,12 +1199,12 @@ function AuthScreen({ onAuth }) {
                   onChange={e => setEmail(e.target.value)} placeholder="you@company.com" />
                 {!codeSent ? (
                   <button onClick={sendCode} disabled={loading}
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50">
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50">
                     {loading ? "Sending…" : "Send Verification Code →"}
                   </button>
                 ) : (
                   <>
-                    <div className="mb-4 p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-sm text-indigo-700">
+                    <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-xl text-sm text-blue-700">
                       ✉️ Code sent to <strong>{email}</strong> — check your inbox.
                     </div>
                     <Input label="Verification Code" value={code}
@@ -1212,7 +1216,7 @@ function AuthScreen({ onAuth }) {
                         Resend
                       </button>
                       <button onClick={verifyCode} disabled={loading || code.length < 4}
-                        className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors disabled:opacity-50">
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors disabled:opacity-50">
                         {loading ? "Verifying…" : "Verify →"}
                       </button>
                     </div>
@@ -1232,9 +1236,9 @@ function AuthScreen({ onAuth }) {
                     { role: "client",     icon: "🏢",   label: "Company / Client", desc: "I post cases and hire consultants" },
                   ].map(opt => (
                     <button key={opt.role} onClick={() => selectRole(opt.role)}
-                      className="flex flex-col items-center gap-2 p-5 border-2 border-gray-200 hover:border-indigo-400 hover:bg-indigo-50 rounded-2xl transition-all text-center group">
+                      className="flex flex-col items-center gap-2 p-5 border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 rounded-2xl transition-all text-center group">
                       <span className="text-3xl">{opt.icon}</span>
-                      <span className="font-semibold text-gray-900 text-sm group-hover:text-indigo-700">{opt.label}</span>
+                      <span className="font-semibold text-gray-900 text-sm group-hover:text-blue-700">{opt.label}</span>
                       <span className="text-xs text-gray-500 leading-snug">{opt.desc}</span>
                     </button>
                   ))}
@@ -1280,7 +1284,7 @@ function AuthScreen({ onAuth }) {
                   <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Expertise Level</label>
                     <select value={expertiseLevel} onChange={e => setExpertise(e.target.value)}
-                      className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
                       <option value="junior">Junior</option>
                       <option value="mid">Mid-Level</option>
                       <option value="senior">Senior</option>
@@ -1297,7 +1301,7 @@ function AuthScreen({ onAuth }) {
                   <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
                     <select value={industry} onChange={e => setIndustry(e.target.value)}
-                      className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
                       <option value="">Select industry…</option>
                       <option value="technology">Technology</option>
                       <option value="finance">Finance & Banking</option>
@@ -1313,7 +1317,7 @@ function AuthScreen({ onAuth }) {
                 </>)}
 
                 <button onClick={createAccount} disabled={loading}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 mt-2">
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 mt-2">
                   {loading ? "Creating account…" : "Create Account →"}
                 </button>
                 <button onClick={() => setStep(1)}
@@ -1382,16 +1386,18 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
   const items = navItems[role] ?? [];
 
   return (
-    <aside className="w-64 bg-gray-900 text-white flex flex-col h-screen fixed left-0 top-0 z-40">
+    <aside className="w-64 bg-[#1C3557] text-white flex flex-col h-screen fixed left-0 top-0 z-40">
       {/* Logo */}
-      <div className="p-6 border-b border-gray-800">
+      <div className="p-6 border-b border-blue-900">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center">
-            <span className="text-white text-sm font-bold">TC</span>
-          </div>
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+            <polygon points="18,2 33,10 33,26 18,34 3,26 3,10" fill="#1A4B8C" stroke="#5B9BD5" strokeWidth="2"/>
+            <circle cx="18" cy="18" r="9" fill="#153A6E"/>
+            <text x="18" y="22" textAnchor="middle" fill="#93C5FD" fontSize="9" fontWeight="bold" fontFamily="Arial">TC</text>
+          </svg>
           <div>
             <div className="font-bold text-white">TechCase</div>
-            <div className="text-xs text-gray-400 capitalize">{role} Portal</div>
+            <div className="text-xs text-blue-300 capitalize">{role} Portal</div>
           </div>
         </div>
       </div>
@@ -1402,8 +1408,8 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
           <button key={item.id} onClick={() => onNav(item.id)}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
               activeView === item.id
-                ? "bg-indigo-600 text-white"
-                : "text-gray-400 hover:bg-gray-800 hover:text-white"}`}>
+                ? "bg-blue-600 text-white shadow-md"
+                : "text-blue-200 hover:bg-blue-900 hover:text-white"}`}>
             <span className="text-base">{item.icon}</span>
             {item.label}
           </button>
@@ -1413,8 +1419,8 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
         <button onClick={() => onNav("notifications")}
           className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
             activeView === "notifications"
-              ? "bg-indigo-600 text-white"
-              : "text-gray-400 hover:bg-gray-800 hover:text-white"}`}>
+              ? "bg-blue-600 text-white shadow-md"
+              : "text-blue-200 hover:bg-blue-900 hover:text-white"}`}>
           <span className="text-base">🔔</span>
           Notifications
           {unreadCount > 0 && (
@@ -1426,18 +1432,18 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
       </nav>
 
       {/* User footer */}
-      <div className="p-4 border-t border-gray-800">
+      <div className="p-4 border-t border-blue-900">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold">
+          <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold">
             {profile?.full_name?.[0] ?? "?"}
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium text-white truncate">{profile?.full_name ?? "User"}</div>
-            <div className="text-xs text-gray-400 truncate">{profile?.email}</div>
+            <div className="text-xs text-blue-300 truncate">{profile?.email}</div>
           </div>
         </div>
         <button onClick={onSignOut}
-          className="w-full text-sm text-gray-400 hover:text-white py-1.5 px-3 rounded-lg hover:bg-gray-800 transition-colors text-left">
+          className="w-full text-sm text-blue-300 hover:text-white py-1.5 px-3 rounded-lg hover:bg-blue-900 transition-colors text-left">
           Sign Out
         </button>
       </div>
@@ -1484,23 +1490,23 @@ function Dashboard({ auth }) {
   // Stat tiles — each carries its pre-filtered items and type for the list panel
   const statDefs = {
     admin: [
-      { id: "total",    label: "Total Cases",  icon: "📋", color: "indigo", type: "cases",        items: cases },
+      { id: "total",    label: "Total Cases",  icon: "📋", color: "blue", type: "cases",        items: cases },
       { id: "open",     label: "Open Cases",   icon: "🟢", color: "green",  type: "cases",        items: cases.filter(c => c.status === "open") },
       { id: "progress", label: "In Progress",  icon: "🔵", color: "blue",   type: "cases",        items: cases.filter(c => c.status === "in_progress") },
       { id: "apps",     label: "Applications", icon: "📝", color: "purple", type: "applications", items: applications },
     ],
     manager: [
-      { id: "mycases",  label: "My Cases",        icon: "📋", color: "indigo", type: "cases",        items: managedCases },
+      { id: "mycases",  label: "My Cases",        icon: "📋", color: "blue", type: "cases",        items: managedCases },
       { id: "open",     label: "Open Cases",       icon: "🟢", color: "green",  type: "cases",        items: cases.filter(c => c.status === "open") },
       { id: "pending",  label: "Pending Reviews",  icon: "⏳", color: "yellow", type: "applications", items: applications.filter(a => a.status === "pending") },
     ],
     consultant: [
-      { id: "myapps",   label: "My Applications", icon: "📝", color: "indigo", type: "applications", items: myApplications },
+      { id: "myapps",   label: "My Applications", icon: "📝", color: "blue", type: "applications", items: myApplications },
       { id: "accepted", label: "Accepted",         icon: "✅", color: "green",  type: "applications", items: myApplications.filter(a => a.status === "accepted") },
       { id: "open",     label: "Open Cases",       icon: "🔓", color: "blue",   type: "cases",        items: availableCases },
     ],
     client: [
-      { id: "mycases",   label: "My Cases",   icon: "📋", color: "indigo", type: "cases", items: myCases },
+      { id: "mycases",   label: "My Cases",   icon: "📋", color: "blue", type: "cases", items: myCases },
       { id: "active",    label: "Active",     icon: "🔵", color: "blue",   type: "cases", items: myCases.filter(c => c.status === "in_progress") },
       { id: "completed", label: "Completed",  icon: "✅", color: "green",  type: "cases", items: myCases.filter(c => c.status === "completed") },
     ],
@@ -1510,10 +1516,10 @@ function Dashboard({ auth }) {
   const activeStat = myStats.find(s => s.id === activeTab);
 
   const colorMap = {
-    indigo: { icon: "bg-indigo-50 text-indigo-600", ring: "ring-indigo-400 bg-indigo-50" },
+    blue:   { icon: "bg-blue-50 text-blue-600", ring: "ring-blue-400 bg-blue-50" },
     green:  { icon: "bg-green-50 text-green-600",   ring: "ring-green-400 bg-green-50" },
     blue:   { icon: "bg-blue-50 text-blue-600",     ring: "ring-blue-400 bg-blue-50" },
-    purple: { icon: "bg-purple-50 text-purple-600", ring: "ring-purple-400 bg-purple-50" },
+    purple: { icon: "bg-sky-50 text-sky-600", ring: "ring-sky-400 bg-sky-50" },
     yellow: { icon: "bg-yellow-50 text-yellow-600", ring: "ring-yellow-400 bg-yellow-50" },
   };
 
@@ -1521,7 +1527,7 @@ function Dashboard({ auth }) {
 
   if (applyingToCase) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
+      <div className="min-h-screen bg-[#EAF4FD] p-6">
         <ApplyWizard
           caseData={applyingToCase}
           auth={auth}
@@ -1582,7 +1588,7 @@ function Dashboard({ auth }) {
             {activeStat.type === "cases" && activeStat.items.map(c => (
               <div key={c.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-9 h-9 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 font-bold text-sm flex-shrink-0">
+                  <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 font-bold text-sm flex-shrink-0">
                     {c.title?.[0]}
                   </div>
                   <div className="min-w-0">
@@ -1598,7 +1604,7 @@ function Dashboard({ auth }) {
                   <Badge className={STATUS_COLORS[c.status]}>{cap(fmt(c.status))}</Badge>
                   {activeStat.id === "open" && auth.isConsultant && !appliedCaseIds.has(c.id) && (
                     <button onClick={() => setApplying(c)}
-                      className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors">
+                      className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors">
                       Apply →
                     </button>
                   )}
@@ -1610,7 +1616,7 @@ function Dashboard({ auth }) {
             {activeStat.type === "applications" && activeStat.items.map(a => (
               <div key={a.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-9 h-9 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600 font-bold text-sm flex-shrink-0">
+                  <div className="w-9 h-9 bg-violet-100 rounded-xl flex items-center justify-center text-blue-600 font-bold text-sm flex-shrink-0">
                     {(a.case?.title ?? a.consultant?.full_name ?? "?")?.[0]}
                   </div>
                   <div className="min-w-0">
@@ -1652,18 +1658,18 @@ function Dashboard({ auth }) {
               {/* Filters */}
               <div className="px-5 py-3 border-b border-gray-100 flex flex-wrap gap-2 bg-gray-50/50">
                 <select value={filterSap} onChange={e => setFilterSap(e.target.value)}
-                  className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">All SAP Areas</option>
                   {SAP_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
                 <select value={filterIndustry} onChange={e => setFilterInd(e.target.value)}
-                  className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">All Industries</option>
                   {INDUSTRY_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
                 <input type="date" value={filterStartFrom} onChange={e => setStartFrom(e.target.value)}
                   title="Start date from"
-                  className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 {(filterSap || filterIndustry || filterStartFrom) && (
                   <button onClick={() => { setFilterSap(""); setFilterInd(""); setStartFrom(""); }}
                     className="text-xs text-gray-400 hover:text-gray-600 px-2">✕ Clear</button>
@@ -1679,7 +1685,7 @@ function Dashboard({ auth }) {
                   <button key={t.id} onClick={() => setAvailTab(t.id)}
                     className={`px-5 py-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-1.5 ${
                       availTab === t.id
-                        ? "border-indigo-600 text-indigo-600"
+                        ? "border-blue-600 text-blue-600"
                         : "border-transparent text-gray-500 hover:text-gray-700"
                     }`}>
                     {t.label}
@@ -1713,7 +1719,7 @@ function Dashboard({ auth }) {
                               <span className="font-semibold text-gray-900 text-sm">{c.title}</span>
                               <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
                               {c.area_sap      && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{c.area_sap}</span>}
-                              {c.area_industry && <span className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium">{c.area_industry}</span>}
+                              {c.area_industry && <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg text-xs font-medium">{c.area_industry}</span>}
                             </div>
                             {/* Company + follow button */}
                             {companyName && (
@@ -1737,7 +1743,7 @@ function Dashboard({ auth }) {
                             </div>
                           </div>
                           <button onClick={() => setApplying(c)}
-                            className="flex-shrink-0 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm">
+                            className="flex-shrink-0 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm">
                             Apply →
                           </button>
                         </div>
@@ -1760,7 +1766,7 @@ function Dashboard({ auth }) {
               {(auth.isConsultant ? assignedCases : cases.slice(0, 5)).map(c => (
                 <div key={c.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 font-bold text-sm">
+                    <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 font-bold text-sm">
                       {c.title?.[0]}
                     </div>
                     <div>
@@ -1893,7 +1899,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
                 options={["low","medium","high","critical"].map(s => ({ value: s, label: cap(s) }))} />
               <div className="flex items-end pb-1">
                 <span className="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 w-full">
-                  Status: <span className="font-semibold text-indigo-600">Open</span> (set automatically)
+                  Status: <span className="font-semibold text-blue-600">Open</span> (set automatically)
                 </span>
               </div>
             </div>
@@ -1902,7 +1908,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
                 <label className="block text-sm font-medium text-gray-700 mb-1">SAP Area</label>
                 <select value={basics.area_sap}
                   onChange={e => setBasics(p => ({ ...p, area_sap: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">— None / Not applicable —</option>
                   {SAP_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
@@ -1911,7 +1917,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
                 <select value={basics.area_industry}
                   onChange={e => setBasics(p => ({ ...p, area_industry: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">— Select industry —</option>
                   {INDUSTRY_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
@@ -1930,7 +1936,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
                 <select value={scope.client_id}
                   onChange={e => setScope(p => ({ ...p, client_id: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">— Select client —</option>
                   {clients.map(c => (
                     <option key={c.id} value={c.id}>
@@ -1955,7 +1961,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
                       due_date: preset?.days ? daysFromNow(preset.days) : p.due_date,
                     }));
                   }}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                   {SLA_PRESETS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
@@ -2010,7 +2016,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
               <Textarea label="Notes (optional)" value={mlForm.description}
                 onChange={e => setMlForm(p => ({ ...p, description: e.target.value }))} />
               <button onClick={addMilestone} disabled={!mlForm.title.trim()}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
                 + Add Milestone
               </button>
             </div>
@@ -2031,7 +2037,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
                   <Badge className={PRIORITY_COLORS[basics.priority]}>{cap(basics.priority)}</Badge>
                   <Badge className={STATUS_COLORS["open"]}>Open</Badge>
                   {basics.area_sap && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs">{basics.area_sap}</span>}
-                  {basics.area_industry && <span className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded-lg text-xs">{basics.area_industry}</span>}
+                  {basics.area_industry && <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg text-xs">{basics.area_industry}</span>}
                 </div>
               </div>
               <div className="border border-gray-100 rounded-xl p-4">
@@ -2048,7 +2054,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
                       <span className="text-gray-400">Due:</span>
                       <span className="font-medium ml-1">{fmtDate(scope.due_date)}</span>
                       {scope.sla !== "custom" && (
-                        <span className="ml-1 text-xs text-indigo-500">({SLA_PRESETS.find(p => p.value === scope.sla)?.label})</span>
+                        <span className="ml-1 text-xs text-blue-500">({SLA_PRESETS.find(p => p.value === scope.sla)?.label})</span>
                       )}
                     </div>
                   )}
@@ -2073,7 +2079,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
                   : <ul className="space-y-1.5">
                       {milestones.map((m, i) => (
                         <li key={i} className="flex items-center gap-2 text-sm text-gray-700">
-                          <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full flex-shrink-0" />
+                          <span className="w-1.5 h-1.5 bg-blue-400 rounded-full flex-shrink-0" />
                           <span className="font-medium">{m.title}</span>
                           {m.due_date && <span className="text-gray-400 text-xs">— {fmtDate(m.due_date)}</span>}
                         </li>
@@ -2101,12 +2107,12 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
           {!isLast ? (
             <button onClick={() => setSt(s => s + 1)}
               disabled={step === 0 && !basics.title.trim()}
-              className="px-7 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
+              className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
               Continue →
             </button>
           ) : (
             <button onClick={handleCreate} disabled={creating}
-              className="px-7 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
+              className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
               {creating ? "Creating…" : "✓ Create Case"}
             </button>
           )}
@@ -2210,7 +2216,7 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
                   <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Skills Required</div>
                   <div className="flex flex-wrap gap-2">
                     {caseData.skills_required.map(s => (
-                      <span key={s} className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-medium">{s}</span>
+                      <span key={s} className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{s}</span>
                     ))}
                   </div>
                 </div>
@@ -2241,12 +2247,12 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
               placeholder="e.g. 150" />
             <div className="mt-4">
               <label className="block text-sm font-medium text-gray-700 mb-3">
-                Time Commitment — <span className="text-indigo-600 font-bold">{terms.time_commitment}%</span> of your available time
+                Time Commitment — <span className="text-blue-600 font-bold">{terms.time_commitment}%</span> of your available time
               </label>
               <input type="range" min="10" max="100" step="10"
                 value={terms.time_commitment}
                 onChange={e => setTerms(p => ({ ...p, time_commitment: Number(e.target.value) }))}
-                className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-indigo-600" />
+                className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-blue-600" />
               <div className="flex justify-between text-xs text-gray-400 mt-1.5">
                 <span>10%</span><span>50%</span><span>100%</span>
               </div>
@@ -2307,12 +2313,12 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
         </button>
         {!isLast ? (
           <button onClick={() => setSt(s => s + 1)}
-            className="px-7 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-colors shadow-md">
+            className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-colors shadow-md">
             Continue →
           </button>
         ) : (
           <button onClick={handleSubmit} disabled={submitting}
-            className="px-7 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
+            className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
             {submitting ? "Submitting…" : "✓ Submit Application"}
           </button>
         )}
@@ -2353,7 +2359,7 @@ function CasesView({ auth }) {
 
   if (showCreate) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
+      <div className="min-h-screen bg-[#EAF4FD] p-6">
         <CreateCaseWizard
           auth={auth}
           createCase={createCase}
@@ -2374,7 +2380,7 @@ function CasesView({ auth }) {
         </div>
         {(auth.isAdmin || auth.isManager || auth.isClient) && (
           <button onClick={() => setShowCreate(true)}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
             + New Case
           </button>
         )}
@@ -2384,9 +2390,9 @@ function CasesView({ auth }) {
       <div className="flex flex-wrap gap-3 mb-6">
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search cases…"
-          className="border border-gray-200 rounded-xl px-4 py-2 text-sm flex-1 min-w-48 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          className="border border-gray-200 rounded-xl px-4 py-2 text-sm flex-1 min-w-48 focus:outline-none focus:ring-2 focus:ring-blue-500" />
         <select value={statusFilter} onChange={e => setStatus(e.target.value)}
-          className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
           <option value="">All Statuses</option>
           {["open","in_progress","on_hold","completed","cancelled"].map(s => (
             <option key={s} value={s}>{cap(fmt(s))}</option>
@@ -2587,7 +2593,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
           <span className="font-semibold text-gray-800">{progressPct}%</span>
         </div>
         <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
-          <div className="h-full bg-indigo-500 rounded-full transition-all"
+          <div className="h-full bg-blue-500 rounded-full transition-all"
             style={{ width: `${progressPct}%` }} />
         </div>
         {milestones.length > 0 && (
@@ -2613,7 +2619,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
             <Badge className={STATUS_COLORS[caseData.status]}>{cap(fmt(caseData.status))}</Badge>
             <Badge className={PRIORITY_COLORS[caseData.priority]}>{cap(caseData.priority)}</Badge>
             {caseData.parent_case_id && (
-              <Badge className="bg-purple-100 text-purple-700">Sub-case</Badge>
+              <Badge className="bg-violet-100 text-blue-700">Sub-case</Badge>
             )}
           </div>
           <p className="text-gray-700 text-sm leading-relaxed">{caseData.description || "No description provided."}</p>
@@ -2628,7 +2634,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Skills Required</div>
               <div className="flex flex-wrap gap-2">
                 {caseData.skills_required.map(s => (
-                  <span key={s} className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs">{s}</span>
+                  <span key={s} className="px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs">{s}</span>
                 ))}
               </div>
             </div>
@@ -2644,7 +2650,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
                 </div>
               ) : onApply ? (
                 <button onClick={onApply}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors shadow-sm">
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors shadow-sm">
                   Apply to This Case →
                 </button>
               ) : null}
@@ -2711,9 +2717,9 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
               <input value={newMilestone} onChange={e => setNewMilestone(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleAddMilestone()}
                 placeholder="Add milestone…"
-                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               <button onClick={handleAddMilestone}
-                className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700">
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">
                 Add
               </button>
             </div>
@@ -2729,7 +2735,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
               <div key={c.id} className={`rounded-xl p-4 text-sm border ${c.is_internal ? "bg-amber-50 border-amber-200" : "bg-gray-50 border-gray-100"}`}>
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-indigo-200 text-indigo-700 text-xs flex items-center justify-center font-bold">
+                    <div className="w-6 h-6 rounded-full bg-blue-200 text-blue-700 text-xs flex items-center justify-center font-bold">
                       {c.author?.full_name?.[0] ?? "?"}
                     </div>
                     <span className="font-medium text-gray-900">{c.author?.full_name ?? "Unknown"}</span>
@@ -2759,26 +2765,26 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
                 <label className="block text-xs font-medium text-gray-600 mb-1">Hours Logged</label>
                 <input type="number" min="0" value={commentForm.hoursLogged}
                   onChange={e => setCommentForm(p => ({ ...p, hoursLogged: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Update Progress % (optional)</label>
                 <input type="number" min="0" max="100" value={commentForm.progressUpdate}
                   onChange={e => setCommentForm(p => ({ ...p, progressUpdate: e.target.value }))}
                   placeholder="e.g. 75"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
             </div>
             {(auth.isAdmin || auth.isManager) && (
               <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
                 <input type="checkbox" checked={commentForm.isInternal}
                   onChange={e => setCommentForm(p => ({ ...p, isInternal: e.target.checked }))}
-                  className="rounded accent-indigo-600" />
+                  className="rounded accent-blue-600" />
                 Internal note (not visible to clients)
               </label>
             )}
             <button onClick={handleComment} disabled={sendingComment}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2 rounded-xl disabled:opacity-50">
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2 rounded-xl disabled:opacity-50">
               {sendingComment ? "Posting…" : "Post Comment"}
             </button>
           </div>
@@ -2797,7 +2803,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
             </p>
             {canAddSubCase && !showSubCaseForm && (
               <button onClick={() => setShowSubCaseForm(true)}
-                className="px-4 py-1.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700">
+                className="px-4 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">
                 + New Sub-case
               </button>
             )}
@@ -2805,7 +2811,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
 
           {/* Create sub-case form */}
           {showSubCaseForm && (
-            <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 space-y-3">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
               <h4 className="font-semibold text-gray-900 text-sm">New Sub-case</h4>
               <Input label="Title" value={subCaseForm.title}
                 onChange={e => setSubCaseForm(p => ({ ...p, title: e.target.value }))}
@@ -2825,7 +2831,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
                 <button onClick={() => setShowSubCaseForm(false)}
                   className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
                 <button onClick={handleCreateSubCase} disabled={savingSubCase}
-                  className="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+                  className="px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
                   {savingSubCase ? "Creating…" : "Create Sub-case"}
                 </button>
               </div>
@@ -2857,7 +2863,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
                 </div>
                 {sc.progress_pct > 0 && (
                   <div className="h-1 bg-gray-100 rounded-full mt-3 overflow-hidden">
-                    <div className="h-full bg-indigo-400 rounded-full"
+                    <div className="h-full bg-blue-400 rounded-full"
                       style={{ width: `${sc.progress_pct}%` }} />
                   </div>
                 )}
@@ -2867,7 +2873,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
 
           {/* Inline sub-case detail */}
           {selectedSubCase && (
-            <div className="border-2 border-indigo-200 rounded-2xl p-5 mt-3">
+            <div className="border-2 border-blue-200 rounded-2xl p-5 mt-3">
               <div className="flex items-center justify-between mb-4">
                 <h4 className="font-bold text-gray-900">{selectedSubCase.title}</h4>
                 <button onClick={() => setSelectedSubCase(null)}
@@ -2926,7 +2932,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold text-gray-700">{documents.length} document{documents.length !== 1 ? "s" : ""}</div>
             <button onClick={() => setShowDocForm(p => !p)}
-              className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700">
+              className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700">
               + Upload
             </button>
           </div>
@@ -2936,7 +2942,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
                 <label className="block text-sm font-medium text-gray-700 mb-1">File</label>
                 <input ref={docFileRef} type="file"
                   onChange={e => setPendingDocFile(e.target.files?.[0] ?? null)}
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
               </div>
               <Textarea label="Notes (optional)" value={docNotes}
                 onChange={e => setDocNotes(e.target.value)} placeholder="Description of this document…" />
@@ -2944,7 +2950,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
                 <button onClick={() => { setShowDocForm(false); setPendingDocFile(null); setDocNotes(""); }}
                   className="px-3 py-1.5 text-sm text-gray-500">Cancel</button>
                 <button onClick={handleDocUpload} disabled={!pendingDocFile || uploadingDoc}
-                  className="px-4 py-1.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                  className="px-4 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50">
                   {uploadingDoc ? "Uploading…" : "Upload"}
                 </button>
               </div>
@@ -2958,7 +2964,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <a href={doc.file_url} target="_blank" rel="noreferrer"
-                    className="font-medium text-sm text-indigo-600 hover:underline truncate block">{doc.file_name}</a>
+                    className="font-medium text-sm text-blue-600 hover:underline truncate block">{doc.file_name}</a>
                   <div className="text-xs text-gray-400 mt-0.5">
                     {doc.file_size_kb ? `${doc.file_size_kb} KB · ` : ""}
                     {doc.uploader?.full_name ?? "Unknown"} · {fmtDate(doc.created_at)}
@@ -2988,12 +2994,12 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold text-gray-700">
-              Total: <span className="text-indigo-600">{totalTimeHours.toFixed(1)}h</span>
+              Total: <span className="text-blue-600">{totalTimeHours.toFixed(1)}h</span>
               {" · "}Billable: <span className="text-green-600">{timeEntries.filter(e => e.is_billable).reduce((s, e) => s + e.hours, 0).toFixed(1)}h</span>
             </div>
             {auth.isConsultant && (
               <button onClick={() => setShowTimeForm(p => !p)}
-                className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700">
+                className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700">
                 + Log Time
               </button>
             )}
@@ -3012,13 +3018,13 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
               <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                 <input type="checkbox" checked={timeForm.is_billable}
                   onChange={e => setTimeForm(p => ({ ...p, is_billable: e.target.checked }))}
-                  className="rounded accent-indigo-600" />
+                  className="rounded accent-blue-600" />
                 Billable
               </label>
               <div className="flex gap-2 justify-end">
                 <button onClick={() => setShowTimeForm(false)} className="px-3 py-1.5 text-sm text-gray-500">Cancel</button>
                 <button onClick={handleTimeLog} disabled={savingTime}
-                  className="px-4 py-1.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                  className="px-4 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50">
                   {savingTime ? "Saving…" : "Log Time"}
                 </button>
               </div>
@@ -3041,7 +3047,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
                   <tr key={e.id} className="hover:bg-gray-50">
                     <td className="py-2 text-gray-600">{fmtDate(e.date)}</td>
                     <td className="py-2 text-gray-700">{e.consultant?.full_name ?? "—"}</td>
-                    <td className="py-2 font-semibold text-indigo-700">{e.hours}h</td>
+                    <td className="py-2 font-semibold text-blue-700">{e.hours}h</td>
                     <td className="py-2 text-gray-500 max-w-xs truncate">{e.description}</td>
                     <td className="py-2">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${e.is_billable ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
@@ -3111,9 +3117,9 @@ function ArenaView({ auth }) {
               </div>
               <div className="flex flex-wrap gap-1 mb-2">
                 {c.area_sap      && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{c.area_sap}</span>}
-                {c.area_industry && <span className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium">{c.area_industry}</span>}
+                {c.area_industry && <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg text-xs font-medium">{c.area_industry}</span>}
               </div>
-              {companyName && <p className="text-xs text-indigo-600 font-medium mb-1">{companyName}</p>}
+              {companyName && <p className="text-xs text-blue-600 font-medium mb-1">{companyName}</p>}
               {c.description && <p className="text-xs text-gray-400 line-clamp-2 mb-3">{c.description}</p>}
               <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 mb-3">
                 {c.start_date && <span>Starts: {fmtDate(c.start_date)}</span>}
@@ -3123,7 +3129,7 @@ function ArenaView({ auth }) {
               {c.skills_required?.length > 0 && (
                 <div className="flex flex-wrap gap-1 mb-3">
                   {c.skills_required.slice(0, 3).map(s => (
-                    <span key={s} className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded text-xs">{s}</span>
+                    <span key={s} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">{s}</span>
                   ))}
                 </div>
               )}
@@ -3133,7 +3139,7 @@ function ArenaView({ auth }) {
                   alreadyApplied
                     ? <span className="text-xs text-green-600 font-semibold">✓ Applied</span>
                     : <button onClick={() => setApplying(c)}
-                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors">
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors">
                         Apply →
                       </button>
                 )}
@@ -3169,7 +3175,7 @@ function ArenaView({ auth }) {
                 </td>
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">
+                    <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm">
                       {c.user?.full_name?.[0]}
                     </div>
                     <div>
@@ -3207,7 +3213,7 @@ function ArenaView({ auth }) {
       {leaderboard.map((c, i) => (
         <div key={c.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
           <div className="flex items-start gap-3 mb-4">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
+            <div className="w-12 h-12 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
               {c.user?.full_name?.[0]}
             </div>
             <div className="flex-1 min-w-0">
@@ -3230,7 +3236,7 @@ function ArenaView({ auth }) {
           {c.skills?.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-1">
               {c.skills.slice(0, 4).map(s => (
-                <span key={s} className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded text-xs">{s}</span>
+                <span key={s} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">{s}</span>
               ))}
             </div>
           )}
@@ -3251,7 +3257,7 @@ function ArenaView({ auth }) {
               i === 0 ? "border-yellow-300" : i === 1 ? "border-gray-300" : "border-orange-300"}`}>
               <div className="text-center mb-4">
                 <div className="text-4xl mb-2">{medals[i]}</div>
-                <div className="text-3xl font-bold bg-indigo-100 text-indigo-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto text-2xl mb-2">
+                <div className="text-3xl font-bold bg-blue-100 text-blue-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto text-2xl mb-2">
                   {c.user?.full_name?.[0]}
                 </div>
                 <div className="font-bold text-gray-900">{c.user?.full_name}</div>
@@ -3276,7 +3282,7 @@ function ArenaView({ auth }) {
                 {/* Bar: avg rating */}
                 <div className="pt-1">
                   <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-indigo-500 rounded-full transition-all"
+                    <div className="h-full bg-blue-500 rounded-full transition-all"
                       style={{ width: `${(c.avgRating / 5) * 100}%` }} />
                   </div>
                 </div>
@@ -3295,7 +3301,7 @@ function ArenaView({ auth }) {
 
   if (applyingToCase) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6">
+      <div className="min-h-screen bg-[#EAF4FD] p-6">
         <ApplyWizard
           caseData={applyingToCase}
           auth={auth}
@@ -3443,13 +3449,13 @@ function ProfileView({ auth }) {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
         <div className="flex items-start gap-5">
           <div className="relative">
-            <div className="w-20 h-20 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-600 text-2xl font-bold overflow-hidden">
+            <div className="w-20 h-20 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 text-2xl font-bold overflow-hidden">
               {profile?.photo_url
                 ? <img src={profile.photo_url} alt="avatar" className="w-full h-full object-cover" />
                 : auth.profile?.full_name?.[0]}
             </div>
             <button onClick={() => fileRef.current?.click()}
-              className="absolute -bottom-1 -right-1 w-6 h-6 bg-indigo-600 text-white rounded-full text-xs flex items-center justify-center hover:bg-indigo-700">
+              className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-600 text-white rounded-full text-xs flex items-center justify-center hover:bg-blue-700">
               +
             </button>
             <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
@@ -3508,7 +3514,7 @@ function ProfileView({ auth }) {
 
       {/* Edit form */}
       {editing && (
-        <div className="bg-white rounded-2xl border border-indigo-200 shadow-sm p-6 mb-6">
+        <div className="bg-white rounded-2xl border border-blue-200 shadow-sm p-6 mb-6">
           <h3 className="font-semibold text-gray-900 mb-4">Edit Profile</h3>
           <Input label="Headline" value={form.headline} onChange={e => setForm(p => ({ ...p, headline: e.target.value }))}
             placeholder="Senior Full-Stack Consultant" />
@@ -3550,18 +3556,18 @@ function ProfileView({ auth }) {
             </label>
             <input type="range" min="0" max="100" value={form.external_occupancy_pct}
               onChange={e => setForm(p => ({ ...p, external_occupancy_pct: Number(e.target.value) }))}
-              className="w-full accent-indigo-600" />
+              className="w-full accent-blue-600" />
           </div>
           <label className="flex items-center gap-2 text-sm text-gray-700 mb-4 cursor-pointer">
             <input type="checkbox" checked={form.travel_available}
               onChange={e => setForm(p => ({ ...p, travel_available: e.target.checked }))}
-              className="rounded accent-indigo-600" />
+              className="rounded accent-blue-600" />
             Available for travel
           </label>
           <div className="flex justify-end gap-3">
             <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
             <button onClick={handleSave} disabled={saving}
-              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
               {saving ? "Saving…" : "Save Changes"}
             </button>
           </div>
@@ -3586,7 +3592,7 @@ function ProfileView({ auth }) {
           <p className="text-gray-600 text-sm leading-relaxed">{profile?.bio || "No bio yet. Edit your profile to add one."}</p>
           {profile?.linkedin_url && (
             <a href={profile.linkedin_url} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-2 mt-4 text-sm text-indigo-600 hover:underline">
+              className="inline-flex items-center gap-2 mt-4 text-sm text-blue-600 hover:underline">
               🔗 LinkedIn Profile
             </a>
           )}
@@ -3643,7 +3649,7 @@ function ProfileView({ auth }) {
               </div>
               <Textarea label="Description" value={custForm.description} onChange={e => setCustForm(p => ({ ...p, description: e.target.value }))} />
               <button onClick={handleAddCustomer} disabled={savingExp || !custForm.company_name}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
                 {savingExp ? "Saving…" : "+ Add Customer"}
               </button>
             </div>
@@ -3662,7 +3668,7 @@ function ProfileView({ auth }) {
                           <div className="font-medium text-gray-900">{p.title}</div>
                           {p.client_name && <div className="text-xs text-gray-400">{p.client_name}</div>}
                         </div>
-                        {p.url && <a href={p.url} target="_blank" rel="noreferrer" className="text-xs text-indigo-600 hover:underline">View →</a>}
+                        {p.url && <a href={p.url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">View →</a>}
                       </div>
                       {p.description && <p className="text-sm text-gray-600 mt-2">{p.description}</p>}
                       {p.tech_stack?.length > 0 && (
@@ -3683,7 +3689,7 @@ function ProfileView({ auth }) {
               </div>
               <Textarea label="Description" value={projForm.description} onChange={e => setProjForm(p => ({ ...p, description: e.target.value }))} />
               <button onClick={handleAddProject} disabled={savingExp || !projForm.title}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
                 {savingExp ? "Saving…" : "+ Add Project"}
               </button>
             </div>
@@ -3698,11 +3704,11 @@ function ProfileView({ auth }) {
             {(profile?.skills?.length ?? 0) === 0
               ? <p className="text-sm text-gray-400 mb-4">No skills added yet.</p>
               : <div className="flex flex-wrap gap-2 mb-4">{profile.skills.map(s => (
-                  <span key={s} className="px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-medium">{s}</span>
+                  <span key={s} className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-xl text-sm font-medium">{s}</span>
                 ))}</div>}
             <div className="flex gap-2 mt-2">
               <input id="new-skill-input" placeholder="Add a skill…"
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500" />
               <button disabled={savingExp} onClick={async () => {
                 const input = document.getElementById("new-skill-input");
                 const val = input?.value?.trim();
@@ -3714,7 +3720,7 @@ function ProfileView({ auth }) {
                   input.value = "";
                 } catch (e) { alert(e.message); }
                 setSavingExp(false);
-              }} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+              }} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
                 {savingExp ? "…" : "+ Add"}
               </button>
             </div>
@@ -3744,7 +3750,7 @@ function ProfileView({ auth }) {
                   options={[{ value: "citizen", label: "Citizen" }, { value: "permanent_resident", label: "Permanent Resident" }, { value: "work_visa", label: "Work Visa" }, { value: "other", label: "Other" }]} />
               </div>
               <button onClick={handleAddWorkAuth} disabled={savingExp || !authForm.country_name}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
                 {savingExp ? "Saving…" : "+ Add Authorization"}
               </button>
             </div>
@@ -3771,7 +3777,7 @@ function ProfileView({ auth }) {
                 <div key={r.id} className="border border-gray-100 rounded-xl p-4">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-xs font-bold">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold">
                         {r.rater?.full_name?.[0]}
                       </div>
                       <span className="text-sm font-medium">{r.rater?.full_name}</span>
@@ -3813,14 +3819,14 @@ function ConsultantsView({ auth }) {
       </div>
       <input value={search} onChange={e => setSearch(e.target.value)}
         placeholder="Search by name or skill…"
-        className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm mb-6 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500" />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map(c => (
           <div key={c.id} onClick={() => setSelected(c)}
             className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 cursor-pointer hover:shadow-md transition-shadow">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-lg">
+              <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg">
                 {c.user?.full_name?.[0]}
               </div>
               <div>
@@ -3846,7 +3852,7 @@ function ConsultantsView({ auth }) {
             {c.skills?.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {c.skills.slice(0, 4).map(s => (
-                  <span key={s} className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded text-xs">{s}</span>
+                  <span key={s} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">{s}</span>
                 ))}
               </div>
             )}
@@ -3886,7 +3892,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-4">
-        <div className="w-16 h-16 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center text-2xl font-bold">
+        <div className="w-16 h-16 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center text-2xl font-bold">
           {profile?.user?.full_name?.[0]}
         </div>
         <div>
@@ -3928,7 +3934,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
       {profile?.skills?.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {profile.skills.map(s => (
-            <span key={s} className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs">{s}</span>
+            <span key={s} className="px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs">{s}</span>
           ))}
         </div>
       )}
@@ -3974,7 +3980,7 @@ function NotificationsView() {
         </div>
         {unreadCount > 0 && (
           <button onClick={markAllRead}
-            className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+            className="text-sm text-blue-600 hover:text-blue-800 font-medium">
             Mark all read
           </button>
         )}
@@ -3989,8 +3995,8 @@ function NotificationsView() {
           {notifications.map(n => (
             <div key={n.id} onClick={() => !n.is_read && markRead(n.id)}
               className={`flex items-start gap-4 p-4 rounded-2xl border cursor-pointer transition-colors ${
-                n.is_read ? "bg-white border-gray-100" : "bg-indigo-50 border-indigo-100 hover:bg-indigo-100"}`}>
-              <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${n.is_read ? "bg-gray-200" : "bg-indigo-500"}`} />
+                n.is_read ? "bg-white border-gray-100" : "bg-blue-50 border-blue-100 hover:bg-blue-100"}`}>
+              <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${n.is_read ? "bg-gray-200" : "bg-blue-500"}`} />
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-sm text-gray-900">{n.title}</div>
                 {n.body && <div className="text-sm text-gray-500 mt-0.5">{n.body}</div>}
@@ -4068,7 +4074,7 @@ function UsersView() {
           <p className="text-gray-500 text-sm mt-1">{users.length} total users</p>
         </div>
         <button onClick={() => { setShowAdd(true); setAddError(""); }}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors">
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors">
           + Add User
         </button>
       </div>
@@ -4109,7 +4115,7 @@ function UsersView() {
                 Cancel
               </button>
               <button onClick={handleCreateUser} disabled={adding}
-                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
                 {adding ? "Creating…" : "Create Account"}
               </button>
             </div>
@@ -4135,7 +4141,7 @@ function UsersView() {
                 <tr key={u.id} className="hover:bg-gray-50">
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">
+                      <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
                         {u.full_name?.[0]}
                       </div>
                       <div>
@@ -4255,7 +4261,7 @@ function ReportsView() {
                   <span className="font-semibold text-gray-900">{s.count}</span>
                 </div>
                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-indigo-400 rounded-full transition-all"
+                  <div className="h-full bg-blue-400 rounded-full transition-all"
                     style={{ width: totalApps ? `${(s.count / totalApps) * 100}%` : "0%" }} />
                 </div>
               </div>
@@ -4268,7 +4274,7 @@ function ReportsView() {
           <h2 className="font-bold text-gray-900 mb-5">Revenue Overview</h2>
           <div className="space-y-4">
             {[
-              { label: "Total Invoiced",  value: totalInvoiced,    color: "bg-indigo-400" },
+              { label: "Total Invoiced",  value: totalInvoiced,    color: "bg-blue-400" },
               { label: "Paid",            value: totalPaid,         color: "bg-green-400" },
               { label: "Outstanding",     value: totalOutstanding,  color: "bg-orange-400" },
             ].map(s => (
@@ -4356,7 +4362,7 @@ function SlaView({ auth }) {
             {clients.map(c => (
               <button key={c.id} onClick={() => setSelectedClient(c)}
                 className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-colors ${
-                  selectedClient?.id === c.id ? "bg-indigo-50 text-indigo-700 font-medium" : "text-gray-700 hover:bg-gray-50"}`}>
+                  selectedClient?.id === c.id ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700 hover:bg-gray-50"}`}>
                 <div className="font-medium">{c.client_profiles?.company_name ?? c.full_name}</div>
                 <div className="text-xs text-gray-400">{c.email}</div>
               </button>
@@ -4413,7 +4419,7 @@ function SlaClientDetail({ client, auth }) {
 
   if (loading) return <Spinner />;
 
-  const tierColors = { standard: "bg-gray-100 text-gray-700", premium: "bg-blue-100 text-blue-700", enterprise: "bg-purple-100 text-purple-700" };
+  const tierColors = { standard: "bg-gray-100 text-gray-700", premium: "bg-blue-100 text-blue-700", enterprise: "bg-violet-100 text-blue-700" };
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
@@ -4451,13 +4457,13 @@ function SlaClientDetail({ client, auth }) {
             <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
               <input type="checkbox" checked={form.dedicated_consultant}
                 onChange={e => setForm(p => ({ ...p, dedicated_consultant: e.target.checked }))}
-                className="rounded accent-indigo-600" />
+                className="rounded accent-blue-600" />
               Dedicated Consultant
             </label>
             <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
               <input type="checkbox" checked={form.priority_support}
                 onChange={e => setForm(p => ({ ...p, priority_support: e.target.checked }))}
-                className="rounded accent-indigo-600" />
+                className="rounded accent-blue-600" />
               Priority Support
             </label>
           </div>
@@ -4467,7 +4473,7 @@ function SlaClientDetail({ client, auth }) {
           <div className="flex justify-end gap-3">
             <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
             <button onClick={handleSave} disabled={saving}
-              className="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+              className="px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
               {saving ? "Saving…" : "Save SLA"}
             </button>
           </div>
@@ -4507,7 +4513,7 @@ function SlaClientDetail({ client, auth }) {
           <p className="text-sm">No SLA configured for this client.</p>
           {(auth.isAdmin || auth.isManager) && (
             <button onClick={() => setEditing(true)}
-              className="mt-4 px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700">
+              className="mt-4 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">
               Configure SLA
             </button>
           )}
@@ -4560,7 +4566,7 @@ function DbConnectionsView({ auth }) {
               {clients.map(c => (
                 <button key={c.id} onClick={() => setSelectedClient(c)}
                   className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-colors ${
-                    selectedClient?.id === c.id ? "bg-indigo-50 text-indigo-700 font-medium" : "text-gray-700 hover:bg-gray-50"}`}>
+                    selectedClient?.id === c.id ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700 hover:bg-gray-50"}`}>
                   <div className="font-medium">{c.client_profiles?.company_name ?? c.full_name}</div>
                   <div className="text-xs text-gray-400">{c.email}</div>
                 </button>
@@ -4612,7 +4618,7 @@ function DbConnectionsList({ client, auth }) {
         </div>
         {(auth.isAdmin || auth.isManager) && (
           <button onClick={() => setShowAdd(p => !p)}
-            className="px-4 py-2 text-sm bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700">
+            className="px-4 py-2 text-sm bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700">
             + Add Connection
           </button>
         )}
@@ -4641,7 +4647,7 @@ function DbConnectionsList({ client, auth }) {
           <div className="flex justify-end gap-3">
             <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
             <button onClick={handleAdd} disabled={saving}
-              className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
               {saving ? "Adding…" : "Add Connection"}
             </button>
           </div>
@@ -4722,7 +4728,7 @@ function ClientTeamView({ auth }) {
               {clients.map(c => (
                 <button key={c.id} onClick={() => setSelectedClient(c)}
                   className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-colors ${
-                    selectedClient?.id === c.id ? "bg-indigo-50 text-indigo-700 font-medium" : "text-gray-700 hover:bg-gray-50"}`}>
+                    selectedClient?.id === c.id ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700 hover:bg-gray-50"}`}>
                   <div className="font-medium">{c.client_profiles?.company_name ?? c.full_name}</div>
                   <div className="text-xs text-gray-400">{c.email}</div>
                 </button>
@@ -4772,7 +4778,7 @@ function ClientTeamList({ client, auth }) {
         </div>
         {(auth.isAdmin || auth.isManager || auth.isClient) && (
           <button onClick={() => setShowAdd(p => !p)}
-            className="px-4 py-2 text-sm bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700">
+            className="px-4 py-2 text-sm bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700">
             + Add Member
           </button>
         )}
@@ -4795,13 +4801,13 @@ function ClientTeamList({ client, auth }) {
           <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
             <input type="checkbox" checked={form.is_primary}
               onChange={e => setForm(p => ({ ...p, is_primary: e.target.checked }))}
-              className="rounded accent-indigo-600" />
+              className="rounded accent-blue-600" />
             Primary contact
           </label>
           <div className="flex justify-end gap-3">
             <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
             <button onClick={handleAdd} disabled={saving}
-              className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
               {saving ? "Adding…" : "Add Member"}
             </button>
           </div>
@@ -4812,13 +4818,13 @@ function ClientTeamList({ client, auth }) {
         {members.map(m => (
           <div key={m.id} className="border border-gray-100 rounded-xl p-4">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">
+              <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
                 {m.full_name?.[0]}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-gray-900 truncate">{m.full_name}</span>
-                  {m.is_primary && <Badge className="bg-indigo-100 text-indigo-700">Primary</Badge>}
+                  {m.is_primary && <Badge className="bg-blue-100 text-blue-700">Primary</Badge>}
                 </div>
                 {m.role_title && <div className="text-xs text-gray-500">{m.role_title}</div>}
               </div>
@@ -4984,7 +4990,7 @@ function ClientProfileView({ auth }) {
 
   if (loading) return <Spinner />;
 
-  const tierColors = { standard: "bg-gray-100 text-gray-700", premium: "bg-blue-100 text-blue-700", enterprise: "bg-purple-100 text-purple-700" };
+  const tierColors = { standard: "bg-gray-100 text-gray-700", premium: "bg-blue-100 text-blue-700", enterprise: "bg-violet-100 text-blue-700" };
   const dbTypeColors = { postgresql: "bg-blue-100 text-blue-700", mysql: "bg-orange-100 text-orange-700", mssql: "bg-red-100 text-red-700", mongodb: "bg-green-100 text-green-700", other: "bg-gray-100 text-gray-700" };
 
   const tabs = [
@@ -4999,7 +5005,7 @@ function ClientProfileView({ auth }) {
       {/* Header card */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
         <div className="flex items-start gap-5">
-          <div className="w-16 h-16 rounded-2xl bg-indigo-600 flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
+          <div className="w-16 h-16 rounded-2xl bg-blue-600 flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
             {profile?.company_name?.[0] ?? auth.profile?.full_name?.[0] ?? "C"}
           </div>
           <div className="flex-1 min-w-0">
@@ -5024,7 +5030,7 @@ function ClientProfileView({ auth }) {
 
       {/* Edit form */}
       {editing && (
-        <div className="bg-white rounded-2xl border border-indigo-200 shadow-sm p-6 mb-6">
+        <div className="bg-white rounded-2xl border border-blue-200 shadow-sm p-6 mb-6">
           <h3 className="font-semibold text-gray-900 mb-5">Edit Company Profile</h3>
 
           <div className="grid grid-cols-2 gap-3">
@@ -5086,7 +5092,7 @@ function ClientProfileView({ auth }) {
           <div className="flex justify-end gap-3 mt-2">
             <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
             <button onClick={handleSave} disabled={saving}
-              className="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+              className="px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
               {saving ? "Saving…" : "Save Profile"}
             </button>
           </div>
@@ -5125,13 +5131,13 @@ function ClientProfileView({ auth }) {
           <div className="flex gap-3 flex-wrap">
             {profile?.website && (
               <a href={profile.website} target="_blank" rel="noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:underline">
+                className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline">
                 🌐 Website
               </a>
             )}
             {profile?.linkedin_url && (
               <a href={profile.linkedin_url} target="_blank" rel="noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:underline">
+                className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline">
                 🔗 LinkedIn
               </a>
             )}
@@ -5142,7 +5148,7 @@ function ClientProfileView({ auth }) {
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Preferred Consulting Areas</div>
               <div className="flex flex-wrap gap-2">
                 {profile.preferred_categories.map(c => (
-                  <span key={c} className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-medium">{c}</span>
+                  <span key={c} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-xl text-xs font-medium">{c}</span>
                 ))}
               </div>
             </div>
@@ -5152,7 +5158,7 @@ function ClientProfileView({ auth }) {
             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Primary Contact</div>
             {profile?.contact_name ? (
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">
+                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
                   {profile.contact_name[0]}
                 </div>
                 <div className="text-sm space-y-0.5">
@@ -5213,13 +5219,13 @@ function ClientProfileView({ auth }) {
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                   <input type="checkbox" checked={slaForm.dedicated_consultant}
                     onChange={e => setSlaForm(p => ({ ...p, dedicated_consultant: e.target.checked }))}
-                    className="rounded accent-indigo-600" />
+                    className="rounded accent-blue-600" />
                   Dedicated Consultant
                 </label>
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                   <input type="checkbox" checked={slaForm.priority_support}
                     onChange={e => setSlaForm(p => ({ ...p, priority_support: e.target.checked }))}
-                    className="rounded accent-indigo-600" />
+                    className="rounded accent-blue-600" />
                   Priority Support
                 </label>
               </div>
@@ -5229,7 +5235,7 @@ function ClientProfileView({ auth }) {
               <div className="flex justify-end gap-3">
                 <button onClick={() => setSlaEditing(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
                 <button onClick={handleSaveSla} disabled={savingSla}
-                  className="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+                  className="px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
                   {savingSla ? "Saving…" : "Save SLA"}
                 </button>
               </div>
@@ -5267,7 +5273,7 @@ function ClientProfileView({ auth }) {
               <div className="text-3xl mb-2">📋</div>
               <p className="text-sm mb-4">No SLA configured yet.</p>
               <button onClick={() => setSlaEditing(true)}
-                className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700">
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">
                 Configure SLA
               </button>
             </div>
@@ -5284,7 +5290,7 @@ function ClientProfileView({ auth }) {
               <p className="text-sm text-gray-400 mt-0.5">{connections.length} connection{connections.length !== 1 ? "s" : ""} configured</p>
             </div>
             <button onClick={() => setShowAddConn(p => !p)}
-              className="px-4 py-2 text-sm bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700">
+              className="px-4 py-2 text-sm bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700">
               + Add Connection
             </button>
           </div>
@@ -5312,7 +5318,7 @@ function ClientProfileView({ auth }) {
               <div className="flex justify-end gap-3">
                 <button onClick={() => setShowAddConn(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
                 <button onClick={handleAddConn} disabled={savingConn}
-                  className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+                  className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
                   {savingConn ? "Adding…" : "Add Connection"}
                 </button>
               </div>
@@ -5357,7 +5363,7 @@ function ClientProfileView({ auth }) {
               <p className="text-sm text-gray-400 mt-0.5">Stakeholders and points of contact</p>
             </div>
             <button onClick={() => setShowAddMember(p => !p)}
-              className="px-4 py-2 text-sm bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700">
+              className="px-4 py-2 text-sm bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700">
               + Add Member
             </button>
           </div>
@@ -5379,13 +5385,13 @@ function ClientProfileView({ auth }) {
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <input type="checkbox" checked={memberForm.is_primary}
                   onChange={e => setMemberForm(p => ({ ...p, is_primary: e.target.checked }))}
-                  className="rounded accent-indigo-600" />
+                  className="rounded accent-blue-600" />
                 Primary contact
               </label>
               <div className="flex justify-end gap-3">
                 <button onClick={() => setShowAddMember(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
                 <button onClick={handleAddMember} disabled={savingMember}
-                  className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+                  className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
                   {savingMember ? "Adding…" : "Add Member"}
                 </button>
               </div>
@@ -5396,13 +5402,13 @@ function ClientProfileView({ auth }) {
             {members.map(m => (
               <div key={m.id} className="border border-gray-100 rounded-xl p-4">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
                     {m.full_name?.[0]}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-gray-900 truncate">{m.full_name}</span>
-                      {m.is_primary && <Badge className="bg-indigo-100 text-indigo-700">Primary</Badge>}
+                      {m.is_primary && <Badge className="bg-blue-100 text-blue-700">Primary</Badge>}
                     </div>
                     {m.role_title && <div className="text-xs text-gray-500">{m.role_title}</div>}
                   </div>
@@ -5478,7 +5484,7 @@ function InvoicesView({ auth }) {
         </div>
         {(auth.isAdmin || auth.isManager) && (
           <button onClick={() => setShowCreate(true)}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-xl text-sm">
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl text-sm">
             + New Invoice
           </button>
         )}
@@ -5487,7 +5493,7 @@ function InvoicesView({ auth }) {
       {/* Summary */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         {[
-          { label: "Total Billed",  value: `$${totalBilled.toLocaleString()}`,      color: "bg-indigo-50 text-indigo-700" },
+          { label: "Total Billed",  value: `$${totalBilled.toLocaleString()}`,      color: "bg-blue-50 text-blue-700" },
           { label: "Paid",          value: `$${totalPaid.toLocaleString()}`,         color: "bg-green-50 text-green-700" },
           { label: "Outstanding",   value: `$${totalOutstanding.toLocaleString()}`,  color: "bg-orange-50 text-orange-700" },
         ].map(s => (
@@ -5501,7 +5507,7 @@ function InvoicesView({ auth }) {
       {/* Filter */}
       <div className="mb-4">
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
           <option value="">All Statuses</option>
           {["draft","sent","paid","overdue"].map(s => <option key={s} value={s}>{cap(s)}</option>)}
         </select>
@@ -5588,7 +5594,7 @@ function InvoicesView({ auth }) {
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">Case</label>
           <select value={form.case_id} onChange={e => setForm(p => ({ ...p, case_id: e.target.value }))}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
             <option value="">— Select case (optional) —</option>
             {cases.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
           </select>
@@ -5599,7 +5605,7 @@ function InvoicesView({ auth }) {
         <div className="flex justify-end gap-3 mt-2">
           <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
           <button onClick={handleCreate} disabled={saving}
-            className="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+            className="px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
             {saving ? "Creating…" : "Create Invoice"}
           </button>
         </div>
@@ -5670,7 +5676,7 @@ function KanbanView({ auth }) {
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex -space-x-1">
                         {(c.case_assignments ?? []).slice(0, 3).map((a, i) => (
-                          <div key={i} className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 text-xs flex items-center justify-center border-2 border-white font-bold">
+                          <div key={i} className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs flex items-center justify-center border-2 border-white font-bold">
                             {a.users?.full_name?.[0] ?? "?"}
                           </div>
                         ))}
@@ -5682,7 +5688,7 @@ function KanbanView({ auth }) {
                         <select disabled={movingId === c.id}
                           value={c.status}
                           onChange={e => handleMove(c.id, e.target.value)}
-                          className="w-full text-xs border border-gray-100 rounded-lg px-2 py-1 bg-gray-50 text-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-400 disabled:opacity-50">
+                          className="w-full text-xs border border-gray-100 rounded-lg px-2 py-1 bg-gray-50 text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50">
                           {KANBAN_COLUMNS.map(col2 => (
                             <option key={col2.id} value={col2.id}>{col2.label}</option>
                           ))}
@@ -5778,7 +5784,7 @@ function TimeEntriesView({ auth }) {
         </div>
         {auth.isConsultant && (
           <button onClick={() => setShowForm(p => !p)}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-xl text-sm">
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl text-sm">
             + Log Time
           </button>
         )}
@@ -5787,10 +5793,10 @@ function TimeEntriesView({ auth }) {
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-6">
         <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-          className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         <span className="self-center text-gray-400 text-sm">to</span>
         <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-          className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         {(dateFrom || dateTo) && (
           <button onClick={() => { setDateFrom(""); setDateTo(""); }}
             className="px-3 py-2 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50">
@@ -5801,12 +5807,12 @@ function TimeEntriesView({ auth }) {
 
       {/* Add form */}
       {showForm && (
-        <div className="bg-white rounded-2xl border border-indigo-200 shadow-sm p-6 mb-6">
+        <div className="bg-white rounded-2xl border border-blue-200 shadow-sm p-6 mb-6">
           <h3 className="font-semibold text-gray-900 mb-4">Log Time Entry</h3>
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">Case</label>
             <select value={form.case_id} onChange={e => setForm(p => ({ ...p, case_id: e.target.value }))}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
               <option value="">— Select case —</option>
               {cases.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
             </select>
@@ -5823,13 +5829,13 @@ function TimeEntriesView({ auth }) {
           <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer mb-4">
             <input type="checkbox" checked={form.is_billable}
               onChange={e => setForm(p => ({ ...p, is_billable: e.target.checked }))}
-              className="rounded accent-indigo-600" />
+              className="rounded accent-blue-600" />
             Billable
           </label>
           <div className="flex justify-end gap-3">
             <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
             <button onClick={handleAdd} disabled={saving}
-              className="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+              className="px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
               {saving ? "Saving…" : "Log Time"}
             </button>
           </div>
@@ -5861,7 +5867,7 @@ function TimeEntriesView({ auth }) {
                   {!auth.isConsultant && (
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-600 text-xs flex items-center justify-center font-bold">
+                        <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-600 text-xs flex items-center justify-center font-bold">
                           {e.consultant?.full_name?.[0]}
                         </div>
                         <span className="text-gray-700">{e.consultant?.full_name}</span>
@@ -5869,7 +5875,7 @@ function TimeEntriesView({ auth }) {
                     </td>
                   )}
                   <td className="px-5 py-3 text-gray-500">{e.case?.title ?? "—"}</td>
-                  <td className="px-5 py-3 font-semibold text-indigo-700">{e.hours}h</td>
+                  <td className="px-5 py-3 font-semibold text-blue-700">{e.hours}h</td>
                   <td className="px-5 py-3 text-gray-500 max-w-xs truncate">{e.description}</td>
                   <td className="px-5 py-3">
                     <span className={`text-xs px-2 py-0.5 rounded-full ${e.is_billable ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
@@ -5930,13 +5936,13 @@ function OnboardingRoadmap({ steps, current }) {
             <div key={s.id} className="relative z-10 flex flex-col items-center flex-1 gap-2">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-bold transition-all ${
                 done   ? "bg-emerald-500 text-white shadow"
-                       : active ? "bg-indigo-600 text-white shadow-lg ring-4 ring-indigo-100"
+                       : active ? "bg-blue-600 text-white shadow-lg ring-4 ring-blue-100"
                                 : "bg-white border-2 border-gray-200 text-gray-400"}`}>
                 {done ? "✓" : s.icon}
               </div>
               <div className="text-center px-1">
                 <div className={`text-xs font-semibold leading-tight ${
-                  active ? "text-indigo-600" : done ? "text-emerald-600" : "text-gray-400"}`}>
+                  active ? "text-blue-600" : done ? "text-emerald-600" : "text-gray-400"}`}>
                   {s.label}
                 </div>
                 <div className="text-xs text-gray-400 mt-0.5 hidden sm:block">{s.desc}</div>
@@ -5947,7 +5953,7 @@ function OnboardingRoadmap({ steps, current }) {
       </div>
       {/* Mini progress bar */}
       <div className="mt-5 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-        <div className="h-full bg-indigo-600 rounded-full transition-all duration-500"
+        <div className="h-full bg-blue-600 rounded-full transition-all duration-500"
           style={{ width: `${(current / (steps.length - 1)) * 100}%` }} />
       </div>
       <p className="text-xs text-gray-400 text-right mt-1">
@@ -6063,7 +6069,7 @@ function ConsultantOnboardingView({ auth, onComplete }) {
   return (
     <div className="max-w-2xl mx-auto py-8">
       <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-14 h-14 bg-indigo-600 rounded-2xl mb-4 shadow-lg">
+        <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-600 rounded-2xl mb-4 shadow-lg">
           <span className="text-white text-xl font-bold">TC</span>
         </div>
         <h1 className="text-2xl font-bold text-gray-900">Complete Your Profile</h1>
@@ -6118,12 +6124,12 @@ function ConsultantOnboardingView({ auth, onComplete }) {
               </label>
               <input type="range" min="0" max="100" value={basicsForm.external_occupancy_pct}
                 onChange={e => setBasicsForm(p => ({ ...p, external_occupancy_pct: Number(e.target.value) }))}
-                className="w-full accent-indigo-600" />
+                className="w-full accent-blue-600" />
             </div>
             <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
               <input type="checkbox" checked={basicsForm.travel_available}
                 onChange={e => setBasicsForm(p => ({ ...p, travel_available: e.target.checked }))}
-                className="rounded accent-indigo-600" />
+                className="rounded accent-blue-600" />
               Available for travel
             </label>
           </>
@@ -6166,7 +6172,7 @@ function ConsultantOnboardingView({ auth, onComplete }) {
                   ]} />
               </div>
               <button onClick={handleAddWorkAuth} disabled={saving || !authForm.country_name}
-                className="mt-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                className="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
                 {saving ? "Saving…" : "+ Add Country"}
               </button>
             </div>
@@ -6208,7 +6214,7 @@ function ConsultantOnboardingView({ auth, onComplete }) {
               <Textarea label="Description" value={custForm.description}
                 onChange={e => setCustForm(p => ({ ...p, description: e.target.value }))} />
               <button onClick={handleAddCustomer} disabled={saving || !custForm.company_name}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
                 {saving ? "Saving…" : "+ Add Customer"}
               </button>
             </div>
@@ -6229,7 +6235,7 @@ function ConsultantOnboardingView({ auth, onComplete }) {
                         <div className="font-medium text-gray-900">{p.title}</div>
                         {p.client_name && <div className="text-xs text-gray-400">{p.client_name}</div>}
                       </div>
-                      {p.url && <a href={p.url} target="_blank" rel="noreferrer" className="text-xs text-indigo-600 hover:underline">View →</a>}
+                      {p.url && <a href={p.url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">View →</a>}
                     </div>
                     {p.tech_stack?.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2">
@@ -6255,7 +6261,7 @@ function ConsultantOnboardingView({ auth, onComplete }) {
               <Textarea label="Description" value={projForm.description}
                 onChange={e => setProjForm(p => ({ ...p, description: e.target.value }))} />
               <button onClick={handleAddProject} disabled={saving || !projForm.title}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
                 {saving ? "Saving…" : "+ Add Project"}
               </button>
             </div>
@@ -6270,7 +6276,7 @@ function ConsultantOnboardingView({ auth, onComplete }) {
             {(profile?.skills?.length ?? 0) > 0 && (
               <div className="flex flex-wrap gap-2 mb-5">
                 {profile.skills.map(s => (
-                  <span key={s} className="px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-medium">{s}</span>
+                  <span key={s} className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-xl text-sm font-medium">{s}</span>
                 ))}
               </div>
             )}
@@ -6278,9 +6284,9 @@ function ConsultantOnboardingView({ auth, onComplete }) {
               <input value={skillInput} onChange={e => setSkillInput(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAddSkill(); } }}
                 placeholder="e.g. SAP S/4HANA, React, Python…"
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500" />
               <button onClick={handleAddSkill} disabled={saving || !skillInput.trim()}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
                 {saving ? "…" : "+ Add"}
               </button>
             </div>
@@ -6303,7 +6309,7 @@ function ConsultantOnboardingView({ auth, onComplete }) {
           )}
           <button onClick={handleNext}
             disabled={saving || (step === 0 && !basicsForm.headline.trim())}
-            className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors">
+            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors">
             {saving ? "Saving…" : isLast ? "Complete Profile →" : step === 0 ? "Save & Continue →" : "Continue →"}
           </button>
         </div>
@@ -6402,7 +6408,7 @@ function ClientOnboardingView({ auth, onComplete }) {
   return (
     <div className="max-w-2xl mx-auto py-8">
       <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-14 h-14 bg-indigo-600 rounded-2xl mb-4 shadow-lg">
+        <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-600 rounded-2xl mb-4 shadow-lg">
           <span className="text-white text-xl font-bold">TC</span>
         </div>
         <h1 className="text-2xl font-bold text-gray-900">Set Up Your Company Profile</h1>
@@ -6498,7 +6504,7 @@ function ClientOnboardingView({ auth, onComplete }) {
           )}
           <button onClick={handleNext}
             disabled={saving || (step === 0 && !companyForm.company_name.trim())}
-            className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors">
+            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors">
             {saving ? "Saving…" : isLast ? "Complete Setup →" : "Save & Continue →"}
           </button>
         </div>
@@ -6535,7 +6541,7 @@ function ManagerAdminWelcomeView({ auth, onComplete }) {
 
   return (
     <div className="max-w-lg mx-auto py-16 text-center">
-      <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl mb-6 shadow-lg text-3xl">
+      <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-6 shadow-lg text-3xl">
         {info.icon}
       </div>
       <h1 className="text-2xl font-bold text-gray-900 mb-2">{info.title}</h1>
@@ -6554,7 +6560,7 @@ function ManagerAdminWelcomeView({ auth, onComplete }) {
       </div>
 
       <button onClick={onComplete}
-        className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-colors shadow">
+        className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors shadow">
         Go to Dashboard →
       </button>
     </div>
@@ -6579,7 +6585,7 @@ export default function App() {
   if (auth.loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
       </div>
     );
   }
@@ -6598,7 +6604,7 @@ export default function App() {
 
   // Show role-specific onboarding wizard for new signups — full-screen, no sidebar
   if (onboardingRole && auth.user) {
-    const bg = "min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6";
+    const bg = "min-h-screen bg-[#EAF4FD] p-6";
     if (onboardingRole === "consultant") {
       return (
         <div className={bg}>
