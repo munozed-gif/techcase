@@ -27,6 +27,8 @@ import {
   Building2, Bell, FileText, DollarSign, Flag, CheckCircle2, PenLine,
   Briefcase, Globe, Rocket, Zap, Phone, SlidersHorizontal, Check,
   Activity, Inbox, ClipboardList,
+  Mail, TrendingUp, Link, Plane, Heart, Star, Trash2, Paperclip,
+  FileImage, Trophy,
 } from "lucide-react";
 
 // ============================================================
@@ -900,10 +902,12 @@ function Spinner() {
   );
 }
 
-function EmptyState({ icon, title, subtitle, action }) {
+function EmptyState({ Icon: IconComp, title, subtitle, action }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="text-5xl mb-4">{icon}</div>
+      <div className="mb-4 flex justify-center">
+        {IconComp && <IconComp className="w-8 h-8 text-gray-300" />}
+      </div>
       <h3 className="text-lg font-semibold text-gray-800 mb-1">{title}</h3>
       <p className="text-sm text-gray-500 mb-4">{subtitle}</p>
       {action}
@@ -999,9 +1003,9 @@ function AuthScreen({ onAuth }) {
   const auth = useAuth();
 
   const SIGNUP_STEPS = [
-    { id: "verify",  label: "Verify",  icon: "✉️" },
-    { id: "role",    label: "Role",    icon: "👤" },
-    { id: "profile", label: "Profile", icon: "📝" },
+    { id: "verify",  label: "Verify",  Icon: Mail },
+    { id: "role",    label: "Role",    Icon: User },
+    { id: "profile", label: "Profile", Icon: FileText },
   ];
 
   function switchMode(m) { setMode(m); setError(""); setStep(0); setCodeSent(false); setCode(""); }
@@ -1212,7 +1216,7 @@ function AuthScreen({ onAuth }) {
                 ) : (
                   <>
                     <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-xl text-sm text-blue-700">
-                      ✉️ Code sent to <strong>{email}</strong> — check your inbox.
+                      <Mail className="w-4 h-4 inline-block mr-1" />Code sent to <strong>{email}</strong> — check your inbox.
                     </div>
                     <Input label="Verification Code" value={code}
                       onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 10))}
@@ -1735,7 +1739,7 @@ function Dashboard({ auth }) {
                                 <button onClick={e => { e.stopPropagation(); toggleFollow(c.client_id); }}
                                   title={following ? "Unfollow this company" : "Follow this company"}
                                   className={`text-base leading-none transition-colors ${following ? "text-rose-500 hover:text-rose-400" : "text-gray-300 hover:text-rose-400"}`}>
-                                  {following ? "♥" : "♡"}
+                                  <Heart className={`w-4 h-4 ${following ? "fill-red-500 text-red-500" : "text-gray-400"}`} />
                                 </button>
                               </div>
                             )}
@@ -2137,7 +2141,7 @@ const APPLY_STEPS = [
   { id: "brief",  label: "Case Brief",  Icon: FileText,  desc: "What you're applying for" },
   { id: "pitch",  label: "Your Pitch",  Icon: PenLine,   desc: "Why you're the right fit" },
   { id: "terms",  label: "Terms",       Icon: Briefcase, desc: "Rate & availability" },
-  { id: "review", label: "Review",      icon: "✅", desc: "Confirm & submit" },
+  { id: "review", label: "Review",      Icon: CheckCircle2, desc: "Confirm & submit" },
 ];
 
 function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
@@ -2410,14 +2414,14 @@ function CasesView({ auth }) {
             className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
               showFavOnly ? "bg-yellow-50 border-yellow-300 text-yellow-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"
             }`}>
-            {showFavOnly ? "★ Saved" : "☆ Saved"}
+            <Star className={`w-3.5 h-3.5 ${showFavOnly ? "fill-yellow-400 text-yellow-400" : "text-gray-400"}`} /> Saved
           </button>
         )}
       </div>
 
       {/* Cases Grid */}
       {displayed.length === 0 ? (
-        <EmptyState icon="📋" title="No cases found" subtitle="Adjust your filters or create a new case" />
+        <EmptyState Icon={FolderOpen} title="No cases found" subtitle="Adjust your filters or create a new case" />
       ) : (
         <div className="grid gap-4">
           {displayed.map(c => (
@@ -2444,7 +2448,7 @@ function CasesView({ auth }) {
                 {auth.isConsultant && (
                   <button onClick={e => { e.stopPropagation(); toggle(c.id); }}
                     className="text-xl text-yellow-400 hover:text-yellow-500 transition-colors flex-shrink-0">
-                    {isFavorite(c.id) ? "★" : "☆"}
+                    <Star className={`w-4 h-4 ${isFavorite(c.id) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`} />
                   </button>
                 )}
               </div>
@@ -2683,7 +2687,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
             <div className="border-t border-red-50 pt-4 mt-2">
               <button onClick={handleDelete}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-xl hover:bg-red-50 transition-colors">
-                🗑 Delete Case
+                <Trash2 className="w-4 h-4 mr-1" /> Delete Case
               </button>
               <p className="text-xs text-gray-400 mt-1.5">
                 Only available while the case is <strong>Open</strong> and has no applications, time entries, documents, or sub-cases.
@@ -2706,7 +2710,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
               onClick={() => toggleMilestone(m.id, m.is_done)}>
               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                 m.is_done ? "bg-emerald-500 border-emerald-500" : "border-gray-300"}`}>
-                {m.is_done && <span className="text-white text-xs">✓</span>}
+                {m.is_done && <Check className="w-3 h-3 text-white" />}
               </div>
               <span className={`text-sm flex-1 ${m.is_done ? "line-through text-gray-400" : "text-gray-800"}`}>
                 {m.title}
@@ -2752,8 +2756,8 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
                 </div>
                 <p className="text-gray-700 leading-relaxed">{c.body}</p>
                 <div className="flex gap-4 mt-2 text-xs text-gray-400">
-                  {c.hours_logged > 0 && <span>⏱ {c.hours_logged}h logged</span>}
-                  {c.progress_update !== null && <span>📈 Progress → {c.progress_update}%</span>}
+                  {c.hours_logged > 0 && <span className="flex items-center gap-0.5"><Clock className="w-3 h-3 inline-block" /> {c.hours_logged}h logged</span>}
+                  {c.progress_update !== null && <span className="flex items-center gap-0.5"><TrendingUp className="w-3 h-3 inline-block" /> Progress → {c.progress_update}%</span>}
                 </div>
               </div>
             ))}
@@ -2914,8 +2918,8 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
               </div>
               {app.cover_letter && <p className="text-xs text-gray-500 mb-3 line-clamp-2">{app.cover_letter}</p>}
               <div className="flex gap-3 text-xs text-gray-400 mb-2">
-                {app.proposed_rate && <span>💰 ${app.proposed_rate}/hr</span>}
-                {app.time_commitment && <span>⏱ {app.time_commitment}% time</span>}
+                {app.proposed_rate && <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" />${app.proposed_rate}/hr</span>}
+                {app.time_commitment && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{app.time_commitment}% time</span>}
               </div>
               {app.status === "pending" && (
                 <div className="flex gap-2 mt-2">
@@ -2966,8 +2970,8 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
           <div className="space-y-2">
             {documents.map(doc => (
               <div key={doc.id} className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:bg-gray-50">
-                <div className="text-2xl flex-shrink-0">
-                  {doc.file_type?.includes("pdf") ? "📄" : doc.file_type?.includes("image") ? "🖼️" : "📎"}
+                <div className="flex-shrink-0">
+                  {doc.file_type?.includes("pdf") ? <FileText className="w-4 h-4 text-red-400" /> : doc.file_type?.includes("image") ? <FileImage className="w-4 h-4 text-blue-400" /> : <Paperclip className="w-4 h-4 text-gray-400" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <a href={doc.file_url} target="_blank" rel="noreferrer"
@@ -2988,7 +2992,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
             ))}
             {documents.length === 0 && (
               <div className="text-center py-8 text-gray-400">
-                <div className="text-3xl mb-2">📎</div>
+                <div className="mb-2 flex justify-center"><Paperclip className="w-8 h-8 text-gray-300" /></div>
                 <p className="text-sm">No documents uploaded yet.</p>
               </div>
             )}
@@ -3063,7 +3067,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
                     </td>
                     <td className="py-2">
                       {e.is_approved
-                        ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">✓ Approved</span>
+                        ? <span className="flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full"><Check className="w-3 h-3" /> Approved</span>
                         : (auth.isAdmin || auth.isManager)
                           ? <button onClick={() => approveEntry(e.id, true)}
                               className="text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 px-2 py-0.5 rounded-full hover:bg-yellow-100">
@@ -3078,7 +3082,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
             </table>
             {timeEntries.length === 0 && (
               <div className="text-center py-8 text-gray-400">
-                <div className="text-3xl mb-2">⏱</div>
+                <div className="mb-2 flex justify-center"><Clock className="w-8 h-8 text-gray-300" /></div>
                 <p className="text-sm">No time entries logged yet.</p>
               </div>
             )}
@@ -3176,9 +3180,10 @@ function ArenaView({ auth }) {
             {leaderboard.map((c, i) => (
               <tr key={c.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-5 py-4">
-                  <span className={`font-bold ${i === 0 ? "text-yellow-500" : i === 1 ? "text-gray-400" : i === 2 ? "text-orange-400" : "text-gray-300"}`}>
-                    {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}
-                  </span>
+                  {i === 0 ? <span className="font-bold text-yellow-500">#1</span>
+                    : i === 1 ? <span className="font-bold text-gray-400">#2</span>
+                    : i === 2 ? <span className="font-bold text-amber-600">#3</span>
+                    : <span className="font-bold text-gray-300">{`#${i + 1}`}</span>}
                 </td>
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-3">
@@ -3233,7 +3238,10 @@ function ArenaView({ auth }) {
                 </div>
               )}
             </div>
-            <span className="text-lg">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : ""}</span>
+            {i === 0 ? <span className="font-bold text-yellow-500 text-sm">#1</span>
+              : i === 1 ? <span className="font-bold text-gray-400 text-sm">#2</span>
+              : i === 2 ? <span className="font-bold text-amber-600 text-sm">#3</span>
+              : null}
           </div>
           <div className="flex gap-4 text-xs text-gray-500">
             <span><strong className="text-gray-800">{c.acceptedCases}</strong> won</span>
@@ -3257,13 +3265,16 @@ function ArenaView({ auth }) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {top3.map((c, i) => {
-          const medals = ["🥇", "🥈", "🥉"];
           const appRate = c.totalApps > 0 ? Math.round((c.acceptedCases / c.totalApps) * 100) : 0;
           return (
             <div key={c.id} className={`bg-white rounded-2xl border-2 shadow-sm p-6 ${
               i === 0 ? "border-yellow-300" : i === 1 ? "border-gray-300" : "border-orange-300"}`}>
               <div className="text-center mb-4">
-                <div className="text-4xl mb-2">{medals[i]}</div>
+                <div className="mb-2 flex justify-center">
+                  {i === 0 ? <span className="font-bold text-2xl text-yellow-500">#1</span>
+                    : i === 1 ? <span className="font-bold text-2xl text-gray-400">#2</span>
+                    : <span className="font-bold text-2xl text-amber-600">#3</span>}
+                </div>
                 <div className="text-3xl font-bold bg-blue-100 text-blue-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto text-2xl mb-2">
                   {c.user?.full_name?.[0]}
                 </div>
@@ -3336,10 +3347,10 @@ function ArenaView({ auth }) {
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 w-fit">
         {[
-          { id: "cases",       label: "📋 Open Cases" },
-          { id: "leaderboard", label: "🏆 Leaderboard" },
-          { id: "cards",       label: "🃏 Cards" },
-          { id: "compare",     label: "⚖️ Compare" },
+          { id: "cases",       label: "Open Cases" },
+          { id: "leaderboard", label: "Leaderboard" },
+          { id: "cards",       label: "Cards" },
+          { id: "compare",     label: "Compare" },
         ].map(t => (
           <button key={t.id} onClick={() => setArenaTab(t.id)}
             className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
@@ -3477,8 +3488,8 @@ function ProfileView({ auth }) {
                   <span className="text-gray-400">({ratings.length} ratings)</span>
                 </span>
               )}
-              {profile?.hourly_rate && <span>💰 ${profile.hourly_rate}/hr</span>}
-              {profile?.travel_available && <span>✈️ Travel available</span>}
+              {profile?.hourly_rate && <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" />${profile.hourly_rate}/hr</span>}
+              {profile?.travel_available && <span className="flex items-center gap-1"><Plane className="w-3 h-3" />Travel available</span>}
               {profile?.expertise_level && (
                 <Badge className="bg-violet-100 text-violet-700">{cap(profile.expertise_level)}</Badge>
               )}
@@ -3600,7 +3611,7 @@ function ProfileView({ auth }) {
           {profile?.linkedin_url && (
             <a href={profile.linkedin_url} target="_blank" rel="noreferrer"
               className="inline-flex items-center gap-2 mt-4 text-sm text-blue-600 hover:underline">
-              🔗 LinkedIn Profile
+              <Link className="w-3.5 h-3.5 mr-1" /> LinkedIn Profile
             </a>
           )}
           {/* Active cases */}
@@ -3867,7 +3878,7 @@ function ConsultantsView({ auth }) {
         ))}
         {filtered.length === 0 && (
           <div className="col-span-full">
-            <EmptyState icon="🧑‍💼" title="No consultants found" subtitle="Try a different search" />
+            <EmptyState Icon={UserCheck} title="No consultants found" subtitle="Try a different search" />
           </div>
         )}
       </div>
@@ -3925,7 +3936,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
         {profile?.hourly_rate && <div><span className="text-gray-400">Rate: </span><strong>${profile.hourly_rate}/hr</strong></div>}
         {profile?.years_experience && <div><span className="text-gray-400">Experience: </span><strong>{profile.years_experience}y</strong></div>}
         <div><span className="text-gray-400">Availability: </span><strong className={availability > 30 ? "text-green-600" : "text-orange-500"}>{availability}% free</strong></div>
-        {profile?.travel_available && <div>✈️ Travel available</div>}
+        {profile?.travel_available && <div className="flex items-center gap-1"><Plane className="w-3 h-3 inline-block mr-0.5" /> Travel available</div>}
         {profile?.expertise_level && (
           <div><span className="text-gray-400">Level: </span>
             <Badge className="bg-violet-100 text-violet-700 ml-1">{cap(profile.expertise_level)}</Badge>
@@ -3996,7 +4007,7 @@ function NotificationsView() {
       {loading ? (
         <Spinner />
       ) : notifications.length === 0 ? (
-        <EmptyState icon="🔔" title="All caught up!" subtitle="Notifications will appear here when cases are updated, applications change status, or you receive messages." />
+        <EmptyState Icon={Bell} title="All caught up!" subtitle="Notifications will appear here when cases are updated, applications change status, or you receive messages." />
       ) : (
         <div className="space-y-2">
           {notifications.map(n => (
@@ -4224,13 +4235,13 @@ function ReportsView() {
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
-          { label: "Total Cases",     value: cases.length,                     icon: "📋" },
-          { label: "Conversion Rate", value: `${conversionRate}%`,             icon: "🎯" },
-          { label: "Hours Logged",    value: `${totalHours.toFixed(0)}h`,      icon: "⏱" },
-          { label: "Revenue (Paid)",  value: `$${totalPaid.toLocaleString()}`, icon: "💰" },
+          { label: "Total Cases",     value: cases.length,                     Icon: FolderOpen },
+          { label: "Conversion Rate", value: `${conversionRate}%`,             Icon: Target },
+          { label: "Hours Logged",    value: `${totalHours.toFixed(0)}h`,      Icon: Clock },
+          { label: "Revenue (Paid)",  value: `$${totalPaid.toLocaleString()}`, Icon: DollarSign },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <div className="text-2xl mb-2">{s.icon}</div>
+            <div className="mb-2"><s.Icon className="w-5 h-5 text-gray-400" /></div>
             <div className="text-2xl font-bold text-gray-900">{s.value}</div>
             <div className="text-xs text-gray-500 mt-1">{s.label}</div>
           </div>
@@ -4383,7 +4394,7 @@ function SlaView({ auth }) {
           {selectedClient
             ? <SlaClientDetail client={selectedClient} auth={auth} />
             : <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center text-gray-400">
-                <div className="text-4xl mb-3">📋</div>
+                <div className="mb-3 flex justify-center"><FileText className="w-8 h-8 text-gray-300" /></div>
                 <p>Select a client to view or edit their SLA configuration</p>
               </div>
           }
@@ -4516,7 +4527,7 @@ function SlaClientDetail({ client, auth }) {
         </div>
       ) : (
         <div className="text-center py-8 text-gray-400">
-          <div className="text-3xl mb-2">📄</div>
+          <div className="mb-2 flex justify-center"><FileText className="w-8 h-8 text-gray-300" /></div>
           <p className="text-sm">No SLA configured for this client.</p>
           {(auth.isAdmin || auth.isManager) && (
             <button onClick={() => setEditing(true)}
@@ -4587,7 +4598,7 @@ function DbConnectionsView({ auth }) {
           {selectedClient
             ? <DbConnectionsList client={selectedClient} auth={auth} />
             : <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center text-gray-400">
-                <div className="text-4xl mb-3">🔌</div>
+                <div className="mb-3 flex justify-center"><Database className="w-8 h-8 text-gray-300" /></div>
                 <p>Select a client to view their database connections</p>
               </div>
           }
@@ -4684,7 +4695,7 @@ function DbConnectionsList({ client, auth }) {
         ))}
         {connections.length === 0 && (
           <div className="text-center py-8 text-gray-400">
-            <div className="text-3xl mb-2">🔌</div>
+            <div className="mb-2 flex justify-center"><Database className="w-8 h-8 text-gray-300" /></div>
             <p className="text-sm">No database connections configured.</p>
           </div>
         )}
@@ -4749,7 +4760,7 @@ function ClientTeamView({ auth }) {
           {selectedClient
             ? <ClientTeamList client={selectedClient} auth={auth} />
             : <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center text-gray-400">
-                <div className="text-4xl mb-3">👥</div>
+                <div className="mb-3 flex justify-center"><Users className="w-8 h-8 text-gray-300" /></div>
                 <p>Select a client to view their team members</p>
               </div>
           }
@@ -4837,14 +4848,14 @@ function ClientTeamList({ client, auth }) {
               </div>
             </div>
             <div className="text-xs text-gray-400 space-y-0.5">
-              {m.email && <div>📧 {m.email}</div>}
-              {m.phone && <div>📞 {m.phone}</div>}
+              {m.email && <div className="flex items-center gap-1"><Mail className="w-3 h-3 text-gray-400" />{m.email}</div>}
+              {m.phone && <div className="flex items-center gap-1"><Phone className="w-3 h-3 text-gray-400" />{m.phone}</div>}
             </div>
           </div>
         ))}
         {members.length === 0 && (
           <div className="col-span-full text-center py-8 text-gray-400">
-            <div className="text-3xl mb-2">👥</div>
+            <div className="mb-2 flex justify-center"><Users className="w-8 h-8 text-gray-300" /></div>
             <p className="text-sm">No team members added yet.</p>
           </div>
         )}
@@ -5025,7 +5036,7 @@ function ClientProfileView({ auth }) {
             <div className="flex flex-wrap gap-2 mt-2">
               {profile?.company_size && <Badge className="bg-gray-100 text-gray-600">{profile.company_size}</Badge>}
               {profile?.founded_year && <Badge className="bg-gray-100 text-gray-600">Est. {profile.founded_year}</Badge>}
-              {profile?.budget && <Badge className="bg-green-100 text-green-700">💰 {profile.budget}</Badge>}
+              {profile?.budget && <Badge className="bg-green-100 text-green-700"><DollarSign className="w-3 h-3 inline mr-0.5" />{profile.budget}</Badge>}
             </div>
           </div>
           <button onClick={() => setEditing(p => !p)}
@@ -5139,13 +5150,13 @@ function ClientProfileView({ auth }) {
             {profile?.website && (
               <a href={profile.website} target="_blank" rel="noreferrer"
                 className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline">
-                🌐 Website
+                <Globe className="w-3.5 h-3.5 mr-1" /> Website
               </a>
             )}
             {profile?.linkedin_url && (
               <a href={profile.linkedin_url} target="_blank" rel="noreferrer"
                 className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline">
-                🔗 LinkedIn
+                <Link className="w-3.5 h-3.5 mr-1" /> LinkedIn
               </a>
             )}
           </div>
@@ -5172,8 +5183,8 @@ function ClientProfileView({ auth }) {
                   <div className="font-semibold text-gray-900">{profile.contact_name}</div>
                   {profile.contact_title && <div className="text-gray-500">{profile.contact_title}</div>}
                   <div className="flex gap-4 text-gray-400 text-xs">
-                    {profile.contact_email && <span>📧 {profile.contact_email}</span>}
-                    {profile.contact_phone && <span>📞 {profile.contact_phone}</span>}
+                    {profile.contact_email && <span className="flex items-center gap-1"><Mail className="w-3 h-3 text-gray-400" />{profile.contact_email}</span>}
+                    {profile.contact_phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3 text-gray-400" />{profile.contact_phone}</span>}
                   </div>
                 </div>
               </div>
@@ -5277,7 +5288,7 @@ function ClientProfileView({ auth }) {
             </div>
           ) : (
             <div className="text-center py-8 text-gray-400">
-              <div className="text-3xl mb-2">📋</div>
+              <div className="mb-2 flex justify-center"><FileText className="w-8 h-8 text-gray-300" /></div>
               <p className="text-sm mb-4">No SLA configured yet.</p>
               <button onClick={() => setSlaEditing(true)}
                 className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">
@@ -5353,7 +5364,7 @@ function ClientProfileView({ auth }) {
             ))}
             {connections.length === 0 && (
               <div className="text-center py-8 text-gray-400">
-                <div className="text-3xl mb-2">🔌</div>
+                <div className="mb-2 flex justify-center"><Database className="w-8 h-8 text-gray-300" /></div>
                 <p className="text-sm">No database connections yet. Add one above.</p>
               </div>
             )}
@@ -5421,14 +5432,14 @@ function ClientProfileView({ auth }) {
                   </div>
                 </div>
                 <div className="text-xs text-gray-400 space-y-0.5">
-                  {m.email && <div>📧 {m.email}</div>}
-                  {m.phone && <div>📞 {m.phone}</div>}
+                  {m.email && <div className="flex items-center gap-1"><Mail className="w-3 h-3 text-gray-400" />{m.email}</div>}
+                  {m.phone && <div className="flex items-center gap-1"><Phone className="w-3 h-3 text-gray-400" />{m.phone}</div>}
                 </div>
               </div>
             ))}
             {members.length === 0 && (
               <div className="col-span-full text-center py-8 text-gray-400">
-                <div className="text-3xl mb-2">👥</div>
+                <div className="mb-2 flex justify-center"><Users className="w-8 h-8 text-gray-300" /></div>
                 <p className="text-sm">No team members added yet.</p>
               </div>
             )}
@@ -5851,7 +5862,7 @@ function TimeEntriesView({ auth }) {
 
       {/* Table */}
       {filtered.length === 0 ? (
-        <EmptyState icon="⏱" title="No time entries" subtitle={auth.isConsultant ? "Log your first entry above" : "No entries logged yet"} />
+        <EmptyState Icon={Clock} title="No time entries" subtitle={auth.isConsultant ? "Log your first entry above" : "No entries logged yet"} />
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <table className="w-full text-sm">
@@ -6532,13 +6543,13 @@ function ClientOnboardingView({ auth, onComplete }) {
 function ManagerAdminWelcomeView({ auth, onComplete }) {
   const roleInfo = {
     manager: {
-      icon: "📋",
+      Icon: FileText,
       title: "Welcome, Manager!",
       desc: "You have full access to manage cases, assign consultants, review the kanban board, configure SLAs, and run reports.",
       highlights: ["Create & manage cases", "Assign consultants", "Track progress on Kanban", "Configure SLA rules", "Generate reports"],
     },
     admin: {
-      icon: "⚙️",
+      Icon: Settings,
       title: "Welcome, Administrator!",
       desc: "You have complete platform access including user management, all cases, system configuration, and reporting.",
       highlights: ["Manage all users & roles", "Full case oversight", "Configure system settings", "DB connections", "Arena & leaderboard"],
@@ -6548,8 +6559,8 @@ function ManagerAdminWelcomeView({ auth, onComplete }) {
 
   return (
     <div className="max-w-lg mx-auto py-16 text-center">
-      <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-6 shadow-lg text-3xl">
-        {info.icon}
+      <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-6 shadow-lg">
+        <info.Icon className="w-8 h-8 text-white" />
       </div>
       <h1 className="text-2xl font-bold text-gray-900 mb-2">{info.title}</h1>
       <p className="text-gray-500 text-sm mb-8">{info.desc}</p>
