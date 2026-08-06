@@ -1889,6 +1889,15 @@ const CREATE_CASE_STEPS = [
   { id: "review",         label: "Review",       Icon: CheckCircle2,   desc: "Confirm & create" },
 ];
 
+const PROJECT_STEPS = [
+  { id: "basics",       label: "Basics",       Icon: FileText,          desc: "Name & description" },
+  { id: "scope",        label: "Scope",        Icon: DollarSign,        desc: "Budget & timeline" },
+  { id: "objectives",   label: "Objectives",   Icon: Target,            desc: "Goals & deliverables" },
+  { id: "team",         label: "Team",         Icon: Users,             desc: "Contacts & headcount" },
+  { id: "requirements", label: "Requirements", Icon: SlidersHorizontal, desc: "Skills & preferences" },
+  { id: "review",       label: "Review",       Icon: CheckCircle2,      desc: "Confirm & create" },
+];
+
 function CreateCaseWizard({ auth, createCase, onComplete, onCancel, initialProjectId = null }) {
   const [step, setSt]       = useState(initialProjectId ? 1 : 0);
   const [creating, setCreating] = useState(false);
