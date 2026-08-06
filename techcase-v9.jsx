@@ -1889,11 +1889,11 @@ const CREATE_CASE_STEPS = [
   { id: "review",         label: "Review",       Icon: CheckCircle2,   desc: "Confirm & create" },
 ];
 
-function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
-  const [step, setSt]       = useState(0);
+function CreateCaseWizard({ auth, createCase, onComplete, onCancel, initialProjectId = null }) {
+  const [step, setSt]       = useState(initialProjectId ? 1 : 0);
   const [creating, setCreating] = useState(false);
 
-  const [selectedProjectId, setSelectedProjectId] = useState(null);
+  const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId);
   const [wizardProjects, setWizardProjects]         = useState([]);
 
   const [basics, setBasics] = useState({ title: "", description: "", priority: "medium", area_sap: "", area_industry: "", is_confidential: false, nda_required: false });
@@ -2865,7 +2865,9 @@ function CreateProjectModal({ auth, clients, onSave, onClose }) {
 }
 
 function ProjectDetail({ project, auth, onBack, onUpdate, onClose }) {
+  const { createCase } = useCases({});
   const [projCases, setProjCases] = useState([]);
+  const [showCreateCase, setShowCreateCase] = useState(false);
   const [form, setForm] = useState({
     name: project.name ?? "",
     description: project.description ?? "",
@@ -3016,14 +3018,20 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose }) {
             </span>
           </h2>
           {canEdit && (
-            <button onClick={openAssignModal}
-              className="text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-4 py-2">
-              + Assign case
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={openAssignModal}
+                className="text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-4 py-2">
+                + Assign existing
+              </button>
+              <button onClick={() => setShowCreateCase(true)}
+                className="text-sm bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl px-4 py-2">
+                + New Case
+              </button>
+            </div>
           )}
         </div>
         {projCases.length === 0 ? (
-          <EmptyState Icon={FolderOpen} title="No cases yet" subtitle="Assign cases to this project using the button above." />
+          <EmptyState Icon={FolderOpen} title="No cases yet" subtitle="Create a new case or assign an existing one using the buttons above." />
         ) : (
           <div className="space-y-2">
             {projCases.map(c => {
@@ -3054,6 +3062,26 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose }) {
           </div>
         )}
       </div>
+
+      {/* Create case wizard (pre-linked to this project) */}
+      {showCreateCase && (
+        <div className="fixed inset-0 z-50 bg-[#EAF4FD] overflow-y-auto p-6">
+          <CreateCaseWizard
+            auth={auth}
+            createCase={createCase}
+            initialProjectId={project.id}
+            onComplete={async () => {
+              setShowCreateCase(false);
+              const { data } = await supabase.from("cases")
+                .select("*, case_assignments(consultant_id, users(full_name))")
+                .eq("project_id", project.id)
+                .order("created_at", { ascending: false });
+              setProjCases(data ?? []);
+            }}
+            onCancel={() => setShowCreateCase(false)}
+          />
+        </div>
+      )}
 
       {/* Assign case modal */}
       {showAssign && (
