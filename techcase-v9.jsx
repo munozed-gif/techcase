@@ -1888,6 +1888,9 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
   const [step, setSt]       = useState(0);
   const [creating, setCreating] = useState(false);
 
+  const [selectedProjectId, setSelectedProjectId] = useState(null);
+  const [wizardProjects, setWizardProjects]         = useState([]);
+
   const [basics, setBasics] = useState({ title: "", description: "", priority: "medium", area_sap: "", area_industry: "" });
   const [scope, setScope]   = useState({ budget: "", start_date: "", due_date: daysFromNow(30), sla: "standard", _skills: "", client_id: auth.isClient ? auth.user?.id : "" });
   const [milestones, setMs] = useState([]);
@@ -1902,6 +1905,12 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
         .then(({ data }) => setClients(data ?? []));
     }
   }, []);
+
+  useEffect(() => {
+    let q = supabase.from("projects").select("id, name, status, area_sap").eq("status", "active").order("name");
+    if (auth.isClient) q = q.eq("client_id", auth.user?.id);
+    q.then(({ data }) => setWizardProjects(data ?? []));
+  }, [auth.user?.id]);
 
   const isLast = step === CREATE_CASE_STEPS.length - 1;
 
@@ -1919,6 +1928,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
         skills_required: _skills.split(",").map(s => s.trim()).filter(Boolean),
         client_id:  auth.isClient  ? auth.user?.id : client_id || null,
         manager_id: auth.isManager ? auth.user?.id : null,
+        project_id: selectedProjectId || null,
       });
       if (milestones.length > 0 && newCase?.id) {
         await supabase.from("case_milestones").insert(
@@ -1953,8 +1963,48 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
 
-        {/* ── Step 0: Case Info ── */}
+        {/* ── Step 0: Project ── */}
         {step === 0 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Select a Project</h2>
+            <p className="text-sm text-gray-500 mb-5">Link this case to one of your active projects, or create it as a standalone case.</p>
+            {wizardProjects.length === 0 ? (
+              <div className="text-sm text-gray-400 italic bg-gray-50 rounded-xl p-4">
+                No active projects — this case will be created as standalone.
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {wizardProjects.map(p => (
+                  <button key={p.id}
+                    onClick={() => setSelectedProjectId(p.id)}
+                    className={`text-left border-2 rounded-xl p-4 transition-colors ${
+                      selectedProjectId === p.id
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
+                    }`}>
+                    <div className="font-semibold text-gray-900 text-sm">{p.name}</div>
+                    {p.area_sap && (
+                      <span className="mt-1 inline-block px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs">{p.area_sap}</span>
+                    )}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setSelectedProjectId(null)}
+                  className={`text-left border-2 rounded-xl p-4 transition-colors ${
+                    selectedProjectId === null
+                      ? "border-gray-400 bg-gray-100"
+                      : "border-gray-200 hover:border-gray-400 hover:bg-gray-50"
+                  }`}>
+                  <div className="font-semibold text-gray-500 text-sm">Standalone (no project)</div>
+                  <div className="text-xs text-gray-400 mt-1">Not linked to any project</div>
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── Step 1: Case Info ── */}
+        {step === 1 && (
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">Case Information</h2>
             <p className="text-sm text-gray-500 mb-5">Describe what this case is about.</p>
@@ -1997,8 +2047,8 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
           </>
         )}
 
-        {/* ── Step 1: Scope ── */}
-        {step === 1 && (
+        {/* ── Step 2: Scope ── */}
+        {step === 2 && (
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">Scope & Budget</h2>
             <p className="text-sm text-gray-500 mb-5">Set the budget, timeline and required expertise.</p>
@@ -2053,8 +2103,8 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
           </>
         )}
 
-        {/* ── Step 2: Milestones ── */}
-        {step === 2 && (
+        {/* ── Step 3: Milestones ── */}
+        {step === 3 && (
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">Milestones</h2>
             <p className="text-sm text-gray-500 mb-5">Define key deliverables. You can skip and add them later from the case detail.</p>
@@ -2094,8 +2144,8 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
           </>
         )}
 
-        {/* ── Step 3: Review ── */}
-        {step === 3 && (
+        {/* ── Step 4: Review ── */}
+        {step === 4 && (
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">Review & Create</h2>
             <p className="text-sm text-gray-500 mb-5">Confirm everything looks right.</p>
@@ -2170,14 +2220,14 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
           {step === 0 ? "✕ Cancel" : "← Back"}
         </button>
         <div className="flex items-center gap-3">
-          {step === 2 && (
+          {step === 3 && (
             <button onClick={() => setSt(s => s + 1)} className="px-4 py-2.5 text-sm text-gray-400 hover:text-gray-600 border border-gray-200 rounded-xl">
               Skip
             </button>
           )}
           {!isLast ? (
             <button onClick={() => setSt(s => s + 1)}
-              disabled={step === 0 && !basics.title.trim()}
+              disabled={step === 1 && !basics.title.trim()}
               className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
               Continue →
             </button>
@@ -3011,6 +3061,74 @@ function CasesView({ auth }) {
   );
 }
 
+function ProjectFieldEditor({ caseData, auth }) {
+  const [projectName, setProjectName] = useState(null);
+  const [projectId, setProjectId]     = useState(caseData.project_id ?? null);
+  const [open, setOpen]               = useState(false);
+  const [options, setOptions]         = useState([]);
+
+  useEffect(() => {
+    if (!projectId) { setProjectName(null); return; }
+    supabase.from("projects").select("id, name").eq("id", projectId).single()
+      .then(({ data }) => setProjectName(data?.name ?? null));
+  }, [projectId]);
+
+  async function openDropdown() {
+    let q = supabase.from("projects").select("id, name, status").in("status", ["active","completed"]).order("name");
+    if (auth.isClient) q = q.eq("client_id", auth.user?.id);
+    const { data } = await q;
+    setOptions(data ?? []);
+    setOpen(true);
+  }
+
+  async function select(id) {
+    await supabase.from("cases").update({ project_id: id }).eq("id", caseData.id);
+    setProjectId(id);
+    if (id === null) {
+      setProjectName(null);
+    } else {
+      const found = options.find(o => o.id === id);
+      setProjectName(found?.name ?? null);
+    }
+    setOpen(false);
+  }
+
+  const canEdit = auth.isAdmin || auth.isManager || auth.isClient;
+
+  return (
+    <div className="flex items-center gap-2 text-sm relative">
+      <span className="text-gray-500 w-24 flex-shrink-0">Project</span>
+      {projectName ? (
+        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold">{projectName}</span>
+      ) : (
+        <span className="text-gray-400 italic text-xs">Standalone</span>
+      )}
+      {canEdit && (
+        <button onClick={openDropdown} className="text-xs text-gray-400 hover:text-blue-600 underline ml-1">
+          change
+        </button>
+      )}
+      {open && (
+        <div className="absolute left-24 top-6 z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-48 max-h-60 overflow-y-auto">
+          <button onClick={() => select(null)}
+            className="w-full text-left px-4 py-2 text-sm text-gray-500 hover:bg-gray-50 italic">
+            Standalone (no project)
+          </button>
+          {options.map(o => (
+            <button key={o.id} onClick={() => select(o.id)}
+              className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-blue-50 hover:text-blue-700">
+              {o.name}
+            </button>
+          ))}
+          {options.length === 0 && (
+            <div className="px-4 py-2 text-xs text-gray-400">No projects available</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
   const { applications, apply, reviewApplication } = useApplications(caseData.id);
   const { milestones, toggleMilestone, addMilestone } = useMilestones(caseData.id);
@@ -3178,6 +3296,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
             {caseData.client?.full_name && <div><span className="text-gray-400">Client: </span><span className="font-medium">{caseData.client.full_name}</span></div>}
             {caseData.manager?.full_name && <div><span className="text-gray-400">Manager: </span><span className="font-medium">{caseData.manager.full_name}</span></div>}
           </div>
+          <ProjectFieldEditor caseData={caseData} auth={auth} />
           {caseData.skills_required?.length > 0 && (
             <div>
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Skills Required</div>
@@ -7193,6 +7312,7 @@ export default function App() {
   function renderView() {
     switch (activeView) {
       case "dashboard":      return <Dashboard auth={auth} />;
+      case "projects":       return <ProjectsView auth={auth} />;
       case "cases":          return <CasesView auth={auth} />;
       case "my-cases":       return <CasesView auth={auth} />;
       case "arena":          return <ArenaView auth={auth} />;
