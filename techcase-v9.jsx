@@ -2784,89 +2784,463 @@ const PROJECT_STATUS_COLORS = {
   cancelled: "bg-red-100 text-red-700",
 };
 
-function CreateProjectModal({ auth, clients, onSave, onClose }) {
-  const [form, setForm] = useState({
-    name: "", description: "", client_id: auth.isClient ? auth.user?.id : "",
-    total_budget: "", start_date: "", end_date: "", area_sap: "", industry: "",
-  });
-  const [saving, setSaving] = useState(false);
+function CreateProjectWizard({ auth, createProject, onComplete, onCancel, clients = [] }) {
+  const [step, setSt] = useState(0);
+  const [creating, setCreating] = useState(false);
 
-  async function handleSave() {
-    if (!form.name.trim()) { alert("Name is required"); return; }
-    setSaving(true);
+  // Step 0: Basics
+  const [basics, setBasics] = useState({ name: "", description: "", status: "draft" });
+  // Step 1: Scope
+  const [scopeData, setScopeData] = useState({ total_budget: "", start_date: "", end_date: "", area_sap: "", industry: "", client_id: auth.isClient ? auth.user?.id : "" });
+  // Step 2: Objectives
+  const [objectives, setObj] = useState({ objectives: "", deliverables: [], success_criteria: "", out_of_scope: "" });
+  const [delivInput, setDelivInput] = useState("");
+  // Step 3: Team
+  const [team, setTeam] = useState({ stakeholder_name: "", stakeholder_email: "", billing_contact_name: "", billing_contact_email: "", expected_consultants: "" });
+  // Step 4: Requirements
+  const [reqs, setReqs] = useState({ skills_required: [], work_mode: "remote", compliance_notes: "", priority: "medium" });
+  const [skillInput, setSkillInput] = useState("");
+
+  const isLast = step === PROJECT_STEPS.length - 1;
+
+  async function handleCreate() {
+    setCreating(true);
     try {
-      await onSave({
-        name: form.name,
-        description: form.description || null,
-        client_id: form.client_id || null,
-        total_budget: form.total_budget ? Number(form.total_budget) : null,
-        start_date: form.start_date || null,
-        end_date: form.end_date || null,
-        area_sap: form.area_sap || null,
-        industry: form.industry || null,
+      await createProject({
+        ...basics,
+        ...scopeData,
+        client_id: auth.isClient ? auth.user?.id : (scopeData.client_id || null),
+        total_budget: scopeData.total_budget ? Number(scopeData.total_budget) : null,
+        start_date: scopeData.start_date || null,
+        end_date: scopeData.end_date || null,
+        area_sap: scopeData.area_sap || null,
+        industry: scopeData.industry || null,
+        objectives: objectives.objectives || null,
+        deliverables: objectives.deliverables.length ? objectives.deliverables : null,
+        success_criteria: objectives.success_criteria || null,
+        out_of_scope: objectives.out_of_scope || null,
+        ...team,
+        expected_consultants: team.expected_consultants ? parseInt(team.expected_consultants, 10) : null,
+        ...reqs,
+        skills_required: reqs.skills_required.length ? reqs.skills_required : null,
         created_by: auth.user?.id,
-        status: "draft",
       });
-      onClose();
+      onComplete();
     } catch (e) { alert(e.message); }
-    setSaving(false);
+    setCreating(false);
+  }
+
+  function addDeliverable() {
+    const val = delivInput.trim();
+    if (!val) return;
+    setObj(p => ({ ...p, deliverables: [...p.deliverables, val] }));
+    setDelivInput("");
+  }
+
+  function addSkill() {
+    const val = skillInput.trim();
+    if (!val) return;
+    setReqs(p => ({ ...p, skills_required: [...p.skills_required, val] }));
+    setSkillInput("");
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <h2 className="text-xl font-bold text-gray-900">New Project</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+    <div className="max-w-2xl mx-auto py-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">New Project</h1>
+          <p className="text-gray-500 text-sm mt-0.5">Walk through each step to set up your project.</p>
         </div>
-        <div className="p-6 space-y-1">
-          <Input label="Name *" value={form.name}
-            onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-            placeholder="e.g. SAP S/4HANA Transformation" />
-          <Textarea label="Description" value={form.description}
-            onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-            placeholder="Project objectives and scope…" />
-          {(auth.isAdmin || auth.isManager) && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
-              <select value={form.client_id} onChange={e => setForm(p => ({ ...p, client_id: e.target.value }))}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">— Select client —</option>
-                {clients.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.client_profiles?.company_name || c.full_name}
-                  </option>
+        <button onClick={onCancel}
+          className="text-sm text-gray-400 hover:text-gray-600 border border-gray-200 px-3 py-1.5 rounded-xl hover:bg-gray-50">
+          ✕ Cancel
+        </button>
+      </div>
+
+      <OnboardingRoadmap steps={PROJECT_STEPS} current={step} />
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+
+        {/* ── Step 0: Basics ── */}
+        {step === 0 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Project Basics</h2>
+            <p className="text-sm text-gray-500 mb-5">Give your project a name and description.</p>
+            <Input label="Project Name *" value={basics.name}
+              onChange={e => setBasics(p => ({ ...p, name: e.target.value }))}
+              placeholder="e.g. SAP S/4HANA Transformation" />
+            <Textarea label="Description" value={basics.description}
+              onChange={e => setBasics(p => ({ ...p, description: e.target.value }))}
+              placeholder="Project objectives and scope…" />
+
+            {/* Status cards */}
+            <div className="mb-5">
+              <p className="text-sm font-medium text-gray-700 mb-2">Status</p>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { value: "draft",  label: "Draft",  desc: "Not yet active" },
+                  { value: "active", label: "Active", desc: "In progress now" },
+                ].map(opt => (
+                  <button key={opt.value} type="button"
+                    onClick={() => setBasics(p => ({ ...p, status: opt.value }))}
+                    className={`text-left p-4 border-2 rounded-xl transition-all ${
+                      basics.status === opt.value
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:border-gray-300"}`}>
+                    <div className="font-semibold text-sm text-gray-900">{opt.label}</div>
+                    <div className="text-xs text-gray-400 mt-0.5">{opt.desc}</div>
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
+
+            {/* Priority cards */}
+            <div className="mb-2">
+              <p className="text-sm font-medium text-gray-700 mb-2">Priority</p>
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { value: "low",      label: "Low",      cls: "border-slate-300 bg-slate-50 text-slate-700",    sel: "border-slate-500 bg-slate-100 text-slate-800" },
+                  { value: "medium",   label: "Medium",   cls: "border-yellow-300 bg-yellow-50 text-yellow-700", sel: "border-yellow-500 bg-yellow-100 text-yellow-800" },
+                  { value: "high",     label: "High",     cls: "border-orange-300 bg-orange-50 text-orange-700", sel: "border-orange-500 bg-orange-100 text-orange-800" },
+                  { value: "critical", label: "Critical", cls: "border-red-300 bg-red-50 text-red-700",          sel: "border-red-500 bg-red-100 text-red-800" },
+                ].map(opt => (
+                  <button key={opt.value} type="button"
+                    onClick={() => setReqs(p => ({ ...p, priority: opt.value }))}
+                    className={`p-3 border-2 rounded-xl text-xs font-semibold transition-all ${
+                      reqs.priority === opt.value ? opt.sel : opt.cls}`}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ── Step 1: Scope ── */}
+        {step === 1 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Scope &amp; Budget</h2>
+            <p className="text-sm text-gray-500 mb-5">Define the budget, timeline, and domain.</p>
+            {(auth.isAdmin || auth.isManager) && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
+                <select value={scopeData.client_id}
+                  onChange={e => setScopeData(p => ({ ...p, client_id: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">— Select client —</option>
+                  {clients.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.client_profiles?.company_name || c.full_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <Input label="Budget ($)" type="number" value={scopeData.total_budget}
+              onChange={e => setScopeData(p => ({ ...p, total_budget: e.target.value }))}
+              placeholder="e.g. 200000" />
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Start Date" type="date" value={scopeData.start_date}
+                onChange={e => setScopeData(p => ({ ...p, start_date: e.target.value }))} />
+              <Input label="End Date" type="date" value={scopeData.end_date}
+                onChange={e => setScopeData(p => ({ ...p, end_date: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">SAP Area</label>
+                <select value={scopeData.area_sap}
+                  onChange={e => setScopeData(p => ({ ...p, area_sap: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">— None —</option>
+                  {SAP_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+                <select value={scopeData.industry}
+                  onChange={e => setScopeData(p => ({ ...p, industry: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">— Select industry —</option>
+                  {INDUSTRY_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ── Step 2: Objectives ── */}
+        {step === 2 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Objectives &amp; Deliverables</h2>
+            <p className="text-sm text-gray-500 mb-5">Define what this project aims to achieve.</p>
+            <Textarea label="Project Objectives" value={objectives.objectives}
+              onChange={e => setObj(p => ({ ...p, objectives: e.target.value }))}
+              placeholder="What is this project trying to achieve?" />
+
+            {/* Deliverables tag input */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Deliverables</label>
+              <div className="flex gap-2">
+                <input value={delivInput}
+                  onChange={e => setDelivInput(e.target.value)}
+                  onKeyDown={e => {
+                    if ((e.key === "Enter" || e.key === ",") && delivInput.trim()) {
+                      e.preventDefault();
+                      addDeliverable();
+                    }
+                  }}
+                  placeholder="e.g. Migration Report — press Enter to add"
+                  className="flex-1 bg-gray-100 border-0 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm" />
+                <button type="button" onClick={addDeliverable}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold">+ Add</button>
+              </div>
+              {objectives.deliverables.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {objectives.deliverables.map((d, i) => (
+                    <span key={i} className="flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg">
+                      {d}
+                      <button type="button"
+                        onClick={() => setObj(p => ({ ...p, deliverables: p.deliverables.filter((_, j) => j !== i) }))}
+                        className="text-blue-400 hover:text-blue-700 ml-1">×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <Textarea label="Success Criteria" value={objectives.success_criteria}
+              onChange={e => setObj(p => ({ ...p, success_criteria: e.target.value }))}
+              placeholder="How will you measure success?" />
+            <Textarea label="Out of Scope (optional)" value={objectives.out_of_scope}
+              onChange={e => setObj(p => ({ ...p, out_of_scope: e.target.value }))}
+              placeholder="What is explicitly excluded from this project?" />
+          </>
+        )}
+
+        {/* ── Step 3: Team ── */}
+        {step === 3 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Team &amp; Contacts</h2>
+            <p className="text-sm text-gray-500 mb-5">Identify key stakeholders and billing contacts.</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Stakeholder</p>
+            <div className="grid grid-cols-2 gap-3 mb-5">
+              <Input label="Stakeholder Name" value={team.stakeholder_name}
+                onChange={e => setTeam(p => ({ ...p, stakeholder_name: e.target.value }))}
+                placeholder="e.g. Anna Müller" />
+              <Input label="Stakeholder Email" value={team.stakeholder_email}
+                onChange={e => setTeam(p => ({ ...p, stakeholder_email: e.target.value }))}
+                placeholder="e.g. a.muller@company.com" />
+            </div>
+            <div className="border-t border-gray-100 pt-5 mb-5">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Billing Contact</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Billing Contact Name" value={team.billing_contact_name}
+                  onChange={e => setTeam(p => ({ ...p, billing_contact_name: e.target.value }))}
+                  placeholder="e.g. Carlos Reyes" />
+                <Input label="Billing Contact Email" value={team.billing_contact_email}
+                  onChange={e => setTeam(p => ({ ...p, billing_contact_email: e.target.value }))}
+                  placeholder="e.g. c.reyes@company.com" />
+              </div>
+            </div>
+            <div className="border-t border-gray-100 pt-5">
+              <Input label="Expected Number of Consultants (optional)" type="number" value={team.expected_consultants}
+                onChange={e => setTeam(p => ({ ...p, expected_consultants: e.target.value }))}
+                placeholder="e.g. 3" />
+            </div>
+          </>
+        )}
+
+        {/* ── Step 4: Requirements ── */}
+        {step === 4 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Requirements</h2>
+            <p className="text-sm text-gray-500 mb-5">Specify skills, work mode, and compliance notes.</p>
+
+            {/* Skills tag input */}
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Skills Required</label>
+              <div className="flex gap-2">
+                <input value={skillInput}
+                  onChange={e => setSkillInput(e.target.value)}
+                  onKeyDown={e => {
+                    if ((e.key === "Enter" || e.key === ",") && skillInput.trim()) {
+                      e.preventDefault();
+                      addSkill();
+                    }
+                  }}
+                  placeholder="e.g. SAP S/4HANA — press Enter to add"
+                  className="flex-1 bg-gray-100 border-0 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm" />
+                <button type="button" onClick={addSkill}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold">+ Add</button>
+              </div>
+              {reqs.skills_required.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {reqs.skills_required.map((s, i) => (
+                    <span key={i} className="flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded-lg">
+                      {s}
+                      <button type="button"
+                        onClick={() => setReqs(p => ({ ...p, skills_required: p.skills_required.filter((_, j) => j !== i) }))}
+                        className="text-gray-400 hover:text-gray-700 ml-1">×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Work Mode cards */}
+            <div className="mb-5">
+              <p className="text-sm font-medium text-gray-700 mb-2">Work Mode</p>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { value: "remote",  label: "Remote",   desc: "Fully remote" },
+                  { value: "onsite",  label: "On-site",  desc: "At client location" },
+                  { value: "hybrid",  label: "Hybrid",   desc: "Mix of both" },
+                ].map(opt => (
+                  <button key={opt.value} type="button"
+                    onClick={() => setReqs(p => ({ ...p, work_mode: opt.value }))}
+                    className={`text-left p-4 border-2 rounded-xl transition-all ${
+                      reqs.work_mode === opt.value
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:border-gray-300"}`}>
+                    <div className="font-semibold text-sm text-gray-900">{opt.label}</div>
+                    <div className="text-xs text-gray-400 mt-0.5">{opt.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Textarea label="Compliance / Regulatory Notes (optional)" value={reqs.compliance_notes}
+              onChange={e => setReqs(p => ({ ...p, compliance_notes: e.target.value }))}
+              placeholder="GDPR, ISO, NDA requirements, etc." />
+          </>
+        )}
+
+        {/* ── Step 5: Review ── */}
+        {step === 5 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Review &amp; Create</h2>
+            <p className="text-sm text-gray-500 mb-5">Confirm everything looks right before creating.</p>
+            <div className="space-y-4">
+              {/* Basics card */}
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Basics</p>
+                <p className="font-semibold text-gray-900 text-base">{basics.name || <span className="italic text-gray-400">Untitled</span>}</p>
+                {basics.description && <p className="text-sm text-gray-500 mt-1 leading-relaxed">{basics.description}</p>}
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <Badge className={PRIORITY_COLORS[reqs.priority]}>{cap(reqs.priority)}</Badge>
+                  <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${PROJECT_STATUS_COLORS[basics.status] ?? "bg-gray-100 text-gray-600"}`}>{cap(basics.status)}</span>
+                </div>
+              </div>
+
+              {/* Scope card */}
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Scope</p>
+                <div className="grid grid-cols-2 gap-y-2 text-sm">
+                  {scopeData.total_budget && (
+                    <div><span className="text-gray-400">Budget:</span> <span className="font-medium ml-1">${Number(scopeData.total_budget).toLocaleString()}</span></div>
+                  )}
+                  {scopeData.start_date && (
+                    <div><span className="text-gray-400">Start:</span> <span className="font-medium ml-1">{fmtDate(scopeData.start_date)}</span></div>
+                  )}
+                  {scopeData.end_date && (
+                    <div><span className="text-gray-400">End:</span> <span className="font-medium ml-1">{fmtDate(scopeData.end_date)}</span></div>
+                  )}
+                  {scopeData.area_sap && (
+                    <div><span className="text-gray-400">SAP Area:</span> <span className="font-medium ml-1">{scopeData.area_sap}</span></div>
+                  )}
+                  {scopeData.industry && (
+                    <div><span className="text-gray-400">Industry:</span> <span className="font-medium ml-1">{scopeData.industry}</span></div>
+                  )}
+                </div>
+                {!scopeData.total_budget && !scopeData.start_date && !scopeData.end_date && (
+                  <p className="text-sm text-gray-400 italic">No scope details added.</p>
+                )}
+              </div>
+
+              {/* Objectives card — only if any filled */}
+              {(objectives.objectives || objectives.deliverables.length > 0 || objectives.success_criteria) && (
+                <div className="border border-gray-100 rounded-xl p-4">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Objectives</p>
+                  {objectives.objectives && <p className="text-sm text-gray-700 mb-3 leading-relaxed">{objectives.objectives}</p>}
+                  {objectives.deliverables.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {objectives.deliverables.map((d, i) => (
+                        <span key={i} className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs">{d}</span>
+                      ))}
+                    </div>
+                  )}
+                  {objectives.success_criteria && <p className="text-xs text-gray-500 mt-1">{objectives.success_criteria}</p>}
+                </div>
+              )}
+
+              {/* Team card — only if any filled */}
+              {(team.stakeholder_name || team.billing_contact_name || team.expected_consultants) && (
+                <div className="border border-gray-100 rounded-xl p-4">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Team</p>
+                  <div className="grid grid-cols-2 gap-y-2 text-sm">
+                    {team.stakeholder_name && (
+                      <div><span className="text-gray-400">Stakeholder:</span> <span className="font-medium ml-1">{team.stakeholder_name}</span></div>
+                    )}
+                    {team.stakeholder_email && (
+                      <div><span className="text-gray-400">Email:</span> <span className="font-medium ml-1">{team.stakeholder_email}</span></div>
+                    )}
+                    {team.billing_contact_name && (
+                      <div><span className="text-gray-400">Billing:</span> <span className="font-medium ml-1">{team.billing_contact_name}</span></div>
+                    )}
+                    {team.expected_consultants && (
+                      <div><span className="text-gray-400">Consultants:</span> <span className="font-medium ml-1">{team.expected_consultants}</span></div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Requirements card — only if any skills */}
+              {(reqs.skills_required.length > 0 || reqs.compliance_notes) && (
+                <div className="border border-gray-100 rounded-xl p-4">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Requirements</p>
+                  <div className="text-sm mb-2">
+                    <span className="text-gray-400">Work mode:</span> <span className="font-medium ml-1 capitalize">{reqs.work_mode}</span>
+                  </div>
+                  {reqs.skills_required.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {reqs.skills_required.map((s, i) => (
+                        <span key={i} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-lg text-xs">{s}</span>
+                      ))}
+                    </div>
+                  )}
+                  {reqs.compliance_notes && <p className="text-xs text-gray-500">{reqs.compliance_notes}</p>}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── Navigation ── */}
+      <div className="sticky bottom-0 bg-white border-t-2 border-gray-100 shadow-xl rounded-2xl px-6 py-4 flex items-center justify-between mt-4">
+        <button onClick={() => step > 0 ? setSt(s => s - 1) : onCancel()}
+          className="px-5 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors font-medium">
+          {step === 0 ? "✕ Cancel" : "← Back"}
+        </button>
+        <div className="flex items-center gap-3">
+          {(step === 2 || step === 3) && (
+            <button onClick={() => setSt(s => s + 1)}
+              className="px-4 py-2.5 text-sm text-gray-400 hover:text-gray-600 border border-gray-200 rounded-xl">
+              Skip
+            </button>
           )}
-          <Input label="Budget ($)" type="number" value={form.total_budget}
-            onChange={e => setForm(p => ({ ...p, total_budget: e.target.value }))}
-            placeholder="e.g. 200000" />
-          <div className="grid grid-cols-2 gap-3">
-            <Input label="Start Date" type="date" value={form.start_date}
-              onChange={e => setForm(p => ({ ...p, start_date: e.target.value }))} />
-            <Input label="End Date" type="date" value={form.end_date}
-              onChange={e => setForm(p => ({ ...p, end_date: e.target.value }))} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Input label="SAP Area" value={form.area_sap}
-              onChange={e => setForm(p => ({ ...p, area_sap: e.target.value }))}
-              placeholder="e.g. Finance" />
-            <Input label="Industry" value={form.industry}
-              onChange={e => setForm(p => ({ ...p, industry: e.target.value }))}
-              placeholder="e.g. Manufacturing" />
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <button onClick={onClose}
-              className="border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-4 py-2 text-sm">
-              Cancel
+          {!isLast ? (
+            <button onClick={() => setSt(s => s + 1)}
+              disabled={step === 0 && !basics.name.trim()}
+              className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
+              Continue →
             </button>
-            <button onClick={handleSave} disabled={saving || !form.name.trim()}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl px-5 py-2.5 text-sm disabled:opacity-50">
-              {saving ? "Creating…" : "Create Project"}
+          ) : (
+            <button onClick={handleCreate} disabled={creating}
+              className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
+              {creating ? "Creating…" : "✓ Create Project"}
             </button>
-          </div>
+          )}
         </div>
       </div>
     </div>
@@ -3161,6 +3535,20 @@ function ProjectsView({ auth }) {
     );
   }
 
+  if (showCreate) {
+    return (
+      <div className="min-h-screen bg-[#EAF4FD] p-6">
+        <CreateProjectWizard
+          auth={auth}
+          createProject={createProject}
+          clients={clients}
+          onComplete={() => setShowCreate(false)}
+          onCancel={() => setShowCreate(false)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div>
       {/* Header */}
@@ -3245,15 +3633,6 @@ function ProjectsView({ auth }) {
         </div>
       )}
 
-      {/* Create modal */}
-      {showCreate && (
-        <CreateProjectModal
-          auth={auth}
-          clients={clients}
-          onSave={createProject}
-          onClose={() => setShowCreate(false)}
-        />
-      )}
     </div>
   );
 }
