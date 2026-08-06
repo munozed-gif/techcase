@@ -1877,6 +1877,7 @@ const SLA_PRESETS = [
 ];
 
 const CREATE_CASE_STEPS = [
+  { id: "project",    label: "Project",    Icon: Layers,       desc: "Link to a project" },
   { id: "basics",     label: "Case Info",  Icon: FileText,     desc: "Title & description" },
   { id: "scope",      label: "Scope",      Icon: DollarSign,   desc: "Budget, dates & skills" },
   { id: "milestones", label: "Milestones", Icon: Flag,         desc: "Key deliverables" },
@@ -2861,10 +2862,18 @@ function ProjectsView({ auth }) {
 function CasesView({ auth }) {
   const [search, setSearch]           = useState("");
   const [statusFilter, setStatus]     = useState("");
+  const [projectFilter, setProjectFilter] = useState("");
   const [selectedCase, setSelected]   = useState(null);
   const [showCreate, setShowCreate]   = useState(false);
   const [showFavOnly, setShowFavOnly] = useState(false);
+  const [filterProjects, setFilterProjects] = useState([]);
   const { isFavorite, toggle }        = useFavorites();
+
+  useEffect(() => {
+    let q = supabase.from("projects").select("id, name, status").order("name");
+    if (auth.isClient) q = q.eq("client_id", auth.user?.id);
+    q.then(({ data }) => setFilterProjects(data ?? []));
+  }, [auth.user?.id]);
 
   const { cases, loading, createCase, updateCase, deleteCase } = useCases({
     status: statusFilter || undefined,
@@ -2876,7 +2885,10 @@ function CasesView({ auth }) {
   const visibleCases = auth.isConsultant
     ? cases.filter(c => c.case_assignments?.some(a => a.consultant_id === auth.user?.id))
     : cases;
-  const displayed = showFavOnly ? visibleCases.filter(c => isFavorite(c.id)) : visibleCases;
+  const projectFiltered = projectFilter
+    ? visibleCases.filter(c => c.project_id === projectFilter)
+    : visibleCases;
+  const displayed = showFavOnly ? projectFiltered.filter(c => isFavorite(c.id)) : projectFiltered;
 
   async function handleStatusChange(caseId, status) {
     await updateCase(caseId, { status });
@@ -2926,6 +2938,15 @@ function CasesView({ auth }) {
             <option key={s} value={s}>{cap(fmt(s))}</option>
           ))}
         </select>
+        {filterProjects.length > 0 && (
+          <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)}
+            className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">All Projects</option>
+            {filterProjects.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        )}
         {auth.isConsultant && (
           <button onClick={() => setShowFavOnly(p => !p)}
             className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
