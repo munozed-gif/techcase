@@ -925,6 +925,54 @@ const APP_STATUS_COLORS = {
 };
 
 
+const LIFECYCLE_PRESETS = {
+  short: {
+    name: "Short",
+    subtitle: "4 stages",
+    description: "Simple flow for straightforward consulting requests.",
+    stages: [
+      { key: "open",        label: "New Request", color: "#10b981", is_terminal: false },
+      { key: "in_progress", label: "Active",      color: "#3b82f6", is_terminal: false },
+      { key: "completed",   label: "Done",        color: "#6b7280", is_terminal: true  },
+      { key: "cancelled",   label: "Cancelled",   color: "#ef4444", is_terminal: true  },
+    ],
+  },
+  standard: {
+    name: "Standard",
+    subtitle: "5 stages",
+    description: "Default consulting flow with an On Hold pause state.",
+    stages: [
+      { key: "open",        label: "Open",        color: "#10b981", is_terminal: false },
+      { key: "in_progress", label: "In Progress", color: "#3b82f6", is_terminal: false },
+      { key: "on_hold",     label: "On Hold",     color: "#eab308", is_terminal: false },
+      { key: "completed",   label: "Completed",   color: "#6b7280", is_terminal: true  },
+      { key: "cancelled",   label: "Cancelled",   color: "#ef4444", is_terminal: true  },
+    ],
+  },
+  large: {
+    name: "Large",
+    subtitle: "7 stages",
+    description: "Full consulting pipeline from sourcing through placement.",
+    stages: [
+      { key: "open",        label: "Sourcing",    color: "#8b5cf6", is_terminal: false },
+      { key: "screening",   label: "Screening",   color: "#06b6d4", is_terminal: false },
+      { key: "shortlisted", label: "Shortlisted", color: "#6366f1", is_terminal: false },
+      { key: "in_progress", label: "In Progress", color: "#3b82f6", is_terminal: false },
+      { key: "on_hold",     label: "Negotiation", color: "#f59e0b", is_terminal: false },
+      { key: "completed",   label: "Placed",      color: "#10b981", is_terminal: true  },
+      { key: "cancelled",   label: "Closed Lost", color: "#ef4444", is_terminal: true  },
+    ],
+  },
+};
+
+function getLifecycleStages(lifecycle) {
+  if (!lifecycle) return LIFECYCLE_PRESETS.standard.stages;
+  if (lifecycle.preset && lifecycle.preset !== "custom") {
+    return LIFECYCLE_PRESETS[lifecycle.preset]?.stages ?? LIFECYCLE_PRESETS.standard.stages;
+  }
+  return lifecycle.stages?.length ? lifecycle.stages : LIFECYCLE_PRESETS.standard.stages;
+}
+
 const INVOICE_STATUS_COLORS = {
   draft:   "bg-gray-100 text-gray-600",
   sent:    "bg-blue-100 text-blue-700",
@@ -4065,7 +4113,21 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [savingTime, setSavingTime]     = useState(false);
 
   const [showEditWizard, setShowEditWizard] = useState(false);
-  const canEditCase = onUpdate && !["completed","cancelled"].includes(caseData.status)
+  const [clientLifecycle, setClientLifecycle] = useState(null);
+
+  useEffect(() => {
+    if (!caseData.client_id) return;
+    supabase.from("client_profiles")
+      .select("case_lifecycle")
+      .eq("id", caseData.client_id)
+      .single()
+      .then(({ data }) => setClientLifecycle(data?.case_lifecycle ?? null));
+  }, [caseData.client_id]);
+
+  const lifecycleStages = getLifecycleStages(clientLifecycle);
+  const isTerminalStatus = lifecycleStages.find(s => s.key === caseData.status)?.is_terminal
+    ?? ["completed","cancelled"].includes(caseData.status);
+  const canEditCase = onUpdate && !isTerminalStatus
     && (auth.isAdmin || auth.isManager || (auth.isClient && caseData.client_id === auth.user?.id));
 
   const myApp = applications.find(a => a.consultant_id === auth.user?.id);
@@ -4176,7 +4238,12 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
             <div className="min-w-0">
               <h1 className="text-2xl font-bold text-gray-900 leading-tight">{caseData.title}</h1>
               <div className="flex flex-wrap gap-2 mt-2">
-                <Badge className={STATUS_COLORS[caseData.status]}>{cap(fmt(caseData.status))}</Badge>
+                {(() => {
+                  const stage = lifecycleStages.find(s => s.key === caseData.status);
+                  return stage
+                    ? <span className="px-2 py-0.5 text-xs font-semibold rounded-lg" style={{ backgroundColor: stage.color + "22", color: stage.color }}>{stage.label}</span>
+                    : <Badge className={STATUS_COLORS[caseData.status] ?? "bg-gray-100 text-gray-600"}>{cap(fmt(caseData.status))}</Badge>;
+                })()}
                 <Badge className={PRIORITY_COLORS[caseData.priority]}>{cap(caseData.priority)}</Badge>
                 {caseData.is_confidential && <span className="px-2 py-0.5 bg-gray-800 text-white rounded-lg text-xs font-semibold">Private</span>}
                 {caseData.nda_required && <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">NDA</span>}
@@ -4187,8 +4254,8 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
                 <select value={caseData.status}
                   onChange={e => onStatusChange(caseData.id, e.target.value)}
                   className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  {["open","in_progress","on_hold","completed","cancelled"].map(s => (
-                    <option key={s} value={s}>{cap(fmt(s))}</option>
+                  {lifecycleStages.map(s => (
+                    <option key={s.key} value={s.key}>{s.label}</option>
                   ))}
                 </select>
               )}
@@ -4256,7 +4323,12 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
           {/* Badges row with optional Edit button */}
           <div className="flex items-center justify-between">
             <div className="flex flex-wrap gap-2">
-              <Badge className={STATUS_COLORS[caseData.status]}>{cap(fmt(caseData.status))}</Badge>
+              {(() => {
+                const stage = lifecycleStages.find(s => s.key === caseData.status);
+                return stage
+                  ? <span className="px-2 py-0.5 text-xs font-semibold rounded-lg" style={{ backgroundColor: stage.color + "22", color: stage.color }}>{stage.label}</span>
+                  : <Badge className={STATUS_COLORS[caseData.status] ?? "bg-gray-100 text-gray-600"}>{cap(fmt(caseData.status))}</Badge>;
+              })()}
               <Badge className={PRIORITY_COLORS[caseData.priority]}>{cap(caseData.priority)}</Badge>
               {caseData.parent_case_id && (
                 <Badge className="bg-violet-100 text-blue-700">Sub-case</Badge>
@@ -6697,6 +6769,11 @@ function ClientProfileView({ auth }) {
   const [slaForm, setSlaForm] = useState({});
   const [savingSla, setSavingSla] = useState(false);
 
+  // Lifecycle config
+  const [lifecycleMode, setLifecycleMode] = useState("standard");
+  const [customStages, setCustomStages] = useState(LIFECYCLE_PRESETS.standard.stages);
+  const [savingLifecycle, setSavingLifecycle] = useState(false);
+
   useEffect(() => {
     if (!editing) setForm({
       company_name:          profile?.company_name ?? "",
@@ -6752,6 +6829,43 @@ function ClientProfileView({ auth }) {
     setSavingSla(false);
   }
 
+  useEffect(() => {
+    if (profile?.case_lifecycle) {
+      const lc = profile.case_lifecycle;
+      setLifecycleMode(lc.preset ?? "standard");
+      if (lc.preset === "custom") setCustomStages(lc.stages ?? []);
+    }
+  }, [profile]);
+
+  async function handleSaveLifecycle() {
+    setSavingLifecycle(true);
+    try {
+      const stages = lifecycleMode === "custom"
+        ? customStages
+        : LIFECYCLE_PRESETS[lifecycleMode]?.stages ?? LIFECYCLE_PRESETS.standard.stages;
+      await updateProfile({ case_lifecycle: { preset: lifecycleMode, stages } });
+    } catch (e) { alert(e.message); }
+    setSavingLifecycle(false);
+  }
+
+  function addCustomStage() {
+    setCustomStages(prev => [...prev, { key: `s${prev.length + 1}`, label: "New Stage", color: "#6b7280", is_terminal: false }]);
+  }
+  function removeCustomStage(idx) {
+    setCustomStages(prev => prev.filter((_, i) => i !== idx));
+  }
+  function moveCustomStage(idx, dir) {
+    setCustomStages(prev => {
+      const next = [...prev];
+      const [item] = next.splice(idx, 1);
+      next.splice(idx + dir, 0, item);
+      return next;
+    });
+  }
+  function updateCustomStage(idx, updates) {
+    setCustomStages(prev => prev.map((s, i) => i === idx ? { ...s, ...updates } : s));
+  }
+
   async function handleAddConn() {
     if (!connForm.host || !connForm.db_name) return;
     setSavingConn(true);
@@ -6784,6 +6898,7 @@ function ClientProfileView({ auth }) {
     { id: "sla",          label: "SLA Config",   icon: SlidersHorizontal, count: null },
     { id: "connections",  label: "Connections",  icon: Database,         count: connections.length },
     { id: "team",         label: "Team",         icon: Users,            count: members.length },
+    { id: "lifecycle",    label: "Lifecycle",    icon: TrendingUp,       count: null },
   ];
 
   return (
@@ -7227,6 +7342,132 @@ function ClientProfileView({ auth }) {
                 <p className="text-sm">No team members added yet.</p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* LIFECYCLE TAB */}
+      {tab === "lifecycle" && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
+          <div>
+            <h3 className="font-semibold text-gray-900 mb-1">Case Lifecycle</h3>
+            <p className="text-sm text-gray-500 leading-relaxed">
+              Define the stages your cases flow through. Applies to all cases under your account.
+            </p>
+          </div>
+
+          {/* Preset cards (3 presets + Custom) */}
+          <div className="grid grid-cols-2 gap-3">
+            {Object.entries(LIFECYCLE_PRESETS).map(([id, preset]) => {
+              const isSelected = lifecycleMode === id;
+              const active = preset.stages.filter(s => !s.is_terminal);
+              return (
+                <button key={id} onClick={() => setLifecycleMode(id)}
+                  className={`text-left p-4 rounded-xl border-2 transition-all ${
+                    isSelected ? "border-[#1A4B8C] bg-blue-50" : "border-gray-200 bg-white hover:border-blue-200"}`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-semibold text-sm text-gray-900">{preset.name}</span>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{preset.subtitle}</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mb-3">{preset.description}</p>
+                  <div className="flex flex-wrap gap-1 items-center">
+                    {active.map((s, i) => (
+                      <span key={s.key} className="flex items-center gap-1">
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                          style={{ backgroundColor: s.color + "22", color: s.color }}>{s.label}</span>
+                        {i < active.length - 1 && <span className="text-gray-300 text-[10px]">›</span>}
+                      </span>
+                    ))}
+                  </div>
+                </button>
+              );
+            })}
+
+            {/* Custom card */}
+            <button onClick={() => setLifecycleMode("custom")}
+              className={`text-left p-4 rounded-xl border-2 transition-all ${
+                lifecycleMode === "custom" ? "border-[#1A4B8C] bg-blue-50" : "border-dashed border-gray-300 bg-white hover:border-blue-300"}`}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-semibold text-sm text-gray-900">Custom</span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">you define</span>
+              </div>
+              <p className="text-xs text-gray-500">Build your own stages with custom names, colors, and sequence.</p>
+            </button>
+          </div>
+
+          {/* Flow preview (preset modes) */}
+          {lifecycleMode !== "custom" && LIFECYCLE_PRESETS[lifecycleMode] && (
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Flow Preview</p>
+              <div className="flex items-center flex-wrap gap-2">
+                {(() => {
+                  const stages = LIFECYCLE_PRESETS[lifecycleMode].stages;
+                  const active = stages.filter(s => !s.is_terminal);
+                  const terminal = stages.filter(s => s.is_terminal);
+                  return (
+                    <>
+                      {active.map((s, i) => (
+                        <span key={s.key} className="flex items-center gap-2">
+                          <span className="px-3 py-1.5 text-xs font-semibold rounded-xl"
+                            style={{ backgroundColor: s.color + "20", color: s.color }}>{s.label}</span>
+                          {i < active.length - 1 && <span className="text-gray-300 text-sm">→</span>}
+                        </span>
+                      ))}
+                      {terminal.length > 0 && (
+                        <span className="flex items-center gap-2">
+                          <span className="text-gray-300 text-sm">→</span>
+                          {terminal.map(s => (
+                            <span key={s.key} className="px-3 py-1.5 text-xs font-semibold rounded-xl"
+                              style={{ backgroundColor: s.color + "20", color: s.color }}>{s.label}</span>
+                          ))}
+                        </span>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
+          {/* Custom stage editor */}
+          {lifecycleMode === "custom" && (
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Your Stages</p>
+              {customStages.map((stage, idx) => (
+                <div key={idx} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5">
+                  <input type="color" value={stage.color}
+                    onChange={e => updateCustomStage(idx, { color: e.target.value })}
+                    className="w-7 h-7 rounded-lg cursor-pointer border border-gray-200 p-0.5 bg-white flex-shrink-0" />
+                  <input type="text" value={stage.label}
+                    onChange={e => updateCustomStage(idx, { label: e.target.value })}
+                    className="flex-1 text-sm font-medium bg-transparent border-0 focus:outline-none text-gray-800 min-w-0"
+                    placeholder="Stage name" />
+                  <select value={stage.is_terminal ? "terminal" : "active"}
+                    onChange={e => updateCustomStage(idx, { is_terminal: e.target.value === "terminal" })}
+                    className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600 focus:outline-none flex-shrink-0">
+                    <option value="active">Active</option>
+                    <option value="terminal">Terminal</option>
+                  </select>
+                  <button onClick={() => moveCustomStage(idx, -1)} disabled={idx === 0}
+                    className="text-gray-400 hover:text-gray-600 disabled:opacity-20 w-5 text-center flex-shrink-0">↑</button>
+                  <button onClick={() => moveCustomStage(idx, 1)} disabled={idx === customStages.length - 1}
+                    className="text-gray-400 hover:text-gray-600 disabled:opacity-20 w-5 text-center flex-shrink-0">↓</button>
+                  <button onClick={() => removeCustomStage(idx)}
+                    className="text-red-300 hover:text-red-500 w-5 text-center flex-shrink-0 text-base leading-none">×</button>
+                </div>
+              ))}
+              <button onClick={addCustomStage}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                + Add Stage
+              </button>
+            </div>
+          )}
+
+          <div className="flex justify-end pt-2 border-t border-gray-100">
+            <button onClick={handleSaveLifecycle} disabled={savingLifecycle}
+              className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
+              {savingLifecycle ? "Saving…" : "Save Lifecycle"}
+            </button>
           </div>
         </div>
       )}
