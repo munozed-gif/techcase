@@ -29,6 +29,7 @@ import {
   Activity, Inbox, ClipboardList,
   Mail, TrendingUp, Link, Plane, Heart, Star, Trash2, Paperclip,
   FileImage, Trophy, Layers,
+  MapPin, UsersRound, GraduationCap, MessageSquare,
 } from "lucide-react";
 
 // ============================================================
@@ -1877,11 +1878,15 @@ const SLA_PRESETS = [
 ];
 
 const CREATE_CASE_STEPS = [
-  { id: "project",    label: "Project",    Icon: Layers,       desc: "Link to a project" },
-  { id: "basics",     label: "Case Info",  Icon: FileText,     desc: "Title & description" },
-  { id: "scope",      label: "Scope",      Icon: DollarSign,   desc: "Budget, dates & skills" },
-  { id: "milestones", label: "Milestones", Icon: Flag,         desc: "Key deliverables" },
-  { id: "review",     label: "Review",     Icon: CheckCircle2, desc: "Confirm & create" },
+  { id: "project",        label: "Project",      Icon: Layers,         desc: "Link to a project" },
+  { id: "basics",         label: "Case Info",    Icon: FileText,       desc: "Title & description" },
+  { id: "scope",          label: "Scope",        Icon: DollarSign,     desc: "Budget, dates & skills" },
+  { id: "arrangement",    label: "Work",         Icon: MapPin,         desc: "Remote, on-site or hybrid" },
+  { id: "roles",          label: "Roles",        Icon: UsersRound,     desc: "Key user & head hunters" },
+  { id: "qualifications", label: "Requirements", Icon: GraduationCap,  desc: "Certifications & languages" },
+  { id: "interview",      label: "Interview",    Icon: MessageSquare,  desc: "Evaluation preferences" },
+  { id: "milestones",     label: "Milestones",   Icon: Flag,           desc: "Key deliverables" },
+  { id: "review",         label: "Review",       Icon: CheckCircle2,   desc: "Confirm & create" },
 ];
 
 function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
@@ -1891,8 +1896,22 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [wizardProjects, setWizardProjects]         = useState([]);
 
-  const [basics, setBasics] = useState({ title: "", description: "", priority: "medium", area_sap: "", area_industry: "" });
+  const [basics, setBasics] = useState({ title: "", description: "", priority: "medium", area_sap: "", area_industry: "", is_confidential: false, nda_required: false });
   const [scope, setScope]   = useState({ budget: "", start_date: "", due_date: daysFromNow(30), sla: "standard", _skills: "", client_id: auth.isClient ? auth.user?.id : "" });
+
+  // Step 3: Work Arrangement
+  const [arrangement, setArr] = useState({ work_mode: "remote", work_location: "", travel_required: false });
+
+  // Step 4: Roles & People
+  const [roles, setRoles] = useState({ key_user_name: "", key_user_email: "", is_head_hunter: false, head_hunter_name: "" });
+
+  // Step 5: Qualifications
+  const [quals, setQuals] = useState({ certifications_required: [], min_years_experience: "", languages_required: [], security_clearance: false });
+  const [certInput, setCertInput] = useState("");
+  const [langInput, setLangInput] = useState("");
+
+  // Step 6: Interview
+  const [interview, setIntv] = useState({ interview_required: false, interview_format: "video", interview_rounds: 1, technical_assessment: false });
   const [milestones, setMs] = useState([]);
   const [mlForm, setMlForm] = useState({ title: "", due_date: "", description: "" });
   const [clients, setClients] = useState([]);
@@ -1923,12 +1942,21 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
         status: "open",
         area_sap:      basics.area_sap || null,
         area_industry: basics.area_industry || null,
+        is_confidential: basics.is_confidential,
+        nda_required: basics.nda_required,
         ...rest,
         budget: scope.budget ? Number(scope.budget) : null,
         skills_required: _skills.split(",").map(s => s.trim()).filter(Boolean),
         client_id:  auth.isClient  ? auth.user?.id : client_id || null,
         manager_id: auth.isManager ? auth.user?.id : null,
         project_id: selectedProjectId || null,
+        ...arrangement,
+        ...roles,
+        certifications_required: quals.certifications_required.length ? quals.certifications_required : null,
+        min_years_experience: quals.min_years_experience ? parseInt(quals.min_years_experience, 10) : null,
+        languages_required: quals.languages_required.length ? quals.languages_required : null,
+        security_clearance: quals.security_clearance,
+        ...interview,
       });
       if (milestones.length > 0 && newCase?.id) {
         await supabase.from("case_milestones").insert(
@@ -2044,6 +2072,23 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
                 </select>
               </div>
             </div>
+            <div className="border-t border-gray-100 pt-4 mt-2">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Visibility</p>
+              <label className="flex items-center gap-3 cursor-pointer mb-3">
+                <input type="checkbox" checked={basics.is_confidential}
+                  onChange={e => setBasics(p => ({ ...p, is_confidential: e.target.checked }))}
+                  className="w-4 h-4 rounded accent-blue-600" />
+                <span className="text-sm text-gray-700 font-medium">Private case</span>
+                <span className="text-xs text-gray-400">— hidden from public arena; only invited consultants can see it</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={basics.nda_required}
+                  onChange={e => setBasics(p => ({ ...p, nda_required: e.target.checked }))}
+                  className="w-4 h-4 rounded accent-blue-600" />
+                <span className="text-sm text-gray-700 font-medium">NDA required</span>
+                <span className="text-xs text-gray-400">— consultants must sign an NDA before viewing full details</span>
+              </label>
+            </div>
           </>
         )}
 
@@ -2103,8 +2148,244 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
           </>
         )}
 
-        {/* ── Step 3: Milestones ── */}
+        {/* ── Step 3: Work Arrangement ── */}
         {step === 3 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Work Arrangement</h2>
+            <p className="text-sm text-gray-500 mb-5">Tell consultants where and how this engagement is delivered.</p>
+
+            {/* Work mode — 3 option cards */}
+            <div className="mb-5">
+              <p className="text-sm font-medium text-gray-700 mb-2">Work Mode *</p>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { value: "remote",  label: "Remote",   desc: "Fully remote, any location" },
+                  { value: "onsite",  label: "On-site",  desc: "Required at client location" },
+                  { value: "hybrid",  label: "Hybrid",   desc: "Mix of remote and on-site" },
+                ].map(opt => (
+                  <button key={opt.value} type="button"
+                    onClick={() => setArr(p => ({ ...p, work_mode: opt.value }))}
+                    className={`text-left p-4 border-2 rounded-xl transition-all ${
+                      arrangement.work_mode === opt.value
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:border-gray-300"}`}>
+                    <div className="font-semibold text-sm text-gray-900">{opt.label}</div>
+                    <div className="text-xs text-gray-400 mt-0.5">{opt.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Location — shown for onsite/hybrid */}
+            {(arrangement.work_mode === "onsite" || arrangement.work_mode === "hybrid") && (
+              <Input label="Location (City, Country)" value={arrangement.work_location}
+                onChange={e => setArr(p => ({ ...p, work_location: e.target.value }))}
+                placeholder="e.g. Toronto, Canada" />
+            )}
+
+            {/* Travel */}
+            <label className="flex items-center gap-3 cursor-pointer mt-2">
+              <input type="checkbox" checked={arrangement.travel_required}
+                onChange={e => setArr(p => ({ ...p, travel_required: e.target.checked }))}
+                className="w-4 h-4 rounded accent-blue-600" />
+              <span className="text-sm text-gray-700 font-medium">Travel required</span>
+              <span className="text-xs text-gray-400">— consultant may need to travel during the engagement</span>
+            </label>
+          </>
+        )}
+
+        {/* ── Step 4: Roles & People ── */}
+        {step === 4 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Roles &amp; People</h2>
+            <p className="text-sm text-gray-500 mb-5">Specify the key contacts and whether this case is managed through a Head Hunter.</p>
+
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Key User</p>
+            <p className="text-xs text-gray-400 mb-3">The primary internal contact at the client who the consultant will work with directly.</p>
+            <div className="grid grid-cols-2 gap-3 mb-5">
+              <Input label="Key User Name" value={roles.key_user_name}
+                onChange={e => setRoles(p => ({ ...p, key_user_name: e.target.value }))}
+                placeholder="e.g. Maria Santos" />
+              <Input label="Key User Email" value={roles.key_user_email}
+                onChange={e => setRoles(p => ({ ...p, key_user_email: e.target.value }))}
+                placeholder="e.g. m.santos@company.com" />
+            </div>
+
+            <div className="border-t border-gray-100 pt-5">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Head Hunter</p>
+              <label className="flex items-center gap-3 cursor-pointer mb-4">
+                <input type="checkbox" checked={roles.is_head_hunter}
+                  onChange={e => setRoles(p => ({ ...p, is_head_hunter: e.target.checked }))}
+                  className="w-4 h-4 rounded accent-blue-600" />
+                <span className="text-sm text-gray-700 font-medium">This case is managed through a Head Hunter</span>
+              </label>
+              {roles.is_head_hunter && (
+                <Input label="Head Hunter Name / Agency" value={roles.head_hunter_name}
+                  onChange={e => setRoles(p => ({ ...p, head_hunter_name: e.target.value }))}
+                  placeholder="e.g. TechTalent Agency" />
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ── Step 5: Qualifications / Requirements ── */}
+        {step === 5 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Requirements</h2>
+            <p className="text-sm text-gray-500 mb-5">Define the qualifications, certifications, and experience the consultant must have.</p>
+
+            {/* Min years experience */}
+            <Input label="Minimum Years of Experience" type="number" value={quals.min_years_experience}
+              onChange={e => setQuals(p => ({ ...p, min_years_experience: e.target.value }))}
+              placeholder="e.g. 5" />
+
+            {/* Certifications */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Required Certifications</label>
+              <div className="flex gap-2">
+                <input value={certInput} onChange={e => setCertInput(e.target.value)}
+                  onKeyDown={e => {
+                    if ((e.key === "Enter" || e.key === ",") && certInput.trim()) {
+                      e.preventDefault();
+                      setQuals(p => ({ ...p, certifications_required: [...p.certifications_required, certInput.trim()] }));
+                      setCertInput("");
+                    }
+                  }}
+                  placeholder="e.g. SAP Certified FICO — press Enter to add"
+                  className="flex-1 bg-gray-100 border-0 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm" />
+                <button type="button" onClick={() => {
+                  if (certInput.trim()) {
+                    setQuals(p => ({ ...p, certifications_required: [...p.certifications_required, certInput.trim()] }));
+                    setCertInput("");
+                  }
+                }} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold">+ Add</button>
+              </div>
+              {quals.certifications_required.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {quals.certifications_required.map((c, i) => (
+                    <span key={i} className="flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg">
+                      {c}
+                      <button type="button" onClick={() => setQuals(p => ({ ...p, certifications_required: p.certifications_required.filter((_, j) => j !== i) }))}
+                        className="text-blue-400 hover:text-blue-700 ml-1">×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Languages */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Required Languages</label>
+              <div className="flex gap-2">
+                <input value={langInput} onChange={e => setLangInput(e.target.value)}
+                  onKeyDown={e => {
+                    if ((e.key === "Enter" || e.key === ",") && langInput.trim()) {
+                      e.preventDefault();
+                      setQuals(p => ({ ...p, languages_required: [...p.languages_required, langInput.trim()] }));
+                      setLangInput("");
+                    }
+                  }}
+                  placeholder="e.g. English, French — press Enter to add"
+                  className="flex-1 bg-gray-100 border-0 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm" />
+                <button type="button" onClick={() => {
+                  if (langInput.trim()) {
+                    setQuals(p => ({ ...p, languages_required: [...p.languages_required, langInput.trim()] }));
+                    setLangInput("");
+                  }
+                }} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold">+ Add</button>
+              </div>
+              {quals.languages_required.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {quals.languages_required.map((l, i) => (
+                    <span key={i} className="flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 text-xs font-semibold rounded-lg">
+                      {l}
+                      <button type="button" onClick={() => setQuals(p => ({ ...p, languages_required: p.languages_required.filter((_, j) => j !== i) }))}
+                        className="text-green-400 hover:text-green-700 ml-1">×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Security clearance */}
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={quals.security_clearance}
+                onChange={e => setQuals(p => ({ ...p, security_clearance: e.target.checked }))}
+                className="w-4 h-4 rounded accent-blue-600" />
+              <span className="text-sm text-gray-700 font-medium">Security clearance required</span>
+            </label>
+          </>
+        )}
+
+        {/* ── Step 6: Interview Preferences ── */}
+        {step === 6 && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Interview Preferences</h2>
+            <p className="text-sm text-gray-500 mb-5">Define how you&apos;d like to evaluate consultants before selecting one.</p>
+
+            <label className="flex items-center gap-3 cursor-pointer mb-5">
+              <input type="checkbox" checked={interview.interview_required}
+                onChange={e => setIntv(p => ({ ...p, interview_required: e.target.checked }))}
+                className="w-4 h-4 rounded accent-blue-600" />
+              <span className="text-sm text-gray-700 font-medium">Interview required before selection</span>
+            </label>
+
+            {interview.interview_required && (
+              <>
+                {/* Format */}
+                <div className="mb-5">
+                  <p className="text-sm font-medium text-gray-700 mb-2">Interview Format</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { value: "phone",     label: "Phone Call",  desc: "Audio call only" },
+                      { value: "video",     label: "Video Call",  desc: "Teams, Zoom or similar" },
+                      { value: "in_person", label: "In Person",   desc: "Face to face meeting" },
+                    ].map(opt => (
+                      <button key={opt.value} type="button"
+                        onClick={() => setIntv(p => ({ ...p, interview_format: opt.value }))}
+                        className={`text-left p-4 border-2 rounded-xl transition-all ${
+                          interview.interview_format === opt.value
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-gray-200 hover:border-gray-300"}`}>
+                        <div className="font-semibold text-sm text-gray-900">{opt.label}</div>
+                        <div className="text-xs text-gray-400 mt-0.5">{opt.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Rounds */}
+                <div className="mb-5">
+                  <p className="text-sm font-medium text-gray-700 mb-2">Number of Rounds</p>
+                  <div className="flex gap-3">
+                    {[1, 2, 3].map(n => (
+                      <button key={n} type="button"
+                        onClick={() => setIntv(p => ({ ...p, interview_rounds: n }))}
+                        className={`w-12 h-12 rounded-xl border-2 font-bold text-sm transition-all ${
+                          interview.interview_rounds === n
+                            ? "border-blue-500 bg-blue-50 text-blue-700"
+                            : "border-gray-200 text-gray-600 hover:border-gray-300"}`}>
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Technical assessment */}
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={interview.technical_assessment}
+                    onChange={e => setIntv(p => ({ ...p, technical_assessment: e.target.checked }))}
+                    className="w-4 h-4 rounded accent-blue-600" />
+                  <span className="text-sm text-gray-700 font-medium">Technical assessment required</span>
+                  <span className="text-xs text-gray-400">— coding test, case study, or skills evaluation</span>
+                </label>
+              </>
+            )}
+          </>
+        )}
+
+        {/* ── Step 7: Milestones ── */}
+        {step === 7 && (
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">Milestones</h2>
             <p className="text-sm text-gray-500 mb-5">Define key deliverables. You can skip and add them later from the case detail.</p>
@@ -2144,8 +2425,8 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
           </>
         )}
 
-        {/* ── Step 4: Review ── */}
-        {step === 4 && (
+        {/* ── Step 8: Review ── */}
+        {step === 8 && (
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">Review & Create</h2>
             <p className="text-sm text-gray-500 mb-5">Confirm everything looks right.</p>
@@ -2208,6 +2489,40 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
                     </ul>}
               </div>
 
+              {/* Work & Requirements summary */}
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Work &amp; Requirements</p>
+                <div className="grid grid-cols-2 gap-y-2 text-sm">
+                  <div><span className="text-gray-400">Work mode:</span> <span className="font-medium ml-1 capitalize">{arrangement.work_mode}</span></div>
+                  {arrangement.work_location && <div><span className="text-gray-400">Location:</span> <span className="font-medium ml-1">{arrangement.work_location}</span></div>}
+                  {arrangement.travel_required && <div className="col-span-2 text-xs text-amber-600 font-semibold">Travel required</div>}
+                  {quals.min_years_experience && <div><span className="text-gray-400">Min exp:</span> <span className="font-medium ml-1">{quals.min_years_experience} yrs</span></div>}
+                  {quals.security_clearance && <div className="col-span-2 text-xs text-red-600 font-semibold">Security clearance required</div>}
+                </div>
+                {quals.certifications_required.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {quals.certifications_required.map((c, i) => <span key={i} className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs">{c}</span>)}
+                  </div>
+                )}
+                {quals.languages_required.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {quals.languages_required.map((l, i) => <span key={i} className="px-2 py-0.5 bg-green-50 text-green-700 rounded-lg text-xs">{l}</span>)}
+                  </div>
+                )}
+              </div>
+
+              {/* Interview summary */}
+              {interview.interview_required && (
+                <div className="border border-gray-100 rounded-xl p-4">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Interview</p>
+                  <div className="text-sm flex flex-wrap gap-3">
+                    <span className="capitalize">{interview.interview_format?.replace("_", " ")}</span>
+                    <span>· {interview.interview_rounds} round{interview.interview_rounds > 1 ? "s" : ""}</span>
+                    {interview.technical_assessment && <span>· Technical assessment</span>}
+                  </div>
+                </div>
+              )}
+
             </div>
           </>
         )}
@@ -2220,7 +2535,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel }) {
           {step === 0 ? "✕ Cancel" : "← Back"}
         </button>
         <div className="flex items-center gap-3">
-          {step === 3 && (
+          {step === 7 && (
             <button onClick={() => setSt(s => s + 1)} className="px-4 py-2.5 text-sm text-gray-400 hover:text-gray-600 border border-gray-200 rounded-xl">
               Skip
             </button>
@@ -3304,6 +3619,89 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
                 {caseData.skills_required.map(s => (
                   <span key={s} className="px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs">{s}</span>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Requirements subsection — work arrangement, quals, interview, roles */}
+          {(caseData.work_mode || caseData.key_user_name || caseData.certifications_required?.length > 0 ||
+            caseData.languages_required?.length > 0 || caseData.interview_required ||
+            caseData.is_confidential || caseData.nda_required) && (
+            <div className="border-t border-gray-100 pt-4">
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Requirements</div>
+              <div className="space-y-2 text-sm">
+                {/* Confidentiality badges */}
+                {(caseData.is_confidential || caseData.nda_required) && (
+                  <div className="flex flex-wrap gap-2">
+                    {caseData.is_confidential && (
+                      <span className="px-2 py-0.5 bg-gray-800 text-white rounded-lg text-xs font-semibold">Private case</span>
+                    )}
+                    {caseData.nda_required && (
+                      <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">NDA required</span>
+                    )}
+                  </div>
+                )}
+                {/* Work arrangement */}
+                {caseData.work_mode && (
+                  <div className="grid grid-cols-2 gap-y-1">
+                    <div><span className="text-gray-400">Work mode:</span> <span className="font-medium ml-1 capitalize">{caseData.work_mode}</span></div>
+                    {caseData.work_location && <div><span className="text-gray-400">Location:</span> <span className="font-medium ml-1">{caseData.work_location}</span></div>}
+                    {caseData.travel_required && <div className="col-span-2 text-xs text-amber-600 font-semibold">Travel required</div>}
+                  </div>
+                )}
+                {/* Qualifications */}
+                {caseData.min_years_experience && (
+                  <div><span className="text-gray-400">Min experience:</span> <span className="font-medium ml-1">{caseData.min_years_experience} years</span></div>
+                )}
+                {caseData.security_clearance && (
+                  <div className="text-xs text-red-600 font-semibold">Security clearance required</div>
+                )}
+                {caseData.certifications_required?.length > 0 && (
+                  <div>
+                    <div className="text-xs text-gray-400 mb-1">Certifications</div>
+                    <div className="flex flex-wrap gap-1">
+                      {caseData.certifications_required.map((c, i) => (
+                        <span key={i} className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs">{c}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {caseData.languages_required?.length > 0 && (
+                  <div>
+                    <div className="text-xs text-gray-400 mb-1">Languages</div>
+                    <div className="flex flex-wrap gap-1">
+                      {caseData.languages_required.map((l, i) => (
+                        <span key={i} className="px-2 py-0.5 bg-green-50 text-green-700 rounded-lg text-xs">{l}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Interview info */}
+                {caseData.interview_required && (
+                  <div>
+                    <div className="text-xs text-gray-400 mb-1">Interview</div>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <span className="capitalize">{caseData.interview_format?.replace("_", " ")}</span>
+                      {caseData.interview_rounds && <span>· {caseData.interview_rounds} round{caseData.interview_rounds > 1 ? "s" : ""}</span>}
+                      {caseData.technical_assessment && <span>· Technical assessment</span>}
+                    </div>
+                  </div>
+                )}
+                {/* Key user */}
+                {caseData.key_user_name && (
+                  <div>
+                    <div className="text-xs text-gray-400 mb-1">Key User</div>
+                    <div className="font-medium">{caseData.key_user_name}</div>
+                    {caseData.key_user_email && <div className="text-xs text-gray-400">{caseData.key_user_email}</div>}
+                  </div>
+                )}
+                {/* Head hunter */}
+                {caseData.is_head_hunter && (
+                  <div>
+                    <div className="text-xs text-gray-400 mb-1">Head Hunter</div>
+                    <div className="font-medium">{caseData.head_hunter_name || "Yes (no name specified)"}</div>
+                  </div>
+                )}
               </div>
             </div>
           )}
