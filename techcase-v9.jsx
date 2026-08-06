@@ -2784,21 +2784,22 @@ const PROJECT_STATUS_COLORS = {
   cancelled: "bg-red-100 text-red-700",
 };
 
-function CreateProjectWizard({ auth, createProject, onComplete, onCancel, clients = [] }) {
+function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel, clients = [], initialData = null }) {
+  const isEdit = !!initialData;
   const [step, setSt] = useState(0);
   const [creating, setCreating] = useState(false);
 
   // Step 0: Basics
-  const [basics, setBasics] = useState({ name: "", description: "", status: "draft" });
+  const [basics, setBasics] = useState({ name: initialData?.name ?? "", description: initialData?.description ?? "", status: initialData?.status ?? "draft" });
   // Step 1: Scope
-  const [scopeData, setScopeData] = useState({ total_budget: "", start_date: "", end_date: "", area_sap: "", industry: "", client_id: auth.isClient ? auth.user?.id : "" });
+  const [scopeData, setScopeData] = useState({ total_budget: initialData?.total_budget ?? "", start_date: initialData?.start_date ?? "", end_date: initialData?.end_date ?? "", area_sap: initialData?.area_sap ?? "", industry: initialData?.industry ?? "", client_id: auth.isClient ? auth.user?.id : (initialData?.client_id ?? "") });
   // Step 2: Objectives
-  const [objectives, setObj] = useState({ objectives: "", deliverables: [], success_criteria: "", out_of_scope: "" });
+  const [objectives, setObj] = useState({ objectives: initialData?.objectives ?? "", deliverables: initialData?.deliverables ?? [], success_criteria: initialData?.success_criteria ?? "", out_of_scope: initialData?.out_of_scope ?? "" });
   const [delivInput, setDelivInput] = useState("");
   // Step 3: Team
-  const [team, setTeam] = useState({ stakeholder_name: "", stakeholder_email: "", billing_contact_name: "", billing_contact_email: "", expected_consultants: "" });
+  const [team, setTeam] = useState({ stakeholder_name: initialData?.stakeholder_name ?? "", stakeholder_email: initialData?.stakeholder_email ?? "", billing_contact_name: initialData?.billing_contact_name ?? "", billing_contact_email: initialData?.billing_contact_email ?? "", expected_consultants: initialData?.expected_consultants ?? "" });
   // Step 4: Requirements
-  const [reqs, setReqs] = useState({ skills_required: [], work_mode: "remote", compliance_notes: "", priority: "medium" });
+  const [reqs, setReqs] = useState({ skills_required: initialData?.skills_required ?? [], work_mode: initialData?.work_mode ?? "remote", compliance_notes: initialData?.compliance_notes ?? "", priority: initialData?.priority ?? "medium" });
   const [skillInput, setSkillInput] = useState("");
 
   const isLast = step === PROJECT_STEPS.length - 1;
@@ -2806,7 +2807,7 @@ function CreateProjectWizard({ auth, createProject, onComplete, onCancel, client
   async function handleCreate() {
     setCreating(true);
     try {
-      await createProject({
+      const payload = {
         ...basics,
         ...scopeData,
         client_id: auth.isClient ? auth.user?.id : (scopeData.client_id || null),
@@ -2823,8 +2824,12 @@ function CreateProjectWizard({ auth, createProject, onComplete, onCancel, client
         expected_consultants: team.expected_consultants ? parseInt(team.expected_consultants, 10) : null,
         ...reqs,
         skills_required: reqs.skills_required.length ? reqs.skills_required : null,
-        created_by: auth.user?.id,
-      });
+      };
+      if (isEdit) {
+        await onSave(payload);
+      } else {
+        await createProject({ ...payload, created_by: auth.user?.id });
+      }
       onComplete();
     } catch (e) { alert(e.message); }
     setCreating(false);
@@ -2848,8 +2853,8 @@ function CreateProjectWizard({ auth, createProject, onComplete, onCancel, client
     <div className="max-w-2xl mx-auto py-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">New Project</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Walk through each step to set up your project.</p>
+          <h1 className="text-2xl font-bold text-gray-900">{isEdit ? "Edit Project" : "New Project"}</h1>
+          <p className="text-gray-500 text-sm mt-0.5">{isEdit ? "Update your project details across each section." : "Walk through each step to set up your project."}</p>
         </div>
         <button onClick={onCancel}
           className="text-sm text-gray-400 hover:text-gray-600 border border-gray-200 px-3 py-1.5 rounded-xl hover:bg-gray-50">
@@ -3238,7 +3243,7 @@ function CreateProjectWizard({ auth, createProject, onComplete, onCancel, client
           ) : (
             <button onClick={handleCreate} disabled={creating}
               className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
-              {creating ? "Creating…" : "✓ Create Project"}
+              {creating ? (isEdit ? "Saving…" : "Creating…") : (isEdit ? "✓ Save Changes" : "✓ Create Project")}
             </button>
           )}
         </div>
@@ -3247,20 +3252,11 @@ function CreateProjectWizard({ auth, createProject, onComplete, onCancel, client
   );
 }
 
-function ProjectDetail({ project, auth, onBack, onUpdate, onClose }) {
+function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] }) {
   const { createCase } = useCases({});
   const [projCases, setProjCases] = useState([]);
   const [showCreateCase, setShowCreateCase] = useState(false);
-  const [form, setForm] = useState({
-    name: project.name ?? "",
-    description: project.description ?? "",
-    total_budget: project.total_budget ?? "",
-    start_date: project.start_date ?? "",
-    end_date: project.end_date ?? "",
-    area_sap: project.area_sap ?? "",
-    industry: project.industry ?? "",
-  });
-  const [saving, setSaving] = useState(false);
+  const [showEditWizard, setShowEditWizard] = useState(false);
   const [showAssign, setShowAssign] = useState(false);
   const [unassignedCases, setUnassignedCases] = useState([]);
 
@@ -3288,22 +3284,6 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose }) {
     } else {
       await onUpdate(project.id, { status: newStatus });
     }
-  }
-
-  async function handleSave() {
-    setSaving(true);
-    try {
-      await onUpdate(project.id, {
-        name: form.name,
-        description: form.description || null,
-        total_budget: form.total_budget ? Number(form.total_budget) : null,
-        start_date: form.start_date || null,
-        end_date: form.end_date || null,
-        area_sap: form.area_sap || null,
-        industry: form.industry || null,
-      });
-    } catch (e) { alert(e.message); }
-    setSaving(false);
   }
 
   async function handleAssignCase(caseId) {
@@ -3357,37 +3337,21 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose }) {
                 ))}
               </select>
             )}
+            {canEdit && (
+              <button onClick={() => setShowEditWizard(true)}
+                className="text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-3 py-1.5">
+                Edit
+              </button>
+            )}
           </div>
         </div>
         {(auth.isAdmin || auth.isManager) && project.client?.client_profiles?.company_name && (
-          <p className="text-sm text-gray-500 mb-4">
+          <p className="text-sm text-gray-500 mb-2">
             Client: <span className="font-medium text-gray-700">{project.client.client_profiles.company_name}</span>
           </p>
         )}
-        {canEdit && (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
-              <Textarea label="Description" value={form.description}
-                onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
-            </div>
-            <Input label="Budget ($)" type="number" value={form.total_budget}
-              onChange={e => setForm(p => ({ ...p, total_budget: e.target.value }))} />
-            <div />
-            <Input label="Start Date" type="date" value={form.start_date}
-              onChange={e => setForm(p => ({ ...p, start_date: e.target.value }))} />
-            <Input label="End Date" type="date" value={form.end_date}
-              onChange={e => setForm(p => ({ ...p, end_date: e.target.value }))} />
-            <Input label="SAP Area" value={form.area_sap}
-              onChange={e => setForm(p => ({ ...p, area_sap: e.target.value }))} />
-            <Input label="Industry" value={form.industry}
-              onChange={e => setForm(p => ({ ...p, industry: e.target.value }))} />
-            <div className="col-span-2 flex justify-end">
-              <button onClick={handleSave} disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl px-5 py-2.5 text-sm disabled:opacity-50">
-                {saving ? "Saving…" : "Save Changes"}
-              </button>
-            </div>
-          </div>
+        {project.description && (
+          <p className="text-sm text-gray-600 leading-relaxed">{project.description}</p>
         )}
       </div>
 
@@ -3445,6 +3409,23 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose }) {
           </div>
         )}
       </div>
+
+      {/* Edit project wizard */}
+      {showEditWizard && (
+        <div className="fixed inset-0 z-50 bg-[#EAF4FD] overflow-y-auto p-6">
+          <CreateProjectWizard
+            auth={auth}
+            initialData={project}
+            clients={clients}
+            onSave={async (payload) => {
+              const updated = await onUpdate(project.id, payload);
+              return updated;
+            }}
+            onComplete={() => setShowEditWizard(false)}
+            onCancel={() => setShowEditWizard(false)}
+          />
+        </div>
+      )}
 
       {/* Create case wizard (pre-linked to this project) */}
       {showCreateCase && (
@@ -3522,10 +3503,12 @@ function ProjectsView({ auth }) {
       <ProjectDetail
         project={selectedProject}
         auth={auth}
+        clients={clients}
         onBack={() => setSelectedProject(null)}
         onUpdate={async (id, updates) => {
           const updated = await updateProject(id, updates);
           setSelectedProject(updated);
+          return updated;
         }}
         onClose={async (id, newStatus) => {
           const updated = await closeProject(id, newStatus);
