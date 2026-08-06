@@ -3266,6 +3266,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
   const [showEditWizard, setShowEditWizard] = useState(false);
   const [showAssign, setShowAssign] = useState(false);
   const [unassignedCases, setUnassignedCases] = useState([]);
+  const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
     if (!project?.id) return;
@@ -3320,6 +3321,14 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
 
   const canEdit = auth.isAdmin || auth.isManager || auth.isClient;
 
+  const projectTabs = [
+    { id: "overview",     label: "Overview",      icon: BarChart2,         count: null },
+    { id: "objectives",   label: "Objectives",    icon: Target,            count: null },
+    { id: "team",         label: "Team",          icon: Users,             count: null },
+    { id: "requirements", label: "Requirements",  icon: SlidersHorizontal, count: null },
+    { id: "cases",        label: "Cases",         icon: FolderOpen,        count: projCases.length },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Header card */}
@@ -3362,11 +3371,39 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
         )}
       </div>
 
-      {/* Scope overview */}
-      {(project.total_budget || project.start_date || project.end_date || project.area_sap || project.industry || project.priority || project.work_mode || project.expected_consultants) && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Overview</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
+      {/* Icon Tiles */}
+      <div className="flex flex-wrap gap-2">
+        {projectTabs.map(t => {
+          const Icon = t.icon;
+          const isActive = activeTab === t.id;
+          return (
+            <button key={t.id} onClick={() => setActiveTab(t.id)}
+              className={`flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl border transition-all min-w-[80px] ${
+                isActive
+                  ? "bg-[#1A4B8C] border-[#1A4B8C] text-white shadow-md"
+                  : "bg-white border-gray-200 text-gray-500 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"}`}>
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                isActive ? "bg-white/20" : "bg-gray-100"}`}>
+                <Icon size={14} className={isActive ? "text-white" : "text-gray-500"} />
+              </div>
+              <span className="text-xs font-medium">{t.label}</span>
+              {t.count !== null && (
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                  isActive ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"}`}>
+                  {t.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tab Content */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+
+        {/* Overview */}
+        {activeTab === "overview" && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 text-sm">
             {project.priority && (
               <div>
                 <span className="text-gray-400 block text-xs mb-1">Priority</span>
@@ -3415,49 +3452,51 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
                 <span className="font-medium text-gray-900">{project.industry}</span>
               </div>
             )}
+            {!project.total_budget && !project.start_date && !project.end_date && !project.area_sap && !project.industry && !project.priority && !project.work_mode && !project.expected_consultants && (
+              <p className="text-sm text-gray-400 col-span-3">No overview data yet. Edit the project to add details.</p>
+            )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Objectives */}
-      {(project.objectives || project.deliverables?.length || project.success_criteria || project.out_of_scope) && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Objectives</p>
-          {project.objectives && (
-            <div>
-              <p className="text-xs text-gray-400 mb-1">Goals</p>
-              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{project.objectives}</p>
-            </div>
-          )}
-          {project.deliverables?.length > 0 && (
-            <div>
-              <p className="text-xs text-gray-400 mb-2">Deliverables</p>
-              <div className="flex flex-wrap gap-2">
-                {project.deliverables.map((d, i) => (
-                  <span key={i} className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg">{d}</span>
-                ))}
+        {/* Objectives */}
+        {activeTab === "objectives" && (
+          <div className="space-y-4">
+            {project.objectives && (
+              <div>
+                <p className="text-xs text-gray-400 mb-1">Goals</p>
+                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{project.objectives}</p>
               </div>
-            </div>
-          )}
-          {project.success_criteria && (
-            <div>
-              <p className="text-xs text-gray-400 mb-1">Success Criteria</p>
-              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{project.success_criteria}</p>
-            </div>
-          )}
-          {project.out_of_scope && (
-            <div>
-              <p className="text-xs text-gray-400 mb-1">Out of Scope</p>
-              <p className="text-sm text-gray-500 leading-relaxed whitespace-pre-wrap italic">{project.out_of_scope}</p>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+            {project.deliverables?.length > 0 && (
+              <div>
+                <p className="text-xs text-gray-400 mb-2">Deliverables</p>
+                <div className="flex flex-wrap gap-2">
+                  {project.deliverables.map((d, i) => (
+                    <span key={i} className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg">{d}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {project.success_criteria && (
+              <div>
+                <p className="text-xs text-gray-400 mb-1">Success Criteria</p>
+                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{project.success_criteria}</p>
+              </div>
+            )}
+            {project.out_of_scope && (
+              <div>
+                <p className="text-xs text-gray-400 mb-1">Out of Scope</p>
+                <p className="text-sm text-gray-500 leading-relaxed whitespace-pre-wrap italic">{project.out_of_scope}</p>
+              </div>
+            )}
+            {!project.objectives && !project.deliverables?.length && !project.success_criteria && !project.out_of_scope && (
+              <p className="text-sm text-gray-400">No objectives defined yet. Edit the project to add them.</p>
+            )}
+          </div>
+        )}
 
-      {/* Team & Contacts */}
-      {(project.stakeholder_name || project.stakeholder_email || project.billing_contact_name || project.billing_contact_email) && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Team & Contacts</p>
+        {/* Team & Contacts */}
+        {activeTab === "team" && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             {(project.stakeholder_name || project.stakeholder_email) && (
               <div className="border border-gray-100 rounded-xl p-4">
@@ -3473,86 +3512,91 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
                 {project.billing_contact_email && <p className="text-gray-500 text-xs mt-0.5">{project.billing_contact_email}</p>}
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Requirements */}
-      {(project.skills_required?.length || project.compliance_notes) && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Requirements</p>
-          {project.skills_required?.length > 0 && (
-            <div>
-              <p className="text-xs text-gray-400 mb-2">Skills Required</p>
-              <div className="flex flex-wrap gap-2">
-                {project.skills_required.map((s, i) => (
-                  <span key={i} className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded-lg">{s}</span>
-                ))}
-              </div>
-            </div>
-          )}
-          {project.compliance_notes && (
-            <div>
-              <p className="text-xs text-gray-400 mb-1">Compliance / Regulatory</p>
-              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{project.compliance_notes}</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Cases section */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Cases in this project
-            <span className="ml-2 px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
-              {projCases.length}
-            </span>
-          </h2>
-          {canEdit && (
-            <div className="flex items-center gap-2">
-              <button onClick={openAssignModal}
-                className="text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-4 py-2">
-                + Assign existing
-              </button>
-              <button onClick={() => setShowCreateCase(true)}
-                className="text-sm bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl px-4 py-2">
-                + New Case
-              </button>
-            </div>
-          )}
-        </div>
-        {projCases.length === 0 ? (
-          <EmptyState Icon={FolderOpen} title="No cases yet" subtitle="Create a new case or assign an existing one using the buttons above." />
-        ) : (
-          <div className="space-y-2">
-            {projCases.map(c => {
-              const consultant = c.case_assignments?.[0]?.users?.full_name;
-              return (
-                <div key={c.id} className="flex items-center justify-between border border-gray-100 rounded-xl px-4 py-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="font-medium text-gray-900 truncate">{c.title}</span>
-                    <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
-                      {cap(fmt(c.status))}
-                    </span>
-                    <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${PRIORITY_COLORS[c.priority] ?? ""}`}>
-                      {cap(c.priority)}
-                    </span>
-                    {consultant && (
-                      <span className="text-xs text-gray-400 hidden sm:inline">{consultant}</span>
-                    )}
-                  </div>
-                  {canEdit && (
-                    <button onClick={() => handleRemoveCase(c.id)}
-                      className="text-xs text-red-400 hover:text-red-600 ml-4 flex-shrink-0">
-                      Remove
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+            {!project.stakeholder_name && !project.stakeholder_email && !project.billing_contact_name && !project.billing_contact_email && (
+              <p className="text-sm text-gray-400">No team contacts defined yet. Edit the project to add them.</p>
+            )}
           </div>
         )}
+
+        {/* Requirements */}
+        {activeTab === "requirements" && (
+          <div className="space-y-4">
+            {project.skills_required?.length > 0 && (
+              <div>
+                <p className="text-xs text-gray-400 mb-2">Skills Required</p>
+                <div className="flex flex-wrap gap-2">
+                  {project.skills_required.map((s, i) => (
+                    <span key={i} className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded-lg">{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {project.compliance_notes && (
+              <div>
+                <p className="text-xs text-gray-400 mb-1">Compliance / Regulatory</p>
+                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{project.compliance_notes}</p>
+              </div>
+            )}
+            {!project.skills_required?.length && !project.compliance_notes && (
+              <p className="text-sm text-gray-400">No requirements defined yet. Edit the project to add them.</p>
+            )}
+          </div>
+        )}
+
+        {/* Cases */}
+        {activeTab === "cases" && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm font-semibold text-gray-900">
+                {projCases.length} case{projCases.length !== 1 ? "s" : ""} in this project
+              </span>
+              {canEdit && (
+                <div className="flex items-center gap-2">
+                  <button onClick={openAssignModal}
+                    className="text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-4 py-2">
+                    + Assign existing
+                  </button>
+                  <button onClick={() => setShowCreateCase(true)}
+                    className="text-sm bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl px-4 py-2">
+                    + New Case
+                  </button>
+                </div>
+              )}
+            </div>
+            {projCases.length === 0 ? (
+              <EmptyState Icon={FolderOpen} title="No cases yet" subtitle="Create a new case or assign an existing one using the buttons above." />
+            ) : (
+              <div className="space-y-2">
+                {projCases.map(c => {
+                  const consultant = c.case_assignments?.[0]?.users?.full_name;
+                  return (
+                    <div key={c.id} className="flex items-center justify-between border border-gray-100 rounded-xl px-4 py-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="font-medium text-gray-900 truncate">{c.title}</span>
+                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
+                          {cap(fmt(c.status))}
+                        </span>
+                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${PRIORITY_COLORS[c.priority] ?? ""}`}>
+                          {cap(c.priority)}
+                        </span>
+                        {consultant && (
+                          <span className="text-xs text-gray-400 hidden sm:inline">{consultant}</span>
+                        )}
+                      </div>
+                      {canEdit && (
+                        <button onClick={() => handleRemoveCase(c.id)}
+                          className="text-xs text-red-400 hover:text-red-600 ml-4 flex-shrink-0">
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
 
       {/* Edit project wizard */}
@@ -5144,7 +5188,12 @@ function ProfileView({ auth }) {
   const totalUsed = Math.min(100, activeCaseCommitment + extOccupancy);
   const freeAvail = Math.max(0, 100 - totalUsed);
 
-  const tabs = ["overview", "experience", "skills", "ratings"];
+  const tabs = [
+    { id: "overview",   label: "Overview",   icon: User },
+    { id: "experience", label: "Experience", icon: Briefcase },
+    { id: "skills",     label: "Skills",     icon: GraduationCap },
+    { id: "ratings",    label: "Ratings",    icon: Star },
+  ];
 
   async function handleAddCustomer() {
     setSavingExp(true);
@@ -5301,15 +5350,25 @@ function ProfileView({ auth }) {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 w-fit">
-        {tabs.map(t => (
-          <button key={t} onClick={() => setProfileTab(t)}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all capitalize ${
-              profileTab === t ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
-            {t}
-          </button>
-        ))}
+      {/* Icon Tiles */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {tabs.map(t => {
+          const Icon = t.icon;
+          const isActive = profileTab === t.id;
+          return (
+            <button key={t.id} onClick={() => setProfileTab(t.id)}
+              className={`flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl border transition-all min-w-[80px] ${
+                isActive
+                  ? "bg-[#1A4B8C] border-[#1A4B8C] text-white shadow-md"
+                  : "bg-white border-gray-200 text-gray-500 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"}`}>
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                isActive ? "bg-white/20" : "bg-gray-100"}`}>
+                <Icon size={14} className={isActive ? "text-white" : "text-gray-500"} />
+              </div>
+              <span className="text-xs font-medium">{t.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Tab Content */}
@@ -6721,10 +6780,10 @@ function ClientProfileView({ auth }) {
   const dbTypeColors = { postgresql: "bg-blue-100 text-blue-700", mysql: "bg-orange-100 text-orange-700", mssql: "bg-red-100 text-red-700", mongodb: "bg-green-100 text-green-700", other: "bg-gray-100 text-gray-700" };
 
   const tabs = [
-    { id: "overview",     label: "Overview" },
-    { id: "sla",          label: "SLA Config" },
-    { id: "connections",  label: `DB Connections (${connections.length})` },
-    { id: "team",         label: `Team (${members.length})` },
+    { id: "overview",     label: "Overview",     icon: Building2,        count: null },
+    { id: "sla",          label: "SLA Config",   icon: SlidersHorizontal, count: null },
+    { id: "connections",  label: "Connections",  icon: Database,         count: connections.length },
+    { id: "team",         label: "Team",         icon: Users,            count: members.length },
   ];
 
   return (
@@ -6826,15 +6885,31 @@ function ClientProfileView({ auth }) {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 w-fit flex-wrap">
-        {tabs.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-              tab === t.id ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
-            {t.label}
-          </button>
-        ))}
+      {/* Icon Tiles */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {tabs.map(t => {
+          const Icon = t.icon;
+          const isActive = tab === t.id;
+          return (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl border transition-all min-w-[80px] ${
+                isActive
+                  ? "bg-[#1A4B8C] border-[#1A4B8C] text-white shadow-md"
+                  : "bg-white border-gray-200 text-gray-500 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"}`}>
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                isActive ? "bg-white/20" : "bg-gray-100"}`}>
+                <Icon size={14} className={isActive ? "text-white" : "text-gray-500"} />
+              </div>
+              <span className="text-xs font-medium">{t.label}</span>
+              {t.count !== null && (
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                  isActive ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"}`}>
+                  {t.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* OVERVIEW TAB */}
