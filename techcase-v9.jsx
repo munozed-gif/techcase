@@ -3315,6 +3315,14 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
   const [showAssign, setShowAssign] = useState(false);
   const [unassignedCases, setUnassignedCases] = useState([]);
   const [activeTab, setActiveTab] = useState("overview");
+  const [projLcOverride, setProjLcOverride] = useState(!!project.case_lifecycle);
+  const [projLcMode, setProjLcMode] = useState(project.case_lifecycle?.preset ?? "standard");
+  const [projLcCustom, setProjLcCustom] = useState(
+    project.case_lifecycle?.preset === "custom"
+      ? project.case_lifecycle.stages
+      : [...LIFECYCLE_PRESETS.standard.stages]
+  );
+  const [savingProjLc, setSavingProjLc] = useState(false);
 
   useEffect(() => {
     if (!project?.id) return;
@@ -3369,12 +3377,32 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
 
   const canEdit = auth.isAdmin || auth.isManager || auth.isClient;
 
+  async function handleSaveProjLc() {
+    setSavingProjLc(true);
+    try {
+      if (!projLcOverride) {
+        await onUpdate(project.id, { case_lifecycle: null });
+      } else {
+        const stages = projLcMode === "custom"
+          ? projLcCustom
+          : LIFECYCLE_PRESETS[projLcMode]?.stages ?? LIFECYCLE_PRESETS.standard.stages;
+        await onUpdate(project.id, { case_lifecycle: { preset: projLcMode, stages } });
+      }
+    } catch (e) { alert(e.message); }
+    setSavingProjLc(false);
+  }
+  function addProjLcStage() { setProjLcCustom(p => [...p, { key: `s${p.length + 1}`, label: "New Stage", color: "#6b7280", is_terminal: false }]); }
+  function removeProjLcStage(i) { setProjLcCustom(p => p.filter((_, j) => j !== i)); }
+  function moveProjLcStage(i, d) { setProjLcCustom(p => { const n = [...p]; const [x] = n.splice(i, 1); n.splice(i + d, 0, x); return n; }); }
+  function updateProjLcStage(i, u) { setProjLcCustom(p => p.map((s, j) => j === i ? { ...s, ...u } : s)); }
+
   const projectTabs = [
     { id: "overview",     label: "Overview",      icon: BarChart2,         count: null },
     { id: "objectives",   label: "Objectives",    icon: Target,            count: null },
     { id: "team",         label: "Team",          icon: Users,             count: null },
     { id: "requirements", label: "Requirements",  icon: SlidersHorizontal, count: null },
     { id: "cases",        label: "Cases",         icon: FolderOpen,        count: projCases.length },
+    ...(canEdit ? [{ id: "lifecycle", label: "Lifecycle", icon: TrendingUp, count: null }] : []),
   ];
 
   return (
@@ -3642,6 +3670,93 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Lifecycle */}
+        {activeTab === "lifecycle" && canEdit && (
+          <div className="space-y-5">
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <span className="font-semibold text-gray-700">Lifecycle source:</span>
+              {project.case_lifecycle
+                ? <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">This project (override)</span>
+                : <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-semibold">Company profile (inherited)</span>}
+            </div>
+
+            <label className="flex items-center gap-3 cursor-pointer select-none">
+              <div className={`relative w-10 h-5 rounded-full transition-colors ${projLcOverride ? "bg-[#1A4B8C]" : "bg-gray-200"}`}
+                onClick={() => setProjLcOverride(p => !p)}>
+                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${projLcOverride ? "translate-x-5" : "translate-x-0.5"}`} />
+              </div>
+              <span className="text-sm font-medium text-gray-700">Override lifecycle for this project</span>
+            </label>
+
+            {!projLcOverride ? (
+              <p className="text-sm text-gray-400">Cases in this project inherit the lifecycle from the company profile.</p>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  {Object.entries(LIFECYCLE_PRESETS).map(([id, preset]) => {
+                    const isSelected = projLcMode === id;
+                    const active = preset.stages.filter(s => !s.is_terminal);
+                    return (
+                      <button key={id} onClick={() => setProjLcMode(id)}
+                        className={`text-left p-3 rounded-xl border-2 transition-all ${
+                          isSelected ? "border-[#1A4B8C] bg-blue-50" : "border-gray-200 bg-white hover:border-blue-200"}`}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold text-sm text-gray-900">{preset.name}</span>
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">{preset.subtitle}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {active.map((s, i) => (
+                            <span key={s.key} className="flex items-center gap-1">
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                                style={{ backgroundColor: s.color + "22", color: s.color }}>{s.label}</span>
+                              {i < active.length - 1 && <span className="text-gray-300 text-[10px]">›</span>}
+                            </span>
+                          ))}
+                        </div>
+                      </button>
+                    );
+                  })}
+                  <button onClick={() => setProjLcMode("custom")}
+                    className={`text-left p-3 rounded-xl border-2 transition-all ${
+                      projLcMode === "custom" ? "border-[#1A4B8C] bg-blue-50" : "border-dashed border-gray-300 bg-white hover:border-blue-300"}`}>
+                    <span className="font-semibold text-sm text-gray-900">Custom</span>
+                    <p className="text-xs text-gray-500 mt-1">Define your own stages</p>
+                  </button>
+                </div>
+                {projLcMode === "custom" && (
+                  <div className="space-y-2">
+                    {projLcCustom.map((stage, idx) => (
+                      <div key={idx} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
+                        <input type="color" value={stage.color} onChange={e => updateProjLcStage(idx, { color: e.target.value })}
+                          className="w-6 h-6 rounded cursor-pointer border border-gray-200 p-0.5 bg-white flex-shrink-0" />
+                        <input type="text" value={stage.label} onChange={e => updateProjLcStage(idx, { label: e.target.value })}
+                          className="flex-1 text-sm bg-transparent border-0 focus:outline-none text-gray-800 min-w-0" placeholder="Stage name" />
+                        <select value={stage.is_terminal ? "terminal" : "active"}
+                          onChange={e => updateProjLcStage(idx, { is_terminal: e.target.value === "terminal" })}
+                          className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600 flex-shrink-0">
+                          <option value="active">Active</option>
+                          <option value="terminal">Terminal</option>
+                        </select>
+                        <button onClick={() => moveProjLcStage(idx, -1)} disabled={idx === 0} className="text-gray-400 hover:text-gray-600 disabled:opacity-20 w-4 text-center">↑</button>
+                        <button onClick={() => moveProjLcStage(idx, 1)} disabled={idx === projLcCustom.length - 1} className="text-gray-400 hover:text-gray-600 disabled:opacity-20 w-4 text-center">↓</button>
+                        <button onClick={() => removeProjLcStage(idx)} className="text-red-300 hover:text-red-500 w-4 text-center">×</button>
+                      </div>
+                    ))}
+                    <button onClick={addProjLcStage} className="text-sm text-blue-600 hover:text-blue-700 font-medium">+ Add Stage</button>
+                  </div>
+                )}
+              </>
+            )}
+
+            <div className="flex justify-end pt-2 border-t border-gray-100">
+              <button onClick={handleSaveProjLc} disabled={savingProjLc}
+                className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
+                {savingProjLc ? "Saving…" : projLcOverride ? "Save Override" : "Save (Inherit)"}
+              </button>
+            </div>
           </div>
         )}
 
@@ -4114,6 +4229,15 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
 
   const [showEditWizard, setShowEditWizard] = useState(false);
   const [clientLifecycle, setClientLifecycle] = useState(null);
+  const [projectLifecycle, setProjectLifecycle] = useState(null);
+  const [lcOverride, setLcOverride] = useState(!!caseData.case_lifecycle);
+  const [lcMode, setLcMode] = useState(caseData.case_lifecycle?.preset ?? "standard");
+  const [lcCustom, setLcCustom] = useState(
+    caseData.case_lifecycle?.preset === "custom"
+      ? caseData.case_lifecycle.stages
+      : [...LIFECYCLE_PRESETS.standard.stages]
+  );
+  const [savingLc, setSavingLc] = useState(false);
 
   useEffect(() => {
     if (!caseData.client_id) return;
@@ -4124,11 +4248,40 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
       .then(({ data }) => setClientLifecycle(data?.case_lifecycle ?? null));
   }, [caseData.client_id]);
 
-  const lifecycleStages = getLifecycleStages(clientLifecycle);
+  useEffect(() => {
+    if (!caseData.project_id) return;
+    supabase.from("projects")
+      .select("case_lifecycle")
+      .eq("id", caseData.project_id)
+      .single()
+      .then(({ data }) => setProjectLifecycle(data?.case_lifecycle ?? null));
+  }, [caseData.project_id]);
+
+  const effectiveLifecycle = caseData.case_lifecycle ?? projectLifecycle ?? clientLifecycle;
+  const lifecycleStages = getLifecycleStages(effectiveLifecycle);
   const isTerminalStatus = lifecycleStages.find(s => s.key === caseData.status)?.is_terminal
     ?? ["completed","cancelled"].includes(caseData.status);
   const canEditCase = onUpdate && !isTerminalStatus
     && (auth.isAdmin || auth.isManager || (auth.isClient && caseData.client_id === auth.user?.id));
+
+  async function handleSaveCaseLc() {
+    setSavingLc(true);
+    try {
+      if (!lcOverride) {
+        await onUpdate(caseData.id, { case_lifecycle: null });
+      } else {
+        const stages = lcMode === "custom"
+          ? lcCustom
+          : LIFECYCLE_PRESETS[lcMode]?.stages ?? LIFECYCLE_PRESETS.standard.stages;
+        await onUpdate(caseData.id, { case_lifecycle: { preset: lcMode, stages } });
+      }
+    } catch (e) { alert(e.message); }
+    setSavingLc(false);
+  }
+  function addLcStage() { setLcCustom(p => [...p, { key: `s${p.length + 1}`, label: "New Stage", color: "#6b7280", is_terminal: false }]); }
+  function removeLcStage(i) { setLcCustom(p => p.filter((_, j) => j !== i)); }
+  function moveLcStage(i, d) { setLcCustom(p => { const n = [...p]; const [x] = n.splice(i, 1); n.splice(i + d, 0, x); return n; }); }
+  function updateLcStage(i, u) { setLcCustom(p => p.map((s, j) => j === i ? { ...s, ...u } : s)); }
 
   const myApp = applications.find(a => a.consultant_id === auth.user?.id);
   const doneMilestones = milestones.filter(m => m.is_done).length;
@@ -4222,6 +4375,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
     { id: "documents",  label: "Docs",         icon: Paperclip,     count: documents.length },
     { id: "time",       label: "Time",         icon: Clock,         count: `${totalTimeHours.toFixed(1)}h` },
     ...(auth.isAdmin || auth.isManager ? [{ id: "applications", label: "Applications", icon: Users, count: applications.length }] : []),
+    ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "lifecycle", label: "Lifecycle", icon: TrendingUp, count: null }] : []),
   ];
 
   return (
@@ -4896,6 +5050,108 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
                 <p className="text-sm">No time entries logged yet.</p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Lifecycle Tab */}
+      {activeTab === "lifecycle" && (auth.isAdmin || auth.isManager || auth.isClient) && (
+        <div className="space-y-5">
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <span className="font-semibold text-gray-700">Lifecycle source:</span>
+            {caseData.case_lifecycle
+              ? <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">This case (override)</span>
+              : projectLifecycle
+              ? <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full font-semibold">Project</span>
+              : clientLifecycle
+              ? <span className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full font-semibold">Company profile</span>
+              : <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-semibold">Default (Standard)</span>}
+          </div>
+
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <div className={`relative w-10 h-5 rounded-full transition-colors ${lcOverride ? "bg-[#1A4B8C]" : "bg-gray-200"}`}
+              onClick={() => setLcOverride(p => !p)}>
+              <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${lcOverride ? "translate-x-5" : "translate-x-0.5"}`} />
+            </div>
+            <span className="text-sm font-medium text-gray-700">Override lifecycle for this case</span>
+          </label>
+
+          {!lcOverride ? (
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Inherited Flow</p>
+              <div className="flex items-center flex-wrap gap-2">
+                {lifecycleStages.filter(s => !s.is_terminal).map((s, i, arr) => (
+                  <span key={s.key} className="flex items-center gap-2">
+                    <span className="px-3 py-1.5 text-xs font-semibold rounded-xl"
+                      style={{ backgroundColor: s.color + "20", color: s.color }}>{s.label}</span>
+                    {i < arr.length - 1 && <span className="text-gray-300 text-sm">→</span>}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                {Object.entries(LIFECYCLE_PRESETS).map(([id, preset]) => {
+                  const isSelected = lcMode === id;
+                  const active = preset.stages.filter(s => !s.is_terminal);
+                  return (
+                    <button key={id} onClick={() => setLcMode(id)}
+                      className={`text-left p-3 rounded-xl border-2 transition-all ${
+                        isSelected ? "border-[#1A4B8C] bg-blue-50" : "border-gray-200 bg-white hover:border-blue-200"}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-semibold text-sm text-gray-900">{preset.name}</span>
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">{preset.subtitle}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {active.map((s, i) => (
+                          <span key={s.key} className="flex items-center gap-1">
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                              style={{ backgroundColor: s.color + "22", color: s.color }}>{s.label}</span>
+                            {i < active.length - 1 && <span className="text-gray-300 text-[10px]">›</span>}
+                          </span>
+                        ))}
+                      </div>
+                    </button>
+                  );
+                })}
+                <button onClick={() => setLcMode("custom")}
+                  className={`text-left p-3 rounded-xl border-2 transition-all ${
+                    lcMode === "custom" ? "border-[#1A4B8C] bg-blue-50" : "border-dashed border-gray-300 bg-white hover:border-blue-300"}`}>
+                  <span className="font-semibold text-sm text-gray-900">Custom</span>
+                  <p className="text-xs text-gray-500 mt-1">Define your own stages</p>
+                </button>
+              </div>
+              {lcMode === "custom" && (
+                <div className="space-y-2">
+                  {lcCustom.map((stage, idx) => (
+                    <div key={idx} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
+                      <input type="color" value={stage.color} onChange={e => updateLcStage(idx, { color: e.target.value })}
+                        className="w-6 h-6 rounded cursor-pointer border border-gray-200 p-0.5 bg-white flex-shrink-0" />
+                      <input type="text" value={stage.label} onChange={e => updateLcStage(idx, { label: e.target.value })}
+                        className="flex-1 text-sm bg-transparent border-0 focus:outline-none text-gray-800 min-w-0" placeholder="Stage name" />
+                      <select value={stage.is_terminal ? "terminal" : "active"}
+                        onChange={e => updateLcStage(idx, { is_terminal: e.target.value === "terminal" })}
+                        className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600 flex-shrink-0">
+                        <option value="active">Active</option>
+                        <option value="terminal">Terminal</option>
+                      </select>
+                      <button onClick={() => moveLcStage(idx, -1)} disabled={idx === 0} className="text-gray-400 hover:text-gray-600 disabled:opacity-20 w-4 text-center">↑</button>
+                      <button onClick={() => moveLcStage(idx, 1)} disabled={idx === lcCustom.length - 1} className="text-gray-400 hover:text-gray-600 disabled:opacity-20 w-4 text-center">↓</button>
+                      <button onClick={() => removeLcStage(idx)} className="text-red-300 hover:text-red-500 w-4 text-center">×</button>
+                    </div>
+                  ))}
+                  <button onClick={addLcStage} className="text-sm text-blue-600 hover:text-blue-700 font-medium">+ Add Stage</button>
+                </div>
+              )}
+            </>
+          )}
+
+          <div className="flex justify-end pt-2 border-t border-gray-100">
+            <button onClick={handleSaveCaseLc} disabled={savingLc}
+              className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
+              {savingLc ? "Saving…" : lcOverride ? "Save Override" : "Save (Inherit)"}
+            </button>
           </div>
         </div>
       )}
