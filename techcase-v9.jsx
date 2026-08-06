@@ -3819,6 +3819,22 @@ function CasesView({ auth }) {
     );
   }
 
+  if (selectedCase) {
+    return (
+      <CaseDetail
+        caseData={selectedCase}
+        auth={auth}
+        onBack={() => setSelected(null)}
+        onStatusChange={handleStatusChange}
+        onDelete={async () => { await deleteCase(selectedCase.id); setSelected(null); }}
+        onUpdate={async (id, payload) => {
+          await updateCase(id, payload);
+          setSelected(prev => ({ ...prev, ...payload }));
+        }}
+      />
+    );
+  }
+
   return (
     <div>
       {/* Header */}
@@ -3904,22 +3920,6 @@ function CasesView({ auth }) {
         </div>
       )}
 
-      {/* Case Detail Modal */}
-      <Modal open={!!selectedCase} onClose={() => setSelected(null)}
-        title={selectedCase?.title ?? ""} wide>
-        {selectedCase && (
-          <CaseDetail
-            caseData={selectedCase} auth={auth}
-            onStatusChange={handleStatusChange}
-            onDelete={async () => { await deleteCase(selectedCase.id); setSelected(null); }}
-            onUpdate={async (id, payload) => {
-              await updateCase(id, payload);
-              setSelected(prev => ({ ...prev, ...payload }));
-            }}
-          />
-        )}
-      </Modal>
-
     </div>
   );
 }
@@ -3992,7 +3992,7 @@ function ProjectFieldEditor({ caseData, auth }) {
   );
 }
 
-function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdate }) {
+function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdate, onBack }) {
   const { applications, apply, reviewApplication } = useApplications(caseData.id);
   const { milestones, toggleMilestone, addMilestone } = useMilestones(caseData.id);
   const { comments, addComment } = useCaseComments(caseData.id);
@@ -4120,6 +4120,48 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
 
   return (
     <div className="space-y-4">
+
+      {/* Full-page header — only when rendered outside a modal */}
+      {onBack && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <button onClick={onBack}
+            className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-4">
+            ← Cases
+          </button>
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold text-gray-900 leading-tight">{caseData.title}</h1>
+              <div className="flex flex-wrap gap-2 mt-2">
+                <Badge className={STATUS_COLORS[caseData.status]}>{cap(fmt(caseData.status))}</Badge>
+                <Badge className={PRIORITY_COLORS[caseData.priority]}>{cap(caseData.priority)}</Badge>
+                {caseData.is_confidential && <span className="px-2 py-0.5 bg-gray-800 text-white rounded-lg text-xs font-semibold">Private</span>}
+                {caseData.nda_required && <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">NDA</span>}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {(auth.isAdmin || auth.isManager) && onStatusChange && (
+                <select value={caseData.status}
+                  onChange={e => onStatusChange(caseData.id, e.target.value)}
+                  className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {["open","in_progress","on_hold","completed","cancelled"].map(s => (
+                    <option key={s} value={s}>{cap(fmt(s))}</option>
+                  ))}
+                </select>
+              )}
+              {canEditCase && (
+                <button onClick={() => setShowEditWizard(true)}
+                  className="text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-3 py-1.5">
+                  Edit
+                </button>
+              )}
+            </div>
+          </div>
+          {caseData.description && (
+            <p className="text-sm text-gray-600 leading-relaxed mt-3">{caseData.description}</p>
+          )}
+        </div>
+      )}
+
       {/* Progress Bar */}
       <div>
         <div className="flex justify-between text-xs text-gray-500 mb-1">
@@ -7309,6 +7351,25 @@ function KanbanView({ auth }) {
 
   if (loading) return <Spinner />;
 
+  if (selectedCase) {
+    return (
+      <CaseDetail
+        caseData={selectedCase}
+        auth={auth}
+        onBack={() => setSelectedCase(null)}
+        onStatusChange={async (id, status) => {
+          await updateCase(id, { status });
+          setSelectedCase(prev => ({ ...prev, status }));
+        }}
+        onDelete={async () => { await updateCase(selectedCase.id, { status: "cancelled" }); setSelectedCase(null); }}
+        onUpdate={async (id, payload) => {
+          await updateCase(id, payload);
+          setSelectedCase(prev => ({ ...prev, ...payload }));
+        }}
+      />
+    );
+  }
+
   return (
     <div>
       <div className="mb-6">
@@ -7371,23 +7432,6 @@ function KanbanView({ auth }) {
         })}
       </div>
 
-      <Modal open={!!selectedCase} onClose={() => setSelectedCase(null)}
-        title={selectedCase?.title ?? ""} wide>
-        {selectedCase && (
-          <CaseDetail
-            caseData={selectedCase} auth={auth}
-            onStatusChange={async (id, status) => {
-              await updateCase(id, { status });
-              setSelectedCase(prev => ({ ...prev, status }));
-            }}
-            onDelete={async () => { await updateCase(selectedCase.id, { status: "cancelled" }); setSelectedCase(null); }}
-            onUpdate={async (id, payload) => {
-              await updateCase(id, payload);
-              setSelectedCase(prev => ({ ...prev, ...payload }));
-            }}
-          />
-        )}
-      </Modal>
     </div>
   );
 }
