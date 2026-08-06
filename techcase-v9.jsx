@@ -3355,6 +3355,144 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
         )}
       </div>
 
+      {/* Scope overview */}
+      {(project.total_budget || project.start_date || project.end_date || project.area_sap || project.industry || project.priority || project.work_mode || project.expected_consultants) && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Overview</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
+            {project.priority && (
+              <div>
+                <span className="text-gray-400 block text-xs mb-1">Priority</span>
+                <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${PRIORITY_COLORS[project.priority] ?? "bg-gray-100 text-gray-600"}`}>{cap(project.priority)}</span>
+              </div>
+            )}
+            {project.work_mode && (
+              <div>
+                <span className="text-gray-400 block text-xs mb-1">Work Mode</span>
+                <span className="px-2 py-0.5 text-xs font-semibold rounded-lg bg-sky-50 text-sky-700">{cap(project.work_mode)}</span>
+              </div>
+            )}
+            {project.expected_consultants && (
+              <div>
+                <span className="text-gray-400 block text-xs mb-1">Consultants needed</span>
+                <span className="font-medium text-gray-900">{project.expected_consultants}</span>
+              </div>
+            )}
+            {project.total_budget && (
+              <div>
+                <span className="text-gray-400 block text-xs mb-1">Budget</span>
+                <span className="font-medium text-gray-900">${Number(project.total_budget).toLocaleString()}</span>
+              </div>
+            )}
+            {project.start_date && (
+              <div>
+                <span className="text-gray-400 block text-xs mb-1">Start</span>
+                <span className="font-medium text-gray-900">{fmtDate(project.start_date)}</span>
+              </div>
+            )}
+            {project.end_date && (
+              <div>
+                <span className="text-gray-400 block text-xs mb-1">End</span>
+                <span className="font-medium text-gray-900">{fmtDate(project.end_date)}</span>
+              </div>
+            )}
+            {project.area_sap && (
+              <div>
+                <span className="text-gray-400 block text-xs mb-1">SAP Area</span>
+                <span className="font-medium text-gray-900">{project.area_sap}</span>
+              </div>
+            )}
+            {project.industry && (
+              <div>
+                <span className="text-gray-400 block text-xs mb-1">Industry</span>
+                <span className="font-medium text-gray-900">{project.industry}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Objectives */}
+      {(project.objectives || project.deliverables?.length || project.success_criteria || project.out_of_scope) && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Objectives</p>
+          {project.objectives && (
+            <div>
+              <p className="text-xs text-gray-400 mb-1">Goals</p>
+              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{project.objectives}</p>
+            </div>
+          )}
+          {project.deliverables?.length > 0 && (
+            <div>
+              <p className="text-xs text-gray-400 mb-2">Deliverables</p>
+              <div className="flex flex-wrap gap-2">
+                {project.deliverables.map((d, i) => (
+                  <span key={i} className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg">{d}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {project.success_criteria && (
+            <div>
+              <p className="text-xs text-gray-400 mb-1">Success Criteria</p>
+              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{project.success_criteria}</p>
+            </div>
+          )}
+          {project.out_of_scope && (
+            <div>
+              <p className="text-xs text-gray-400 mb-1">Out of Scope</p>
+              <p className="text-sm text-gray-500 leading-relaxed whitespace-pre-wrap italic">{project.out_of_scope}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Team & Contacts */}
+      {(project.stakeholder_name || project.stakeholder_email || project.billing_contact_name || project.billing_contact_email) && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Team & Contacts</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            {(project.stakeholder_name || project.stakeholder_email) && (
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-xs text-gray-400 mb-1">Key Stakeholder</p>
+                {project.stakeholder_name && <p className="font-medium text-gray-900">{project.stakeholder_name}</p>}
+                {project.stakeholder_email && <p className="text-gray-500 text-xs mt-0.5">{project.stakeholder_email}</p>}
+              </div>
+            )}
+            {(project.billing_contact_name || project.billing_contact_email) && (
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-xs text-gray-400 mb-1">Billing Contact</p>
+                {project.billing_contact_name && <p className="font-medium text-gray-900">{project.billing_contact_name}</p>}
+                {project.billing_contact_email && <p className="text-gray-500 text-xs mt-0.5">{project.billing_contact_email}</p>}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Requirements */}
+      {(project.skills_required?.length || project.compliance_notes) && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Requirements</p>
+          {project.skills_required?.length > 0 && (
+            <div>
+              <p className="text-xs text-gray-400 mb-2">Skills Required</p>
+              <div className="flex flex-wrap gap-2">
+                {project.skills_required.map((s, i) => (
+                  <span key={i} className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded-lg">{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {project.compliance_notes && (
+            <div>
+              <p className="text-xs text-gray-400 mb-1">Compliance / Regulatory</p>
+              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{project.compliance_notes}</p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Cases section */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div className="flex items-center justify-between mb-4">
