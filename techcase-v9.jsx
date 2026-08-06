@@ -28,7 +28,7 @@ import {
   Briefcase, Globe, Rocket, Zap, Phone, SlidersHorizontal, Check,
   Activity, Inbox, ClipboardList,
   Mail, TrendingUp, Link, Plane, Heart, Star, Trash2, Paperclip,
-  FileImage, Trophy,
+  FileImage, Trophy, Layers,
 } from "lucide-react";
 
 // ============================================================
@@ -233,6 +233,62 @@ function useInvoices(filters = {}) {
   }
 
   return { invoices, loading, createInvoice, updateInvoice, deleteInvoice, refetch: fetchInvoices };
+}
+
+function useProjects(filters = {}) {
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const filterKey = JSON.stringify(filters);
+
+  const fetchProjects = useCallback(async () => {
+    setLoading(true);
+    let q = supabase
+      .from("projects")
+      .select(`*, client:client_id(id, full_name, client_profiles(company_name)), cases(id, status)`)
+      .order("created_at", { ascending: false });
+    if (filters.client_id) q = q.eq("client_id", filters.client_id);
+    if (filters.status)    q = q.eq("status", filters.status);
+    const { data } = await q;
+    setProjects(data ?? []);
+    setLoading(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterKey]);
+
+  useEffect(() => { fetchProjects(); }, [fetchProjects]);
+
+  async function createProject(data) {
+    const { data: row, error } = await supabase.from("projects").insert(data).select().single();
+    if (error) throw error;
+    await fetchProjects();
+    return row;
+  }
+
+  async function updateProject(id, updates) {
+    const { data: row, error } = await supabase.from("projects").update(updates).eq("id", id).select().single();
+    if (error) throw error;
+    await fetchProjects();
+    return row;
+  }
+
+  async function closeProject(id, newStatus) {
+    // Cascade: close all non-terminal cases in this project
+    await supabase.from("cases")
+      .update({ status: newStatus })
+      .eq("project_id", id)
+      .not("status", "in", `(completed,cancelled)`);
+    const { data: row, error } = await supabase.from("projects").update({ status: newStatus }).eq("id", id).select().single();
+    if (error) throw error;
+    await fetchProjects();
+    return row;
+  }
+
+  async function deleteProject(id) {
+    const { error } = await supabase.from("projects").delete().eq("id", id);
+    if (error) throw error;
+    await fetchProjects();
+  }
+
+  return { projects, loading, createProject, updateProject, closeProject, deleteProject, refetch: fetchProjects };
 }
 
 function useTimeEntries(caseId = null) {
@@ -1353,6 +1409,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
   const navItems = {
     admin: [
       { id: "dashboard",      Icon: LayoutDashboard, label: "Dashboard" },
+      { id: "projects",       Icon: Layers,          label: "Projects" },
       { id: "cases",          Icon: FolderOpen,      label: "Cases" },
       { id: "kanban",         Icon: LayoutGrid,      label: "Kanban" },
       { id: "arena",          Icon: Target,          label: "Arena" },
@@ -1366,6 +1423,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
     ],
     manager: [
       { id: "dashboard",      Icon: LayoutDashboard, label: "Dashboard" },
+      { id: "projects",       Icon: Layers,          label: "Projects" },
       { id: "cases",          Icon: FolderOpen,      label: "Cases" },
       { id: "kanban",         Icon: LayoutGrid,      label: "Kanban" },
       { id: "arena",          Icon: Target,          label: "Arena" },
@@ -1386,6 +1444,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
     ],
     client: [
       { id: "dashboard",      Icon: LayoutDashboard, label: "Dashboard" },
+      { id: "projects",       Icon: Layers,          label: "Projects" },
       { id: "cases",          Icon: FolderOpen,      label: "My Cases" },
       { id: "kanban",         Icon: LayoutGrid,      label: "Kanban" },
       { id: "invoices",       Icon: Receipt,         label: "Invoices" },
@@ -2334,6 +2393,464 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+// ============================================================
+// PROJECTS FEATURE
+// ============================================================
+
+const PROJECT_STATUS_COLORS = {
+  draft:     "bg-gray-100 text-gray-600",
+  active:    "bg-blue-100 text-blue-700",
+  on_hold:   "bg-yellow-100 text-yellow-700",
+  completed: "bg-green-100 text-green-700",
+  cancelled: "bg-red-100 text-red-700",
+};
+
+function CreateProjectModal({ auth, clients, onSave, onClose }) {
+  const [form, setForm] = useState({
+    name: "", description: "", client_id: auth.isClient ? auth.user?.id : "",
+    total_budget: "", start_date: "", end_date: "", area_sap: "", industry: "",
+  });
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    if (!form.name.trim()) { alert("Name is required"); return; }
+    setSaving(true);
+    try {
+      await onSave({
+        name: form.name,
+        description: form.description || null,
+        client_id: form.client_id || null,
+        total_budget: form.total_budget ? Number(form.total_budget) : null,
+        start_date: form.start_date || null,
+        end_date: form.end_date || null,
+        area_sap: form.area_sap || null,
+        industry: form.industry || null,
+        created_by: auth.user?.id,
+        status: "draft",
+      });
+      onClose();
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+          <h2 className="text-xl font-bold text-gray-900">New Project</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+        </div>
+        <div className="p-6 space-y-1">
+          <Input label="Name *" value={form.name}
+            onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+            placeholder="e.g. SAP S/4HANA Transformation" />
+          <Textarea label="Description" value={form.description}
+            onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+            placeholder="Project objectives and scope…" />
+          {(auth.isAdmin || auth.isManager) && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
+              <select value={form.client_id} onChange={e => setForm(p => ({ ...p, client_id: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">— Select client —</option>
+                {clients.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.client_profiles?.company_name || c.full_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <Input label="Budget ($)" type="number" value={form.total_budget}
+            onChange={e => setForm(p => ({ ...p, total_budget: e.target.value }))}
+            placeholder="e.g. 200000" />
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Start Date" type="date" value={form.start_date}
+              onChange={e => setForm(p => ({ ...p, start_date: e.target.value }))} />
+            <Input label="End Date" type="date" value={form.end_date}
+              onChange={e => setForm(p => ({ ...p, end_date: e.target.value }))} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="SAP Area" value={form.area_sap}
+              onChange={e => setForm(p => ({ ...p, area_sap: e.target.value }))}
+              placeholder="e.g. Finance" />
+            <Input label="Industry" value={form.industry}
+              onChange={e => setForm(p => ({ ...p, industry: e.target.value }))}
+              placeholder="e.g. Manufacturing" />
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button onClick={onClose}
+              className="border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-4 py-2 text-sm">
+              Cancel
+            </button>
+            <button onClick={handleSave} disabled={saving || !form.name.trim()}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl px-5 py-2.5 text-sm disabled:opacity-50">
+              {saving ? "Creating…" : "Create Project"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProjectDetail({ project, auth, onBack, onUpdate, onClose }) {
+  const [projCases, setProjCases] = useState([]);
+  const [form, setForm] = useState({
+    name: project.name ?? "",
+    description: project.description ?? "",
+    total_budget: project.total_budget ?? "",
+    start_date: project.start_date ?? "",
+    end_date: project.end_date ?? "",
+    area_sap: project.area_sap ?? "",
+    industry: project.industry ?? "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [showAssign, setShowAssign] = useState(false);
+  const [unassignedCases, setUnassignedCases] = useState([]);
+
+  useEffect(() => {
+    if (!project?.id) return;
+    supabase.from("cases")
+      .select("*, case_assignments(consultant_id, users(full_name))")
+      .eq("project_id", project.id)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => setProjCases(data ?? []));
+  }, [project?.id]);
+
+  async function handleStatusChange(newStatus) {
+    const terminal = ["completed", "cancelled"];
+    if (terminal.includes(newStatus)) {
+      const openCount = project.cases?.filter(c => !terminal.includes(c.status)).length ?? 0;
+      if (openCount > 0) {
+        const verb = newStatus === "completed" ? "complete" : "cancel";
+        const ok = window.confirm(
+          `This will also ${verb} ${openCount} case(s) linked to this project. Continue?`
+        );
+        if (!ok) return;
+      }
+      await onClose(project.id, newStatus);
+    } else {
+      await onUpdate(project.id, { status: newStatus });
+    }
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await onUpdate(project.id, {
+        name: form.name,
+        description: form.description || null,
+        total_budget: form.total_budget ? Number(form.total_budget) : null,
+        start_date: form.start_date || null,
+        end_date: form.end_date || null,
+        area_sap: form.area_sap || null,
+        industry: form.industry || null,
+      });
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  async function handleAssignCase(caseId) {
+    await supabase.from("cases").update({ project_id: project.id }).eq("id", caseId);
+    const { data } = await supabase.from("cases")
+      .select("*, case_assignments(consultant_id, users(full_name))")
+      .eq("project_id", project.id)
+      .order("created_at", { ascending: false });
+    setProjCases(data ?? []);
+    setShowAssign(false);
+  }
+
+  async function handleRemoveCase(caseId) {
+    await supabase.from("cases").update({ project_id: null }).eq("id", caseId);
+    setProjCases(prev => prev.filter(c => c.id !== caseId));
+  }
+
+  async function openAssignModal() {
+    let q = supabase.from("cases").select("id, title, status")
+      .is("project_id", null)
+      .order("created_at", { ascending: false });
+    if (project.client_id) q = q.eq("client_id", project.client_id);
+    const { data } = await q;
+    setUnassignedCases(data ?? []);
+    setShowAssign(true);
+  }
+
+  const canEdit = auth.isAdmin || auth.isManager || auth.isClient;
+
+  return (
+    <div className="space-y-6">
+      {/* Header card */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <button onClick={onBack}
+          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-4">
+          ← Projects
+        </button>
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
+          <div className="flex items-center gap-2">
+            <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${PROJECT_STATUS_COLORS[project.status] ?? "bg-gray-100 text-gray-600"}`}>
+              {cap(fmt(project.status))}
+            </span>
+            {canEdit && (
+              <select
+                value={project.status}
+                onChange={e => handleStatusChange(e.target.value)}
+                className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                {["draft","active","on_hold","completed","cancelled"].map(s => (
+                  <option key={s} value={s}>{cap(fmt(s))}</option>
+                ))}
+              </select>
+            )}
+          </div>
+        </div>
+        {(auth.isAdmin || auth.isManager) && project.client?.client_profiles?.company_name && (
+          <p className="text-sm text-gray-500 mb-4">
+            Client: <span className="font-medium text-gray-700">{project.client.client_profiles.company_name}</span>
+          </p>
+        )}
+        {canEdit && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <Textarea label="Description" value={form.description}
+                onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
+            </div>
+            <Input label="Budget ($)" type="number" value={form.total_budget}
+              onChange={e => setForm(p => ({ ...p, total_budget: e.target.value }))} />
+            <div />
+            <Input label="Start Date" type="date" value={form.start_date}
+              onChange={e => setForm(p => ({ ...p, start_date: e.target.value }))} />
+            <Input label="End Date" type="date" value={form.end_date}
+              onChange={e => setForm(p => ({ ...p, end_date: e.target.value }))} />
+            <Input label="SAP Area" value={form.area_sap}
+              onChange={e => setForm(p => ({ ...p, area_sap: e.target.value }))} />
+            <Input label="Industry" value={form.industry}
+              onChange={e => setForm(p => ({ ...p, industry: e.target.value }))} />
+            <div className="col-span-2 flex justify-end">
+              <button onClick={handleSave} disabled={saving}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl px-5 py-2.5 text-sm disabled:opacity-50">
+                {saving ? "Saving…" : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Cases section */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Cases in this project
+            <span className="ml-2 px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
+              {projCases.length}
+            </span>
+          </h2>
+          {canEdit && (
+            <button onClick={openAssignModal}
+              className="text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-4 py-2">
+              + Assign case
+            </button>
+          )}
+        </div>
+        {projCases.length === 0 ? (
+          <EmptyState Icon={FolderOpen} title="No cases yet" subtitle="Assign cases to this project using the button above." />
+        ) : (
+          <div className="space-y-2">
+            {projCases.map(c => {
+              const consultant = c.case_assignments?.[0]?.users?.full_name;
+              return (
+                <div key={c.id} className="flex items-center justify-between border border-gray-100 rounded-xl px-4 py-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="font-medium text-gray-900 truncate">{c.title}</span>
+                    <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
+                      {cap(fmt(c.status))}
+                    </span>
+                    <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${PRIORITY_COLORS[c.priority] ?? ""}`}>
+                      {cap(c.priority)}
+                    </span>
+                    {consultant && (
+                      <span className="text-xs text-gray-400 hidden sm:inline">{consultant}</span>
+                    )}
+                  </div>
+                  {canEdit && (
+                    <button onClick={() => handleRemoveCase(c.id)}
+                      className="text-xs text-red-400 hover:text-red-600 ml-4 flex-shrink-0">
+                      Remove
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Assign case modal */}
+      {showAssign && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h2 className="text-lg font-bold text-gray-900">Assign case to project</h2>
+              <button onClick={() => setShowAssign(false)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+            </div>
+            <div className="p-4 space-y-2">
+              {unassignedCases.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-6">No unassigned cases available.</p>
+              ) : unassignedCases.map(c => (
+                <button key={c.id} onClick={() => handleAssignCase(c.id)}
+                  className="w-full text-left border border-gray-100 rounded-xl px-4 py-3 hover:bg-blue-50 hover:border-blue-200 transition-colors">
+                  <div className="font-medium text-gray-900 text-sm">{c.title}</div>
+                  <span className={`mt-1 inline-block px-2 py-0.5 text-xs rounded-lg ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
+                    {cap(fmt(c.status))}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProjectsView({ auth }) {
+  const clientFilter = auth.isClient ? { client_id: auth.user?.id } : {};
+  const { projects, loading, createProject, updateProject, closeProject } = useProjects(clientFilter);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [showCreate, setShowCreate]     = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [clients, setClients]           = useState([]);
+
+  useEffect(() => {
+    if (auth.isAdmin || auth.isManager) {
+      supabase.from("users")
+        .select("id, full_name, client_profiles(company_name)")
+        .eq("role", "client")
+        .then(({ data }) => setClients(data ?? []));
+    }
+  }, []);
+
+  const displayed = statusFilter
+    ? projects.filter(p => p.status === statusFilter)
+    : projects;
+
+  if (loading) return <Spinner />;
+
+  if (selectedProject) {
+    return (
+      <ProjectDetail
+        project={selectedProject}
+        auth={auth}
+        onBack={() => setSelectedProject(null)}
+        onUpdate={async (id, updates) => {
+          const updated = await updateProject(id, updates);
+          setSelectedProject(updated);
+        }}
+        onClose={async (id, newStatus) => {
+          const updated = await closeProject(id, newStatus);
+          setSelectedProject(updated);
+        }}
+      />
+    );
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Projects</h1>
+          <p className="text-gray-500 text-sm mt-1">{displayed.length} project{displayed.length !== 1 ? "s" : ""}</p>
+        </div>
+        {(auth.isAdmin || auth.isManager || auth.isClient) && (
+          <button onClick={() => setShowCreate(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl px-5 py-2.5 text-sm transition-colors">
+            + New Project
+          </button>
+        )}
+      </div>
+
+      {/* Status filter tabs */}
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {[["", "All"], ["draft", "Draft"], ["active", "Active"], ["on_hold", "On Hold"], ["completed", "Completed"], ["cancelled", "Cancelled"]].map(([val, label]) => (
+          <button key={val} onClick={() => setStatusFilter(val)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
+              statusFilter === val
+                ? "bg-blue-600 text-white border-blue-600"
+                : "border-gray-200 text-gray-600 hover:bg-gray-50"
+            }`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Grid */}
+      {displayed.length === 0 ? (
+        <EmptyState
+          Icon={Layers}
+          title="No projects yet"
+          subtitle="Group related cases into a project to track them together."
+          action={
+            (auth.isAdmin || auth.isManager || auth.isClient) && (
+              <button onClick={() => setShowCreate(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl px-5 py-2.5 text-sm mt-2">
+                + Create your first project
+              </button>
+            )
+          }
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {displayed.map(p => {
+            const totalCases     = p.cases?.length ?? 0;
+            const openCases      = p.cases?.filter(c => !["completed","cancelled"].includes(c.status)).length ?? 0;
+            const completedCases = p.cases?.filter(c => c.status === "completed").length ?? 0;
+            const company        = p.client?.client_profiles?.company_name ?? p.client?.full_name;
+            return (
+              <div key={p.id}
+                className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer p-5"
+                onClick={() => setSelectedProject(p)}>
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <h3 className="font-bold text-gray-900 truncate">{p.name}</h3>
+                  <span className={`flex-shrink-0 px-2 py-0.5 text-xs font-semibold rounded-lg ${PROJECT_STATUS_COLORS[p.status] ?? "bg-gray-100 text-gray-600"}`}>
+                    {cap(fmt(p.status))}
+                  </span>
+                </div>
+                {(auth.isAdmin || auth.isManager) && company && (
+                  <p className="text-xs text-gray-500 mb-2">{company}</p>
+                )}
+                <div className="flex items-center gap-4 text-xs text-gray-500 mb-2">
+                  <span>Cases: {totalCases} total · {openCases} open · {completedCases} done</span>
+                </div>
+                <div className="flex items-center gap-3 text-xs text-gray-400 mb-2">
+                  <span>Budget: {p.total_budget ? `$${Number(p.total_budget).toLocaleString()}` : "—"}</span>
+                  {p.area_sap && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg">{p.area_sap}</span>}
+                  {p.industry && <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg">{p.industry}</span>}
+                </div>
+                <div className="text-xs text-gray-400">
+                  {p.start_date || p.end_date
+                    ? `${p.start_date ? fmtDate(p.start_date) : "?"} → ${p.end_date ? fmtDate(p.end_date) : "?"}`
+                    : "No dates set"}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Create modal */}
+      {showCreate && (
+        <CreateProjectModal
+          auth={auth}
+          clients={clients}
+          onSave={createProject}
+          onClose={() => setShowCreate(false)}
+        />
+      )}
     </div>
   );
 }
