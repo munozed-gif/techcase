@@ -4109,13 +4109,13 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   }
 
   const tabs = [
-    { id: "detail",     label: "Details" },
-    { id: "milestones", label: `Milestones (${doneMilestones}/${milestones.length})` },
-    { id: "comments",   label: `Activity (${comments.length})` },
-    { id: "subcases",   label: `Sub-cases (${subCases.length})` },
-    { id: "documents",  label: `Docs (${documents.length})` },
-    { id: "time",       label: `Time (${totalTimeHours.toFixed(1)}h)` },
-    ...(auth.isAdmin || auth.isManager ? [{ id: "applications", label: `Applications (${applications.length})` }] : []),
+    { id: "detail",     label: "Details",      icon: ClipboardList, count: null },
+    { id: "milestones", label: "Milestones",   icon: Flag,          count: `${doneMilestones}/${milestones.length}` },
+    { id: "comments",   label: "Activity",     icon: MessageSquare, count: comments.length },
+    { id: "subcases",   label: "Sub-cases",    icon: Layers,        count: subCases.length },
+    { id: "documents",  label: "Docs",         icon: Paperclip,     count: documents.length },
+    { id: "time",       label: "Time",         icon: Clock,         count: `${totalTimeHours.toFixed(1)}h` },
+    ...(auth.isAdmin || auth.isManager ? [{ id: "applications", label: "Applications", icon: Users, count: applications.length }] : []),
   ];
 
   return (
@@ -4177,20 +4177,34 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
         )}
       </div>
 
-      {/* Folder Tabs */}
+      {/* Icon Tiles */}
       <div>
-        <div className="flex items-end gap-0.5">
-          {tabs.map(t => (
-            <button key={t.id} onClick={() => setActiveTab(t.id)}
-              className={`relative flex-shrink-0 px-4 py-2.5 text-xs font-medium rounded-t-xl border border-gray-200 transition-all whitespace-nowrap ${
-                activeTab === t.id
-                  ? "border-b-0 bg-white text-blue-800 font-semibold translate-y-px z-10"
-                  : "bg-gray-50 text-gray-500 hover:bg-blue-50 hover:text-blue-700"}`}>
-              {t.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {tabs.map(t => {
+            const Icon = t.icon;
+            const isActive = activeTab === t.id;
+            return (
+              <button key={t.id} onClick={() => setActiveTab(t.id)}
+                className={`flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl border transition-all min-w-[80px] ${
+                  isActive
+                    ? "bg-[#1A4B8C] border-[#1A4B8C] text-white shadow-md"
+                    : "bg-white border-gray-200 text-gray-500 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"}`}>
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                  isActive ? "bg-white/20" : "bg-gray-100"}`}>
+                  <Icon size={14} className={isActive ? "text-white" : "text-gray-500"} />
+                </div>
+                <span className="text-xs font-medium">{t.label}</span>
+                {t.count !== null && (
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                    isActive ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"}`}>
+                    {t.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
-        <div className="bg-white border border-gray-200 rounded-b-xl rounded-tr-xl p-6 relative z-0 space-y-4">
+        <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
 
       {/* Detail Tab */}
       {activeTab === "detail" && (
