@@ -1898,29 +1898,30 @@ const PROJECT_STEPS = [
   { id: "review",       label: "Review",       Icon: CheckCircle2,      desc: "Confirm & create" },
 ];
 
-function CreateCaseWizard({ auth, createCase, onComplete, onCancel, initialProjectId = null }) {
+function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, initialData = null, initialProjectId = null }) {
+  const isEdit = !!initialData;
   const [step, setSt]       = useState(initialProjectId ? 1 : 0);
   const [creating, setCreating] = useState(false);
 
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId);
   const [wizardProjects, setWizardProjects]         = useState([]);
 
-  const [basics, setBasics] = useState({ title: "", description: "", priority: "medium", area_sap: "", area_industry: "", is_confidential: false, nda_required: false });
-  const [scope, setScope]   = useState({ budget: "", start_date: "", due_date: daysFromNow(30), sla: "standard", _skills: "", client_id: auth.isClient ? auth.user?.id : "" });
+  const [basics, setBasics] = useState({ title: initialData?.title ?? "", description: initialData?.description ?? "", priority: initialData?.priority ?? "medium", area_sap: initialData?.area_sap ?? "", area_industry: initialData?.area_industry ?? "", is_confidential: initialData?.is_confidential ?? false, nda_required: initialData?.nda_required ?? false });
+  const [scope, setScope]   = useState({ budget: initialData?.budget ?? "", start_date: initialData?.start_date ?? "", due_date: initialData?.due_date ?? daysFromNow(30), sla: "standard", _skills: (initialData?.skills_required ?? []).join(", "), client_id: auth.isClient ? auth.user?.id : (initialData?.client_id ?? "") });
 
   // Step 3: Work Arrangement
-  const [arrangement, setArr] = useState({ work_mode: "remote", work_location: "", travel_required: false });
+  const [arrangement, setArr] = useState({ work_mode: initialData?.work_mode ?? "remote", work_location: initialData?.work_location ?? "", travel_required: initialData?.travel_required ?? false });
 
   // Step 4: Roles & People
-  const [roles, setRoles] = useState({ key_user_name: "", key_user_email: "", is_head_hunter: false, head_hunter_name: "" });
+  const [roles, setRoles] = useState({ key_user_name: initialData?.key_user_name ?? "", key_user_email: initialData?.key_user_email ?? "", is_head_hunter: initialData?.is_head_hunter ?? false, head_hunter_name: initialData?.head_hunter_name ?? "" });
 
   // Step 5: Qualifications
-  const [quals, setQuals] = useState({ certifications_required: [], min_years_experience: "", languages_required: [], security_clearance: false });
+  const [quals, setQuals] = useState({ certifications_required: initialData?.certifications_required ?? [], min_years_experience: initialData?.min_years_experience ?? "", languages_required: initialData?.languages_required ?? [], security_clearance: initialData?.security_clearance ?? false });
   const [certInput, setCertInput] = useState("");
   const [langInput, setLangInput] = useState("");
 
   // Step 6: Interview
-  const [interview, setIntv] = useState({ interview_required: false, interview_format: "video", interview_rounds: 1, technical_assessment: false });
+  const [interview, setIntv] = useState({ interview_required: initialData?.interview_required ?? false, interview_format: initialData?.interview_format ?? "video", interview_rounds: initialData?.interview_rounds ?? 1, technical_assessment: initialData?.technical_assessment ?? false });
   const [milestones, setMs] = useState([]);
   const [mlForm, setMlForm] = useState({ title: "", due_date: "", description: "" });
   const [clients, setClients] = useState([]);
@@ -1946,7 +1947,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel, initialProje
     setCreating(true);
     try {
       const { _skills, client_id, sla, ...rest } = scope;
-      const newCase = await createCase({
+      const payload = {
         ...basics,
         status: "open",
         area_sap:      basics.area_sap || null,
@@ -1966,13 +1967,19 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel, initialProje
         languages_required: quals.languages_required.length ? quals.languages_required : null,
         security_clearance: quals.security_clearance,
         ...interview,
-      });
-      if (milestones.length > 0 && newCase?.id) {
-        await supabase.from("case_milestones").insert(
-          milestones.map(m => ({ ...m, case_id: newCase.id }))
-        );
+      };
+      if (isEdit) {
+        await onSave(payload);
+        onComplete();
+      } else {
+        const newCase = await createCase(payload);
+        if (milestones.length > 0 && newCase?.id) {
+          await supabase.from("case_milestones").insert(
+            milestones.map(m => ({ ...m, case_id: newCase.id }))
+          );
+        }
+        onComplete(newCase?.id);
       }
-      onComplete(newCase?.id);
     } catch (e) { alert(e.message); }
     setCreating(false);
   }
@@ -1987,7 +1994,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel, initialProje
     <div className="max-w-2xl mx-auto py-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">New Case</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{isEdit ? "Edit Case" : "New Case"}</h1>
           <p className="text-gray-500 text-sm mt-0.5">Walk through each step to set up your case.</p>
         </div>
         <button onClick={onCancel}
@@ -2558,7 +2565,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onCancel, initialProje
           ) : (
             <button onClick={handleCreate} disabled={creating}
               className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
-              {creating ? "Creating…" : "✓ Create Case"}
+              {creating ? (isEdit ? "Saving…" : "Creating…") : (isEdit ? "✓ Save Changes" : "✓ Create Case")}
             </button>
           )}
         </div>
@@ -3905,6 +3912,10 @@ function CasesView({ auth }) {
             caseData={selectedCase} auth={auth}
             onStatusChange={handleStatusChange}
             onDelete={async () => { await deleteCase(selectedCase.id); setSelected(null); }}
+            onUpdate={async (id, payload) => {
+              await updateCase(id, payload);
+              setSelected(prev => ({ ...prev, ...payload }));
+            }}
           />
         )}
       </Modal>
@@ -3981,7 +3992,7 @@ function ProjectFieldEditor({ caseData, auth }) {
   );
 }
 
-function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
+function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdate }) {
   const { applications, apply, reviewApplication } = useApplications(caseData.id);
   const { milestones, toggleMilestone, addMilestone } = useMilestones(caseData.id);
   const { comments, addComment } = useCaseComments(caseData.id);
@@ -4008,6 +4019,10 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
   const [showTimeForm, setShowTimeForm] = useState(false);
   const [timeForm, setTimeForm]         = useState({ date: new Date().toISOString().slice(0, 10), hours: 1, description: "", is_billable: true });
   const [savingTime, setSavingTime]     = useState(false);
+
+  const [showEditWizard, setShowEditWizard] = useState(false);
+  const canEditCase = onUpdate && !["completed","cancelled"].includes(caseData.status)
+    && (auth.isAdmin || auth.isManager || (auth.isClient && caseData.client_id === auth.user?.id));
 
   const myApp = applications.find(a => a.consultant_id === auth.user?.id);
   const doneMilestones = milestones.filter(m => m.is_done).length;
@@ -4134,21 +4149,49 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
       {/* Detail Tab */}
       {activeTab === "detail" && (
         <div className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            <Badge className={STATUS_COLORS[caseData.status]}>{cap(fmt(caseData.status))}</Badge>
-            <Badge className={PRIORITY_COLORS[caseData.priority]}>{cap(caseData.priority)}</Badge>
-            {caseData.parent_case_id && (
-              <Badge className="bg-violet-100 text-blue-700">Sub-case</Badge>
+          {/* Badges row with optional Edit button */}
+          <div className="flex items-center justify-between">
+            <div className="flex flex-wrap gap-2">
+              <Badge className={STATUS_COLORS[caseData.status]}>{cap(fmt(caseData.status))}</Badge>
+              <Badge className={PRIORITY_COLORS[caseData.priority]}>{cap(caseData.priority)}</Badge>
+              {caseData.parent_case_id && (
+                <Badge className="bg-violet-100 text-blue-700">Sub-case</Badge>
+              )}
+              {caseData.is_confidential && (
+                <span className="px-2 py-0.5 bg-gray-800 text-white rounded-lg text-xs font-semibold">Private case</span>
+              )}
+              {caseData.nda_required && (
+                <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">NDA required</span>
+              )}
+            </div>
+            {canEditCase && (
+              <button onClick={() => setShowEditWizard(true)}
+                className="text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-3 py-1.5 flex-shrink-0">
+                Edit
+              </button>
             )}
           </div>
+
           <p className="text-gray-700 text-sm leading-relaxed">{caseData.description || "No description provided."}</p>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            {caseData.budget && <div><span className="text-gray-400">Budget: </span><span className="font-medium">${Number(caseData.budget).toLocaleString()}</span></div>}
-            {caseData.due_date && <div><span className="text-gray-400">Due: </span><span className="font-medium">{fmtDate(caseData.due_date)}</span></div>}
-            {caseData.client?.full_name && <div><span className="text-gray-400">Client: </span><span className="font-medium">{caseData.client.full_name}</span></div>}
-            {caseData.manager?.full_name && <div><span className="text-gray-400">Manager: </span><span className="font-medium">{caseData.manager.full_name}</span></div>}
+
+          {/* Overview card */}
+          <div className="border border-gray-100 rounded-xl p-4">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Overview</p>
+            <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
+              {caseData.budget && <div><span className="text-gray-400">Budget: </span><span className="font-medium">${Number(caseData.budget).toLocaleString()}</span></div>}
+              {caseData.due_date && <div><span className="text-gray-400">Due: </span><span className="font-medium">{fmtDate(caseData.due_date)}</span></div>}
+              {caseData.start_date && <div><span className="text-gray-400">Starts: </span><span className="font-medium">{fmtDate(caseData.start_date)}</span></div>}
+              {caseData.client?.full_name && <div><span className="text-gray-400">Client: </span><span className="font-medium">{caseData.client.full_name}</span></div>}
+              {caseData.manager?.full_name && <div><span className="text-gray-400">Manager: </span><span className="font-medium">{caseData.manager.full_name}</span></div>}
+              {caseData.area_sap && <div><span className="text-gray-400">SAP Area: </span><span className="font-medium">{caseData.area_sap}</span></div>}
+              {caseData.area_industry && <div><span className="text-gray-400">Industry: </span><span className="font-medium">{caseData.area_industry}</span></div>}
+            </div>
+            <div className="mt-3">
+              <ProjectFieldEditor caseData={caseData} auth={auth} />
+            </div>
           </div>
-          <ProjectFieldEditor caseData={caseData} auth={auth} />
+
+          {/* Skills */}
           {caseData.skills_required?.length > 0 && (
             <div>
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Skills Required</div>
@@ -4160,84 +4203,83 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
             </div>
           )}
 
-          {/* Requirements subsection — work arrangement, quals, interview, roles */}
-          {(caseData.work_mode || caseData.key_user_name || caseData.certifications_required?.length > 0 ||
-            caseData.languages_required?.length > 0 || caseData.interview_required ||
-            caseData.is_confidential || caseData.nda_required) && (
-            <div className="border-t border-gray-100 pt-4">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Requirements</div>
-              <div className="space-y-2 text-sm">
-                {/* Confidentiality badges */}
-                {(caseData.is_confidential || caseData.nda_required) && (
-                  <div className="flex flex-wrap gap-2">
-                    {caseData.is_confidential && (
-                      <span className="px-2 py-0.5 bg-gray-800 text-white rounded-lg text-xs font-semibold">Private case</span>
-                    )}
-                    {caseData.nda_required && (
-                      <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">NDA required</span>
-                    )}
-                  </div>
+          {/* Work Arrangement card */}
+          {caseData.work_mode && (
+            <div className="border border-gray-100 rounded-xl p-4">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Work Arrangement</p>
+              <div className="flex flex-wrap gap-2 items-center">
+                <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg text-xs font-semibold capitalize">{caseData.work_mode}</span>
+                {caseData.work_location && <span className="text-sm text-gray-600">{caseData.work_location}</span>}
+                {caseData.travel_required && (
+                  <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-lg text-xs font-semibold">Travel required</span>
                 )}
-                {/* Work arrangement */}
-                {caseData.work_mode && (
-                  <div className="grid grid-cols-2 gap-y-1">
-                    <div><span className="text-gray-400">Work mode:</span> <span className="font-medium ml-1 capitalize">{caseData.work_mode}</span></div>
-                    {caseData.work_location && <div><span className="text-gray-400">Location:</span> <span className="font-medium ml-1">{caseData.work_location}</span></div>}
-                    {caseData.travel_required && <div className="col-span-2 text-xs text-amber-600 font-semibold">Travel required</div>}
-                  </div>
-                )}
-                {/* Qualifications */}
-                {caseData.min_years_experience && (
-                  <div><span className="text-gray-400">Min experience:</span> <span className="font-medium ml-1">{caseData.min_years_experience} years</span></div>
-                )}
-                {caseData.security_clearance && (
-                  <div className="text-xs text-red-600 font-semibold">Security clearance required</div>
-                )}
-                {caseData.certifications_required?.length > 0 && (
-                  <div>
-                    <div className="text-xs text-gray-400 mb-1">Certifications</div>
-                    <div className="flex flex-wrap gap-1">
-                      {caseData.certifications_required.map((c, i) => (
-                        <span key={i} className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs">{c}</span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {caseData.languages_required?.length > 0 && (
-                  <div>
-                    <div className="text-xs text-gray-400 mb-1">Languages</div>
-                    <div className="flex flex-wrap gap-1">
-                      {caseData.languages_required.map((l, i) => (
-                        <span key={i} className="px-2 py-0.5 bg-green-50 text-green-700 rounded-lg text-xs">{l}</span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {/* Interview info */}
-                {caseData.interview_required && (
-                  <div>
-                    <div className="text-xs text-gray-400 mb-1">Interview</div>
-                    <div className="flex flex-wrap gap-2 text-xs">
-                      <span className="capitalize">{caseData.interview_format?.replace("_", " ")}</span>
-                      {caseData.interview_rounds && <span>· {caseData.interview_rounds} round{caseData.interview_rounds > 1 ? "s" : ""}</span>}
-                      {caseData.technical_assessment && <span>· Technical assessment</span>}
-                    </div>
-                  </div>
-                )}
-                {/* Key user */}
+              </div>
+            </div>
+          )}
+
+          {/* Roles & Contacts card */}
+          {(caseData.key_user_name || caseData.is_head_hunter) && (
+            <div className="border border-gray-100 rounded-xl p-4">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Roles &amp; Contacts</p>
+              <div className="space-y-3 text-sm">
                 {caseData.key_user_name && (
                   <div>
-                    <div className="text-xs text-gray-400 mb-1">Key User</div>
+                    <div className="text-xs text-gray-400 mb-0.5">Key User</div>
                     <div className="font-medium">{caseData.key_user_name}</div>
                     {caseData.key_user_email && <div className="text-xs text-gray-400">{caseData.key_user_email}</div>}
                   </div>
                 )}
-                {/* Head hunter */}
                 {caseData.is_head_hunter && (
                   <div>
-                    <div className="text-xs text-gray-400 mb-1">Head Hunter</div>
-                    <div className="font-medium">{caseData.head_hunter_name || "Yes (no name specified)"}</div>
+                    <div className="text-xs text-gray-400 mb-0.5">Head Hunter</div>
+                    <div className="font-medium">{caseData.head_hunter_name || "Yes"}</div>
                   </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Qualifications card */}
+          {(caseData.certifications_required?.length > 0 || caseData.languages_required?.length > 0 ||
+            caseData.min_years_experience || caseData.security_clearance) && (
+            <div className="border border-gray-100 rounded-xl p-4">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Requirements</p>
+              <div className="space-y-2 text-sm">
+                {caseData.min_years_experience && (
+                  <div className="text-gray-700">{caseData.min_years_experience} years minimum experience</div>
+                )}
+                {caseData.security_clearance && (
+                  <span className="inline-block px-2 py-0.5 bg-red-50 text-red-700 rounded-lg text-xs font-semibold">Security clearance required</span>
+                )}
+                {caseData.certifications_required?.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {caseData.certifications_required.map((c, i) => (
+                      <span key={i} className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs">{c}</span>
+                    ))}
+                  </div>
+                )}
+                {caseData.languages_required?.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {caseData.languages_required.map((l, i) => (
+                      <span key={i} className="px-2 py-0.5 bg-green-50 text-green-700 rounded-lg text-xs">{l}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Interview card */}
+          {caseData.interview_required && (
+            <div className="border border-gray-100 rounded-xl p-4">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Interview</p>
+              <div className="flex flex-wrap gap-2 items-center text-sm">
+                <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg text-xs font-semibold capitalize">
+                  {caseData.interview_format?.replace("_", " ")}
+                </span>
+                <span className="text-gray-600">{caseData.interview_rounds} round{caseData.interview_rounds > 1 ? "s" : ""}</span>
+                {caseData.technical_assessment && (
+                  <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-semibold">Technical assessment</span>
                 )}
               </div>
             </div>
@@ -4679,6 +4721,18 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply }) {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {showEditWizard && (
+        <div className="fixed inset-0 z-50 bg-[#EAF4FD] overflow-y-auto p-6">
+          <CreateCaseWizard
+            auth={auth}
+            initialData={caseData}
+            onSave={async (payload) => { await onUpdate(caseData.id, payload); }}
+            onComplete={() => setShowEditWizard(false)}
+            onCancel={() => setShowEditWizard(false)}
+          />
         </div>
       )}
     </div>
@@ -7327,6 +7381,10 @@ function KanbanView({ auth }) {
               setSelectedCase(prev => ({ ...prev, status }));
             }}
             onDelete={async () => { await updateCase(selectedCase.id, { status: "cancelled" }); setSelectedCase(null); }}
+            onUpdate={async (id, payload) => {
+              await updateCase(id, payload);
+              setSelectedCase(prev => ({ ...prev, ...payload }));
+            }}
           />
         )}
       </Modal>
