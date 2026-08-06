@@ -4177,16 +4177,20 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
-        {tabs.map(t => (
-          <button key={t.id} onClick={() => setActiveTab(t.id)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-              activeTab === t.id ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {/* Folder Tabs */}
+      <div>
+        <div className="flex items-end gap-0.5">
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => setActiveTab(t.id)}
+              className={`relative flex-shrink-0 px-4 py-2.5 text-xs font-medium rounded-t-xl border border-gray-200 transition-all whitespace-nowrap ${
+                activeTab === t.id
+                  ? "border-b-0 bg-white text-blue-800 font-semibold translate-y-px z-10"
+                  : "bg-gray-50 text-gray-500 hover:bg-blue-50 hover:text-blue-700"}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div className="bg-white border border-gray-200 rounded-b-xl rounded-tr-xl p-6 relative z-0 space-y-4">
 
       {/* Detail Tab */}
       {activeTab === "detail" && (
@@ -4765,6 +4769,9 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
           </div>
         </div>
       )}
+
+        </div>
+      </div>
 
       {showEditWizard && (
         <div className="fixed inset-0 z-50 bg-[#EAF4FD] overflow-y-auto p-6">
