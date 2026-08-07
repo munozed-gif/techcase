@@ -107,7 +107,7 @@ function useSlaConfig(clientId) {
   }, [clientId]);
   async function updateSla(updates) {
     const { data, error } = await supabase.from("sla_configs")
-      .upsert({ client_id: clientId, ...updates }).select().single();
+      .upsert({ client_id: clientId, ...updates }, { onConflict: "client_id" }).select().single();
     if (error) throw error;
     setSla(data);
     return data;
@@ -125,7 +125,8 @@ function useDbConnections(clientId) {
   }, [clientId]);
   useEffect(() => { fetchConnections(); }, [fetchConnections]);
   async function addConnection(conn) {
-    await supabase.from("db_connections").insert({ ...conn, client_id: clientId });
+    const { error } = await supabase.from("db_connections").insert({ ...conn, client_id: clientId });
+    if (error) throw error;
     await fetchConnections();
   }
   async function deleteConnection(id) {
@@ -179,7 +180,8 @@ function useClientTeamMembers(clientId) {
   }, [clientId]);
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
   async function addMember(member) {
-    await supabase.from("client_team_members").insert({ ...member, client_id: clientId });
+    const { error } = await supabase.from("client_team_members").insert({ ...member, client_id: clientId });
+    if (error) throw error;
     await fetchMembers();
   }
   return { members, addMember, refetch: fetchMembers };
