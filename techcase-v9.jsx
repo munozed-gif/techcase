@@ -967,12 +967,40 @@ const LIFECYCLE_PRESETS = {
   },
 };
 
-function getLifecycleStages(lifecycle) {
-  if (!lifecycle) return LIFECYCLE_PRESETS.standard.stages;
-  if (lifecycle.preset && lifecycle.preset !== "custom") {
-    return LIFECYCLE_PRESETS[lifecycle.preset]?.stages ?? LIFECYCLE_PRESETS.standard.stages;
+function getLifecycleStages(lifecycle, templates) {
+  function resolvePreset(preset) {
+    if (templates?.length) {
+      const tmpl = templates.find(t => t.key === preset);
+      if (tmpl) return tmpl.stages;
+    }
+    return LIFECYCLE_PRESETS[preset]?.stages ?? LIFECYCLE_PRESETS.standard.stages;
   }
-  return lifecycle.stages?.length ? lifecycle.stages : LIFECYCLE_PRESETS.standard.stages;
+  if (!lifecycle) return resolvePreset("standard");
+  if (lifecycle.preset && lifecycle.preset !== "custom") return resolvePreset(lifecycle.preset);
+  return lifecycle.stages?.length ? lifecycle.stages : resolvePreset("standard");
+}
+
+function useLifecycleTemplates() {
+  const [templates, setTemplates] = useState([]);
+  const [loadingTmpl, setLoadingTmpl] = useState(true);
+
+  async function fetchTemplates() {
+    setLoadingTmpl(true);
+    const { data } = await supabase.from("lifecycle_templates")
+      .select("*").eq("is_active", true).order("sort_order");
+    setTemplates(data ?? []);
+    setLoadingTmpl(false);
+  }
+
+  useEffect(() => { fetchTemplates(); }, []);
+
+  function getTemplateStages(preset) {
+    const tmpl = templates.find(t => t.key === preset);
+    if (tmpl) return tmpl.stages;
+    return LIFECYCLE_PRESETS[preset]?.stages ?? LIFECYCLE_PRESETS.standard.stages;
+  }
+
+  return { templates, loadingTmpl, fetchTemplates, getTemplateStages };
 }
 
 const SLA_PRIORITIES = [
@@ -1611,6 +1639,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
       { id: "sla",            Icon: Settings,        label: "SLA Config" },
       { id: "db-connections", Icon: Database,        label: "DB Connections" },
       { id: "team-members",   Icon: Handshake,       label: "Client Teams" },
+      { id: "lifecycle",      Icon: TrendingUp,      label: "Lifecycle" },
       { id: "reports",        Icon: BarChart2,       label: "Reports" },
     ],
     manager: [
@@ -1625,6 +1654,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
       { id: "sla",            Icon: Settings,        label: "SLA Config" },
       { id: "db-connections", Icon: Database,        label: "DB Connections" },
       { id: "team-members",   Icon: Handshake,       label: "Client Teams" },
+      { id: "lifecycle",      Icon: TrendingUp,      label: "Lifecycle" },
     ],
     consultant: [
       { id: "dashboard", Icon: LayoutDashboard, label: "Dashboard" },
@@ -3623,14 +3653,10 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
   const [showAssign, setShowAssign] = useState(false);
   const [unassignedCases, setUnassignedCases] = useState([]);
   const [activeTab, setActiveTab] = useState("overview");
-  const [projLcOverride, setProjLcOverride] = useState(!!project.case_lifecycle);
   const [projLcMode, setProjLcMode] = useState(project.case_lifecycle?.preset ?? "standard");
-  const [projLcCustom, setProjLcCustom] = useState(
-    project.case_lifecycle?.preset === "custom"
-      ? project.case_lifecycle.stages
-      : [...LIFECYCLE_PRESETS.standard.stages]
-  );
   const [savingProjLc, setSavingProjLc] = useState(false);
+  const [clientLcConfig, setClientLcConfig] = useState(null);
+  const { templates: lcTemplates2, getTemplateStages: getProjTmplStages } = useLifecycleTemplates();
 
   useEffect(() => {
     if (!project?.id) return;
@@ -3640,6 +3666,15 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
       .order("created_at", { ascending: false })
       .then(({ data }) => setProjCases(data ?? []));
   }, [project?.id]);
+
+  useEffect(() => {
+    if (!project?.client_id) return;
+    supabase.from("client_profiles")
+      .select("case_lifecycle")
+      .eq("id", project.client_id)
+      .single()
+      .then(({ data }) => setClientLcConfig(data?.case_lifecycle ?? null));
+  }, [project?.client_id]);
 
   async function handleStatusChange(newStatus) {
     const terminal = ["completed", "cancelled"];
@@ -3688,21 +3723,10 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
   async function handleSaveProjLc() {
     setSavingProjLc(true);
     try {
-      if (!projLcOverride) {
-        await onUpdate(project.id, { case_lifecycle: null });
-      } else {
-        const stages = projLcMode === "custom"
-          ? projLcCustom
-          : LIFECYCLE_PRESETS[projLcMode]?.stages ?? LIFECYCLE_PRESETS.standard.stages;
-        await onUpdate(project.id, { case_lifecycle: { preset: projLcMode, stages } });
-      }
+      await onUpdate(project.id, { case_lifecycle: { preset: projLcMode } });
     } catch (e) { alert(e.message); }
     setSavingProjLc(false);
   }
-  function addProjLcStage() { setProjLcCustom(p => [...p, { key: `s${p.length + 1}`, label: "New Stage", color: "#6b7280", is_terminal: false }]); }
-  function removeProjLcStage(i) { setProjLcCustom(p => p.filter((_, j) => j !== i)); }
-  function moveProjLcStage(i, d) { setProjLcCustom(p => { const n = [...p]; const [x] = n.splice(i, 1); n.splice(i + d, 0, x); return n; }); }
-  function updateProjLcStage(i, u) { setProjLcCustom(p => p.map((s, j) => j === i ? { ...s, ...u } : s)); }
 
   const projectTabs = [
     { id: "overview",     label: "Overview",      icon: BarChart2,         count: null },
@@ -3982,91 +4006,91 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
         )}
 
         {/* Lifecycle */}
-        {activeTab === "lifecycle" && canEdit && (
-          <div className="space-y-5">
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <span className="font-semibold text-gray-700">Lifecycle source:</span>
-              {project.case_lifecycle
-                ? <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">This project (override)</span>
-                : <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-semibold">Company profile (inherited)</span>}
-            </div>
-
-            <label className="flex items-center gap-3 cursor-pointer select-none">
-              <div className={`relative w-10 h-5 rounded-full transition-colors ${projLcOverride ? "bg-[#1A4B8C]" : "bg-gray-200"}`}
-                onClick={() => setProjLcOverride(p => !p)}>
-                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${projLcOverride ? "translate-x-5" : "translate-x-0.5"}`} />
-              </div>
-              <span className="text-sm font-medium text-gray-700">Override lifecycle for this project</span>
-            </label>
-
-            {!projLcOverride ? (
-              <p className="text-sm text-gray-400">Cases in this project inherit the lifecycle from the company profile.</p>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 gap-3">
-                  {Object.entries(LIFECYCLE_PRESETS).map(([id, preset]) => {
-                    const isSelected = projLcMode === id;
-                    const active = preset.stages.filter(s => !s.is_terminal);
-                    return (
-                      <button key={id} onClick={() => setProjLcMode(id)}
-                        className={`text-left p-3 rounded-xl border-2 transition-all ${
-                          isSelected ? "border-[#1A4B8C] bg-blue-50" : "border-gray-200 bg-white hover:border-blue-200"}`}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="font-semibold text-sm text-gray-900">{preset.name}</span>
-                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">{preset.subtitle}</span>
-                        </div>
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {active.map((s, i) => (
-                            <span key={s.key} className="flex items-center gap-1">
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                                style={{ backgroundColor: s.color + "22", color: s.color }}>{s.label}</span>
-                              {i < active.length - 1 && <span className="text-gray-300 text-[10px]">›</span>}
-                            </span>
-                          ))}
-                        </div>
-                      </button>
-                    );
-                  })}
-                  <button onClick={() => setProjLcMode("custom")}
-                    className={`text-left p-3 rounded-xl border-2 transition-all ${
-                      projLcMode === "custom" ? "border-[#1A4B8C] bg-blue-50" : "border-dashed border-gray-300 bg-white hover:border-blue-300"}`}>
-                    <span className="font-semibold text-sm text-gray-900">Custom</span>
-                    <p className="text-xs text-gray-500 mt-1">Define your own stages</p>
-                  </button>
-                </div>
-                {projLcMode === "custom" && (
-                  <div className="space-y-2">
-                    {projLcCustom.map((stage, idx) => (
-                      <div key={idx} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
-                        <input type="color" value={stage.color} onChange={e => updateProjLcStage(idx, { color: e.target.value })}
-                          className="w-6 h-6 rounded cursor-pointer border border-gray-200 p-0.5 bg-white flex-shrink-0" />
-                        <input type="text" value={stage.label} onChange={e => updateProjLcStage(idx, { label: e.target.value })}
-                          className="flex-1 text-sm bg-transparent border-0 focus:outline-none text-gray-800 min-w-0" placeholder="Stage name" />
-                        <select value={stage.is_terminal ? "terminal" : "active"}
-                          onChange={e => updateProjLcStage(idx, { is_terminal: e.target.value === "terminal" })}
-                          className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600 flex-shrink-0">
-                          <option value="active">Active</option>
-                          <option value="terminal">Terminal</option>
-                        </select>
-                        <button onClick={() => moveProjLcStage(idx, -1)} disabled={idx === 0} className="text-gray-400 hover:text-gray-600 disabled:opacity-20 w-4 text-center">↑</button>
-                        <button onClick={() => moveProjLcStage(idx, 1)} disabled={idx === projLcCustom.length - 1} className="text-gray-400 hover:text-gray-600 disabled:opacity-20 w-4 text-center">↓</button>
-                        <button onClick={() => removeProjLcStage(idx)} className="text-red-300 hover:text-red-500 w-4 text-center">×</button>
-                      </div>
-                    ))}
-                    <button onClick={addProjLcStage} className="text-sm text-blue-600 hover:text-blue-700 font-medium">+ Add Stage</button>
-                  </div>
+        {activeTab === "lifecycle" && canEdit && (() => {
+          const projOverrideAllowed = clientLcConfig?.allow_project_override ?? true;
+          const tmplList = lcTemplates2.length ? lcTemplates2 : Object.entries(LIFECYCLE_PRESETS).map(([k, v]) => ({ key: k, ...v }));
+          const previewStages = getProjTmplStages(projLcMode);
+          const previewActive = previewStages.filter(s => !s.is_terminal);
+          const previewTerminal = previewStages.filter(s => s.is_terminal);
+          return (
+            <div className="space-y-5">
+              <div className="flex items-center gap-2 flex-wrap text-xs text-gray-500">
+                <span className="font-semibold text-gray-700">Lifecycle source:</span>
+                {project.case_lifecycle
+                  ? <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">This project</span>
+                  : <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-semibold">Company profile (inherited)</span>}
+                {!projOverrideAllowed && (
+                  <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold flex items-center gap-1">
+                    🔒 Override locked by company settings
+                  </span>
                 )}
-              </>
-            )}
+              </div>
 
-            <div className="flex justify-end pt-2 border-t border-gray-100">
-              <button onClick={handleSaveProjLc} disabled={savingProjLc}
-                className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
-                {savingProjLc ? "Saving…" : projLcOverride ? "Save Override" : "Save (Inherit)"}
-              </button>
+              {!projOverrideAllowed ? (
+                <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-sm text-amber-700">
+                  The company profile does not allow projects to choose a different lifecycle template. Contact your company admin to enable this.
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {tmplList.map(tmpl => {
+                      const isSelected = projLcMode === tmpl.key;
+                      const active = tmpl.stages.filter(s => !s.is_terminal);
+                      return (
+                        <button key={tmpl.key} onClick={() => setProjLcMode(tmpl.key)}
+                          className={`text-left p-3 rounded-xl border-2 transition-all ${
+                            isSelected ? "border-[#1A4B8C] bg-blue-50" : "border-gray-200 bg-white hover:border-blue-200"}`}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-semibold text-sm text-gray-900">{tmpl.name}</span>
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">{tmpl.subtitle}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {active.map((s, i) => (
+                              <span key={s.key} className="flex items-center gap-1">
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                                  style={{ backgroundColor: s.color + "22", color: s.color }}>{s.label}</span>
+                                {i < active.length - 1 && <span className="text-gray-300 text-[10px]">›</span>}
+                              </span>
+                            ))}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Flow Preview</p>
+                    <div className="flex items-center flex-wrap gap-2">
+                      {previewActive.map((s, i) => (
+                        <span key={s.key} className="flex items-center gap-2">
+                          <span className="px-3 py-1.5 text-xs font-semibold rounded-xl"
+                            style={{ backgroundColor: s.color + "20", color: s.color }}>{s.label}</span>
+                          {i < previewActive.length - 1 && <span className="text-gray-300 text-sm">→</span>}
+                        </span>
+                      ))}
+                      {previewTerminal.length > 0 && (
+                        <span className="flex items-center gap-2">
+                          <span className="text-gray-300 text-sm">→</span>
+                          {previewTerminal.map(s => (
+                            <span key={s.key} className="px-3 py-1.5 text-xs font-semibold rounded-xl"
+                              style={{ backgroundColor: s.color + "20", color: s.color }}>{s.label}</span>
+                          ))}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-2 border-t border-gray-100">
+                    <button onClick={handleSaveProjLc} disabled={savingProjLc}
+                      className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
+                      {savingProjLc ? "Saving…" : "Save Lifecycle"}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
 
       </div>
 
@@ -4538,14 +4562,9 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [showEditWizard, setShowEditWizard] = useState(false);
   const [clientLifecycle, setClientLifecycle] = useState(null);
   const [projectLifecycle, setProjectLifecycle] = useState(null);
-  const [lcOverride, setLcOverride] = useState(!!caseData.case_lifecycle);
   const [lcMode, setLcMode] = useState(caseData.case_lifecycle?.preset ?? "standard");
-  const [lcCustom, setLcCustom] = useState(
-    caseData.case_lifecycle?.preset === "custom"
-      ? caseData.case_lifecycle.stages
-      : [...LIFECYCLE_PRESETS.standard.stages]
-  );
   const [savingLc, setSavingLc] = useState(false);
+  const { templates: caseLcTemplates, getTemplateStages: getCaseTmplStages } = useLifecycleTemplates();
 
   useEffect(() => {
     if (!caseData.client_id) return;
@@ -4575,21 +4594,10 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   async function handleSaveCaseLc() {
     setSavingLc(true);
     try {
-      if (!lcOverride) {
-        await onUpdate(caseData.id, { case_lifecycle: null });
-      } else {
-        const stages = lcMode === "custom"
-          ? lcCustom
-          : LIFECYCLE_PRESETS[lcMode]?.stages ?? LIFECYCLE_PRESETS.standard.stages;
-        await onUpdate(caseData.id, { case_lifecycle: { preset: lcMode, stages } });
-      }
+      await onUpdate(caseData.id, { case_lifecycle: { preset: lcMode } });
     } catch (e) { alert(e.message); }
     setSavingLc(false);
   }
-  function addLcStage() { setLcCustom(p => [...p, { key: `s${p.length + 1}`, label: "New Stage", color: "#6b7280", is_terminal: false }]); }
-  function removeLcStage(i) { setLcCustom(p => p.filter((_, j) => j !== i)); }
-  function moveLcStage(i, d) { setLcCustom(p => { const n = [...p]; const [x] = n.splice(i, 1); n.splice(i + d, 0, x); return n; }); }
-  function updateLcStage(i, u) { setLcCustom(p => p.map((s, j) => j === i ? { ...s, ...u } : s)); }
 
   const myApp = applications.find(a => a.consultant_id === auth.user?.id);
   const doneMilestones = milestones.filter(m => m.is_done).length;
@@ -5363,106 +5371,109 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
       )}
 
       {/* Lifecycle Tab */}
-      {activeTab === "lifecycle" && (auth.isAdmin || auth.isManager || auth.isClient) && (
-        <div className="space-y-5">
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <span className="font-semibold text-gray-700">Lifecycle source:</span>
-            {caseData.case_lifecycle
-              ? <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">This case (override)</span>
-              : projectLifecycle
-              ? <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full font-semibold">Project</span>
-              : clientLifecycle
-              ? <span className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full font-semibold">Company profile</span>
-              : <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-semibold">Default (Standard)</span>}
-          </div>
-
-          <label className="flex items-center gap-3 cursor-pointer select-none">
-            <div className={`relative w-10 h-5 rounded-full transition-colors ${lcOverride ? "bg-[#1A4B8C]" : "bg-gray-200"}`}
-              onClick={() => setLcOverride(p => !p)}>
-              <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${lcOverride ? "translate-x-5" : "translate-x-0.5"}`} />
-            </div>
-            <span className="text-sm font-medium text-gray-700">Override lifecycle for this case</span>
-          </label>
-
-          {!lcOverride ? (
-            <div className="bg-gray-50 rounded-xl p-4">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Inherited Flow</p>
-              <div className="flex items-center flex-wrap gap-2">
-                {lifecycleStages.filter(s => !s.is_terminal).map((s, i, arr) => (
-                  <span key={s.key} className="flex items-center gap-2">
-                    <span className="px-3 py-1.5 text-xs font-semibold rounded-xl"
-                      style={{ backgroundColor: s.color + "20", color: s.color }}>{s.label}</span>
-                    {i < arr.length - 1 && <span className="text-gray-300 text-sm">→</span>}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                {Object.entries(LIFECYCLE_PRESETS).map(([id, preset]) => {
-                  const isSelected = lcMode === id;
-                  const active = preset.stages.filter(s => !s.is_terminal);
-                  return (
-                    <button key={id} onClick={() => setLcMode(id)}
-                      className={`text-left p-3 rounded-xl border-2 transition-all ${
-                        isSelected ? "border-[#1A4B8C] bg-blue-50" : "border-gray-200 bg-white hover:border-blue-200"}`}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-semibold text-sm text-gray-900">{preset.name}</span>
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">{preset.subtitle}</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {active.map((s, i) => (
-                          <span key={s.key} className="flex items-center gap-1">
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                              style={{ backgroundColor: s.color + "22", color: s.color }}>{s.label}</span>
-                            {i < active.length - 1 && <span className="text-gray-300 text-[10px]">›</span>}
-                          </span>
-                        ))}
-                      </div>
-                    </button>
-                  );
-                })}
-                <button onClick={() => setLcMode("custom")}
-                  className={`text-left p-3 rounded-xl border-2 transition-all ${
-                    lcMode === "custom" ? "border-[#1A4B8C] bg-blue-50" : "border-dashed border-gray-300 bg-white hover:border-blue-300"}`}>
-                  <span className="font-semibold text-sm text-gray-900">Custom</span>
-                  <p className="text-xs text-gray-500 mt-1">Define your own stages</p>
-                </button>
-              </div>
-              {lcMode === "custom" && (
-                <div className="space-y-2">
-                  {lcCustom.map((stage, idx) => (
-                    <div key={idx} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
-                      <input type="color" value={stage.color} onChange={e => updateLcStage(idx, { color: e.target.value })}
-                        className="w-6 h-6 rounded cursor-pointer border border-gray-200 p-0.5 bg-white flex-shrink-0" />
-                      <input type="text" value={stage.label} onChange={e => updateLcStage(idx, { label: e.target.value })}
-                        className="flex-1 text-sm bg-transparent border-0 focus:outline-none text-gray-800 min-w-0" placeholder="Stage name" />
-                      <select value={stage.is_terminal ? "terminal" : "active"}
-                        onChange={e => updateLcStage(idx, { is_terminal: e.target.value === "terminal" })}
-                        className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600 flex-shrink-0">
-                        <option value="active">Active</option>
-                        <option value="terminal">Terminal</option>
-                      </select>
-                      <button onClick={() => moveLcStage(idx, -1)} disabled={idx === 0} className="text-gray-400 hover:text-gray-600 disabled:opacity-20 w-4 text-center">↑</button>
-                      <button onClick={() => moveLcStage(idx, 1)} disabled={idx === lcCustom.length - 1} className="text-gray-400 hover:text-gray-600 disabled:opacity-20 w-4 text-center">↓</button>
-                      <button onClick={() => removeLcStage(idx)} className="text-red-300 hover:text-red-500 w-4 text-center">×</button>
-                    </div>
-                  ))}
-                  <button onClick={addLcStage} className="text-sm text-blue-600 hover:text-blue-700 font-medium">+ Add Stage</button>
-                </div>
+      {activeTab === "lifecycle" && (auth.isAdmin || auth.isManager || auth.isClient) && (() => {
+        const caseOverrideAllowed = clientLifecycle?.allow_case_override ?? true;
+        const tmplList = caseLcTemplates.length ? caseLcTemplates : Object.entries(LIFECYCLE_PRESETS).map(([k, v]) => ({ key: k, ...v }));
+        const inheritedPreset = caseData.case_lifecycle?.preset ?? projectLifecycle?.preset ?? clientLifecycle?.preset ?? "standard";
+        const previewStages = getCaseTmplStages(lcMode);
+        const previewActive = previewStages.filter(s => !s.is_terminal);
+        const previewTerminal = previewStages.filter(s => s.is_terminal);
+        const inheritedStages = getCaseTmplStages(inheritedPreset);
+        return (
+          <div className="space-y-5">
+            <div className="flex items-center flex-wrap gap-2 text-xs text-gray-500">
+              <span className="font-semibold text-gray-700">Lifecycle source:</span>
+              {caseData.case_lifecycle
+                ? <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">This case</span>
+                : projectLifecycle
+                ? <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full font-semibold">Project</span>
+                : clientLifecycle
+                ? <span className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full font-semibold">Company profile</span>
+                : <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-semibold">Default (Standard)</span>}
+              {!caseOverrideAllowed && (
+                <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold">🔒 Override locked</span>
               )}
-            </>
-          )}
+            </div>
 
-          <div className="flex justify-end pt-2 border-t border-gray-100">
-            <button onClick={handleSaveCaseLc} disabled={savingLc}
-              className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
-              {savingLc ? "Saving…" : lcOverride ? "Save Override" : "Save (Inherit)"}
-            </button>
+            {!caseOverrideAllowed ? (
+              <>
+                <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-sm text-amber-700">
+                  The company profile does not allow cases to choose a different lifecycle template.
+                </div>
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Inherited Flow</p>
+                  <div className="flex items-center flex-wrap gap-2">
+                    {inheritedStages.filter(s => !s.is_terminal).map((s, i, arr) => (
+                      <span key={s.key} className="flex items-center gap-2">
+                        <span className="px-3 py-1.5 text-xs font-semibold rounded-xl"
+                          style={{ backgroundColor: s.color + "20", color: s.color }}>{s.label}</span>
+                        {i < arr.length - 1 && <span className="text-gray-300 text-sm">→</span>}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {tmplList.map(tmpl => {
+                    const isSelected = lcMode === tmpl.key;
+                    const active = tmpl.stages.filter(s => !s.is_terminal);
+                    return (
+                      <button key={tmpl.key} onClick={() => setLcMode(tmpl.key)}
+                        className={`text-left p-3 rounded-xl border-2 transition-all ${
+                          isSelected ? "border-[#1A4B8C] bg-blue-50" : "border-gray-200 bg-white hover:border-blue-200"}`}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold text-sm text-gray-900">{tmpl.name}</span>
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">{tmpl.subtitle}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {active.map((s, i) => (
+                            <span key={s.key} className="flex items-center gap-1">
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                                style={{ backgroundColor: s.color + "22", color: s.color }}>{s.label}</span>
+                              {i < active.length - 1 && <span className="text-gray-300 text-[10px]">›</span>}
+                            </span>
+                          ))}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Flow Preview</p>
+                  <div className="flex items-center flex-wrap gap-2">
+                    {previewActive.map((s, i) => (
+                      <span key={s.key} className="flex items-center gap-2">
+                        <span className="px-3 py-1.5 text-xs font-semibold rounded-xl"
+                          style={{ backgroundColor: s.color + "20", color: s.color }}>{s.label}</span>
+                        {i < previewActive.length - 1 && <span className="text-gray-300 text-sm">→</span>}
+                      </span>
+                    ))}
+                    {previewTerminal.length > 0 && (
+                      <span className="flex items-center gap-2">
+                        <span className="text-gray-300 text-sm">→</span>
+                        {previewTerminal.map(s => (
+                          <span key={s.key} className="px-3 py-1.5 text-xs font-semibold rounded-xl"
+                            style={{ backgroundColor: s.color + "20", color: s.color }}>{s.label}</span>
+                        ))}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2 border-t border-gray-100">
+                  <button onClick={handleSaveCaseLc} disabled={savingLc}
+                    className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
+                    {savingLc ? "Saving…" : "Save Lifecycle"}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
         </div>
       </div>
@@ -7259,6 +7270,137 @@ function ClientTeamList({ client, auth }) {
 }
 
 // ============================================================
+// ============================================================
+// LIFECYCLE SETTINGS VIEW (admin/manager global page)
+// ============================================================
+function LifecycleSettingsView({ auth }) {
+  const { templates, loadingTmpl, fetchTemplates } = useLifecycleTemplates();
+  const [selected, setSelected] = useState(null);
+  const [editStages, setEditStages] = useState([]);
+  const [saving, setSaving] = useState(false);
+
+  function startEdit(tmpl) { setSelected(tmpl); setEditStages([...tmpl.stages]); }
+  function cancelEdit() { setSelected(null); setEditStages([]); }
+  function addStage() { setEditStages(p => [...p, { key: `s${p.length + 1}`, label: "New Stage", color: "#6b7280", is_terminal: false }]); }
+  function removeStage(i) { setEditStages(p => p.filter((_, j) => j !== i)); }
+  function moveStage(i, d) { setEditStages(p => { const n = [...p]; const [x] = n.splice(i, 1); n.splice(i + d, 0, x); return n; }); }
+  function updateStage(i, u) { setEditStages(p => p.map((s, j) => j === i ? { ...s, ...u } : s)); }
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("lifecycle_templates")
+        .update({ stages: editStages, updated_at: new Date().toISOString() })
+        .eq("id", selected.id);
+      if (error) throw error;
+      await fetchTemplates();
+      setSelected(null);
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  if (loadingTmpl) return <div className="p-8 text-sm text-gray-400">Loading…</div>;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900">Lifecycle Templates</h2>
+        <p className="text-sm text-gray-500 mt-1">
+          Define stage sequences for each lifecycle template. Clients pick a template; only managers and admins can edit the stages here.
+        </p>
+      </div>
+
+      {selected ? (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-gray-900">{selected.name}</h3>
+              <p className="text-sm text-gray-500">{selected.description}</p>
+            </div>
+            <button onClick={cancelEdit} className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Stages</p>
+            {editStages.map((stage, idx) => (
+              <div key={idx} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5">
+                <input type="color" value={stage.color}
+                  onChange={e => updateStage(idx, { color: e.target.value })}
+                  className="w-7 h-7 rounded-lg cursor-pointer border border-gray-200 p-0.5 bg-white flex-shrink-0" />
+                <input type="text" value={stage.label}
+                  onChange={e => updateStage(idx, { label: e.target.value })}
+                  className="flex-1 text-sm font-medium bg-transparent border-0 focus:outline-none text-gray-800 min-w-0"
+                  placeholder="Stage name" />
+                <select value={stage.is_terminal ? "terminal" : "active"}
+                  onChange={e => updateStage(idx, { is_terminal: e.target.value === "terminal" })}
+                  className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600 focus:outline-none flex-shrink-0">
+                  <option value="active">Active</option>
+                  <option value="terminal">Terminal</option>
+                </select>
+                <button onClick={() => moveStage(idx, -1)} disabled={idx === 0}
+                  className="text-gray-400 hover:text-gray-600 disabled:opacity-20 w-5 text-center flex-shrink-0">↑</button>
+                <button onClick={() => moveStage(idx, 1)} disabled={idx === editStages.length - 1}
+                  className="text-gray-400 hover:text-gray-600 disabled:opacity-20 w-5 text-center flex-shrink-0">↓</button>
+                <button onClick={() => removeStage(idx)}
+                  className="text-red-300 hover:text-red-500 w-5 text-center flex-shrink-0 text-base leading-none">×</button>
+              </div>
+            ))}
+            <button onClick={addStage} className="text-sm text-blue-600 hover:text-blue-700 font-medium">+ Add Stage</button>
+          </div>
+
+          <div className="flex justify-end pt-2 border-t border-gray-100">
+            <button onClick={handleSave} disabled={saving}
+              className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
+              {saving ? "Saving…" : "Save Stages"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {templates.map(tmpl => {
+            const active = tmpl.stages.filter(s => !s.is_terminal);
+            const terminal = tmpl.stages.filter(s => s.is_terminal);
+            return (
+              <div key={tmpl.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="font-semibold text-gray-900">{tmpl.name}</span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{tmpl.subtitle}</span>
+                    </div>
+                    <p className="text-xs text-gray-500">{tmpl.description}</p>
+                  </div>
+                  <button onClick={() => startEdit(tmpl)}
+                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 whitespace-nowrap ml-2">Edit stages</button>
+                </div>
+
+                <div className="space-y-1.5">
+                  {active.map((s, i) => (
+                    <div key={s.key} className="flex items-center gap-2 text-xs">
+                      <span className="w-4 text-center text-gray-300 font-light select-none">{i + 1}</span>
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                      <span className="text-gray-700 font-medium">{s.label}</span>
+                      <span className="text-gray-300 text-[10px]">active</span>
+                    </div>
+                  ))}
+                  {terminal.map(s => (
+                    <div key={s.key} className="flex items-center gap-2 text-xs">
+                      <span className="w-4 text-center text-gray-200 select-none">—</span>
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                      <span className="text-gray-500">{s.label}</span>
+                      <span className="text-gray-300 text-[10px]">terminal</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // CLIENT PROFILE VIEW
 // ============================================================
 const CASE_DEFAULTS_EMPTY = {
@@ -7559,9 +7701,11 @@ function ClientProfileView({ auth }) {
   const [savingSla, setSavingSla]     = useState(false);
 
   // Lifecycle config
-  const [lifecycleMode, setLifecycleMode] = useState("standard");
-  const [customStages, setCustomStages] = useState(LIFECYCLE_PRESETS.standard.stages);
-  const [savingLifecycle, setSavingLifecycle] = useState(false);
+  const { templates: lcTemplates, getTemplateStages } = useLifecycleTemplates();
+  const [lifecycleMode, setLifecycleMode]       = useState("standard");
+  const [allowProjOverride, setAllowProjOverride] = useState(true);
+  const [allowCaseOverride, setAllowCaseOverride] = useState(true);
+  const [savingLifecycle, setSavingLifecycle]   = useState(false);
 
   useEffect(() => {
     if (!editing) setForm({
@@ -7628,37 +7772,21 @@ function ClientProfileView({ auth }) {
     if (profile?.case_lifecycle) {
       const lc = profile.case_lifecycle;
       setLifecycleMode(lc.preset ?? "standard");
-      if (lc.preset === "custom") setCustomStages(lc.stages ?? []);
+      setAllowProjOverride(lc.allow_project_override ?? true);
+      setAllowCaseOverride(lc.allow_case_override ?? true);
     }
   }, [profile]);
 
   async function handleSaveLifecycle() {
     setSavingLifecycle(true);
     try {
-      const stages = lifecycleMode === "custom"
-        ? customStages
-        : LIFECYCLE_PRESETS[lifecycleMode]?.stages ?? LIFECYCLE_PRESETS.standard.stages;
-      await updateProfile({ case_lifecycle: { preset: lifecycleMode, stages } });
+      await updateProfile({ case_lifecycle: {
+        preset: lifecycleMode,
+        allow_project_override: allowProjOverride,
+        allow_case_override: allowCaseOverride,
+      }});
     } catch (e) { alert(e.message); }
     setSavingLifecycle(false);
-  }
-
-  function addCustomStage() {
-    setCustomStages(prev => [...prev, { key: `s${prev.length + 1}`, label: "New Stage", color: "#6b7280", is_terminal: false }]);
-  }
-  function removeCustomStage(idx) {
-    setCustomStages(prev => prev.filter((_, i) => i !== idx));
-  }
-  function moveCustomStage(idx, dir) {
-    setCustomStages(prev => {
-      const next = [...prev];
-      const [item] = next.splice(idx, 1);
-      next.splice(idx + dir, 0, item);
-      return next;
-    });
-  }
-  function updateCustomStage(idx, updates) {
-    setCustomStages(prev => prev.map((s, i) => i === idx ? { ...s, ...updates } : s));
   }
 
   async function handleAddConn() {
@@ -8138,24 +8266,24 @@ function ClientProfileView({ auth }) {
           <div>
             <h3 className="font-semibold text-gray-900 mb-1">Case Lifecycle</h3>
             <p className="text-sm text-gray-500 leading-relaxed">
-              Define the stages your cases flow through. Applies to all cases under your account.
+              Choose the lifecycle template for cases under your account. Stage sequences are managed by your TechCase administrator.
             </p>
           </div>
 
-          {/* Preset cards (3 presets + Custom) */}
-          <div className="grid grid-cols-2 gap-3">
-            {Object.entries(LIFECYCLE_PRESETS).map(([id, preset]) => {
-              const isSelected = lifecycleMode === id;
-              const active = preset.stages.filter(s => !s.is_terminal);
+          {/* Template preset cards */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {(lcTemplates.length ? lcTemplates : Object.entries(LIFECYCLE_PRESETS).map(([k, v]) => ({ key: k, ...v }))).map(tmpl => {
+              const isSelected = lifecycleMode === tmpl.key;
+              const active = tmpl.stages.filter(s => !s.is_terminal);
               return (
-                <button key={id} onClick={() => setLifecycleMode(id)}
+                <button key={tmpl.key} onClick={() => setLifecycleMode(tmpl.key)}
                   className={`text-left p-4 rounded-xl border-2 transition-all ${
                     isSelected ? "border-[#1A4B8C] bg-blue-50" : "border-gray-200 bg-white hover:border-blue-200"}`}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold text-sm text-gray-900">{preset.name}</span>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{preset.subtitle}</span>
+                    <span className="font-semibold text-sm text-gray-900">{tmpl.name}</span>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{tmpl.subtitle}</span>
                   </div>
-                  <p className="text-xs text-gray-500 mb-3">{preset.description}</p>
+                  <p className="text-xs text-gray-500 mb-3">{tmpl.description}</p>
                   <div className="flex flex-wrap gap-1 items-center">
                     {active.map((s, i) => (
                       <span key={s.key} className="flex items-center gap-1">
@@ -8168,86 +8296,62 @@ function ClientProfileView({ auth }) {
                 </button>
               );
             })}
-
-            {/* Custom card */}
-            <button onClick={() => setLifecycleMode("custom")}
-              className={`text-left p-4 rounded-xl border-2 transition-all ${
-                lifecycleMode === "custom" ? "border-[#1A4B8C] bg-blue-50" : "border-dashed border-gray-300 bg-white hover:border-blue-300"}`}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-semibold text-sm text-gray-900">Custom</span>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">you define</span>
-              </div>
-              <p className="text-xs text-gray-500">Build your own stages with custom names, colors, and sequence.</p>
-            </button>
           </div>
 
-          {/* Flow preview (preset modes) */}
-          {lifecycleMode !== "custom" && LIFECYCLE_PRESETS[lifecycleMode] && (
-            <div className="bg-gray-50 rounded-xl p-4">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Flow Preview</p>
-              <div className="flex items-center flex-wrap gap-2">
-                {(() => {
-                  const stages = LIFECYCLE_PRESETS[lifecycleMode].stages;
-                  const active = stages.filter(s => !s.is_terminal);
-                  const terminal = stages.filter(s => s.is_terminal);
-                  return (
-                    <>
-                      {active.map((s, i) => (
-                        <span key={s.key} className="flex items-center gap-2">
-                          <span className="px-3 py-1.5 text-xs font-semibold rounded-xl"
-                            style={{ backgroundColor: s.color + "20", color: s.color }}>{s.label}</span>
-                          {i < active.length - 1 && <span className="text-gray-300 text-sm">→</span>}
-                        </span>
+          {/* Flow preview */}
+          {(() => {
+            const stages = getTemplateStages(lifecycleMode);
+            const active = stages.filter(s => !s.is_terminal);
+            const terminal = stages.filter(s => s.is_terminal);
+            return (
+              <div className="bg-gray-50 rounded-xl p-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Flow Preview</p>
+                <div className="flex items-center flex-wrap gap-2">
+                  {active.map((s, i) => (
+                    <span key={s.key} className="flex items-center gap-2">
+                      <span className="px-3 py-1.5 text-xs font-semibold rounded-xl"
+                        style={{ backgroundColor: s.color + "20", color: s.color }}>{s.label}</span>
+                      {i < active.length - 1 && <span className="text-gray-300 text-sm">→</span>}
+                    </span>
+                  ))}
+                  {terminal.length > 0 && (
+                    <span className="flex items-center gap-2">
+                      <span className="text-gray-300 text-sm">→</span>
+                      {terminal.map(s => (
+                        <span key={s.key} className="px-3 py-1.5 text-xs font-semibold rounded-xl"
+                          style={{ backgroundColor: s.color + "20", color: s.color }}>{s.label}</span>
                       ))}
-                      {terminal.length > 0 && (
-                        <span className="flex items-center gap-2">
-                          <span className="text-gray-300 text-sm">→</span>
-                          {terminal.map(s => (
-                            <span key={s.key} className="px-3 py-1.5 text-xs font-semibold rounded-xl"
-                              style={{ backgroundColor: s.color + "20", color: s.color }}>{s.label}</span>
-                          ))}
-                        </span>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
-          )}
-
-          {/* Custom stage editor */}
-          {lifecycleMode === "custom" && (
-            <div className="space-y-3">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Your Stages</p>
-              {customStages.map((stage, idx) => (
-                <div key={idx} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5">
-                  <input type="color" value={stage.color}
-                    onChange={e => updateCustomStage(idx, { color: e.target.value })}
-                    className="w-7 h-7 rounded-lg cursor-pointer border border-gray-200 p-0.5 bg-white flex-shrink-0" />
-                  <input type="text" value={stage.label}
-                    onChange={e => updateCustomStage(idx, { label: e.target.value })}
-                    className="flex-1 text-sm font-medium bg-transparent border-0 focus:outline-none text-gray-800 min-w-0"
-                    placeholder="Stage name" />
-                  <select value={stage.is_terminal ? "terminal" : "active"}
-                    onChange={e => updateCustomStage(idx, { is_terminal: e.target.value === "terminal" })}
-                    className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600 focus:outline-none flex-shrink-0">
-                    <option value="active">Active</option>
-                    <option value="terminal">Terminal</option>
-                  </select>
-                  <button onClick={() => moveCustomStage(idx, -1)} disabled={idx === 0}
-                    className="text-gray-400 hover:text-gray-600 disabled:opacity-20 w-5 text-center flex-shrink-0">↑</button>
-                  <button onClick={() => moveCustomStage(idx, 1)} disabled={idx === customStages.length - 1}
-                    className="text-gray-400 hover:text-gray-600 disabled:opacity-20 w-5 text-center flex-shrink-0">↓</button>
-                  <button onClick={() => removeCustomStage(idx)}
-                    className="text-red-300 hover:text-red-500 w-5 text-center flex-shrink-0 text-base leading-none">×</button>
+                    </span>
+                  )}
                 </div>
-              ))}
-              <button onClick={addCustomStage}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                + Add Stage
-              </button>
-            </div>
-          )}
+              </div>
+            );
+          })()}
+
+          {/* Override toggles */}
+          <div className="space-y-3 border-t border-gray-100 pt-4">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Override Permissions</p>
+            <label className="flex items-center justify-between cursor-pointer select-none">
+              <div>
+                <p className="text-sm font-medium text-gray-700">Allow projects to change template</p>
+                <p className="text-xs text-gray-400">Projects under your account can pick a different lifecycle template</p>
+              </div>
+              <div className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ml-4 ${allowProjOverride ? "bg-[#1A4B8C]" : "bg-gray-200"}`}
+                onClick={() => setAllowProjOverride(p => !p)}>
+                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${allowProjOverride ? "translate-x-5" : "translate-x-0.5"}`} />
+              </div>
+            </label>
+            <label className="flex items-center justify-between cursor-pointer select-none">
+              <div>
+                <p className="text-sm font-medium text-gray-700">Allow cases to change template</p>
+                <p className="text-xs text-gray-400">Individual cases can pick a different lifecycle template</p>
+              </div>
+              <div className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ml-4 ${allowCaseOverride ? "bg-[#1A4B8C]" : "bg-gray-200"}`}
+                onClick={() => setAllowCaseOverride(p => !p)}>
+                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${allowCaseOverride ? "translate-x-5" : "translate-x-0.5"}`} />
+              </div>
+            </label>
+          </div>
 
           <div className="flex justify-end pt-2 border-t border-gray-100">
             <button onClick={handleSaveLifecycle} disabled={savingLifecycle}
@@ -9488,6 +9592,7 @@ export default function App() {
       case "db-connections": return <DbConnectionsView auth={auth} />;
       case "team-members":   return <ClientTeamView auth={auth} />;
       case "client-profile": return auth.isClient ? <ClientProfileView auth={auth} /> : <Dashboard auth={auth} />;
+      case "lifecycle":      return (auth.isAdmin || auth.isManager) ? <LifecycleSettingsView auth={auth} /> : <Dashboard auth={auth} />;
       case "notifications":  return <NotificationsView />;
       case "invoices":       return <InvoicesView auth={auth} />;
       case "kanban":         return <KanbanView auth={auth} />;
