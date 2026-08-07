@@ -7261,8 +7261,16 @@ function ClientTeamList({ client, auth }) {
 // ============================================================
 // CLIENT PROFILE VIEW
 // ============================================================
+const CASE_DEFAULTS_EMPTY = {
+  priority: "medium", area_sap: "", area_industry: "", is_confidential: false, nda_required: false,
+  description: "", sla: "standard", budget: "", work_mode: "remote", skills: "",
+  travel_required: false, work_location: "", min_years_experience: "",
+  languages_required: [], security_clearance: false, interview_required: false,
+  interview_format: "video", interview_rounds: 1, technical_assessment: false,
+};
+
 function CaseDefaultsPanel({ profile, updateProfile }) {
-  const [form, setForm]   = useState({});
+  const [form, setForm]   = useState(CASE_DEFAULTS_EMPTY);
   const [saving, setSaving] = useState(false);
   const [langInput, setLangInput] = useState("");
 
