@@ -975,6 +975,147 @@ function getLifecycleStages(lifecycle) {
   return lifecycle.stages?.length ? lifecycle.stages : LIFECYCLE_PRESETS.standard.stages;
 }
 
+const SLA_PRIORITIES = [
+  { key: "critical", label: "Critical", dot: "bg-red-500",    badge: "bg-red-50 text-red-700 border border-red-200"         },
+  { key: "high",     label: "High",     dot: "bg-orange-500", badge: "bg-orange-50 text-orange-700 border border-orange-200" },
+  { key: "medium",   label: "Medium",   dot: "bg-yellow-500", badge: "bg-yellow-50 text-yellow-700 border border-yellow-200" },
+  { key: "low",      label: "Low",      dot: "bg-slate-400",  badge: "bg-slate-50 text-slate-600 border border-slate-200"    },
+];
+
+const SLA_DEFAULT_TYPES = [
+  { key: "general",        label: "General Information" },
+  { key: "problem",        label: "Problem"             },
+  { key: "change_request", label: "Change Request"      },
+];
+
+function makeDefaultMatrix(keys) {
+  const seed = {
+    general:        { critical:{response:1,response_unit:"hours",resolution:8,resolution_unit:"hours"}, high:{response:8,response_unit:"hours",resolution:1,resolution_unit:"days"},  medium:{response:1,response_unit:"days",resolution:3,resolution_unit:"days"},  low:{response:3,response_unit:"days",resolution:8,resolution_unit:"days"} },
+    problem:        { critical:{response:30,response_unit:"minutes",resolution:2,resolution_unit:"hours"}, high:{response:2,response_unit:"hours",resolution:8,resolution_unit:"hours"}, medium:{response:4,response_unit:"hours",resolution:2,resolution_unit:"days"},  low:{response:8,response_unit:"hours",resolution:5,resolution_unit:"days"} },
+    change_request: { critical:{response:30,response_unit:"minutes",resolution:4,resolution_unit:"hours"}, high:{response:8,response_unit:"hours",resolution:1,resolution_unit:"days"},  medium:{response:1,response_unit:"days",resolution:3,resolution_unit:"days"},  low:{response:3,response_unit:"days",resolution:1,resolution_unit:"weeks"} },
+  };
+  const blank = Object.fromEntries(SLA_PRIORITIES.map(p => [p.key, { response:4, response_unit:"hours", resolution:1, resolution_unit:"days" }]));
+  return Object.fromEntries((keys ?? SLA_DEFAULT_TYPES.map(t => t.key)).map(k => [k, seed[k] ?? blank]));
+}
+
+const SLA_UNIT_LABELS = { minutes: "min", hours: "h", days: "d", weeks: "wk" };
+
+function SlaMatrixEditor({ caseTypes, matrix, editing, onChangeCaseTypes, onChangeMatrix }) {
+  const UNITS = ["minutes", "hours", "days", "weeks"];
+
+  function setCellField(ctKey, pKey, field, value) {
+    onChangeMatrix(prev => ({
+      ...prev,
+      [ctKey]: { ...(prev[ctKey] ?? {}), [pKey]: { ...(prev[ctKey]?.[pKey] ?? {}), [field]: value } }
+    }));
+  }
+
+  function addCaseType() {
+    const key = `type_${caseTypes.length + 1}`;
+    onChangeCaseTypes(prev => [...prev, { key, label: "New Type" }]);
+    onChangeMatrix(prev => ({
+      ...prev,
+      [key]: Object.fromEntries(SLA_PRIORITIES.map(p => [p.key, { response:4, response_unit:"hours", resolution:1, resolution_unit:"days" }]))
+    }));
+  }
+
+  function removeCaseType(key) {
+    onChangeCaseTypes(prev => prev.filter(ct => ct.key !== key));
+    onChangeMatrix(prev => { const n = { ...prev }; delete n[key]; return n; });
+  }
+
+  return (
+    <div className="overflow-x-auto rounded-xl border border-gray-100">
+      <table className="w-full text-sm border-collapse min-w-[500px]">
+        <thead>
+          <tr>
+            <th className="text-left px-4 py-3 font-semibold text-gray-500 bg-gray-50 w-28 border-b border-gray-100">
+              Priority
+            </th>
+            {caseTypes.map(ct => (
+              <th key={ct.key} className="px-4 py-3 bg-gray-50 border-b border-l border-gray-100 text-center">
+                {editing ? (
+                  <div className="flex items-center gap-1 min-w-[120px]">
+                    <input
+                      className="flex-1 text-xs font-semibold bg-white border border-gray-200 rounded-lg px-2 py-1 text-center min-w-0"
+                      value={ct.label}
+                      onChange={e => onChangeCaseTypes(prev => prev.map(c => c.key === ct.key ? { ...c, label: e.target.value } : c))}
+                    />
+                    {caseTypes.length > 1 && (
+                      <button onClick={() => removeCaseType(ct.key)} className="text-gray-300 hover:text-red-400 flex-shrink-0">
+                        <X size={13} />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-xs font-semibold text-gray-700">{ct.label}</span>
+                )}
+              </th>
+            ))}
+            {editing && (
+              <th className="px-4 py-3 bg-gray-50 border-b border-l border-gray-100">
+                <button onClick={addCaseType} className="text-xs text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap">+ Add</button>
+              </th>
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {SLA_PRIORITIES.map((p, pi) => (
+            <tr key={p.key} className={pi % 2 === 0 ? "bg-white" : "bg-gray-50/40"}>
+              <td className="px-4 py-3 border-b border-gray-100">
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${p.badge}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${p.dot}`} />
+                  {p.label}
+                </span>
+              </td>
+              {caseTypes.map(ct => {
+                const cell = matrix?.[ct.key]?.[p.key] ?? { response:4, response_unit:"hours", resolution:1, resolution_unit:"days" };
+                return (
+                  <td key={ct.key} className="px-4 py-3 border-b border-l border-gray-100">
+                    {editing ? (
+                      <div className="space-y-2">
+                        {[["response","Response"],["resolution","Resolution"]].map(([field, lbl]) => (
+                          <div key={field} className="flex items-center gap-1">
+                            <span className="text-[10px] text-gray-400 w-16 shrink-0">{lbl}</span>
+                            <input type="number" min="1"
+                              className="w-12 text-xs border border-gray-200 rounded-lg px-1.5 py-1 text-center"
+                              value={cell[field]}
+                              onChange={e => setCellField(ct.key, p.key, field, Number(e.target.value))} />
+                            <select
+                              className="text-xs border border-gray-200 rounded-lg px-1 py-1 bg-white"
+                              value={cell[`${field}_unit`]}
+                              onChange={e => setCellField(ct.key, p.key, `${field}_unit`, e.target.value)}>
+                              {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                            </select>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="space-y-1 text-center">
+                        <div className="text-xs flex items-center justify-center gap-1">
+                          <span className="text-blue-400">↩</span>
+                          <span className="font-medium text-gray-800">{cell.response}</span>
+                          <span className="text-gray-400">{SLA_UNIT_LABELS[cell.response_unit]}</span>
+                        </div>
+                        <div className="text-xs flex items-center justify-center gap-1">
+                          <span className="text-green-500">✓</span>
+                          <span className="font-medium text-gray-800">{cell.resolution}</span>
+                          <span className="text-gray-400">{SLA_UNIT_LABELS[cell.resolution_unit]}</span>
+                        </div>
+                      </div>
+                    )}
+                  </td>
+                );
+              })}
+              {editing && <td className="border-b border-l border-gray-100" />}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 const INVOICE_STATUS_COLORS = {
   draft:   "bg-gray-100 text-gray-600",
   sent:    "bg-blue-100 text-blue-700",
@@ -6504,30 +6645,30 @@ function SlaView({ auth }) {
 
 function SlaClientDetail({ client, auth }) {
   const { sla, loading, updateSla } = useSlaConfig(client.id);
-  const [editing, setEditing]       = useState(false);
-  const [form, setForm]             = useState({});
-  const [saving, setSaving]         = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving]   = useState(false);
+  const [form, setForm]       = useState({ tier: "standard", uptime_guarantee_pct: 99, dedicated_consultant: false, priority_support: false, notes: "" });
+  const [caseTypes, setCaseTypes] = useState(SLA_DEFAULT_TYPES);
+  const [matrix, setMatrix]       = useState(() => makeDefaultMatrix());
 
   useEffect(() => {
-    if (sla) setForm({
-      tier: sla.tier ?? "standard",
-      response_time_hours: sla.response_time_hours ?? 24,
-      resolution_time_hours: sla.resolution_time_hours ?? 72,
-      uptime_guarantee_pct: sla.uptime_guarantee_pct ?? 99,
-      dedicated_consultant: sla.dedicated_consultant ?? false,
-      priority_support: sla.priority_support ?? false,
-      notes: sla.notes ?? "",
+    const m = sla?.sla_matrix;
+    setForm({
+      tier:                 sla?.tier                 ?? "standard",
+      uptime_guarantee_pct: sla?.uptime_guarantee_pct ?? 99,
+      dedicated_consultant: sla?.dedicated_consultant ?? false,
+      priority_support:     sla?.priority_support     ?? false,
+      notes:                sla?.notes                ?? "",
     });
-    else setForm({
-      tier: "standard", response_time_hours: 24, resolution_time_hours: 72,
-      uptime_guarantee_pct: 99, dedicated_consultant: false, priority_support: false, notes: "",
-    });
+    const cts = m?.case_types ?? SLA_DEFAULT_TYPES;
+    setCaseTypes(cts);
+    setMatrix(m?.matrix ?? makeDefaultMatrix(cts.map(t => t.key)));
   }, [sla]);
 
   async function handleSave() {
     setSaving(true);
     try {
-      await updateSla(form);
+      await updateSla({ ...form, sla_matrix: { case_types: caseTypes, matrix } });
       setEditing(false);
     } catch (e) { alert(e.message); }
     setSaving(false);
@@ -6535,7 +6676,7 @@ function SlaClientDetail({ client, auth }) {
 
   if (loading) return <Spinner />;
 
-  const tierColors = { standard: "bg-gray-100 text-gray-700", premium: "bg-blue-100 text-blue-700", enterprise: "bg-violet-100 text-blue-700" };
+  const tierColors = { standard: "bg-gray-100 text-gray-700", premium: "bg-blue-100 text-blue-700", enterprise: "bg-violet-100 text-violet-700" };
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
@@ -6552,77 +6693,47 @@ function SlaClientDetail({ client, auth }) {
         )}
       </div>
 
+      {/* Header fields */}
       {editing ? (
-        <div className="space-y-4">
-          <Select label="SLA Tier" value={form.tier}
-            onChange={e => setForm(p => ({ ...p, tier: e.target.value }))}
-            options={[
-              { value: "standard",   label: "Standard" },
-              { value: "premium",    label: "Premium" },
-              { value: "enterprise", label: "Enterprise" },
-            ]} />
-          <div className="grid grid-cols-3 gap-3">
-            <Input label="Response Time (hrs)" type="number" value={form.response_time_hours}
-              onChange={e => setForm(p => ({ ...p, response_time_hours: Number(e.target.value) }))} />
-            <Input label="Resolution Time (hrs)" type="number" value={form.resolution_time_hours}
-              onChange={e => setForm(p => ({ ...p, resolution_time_hours: Number(e.target.value) }))} />
+        <div className="space-y-4 mb-5 pb-5 border-b border-gray-100">
+          <div className="grid grid-cols-2 gap-3">
+            <Select label="SLA Tier" value={form.tier}
+              onChange={e => setForm(p => ({ ...p, tier: e.target.value }))}
+              options={[{ value:"standard", label:"Standard" },{ value:"premium", label:"Premium" },{ value:"enterprise", label:"Enterprise" }]} />
             <Input label="Uptime Guarantee (%)" type="number" value={form.uptime_guarantee_pct}
               onChange={e => setForm(p => ({ ...p, uptime_guarantee_pct: Number(e.target.value) }))} />
           </div>
           <div className="flex gap-6">
-            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-              <input type="checkbox" checked={form.dedicated_consultant}
-                onChange={e => setForm(p => ({ ...p, dedicated_consultant: e.target.checked }))}
-                className="rounded accent-blue-600" />
-              Dedicated Consultant
-            </label>
-            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-              <input type="checkbox" checked={form.priority_support}
-                onChange={e => setForm(p => ({ ...p, priority_support: e.target.checked }))}
-                className="rounded accent-blue-600" />
-              Priority Support
-            </label>
-          </div>
-          <Textarea label="Notes" value={form.notes}
-            onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-            placeholder="Additional SLA terms or notes…" />
-          <div className="flex justify-end gap-3">
-            <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
-            <button onClick={handleSave} disabled={saving}
-              className="px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
-              {saving ? "Saving…" : "Save SLA"}
-            </button>
+            {[["dedicated_consultant","Dedicated Consultant"],["priority_support","Priority Support"]].map(([k,lbl]) => (
+              <label key={k} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input type="checkbox" checked={form[k]} onChange={e => setForm(p => ({ ...p, [k]: e.target.checked }))} className="rounded accent-blue-600" />
+                {lbl}
+              </label>
+            ))}
           </div>
         </div>
       ) : sla ? (
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <Badge className={tierColors[sla.tier] ?? tierColors.standard}>{cap(sla.tier)} Tier</Badge>
-            {sla.priority_support && <Badge className="bg-orange-100 text-orange-700">Priority Support</Badge>}
-            {sla.dedicated_consultant && <Badge className="bg-green-100 text-green-700">Dedicated Consultant</Badge>}
-          </div>
-          <div className="grid grid-cols-3 gap-4 text-sm">
-            <div className="bg-gray-50 rounded-xl p-4 text-center">
-              <div className="text-2xl font-bold text-gray-900">{sla.response_time_hours}h</div>
-              <div className="text-xs text-gray-500 mt-1">Response Time</div>
-            </div>
-            <div className="bg-gray-50 rounded-xl p-4 text-center">
-              <div className="text-2xl font-bold text-gray-900">{sla.resolution_time_hours}h</div>
-              <div className="text-xs text-gray-500 mt-1">Resolution Time</div>
-            </div>
-            <div className="bg-gray-50 rounded-xl p-4 text-center">
-              <div className="text-2xl font-bold text-gray-900">{sla.uptime_guarantee_pct}%</div>
-              <div className="text-xs text-gray-500 mt-1">Uptime SLA</div>
-            </div>
-          </div>
-          {sla.notes && (
-            <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4 text-sm text-gray-700">
-              <div className="font-medium text-yellow-800 mb-1">Notes</div>
-              {sla.notes}
-            </div>
-          )}
-          <div className="text-xs text-gray-400">Last updated: {fmtDate(sla.updated_at ?? sla.created_at)}</div>
+        <div className="flex flex-wrap items-center gap-2 mb-5">
+          <Badge className={tierColors[sla.tier] ?? tierColors.standard}>{cap(sla.tier)} Tier</Badge>
+          {sla.uptime_guarantee_pct && <Badge className="bg-gray-100 text-gray-700">{sla.uptime_guarantee_pct}% Uptime</Badge>}
+          {sla.priority_support    && <Badge className="bg-orange-100 text-orange-700">Priority Support</Badge>}
+          {sla.dedicated_consultant && <Badge className="bg-green-100 text-green-700">Dedicated Consultant</Badge>}
+          <span className="text-xs text-gray-400 ml-auto">Updated {fmtDate(sla.updated_at ?? sla.created_at)}</span>
         </div>
+      ) : null}
+
+      {/* Legend */}
+      {!editing && sla && (
+        <div className="flex items-center gap-4 text-xs text-gray-400 mb-3">
+          <span><span className="text-blue-400 mr-1">↩</span>Initial Response</span>
+          <span><span className="text-green-500 mr-1">✓</span>Resolution</span>
+        </div>
+      )}
+
+      {/* Matrix */}
+      {(sla || editing) ? (
+        <SlaMatrixEditor caseTypes={caseTypes} matrix={matrix} editing={editing}
+          onChangeCaseTypes={setCaseTypes} onChangeMatrix={setMatrix} />
       ) : (
         <div className="text-center py-8 text-gray-400">
           <div className="mb-2 flex justify-center"><FileText className="w-8 h-8 text-gray-300" /></div>
@@ -6635,6 +6746,26 @@ function SlaClientDetail({ client, auth }) {
           )}
         </div>
       )}
+
+      {/* Notes + actions */}
+      {editing ? (
+        <div className="mt-5 space-y-4">
+          <Textarea label="Notes" value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+            placeholder="Additional SLA terms or notes…" />
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+            <button onClick={handleSave} disabled={saving}
+              className="px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
+              {saving ? "Saving…" : "Save SLA"}
+            </button>
+          </div>
+        </div>
+      ) : sla?.notes ? (
+        <div className="mt-4 bg-yellow-50 border border-yellow-100 rounded-xl p-4 text-sm text-gray-700">
+          <div className="font-medium text-yellow-800 mb-1">Notes</div>
+          {sla.notes}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -7023,9 +7154,11 @@ function ClientProfileView({ auth }) {
   const [savingMember, setSavingMember] = useState(false);
 
   // SLA edit
-  const [slaEditing, setSlaEditing] = useState(false);
-  const [slaForm, setSlaForm] = useState({});
-  const [savingSla, setSavingSla] = useState(false);
+  const [slaEditing, setSlaEditing]   = useState(false);
+  const [slaForm, setSlaForm]         = useState({ tier: "standard", uptime_guarantee_pct: 99, dedicated_consultant: false, priority_support: false, notes: "" });
+  const [slaCaseTypes, setSlaCaseTypes] = useState(SLA_DEFAULT_TYPES);
+  const [slaMatrix, setSlaMatrix]     = useState(() => makeDefaultMatrix());
+  const [savingSla, setSavingSla]     = useState(false);
 
   // Lifecycle config
   const [lifecycleMode, setLifecycleMode] = useState("standard");
@@ -7053,15 +7186,19 @@ function ClientProfileView({ auth }) {
   }, [profile, editing]);
 
   useEffect(() => {
-    if (sla && !slaEditing) setSlaForm({
-      tier:                   sla.tier ?? "standard",
-      response_time_hours:    sla.response_time_hours ?? 24,
-      resolution_time_hours:  sla.resolution_time_hours ?? 72,
-      uptime_guarantee_pct:   sla.uptime_guarantee_pct ?? 99,
-      dedicated_consultant:   sla.dedicated_consultant ?? false,
-      priority_support:       sla.priority_support ?? false,
-      notes:                  sla.notes ?? "",
-    });
+    if (sla && !slaEditing) {
+      const m = sla.sla_matrix;
+      setSlaForm({
+        tier:                 sla.tier                 ?? "standard",
+        uptime_guarantee_pct: sla.uptime_guarantee_pct ?? 99,
+        dedicated_consultant: sla.dedicated_consultant ?? false,
+        priority_support:     sla.priority_support     ?? false,
+        notes:                sla.notes                ?? "",
+      });
+      const cts = m?.case_types ?? SLA_DEFAULT_TYPES;
+      setSlaCaseTypes(cts);
+      setSlaMatrix(m?.matrix ?? makeDefaultMatrix(cts.map(t => t.key)));
+    }
   }, [sla, slaEditing]);
 
   async function handleSave() {
@@ -7082,8 +7219,10 @@ function ClientProfileView({ auth }) {
 
   async function handleSaveSla() {
     setSavingSla(true);
-    try { await updateSla(slaForm); setSlaEditing(false); }
-    catch (e) { alert(e.message); }
+    try {
+      await updateSla({ ...slaForm, sla_matrix: { case_types: slaCaseTypes, matrix: slaMatrix } });
+      setSlaEditing(false);
+    } catch (e) { alert(e.message); }
     setSavingSla(false);
   }
 
@@ -7365,7 +7504,7 @@ function ClientProfileView({ auth }) {
           <div className="flex items-center justify-between mb-5">
             <div>
               <h2 className="font-bold text-gray-900">SLA Configuration</h2>
-              <p className="text-sm text-gray-400 mt-0.5">Service level targets for your cases</p>
+              <p className="text-sm text-gray-400 mt-0.5">Service level targets by priority and case type</p>
             </div>
             <button onClick={() => setSlaEditing(p => !p)}
               className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-xl hover:bg-gray-50">
@@ -7373,76 +7512,46 @@ function ClientProfileView({ auth }) {
             </button>
           </div>
 
+          {/* Header fields */}
           {slaEditing ? (
-            <div className="space-y-4">
-              <Select label="SLA Tier" value={slaForm.tier}
-                onChange={e => setSlaForm(p => ({ ...p, tier: e.target.value }))}
-                options={[
-                  { value: "standard",   label: "Standard" },
-                  { value: "premium",    label: "Premium" },
-                  { value: "enterprise", label: "Enterprise" },
-                ]} />
-              <div className="grid grid-cols-3 gap-3">
-                <Input label="Response Time (hrs)" type="number" value={slaForm.response_time_hours}
-                  onChange={e => setSlaForm(p => ({ ...p, response_time_hours: Number(e.target.value) }))} />
-                <Input label="Resolution Time (hrs)" type="number" value={slaForm.resolution_time_hours}
-                  onChange={e => setSlaForm(p => ({ ...p, resolution_time_hours: Number(e.target.value) }))} />
+            <div className="space-y-4 mb-5 pb-5 border-b border-gray-100">
+              <div className="grid grid-cols-2 gap-3">
+                <Select label="SLA Tier" value={slaForm.tier}
+                  onChange={e => setSlaForm(p => ({ ...p, tier: e.target.value }))}
+                  options={[{ value:"standard", label:"Standard" },{ value:"premium", label:"Premium" },{ value:"enterprise", label:"Enterprise" }]} />
                 <Input label="Uptime Guarantee (%)" type="number" value={slaForm.uptime_guarantee_pct}
                   onChange={e => setSlaForm(p => ({ ...p, uptime_guarantee_pct: Number(e.target.value) }))} />
               </div>
               <div className="flex gap-6">
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input type="checkbox" checked={slaForm.dedicated_consultant}
-                    onChange={e => setSlaForm(p => ({ ...p, dedicated_consultant: e.target.checked }))}
-                    className="rounded accent-blue-600" />
-                  Dedicated Consultant
-                </label>
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input type="checkbox" checked={slaForm.priority_support}
-                    onChange={e => setSlaForm(p => ({ ...p, priority_support: e.target.checked }))}
-                    className="rounded accent-blue-600" />
-                  Priority Support
-                </label>
-              </div>
-              <Textarea label="Notes" value={slaForm.notes}
-                onChange={e => setSlaForm(p => ({ ...p, notes: e.target.value }))}
-                placeholder="Additional SLA terms…" />
-              <div className="flex justify-end gap-3">
-                <button onClick={() => setSlaEditing(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
-                <button onClick={handleSaveSla} disabled={savingSla}
-                  className="px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
-                  {savingSla ? "Saving…" : "Save SLA"}
-                </button>
+                {[["dedicated_consultant","Dedicated Consultant"],["priority_support","Priority Support"]].map(([k,lbl]) => (
+                  <label key={k} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" checked={slaForm[k]} onChange={e => setSlaForm(p => ({ ...p, [k]: e.target.checked }))} className="rounded accent-blue-600" />
+                    {lbl}
+                  </label>
+                ))}
               </div>
             </div>
           ) : sla ? (
-            <div className="space-y-4">
-              <div className="flex flex-wrap gap-2">
-                <Badge className={tierColors[sla.tier] ?? tierColors.standard}>{cap(sla.tier)} Tier</Badge>
-                {sla.priority_support    && <Badge className="bg-orange-100 text-orange-700">Priority Support</Badge>}
-                {sla.dedicated_consultant && <Badge className="bg-green-100 text-green-700">Dedicated Consultant</Badge>}
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="bg-gray-50 rounded-xl p-4 text-center">
-                  <div className="text-2xl font-bold text-gray-900">{sla.response_time_hours}h</div>
-                  <div className="text-xs text-gray-500 mt-1">Response Time</div>
-                </div>
-                <div className="bg-gray-50 rounded-xl p-4 text-center">
-                  <div className="text-2xl font-bold text-gray-900">{sla.resolution_time_hours}h</div>
-                  <div className="text-xs text-gray-500 mt-1">Resolution Time</div>
-                </div>
-                <div className="bg-gray-50 rounded-xl p-4 text-center">
-                  <div className="text-2xl font-bold text-gray-900">{sla.uptime_guarantee_pct}%</div>
-                  <div className="text-xs text-gray-500 mt-1">Uptime SLA</div>
-                </div>
-              </div>
-              {sla.notes && (
-                <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4 text-sm text-gray-700">
-                  <div className="font-medium text-yellow-800 mb-1">Notes</div>
-                  {sla.notes}
-                </div>
-              )}
+            <div className="flex flex-wrap items-center gap-2 mb-5">
+              <Badge className={tierColors[sla.tier] ?? tierColors.standard}>{cap(sla.tier)} Tier</Badge>
+              {sla.uptime_guarantee_pct && <Badge className="bg-gray-100 text-gray-700">{sla.uptime_guarantee_pct}% Uptime</Badge>}
+              {sla.priority_support    && <Badge className="bg-orange-100 text-orange-700">Priority Support</Badge>}
+              {sla.dedicated_consultant && <Badge className="bg-green-100 text-green-700">Dedicated Consultant</Badge>}
             </div>
+          ) : null}
+
+          {/* Legend */}
+          {!slaEditing && sla && (
+            <div className="flex items-center gap-4 text-xs text-gray-400 mb-3">
+              <span><span className="text-blue-400 mr-1">↩</span>Initial Response</span>
+              <span><span className="text-green-500 mr-1">✓</span>Resolution</span>
+            </div>
+          )}
+
+          {/* Matrix */}
+          {(sla || slaEditing) ? (
+            <SlaMatrixEditor caseTypes={slaCaseTypes} matrix={slaMatrix} editing={slaEditing}
+              onChangeCaseTypes={setSlaCaseTypes} onChangeMatrix={setSlaMatrix} />
           ) : (
             <div className="text-center py-8 text-gray-400">
               <div className="mb-2 flex justify-center"><FileText className="w-8 h-8 text-gray-300" /></div>
@@ -7453,6 +7562,26 @@ function ClientProfileView({ auth }) {
               </button>
             </div>
           )}
+
+          {/* Notes + actions */}
+          {slaEditing ? (
+            <div className="mt-5 space-y-4">
+              <Textarea label="Notes" value={slaForm.notes} onChange={e => setSlaForm(p => ({ ...p, notes: e.target.value }))}
+                placeholder="Additional SLA terms…" />
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setSlaEditing(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+                <button onClick={handleSaveSla} disabled={savingSla}
+                  className="px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
+                  {savingSla ? "Saving…" : "Save SLA"}
+                </button>
+              </div>
+            </div>
+          ) : sla?.notes ? (
+            <div className="mt-4 bg-yellow-50 border border-yellow-100 rounded-xl p-4 text-sm text-gray-700">
+              <div className="font-medium text-yellow-800 mb-1">Notes</div>
+              {sla.notes}
+            </div>
+          ) : null}
         </div>
       )}
 
