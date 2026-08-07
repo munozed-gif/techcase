@@ -29,7 +29,7 @@ import {
   Activity, Inbox, ClipboardList,
   Mail, TrendingUp, Link, Plane, Heart, Star, Trash2, Paperclip,
   FileImage, Trophy, Layers,
-  MapPin, UsersRound, GraduationCap, MessageSquare,
+  MapPin, UsersRound, GraduationCap, MessageSquare, X,
 } from "lucide-react";
 
 // ============================================================
