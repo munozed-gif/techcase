@@ -4720,15 +4720,25 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              {(auth.isAdmin || auth.isManager) && onStatusChange && (
-                <select value={caseData.status}
-                  onChange={e => onStatusChange(caseData.id, e.target.value)}
-                  className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  {lifecycleStages.map(s => (
-                    <option key={s.key} value={s.key}>{s.label}</option>
-                  ))}
-                </select>
-              )}
+              {onStatusChange && (() => {
+                const curStage = lifecycleStages.find(s => s.key === caseData.status);
+                const allowedNext  = curStage?.allowed_next?.length  ? curStage.allowed_next  : null;
+                const allowedRoles = curStage?.allowed_roles?.length ? curStage.allowed_roles : null;
+                const canChange = auth.isAdmin || !allowedRoles || allowedRoles.includes(auth.role);
+                if (!canChange) return null;
+                const validNext = allowedNext
+                  ? lifecycleStages.filter(s => allowedNext.includes(s.key))
+                  : lifecycleStages.filter(s => s.key !== caseData.status);
+                if (!validNext.length) return null;
+                return (
+                  <select value=""
+                    onChange={e => { if (e.target.value) onStatusChange(caseData.id, e.target.value); }}
+                    className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-600">
+                    <option value="">Move to…</option>
+                    {validNext.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                  </select>
+                );
+              })()}
               {canEditCase && (
                 <button onClick={() => setShowEditWizard(true)}
                   className="text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-3 py-1.5">
@@ -4948,19 +4958,29 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
             </div>
           )}
 
-          {/* Admin / Manager status controls */}
-          {(auth.isAdmin || auth.isManager) && (
-            <div className="border-t border-gray-100 pt-4 flex flex-wrap gap-2">
-              {["open","in_progress","on_hold","completed","cancelled"]
-                .filter(s => s !== caseData.status)
-                .map(s => (
-                  <button key={s} onClick={() => onStatusChange(caseData.id, s)}
-                    className="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600">
-                    → {cap(fmt(s))}
+          {/* Status transition buttons — role + allowed_next aware */}
+          {onStatusChange && (() => {
+            const curStage = lifecycleStages.find(s => s.key === caseData.status);
+            const allowedNext  = curStage?.allowed_next?.length  ? curStage.allowed_next  : null;
+            const allowedRoles = curStage?.allowed_roles?.length ? curStage.allowed_roles : null;
+            const canChange = auth.isAdmin || !allowedRoles || allowedRoles.includes(auth.role);
+            if (!canChange) return null;
+            const validNext = allowedNext
+              ? lifecycleStages.filter(s => allowedNext.includes(s.key))
+              : lifecycleStages.filter(s => s.key !== caseData.status && !curStage?.is_terminal);
+            if (!validNext.length) return null;
+            return (
+              <div className="border-t border-gray-100 pt-4 flex flex-wrap gap-2">
+                {validNext.map(s => (
+                  <button key={s.key} onClick={() => onStatusChange(caseData.id, s.key)}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors hover:opacity-90"
+                    style={{ borderColor: s.color + "55", color: s.color, backgroundColor: s.color + "12" }}>
+                    → {s.label}
                   </button>
                 ))}
-            </div>
-          )}
+              </div>
+            );
+          })()}
 
           {/* Delete — visible to creator (client) or admin/manager when case is Open with no dependencies */}
           {canDelete && (
@@ -7279,12 +7299,23 @@ function LifecycleSettingsView({ auth }) {
   const [editStages, setEditStages] = useState([]);
   const [saving, setSaving] = useState(false);
 
-  function startEdit(tmpl) { setSelected(tmpl); setEditStages([...tmpl.stages]); }
+  function startEdit(tmpl) { setSelected(tmpl); setEditStages(tmpl.stages.map(s => ({ ...s }))); }
   function cancelEdit() { setSelected(null); setEditStages([]); }
-  function addStage() { setEditStages(p => [...p, { key: `s${p.length + 1}`, label: "New Stage", color: "#6b7280", is_terminal: false }]); }
+  function addStage() {
+    setEditStages(p => [...p, { key: `s${Date.now()}`, label: "New Stage", color: "#6b7280", is_terminal: false, allowed_next: [], allowed_roles: [] }]);
+  }
   function removeStage(i) { setEditStages(p => p.filter((_, j) => j !== i)); }
   function moveStage(i, d) { setEditStages(p => { const n = [...p]; const [x] = n.splice(i, 1); n.splice(i + d, 0, x); return n; }); }
   function updateStage(i, u) { setEditStages(p => p.map((s, j) => j === i ? { ...s, ...u } : s)); }
+
+  function toggleRole(i, role) {
+    const cur = editStages[i].allowed_roles ?? [];
+    updateStage(i, { allowed_roles: cur.includes(role) ? cur.filter(r => r !== role) : [...cur, role] });
+  }
+  function toggleNext(i, key) {
+    const cur = editStages[i].allowed_next ?? [];
+    updateStage(i, { allowed_next: cur.includes(key) ? cur.filter(k => k !== key) : [...cur, key] });
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -7301,12 +7332,18 @@ function LifecycleSettingsView({ auth }) {
 
   if (loadingTmpl) return <div className="p-8 text-sm text-gray-400">Loading…</div>;
 
+  const ROLES = [
+    { key: "manager",    label: "Manager",    color: "#1d4ed8", bg: "#dbeafe" },
+    { key: "consultant", label: "Consultant", color: "#065f46", bg: "#d1fae5" },
+    { key: "client",     label: "Client",     color: "#92400e", bg: "#fef3c7" },
+  ];
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Lifecycle Templates</h2>
         <p className="text-sm text-gray-500 mt-1">
-          Define stage sequences for each lifecycle template. Clients pick a template; only managers and admins can edit the stages here.
+          Define stages, transitions, and which roles can move a case to each next stage. Admin always has full access.
         </p>
       </div>
 
@@ -7320,29 +7357,76 @@ function LifecycleSettingsView({ auth }) {
             <button onClick={cancelEdit} className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
           </div>
 
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Stages</p>
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Stages &amp; Transitions</p>
             {editStages.map((stage, idx) => (
-              <div key={idx} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5">
-                <input type="color" value={stage.color}
-                  onChange={e => updateStage(idx, { color: e.target.value })}
-                  className="w-7 h-7 rounded-lg cursor-pointer border border-gray-200 p-0.5 bg-white flex-shrink-0" />
-                <input type="text" value={stage.label}
-                  onChange={e => updateStage(idx, { label: e.target.value })}
-                  className="flex-1 text-sm font-medium bg-transparent border-0 focus:outline-none text-gray-800 min-w-0"
-                  placeholder="Stage name" />
-                <select value={stage.is_terminal ? "terminal" : "active"}
-                  onChange={e => updateStage(idx, { is_terminal: e.target.value === "terminal" })}
-                  className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600 focus:outline-none flex-shrink-0">
-                  <option value="active">Active</option>
-                  <option value="terminal">Terminal</option>
-                </select>
-                <button onClick={() => moveStage(idx, -1)} disabled={idx === 0}
-                  className="text-gray-400 hover:text-gray-600 disabled:opacity-20 w-5 text-center flex-shrink-0">↑</button>
-                <button onClick={() => moveStage(idx, 1)} disabled={idx === editStages.length - 1}
-                  className="text-gray-400 hover:text-gray-600 disabled:opacity-20 w-5 text-center flex-shrink-0">↓</button>
-                <button onClick={() => removeStage(idx)}
-                  className="text-red-300 hover:text-red-500 w-5 text-center flex-shrink-0 text-base leading-none">×</button>
+              <div key={idx} className="bg-gray-50 rounded-xl p-3 space-y-2.5">
+                {/* Row 1: color, label, type, controls */}
+                <div className="flex items-center gap-2">
+                  <input type="color" value={stage.color}
+                    onChange={e => updateStage(idx, { color: e.target.value })}
+                    className="w-7 h-7 rounded-lg cursor-pointer border border-gray-200 p-0.5 bg-white flex-shrink-0" />
+                  <input type="text" value={stage.label}
+                    onChange={e => updateStage(idx, { label: e.target.value })}
+                    className="flex-1 text-sm font-medium bg-transparent border-0 focus:outline-none text-gray-800 min-w-0"
+                    placeholder="Stage name" />
+                  <select value={stage.is_terminal ? "terminal" : "active"}
+                    onChange={e => updateStage(idx, { is_terminal: e.target.value === "terminal", ...(e.target.value === "terminal" ? { allowed_next: [], allowed_roles: [] } : {}) })}
+                    className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600 focus:outline-none flex-shrink-0">
+                    <option value="active">Active</option>
+                    <option value="terminal">Terminal</option>
+                  </select>
+                  <button onClick={() => moveStage(idx, -1)} disabled={idx === 0}
+                    className="text-gray-400 hover:text-gray-600 disabled:opacity-20 w-5 text-center flex-shrink-0">↑</button>
+                  <button onClick={() => moveStage(idx, 1)} disabled={idx === editStages.length - 1}
+                    className="text-gray-400 hover:text-gray-600 disabled:opacity-20 w-5 text-center flex-shrink-0">↓</button>
+                  <button onClick={() => removeStage(idx)}
+                    className="text-red-300 hover:text-red-500 w-5 text-center flex-shrink-0 text-base leading-none">×</button>
+                </div>
+
+                {/* Row 2: roles + allowed_next (only for active stages) */}
+                {!stage.is_terminal && (
+                  <div className="pl-9 space-y-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-16 flex-shrink-0">Roles</span>
+                      {ROLES.map(r => {
+                        const on = (stage.allowed_roles ?? []).includes(r.key);
+                        return (
+                          <button key={r.key} onClick={() => toggleRole(idx, r.key)}
+                            className="text-xs px-2.5 py-0.5 rounded-full font-semibold border transition-colors"
+                            style={on
+                              ? { backgroundColor: r.bg, color: r.color, borderColor: r.bg }
+                              : { backgroundColor: "white", color: "#9ca3af", borderColor: "#e5e7eb" }}>
+                            {r.label}
+                          </button>
+                        );
+                      })}
+                      {!(stage.allowed_roles ?? []).length && (
+                        <span className="text-[10px] text-gray-400 italic">no restriction — any role</span>
+                      )}
+                    </div>
+                    <div className="flex items-start gap-2 flex-wrap">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-16 flex-shrink-0 pt-0.5">Next →</span>
+                      <div className="flex flex-wrap gap-1">
+                        {editStages.filter((_, j) => j !== idx).map(s => {
+                          const on = (stage.allowed_next ?? []).includes(s.key);
+                          return (
+                            <button key={s.key} onClick={() => toggleNext(idx, s.key)}
+                              className="text-[11px] px-2 py-0.5 rounded-full font-semibold border transition-colors"
+                              style={on
+                                ? { backgroundColor: s.color + "22", color: s.color, borderColor: s.color + "55" }
+                                : { backgroundColor: "white", color: "#9ca3af", borderColor: "#e5e7eb" }}>
+                              {s.label || s.key}
+                            </button>
+                          );
+                        })}
+                        {!(stage.allowed_next ?? []).length && (
+                          <span className="text-[10px] text-gray-400 italic">no restriction — any stage</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
             <button onClick={addStage} className="text-sm text-blue-600 hover:text-blue-700 font-medium">+ Add Stage</button>
@@ -7351,7 +7435,7 @@ function LifecycleSettingsView({ auth }) {
           <div className="flex justify-end pt-2 border-t border-gray-100">
             <button onClick={handleSave} disabled={saving}
               className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
-              {saving ? "Saving…" : "Save Stages"}
+              {saving ? "Saving…" : "Save Template"}
             </button>
           </div>
         </div>
