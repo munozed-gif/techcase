@@ -2089,8 +2089,12 @@ const PROJECT_STEPS = [
   { id: "review",       label: "Review",       Icon: CheckCircle2,      desc: "Confirm & create" },
 ];
 
+const EXPRESS_STEP_IDS = [0, 1, 2, 8];
+const EXPRESS_CASE_STEPS = CREATE_CASE_STEPS.filter((_, i) => EXPRESS_STEP_IDS.includes(i));
+
 function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, initialData = null, initialProjectId = null }) {
   const isEdit = !!initialData;
+  const [mode, setMode]     = useState(isEdit ? "advanced" : null);
   const [step, setSt]       = useState(initialProjectId ? 1 : 0);
   const [creating, setCreating] = useState(false);
 
@@ -2132,7 +2136,76 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
     q.then(({ data }) => setWizardProjects(data ?? []));
   }, [auth.user?.id]);
 
-  const isLast = step === CREATE_CASE_STEPS.length - 1;
+  const expressIdx = EXPRESS_STEP_IDS.indexOf(step);
+  const isLast = mode === "express"
+    ? step === EXPRESS_STEP_IDS[EXPRESS_STEP_IDS.length - 1]
+    : step === CREATE_CASE_STEPS.length - 1;
+
+  function nextStep() {
+    if (mode === "express") {
+      const next = EXPRESS_STEP_IDS[expressIdx + 1];
+      if (next !== undefined) setSt(next);
+    } else {
+      setSt(s => s + 1);
+    }
+  }
+  function prevStep() {
+    if (mode === "express") {
+      if (expressIdx === 0) { onCancel(); return; }
+      setSt(EXPRESS_STEP_IDS[expressIdx - 1]);
+    } else {
+      if (step === 0) { onCancel(); return; }
+      setSt(s => s - 1);
+    }
+  }
+
+  function applyDefaults(d) {
+    if (!d) return;
+    setBasics(p => ({
+      ...p,
+      priority:        d.priority        ?? p.priority,
+      area_sap:        d.area_sap        ?? p.area_sap,
+      area_industry:   d.area_industry   ?? p.area_industry,
+      is_confidential: d.is_confidential ?? p.is_confidential,
+      nda_required:    d.nda_required    ?? p.nda_required,
+      description:     d.description     ?? p.description,
+    }));
+    setScope(p => ({
+      ...p,
+      sla:     d.sla     ?? p.sla,
+      budget:  d.budget  ?? p.budget,
+      _skills: d.skills  ?? p._skills,
+      due_date: d.sla ? daysFromNow(SLA_PRESETS.find(s => s.value === d.sla)?.days ?? 30) : p.due_date,
+    }));
+    setArr(p => ({
+      ...p,
+      work_mode:       d.work_mode       ?? p.work_mode,
+      travel_required: d.travel_required ?? p.travel_required,
+      work_location:   d.work_location   ?? p.work_location,
+    }));
+    setQuals(p => ({
+      ...p,
+      min_years_experience: d.min_years_experience  ?? p.min_years_experience,
+      languages_required:   d.languages_required    ?? p.languages_required,
+      security_clearance:   d.security_clearance    ?? p.security_clearance,
+    }));
+    setIntv(p => ({
+      ...p,
+      interview_required:   d.interview_required   ?? p.interview_required,
+      interview_format:     d.interview_format     ?? p.interview_format,
+      interview_rounds:     d.interview_rounds     ?? p.interview_rounds,
+      technical_assessment: d.technical_assessment ?? p.technical_assessment,
+    }));
+  }
+
+  async function selectMode(m) {
+    setMode(m);
+    if (m === "express" && auth.isClient && auth.user?.id) {
+      const { data } = await supabase.from("client_profiles")
+        .select("case_defaults").eq("id", auth.user.id).single();
+      applyDefaults(data?.case_defaults);
+    }
+  }
 
   async function handleCreate() {
     setCreating(true);
@@ -2186,7 +2259,9 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{isEdit ? "Edit Case" : "New Case"}</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Walk through each step to set up your case.</p>
+          <p className="text-gray-500 text-sm mt-0.5">
+            {mode === null ? "Choose how to create this case." : mode === "express" ? "Express — fill only the key fields." : "Advanced — full control over every setting."}
+          </p>
         </div>
         <button onClick={onCancel}
           className="text-sm text-gray-400 hover:text-gray-600 border border-gray-200 px-3 py-1.5 rounded-xl hover:bg-gray-50">
@@ -2194,7 +2269,36 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         </button>
       </div>
 
-      <OnboardingRoadmap steps={CREATE_CASE_STEPS} current={step} />
+      {/* ── Mode selection ── */}
+      {mode === null && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
+          <h2 className="text-lg font-semibold text-gray-900 mb-1 text-center">How do you want to create this case?</h2>
+          <p className="text-sm text-gray-400 text-center mb-8">You can always edit all fields after creation.</p>
+          <div className="grid grid-cols-2 gap-5">
+            <button onClick={() => selectMode("express")}
+              className="group text-left border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 rounded-2xl p-6 transition-all">
+              <div className="w-12 h-12 rounded-xl bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center mb-4 transition-colors">
+                <Zap className="w-6 h-6 text-blue-600" />
+              </div>
+              <div className="font-bold text-gray-900 text-base mb-1">Express</div>
+              <div className="text-sm text-gray-500 leading-relaxed">Fill only the key fields. Everything else is pre-filled from your company defaults. <span className="font-medium text-blue-600">3 steps.</span></div>
+            </button>
+            <button onClick={() => selectMode("advanced")}
+              className="group text-left border-2 border-gray-200 hover:border-[#1A4B8C] hover:bg-blue-50/50 rounded-2xl p-6 transition-all">
+              <div className="w-12 h-12 rounded-xl bg-gray-100 group-hover:bg-[#1A4B8C]/10 flex items-center justify-center mb-4 transition-colors">
+                <Settings className="w-6 h-6 text-gray-600 group-hover:text-[#1A4B8C]" />
+              </div>
+              <div className="font-bold text-gray-900 text-base mb-1">Advanced</div>
+              <div className="text-sm text-gray-500 leading-relaxed">Full control over every field and setting. <span className="font-medium text-gray-700">9 steps.</span></div>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {mode !== null && <>
+      <OnboardingRoadmap
+        steps={mode === "express" ? EXPRESS_CASE_STEPS : CREATE_CASE_STEPS}
+        current={mode === "express" ? expressIdx : step} />
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
 
@@ -2246,56 +2350,81 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
             <Input label="Title *" value={basics.title}
               onChange={e => setBasics(p => ({ ...p, title: e.target.value }))}
               placeholder="e.g. SAP S/4HANA Migration" />
-            <Textarea label="Description" value={basics.description}
-              onChange={e => setBasics(p => ({ ...p, description: e.target.value }))}
-              placeholder="Describe the requirements, objectives and deliverables…" />
-            <div className="grid grid-cols-2 gap-3">
-              <Select label="Priority" value={basics.priority}
-                onChange={e => setBasics(p => ({ ...p, priority: e.target.value }))}
-                options={["low","medium","high","critical"].map(s => ({ value: s, label: cap(s) }))} />
-              <div className="flex items-end pb-1">
-                <span className="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 w-full">
-                  Status: <span className="font-semibold text-blue-600">Open</span> (set automatically)
-                </span>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">SAP Area</label>
-                <select value={basics.area_sap}
-                  onChange={e => setBasics(p => ({ ...p, area_sap: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">— None / Not applicable —</option>
-                  {SAP_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
-                <select value={basics.area_industry}
-                  onChange={e => setBasics(p => ({ ...p, area_industry: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">— Select industry —</option>
-                  {INDUSTRY_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="border-t border-gray-100 pt-4 mt-2">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Visibility</p>
-              <label className="flex items-center gap-3 cursor-pointer mb-3">
-                <input type="checkbox" checked={basics.is_confidential}
-                  onChange={e => setBasics(p => ({ ...p, is_confidential: e.target.checked }))}
-                  className="w-4 h-4 rounded accent-blue-600" />
-                <span className="text-sm text-gray-700 font-medium">Private case</span>
-                <span className="text-xs text-gray-400">— hidden from public arena; only invited consultants can see it</span>
-              </label>
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" checked={basics.nda_required}
-                  onChange={e => setBasics(p => ({ ...p, nda_required: e.target.checked }))}
-                  className="w-4 h-4 rounded accent-blue-600" />
-                <span className="text-sm text-gray-700 font-medium">NDA required</span>
-                <span className="text-xs text-gray-400">— consultants must sign an NDA before viewing full details</span>
-              </label>
-            </div>
+            {mode === "express" ? (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <Select label="Priority" value={basics.priority}
+                    onChange={e => setBasics(p => ({ ...p, priority: e.target.value }))}
+                    options={["low","medium","high","critical"].map(s => ({ value: s, label: cap(s) }))} />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">SAP Area</label>
+                    <select value={basics.area_sap}
+                      onChange={e => setBasics(p => ({ ...p, area_sap: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="">— None / Not applicable —</option>
+                      {SAP_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="mt-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-xs text-blue-700 flex items-start gap-2">
+                  <Zap className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  <span>Other fields (description, industry, visibility, interview, qualifications, milestones) will be filled from your <strong>company defaults</strong>. You can edit them in the case after creation.</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <Textarea label="Description" value={basics.description}
+                  onChange={e => setBasics(p => ({ ...p, description: e.target.value }))}
+                  placeholder="Describe the requirements, objectives and deliverables…" />
+                <div className="grid grid-cols-2 gap-3">
+                  <Select label="Priority" value={basics.priority}
+                    onChange={e => setBasics(p => ({ ...p, priority: e.target.value }))}
+                    options={["low","medium","high","critical"].map(s => ({ value: s, label: cap(s) }))} />
+                  <div className="flex items-end pb-1">
+                    <span className="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 w-full">
+                      Status: <span className="font-semibold text-blue-600">Open</span> (set automatically)
+                    </span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">SAP Area</label>
+                    <select value={basics.area_sap}
+                      onChange={e => setBasics(p => ({ ...p, area_sap: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="">— None / Not applicable —</option>
+                      {SAP_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+                    <select value={basics.area_industry}
+                      onChange={e => setBasics(p => ({ ...p, area_industry: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="">— Select industry —</option>
+                      {INDUSTRY_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="border-t border-gray-100 pt-4 mt-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Visibility</p>
+                  <label className="flex items-center gap-3 cursor-pointer mb-3">
+                    <input type="checkbox" checked={basics.is_confidential}
+                      onChange={e => setBasics(p => ({ ...p, is_confidential: e.target.checked }))}
+                      className="w-4 h-4 rounded accent-blue-600" />
+                    <span className="text-sm text-gray-700 font-medium">Private case</span>
+                    <span className="text-xs text-gray-400">— hidden from public arena; only invited consultants can see it</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" checked={basics.nda_required}
+                      onChange={e => setBasics(p => ({ ...p, nda_required: e.target.checked }))}
+                      className="w-4 h-4 rounded accent-blue-600" />
+                    <span className="text-sm text-gray-700 font-medium">NDA required</span>
+                    <span className="text-xs text-gray-400">— consultants must sign an NDA before viewing full details</span>
+                  </label>
+                </div>
+              </>
+            )}
           </>
         )}
 
@@ -2303,7 +2432,9 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         {step === 2 && (
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">Scope & Budget</h2>
-            <p className="text-sm text-gray-500 mb-5">Set the budget, timeline and required expertise.</p>
+            <p className="text-sm text-gray-500 mb-5">
+              {mode === "express" ? "Key scope fields — the rest come from your company defaults." : "Set the budget, timeline and required expertise."}
+            </p>
             {(auth.isAdmin || auth.isManager) && (
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
@@ -2319,39 +2450,72 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                 </select>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-3">
-              <Input label="Budget ($)" type="number" value={scope.budget}
-                onChange={e => setScope(p => ({ ...p, budget: e.target.value }))}
-                placeholder="e.g. 50000" />
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">SLA / Timeline</label>
-                <select value={scope.sla}
-                  onChange={e => {
-                    const preset = SLA_PRESETS.find(p => p.value === e.target.value);
-                    setScope(p => ({
-                      ...p,
-                      sla: e.target.value,
-                      due_date: preset?.days ? daysFromNow(preset.days) : p.due_date,
-                    }));
-                  }}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  {SLA_PRESETS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-            </div>
-            {scope.sla === "custom" ? (
-              <Input label="Custom Due Date" type="date" value={scope.due_date}
-                onChange={e => setScope(p => ({ ...p, due_date: e.target.value }))} />
+            {mode === "express" ? (
+              <>
+                <Input label="Skills Required (comma-separated)" value={scope._skills}
+                  onChange={e => setScope(p => ({ ...p, _skills: e.target.value }))}
+                  placeholder="SAP S/4HANA, ABAP, Fiori" />
+                <div className="mt-2 mb-1">
+                  <p className="text-sm font-medium text-gray-700 mb-2">Work Mode</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { value: "remote", label: "Remote",  desc: "Fully remote" },
+                      { value: "onsite", label: "On-site", desc: "At client location" },
+                      { value: "hybrid", label: "Hybrid",  desc: "Mixed" },
+                    ].map(opt => (
+                      <button key={opt.value} type="button"
+                        onClick={() => setArr(p => ({ ...p, work_mode: opt.value }))}
+                        className={`text-left p-3 border-2 rounded-xl transition-all ${
+                          arrangement.work_mode === opt.value ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"}`}>
+                        <div className="font-semibold text-sm text-gray-900">{opt.label}</div>
+                        <div className="text-xs text-gray-400 mt-0.5">{opt.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {(arrangement.work_mode === "onsite" || arrangement.work_mode === "hybrid") && (
+                  <Input label="Location (City, Country)" value={arrangement.work_location}
+                    onChange={e => setArr(p => ({ ...p, work_location: e.target.value }))}
+                    placeholder="e.g. Toronto, Canada" />
+                )}
+                <div className="mt-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-xs text-blue-700 flex items-start gap-2">
+                  <Zap className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  <span>Budget, SLA, start date, interview preferences and qualification requirements will be filled from your <strong>company defaults</strong>.</span>
+                </div>
+              </>
             ) : (
-              <p className="text-xs text-gray-400 -mt-1 mb-2">
-                Calculated due date: <span className="font-semibold text-gray-700">{fmtDate(scope.due_date)}</span>
-              </p>
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <Input label="Budget ($)" type="number" value={scope.budget}
+                    onChange={e => setScope(p => ({ ...p, budget: e.target.value }))}
+                    placeholder="e.g. 50000" />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">SLA / Timeline</label>
+                    <select value={scope.sla}
+                      onChange={e => {
+                        const preset = SLA_PRESETS.find(p => p.value === e.target.value);
+                        setScope(p => ({ ...p, sla: e.target.value, due_date: preset?.days ? daysFromNow(preset.days) : p.due_date }));
+                      }}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      {SLA_PRESETS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+                {scope.sla === "custom" ? (
+                  <Input label="Custom Due Date" type="date" value={scope.due_date}
+                    onChange={e => setScope(p => ({ ...p, due_date: e.target.value }))} />
+                ) : (
+                  <p className="text-xs text-gray-400 -mt-1 mb-2">
+                    Calculated due date: <span className="font-semibold text-gray-700">{fmtDate(scope.due_date)}</span>
+                  </p>
+                )}
+                <Input label="Expected Start Date" type="date" value={scope.start_date}
+                  onChange={e => setScope(p => ({ ...p, start_date: e.target.value }))} />
+                <Input label="Skills Required (comma-separated)" value={scope._skills}
+                  onChange={e => setScope(p => ({ ...p, _skills: e.target.value }))}
+                  placeholder="SAP S/4HANA, ABAP, Fiori" />
+              </>
             )}
-            <Input label="Expected Start Date" type="date" value={scope.start_date}
-              onChange={e => setScope(p => ({ ...p, start_date: e.target.value }))} />
-            <Input label="Skills Required (comma-separated)" value={scope._skills}
-              onChange={e => setScope(p => ({ ...p, _skills: e.target.value }))}
-              placeholder="SAP S/4HANA, ABAP, Fiori" />
           </>
         )}
 
@@ -2735,20 +2899,20 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         )}
       </div>
 
-      {/* ── Navigation — sticky so it stays visible without scrolling ── */}
+      {/* ── Navigation ── */}
       <div className="sticky bottom-0 bg-white border-t-2 border-gray-100 shadow-xl rounded-2xl px-6 py-4 flex items-center justify-between mt-4">
-        <button onClick={() => step > 0 ? setSt(s => s - 1) : onCancel()}
+        <button onClick={prevStep}
           className="px-5 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors font-medium">
           {step === 0 ? "✕ Cancel" : "← Back"}
         </button>
         <div className="flex items-center gap-3">
-          {step === 7 && (
-            <button onClick={() => setSt(s => s + 1)} className="px-4 py-2.5 text-sm text-gray-400 hover:text-gray-600 border border-gray-200 rounded-xl">
+          {step === 7 && mode !== "express" && (
+            <button onClick={nextStep} className="px-4 py-2.5 text-sm text-gray-400 hover:text-gray-600 border border-gray-200 rounded-xl">
               Skip
             </button>
           )}
           {!isLast ? (
-            <button onClick={() => setSt(s => s + 1)}
+            <button onClick={nextStep}
               disabled={step === 1 && !basics.title.trim()}
               className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
               Continue →
@@ -2761,6 +2925,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
           )}
         </div>
       </div>
+      </>}
     </div>
   );
 }
@@ -7096,6 +7261,231 @@ function ClientTeamList({ client, auth }) {
 // ============================================================
 // CLIENT PROFILE VIEW
 // ============================================================
+function CaseDefaultsPanel({ profile, updateProfile }) {
+  const [form, setForm]   = useState({});
+  const [saving, setSaving] = useState(false);
+  const [langInput, setLangInput] = useState("");
+
+  useEffect(() => {
+    const d = profile?.case_defaults ?? {};
+    setForm({
+      priority:             d.priority             ?? "medium",
+      area_sap:             d.area_sap             ?? "",
+      area_industry:        d.area_industry        ?? "",
+      is_confidential:      d.is_confidential      ?? false,
+      nda_required:         d.nda_required         ?? false,
+      description:          d.description          ?? "",
+      sla:                  d.sla                  ?? "standard",
+      budget:               d.budget               ?? "",
+      work_mode:            d.work_mode            ?? "remote",
+      skills:               d.skills               ?? "",
+      travel_required:      d.travel_required      ?? false,
+      work_location:        d.work_location        ?? "",
+      min_years_experience: d.min_years_experience ?? "",
+      languages_required:   d.languages_required   ?? [],
+      security_clearance:   d.security_clearance   ?? false,
+      interview_required:   d.interview_required   ?? false,
+      interview_format:     d.interview_format     ?? "video",
+      interview_rounds:     d.interview_rounds     ?? 1,
+      technical_assessment: d.technical_assessment ?? false,
+    });
+  }, [profile]);
+
+  async function handleSave() {
+    setSaving(true);
+    try { await updateProfile({ case_defaults: form }); }
+    catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  function addLang(val) {
+    const v = val.trim();
+    if (!v || form.languages_required.includes(v)) return;
+    setForm(p => ({ ...p, languages_required: [...p.languages_required, v] }));
+    setLangInput("");
+  }
+
+  const sectionHdr = txt => (
+    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{txt}</p>
+  );
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
+      <div>
+        <h2 className="font-bold text-gray-900">Case Defaults</h2>
+        <p className="text-sm text-gray-400 mt-0.5">
+          These values pre-fill every field when a case is created in <span className="font-medium text-blue-600">Express mode</span>.
+        </p>
+      </div>
+
+      {/* Case Info defaults */}
+      <div>
+        {sectionHdr("Case Information")}
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <Select label="Default Priority" value={form.priority}
+              onChange={e => setForm(p => ({ ...p, priority: e.target.value }))}
+              options={["low","medium","high","critical"].map(v => ({ value: v, label: cap(v) }))} />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Default SAP Area</label>
+              <select value={form.area_sap} onChange={e => setForm(p => ({ ...p, area_sap: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">— None —</option>
+                {SAP_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Default Industry</label>
+            <select value={form.area_industry} onChange={e => setForm(p => ({ ...p, area_industry: e.target.value }))}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">— None —</option>
+              {INDUSTRY_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </div>
+          <Textarea label="Default Description Template" value={form.description}
+            onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+            placeholder="Default description or template shown when a case is created…" />
+          <div className="flex gap-6">
+            {[["is_confidential","Private cases by default"],["nda_required","NDA required by default"]].map(([k,lbl]) => (
+              <label key={k} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input type="checkbox" checked={form[k]} onChange={e => setForm(p => ({ ...p, [k]: e.target.checked }))} className="rounded accent-blue-600" />
+                {lbl}
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Scope defaults */}
+      <div className="border-t border-gray-100 pt-5">
+        {sectionHdr("Scope")}
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Default SLA</label>
+              <select value={form.sla} onChange={e => setForm(p => ({ ...p, sla: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                {SLA_PRESETS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+            <Input label="Default Budget ($)" type="number" value={form.budget}
+              onChange={e => setForm(p => ({ ...p, budget: e.target.value }))} placeholder="e.g. 50000" />
+          </div>
+          <Input label="Default Skills (comma-separated)" value={form.skills}
+            onChange={e => setForm(p => ({ ...p, skills: e.target.value }))}
+            placeholder="SAP S/4HANA, ABAP, Fiori" />
+        </div>
+      </div>
+
+      {/* Work arrangement defaults */}
+      <div className="border-t border-gray-100 pt-5">
+        {sectionHdr("Work Arrangement")}
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { value: "remote", label: "Remote",  desc: "Fully remote" },
+              { value: "onsite", label: "On-site", desc: "At client location" },
+              { value: "hybrid", label: "Hybrid",  desc: "Mixed" },
+            ].map(opt => (
+              <button key={opt.value} type="button" onClick={() => setForm(p => ({ ...p, work_mode: opt.value }))}
+                className={`text-left p-3 border-2 rounded-xl transition-all ${form.work_mode === opt.value ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"}`}>
+                <div className="font-semibold text-sm text-gray-900">{opt.label}</div>
+                <div className="text-xs text-gray-400 mt-0.5">{opt.desc}</div>
+              </button>
+            ))}
+          </div>
+          {(form.work_mode === "onsite" || form.work_mode === "hybrid") && (
+            <Input label="Default Location" value={form.work_location}
+              onChange={e => setForm(p => ({ ...p, work_location: e.target.value }))} placeholder="e.g. Toronto, Canada" />
+          )}
+          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" checked={form.travel_required} onChange={e => setForm(p => ({ ...p, travel_required: e.target.checked }))} className="rounded accent-blue-600" />
+            Travel required by default
+          </label>
+        </div>
+      </div>
+
+      {/* Qualifications defaults */}
+      <div className="border-t border-gray-100 pt-5">
+        {sectionHdr("Qualifications")}
+        <div className="space-y-3">
+          <Input label="Min Years of Experience" type="number" value={form.min_years_experience}
+            onChange={e => setForm(p => ({ ...p, min_years_experience: e.target.value }))} placeholder="e.g. 3" />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Default Languages</label>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {form.languages_required.map(l => (
+                <span key={l} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
+                  {l}
+                  <button onClick={() => setForm(p => ({ ...p, languages_required: p.languages_required.filter(x => x !== l) }))}
+                    className="hover:text-red-500"><X size={11} /></button>
+                </span>
+              ))}
+            </div>
+            <input value={langInput} onChange={e => setLangInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addLang(langInput); } }}
+              placeholder="Type a language and press Enter"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" checked={form.security_clearance} onChange={e => setForm(p => ({ ...p, security_clearance: e.target.checked }))} className="rounded accent-blue-600" />
+            Security clearance required by default
+          </label>
+        </div>
+      </div>
+
+      {/* Interview defaults */}
+      <div className="border-t border-gray-100 pt-5">
+        {sectionHdr("Interview")}
+        <div className="space-y-3">
+          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" checked={form.interview_required} onChange={e => setForm(p => ({ ...p, interview_required: e.target.checked }))} className="rounded accent-blue-600" />
+            Interview required by default
+          </label>
+          {form.interview_required && (
+            <>
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">Default Format</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {[["phone","Phone"],["video","Video"],["in_person","In Person"]].map(([v,l]) => (
+                    <button key={v} type="button" onClick={() => setForm(p => ({ ...p, interview_format: v }))}
+                      className={`py-2 text-xs font-medium border-2 rounded-xl transition-all ${form.interview_format === v ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">Default Rounds</p>
+                <div className="flex gap-2">
+                  {[1,2,3].map(n => (
+                    <button key={n} type="button" onClick={() => setForm(p => ({ ...p, interview_rounds: n }))}
+                      className={`w-10 h-10 rounded-xl border-2 text-sm font-bold transition-all ${form.interview_rounds === n ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}>
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input type="checkbox" checked={form.technical_assessment} onChange={e => setForm(p => ({ ...p, technical_assessment: e.target.checked }))} className="rounded accent-blue-600" />
+                Technical assessment required by default
+              </label>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="flex justify-end pt-4 border-t border-gray-100">
+        <button onClick={handleSave} disabled={saving}
+          className="px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors">
+          {saving ? "Saving…" : "Save Defaults"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function useClientProfile(userId) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -7291,11 +7681,12 @@ function ClientProfileView({ auth }) {
   const dbTypeColors = { postgresql: "bg-blue-100 text-blue-700", mysql: "bg-orange-100 text-orange-700", mssql: "bg-red-100 text-red-700", mongodb: "bg-green-100 text-green-700", other: "bg-gray-100 text-gray-700" };
 
   const tabs = [
-    { id: "overview",     label: "Overview",     icon: Building2,        count: null },
+    { id: "overview",     label: "Overview",     icon: Building2,         count: null },
     { id: "sla",          label: "SLA Config",   icon: SlidersHorizontal, count: null },
-    { id: "connections",  label: "Connections",  icon: Database,         count: connections.length },
-    { id: "team",         label: "Team",         icon: Users,            count: members.length },
-    { id: "lifecycle",    label: "Lifecycle",    icon: TrendingUp,       count: null },
+    { id: "connections",  label: "Connections",  icon: Database,          count: connections.length },
+    { id: "team",         label: "Team",         icon: Users,             count: members.length },
+    { id: "lifecycle",    label: "Lifecycle",    icon: TrendingUp,        count: null },
+    { id: "defaults",     label: "Defaults",     icon: ClipboardList,     count: null },
   ];
 
   return (
@@ -7857,6 +8248,10 @@ function ClientProfileView({ auth }) {
             </button>
           </div>
         </div>
+      )}
+
+      {tab === "defaults" && (
+        <CaseDefaultsPanel profile={profile} updateProfile={updateProfile} />
       )}
     </div>
   );
