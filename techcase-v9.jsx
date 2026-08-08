@@ -88,6 +88,9 @@ function useCaseComments(caseId) {
     if (progressUpdate !== null) {
       await supabase.from("cases").update({ progress_pct: progressUpdate }).eq("id", caseId);
     }
+    if (!isInternal) {
+      notifyCaseParticipants(caseId, user?.id, "New comment on case", body.length > 100 ? body.slice(0, 97) + "…" : body);
+    }
     await fetchComments();
   }
   return { comments, addComment, refetch: fetchComments };
@@ -510,6 +513,7 @@ function useCases(filters = {}) {
     const { data: row, error } = await supabase.from("cases").insert(data).select().single();
     if (error) throw error;
     await fetchCases();
+    notifyManagers("New case created", `Case "${row.title}" has been submitted and needs review.`);
     return row;
   }
 
@@ -517,6 +521,10 @@ function useCases(filters = {}) {
     const { data: row, error } = await supabase.from("cases").update(updates).eq("id", id).select().single();
     if (error) throw error;
     await fetchCases();
+    if (updates.status) {
+      const { data: { user } } = await supabase.auth.getUser();
+      notifyCaseParticipants(id, user?.id, "Case status updated", `Case status changed to "${updates.status}".`);
+    }
     return row;
   }
 
@@ -562,6 +570,7 @@ function useApplications(caseId = null) {
     }).select().single();
     if (error) throw error;
     await fetchApps();
+    notifyManagers("New application received", `A consultant applied to a case. Review in the applications section.`);
     return data;
   }
 
@@ -573,10 +582,16 @@ function useApplications(caseId = null) {
     if (error) throw error;
     if (status === "accepted") {
       const app = applications.find(a => a.id === appId);
-      if (app) await supabase.from("case_assignments").upsert({
-        case_id: app.case_id, consultant_id: app.consultant_id,
-        time_commitment: app.time_commitment,
-      });
+      if (app) {
+        await supabase.from("case_assignments").upsert({
+          case_id: app.case_id, consultant_id: app.consultant_id,
+          time_commitment: app.time_commitment,
+        });
+        notify(app.consultant_id, "Application accepted", "Your application has been accepted. You are now assigned to the case.");
+      }
+    } else if (status === "rejected") {
+      const app = applications.find(a => a.id === appId);
+      if (app) notify(app.consultant_id, "Application not selected", "Your application was reviewed but was not selected for this case.");
     }
     await fetchApps();
     return data;
@@ -773,11 +788,38 @@ function useConsultantProfile(consultantId, profileId) {
   return { profile, availability, loading, profileError, updateProfile, uploadPhoto, addCustomer, addProject, addWorkAuth, refetch: fetchProfile };
 }
 
+// ── Notification helpers ─────────────────────────────────────
+async function notify(userId, title, body) {
+  if (!userId) return;
+  try { await supabase.from("notifications").insert({ user_id: userId, title, body, is_read: false }); } catch (_) {}
+}
+async function notifyManagers(title, body) {
+  try {
+    const { data } = await supabase.from("users").select("id").in("role", ["admin","manager"]).eq("is_active", true);
+    if (!data?.length) return;
+    await supabase.from("notifications").insert(data.map(u => ({ user_id: u.id, title, body, is_read: false })));
+  } catch (_) {}
+}
+async function notifyCaseParticipants(caseId, excludeUserId, title, body) {
+  try {
+    const { data: c } = await supabase.from("cases")
+      .select("client_id, case_assignments(consultant_id)").eq("id", caseId).single();
+    if (!c) return;
+    const ids = new Set();
+    if (c.client_id && c.client_id !== excludeUserId) ids.add(c.client_id);
+    (c.case_assignments ?? []).forEach(a => { if (a.consultant_id !== excludeUserId) ids.add(a.consultant_id); });
+    if (!ids.size) return;
+    await supabase.from("notifications").insert([...ids].map(uid => ({ user_id: uid, title, body, is_read: false })));
+  } catch (_) {}
+}
+// ─────────────────────────────────────────────────────────────
+
 // Lightweight hook used only in App for the sidebar badge — separate channel name
 function useUnreadCount() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
+    let ch;
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -785,12 +827,13 @@ function useUnreadCount() {
         .select("*", { count: "exact", head: true })
         .eq("user_id", user.id).eq("is_read", false);
       setUnreadCount(count ?? 0);
+      ch = supabase.channel(`notif-badge-${user.id}`)
+        .on("postgres_changes",
+          { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+          () => setUnreadCount(p => p + 1))
+        .subscribe();
     })();
-    const ch = supabase.channel("notif-badge-rt")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" },
-        () => setUnreadCount(p => p + 1))
-      .subscribe();
-    return () => supabase.removeChannel(ch);
+    return () => { if (ch) supabase.removeChannel(ch); };
   }, []);
 
   return unreadCount;
@@ -803,6 +846,7 @@ function useNotifications() {
   const [loading, setLoading]             = useState(true);
 
   useEffect(() => {
+    let ch;
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setLoading(false); return; }
@@ -812,12 +856,13 @@ function useNotifications() {
       setNotifications(data ?? []);
       setUnreadCount((data ?? []).filter(n => !n.is_read).length);
       setLoading(false);
+      ch = supabase.channel(`notif-view-${user.id}`)
+        .on("postgres_changes",
+          { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+          payload => { setNotifications(p => [payload.new, ...p]); setUnreadCount(p => p + 1); })
+        .subscribe();
     })();
-    const ch = supabase.channel("notif-view-rt")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" },
-        payload => { setNotifications(p => [payload.new, ...p]); setUnreadCount(p => p + 1); })
-      .subscribe();
-    return () => supabase.removeChannel(ch);
+    return () => { if (ch) supabase.removeChannel(ch); };
   }, []);
 
   async function markRead(id) {
