@@ -4589,76 +4589,103 @@ function LifecycleFlowDiagram({ stages, currentStatus }) {
     return 'upcoming';
   }
 
-  const COLS = activeStages.length <= 3 ? activeStages.length : activeStages.length <= 6 ? 3 : 4;
-  const rows = [];
-  for (let i = 0; i < activeStages.length; i += COLS) rows.push(activeStages.slice(i, i + COLS));
-
-  function nodeStyle(stage, state) {
-    if (state === 'current') return { background: stage.color + '22', border: `2px solid ${stage.color}`, color: stage.color };
-    if (state === 'completed') return { background: stage.color + '18', border: '2px solid transparent', color: stage.color };
-    return { background: '#f3f4f6', border: '2px solid transparent', color: '#9ca3af' };
+  // 2 columns for 5+ stages to keep the block compact
+  const NCOLS = activeStages.length >= 5 ? 2 : 1;
+  const colSize = Math.ceil(activeStages.length / NCOLS);
+  const cols = [];
+  for (let i = 0; i < NCOLS; i++) {
+    cols.push({ items: activeStages.slice(i * colSize, (i + 1) * colSize), offset: i * colSize });
   }
 
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-4 overflow-x-auto">
-      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Lifecycle Progress</p>
-      <div className="space-y-2">
-        {rows.map((row, rowIdx) => (
-          <div key={rowIdx} className="flex items-start gap-1.5">
-            {row.map((stage, colIdx) => {
-              const globalIdx = rowIdx * COLS + colIdx;
+    <div className="rounded-xl border border-gray-100 bg-white p-3">
+      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2.5">Lifecycle Progress</p>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${NCOLS}, 1fr)`, columnGap: 20 }}>
+        {cols.map(({ items, offset }, ci) => (
+          <div key={ci}>
+            {items.map((stage, i) => {
+              const globalIdx = offset + i;
               const state = getState(stage, globalIdx);
               const isCurrent = state === 'current';
               const isDone = state === 'completed';
-              const hasNextInRow = colIdx < row.length - 1;
-              const isLastGlobal = globalIdx === activeStages.length - 1;
-              const isLastInRow = colIdx === row.length - 1;
-              const styles = nodeStyle(stage, state);
+              const isLast = i === items.length - 1;
+
+              const lineColor = isDone ? stage.color + '60' : '#e5e7eb';
+
               return (
-                <Fragment key={stage.key}>
-                  <div className="relative flex flex-col items-center flex-shrink-0" style={{ minWidth: 72 }}>
-                    {isCurrent && (
-                      <div className="absolute -inset-2 rounded-2xl animate-pulse opacity-20 pointer-events-none"
-                        style={{ background: stage.color }} />
-                    )}
-                    <div className="relative w-full px-2.5 py-2 rounded-xl text-center" style={styles}>
-                      {isDone && (
-                        <div className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center text-white text-[9px] font-bold"
-                          style={{ background: stage.color }}>✓</div>
-                      )}
-                      <span className="text-[11px] font-semibold leading-tight block">{stage.label}</span>
+                <div key={stage.key} className="flex items-start gap-2">
+                  {/* dot + connecting rail */}
+                  <div className="flex flex-col items-center flex-shrink-0" style={{ width: 20 }}>
+                    <div style={{
+                      width: isCurrent ? 20 : 14,
+                      height: isCurrent ? 20 : 14,
+                      borderRadius: '50%',
+                      background: isDone || isCurrent ? stage.color : undefined,
+                      border: isDone || isCurrent ? 'none' : '2px solid #d1d5db',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 8, fontWeight: 700,
+                      color: isDone || isCurrent ? '#fff' : '#9ca3af',
+                      flexShrink: 0,
+                      boxShadow: isCurrent ? `0 0 0 3px ${stage.color}35` : 'none',
+                      marginTop: isCurrent ? -2 : 1,
+                      marginBottom: isCurrent ? -2 : 1,
+                    }}>
+                      {isDone ? '✓' : ''}
                     </div>
-                    {isCurrent && (
-                      <div className="mt-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold text-white whitespace-nowrap"
-                        style={{ background: stage.color }}>● Now</div>
+                    {!isLast && (
+                      <div style={{ width: 2, flex: 1, minHeight: 10, background: lineColor }} />
                     )}
                   </div>
-                  {hasNextInRow && (
-                    <div className="self-center flex-shrink-0 text-gray-300 text-base font-bold leading-none" style={{ marginTop: isCurrent ? -10 : 0 }}>→</div>
-                  )}
-                  {isLastInRow && !isLastGlobal && (
-                    <div className="self-center flex-shrink-0 text-gray-300 text-lg ml-1 leading-none">↲</div>
-                  )}
-                </Fragment>
+                  {/* label row */}
+                  <div style={{
+                    flex: 1,
+                    paddingBottom: isLast ? 0 : 9,
+                    ...(isCurrent ? {
+                      background: stage.color + '12',
+                      borderRadius: 8,
+                      padding: '3px 8px',
+                      marginTop: -2,
+                      marginBottom: isLast ? 0 : 7,
+                      marginLeft: -2,
+                    } : {}),
+                    display: 'flex', alignItems: 'center', gap: 6,
+                  }}>
+                    <span style={{
+                      fontSize: 12,
+                      fontWeight: isCurrent ? 700 : isDone ? 500 : 400,
+                      color: isCurrent ? stage.color : isDone ? stage.color + 'cc' : '#9ca3af',
+                    }}>
+                      {stage.label}
+                    </span>
+                    {isCurrent && (
+                      <span style={{
+                        fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
+                        padding: '1px 6px', borderRadius: 20, background: stage.color, color: '#fff',
+                        whiteSpace: 'nowrap', flexShrink: 0,
+                      }}>
+                        Now
+                      </span>
+                    )}
+                  </div>
+                </div>
               );
             })}
           </div>
         ))}
       </div>
       {terminalStages.length > 0 && (
-        <div className="flex items-center gap-2 pt-3 mt-2 border-t border-gray-100 flex-wrap">
+        <div className="flex items-center gap-2 pt-2 mt-2 border-t border-dashed border-gray-100 flex-wrap">
           <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide flex-shrink-0">Terminal</span>
           {terminalStages.map(s => {
-            const isCurrent = s.key === currentStatus;
+            const isCurr = s.key === currentStatus;
             return (
-              <div key={s.key} className="px-2.5 py-1.5 rounded-xl text-[11px] font-semibold flex-shrink-0"
+              <div key={s.key} className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold flex-shrink-0"
                 style={{
-                  background: isCurrent ? s.color + '22' : s.color + '12',
-                  border: `2px solid ${isCurrent ? s.color : 'transparent'}`,
-                  color: isCurrent ? s.color : s.color + '99',
+                  background: isCurr ? s.color : s.color + '15',
+                  border: `1.5px solid ${isCurr ? s.color : s.color + '50'}`,
+                  color: isCurr ? '#fff' : s.color,
                 }}>
-                {isCurrent && <span className="mr-1">●</span>}
-                {s.label}
+                {isCurr && '● '}{s.label}
               </div>
             );
           })}
