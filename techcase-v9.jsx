@@ -19,7 +19,7 @@
 //                   file_type, file_size_kb, notes, created_at)
 // ============================================================
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Fragment } from "react";
 import { createClient } from "@supabase/supabase-js";
 import {
   LayoutDashboard, FolderOpen, LayoutGrid, Target, Receipt, Clock,
@@ -4615,7 +4615,7 @@ function LifecycleFlowDiagram({ stages, currentStatus }) {
               const isLastInRow = colIdx === row.length - 1;
               const styles = nodeStyle(stage, state);
               return (
-                <React.Fragment key={stage.key}>
+                <Fragment key={stage.key}>
                   <div className="relative flex flex-col items-center flex-shrink-0" style={{ minWidth: 72 }}>
                     {isCurrent && (
                       <div className="absolute -inset-2 rounded-2xl animate-pulse opacity-20 pointer-events-none"
@@ -4639,7 +4639,7 @@ function LifecycleFlowDiagram({ stages, currentStatus }) {
                   {isLastInRow && !isLastGlobal && (
                     <div className="self-center flex-shrink-0 text-gray-300 text-lg ml-1 leading-none">↲</div>
                   )}
-                </React.Fragment>
+                </Fragment>
               );
             })}
           </div>
