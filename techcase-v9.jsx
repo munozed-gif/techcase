@@ -2249,6 +2249,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   const [clients, setClients] = useState([]);
   const [startConfirmed, setStartConfirmed] = useState(false);
   const [keyUserClientId, setKeyUserClientId] = useState(null);
+  const [canConfirmOnCreate, setCanConfirmOnCreate] = useState(false);
 
   useEffect(() => {
     if (auth.isAdmin || auth.isManager) {
@@ -2270,6 +2271,21 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
     supabase.from("cases").select("client_id").eq("key_user_id", auth.user.id).limit(1)
       .then(({ data }) => { if (data?.[0]?.client_id) setKeyUserClientId(data[0].client_id); });
   }, [auth.isKeyUser, auth.user?.id]);
+
+  useEffect(() => {
+    if (isEdit || !auth.role) return;
+    if (auth.isAdmin) { setCanConfirmOnCreate(true); return; }
+    supabase.from("lifecycle_templates").select("stages")
+      .then(({ data }) => {
+        const can = (data ?? []).some(t =>
+          t.stages?.some(s =>
+            s.key === "confirmed" &&
+            (!s.allowed_roles?.length || s.allowed_roles.includes(auth.role))
+          )
+        );
+        setCanConfirmOnCreate(can);
+      });
+  }, [auth.role, auth.isAdmin, isEdit]);
 
   const expressIdx = EXPRESS_STEP_IDS.indexOf(step);
   const isLast = mode === "express"
@@ -3031,8 +3047,8 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               )}
 
             </div>
-            {/* Key user: Create as Confirmed option */}
-            {auth.isKeyUser && !isEdit && (
+            {/* Create as Confirmed — shown to any role with confirmed-stage permission */}
+            {canConfirmOnCreate && !isEdit && (
               <label className="flex items-center gap-3 cursor-pointer p-4 border-2 border-blue-100 bg-blue-50 rounded-xl mt-4">
                 <input type="checkbox" checked={startConfirmed} onChange={e => setStartConfirmed(e.target.checked)}
                   className="w-4 h-4 rounded accent-blue-600" />
@@ -7630,6 +7646,7 @@ function LifecycleSettingsView({ auth }) {
     { key: "manager",    label: "Manager",    color: "#1d4ed8", bg: "#dbeafe" },
     { key: "consultant", label: "Consultant", color: "#065f46", bg: "#d1fae5" },
     { key: "client",     label: "Client",     color: "#92400e", bg: "#fef3c7" },
+    { key: "key_user",   label: "Key User",   color: "#5b21b6", bg: "#ede9fe" },
   ];
 
   return (
