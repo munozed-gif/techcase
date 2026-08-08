@@ -30,6 +30,7 @@ import {
   Mail, TrendingUp, Link, Plane, Heart, Star, Trash2, Paperclip,
   FileImage, Trophy, Layers,
   MapPin, UsersRound, GraduationCap, MessageSquare, X,
+  Play, Pause, RotateCcw, Archive, Search,
 } from "lucide-react";
 
 // ============================================================
@@ -4576,6 +4577,87 @@ function ProjectFieldEditor({ caseData, auth }) {
   );
 }
 
+const STAGE_ICON_MAP = {
+  new: Inbox, open: Inbox, confirmed: CheckCircle2, returned: RotateCcw,
+  estimated: BarChart2, assigned: UserCheck, in_progress: Play,
+  standby: Pause, on_hold: Pause, functional_test: Target,
+  user_test: Users, adjustments: SlidersHorizontal, approved: Star,
+  completed: CheckCircle2, terminated: Archive, cancelled: X,
+  screening: Search, shortlisted: Star, sourcing: Search,
+};
+function getStageIcon(key) { return STAGE_ICON_MAP[key] ?? Flag; }
+
+function CaseLifecycleTrack({ stages, currentStatus }) {
+  const flow      = stages.filter(s => !s.is_terminal);
+  const terminals = stages.filter(s => s.is_terminal);
+  const curIdx    = flow.findIndex(s => s.key === currentStatus);
+  const curIsTerminal = terminals.some(s => s.key === currentStatus);
+  const N = flow.length;
+
+  const progressPct = curIsTerminal ? 100
+    : N <= 1 ? 0
+    : Math.max(0, (curIdx / (N - 1)) * 100);
+
+  const big   = N <= 7;
+  const circSz = big ? "w-10 h-10" : "w-8 h-8";
+  const iconSz = big ? 15 : 12;
+  const lineTop = big ? "top-5" : "top-4";
+  const lineX   = big ? "left-5 right-5" : "left-4 right-4";
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4">
+      <div className="relative flex items-start justify-between">
+        <div className={`absolute ${lineTop} ${lineX} h-0.5 z-0`}
+          style={{ background: `linear-gradient(to right, #1A4B8C ${progressPct}%, #e5e7eb ${progressPct}%)` }} />
+        {flow.map((stage, i) => {
+          const done   = curIsTerminal || i < curIdx;
+          const active = !curIsTerminal && i === curIdx;
+          const Icon   = getStageIcon(stage.key);
+          return (
+            <div key={stage.key} className="relative z-10 flex flex-col items-center flex-1 gap-1.5">
+              <div className={`${circSz} rounded-full flex items-center justify-center transition-all`}
+                style={{
+                  background: done || active ? stage.color : '#fff',
+                  border: !done && !active ? '2px solid #e5e7eb' : 'none',
+                  boxShadow: active ? `0 0 0 4px ${stage.color}30` : undefined,
+                }}>
+                {done
+                  ? <Check size={iconSz} color="#fff" />
+                  : <Icon size={iconSz} color={active ? '#fff' : '#9ca3af'} />
+                }
+              </div>
+              <div className="text-center px-0.5">
+                <div className={`leading-tight font-semibold ${big ? 'text-xs' : 'text-[10px]'}`}
+                  style={{ color: active ? stage.color : done ? '#6b7280' : '#9ca3af' }}>
+                  {stage.label}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {terminals.length > 0 && (
+        <div className="flex items-center gap-2 pt-3 mt-2 border-t border-gray-100 flex-wrap">
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide flex-shrink-0">Terminal</span>
+          {terminals.map(s => {
+            const isCurr = s.key === currentStatus;
+            return (
+              <div key={s.key} className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold flex-shrink-0"
+                style={{
+                  background: isCurr ? s.color : s.color + '15',
+                  border: `1.5px solid ${isCurr ? s.color : s.color + '50'}`,
+                  color: isCurr ? '#fff' : s.color,
+                }}>
+                {isCurr && '● '}{s.label}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LifecycleFlowDiagram({ stages, currentStatus }) {
   const activeStages = stages.filter(s => !s.is_terminal);
   const terminalStages = stages.filter(s => s.is_terminal);
@@ -4916,6 +4998,9 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
           )}
         </div>
       )}
+
+      {/* Lifecycle Track */}
+      <CaseLifecycleTrack stages={lifecycleStages} currentStatus={caseData.status} />
 
       {/* Progress Bar */}
       <div>
@@ -5565,8 +5650,6 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
         const inheritedStages = getCaseTmplStages(inheritedPreset);
         return (
           <div className="space-y-5">
-            <LifecycleFlowDiagram stages={lifecycleStages} currentStatus={caseData.status} />
-
             <div className="flex items-center flex-wrap gap-2 text-xs text-gray-500">
               <span className="font-semibold text-gray-700">Lifecycle source:</span>
               {caseData.case_lifecycle
