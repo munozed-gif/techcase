@@ -1611,9 +1611,10 @@ function AuthScreen({ onAuth }) {
                   <UserCheck className={`w-8 h-8 flex-shrink-0 ${keyUserCompany ? "text-blue-600" : "text-gray-400"}`} />
                   <div className="min-w-0">
                     <div className={`font-semibold text-sm ${keyUserCompany ? "text-blue-700" : "text-gray-500"}`}>Key User</div>
+                    <div className="text-xs text-gray-500 mt-0.5">I'm the primary contact at a client company working on assigned cases</div>
                     {keyUserCompany
-                      ? <div className="text-xs text-blue-600 font-medium mt-0.5">Linked to <span className="font-bold">{keyUserCompany}</span></div>
-                      : <div className="text-xs text-gray-400 mt-0.5">Your email isn't registered as a Key User for any company</div>
+                      ? <div className="text-xs text-blue-600 font-semibold mt-1">Linked to <span className="font-bold">{keyUserCompany}</span></div>
+                      : <div className="text-xs text-amber-600 mt-1">Your email isn't registered as a Key User for any company</div>
                     }
                   </div>
                 </button>
