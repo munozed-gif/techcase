@@ -2235,7 +2235,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   const [arrangement, setArr] = useState({ work_mode: initialData?.work_mode ?? "remote", work_location: initialData?.work_location ?? "", travel_required: initialData?.travel_required ?? false });
 
   // Step 4: Roles & People
-  const [roles, setRoles] = useState({ key_user_name: initialData?.key_user_name ?? "", key_user_email: initialData?.key_user_email ?? "", is_head_hunter: initialData?.is_head_hunter ?? false, head_hunter_name: initialData?.head_hunter_name ?? "" });
+  const [roles, setRoles] = useState({ key_user_name: initialData?.key_user_name ?? (auth.isKeyUser ? (auth.profile?.full_name ?? "") : ""), key_user_email: initialData?.key_user_email ?? (auth.isKeyUser ? (auth.user?.email ?? "") : ""), is_head_hunter: initialData?.is_head_hunter ?? false, head_hunter_name: initialData?.head_hunter_name ?? "" });
 
   // Step 5: Qualifications
   const [quals, setQuals] = useState({ certifications_required: initialData?.certifications_required ?? [], min_years_experience: initialData?.min_years_experience ?? "", languages_required: initialData?.languages_required ?? [], security_clearance: initialData?.security_clearance ?? false });
@@ -2247,6 +2247,8 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   const [milestones, setMs] = useState([]);
   const [mlForm, setMlForm] = useState({ title: "", due_date: "", description: "" });
   const [clients, setClients] = useState([]);
+  const [startConfirmed, setStartConfirmed] = useState(false);
+  const [keyUserClientId, setKeyUserClientId] = useState(null);
 
   useEffect(() => {
     if (auth.isAdmin || auth.isManager) {
@@ -2262,6 +2264,12 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
     if (auth.isClient) q = q.eq("client_id", auth.user?.id);
     q.then(({ data }) => setWizardProjects(data ?? []));
   }, [auth.user?.id]);
+
+  useEffect(() => {
+    if (!auth.isKeyUser || !auth.user?.id) return;
+    supabase.from("cases").select("client_id").eq("key_user_id", auth.user.id).limit(1)
+      .then(({ data }) => { if (data?.[0]?.client_id) setKeyUserClientId(data[0].client_id); });
+  }, [auth.isKeyUser, auth.user?.id]);
 
   const expressIdx = EXPRESS_STEP_IDS.indexOf(step);
   const isLast = mode === "express"
@@ -2340,7 +2348,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
       const { _skills, client_id, sla, ...rest } = scope;
       const payload = {
         ...basics,
-        status: "open",
+        status: startConfirmed ? "confirmed" : "open",
         area_sap:      basics.area_sap || null,
         area_industry: basics.area_industry || null,
         is_confidential: basics.is_confidential,
@@ -2348,8 +2356,9 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         ...rest,
         budget: scope.budget ? Number(scope.budget) : null,
         skills_required: _skills.split(",").map(s => s.trim()).filter(Boolean),
-        client_id:  auth.isClient  ? auth.user?.id : client_id || null,
+        client_id:  auth.isClient  ? auth.user?.id : auth.isKeyUser ? keyUserClientId : client_id || null,
         manager_id: auth.isManager ? auth.user?.id : null,
+        key_user_id: auth.isKeyUser ? auth.user?.id : undefined,
         project_id: selectedProjectId || null,
         ...arrangement,
         ...roles,
@@ -2935,7 +2944,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                 {basics.description && <p className="text-sm text-gray-500 mt-1 leading-relaxed">{basics.description}</p>}
                 <div className="flex flex-wrap gap-2 mt-3">
                   <Badge className={PRIORITY_COLORS[basics.priority]}>{cap(basics.priority)}</Badge>
-                  <Badge className={STATUS_COLORS["open"]}>Open</Badge>
+                  <Badge className={STATUS_COLORS[startConfirmed ? "confirmed" : "open"]}>{startConfirmed ? "Confirmed" : "Open"}</Badge>
                   {basics.area_sap && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs">{basics.area_sap}</span>}
                   {basics.area_industry && <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg text-xs">{basics.area_industry}</span>}
                 </div>
@@ -3022,6 +3031,17 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               )}
 
             </div>
+            {/* Key user: Create as Confirmed option */}
+            {auth.isKeyUser && !isEdit && (
+              <label className="flex items-center gap-3 cursor-pointer p-4 border-2 border-blue-100 bg-blue-50 rounded-xl mt-4">
+                <input type="checkbox" checked={startConfirmed} onChange={e => setStartConfirmed(e.target.checked)}
+                  className="w-4 h-4 rounded accent-blue-600" />
+                <div>
+                  <span className="text-sm font-semibold text-blue-800">Create as Confirmed</span>
+                  <p className="text-xs text-blue-600 mt-0.5">Skip the New stage — case starts directly in Confirmed status</p>
+                </div>
+              </label>
+            )}
           </>
         )}
       </div>
@@ -3046,8 +3066,12 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
             </button>
           ) : (
             <button onClick={handleCreate} disabled={creating}
-              className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
-              {creating ? (isEdit ? "Saving…" : "Creating…") : (isEdit ? "✓ Save Changes" : "✓ Create Case")}
+              className={`px-7 py-2.5 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md ${startConfirmed ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}`}>
+              {creating
+                ? (isEdit ? "Saving…" : "Creating…")
+                : isEdit ? "✓ Save Changes"
+                : startConfirmed ? "✓ Create Confirmed"
+                : "✓ Create Case"}
             </button>
           )}
         </div>
@@ -3815,7 +3839,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
     setShowAssign(true);
   }
 
-  const canEdit = auth.isAdmin || auth.isManager || auth.isClient;
+  const canEdit = auth.isAdmin || auth.isManager || auth.isClient || auth.isKeyUser;
 
   async function handleSaveProjLc() {
     setSavingProjLc(true);
@@ -4481,7 +4505,7 @@ function CasesView({ auth }) {
           <h1 className="text-2xl font-bold text-gray-900">Cases</h1>
           <p className="text-gray-500 text-sm mt-1">{displayed.length} case{displayed.length !== 1 ? "s" : ""}</p>
         </div>
-        {(auth.isAdmin || auth.isManager || auth.isClient) && (
+        {(auth.isAdmin || auth.isManager || auth.isClient || auth.isKeyUser) && (
           <button onClick={() => setShowCreate(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
             + New Case
