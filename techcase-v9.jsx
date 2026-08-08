@@ -4576,6 +4576,98 @@ function ProjectFieldEditor({ caseData, auth }) {
   );
 }
 
+function LifecycleFlowDiagram({ stages, currentStatus }) {
+  const activeStages = stages.filter(s => !s.is_terminal);
+  const terminalStages = stages.filter(s => s.is_terminal);
+  const currentIdx = activeStages.findIndex(s => s.key === currentStatus);
+  const isCurrentTerminal = terminalStages.some(s => s.key === currentStatus);
+
+  function getState(stage, idx) {
+    if (stage.key === currentStatus) return 'current';
+    if (isCurrentTerminal) return 'completed';
+    if (currentIdx >= 0 && idx < currentIdx) return 'completed';
+    return 'upcoming';
+  }
+
+  const COLS = activeStages.length <= 3 ? activeStages.length : activeStages.length <= 6 ? 3 : 4;
+  const rows = [];
+  for (let i = 0; i < activeStages.length; i += COLS) rows.push(activeStages.slice(i, i + COLS));
+
+  function nodeStyle(stage, state) {
+    if (state === 'current') return { background: stage.color + '22', border: `2px solid ${stage.color}`, color: stage.color };
+    if (state === 'completed') return { background: stage.color + '18', border: '2px solid transparent', color: stage.color };
+    return { background: '#f3f4f6', border: '2px solid transparent', color: '#9ca3af' };
+  }
+
+  return (
+    <div className="rounded-2xl border border-gray-100 bg-white p-4 overflow-x-auto">
+      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Lifecycle Progress</p>
+      <div className="space-y-2">
+        {rows.map((row, rowIdx) => (
+          <div key={rowIdx} className="flex items-start gap-1.5">
+            {row.map((stage, colIdx) => {
+              const globalIdx = rowIdx * COLS + colIdx;
+              const state = getState(stage, globalIdx);
+              const isCurrent = state === 'current';
+              const isDone = state === 'completed';
+              const hasNextInRow = colIdx < row.length - 1;
+              const isLastGlobal = globalIdx === activeStages.length - 1;
+              const isLastInRow = colIdx === row.length - 1;
+              const styles = nodeStyle(stage, state);
+              return (
+                <React.Fragment key={stage.key}>
+                  <div className="relative flex flex-col items-center flex-shrink-0" style={{ minWidth: 72 }}>
+                    {isCurrent && (
+                      <div className="absolute -inset-2 rounded-2xl animate-pulse opacity-20 pointer-events-none"
+                        style={{ background: stage.color }} />
+                    )}
+                    <div className="relative w-full px-2.5 py-2 rounded-xl text-center" style={styles}>
+                      {isDone && (
+                        <div className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center text-white text-[9px] font-bold"
+                          style={{ background: stage.color }}>✓</div>
+                      )}
+                      <span className="text-[11px] font-semibold leading-tight block">{stage.label}</span>
+                    </div>
+                    {isCurrent && (
+                      <div className="mt-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold text-white whitespace-nowrap"
+                        style={{ background: stage.color }}>● Now</div>
+                    )}
+                  </div>
+                  {hasNextInRow && (
+                    <div className="self-center flex-shrink-0 text-gray-300 text-base font-bold leading-none" style={{ marginTop: isCurrent ? -10 : 0 }}>→</div>
+                  )}
+                  {isLastInRow && !isLastGlobal && (
+                    <div className="self-center flex-shrink-0 text-gray-300 text-lg ml-1 leading-none">↲</div>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+      {terminalStages.length > 0 && (
+        <div className="flex items-center gap-2 pt-3 mt-2 border-t border-gray-100 flex-wrap">
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide flex-shrink-0">Terminal</span>
+          {terminalStages.map(s => {
+            const isCurrent = s.key === currentStatus;
+            return (
+              <div key={s.key} className="px-2.5 py-1.5 rounded-xl text-[11px] font-semibold flex-shrink-0"
+                style={{
+                  background: isCurrent ? s.color + '22' : s.color + '12',
+                  border: `2px solid ${isCurrent ? s.color : 'transparent'}`,
+                  color: isCurrent ? s.color : s.color + '99',
+                }}>
+                {isCurrent && <span className="mr-1">●</span>}
+                {s.label}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdate, onBack }) {
   const { applications, apply, reviewApplication } = useApplications(caseData.id);
   const { milestones, toggleMilestone, addMilestone } = useMilestones(caseData.id);
@@ -5446,6 +5538,8 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
         const inheritedStages = getCaseTmplStages(inheritedPreset);
         return (
           <div className="space-y-5">
+            <LifecycleFlowDiagram stages={lifecycleStages} currentStatus={caseData.status} />
+
             <div className="flex items-center flex-wrap gap-2 text-xs text-gray-500">
               <span className="font-semibold text-gray-700">Lifecycle source:</span>
               {caseData.case_lifecycle
@@ -5461,23 +5555,9 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
             </div>
 
             {!caseOverrideAllowed ? (
-              <>
-                <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-sm text-amber-700">
-                  The company profile does not allow cases to choose a different lifecycle template.
-                </div>
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Inherited Flow</p>
-                  <div className="flex items-center flex-wrap gap-2">
-                    {inheritedStages.filter(s => !s.is_terminal).map((s, i, arr) => (
-                      <span key={s.key} className="flex items-center gap-2">
-                        <span className="px-3 py-1.5 text-xs font-semibold rounded-xl"
-                          style={{ backgroundColor: s.color + "20", color: s.color }}>{s.label}</span>
-                        {i < arr.length - 1 && <span className="text-gray-300 text-sm">→</span>}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </>
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-sm text-amber-700">
+                The company profile does not allow cases to choose a different lifecycle template.
+              </div>
             ) : (
               <>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -5506,27 +5586,9 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
                   })}
                 </div>
 
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Flow Preview</p>
-                  <div className="flex items-center flex-wrap gap-2">
-                    {previewActive.map((s, i) => (
-                      <span key={s.key} className="flex items-center gap-2">
-                        <span className="px-3 py-1.5 text-xs font-semibold rounded-xl"
-                          style={{ backgroundColor: s.color + "20", color: s.color }}>{s.label}</span>
-                        {i < previewActive.length - 1 && <span className="text-gray-300 text-sm">→</span>}
-                      </span>
-                    ))}
-                    {previewTerminal.length > 0 && (
-                      <span className="flex items-center gap-2">
-                        <span className="text-gray-300 text-sm">→</span>
-                        {previewTerminal.map(s => (
-                          <span key={s.key} className="px-3 py-1.5 text-xs font-semibold rounded-xl"
-                            style={{ backgroundColor: s.color + "20", color: s.color }}>{s.label}</span>
-                        ))}
-                      </span>
-                    )}
-                  </div>
-                </div>
+                {lcMode !== (caseData.case_lifecycle?.preset ?? projectLifecycle?.preset ?? clientLifecycle?.preset ?? "standard") && (
+                  <LifecycleFlowDiagram stages={previewStages} currentStatus={null} />
+                )}
 
                 <div className="flex justify-end pt-2 border-t border-gray-100">
                   <button onClick={handleSaveCaseLc} disabled={savingLc}
