@@ -466,6 +466,7 @@ function useAuth() {
     isManager:    profile?.role === "manager",
     isConsultant: profile?.role === "consultant",
     isClient:     profile?.role === "client",
+    isKeyUser:    profile?.role === "key_user",
   };
 }
 
@@ -804,10 +805,11 @@ async function notifyManagers(title, body) {
 async function notifyCaseParticipants(caseId, excludeUserId, title, body) {
   try {
     const { data: c } = await supabase.from("cases")
-      .select("client_id, case_assignments(consultant_id)").eq("id", caseId).single();
+      .select("client_id, key_user_id, case_assignments(consultant_id)").eq("id", caseId).single();
     if (!c) return;
     const ids = new Set();
     if (c.client_id && c.client_id !== excludeUserId) ids.add(c.client_id);
+    if (c.key_user_id && c.key_user_id !== excludeUserId) ids.add(c.key_user_id);
     (c.case_assignments ?? []).forEach(a => { if (a.consultant_id !== excludeUserId) ids.add(a.consultant_id); });
     if (!ids.size) return;
     await supabase.from("notifications").insert([...ids].map(uid => ({ user_id: uid, title, body, is_read: false })));
@@ -1319,6 +1321,8 @@ function AuthScreen({ onAuth }) {
   // Client-specific
   const [companyName, setCompany]     = useState("");
   const [industry, setIndustry]       = useState("");
+  // Key-user detection (set after OTP verify)
+  const [keyUserCompany, setKeyUserCompany] = useState(null);
 
   const [error, setError]   = useState("");
   const [loading, setLoad]  = useState(false);
@@ -1401,6 +1405,18 @@ function AuthScreen({ onAuth }) {
     const { data: existing } = await supabase
       .from("users").select("role").eq("id", data.user?.id).maybeSingle();
     if (existing?.role) { onAuth(null); return; } // returning user → dashboard
+    // Detect if this email is pre-registered as a key user on any case
+    const { data: kuCases } = await supabase
+      .from("cases")
+      .select("key_user_email, client:client_id(client_profiles(company_name))")
+      .eq("key_user_email", email.trim())
+      .limit(1);
+    if (kuCases?.length > 0) {
+      const cp = kuCases[0].client?.client_profiles;
+      setKeyUserCompany((Array.isArray(cp) ? cp[0]?.company_name : cp?.company_name) ?? "a company");
+    } else {
+      setKeyUserCompany(null);
+    }
     setStep(1);
     setLoad(false);
   }
@@ -1415,6 +1431,7 @@ function AuthScreen({ onAuth }) {
     if (password !== confirmPass) { setError("Passwords don't match."); return; }
     if (role === "consultant" && !headline.trim()) { setError("Enter a professional headline."); return; }
     if (role === "client" && !companyName.trim()) { setError("Enter your company name."); return; }
+    if (role === "key_user" && !keyUserCompany) { setError("Your email is not registered as a Key User for any company."); return; }
     setError(""); setLoad(true);
     try {
       await supabase.auth.updateUser({
@@ -1443,6 +1460,13 @@ function AuthScreen({ onAuth }) {
           company_name: companyName.trim(),
           industry: industry || null,
         }, { onConflict: "id" });
+      }
+      if (role === "key_user") {
+        // Link this user to all cases where their email was pre-registered as key user
+        await supabase.from("cases")
+          .update({ key_user_id: user.id })
+          .eq("key_user_email", user.email)
+          .is("key_user_id", null);
       }
       onAuth(role);
     } catch (e) { setError(e.message); }
@@ -1576,6 +1600,23 @@ function AuthScreen({ onAuth }) {
                     </button>
                   ))}
                 </div>
+                {/* Key User — only selectable if email is pre-registered */}
+                <button
+                  onClick={() => keyUserCompany && selectRole("key_user")}
+                  disabled={!keyUserCompany}
+                  className={`w-full mt-3 flex items-center gap-4 p-4 border-2 rounded-2xl transition-all text-left
+                    ${keyUserCompany
+                      ? "border-blue-300 bg-blue-50 hover:border-blue-500 hover:bg-blue-100 cursor-pointer"
+                      : "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed"}`}>
+                  <UserCheck className={`w-8 h-8 flex-shrink-0 ${keyUserCompany ? "text-blue-600" : "text-gray-400"}`} />
+                  <div className="min-w-0">
+                    <div className={`font-semibold text-sm ${keyUserCompany ? "text-blue-700" : "text-gray-500"}`}>Key User</div>
+                    {keyUserCompany
+                      ? <div className="text-xs text-blue-600 font-medium mt-0.5">Linked to <span className="font-bold">{keyUserCompany}</span></div>
+                      : <div className="text-xs text-gray-400 mt-0.5">Your email isn't registered as a Key User for any company</div>
+                    }
+                  </div>
+                </button>
               </div>
             )}
 
@@ -1583,13 +1624,23 @@ function AuthScreen({ onAuth }) {
             {step === 2 && (
               <div>
                 <h2 className="text-lg font-bold text-gray-900 mb-1">
-                  {role === "consultant" ? "Build your consultant profile" : "Set up your company profile"}
+                  {role === "consultant" ? "Build your consultant profile"
+                    : role === "key_user" ? "Complete your Key User account"
+                    : "Set up your company profile"}
                 </h2>
                 <p className="text-sm text-gray-500 mb-5">
                   {role === "consultant"
                     ? "Help clients find you with the right details."
+                    : role === "key_user"
+                    ? `You'll have access to cases from ${keyUserCompany ?? "your company"}.`
                     : "Tell consultants about your company."}
                 </p>
+                {role === "key_user" && keyUserCompany && (
+                  <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 mb-4">
+                    <Building2 className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                    <span className="text-sm text-blue-700 font-medium">{keyUserCompany}</span>
+                  </div>
+                )}
 
                 {/* ── Common fields ── */}
                 <Input label="Full Name" value={name}
@@ -4375,9 +4426,11 @@ function CasesView({ auth }) {
     client_id: auth.isClient ? auth.user?.id : undefined,
   });
 
-  // Consultants see only their assigned cases here; open cases to apply to are on the Dashboard.
+  // Consultants and key users see only their linked cases.
   const visibleCases = auth.isConsultant
     ? cases.filter(c => c.case_assignments?.some(a => a.consultant_id === auth.user?.id))
+    : auth.isKeyUser
+    ? cases.filter(c => c.key_user_id === auth.user?.id)
     : cases;
   const projectFiltered = projectFilter
     ? visibleCases.filter(c => c.project_id === projectFilter)
@@ -8870,6 +8923,7 @@ function KanbanView({ auth }) {
   const filteredCases = cases.filter(c => {
     if (auth.isClient)     return c.client_id === auth.user?.id;
     if (auth.isConsultant) return c.case_assignments?.some(a => a.consultant_id === auth.user?.id);
+    if (auth.isKeyUser)    return c.key_user_id === auth.user?.id;
     return true;
   });
 
