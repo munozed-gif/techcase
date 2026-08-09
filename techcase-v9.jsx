@@ -486,7 +486,7 @@ function useCases(filters = {}) {
         manager:manager_id(id, full_name, email),
         case_assignments(consultant_id, time_commitment,
           users:consultant_id(id, full_name, avatar_url)),
-        case_key_users(user_id),
+        case_key_users(user_id, area, users:user_id(full_name, email)),
         applications(count)
       `)
       .order("created_at", { ascending: false });
@@ -2221,7 +2221,7 @@ const PROJECT_STEPS = [
   { id: "review",       label: "Review",       Icon: CheckCircle2,      desc: "Confirm & create" },
 ];
 
-const EXPRESS_STEP_IDS = [0, 1, 2, 8];
+const EXPRESS_STEP_IDS = [0, 1, 2, 4, 8];
 const EXPRESS_CASE_STEPS = CREATE_CASE_STEPS.filter((_, i) => EXPRESS_STEP_IDS.includes(i));
 
 function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, initialData = null, initialProjectId = null }) {
@@ -5360,15 +5360,33 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
           )}
 
           {/* Roles & Contacts card */}
-          {(caseData.key_user_name || caseData.is_head_hunter) && (
+          {((caseData.case_key_users?.length > 0) || caseData.key_user_email || caseData.is_head_hunter) && (
             <div className="border border-gray-100 rounded-xl p-4">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Roles &amp; Contacts</p>
               <div className="space-y-3 text-sm">
-                {caseData.key_user_name && (
+                {caseData.case_key_users?.length > 0 && (
                   <div>
-                    <div className="text-xs text-gray-400 mb-0.5">Key User</div>
-                    <div className="font-medium">{caseData.key_user_name}</div>
-                    {caseData.key_user_email && <div className="text-xs text-gray-400">{caseData.key_user_email}</div>}
+                    <div className="text-xs text-gray-400 mb-1.5">Key Users</div>
+                    <div className="space-y-1.5">
+                      {caseData.case_key_users.map(ku => (
+                        <div key={ku.user_id} className="flex items-center gap-2 bg-violet-50 border border-violet-100 rounded-lg px-2.5 py-1.5">
+                          <UserCheck className="w-3.5 h-3.5 text-violet-500 flex-shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium text-gray-900 text-xs truncate">{ku.users?.full_name ?? "—"}</div>
+                            <div className="text-[10px] text-gray-400 truncate">{ku.users?.email}</div>
+                          </div>
+                          {ku.area && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-violet-100 text-violet-700 rounded flex-shrink-0">{ku.area}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {caseData.key_user_email && !caseData.case_key_users?.length && (
+                  <div>
+                    <div className="text-xs text-gray-400 mb-0.5">Key User (invited)</div>
+                    <div className="text-xs text-gray-500">{caseData.key_user_email}</div>
                   </div>
                 )}
                 {caseData.is_head_hunter && (
