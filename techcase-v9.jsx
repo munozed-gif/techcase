@@ -2240,7 +2240,11 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   const [arrangement, setArr] = useState({ work_mode: initialData?.work_mode ?? "remote", work_location: initialData?.work_location ?? "", travel_required: initialData?.travel_required ?? false });
 
   // Step 4: Roles & People
-  const [roles, setRoles] = useState({ key_user_name: initialData?.key_user_name ?? (auth.isKeyUser ? (auth.profile?.full_name ?? "") : ""), key_user_email: initialData?.key_user_email ?? (auth.isKeyUser ? (auth.user?.email ?? "") : ""), is_head_hunter: initialData?.is_head_hunter ?? false, head_hunter_name: initialData?.head_hunter_name ?? "" });
+  const [roles, setRoles] = useState({ key_user_email: initialData?.key_user_email ?? "", is_head_hunter: initialData?.is_head_hunter ?? false, head_hunter_name: initialData?.head_hunter_name ?? "" });
+  const [keyUsers, setKeyUsers]     = useState([]);   // { user_id, full_name, email, area }
+  const [kuSearch, setKuSearch]     = useState("");
+  const [kuResults, setKuResults]   = useState([]);
+  const [kuSearching, setKuSearching] = useState(false);
 
   // Step 5: Qualifications
   const [quals, setQuals] = useState({ certifications_required: initialData?.certifications_required ?? [], min_years_experience: initialData?.min_years_experience ?? "", languages_required: initialData?.languages_required ?? [], security_clearance: initialData?.security_clearance ?? false });
@@ -2276,6 +2280,21 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
     supabase.from("case_key_users").select("case:case_id(client_id)").eq("user_id", auth.user.id).limit(1)
       .then(({ data }) => { if (data?.[0]?.case?.client_id) setKeyUserClientId(data[0].case.client_id); });
   }, [auth.isKeyUser, auth.user?.id]);
+
+  useEffect(() => {
+    if (!isEdit || !initialData?.id) return;
+    supabase.from("case_key_users")
+      .select("user_id, area, users:user_id(full_name, email)")
+      .eq("case_id", initialData.id)
+      .then(({ data }) => {
+        if (data) setKeyUsers(data.map(r => ({
+          user_id: r.user_id,
+          full_name: r.users?.full_name ?? "",
+          email: r.users?.email ?? "",
+          area: r.area ?? "",
+        })));
+      });
+  }, [isEdit, initialData?.id]);
 
   useEffect(() => {
     if (isEdit || !auth.role) return;
@@ -2363,6 +2382,25 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
     }
   }
 
+  async function searchKeyUsers(q) {
+    setKuSearch(q);
+    if (!q.trim()) { setKuResults([]); return; }
+    setKuSearching(true);
+    const { data } = await supabase.from("users")
+      .select("id, full_name, email")
+      .eq("role", "key_user")
+      .or(`full_name.ilike.%${q}%,email.ilike.%${q}%`)
+      .limit(8);
+    setKuResults((data ?? []).filter(u => !keyUsers.some(ku => ku.user_id === u.id)));
+    setKuSearching(false);
+  }
+  function addKeyUser(u) {
+    setKeyUsers(p => [...p, { user_id: u.id, full_name: u.full_name, email: u.email, area: "" }]);
+    setKuSearch(""); setKuResults([]);
+  }
+  function removeKeyUser(uid) { setKeyUsers(p => p.filter(ku => ku.user_id !== uid)); }
+  function updateKuArea(uid, area) { setKeyUsers(p => p.map(ku => ku.user_id === uid ? { ...ku, area } : ku)); }
+
   async function handleCreate() {
     setCreating(true);
     try {
@@ -2390,14 +2428,26 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
       };
       if (isEdit) {
         await onSave(payload);
+        if (initialData?.id) {
+          await supabase.from("case_key_users").delete().eq("case_id", initialData.id);
+          if (keyUsers.length > 0) {
+            await supabase.from("case_key_users").insert(
+              keyUsers.map(ku => ({ case_id: initialData.id, user_id: ku.user_id, area: ku.area || null }))
+            );
+          }
+        }
         onComplete();
       } else {
         const newCase = await createCase(payload);
         if (newCase?.id) {
-          if (auth.isKeyUser) {
-            await supabase.from("case_key_users")
-              .insert({ case_id: newCase.id, user_id: auth.user?.id })
-              .onConflict("case_id,user_id").ignore();
+          const kuRows = [...keyUsers];
+          if (auth.isKeyUser && !kuRows.some(ku => ku.user_id === auth.user?.id)) {
+            kuRows.push({ user_id: auth.user?.id, area: null });
+          }
+          if (kuRows.length > 0) {
+            await supabase.from("case_key_users").insert(
+              kuRows.map(ku => ({ case_id: newCase.id, user_id: ku.user_id, area: ku.area || null }))
+            ).onConflict("case_id,user_id").ignore();
           }
           if (milestones.length > 0) {
             await supabase.from("case_milestones").insert(
@@ -2734,16 +2784,69 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
             <h2 className="text-lg font-semibold text-gray-900 mb-1">Roles &amp; People</h2>
             <p className="text-sm text-gray-500 mb-5">Specify the key contacts and whether this case is managed through a Head Hunter.</p>
 
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Key User</p>
-            <p className="text-xs text-gray-400 mb-3">The primary internal contact at the client who the consultant will work with directly.</p>
-            <div className="grid grid-cols-2 gap-3 mb-5">
-              <Input label="Key User Name" value={roles.key_user_name}
-                onChange={e => setRoles(p => ({ ...p, key_user_name: e.target.value }))}
-                placeholder="e.g. Maria Santos" />
-              <Input label="Key User Email" value={roles.key_user_email}
-                onChange={e => setRoles(p => ({ ...p, key_user_email: e.target.value }))}
-                placeholder="e.g. m.santos@company.com" />
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Key Users</p>
+            <p className="text-xs text-gray-400 mb-3">Internal contacts at the client working directly with consultants. Select registered Key User accounts and assign their area.</p>
+
+            {/* Added key users */}
+            {keyUsers.length > 0 && (
+              <div className="space-y-2 mb-3">
+                {keyUsers.map(ku => (
+                  <div key={ku.user_id} className="flex items-center gap-2 bg-violet-50 border border-violet-100 rounded-xl px-3 py-2">
+                    <UserCheck className="w-4 h-4 text-violet-500 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-gray-900 truncate">{ku.full_name}</div>
+                      <div className="text-xs text-gray-400 truncate">{ku.email}</div>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <input value={ku.area} onChange={e => updateKuArea(ku.user_id, e.target.value)}
+                        placeholder="Area…"
+                        className="text-xs border border-violet-200 rounded-lg px-2 py-1 bg-white w-28 focus:outline-none focus:ring-1 focus:ring-violet-400" />
+                      <button type="button" onClick={() => updateKuArea(ku.user_id, "All Areas")}
+                        className={`text-[10px] px-1.5 py-0.5 rounded font-semibold border transition-colors flex-shrink-0 ${ku.area === "All Areas" ? "bg-violet-600 text-white border-violet-600" : "text-violet-500 border-violet-300 hover:bg-violet-50"}`}>
+                        All
+                      </button>
+                      <button type="button" onClick={() => removeKeyUser(ku.user_id)}
+                        className="text-gray-300 hover:text-red-400 text-lg leading-none ml-1">×</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Search registered key users */}
+            <div className="relative mb-4">
+              <div className="flex items-center gap-2 bg-gray-100 rounded-xl px-3 py-2.5 shadow-sm">
+                <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <input value={kuSearch} onChange={e => searchKeyUsers(e.target.value)}
+                  placeholder="Search registered Key Users by name or email…"
+                  className="flex-1 bg-transparent text-sm text-gray-800 placeholder-gray-400 focus:outline-none min-w-0" />
+                {kuSearching && <div className="w-3.5 h-3.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />}
+              </div>
+              {kuResults.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden">
+                  {kuResults.map(u => (
+                    <button key={u.id} type="button" onClick={() => addKeyUser(u)}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-violet-50 text-left transition-colors border-b border-gray-50 last:border-0">
+                      <UserCheck className="w-4 h-4 text-violet-500 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-gray-900 truncate">{u.full_name}</div>
+                        <div className="text-xs text-gray-400 truncate">{u.email}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {kuSearch.trim() && !kuSearching && kuResults.length === 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 px-4 py-3 text-sm text-gray-400">
+                  No registered Key Users found for "{kuSearch}"
+                </div>
+              )}
             </div>
+
+            {/* Invitation email — pre-registers an email so they can sign up as key_user */}
+            <Input label="Invite by Email (optional)" value={roles.key_user_email}
+              onChange={e => setRoles(p => ({ ...p, key_user_email: e.target.value }))}
+              placeholder="e.g. m.santos@company.com — lets them register as Key User" />
 
             <div className="border-t border-gray-100 pt-5">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Head Hunter</p>
