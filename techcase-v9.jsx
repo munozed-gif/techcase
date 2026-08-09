@@ -486,6 +486,7 @@ function useCases(filters = {}) {
         manager:manager_id(id, full_name, email),
         case_assignments(consultant_id, time_commitment,
           users:consultant_id(id, full_name, avatar_url)),
+        case_key_users(user_id),
         applications(count)
       `)
       .order("created_at", { ascending: false });
@@ -805,11 +806,11 @@ async function notifyManagers(title, body) {
 async function notifyCaseParticipants(caseId, excludeUserId, title, body) {
   try {
     const { data: c } = await supabase.from("cases")
-      .select("client_id, key_user_id, case_assignments(consultant_id)").eq("id", caseId).single();
+      .select("client_id, case_key_users(user_id), case_assignments(consultant_id)").eq("id", caseId).single();
     if (!c) return;
     const ids = new Set();
     if (c.client_id && c.client_id !== excludeUserId) ids.add(c.client_id);
-    if (c.key_user_id && c.key_user_id !== excludeUserId) ids.add(c.key_user_id);
+    (c.case_key_users ?? []).forEach(ku => { if (ku.user_id !== excludeUserId) ids.add(ku.user_id); });
     (c.case_assignments ?? []).forEach(a => { if (a.consultant_id !== excludeUserId) ids.add(a.consultant_id); });
     if (!ids.size) return;
     await supabase.from("notifications").insert([...ids].map(uid => ({ user_id: uid, title, body, is_read: false })));
@@ -1463,10 +1464,13 @@ function AuthScreen({ onAuth }) {
       }
       if (role === "key_user") {
         // Link this user to all cases where their email was pre-registered as key user
-        await supabase.from("cases")
-          .update({ key_user_id: user.id })
-          .eq("key_user_email", user.email)
-          .is("key_user_id", null);
+        const { data: matchingCases } = await supabase.from("cases")
+          .select("id").eq("key_user_email", user.email);
+        if (matchingCases?.length) {
+          await supabase.from("case_key_users").insert(
+            matchingCases.map(c => ({ case_id: c.id, user_id: user.id }))
+          ).onConflict("case_id,user_id").ignore();
+        }
       }
       onAuth(role);
     } catch (e) { setError(e.message); }
@@ -2269,8 +2273,8 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
 
   useEffect(() => {
     if (!auth.isKeyUser || !auth.user?.id) return;
-    supabase.from("cases").select("client_id").eq("key_user_id", auth.user.id).limit(1)
-      .then(({ data }) => { if (data?.[0]?.client_id) setKeyUserClientId(data[0].client_id); });
+    supabase.from("case_key_users").select("case:case_id(client_id)").eq("user_id", auth.user.id).limit(1)
+      .then(({ data }) => { if (data?.[0]?.case?.client_id) setKeyUserClientId(data[0].case.client_id); });
   }, [auth.isKeyUser, auth.user?.id]);
 
   useEffect(() => {
@@ -2375,7 +2379,6 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         skills_required: _skills.split(",").map(s => s.trim()).filter(Boolean),
         client_id:  auth.isClient  ? auth.user?.id : auth.isKeyUser ? keyUserClientId : client_id || null,
         manager_id: auth.isManager ? auth.user?.id : null,
-        key_user_id: auth.isKeyUser ? auth.user?.id : undefined,
         project_id: selectedProjectId || null,
         ...arrangement,
         ...roles,
@@ -2390,10 +2393,17 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         onComplete();
       } else {
         const newCase = await createCase(payload);
-        if (milestones.length > 0 && newCase?.id) {
-          await supabase.from("case_milestones").insert(
-            milestones.map(m => ({ ...m, case_id: newCase.id }))
-          );
+        if (newCase?.id) {
+          if (auth.isKeyUser) {
+            await supabase.from("case_key_users")
+              .insert({ case_id: newCase.id, user_id: auth.user?.id })
+              .onConflict("case_id,user_id").ignore();
+          }
+          if (milestones.length > 0) {
+            await supabase.from("case_milestones").insert(
+              milestones.map(m => ({ ...m, case_id: newCase.id }))
+            );
+          }
         }
         onComplete(newCase?.id);
       }
@@ -4471,7 +4481,7 @@ function CasesView({ auth }) {
   const visibleCases = auth.isConsultant
     ? cases.filter(c => c.case_assignments?.some(a => a.consultant_id === auth.user?.id))
     : auth.isKeyUser
-    ? cases.filter(c => c.key_user_id === auth.user?.id)
+    ? cases.filter(c => c.case_key_users?.some(ku => ku.user_id === auth.user?.id))
     : cases;
   const projectFiltered = projectFilter
     ? visibleCases.filter(c => c.project_id === projectFilter)
@@ -8965,7 +8975,7 @@ function KanbanView({ auth }) {
   const filteredCases = cases.filter(c => {
     if (auth.isClient)     return c.client_id === auth.user?.id;
     if (auth.isConsultant) return c.case_assignments?.some(a => a.consultant_id === auth.user?.id);
-    if (auth.isKeyUser)    return c.key_user_id === auth.user?.id;
+    if (auth.isKeyUser)    return c.case_key_users?.some(ku => ku.user_id === auth.user?.id);
     return true;
   });
 
