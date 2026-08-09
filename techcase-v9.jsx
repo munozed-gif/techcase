@@ -2507,7 +2507,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
           </p>
         </div>
         <button onClick={onCancel}
-          className="text-sm text-gray-400 hover:text-gray-600 border border-gray-200 px-3 py-1.5 rounded-xl hover:bg-gray-50">
+          className="text-sm text-gray-600 hover:text-gray-800 bg-white border border-gray-300 px-3 py-1.5 rounded-xl hover:bg-gray-100">
           ✕ Cancel
         </button>
       </div>
@@ -3286,7 +3286,7 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
           <p className="text-gray-500 text-sm mt-0.5 truncate max-w-sm">{caseData.title}</p>
         </div>
         <button onClick={onCancel}
-          className="text-sm text-gray-400 hover:text-gray-600 border border-gray-200 px-3 py-1.5 rounded-xl hover:bg-gray-50">
+          className="text-sm text-gray-600 hover:text-gray-800 bg-white border border-gray-300 px-3 py-1.5 rounded-xl hover:bg-gray-100">
           ✕ Cancel
         </button>
       </div>
@@ -3531,7 +3531,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
           <p className="text-gray-500 text-sm mt-0.5">{isEdit ? "Update your project details across each section." : "Walk through each step to set up your project."}</p>
         </div>
         <button onClick={onCancel}
-          className="text-sm text-gray-400 hover:text-gray-600 border border-gray-200 px-3 py-1.5 rounded-xl hover:bg-gray-50">
+          className="text-sm text-gray-600 hover:text-gray-800 bg-white border border-gray-300 px-3 py-1.5 rounded-xl hover:bg-gray-100">
           ✕ Cancel
         </button>
       </div>
@@ -5245,7 +5245,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
           <span>Overall Progress</span>
           <span className="font-semibold text-gray-800">{progressPct}%</span>
         </div>
-        <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+        <div className="h-2.5 bg-blue-200 rounded-full overflow-hidden">
           <div className="h-full bg-blue-500 rounded-full transition-all"
             style={{ width: `${progressPct}%` }} />
         </div>
