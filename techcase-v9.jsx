@@ -2386,11 +2386,41 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
     setKuSearch(q);
     if (!q.trim()) { setKuResults([]); return; }
     setKuSearching(true);
-    const { data } = await supabase.from("users")
+
+    // Determine the client this case belongs to
+    const clientId = auth.isClient ? auth.user?.id
+      : auth.isKeyUser ? keyUserClientId
+      : scope.client_id || null;
+
+    let eligibleIds = null; // null = no restriction (no client selected)
+
+    if (clientId) {
+      // Only show key users already linked to one of this client's cases
+      const { data: cCases } = await supabase.from("cases").select("id").eq("client_id", clientId);
+      const cIds = (cCases ?? []).map(c => c.id);
+      if (!cIds.length) {
+        setKuResults([]);
+        setKuSearching(false);
+        return;
+      }
+      const { data: kuData } = await supabase.from("case_key_users").select("user_id").in("case_id", cIds);
+      eligibleIds = [...new Set((kuData ?? []).map(r => r.user_id))];
+      if (!eligibleIds.length) {
+        setKuResults([]);
+        setKuSearching(false);
+        return;
+      }
+    }
+
+    let query = supabase.from("users")
       .select("id, full_name, email")
       .eq("role", "key_user")
       .or(`full_name.ilike.%${q}%,email.ilike.%${q}%`)
       .limit(8);
+
+    if (eligibleIds) query = query.in("id", eligibleIds);
+
+    const { data } = await query;
     setKuResults((data ?? []).filter(u => !keyUsers.some(ku => ku.user_id === u.id)));
     setKuSearching(false);
   }
@@ -2838,7 +2868,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               )}
               {kuSearch.trim() && !kuSearching && kuResults.length === 0 && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 px-4 py-3 text-sm text-gray-400">
-                  No registered Key Users found for "{kuSearch}"
+                  No Key Users registered for this customer match "{kuSearch}"
                 </div>
               )}
             </div>
