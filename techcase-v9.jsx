@@ -7770,6 +7770,7 @@ function LifecycleSettingsView({ auth }) {
   const [selected, setSelected] = useState(null);
   const [editStages, setEditStages] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [viewTmpl, setViewTmpl] = useState(null);
 
   function startEdit(tmpl) { setSelected(tmpl); setEditStages(tmpl.stages.map(s => ({ ...s }))); }
   function cancelEdit() { setSelected(null); setEditStages([]); }
@@ -7801,6 +7802,16 @@ function LifecycleSettingsView({ auth }) {
     } catch (e) { alert(e.message); }
     setSaving(false);
   }
+
+  useEffect(() => {
+    if (!templates.length) return;
+    if (viewTmpl) {
+      const fresh = templates.find(t => t.id === viewTmpl.id);
+      if (fresh) setViewTmpl(fresh);
+    } else {
+      setViewTmpl(templates[0]);
+    }
+  }, [templates]);
 
   if (loadingTmpl) return <div className="p-8 text-sm text-gray-400">Loading…</div>;
 
@@ -7913,45 +7924,75 @@ function LifecycleSettingsView({ auth }) {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {templates.map(tmpl => {
-            const active = tmpl.stages.filter(s => !s.is_terminal);
-            const terminal = tmpl.stages.filter(s => s.is_terminal);
-            return (
-              <div key={tmpl.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="font-semibold text-gray-900">{tmpl.name}</span>
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{tmpl.subtitle}</span>
-                    </div>
-                    <p className="text-xs text-gray-500">{tmpl.description}</p>
-                  </div>
-                  <button onClick={() => startEdit(tmpl)}
-                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 whitespace-nowrap ml-2">Edit stages</button>
-                </div>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex" style={{ minHeight: 420 }}>
+          {/* Left sidebar — template list */}
+          <div className="w-44 flex-shrink-0 border-r border-gray-100 flex flex-col py-2">
+            {templates.map(tmpl => (
+              <button key={tmpl.id} onClick={() => setViewTmpl(tmpl)}
+                className={`text-left px-4 py-3 transition-colors ${viewTmpl?.id === tmpl.id ? "bg-blue-50" : "hover:bg-gray-50"}`}>
+                <div className={`font-semibold text-sm ${viewTmpl?.id === tmpl.id ? "text-blue-700" : "text-gray-800"}`}>{tmpl.name}</div>
+                <div className="text-xs text-gray-400 mt-0.5 leading-tight">{tmpl.description}</div>
+              </button>
+            ))}
+          </div>
 
-                <div className="space-y-1.5">
-                  {active.map((s, i) => (
-                    <div key={s.key} className="flex items-center gap-2 text-xs">
-                      <span className="w-4 text-center text-gray-300 font-light select-none">{i + 1}</span>
-                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
-                      <span className="text-gray-700 font-medium">{s.label}</span>
-                      <span className="text-gray-300 text-[10px]">active</span>
-                    </div>
-                  ))}
-                  {terminal.map(s => (
-                    <div key={s.key} className="flex items-center gap-2 text-xs">
-                      <span className="w-4 text-center text-gray-200 select-none">—</span>
-                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
-                      <span className="text-gray-500">{s.label}</span>
-                      <span className="text-gray-300 text-[10px]">terminal</span>
-                    </div>
-                  ))}
+          {/* Right panel — vertical flow */}
+          {viewTmpl && (
+            <div className="flex-1 p-6 overflow-y-auto">
+              <div className="flex items-start justify-between mb-6">
+                <div>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <h3 className="font-bold text-gray-900 text-lg">{viewTmpl.name} Lifecycle</h3>
+                    {viewTmpl.subtitle && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{viewTmpl.subtitle}</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-500">{viewTmpl.description}</p>
                 </div>
+                <button onClick={() => startEdit(viewTmpl)}
+                  className="flex-shrink-0 ml-4 px-4 py-1.5 bg-[#1A4B8C] hover:bg-blue-900 text-white text-sm font-semibold rounded-xl">
+                  ✎ Edit Stages
+                </button>
               </div>
-            );
-          })}
+
+              <div className="max-w-md">
+                {viewTmpl.stages.map((s, i) => (
+                  <Fragment key={s.key}>
+                    {i > 0 && (
+                      <div className="ml-[18px] flex flex-col" style={{ gap: 0 }}>
+                        <div className="w-px h-4 bg-gray-200 self-start ml-px" />
+                        <div className="self-start ml-[-3px]" style={{ width: 0, height: 0, borderLeft: "4px solid transparent", borderRight: "4px solid transparent", borderTop: "5px solid #d1d5db" }} />
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
+                      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                      <span className="font-semibold text-gray-900 text-sm flex-1">{s.label}</span>
+                      {s.is_terminal ? (
+                        <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200">
+                          Terminal
+                        </span>
+                      ) : (
+                        <div className="flex gap-1.5 flex-wrap justify-end">
+                          {(s.allowed_roles ?? []).length === 0
+                            ? <span className="text-[10px] text-gray-400 italic">Any role</span>
+                            : (s.allowed_roles ?? []).map(r => {
+                                const rm = ROLES.find(x => x.key === r);
+                                if (!rm) return null;
+                                return (
+                                  <span key={r} className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                                    style={{ backgroundColor: rm.bg, color: rm.color }}>
+                                    {rm.label}
+                                  </span>
+                                );
+                              })}
+                        </div>
+                      )}
+                    </div>
+                  </Fragment>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
