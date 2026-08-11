@@ -5127,6 +5127,111 @@ function SpecificationTab({ caseData, auth, documents }) {
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [approving, setApproving]         = useState(false);
 
+  // ── Document helpers ─────────────────────────────────────────
+  function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  async function buildDocumentBlocks() {
+    const blocks = [];
+    for (const doc of (documents ?? [])) {
+      const lower = (doc.file_name ?? '').toLowerCase();
+      const isPdf = lower.endsWith('.pdf') || (doc.file_type ?? '').includes('pdf');
+      const isText = lower.endsWith('.txt') || lower.endsWith('.md') || lower.endsWith('.csv');
+      if (!isPdf && !isText) {
+        blocks.push({ type: 'text', text: `[Attached file: ${doc.file_name} — binary format, cannot extract text]` });
+        continue;
+      }
+      try {
+        const resp = await fetch(doc.file_url);
+        if (isPdf) {
+          const blob = await resp.blob();
+          const b64 = await blobToBase64(blob);
+          blocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } });
+        } else {
+          const text = await resp.text();
+          blocks.push({ type: 'text', text: `[Document: ${doc.file_name}]\n${text.slice(0, 8000)}` });
+        }
+      } catch (_) {
+        blocks.push({ type: 'text', text: `[Attached file: ${doc.file_name} — could not be loaded]` });
+      }
+    }
+    return blocks;
+  }
+
+  function downloadFormalSpec(markdown) {
+    const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const safeName = (caseData.title ?? 'Spec').replace(/[^a-z0-9]/gi, '_');
+    const bodyHtml = renderMarkdown(markdown);
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Functional Specification — ${caseData.title}</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;color:#1a1a1a;max-width:900px;margin:0 auto;padding:40px}
+  .doc-header{background:#1A4B8C;color:#fff;margin:-40px -40px 32px;padding:32px 40px}
+  .doc-header h1{margin:0 0 6px;font-size:22px;font-weight:800}
+  .doc-header .sub{font-size:13px;opacity:.8}
+  .meta-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;background:#f0f4fa;border-left:4px solid #1A4B8C;padding:16px;border-radius:0 6px 6px 0;margin-bottom:32px}
+  .meta-item label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7280;margin-bottom:3px}
+  .meta-item span{font-size:13px;font-weight:600}
+  h1{font-size:18px;font-weight:800;color:#1A4B8C;border-bottom:2px solid #1A4B8C;padding-bottom:6px;margin:28px 0 12px}
+  h2{font-size:15px;font-weight:700;color:#1A4B8C;border-bottom:1px solid #d1d5db;padding-bottom:4px;margin:24px 0 10px}
+  h3{font-size:13px;font-weight:700;color:#374151;margin:18px 0 8px}
+  h4{font-size:12px;font-weight:700;color:#6b7280;margin:14px 0 6px}
+  p{margin:8px 0;line-height:1.65}
+  ul,ol{margin:8px 0 8px 24px}
+  li{margin:4px 0;line-height:1.6}
+  code{background:#f3f4f6;padding:2px 5px;border-radius:3px;font-family:Consolas,monospace;font-size:12px}
+  hr{border:none;border-top:1px solid #e5e7eb;margin:20px 0}
+  strong{font-weight:700}
+  em{font-style:italic}
+  table{border-collapse:collapse;width:100%;margin:12px 0;font-size:12px}
+  th{background:#e8f0fb;border:1px solid #d1d5db;padding:7px 10px;text-align:left;font-weight:700;color:#374151}
+  td{border:1px solid #d1d5db;padding:7px 10px}
+  .footer{margin-top:48px;border-top:2px solid #e5e7eb;padding-top:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+  .sig label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;color:#9ca3af;margin-bottom:20px}
+  .sig .line{border-top:1px solid #374151;padding-top:4px;font-size:11px;color:#6b7280}
+  @media print{body{padding:20px}.doc-header{margin:-20px -20px 24px;padding:24px 20px}}
+</style>
+</head>
+<body>
+<div class="doc-header">
+  <h1>SAP Functional Specification</h1>
+  <div class="sub">${caseData.title}</div>
+</div>
+<div class="meta-grid">
+  <div class="meta-item"><label>Case ID</label><span>#${(caseData.id ?? '').slice(0, 8) || '—'}</span></div>
+  <div class="meta-item"><label>SAP Area</label><span>${caseData.area_sap ?? '—'}</span></div>
+  <div class="meta-item"><label>Priority</label><span>${caseData.priority ?? '—'}</span></div>
+  <div class="meta-item"><label>Generated</label><span>${date}</span></div>
+</div>
+<p style="margin:0.5rem 0">${bodyHtml}</p>
+<div class="footer">
+  <div class="sig"><label>Functional Analyst</label><div class="line">Signature / Date</div></div>
+  <div class="sig"><label>ABAP Developer</label><div class="line">Signature / Date</div></div>
+  <div class="sig"><label>Client Approval</label><div class="line">Signature / Date</div></div>
+</div>
+</body>
+</html>`;
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `FuncSpec_${safeName}_${new Date().toISOString().slice(0, 10)}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   const canApprove = auth.isAdmin || auth.isManager || auth.isConsultant;
   const canSubmit  = auth.isClient || auth.isKeyUser || auth.isAdmin || auth.isManager || auth.isConsultant;
 
@@ -5154,12 +5259,8 @@ function SpecificationTab({ caseData, auth, documents }) {
     setWizardLoading(true);
     setWizardError(null);
     try {
-      const raw = await callClaude({
-        model: 'claude-haiku-4-5-20251001',
-        system: 'You are an SAP functional consultant. Respond with ONLY a JSON array, no markdown code blocks, no explanation.',
-        messages: [{
-          role: 'user',
-          content: `Analyze this SAP support case and suggest the ABAP objects likely needed to implement the solution.
+      const docBlocks = await buildDocumentBlocks();
+      const prompt = `Analyze this SAP support case and suggest the ABAP objects likely needed to implement the solution.${docBlocks.length > 0 ? '\n\nThe attached document(s) above contain the detailed requirements — use them as the primary source.' : ''}
 
 Case title: ${caseData.title}
 Case description: ${caseData.description ?? '(no description)'}
@@ -5169,7 +5270,13 @@ Industry: ${caseData.area_industry ?? 'unknown'}
 Respond with ONLY a JSON array like:
 [{"type":"Report","name":"ZMM_RPT_EXAMPLE","purpose":"One-line purpose"},...]
 
-Include 2-6 objects. Use realistic Z-names. Types can be: Report, Function Module, Enhancement, BAdI, User Exit, Form, Smartform, Program, Class, Interface, Workflow, Table, View, Transaction — whatever fits.`,
+Include 2-6 objects. Use realistic Z-names. Types can be: Report, Function Module, Enhancement, BAdI, User Exit, Form, Smartform, Program, Class, Interface, Workflow, Table, View, Transaction — whatever fits.`;
+      const raw = await callClaude({
+        model: 'claude-haiku-4-5-20251001',
+        system: 'You are an SAP functional consultant. Respond with ONLY a JSON array, no markdown code blocks, no explanation.',
+        messages: [{
+          role: 'user',
+          content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt,
         }],
         max_tokens: 800,
       });
@@ -5260,17 +5367,13 @@ Generate 4-7 targeted questions relevant to the ${obj.type} type (e.g. for a Rep
     setWizardLoading(true);
     setWizardError(null);
     try {
+      const docBlocks = await buildDocumentBlocks();
       const qaSummary = wizardObjects.map(o => {
         const qa = (o.questions ?? []).map(q => `Q: ${q.question}\nA: ${q.a ?? '(not answered)'}`).join('\n');
         return `## Object: ${o.name} (${o.type})\nPurpose: ${o.purpose}\n${qa}`;
       }).join('\n\n---\n\n');
 
-      const spec = await callClaude({
-        model: 'claude-sonnet-5',
-        system: 'You are an SAP functional consultant. Write a professional, structured functional specification in markdown.',
-        messages: [{
-          role: 'user',
-          content: `Write a complete SAP Functional Specification based on this case and interview data.
+      const prompt = `Write a complete SAP Functional Specification based on this case and interview data.${docBlocks.length > 0 ? '\n\nThe attached document(s) above are the original requirements — cross-reference them for completeness.' : ''}
 
 # Case Information
 Title: ${caseData.title}
@@ -5289,7 +5392,14 @@ Write a full markdown functional specification with these sections:
 4. Data Flow
 5. Error Handling & Edge Cases
 6. Testing Requirements
-7. Sign-off`,
+7. Sign-off`;
+
+      const spec = await callClaude({
+        model: 'claude-sonnet-5',
+        system: 'You are an SAP functional consultant. Write a professional, structured functional specification in markdown.',
+        messages: [{
+          role: 'user',
+          content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt,
         }],
         max_tokens: 4000,
       });
@@ -5313,12 +5423,8 @@ Write a full markdown functional specification with these sections:
     setAiGenerating(true);
     setAiError(null);
     try {
-      const result = await callClaude({
-        model: 'claude-sonnet-5',
-        system: 'You are an SAP functional consultant. Write a professional, structured functional specification in markdown.',
-        messages: [{
-          role: 'user',
-          content: `Write a complete SAP Functional Specification for this case.
+      const docBlocks = await buildDocumentBlocks();
+      const prompt = `Write a complete SAP Functional Specification for this case.${docBlocks.length > 0 ? '\n\nThe attached document(s) above are the source requirements — read them carefully and base the specification on their content.' : ''}
 
 # Case Information
 Title: ${caseData.title}
@@ -5337,7 +5443,13 @@ Write a full markdown functional specification with these sections:
 6. Error Handling & Edge Cases
 7. Testing Requirements & Acceptance Criteria
 8. Open Questions & Assumptions
-9. Sign-off`,
+9. Sign-off`;
+      const result = await callClaude({
+        model: 'claude-sonnet-5',
+        system: 'You are an SAP functional consultant. Write a professional, structured functional specification in markdown.',
+        messages: [{
+          role: 'user',
+          content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt,
         }],
         max_tokens: 4000,
       });
@@ -5796,6 +5908,10 @@ Write a full markdown functional specification with these sections:
               }} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50">
                 Save Draft
               </button>
+              <button onClick={() => downloadFormalSpec(compiledSpec)}
+                className="px-4 py-2 text-sm border border-green-200 text-green-700 font-semibold rounded-xl hover:bg-green-50">
+                ↓ Download Document
+              </button>
               {canSubmit && (
                 <button onClick={() => handleSubmit(compiledSpec, 'wizard', wizardObjects)}
                   className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900">
@@ -5869,6 +5985,10 @@ Write a full markdown functional specification with these sections:
                 } catch (e) { alert(e.message); }
               }} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50">
                 Save Draft
+              </button>
+              <button onClick={() => downloadFormalSpec(aiContent)}
+                className="px-4 py-2 text-sm border border-green-200 text-green-700 font-semibold rounded-xl hover:bg-green-50">
+                ↓ Download Document
               </button>
               {canSubmit && (
                 <button onClick={() => handleSubmit(aiContent, 'ai', [])}
