@@ -5239,25 +5239,6 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              {onStatusChange && (() => {
-                const curStage = lifecycleStages.find(s => s.key === caseData.status);
-                const allowedNext  = curStage?.allowed_next?.length  ? curStage.allowed_next  : null;
-                const allowedRoles = curStage?.allowed_roles?.length ? curStage.allowed_roles : null;
-                const canChange = auth.isAdmin || !allowedRoles || allowedRoles.includes(auth.role);
-                if (!canChange) return null;
-                const validNext = allowedNext
-                  ? lifecycleStages.filter(s => allowedNext.includes(s.key))
-                  : lifecycleStages.filter(s => s.key !== caseData.status);
-                if (!validNext.length) return null;
-                return (
-                  <select value=""
-                    onChange={e => { if (!e.target.value) return; e.target.value === "cancelled" ? initCancelModal(caseData.id) : onStatusChange(caseData.id, e.target.value); }}
-                    className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-600">
-                    <option value="">Move to…</option>
-                    {validNext.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-                  </select>
-                );
-              })()}
               {canEditCase && (
                 <button onClick={() => setShowEditWizard(true)}
                   className="text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-3 py-1.5">
