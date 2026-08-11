@@ -6183,7 +6183,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
                 return (
                   <button key={s.key}
                     onClick={() => isCancelled ? initCancelModal(caseData.id) : onStatusChange(caseData.id, s.key)}
-                    className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl border-2 text-left transition-all hover:shadow-md active:scale-[0.98] ${
+                    className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl border-2 text-left transition-all hover:shadow-md active:scale-[0.98] bg-white ${
                       isCancelled
                         ? "border-red-100 hover:border-red-300 hover:bg-red-50"
                         : "border-gray-100 hover:border-blue-200 hover:bg-blue-50/30"
