@@ -5290,6 +5290,67 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
         )}
       </div>
 
+      {/* Next Steps — big action buttons */}
+      {onStatusChange && (() => {
+        const curStage = lifecycleStages.find(s => s.key === caseData.status);
+        if (!curStage || curStage.is_terminal) return null;
+        const allowedNext  = curStage.allowed_next?.length  ? curStage.allowed_next  : null;
+        const allowedRoles = curStage.allowed_roles?.length ? curStage.allowed_roles : null;
+        const canChange = auth.isAdmin || !allowedRoles || allowedRoles.includes(auth.role);
+        if (!canChange) return null;
+        const validNext = allowedNext
+          ? lifecycleStages.filter(s => allowedNext.includes(s.key))
+          : lifecycleStages.filter(s => s.key !== caseData.status);
+        if (!validNext.length) return null;
+
+        const NEXT_META = {
+          open:        { Icon: FolderOpen,   desc: "Re-open this case for further action" },
+          evaluation:  { Icon: Search,       desc: "Move into the evaluation phase" },
+          confirmed:   { Icon: CheckCircle2, desc: "Confirm and move this case forward" },
+          planning:    { Icon: Target,       desc: "Begin planning the work" },
+          in_progress: { Icon: Play,         desc: "Start active work on this case" },
+          review:      { Icon: Activity,     desc: "Send for review before closing" },
+          closed:      { Icon: Archive,      desc: "Mark as successfully completed" },
+          cancelled:   { Icon: X,            desc: "Stop work and close this case" },
+          new:         { Icon: Inbox,        desc: "Mark as a new incoming request" },
+          user_test:   { Icon: Users,        desc: "Send for user testing and sign-off" },
+          returned:    { Icon: RotateCcw,    desc: "Return for rework or additional input" },
+          resolved:    { Icon: CheckCircle2, desc: "Mark this case as fully resolved" },
+        };
+
+        return (
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Next Steps</p>
+            <div className={`grid gap-3 ${validNext.length === 1 ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"}`}>
+              {validNext.map(s => {
+                const { Icon, desc } = NEXT_META[s.key] ?? { Icon: Zap, desc: "Move to this stage" };
+                const isCancelled = s.key === "cancelled";
+                const color = isCancelled ? "#EF4444" : s.color;
+                return (
+                  <button key={s.key}
+                    onClick={() => isCancelled ? initCancelModal(caseData.id) : onStatusChange(caseData.id, s.key)}
+                    className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl border-2 text-left transition-all hover:shadow-md active:scale-[0.98] ${
+                      isCancelled
+                        ? "border-red-100 hover:border-red-300 hover:bg-red-50"
+                        : "border-gray-100 hover:border-blue-200 hover:bg-blue-50/30"
+                    }`}>
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: color + "22" }}>
+                      <Icon className="w-6 h-6" style={{ color }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-gray-900 text-sm">{s.label}</div>
+                      <div className="text-xs text-gray-500 mt-0.5 leading-relaxed">{desc}</div>
+                    </div>
+                    <span className="text-gray-300 text-xl flex-shrink-0">›</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Icon Tiles */}
       <div>
         <div className="flex flex-wrap gap-2 mb-4">
