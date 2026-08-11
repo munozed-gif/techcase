@@ -5103,7 +5103,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   }
 
   async function confirmCancellation() {
-    if (!cancelReason) return;
+    if (!cancelReason || !cancelNotes.trim()) return;
     if (cancelModal.isSubCase) {
       await supabase.from("cases")
         .update({ status: "cancelled", cancellation_reason: cancelReason, cancellation_notes: cancelNotes || null })
@@ -6958,10 +6958,10 @@ function ConsultantDetailModal({ consultantId, auth }) {
 
           <div className="space-y-1.5">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-              Additional notes <span className="normal-case font-normal">(optional)</span>
+              Explanation <span className="text-red-400">*</span>
             </p>
             <textarea value={cancelNotes} onChange={e => setCancelNotes(e.target.value)}
-              rows={3} placeholder="Provide any extra context about why this case is being cancelled…"
+              rows={3} placeholder="Explain why this case is being cancelled…"
               className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-red-100 resize-none text-gray-800 placeholder:text-gray-400 bg-white" />
           </div>
 
@@ -6970,7 +6970,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
               className="px-4 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50">
               Keep Case
             </button>
-            <button onClick={confirmCancellation} disabled={!cancelReason}
+            <button onClick={confirmCancellation} disabled={!cancelReason || !cancelNotes.trim()}
               className="px-5 py-2 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
               Confirm Cancellation
             </button>
