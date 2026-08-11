@@ -5721,6 +5721,27 @@ Write a full markdown functional specification with these sections:
             <span className="text-sm font-semibold text-gray-700">Wizard — Step 1: ABAP Objects</span>
           </div>
 
+          {(documents ?? []).length > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+              <p className="text-xs font-semibold text-blue-700 mb-2">Documents Claude will read:</p>
+              <div className="flex flex-col gap-1">
+                {documents.map(doc => (
+                  <a key={doc.id} href={doc.file_url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 hover:underline">
+                    <span>📎</span>
+                    <span>{doc.file_name}</span>
+                    <span className="text-blue-400">({doc.file_size_kb} KB)</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+          {(documents ?? []).length === 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
+              No documents attached. Upload files in the <span className="font-semibold">Documents</span> tab to help Claude understand the requirements.
+            </div>
+          )}
+
           {wizardObjects.length === 0 && !wizardLoading && (
             <button onClick={suggestObjects}
               className="w-full py-10 border-2 border-dashed border-blue-200 rounded-2xl text-blue-600 hover:bg-blue-50 text-sm font-semibold transition-all">
@@ -5935,13 +5956,34 @@ Write a full markdown functional specification with these sections:
         </div>
 
         {!aiContent && !aiGenerating && (
-          <div className="text-center py-10">
-            <div className="text-4xl mb-3">✨</div>
-            <p className="text-sm text-gray-600 mb-4">Claude will read your case details and write a complete SAP functional specification.</p>
-            <button onClick={handleAiGenerate}
-              className="px-6 py-3 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
-              Generate Specification
-            </button>
+          <div className="space-y-4">
+            {(documents ?? []).length > 0 ? (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                <p className="text-xs font-semibold text-blue-700 mb-2">Documents Claude will read:</p>
+                <div className="flex flex-col gap-1">
+                  {documents.map(doc => (
+                    <a key={doc.id} href={doc.file_url} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 hover:underline">
+                      <span>📎</span>
+                      <span>{doc.file_name}</span>
+                      <span className="text-blue-400">({doc.file_size_kb} KB)</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
+                No documents attached. Upload files in the <span className="font-semibold">Documents</span> tab to help Claude understand the requirements.
+              </div>
+            )}
+            <div className="text-center py-6">
+              <div className="text-4xl mb-3">✨</div>
+              <p className="text-sm text-gray-600 mb-4">Claude will read your case details{(documents ?? []).length > 0 ? ' and the attached documents' : ''} and write a complete SAP functional specification.</p>
+              <button onClick={handleAiGenerate}
+                className="px-6 py-3 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
+                Generate Specification
+              </button>
+            </div>
           </div>
         )}
 
