@@ -2500,6 +2500,8 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         is_confidential: basics.is_confidential,
         nda_required: basics.nda_required,
         ...rest,
+        start_date: rest.start_date || null,
+        due_date: rest.due_date || null,
         budget: scope.budget ? Number(scope.budget) : null,
         skills_required: _skills.split(",").map(s => s.trim()).filter(Boolean),
         client_id:  auth.isClient  ? auth.user?.id : auth.isKeyUser ? keyUserClientId : client_id || null,
@@ -2538,7 +2540,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
           }
           if (milestones.length > 0) {
             await supabase.from("case_milestones").insert(
-              milestones.map(m => ({ ...m, case_id: newCase.id }))
+              milestones.map(m => ({ ...m, due_date: m.due_date || null, case_id: newCase.id }))
             );
           }
         }
