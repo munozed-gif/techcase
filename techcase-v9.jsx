@@ -818,6 +818,63 @@ async function notifyCaseParticipants(caseId, excludeUserId, title, body) {
 }
 // ─────────────────────────────────────────────────────────────
 
+// ── Claude API helper ────────────────────────────────────────
+async function callClaude({ system, messages, max_tokens = 2048, model = 'claude-haiku-4-5-20251001' }) {
+  const res = await fetch('/api/claude', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ system, messages, max_tokens, model }),
+  });
+  if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'Claude API error'); }
+  const data = await res.json();
+  return data.content[0].text;
+}
+// ─────────────────────────────────────────────────────────────
+
+// ── Case Specification hook ──────────────────────────────────
+function useCaseSpecification(caseId, userId) {
+  const [spec, setSpec]       = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchSpec = useCallback(async () => {
+    if (!caseId) { setLoading(false); return; }
+    const { data } = await supabase.from("case_specifications")
+      .select("*")
+      .eq("case_id", caseId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    setSpec(data ?? null);
+    setLoading(false);
+  }, [caseId]);
+
+  useEffect(() => { fetchSpec(); }, [fetchSpec]);
+
+  async function saveSpec(payload) {
+    if (spec?.id) {
+      const { data, error } = await supabase.from("case_specifications")
+        .update({ ...payload, updated_at: new Date().toISOString() })
+        .eq("id", spec.id)
+        .select()
+        .single();
+      if (error) throw error;
+      setSpec(data);
+      return data;
+    } else {
+      const { data, error } = await supabase.from("case_specifications")
+        .insert({ ...payload, case_id: caseId, created_by: userId })
+        .select()
+        .single();
+      if (error) throw error;
+      setSpec(data);
+      return data;
+    }
+  }
+
+  return { spec, loading, saveSpec, refetch: fetchSpec };
+}
+// ─────────────────────────────────────────────────────────────
+
 // Lightweight hook used only in App for the sidebar badge — separate channel name
 function useUnreadCount() {
   const [unreadCount, setUnreadCount] = useState(0);
