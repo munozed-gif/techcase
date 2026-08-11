@@ -6924,9 +6924,8 @@ function ConsultantDetailModal({ consultantId, auth }) {
           </div>
         </div>
       )}
-    </div>
 
-    {/* Cancellation reason modal */}
+      {/* Cancellation reason modal */}
     {cancelModal && (
       <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4"
         onClick={e => e.target === e.currentTarget && setCancelModal(null)}>
@@ -6978,6 +6977,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
         </div>
       </div>
     )}
+    </div>
   );
 }
 
