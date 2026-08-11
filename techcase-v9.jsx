@@ -375,6 +375,7 @@ function useCaseDocuments(caseId) {
     });
     if (error) throw error;
     await fetchDocs();
+    return publicUrl;
   }
 
   async function deleteDocument(id, fileUrl) {
@@ -5095,7 +5096,7 @@ function renderMarkdown(md) {
     .replace(/\n/g, '<br>');
 }
 
-function SpecificationTab({ caseData, auth, documents }) {
+function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocuments }) {
   const { spec, loading: specLoading, saveSpec, refetch } = useCaseSpecification(caseData.id, auth.user?.id);
 
   // Mode selection
@@ -5126,6 +5127,8 @@ function SpecificationTab({ caseData, auth, documents }) {
   const [rejectReason, setRejectReason]   = useState('');
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [approving, setApproving]         = useState(false);
+  const [savedSpecUrl, setSavedSpecUrl]   = useState(null);
+  const [savingDoc, setSavingDoc]         = useState(false);
 
   // ── Document helpers ─────────────────────────────────────────
   function blobToBase64(blob) {
@@ -5164,11 +5167,10 @@ function SpecificationTab({ caseData, auth, documents }) {
     return blocks;
   }
 
-  function downloadFormalSpec(markdown) {
+  function buildSpecHtml(markdown) {
     const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    const safeName = (caseData.title ?? 'Spec').replace(/[^a-z0-9]/gi, '_');
     const bodyHtml = renderMarkdown(markdown);
-    const html = `<!DOCTYPE html>
+    return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -5221,15 +5223,23 @@ function SpecificationTab({ caseData, auth, documents }) {
 </div>
 </body>
 </html>`;
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `FuncSpec_${safeName}_${new Date().toISOString().slice(0, 10)}.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  }
+
+  async function saveSpecAsDocument(markdown) {
+    setSavingDoc(true);
+    try {
+      const safeName = (caseData.title ?? 'Spec').replace(/[^a-z0-9]/gi, '_');
+      const fileName = `FuncSpec_${safeName}_${new Date().toISOString().slice(0, 10)}.html`;
+      const html = buildSpecHtml(markdown);
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const file = new File([blob], fileName, { type: 'text/html' });
+      const url = await addDocument(file, 'Auto-generated functional specification');
+      setSavedSpecUrl(url);
+      if (refetchDocuments) await refetchDocuments();
+    } catch (e) {
+      alert('Could not save document: ' + e.message);
+    }
+    setSavingDoc(false);
   }
 
   const canApprove = auth.isAdmin || auth.isManager || auth.isConsultant;
@@ -5929,10 +5939,17 @@ Write a full markdown functional specification with these sections:
               }} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50">
                 Save Draft
               </button>
-              <button onClick={() => downloadFormalSpec(compiledSpec)}
-                className="px-4 py-2 text-sm border border-green-200 text-green-700 font-semibold rounded-xl hover:bg-green-50">
-                ↓ Download Document
-              </button>
+              {savedSpecUrl ? (
+                <a href={savedSpecUrl} target="_blank" rel="noopener noreferrer"
+                  className="px-4 py-2 text-sm border border-green-300 text-green-700 font-semibold rounded-xl hover:bg-green-50 flex items-center gap-1">
+                  📎 Open Saved Document
+                </a>
+              ) : (
+                <button onClick={() => saveSpecAsDocument(compiledSpec)} disabled={savingDoc}
+                  className="px-4 py-2 text-sm border border-green-200 text-green-700 font-semibold rounded-xl hover:bg-green-50 disabled:opacity-50">
+                  {savingDoc ? 'Saving…' : '📎 Save to Documents'}
+                </button>
+              )}
               {canSubmit && (
                 <button onClick={() => handleSubmit(compiledSpec, 'wizard', wizardObjects)}
                   className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900">
@@ -6028,10 +6045,17 @@ Write a full markdown functional specification with these sections:
               }} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50">
                 Save Draft
               </button>
-              <button onClick={() => downloadFormalSpec(aiContent)}
-                className="px-4 py-2 text-sm border border-green-200 text-green-700 font-semibold rounded-xl hover:bg-green-50">
-                ↓ Download Document
-              </button>
+              {savedSpecUrl ? (
+                <a href={savedSpecUrl} target="_blank" rel="noopener noreferrer"
+                  className="px-4 py-2 text-sm border border-green-300 text-green-700 font-semibold rounded-xl hover:bg-green-50 flex items-center gap-1">
+                  📎 Open Saved Document
+                </a>
+              ) : (
+                <button onClick={() => saveSpecAsDocument(aiContent)} disabled={savingDoc}
+                  className="px-4 py-2 text-sm border border-green-200 text-green-700 font-semibold rounded-xl hover:bg-green-50 disabled:opacity-50">
+                  {savingDoc ? 'Saving…' : '📎 Save to Documents'}
+                </button>
+              )}
               {canSubmit && (
                 <button onClick={() => handleSubmit(aiContent, 'ai', [])}
                   className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900">
@@ -6053,7 +6077,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const { milestones, toggleMilestone, addMilestone } = useMilestones(caseData.id);
   const { comments, addComment } = useCaseComments(caseData.id);
   const { subCases, createSubCase } = useSubCases(caseData.id);
-  const { documents, addDocument, deleteDocument } = useCaseDocuments(caseData.id);
+  const { documents, addDocument, deleteDocument, refetch: refetchDocuments } = useCaseDocuments(caseData.id);
   const { entries: timeEntries, addTimeEntry, approveEntry } = useTimeEntries(caseData.id);
 
   const [activeTab, setActiveTab]   = useState("detail");
@@ -7012,7 +7036,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
       {/* Lifecycle Tab */}
       {/* Spec Tab */}
       {activeTab === "spec" && (
-        <SpecificationTab caseData={caseData} auth={auth} documents={documents} />
+        <SpecificationTab caseData={caseData} auth={auth} documents={documents} addDocument={addDocument} refetchDocuments={refetchDocuments} />
       )}
 
       {activeTab === "lifecycle" && (auth.isAdmin || auth.isManager || auth.isClient) && (() => {
