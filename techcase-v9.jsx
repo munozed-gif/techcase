@@ -5071,6 +5071,819 @@ function LifecycleFlowDiagram({ stages, currentStatus }) {
   );
 }
 
+// ============================================================
+// SPECIFICATION TAB
+// ============================================================
+
+function renderMarkdown(md) {
+  if (!md) return "";
+  return md
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/^#{4}\s+(.+)$/gm, '<h4 style="font-size:0.875rem;font-weight:700;margin:0.75rem 0 0.25rem">$1</h4>')
+    .replace(/^#{3}\s+(.+)$/gm, '<h3 style="font-size:1rem;font-weight:700;margin:1rem 0 0.375rem">$1</h3>')
+    .replace(/^#{2}\s+(.+)$/gm, '<h2 style="font-size:1.125rem;font-weight:700;margin:1.25rem 0 0.5rem;color:#1A4B8C">$1</h2>')
+    .replace(/^#\s+(.+)$/gm, '<h1 style="font-size:1.25rem;font-weight:800;margin:1.5rem 0 0.5rem;color:#1A4B8C">$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code style="background:#f3f4f6;padding:0.1em 0.3em;border-radius:3px;font-size:0.85em">$1</code>')
+    .replace(/^---$/gm, '<hr style="border:none;border-top:1px solid #e5e7eb;margin:1rem 0">')
+    .replace(/^\s*[-*]\s+(.+)$/gm, '<li style="margin:0.25rem 0 0.25rem 1rem;list-style:disc">$1</li>')
+    .replace(/^\d+\.\s+(.+)$/gm, '<li style="margin:0.25rem 0 0.25rem 1rem;list-style:decimal">$1</li>')
+    .replace(/\n{2,}/g, '</p><p style="margin:0.5rem 0">')
+    .replace(/\n/g, '<br>');
+}
+
+function SpecificationTab({ caseData, auth, documents }) {
+  const { spec, loading: specLoading, saveSpec, refetch } = useCaseSpecification(caseData.id, auth.user?.id);
+
+  // Mode selection
+  const [mode, setMode] = useState(null); // null | 'manual' | 'wizard' | 'ai'
+
+  // Wizard state
+  const [wizardStage, setWizardStage]       = useState('objects'); // 'objects' | 'interview' | 'preview'
+  const [wizardObjects, setWizardObjects]   = useState([]);
+  const [currentObjIdx, setCurrentObjIdx]  = useState(0);
+  const [wizardLoading, setWizardLoading]  = useState(false);
+  const [wizardError, setWizardError]      = useState(null);
+  const [addObjName, setAddObjName]        = useState('');
+  const [addObjType, setAddObjType]        = useState('');
+  const [compiledSpec, setCompiledSpec]    = useState('');
+
+  // AI Generate state
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiContent, setAiContent]       = useState('');
+  const [aiEditing, setAiEditing]       = useState(false);
+  const [aiError, setAiError]           = useState(null);
+
+  // Manual state
+  const [manualNotes, setManualNotes]     = useState('');
+  const [manualDocIds, setManualDocIds]   = useState([]);
+  const [manualSaving, setManualSaving]   = useState(false);
+
+  // Approval
+  const [rejectReason, setRejectReason]   = useState('');
+  const [showRejectInput, setShowRejectInput] = useState(false);
+  const [approving, setApproving]         = useState(false);
+
+  const canApprove = auth.isAdmin || auth.isManager || auth.isConsultant;
+  const canSubmit  = auth.isClient || auth.isKeyUser || auth.isAdmin || auth.isManager || auth.isConsultant;
+
+  // Pre-fill from existing spec when mode is selected
+  useEffect(() => {
+    if (!spec) return;
+    if (spec.mode === 'manual') {
+      setManualNotes(spec.notes ?? '');
+      setManualDocIds(spec.document_ids ?? []);
+    } else if (spec.mode === 'ai') {
+      setAiContent(spec.content ?? '');
+    } else if (spec.mode === 'wizard') {
+      setWizardObjects(spec.objects ?? []);
+      if ((spec.objects ?? []).length > 0) {
+        const allAnswered = (spec.objects ?? []).every(o => (o.questions ?? []).every(q => q.a));
+        setWizardStage(spec.content ? 'preview' : allAnswered ? 'preview' : 'interview');
+        setCompiledSpec(spec.content ?? '');
+      }
+    }
+    setMode(spec.mode);
+  }, [spec]);
+
+  // ── WIZARD helpers ──────────────────────────────────────────
+  async function suggestObjects() {
+    setWizardLoading(true);
+    setWizardError(null);
+    try {
+      const raw = await callClaude({
+        model: 'claude-haiku-4-5-20251001',
+        system: 'You are an SAP functional consultant. Respond with ONLY a JSON array, no markdown code blocks, no explanation.',
+        messages: [{
+          role: 'user',
+          content: `Analyze this SAP support case and suggest the ABAP objects likely needed to implement the solution.
+
+Case title: ${caseData.title}
+Case description: ${caseData.description ?? '(no description)'}
+SAP area: ${caseData.area_sap ?? 'unknown'}
+Industry: ${caseData.area_industry ?? 'unknown'}
+
+Respond with ONLY a JSON array like:
+[{"type":"Report","name":"ZMM_RPT_EXAMPLE","purpose":"One-line purpose"},...]
+
+Include 2-6 objects. Use realistic Z-names. Types can be: Report, Function Module, Enhancement, BAdI, User Exit, Form, Smartform, Program, Class, Interface, Workflow, Table, View, Transaction — whatever fits.`,
+        }],
+        max_tokens: 800,
+      });
+      let parsed;
+      try { parsed = JSON.parse(raw.trim()); } catch (_) {
+        const m = raw.match(/\[[\s\S]*\]/);
+        parsed = m ? JSON.parse(m[0]) : [];
+      }
+      setWizardObjects((parsed ?? []).map(o => ({ ...o, questions: [] })));
+    } catch (e) {
+      setWizardError(e.message);
+    }
+    setWizardLoading(false);
+  }
+
+  async function generateQuestionsForObject(obj) {
+    const raw = await callClaude({
+      model: 'claude-haiku-4-5-20251001',
+      system: 'You are an SAP functional consultant creating a requirements interview. Respond with ONLY a JSON array, no markdown code blocks.',
+      messages: [{
+        role: 'user',
+        content: `Generate specific interview questions for this SAP ABAP object.
+
+Object type: ${obj.type}
+Object name: ${obj.name}
+Purpose: ${obj.purpose}
+Case context: ${caseData.title} — ${caseData.description ?? ''}
+
+Return ONLY a JSON array like:
+[{"id":"q1","question":"Question text","type":"text","options":null},...]
+
+For "type" use: "text" for short answers, "multiline" for long descriptions, "select" for predefined choices.
+For "select" type include "options": ["Option A","Option B",...].
+Generate 4-7 targeted questions relevant to the ${obj.type} type (e.g. for a Report: selection screen parameters, columns, subtotals, output format; for a Function Module: imports, exports, exceptions, tables; for an Enhancement/BAdI: trigger point, what to change, fallback behavior).`,
+      }],
+      max_tokens: 1000,
+    });
+    let parsed;
+    try { parsed = JSON.parse(raw.trim()); } catch (_) {
+      const m = raw.match(/\[[\s\S]*\]/);
+      parsed = m ? JSON.parse(m[0]) : [];
+    }
+    return parsed ?? [];
+  }
+
+  async function handleStartInterview() {
+    if (wizardObjects.length === 0) return;
+    setWizardLoading(true);
+    setWizardError(null);
+    try {
+      const first = wizardObjects[0];
+      if (!first.questions || first.questions.length === 0) {
+        const qs = await generateQuestionsForObject(first);
+        setWizardObjects(prev => prev.map((o, i) => i === 0 ? { ...o, questions: qs } : o));
+      }
+      setCurrentObjIdx(0);
+      setWizardStage('interview');
+    } catch (e) {
+      setWizardError(e.message);
+    }
+    setWizardLoading(false);
+  }
+
+  async function handleNextObject() {
+    const next = currentObjIdx + 1;
+    if (next >= wizardObjects.length) {
+      // All done — compile
+      await handleCompileSpec();
+      return;
+    }
+    setWizardLoading(true);
+    setWizardError(null);
+    try {
+      const nextObj = wizardObjects[next];
+      if (!nextObj.questions || nextObj.questions.length === 0) {
+        const qs = await generateQuestionsForObject(nextObj);
+        setWizardObjects(prev => prev.map((o, i) => i === next ? { ...o, questions: qs } : o));
+      }
+      setCurrentObjIdx(next);
+    } catch (e) {
+      setWizardError(e.message);
+    }
+    setWizardLoading(false);
+  }
+
+  async function handleCompileSpec() {
+    setWizardStage('preview');
+    setWizardLoading(true);
+    setWizardError(null);
+    try {
+      const qaSummary = wizardObjects.map(o => {
+        const qa = (o.questions ?? []).map(q => `Q: ${q.question}\nA: ${q.a ?? '(not answered)'}`).join('\n');
+        return `## Object: ${o.name} (${o.type})\nPurpose: ${o.purpose}\n${qa}`;
+      }).join('\n\n---\n\n');
+
+      const spec = await callClaude({
+        model: 'claude-sonnet-5',
+        system: 'You are an SAP functional consultant. Write a professional, structured functional specification in markdown.',
+        messages: [{
+          role: 'user',
+          content: `Write a complete SAP Functional Specification based on this case and interview data.
+
+# Case Information
+Title: ${caseData.title}
+Description: ${caseData.description ?? ''}
+SAP Area: ${caseData.area_sap ?? ''}
+Industry: ${caseData.area_industry ?? ''}
+Key User: ${caseData.key_user_email ?? ''}
+
+# Interview Q&A per Object
+${qaSummary}
+
+Write a full markdown functional specification with these sections:
+1. Overview & Scope
+2. Business Requirements
+3. For each ABAP object: Technical Specification (object name, type, description, detailed design)
+4. Data Flow
+5. Error Handling & Edge Cases
+6. Testing Requirements
+7. Sign-off`,
+        }],
+        max_tokens: 4000,
+      });
+      setCompiledSpec(spec);
+    } catch (e) {
+      setWizardError(e.message);
+    }
+    setWizardLoading(false);
+  }
+
+  function updateAnswer(objIdx, qId, value) {
+    setWizardObjects(prev => prev.map((o, i) =>
+      i === objIdx
+        ? { ...o, questions: o.questions.map(q => q.id === qId ? { ...q, a: value } : q) }
+        : o
+    ));
+  }
+
+  // ── AI Generate ─────────────────────────────────────────────
+  async function handleAiGenerate() {
+    setAiGenerating(true);
+    setAiError(null);
+    try {
+      const result = await callClaude({
+        model: 'claude-sonnet-5',
+        system: 'You are an SAP functional consultant. Write a professional, structured functional specification in markdown.',
+        messages: [{
+          role: 'user',
+          content: `Write a complete SAP Functional Specification for this case.
+
+# Case Information
+Title: ${caseData.title}
+Description: ${caseData.description ?? '(none)'}
+SAP Area: ${caseData.area_sap ?? ''}
+Industry: ${caseData.area_industry ?? ''}
+Key User Email: ${caseData.key_user_email ?? ''}
+Priority: ${caseData.priority ?? ''}
+
+Write a full markdown functional specification with these sections:
+1. Overview & Scope
+2. Business Requirements & Objectives
+3. Functional Design (proposed ABAP objects with details)
+4. Technical Approach
+5. Data Flow & Integration Points
+6. Error Handling & Edge Cases
+7. Testing Requirements & Acceptance Criteria
+8. Open Questions & Assumptions
+9. Sign-off`,
+        }],
+        max_tokens: 4000,
+      });
+      setAiContent(result);
+    } catch (e) {
+      setAiError(e.message);
+    }
+    setAiGenerating(false);
+  }
+
+  // ── Approval helpers ─────────────────────────────────────────
+  async function handleSubmit(specContent, specMode, specObjects) {
+    try {
+      await saveSpec({
+        mode: specMode,
+        status: 'submitted',
+        content: specContent ?? null,
+        objects: specObjects ?? [],
+        notes: specMode === 'manual' ? manualNotes : null,
+        document_ids: specMode === 'manual' ? manualDocIds : [],
+        title: caseData.title + ' — Functional Spec',
+      });
+      await refetch();
+    } catch (e) { alert(e.message); }
+  }
+
+  async function handleApprove() {
+    setApproving(true);
+    try {
+      await saveSpec({ status: 'approved', approved_by: auth.user?.id, approved_at: new Date().toISOString(), rejected_reason: null });
+      await refetch();
+    } catch (e) { alert(e.message); }
+    setApproving(false);
+  }
+
+  async function handleReject() {
+    if (!rejectReason.trim()) return;
+    setApproving(true);
+    try {
+      await saveSpec({ status: 'rejected', rejected_reason: rejectReason, approved_by: null, approved_at: null });
+      setShowRejectInput(false);
+      setRejectReason('');
+      await refetch();
+    } catch (e) { alert(e.message); }
+    setApproving(false);
+  }
+
+  // ── Loading state ────────────────────────────────────────────
+  if (specLoading) {
+    return (
+      <div className="flex items-center justify-center py-16 text-gray-400">
+        <Spinner />
+        <span className="ml-3 text-sm">Loading specification…</span>
+      </div>
+    );
+  }
+
+  // ── Spec already exists — show it ───────────────────────────
+  if (spec && mode === spec.mode && !['draft'].includes(spec.status) && spec.status !== 'rejected') {
+    const statusColors = {
+      submitted: 'bg-amber-100 text-amber-700 border border-amber-200',
+      approved:  'bg-green-100 text-green-700 border border-green-200',
+      rejected:  'bg-red-100 text-red-700 border border-red-200',
+      draft:     'bg-gray-100 text-gray-600 border border-gray-200',
+    };
+    return (
+      <div className="space-y-4">
+        {/* Status banner */}
+        {spec.status === 'approved' && (
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+            <div>
+              <p className="font-semibold text-green-800 text-sm">Specification Approved</p>
+              {spec.approved_at && <p className="text-xs text-green-600 mt-0.5">Approved on {fmtDate(spec.approved_at)}</p>}
+            </div>
+          </div>
+        )}
+        {spec.status === 'submitted' && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
+            <Clock className="w-5 h-5 text-amber-600 flex-shrink-0" />
+            <p className="text-sm text-amber-800 font-medium">Submitted — awaiting approval</p>
+          </div>
+        )}
+
+        {/* Header row */}
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4 text-blue-600" />
+            <span className="font-semibold text-gray-900 text-sm">{spec.title || 'Functional Specification'}</span>
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusColors[spec.status]}`}>
+              {spec.status.charAt(0).toUpperCase() + spec.status.slice(1)}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            {spec.mode === 'ai' && spec.status === 'approved' && (auth.isAdmin || auth.isManager) && (
+              <button onClick={() => { setMode('ai'); setAiContent(spec.content ?? ''); setAiGenerating(false); }}
+                className="px-3 py-1.5 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
+                Re-generate
+              </button>
+            )}
+            {spec.status === 'submitted' && canApprove && (
+              <Fragment>
+                <button onClick={handleApprove} disabled={approving}
+                  className="px-3 py-1.5 text-xs font-semibold bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
+                  {approving ? 'Saving…' : 'Approve'}
+                </button>
+                <button onClick={() => setShowRejectInput(p => !p)}
+                  className="px-3 py-1.5 text-xs font-semibold border border-red-200 text-red-600 rounded-lg hover:bg-red-50">
+                  Reject
+                </button>
+              </Fragment>
+            )}
+          </div>
+        </div>
+
+        {showRejectInput && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-2">
+            <label className="block text-xs font-semibold text-red-700">Rejection reason</label>
+            <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)}
+              className="w-full border border-red-200 rounded-lg p-2 text-sm resize-none" rows={3}
+              placeholder="Explain why the spec is being rejected…" />
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setShowRejectInput(false)} className="px-3 py-1.5 text-xs text-gray-500">Cancel</button>
+              <button onClick={handleReject} disabled={!rejectReason.trim() || approving}
+                className="px-3 py-1.5 text-xs font-semibold bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50">
+                Confirm Rejection
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Content */}
+        {spec.content && (
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 text-sm text-gray-800 leading-relaxed overflow-x-auto"
+            dangerouslySetInnerHTML={{ __html: '<p style="margin:0.5rem 0">' + renderMarkdown(spec.content) + '</p>' }} />
+        )}
+        {spec.mode === 'wizard' && !spec.content && (spec.objects ?? []).length > 0 && (
+          <div className="space-y-3">
+            {(spec.objects ?? []).map((o, i) => (
+              <div key={i} className="border border-gray-200 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-semibold px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">{o.type}</span>
+                  <span className="font-mono text-sm font-semibold text-gray-900">{o.name}</span>
+                </div>
+                <p className="text-xs text-gray-500 mb-3">{o.purpose}</p>
+                <div className="space-y-2">
+                  {(o.questions ?? []).filter(q => q.a).map(q => (
+                    <div key={q.id} className="text-xs">
+                      <span className="font-semibold text-gray-700">{q.question}: </span>
+                      <span className="text-gray-600">{q.a}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {spec.mode === 'manual' && (
+          <div>
+            {spec.notes && <p className="text-sm text-gray-700 whitespace-pre-wrap">{spec.notes}</p>}
+            {(spec.document_ids ?? []).length > 0 && (
+              <p className="text-xs text-gray-500 mt-2">{spec.document_ids.length} document(s) attached</p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Mode selection ───────────────────────────────────────────
+  if (!mode) {
+    return (
+      <div className="space-y-4">
+        {spec && spec.status === 'rejected' && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+            <p className="text-sm font-semibold text-red-800">Specification Rejected</p>
+            {spec.rejected_reason && <p className="text-xs text-red-600 mt-1">{spec.rejected_reason}</p>}
+            <p className="text-xs text-gray-500 mt-2">Choose a mode below to create a new version.</p>
+          </div>
+        )}
+        {spec && spec.status === 'draft' && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center gap-2">
+            <FileText className="w-4 h-4 text-blue-500 flex-shrink-0" />
+            <p className="text-xs text-blue-700">A draft spec exists. Select its mode below to continue editing, or start fresh with another mode.</p>
+          </div>
+        )}
+        <p className="text-sm font-semibold text-gray-700">How would you like to create the functional specification?</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            { key: 'manual', emoji: '📎', title: 'Manual', desc: 'Attach documents and write the scope manually.' },
+            { key: 'wizard', emoji: '🧙', title: 'Wizard', desc: 'AI-guided interview per ABAP object. Drill down into every field and parameter.' },
+            { key: 'ai',     emoji: '✨', title: 'AI Generate', desc: 'Claude reads your case and writes the full functional spec automatically.' },
+          ].map(card => (
+            <button key={card.key} onClick={() => setMode(card.key)}
+              className="text-left p-5 border-2 border-gray-200 rounded-2xl hover:border-blue-400 hover:bg-blue-50/40 transition-all group">
+              <div className="text-3xl mb-3">{card.emoji}</div>
+              <div className="font-bold text-gray-900 text-sm mb-1 group-hover:text-blue-700">{card.title}</div>
+              <p className="text-xs text-gray-500 leading-relaxed">{card.desc}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Manual mode ──────────────────────────────────────────────
+  if (mode === 'manual') {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <button onClick={() => setMode(null)} className="text-xs text-gray-400 hover:text-gray-600">← Back</button>
+          <span className="text-sm font-semibold text-gray-700">Manual Specification</span>
+        </div>
+
+        {documents.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Attach Documents</p>
+            <div className="space-y-2">
+              {documents.map(doc => (
+                <label key={doc.id} className="flex items-center gap-3 p-3 border border-gray-200 rounded-xl hover:bg-gray-50 cursor-pointer">
+                  <input type="checkbox" checked={manualDocIds.includes(doc.id)}
+                    onChange={e => setManualDocIds(prev => e.target.checked ? [...prev, doc.id] : prev.filter(id => id !== doc.id))}
+                    className="rounded" />
+                  <Paperclip className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <span className="text-sm text-gray-700 truncate">{doc.file_name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Scope / Notes</label>
+          <textarea value={manualNotes} onChange={e => setManualNotes(e.target.value)} rows={8}
+            placeholder="Describe the scope, requirements, and any important notes for this functional specification…"
+            className="w-full border border-gray-200 rounded-xl p-3 text-sm resize-y focus:outline-none focus:border-blue-400" />
+        </div>
+
+        <div className="flex items-center gap-3 justify-end pt-2 border-t border-gray-100">
+          <button disabled={manualSaving} onClick={async () => {
+            setManualSaving(true);
+            try {
+              await saveSpec({ mode: 'manual', status: 'draft', notes: manualNotes, document_ids: manualDocIds, title: caseData.title + ' — Functional Spec' });
+              await refetch();
+            } catch (e) { alert(e.message); }
+            setManualSaving(false);
+          }} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-50">
+            {manualSaving ? 'Saving…' : 'Save Draft'}
+          </button>
+          {canSubmit && (
+            <button disabled={manualSaving} onClick={() => handleSubmit(null, 'manual', [])}
+              className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
+              Submit for Approval
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Wizard mode ──────────────────────────────────────────────
+  if (mode === 'wizard') {
+    // Stage 1: object suggestion
+    if (wizardStage === 'objects') {
+      return (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <button onClick={() => setMode(null)} className="text-xs text-gray-400 hover:text-gray-600">← Back</button>
+            <span className="text-sm font-semibold text-gray-700">Wizard — Step 1: ABAP Objects</span>
+          </div>
+
+          {wizardObjects.length === 0 && !wizardLoading && (
+            <button onClick={suggestObjects}
+              className="w-full py-10 border-2 border-dashed border-blue-200 rounded-2xl text-blue-600 hover:bg-blue-50 text-sm font-semibold transition-all">
+              Analyze case and suggest ABAP objects →
+            </button>
+          )}
+
+          {wizardLoading && (
+            <div className="flex items-center justify-center py-12 gap-3 text-gray-400">
+              <Spinner />
+              <span className="text-sm">Analyzing your case requirements…</span>
+            </div>
+          )}
+
+          {wizardError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{wizardError}</div>
+          )}
+
+          {wizardObjects.length > 0 && (
+            <Fragment>
+              <div className="space-y-2">
+                {wizardObjects.map((obj, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 border border-gray-200 rounded-xl">
+                    <span className="text-xs font-semibold px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full flex-shrink-0">{obj.type}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="font-mono text-sm font-semibold text-gray-900">{obj.name}</span>
+                      <span className="text-xs text-gray-500 ml-2">{obj.purpose}</span>
+                    </div>
+                    <button onClick={() => setWizardObjects(prev => prev.filter((_, j) => j !== i))}
+                      className="text-red-400 hover:text-red-600 p-1 rounded hover:bg-red-50 flex-shrink-0">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Add object row */}
+              <div className="flex items-center gap-2">
+                <input value={addObjName} onChange={e => setAddObjName(e.target.value)}
+                  placeholder="Object name (e.g. ZMM_RPT_001)"
+                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+                <input value={addObjType} onChange={e => setAddObjType(e.target.value)}
+                  placeholder="Type (e.g. Report)"
+                  className="w-36 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+                <button onClick={() => {
+                  if (!addObjName.trim()) return;
+                  setWizardObjects(prev => [...prev, { name: addObjName.trim(), type: addObjType.trim() || 'Object', purpose: '', questions: [] }]);
+                  setAddObjName(''); setAddObjType('');
+                }} className="px-3 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 flex-shrink-0">
+                  + Add
+                </button>
+              </div>
+
+              <div className="flex justify-end pt-2 border-t border-gray-100">
+                <button onClick={handleStartInterview} disabled={wizardObjects.length === 0 || wizardLoading}
+                  className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
+                  Start Interview →
+                </button>
+              </div>
+            </Fragment>
+          )}
+        </div>
+      );
+    }
+
+    // Stage 2: per-object interview
+    if (wizardStage === 'interview') {
+      const curObj = wizardObjects[currentObjIdx];
+      const allCurrentAnswered = (curObj?.questions ?? []).every(q => q.a?.trim());
+
+      return (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button onClick={() => setWizardStage('objects')} className="text-xs text-gray-400 hover:text-gray-600">← Objects</button>
+              <span className="text-sm font-semibold text-gray-700">Interview</span>
+            </div>
+            <span className="text-xs text-gray-400">Object {currentObjIdx + 1} of {wizardObjects.length}</span>
+          </div>
+
+          {/* Progress bar */}
+          <div className="w-full bg-gray-100 rounded-full h-1.5">
+            <div className="bg-blue-500 h-1.5 rounded-full transition-all"
+              style={{ width: `${((currentObjIdx + 1) / wizardObjects.length) * 100}%` }} />
+          </div>
+
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-semibold px-2 py-0.5 bg-blue-200 text-blue-800 rounded-full">{curObj?.type}</span>
+              <span className="font-mono text-sm font-bold text-gray-900">{curObj?.name}</span>
+            </div>
+            {curObj?.purpose && <p className="text-xs text-blue-700">{curObj.purpose}</p>}
+          </div>
+
+          {wizardLoading && (
+            <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
+              <Spinner />
+              <span className="text-sm">Generating questions for this {curObj?.type}…</span>
+            </div>
+          )}
+
+          {wizardError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{wizardError}</div>
+          )}
+
+          {!wizardLoading && (curObj?.questions ?? []).length > 0 && (
+            <div className="space-y-4">
+              {(curObj.questions ?? []).map((q) => (
+                <div key={q.id} className="space-y-1.5">
+                  <label className="block text-sm font-medium text-gray-700">{q.question}</label>
+                  {q.type === 'select' && Array.isArray(q.options) ? (
+                    <select value={q.a ?? ''} onChange={e => updateAnswer(currentObjIdx, q.id, e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+                      <option value="">Select an option…</option>
+                      {q.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                  ) : q.type === 'multiline' ? (
+                    <textarea value={q.a ?? ''} onChange={e => updateAnswer(currentObjIdx, q.id, e.target.value)}
+                      rows={3} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-y focus:outline-none focus:border-blue-400"
+                      placeholder="Describe in detail…" />
+                  ) : (
+                    <input type="text" value={q.a ?? ''} onChange={e => updateAnswer(currentObjIdx, q.id, e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+                      placeholder="Your answer…" />
+                  )}
+                </div>
+              ))}
+
+              <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+                <button onClick={() => { setCurrentObjIdx(p => Math.max(0, p - 1)); }} disabled={currentObjIdx === 0}
+                  className="px-3 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-30">
+                  ← Prev
+                </button>
+                <button onClick={handleNextObject} disabled={!allCurrentAnswered || wizardLoading}
+                  className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
+                  {currentObjIdx === wizardObjects.length - 1 ? 'Compile Specification →' : 'Next Object →'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Stage 3: preview
+    if (wizardStage === 'preview') {
+      return (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <button onClick={() => setWizardStage('interview')} className="text-xs text-gray-400 hover:text-gray-600">← Interview</button>
+              <span className="text-sm font-semibold text-gray-700">Compiled Specification</span>
+            </div>
+            {canSubmit && compiledSpec && (
+              <button onClick={() => handleSubmit(compiledSpec, 'wizard', wizardObjects)}
+                className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900">
+                Submit for Approval
+              </button>
+            )}
+          </div>
+
+          {wizardLoading && (
+            <div className="flex items-center justify-center py-12 gap-3 text-gray-400">
+              <Spinner />
+              <span className="text-sm">Compiling specification…</span>
+            </div>
+          )}
+
+          {wizardError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{wizardError}</div>
+          )}
+
+          {!wizardLoading && compiledSpec && (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 text-sm text-gray-800 leading-relaxed overflow-x-auto"
+              dangerouslySetInnerHTML={{ __html: '<p style="margin:0.5rem 0">' + renderMarkdown(compiledSpec) + '</p>' }} />
+          )}
+
+          {!wizardLoading && compiledSpec && (
+            <div className="flex gap-3 justify-end pt-2 border-t border-gray-100">
+              <button onClick={async () => {
+                try {
+                  await saveSpec({ mode: 'wizard', status: 'draft', content: compiledSpec, objects: wizardObjects, title: caseData.title + ' — Functional Spec' });
+                  await refetch();
+                } catch (e) { alert(e.message); }
+              }} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50">
+                Save Draft
+              </button>
+              {canSubmit && (
+                <button onClick={() => handleSubmit(compiledSpec, 'wizard', wizardObjects)}
+                  className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900">
+                  Submit for Approval
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+  }
+
+  // ── AI Generate mode ─────────────────────────────────────────
+  if (mode === 'ai') {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <button onClick={() => setMode(null)} className="text-xs text-gray-400 hover:text-gray-600">← Back</button>
+          <span className="text-sm font-semibold text-gray-700">AI Generate</span>
+        </div>
+
+        {!aiContent && !aiGenerating && (
+          <div className="text-center py-10">
+            <div className="text-4xl mb-3">✨</div>
+            <p className="text-sm text-gray-600 mb-4">Claude will read your case details and write a complete SAP functional specification.</p>
+            <button onClick={handleAiGenerate}
+              className="px-6 py-3 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
+              Generate Specification
+            </button>
+          </div>
+        )}
+
+        {aiGenerating && (
+          <div className="flex items-center justify-center py-16 gap-3 text-gray-400">
+            <Spinner />
+            <span className="text-sm">Claude is writing your functional specification…</span>
+          </div>
+        )}
+
+        {aiError && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{aiError}</div>
+        )}
+
+        {aiContent && !aiGenerating && (
+          <Fragment>
+            <div className="flex items-center gap-2 justify-end flex-wrap">
+              <button onClick={() => setAiEditing(p => !p)}
+                className="px-3 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">
+                {aiEditing ? 'Preview' : 'Edit'}
+              </button>
+              <button onClick={handleAiGenerate}
+                className="px-3 py-1.5 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
+                Re-generate
+              </button>
+            </div>
+
+            {aiEditing ? (
+              <textarea value={aiContent} onChange={e => setAiContent(e.target.value)} rows={20}
+                className="w-full border border-gray-200 rounded-xl p-4 text-sm font-mono resize-y focus:outline-none focus:border-blue-400" />
+            ) : (
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 text-sm text-gray-800 leading-relaxed overflow-x-auto"
+                dangerouslySetInnerHTML={{ __html: '<p style="margin:0.5rem 0">' + renderMarkdown(aiContent) + '</p>' }} />
+            )}
+
+            <div className="flex gap-3 justify-end pt-2 border-t border-gray-100">
+              <button onClick={async () => {
+                try {
+                  await saveSpec({ mode: 'ai', status: 'draft', content: aiContent, title: caseData.title + ' — Functional Spec' });
+                  await refetch();
+                } catch (e) { alert(e.message); }
+              }} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50">
+                Save Draft
+              </button>
+              {canSubmit && (
+                <button onClick={() => handleSubmit(aiContent, 'ai', [])}
+                  className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900">
+                  Submit for Approval
+                </button>
+              )}
+            </div>
+          </Fragment>
+        )}
+      </div>
+    );
+  }
+
+  return null;
+}
+
 function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdate, onBack }) {
   const { applications, apply, reviewApplication } = useApplications(caseData.id);
   const { milestones, toggleMilestone, addMilestone } = useMilestones(caseData.id);
@@ -5268,6 +6081,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
     { id: "time",       label: "Time",         icon: Clock,         count: `${totalTimeHours.toFixed(1)}h` },
     ...(auth.isAdmin || auth.isManager ? [{ id: "applications", label: "Applications", icon: Users, count: applications.length }] : []),
     ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "lifecycle", label: "Lifecycle", icon: TrendingUp, count: null }] : []),
+    { id: "spec", label: "Spec", icon: FileText, count: null },
   ];
 
   return (
@@ -6032,6 +6846,11 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
       )}
 
       {/* Lifecycle Tab */}
+      {/* Spec Tab */}
+      {activeTab === "spec" && (
+        <SpecificationTab caseData={caseData} auth={auth} documents={documents} />
+      )}
+
       {activeTab === "lifecycle" && (auth.isAdmin || auth.isManager || auth.isClient) && (() => {
         const caseOverrideAllowed = clientLifecycle?.allow_case_override ?? true;
         const tmplList = caseLcTemplates.length ? caseLcTemplates : Object.entries(LIFECYCLE_PRESETS).map(([k, v]) => ({ key: k, ...v }));
