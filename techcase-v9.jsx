@@ -4621,8 +4621,8 @@ function CasesView({ auth }) {
     : visibleCases;
   const displayed = showFavOnly ? projectFiltered.filter(c => isFavorite(c.id)) : projectFiltered;
 
-  async function handleStatusChange(caseId, status) {
-    await updateCase(caseId, { status });
+  async function handleStatusChange(caseId, status, extras = {}) {
+    await updateCase(caseId, { status, ...extras });
     if (selectedCase?.id === caseId) setSelected(prev => ({ ...prev, status }));
   }
 
@@ -5044,6 +5044,9 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
 
   const [showEditWizard, setShowEditWizard] = useState(false);
   const [clientLifecycle, setClientLifecycle] = useState(null);
+  const [cancelModal, setCancelModal] = useState(null); // { caseId, isSubCase }
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelNotes, setCancelNotes] = useState("");
   const [projectLifecycle, setProjectLifecycle] = useState(null);
   const [lcMode, setLcMode] = useState(caseData.case_lifecycle?.preset ?? "standard");
   const [savingLc, setSavingLc] = useState(false);
@@ -5080,6 +5083,39 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
       await onUpdate(caseData.id, { case_lifecycle: { preset: lcMode } });
     } catch (e) { alert(e.message); }
     setSavingLc(false);
+  }
+
+  const CANCEL_REASONS = [
+    "Client withdrew the request",
+    "Budget constraints",
+    "Timeline not feasible",
+    "Requirements changed",
+    "Duplicate case",
+    "No suitable candidate found",
+    "Project completed differently",
+    "Other",
+  ];
+
+  function initCancelModal(caseId, isSubCase = false) {
+    setCancelReason("");
+    setCancelNotes("");
+    setCancelModal({ caseId, isSubCase });
+  }
+
+  async function confirmCancellation() {
+    if (!cancelReason) return;
+    if (cancelModal.isSubCase) {
+      await supabase.from("cases")
+        .update({ status: "cancelled", cancellation_reason: cancelReason, cancellation_notes: cancelNotes || null })
+        .eq("id", cancelModal.caseId);
+      setSelectedSubCase(prev => ({ ...prev, status: "cancelled" }));
+    } else {
+      await onStatusChange(cancelModal.caseId, "cancelled", {
+        cancellation_reason: cancelReason,
+        cancellation_notes: cancelNotes || null,
+      });
+    }
+    setCancelModal(null);
   }
 
   const myApp = applications.find(a => a.consultant_id === auth.user?.id);
@@ -5215,7 +5251,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
                 if (!validNext.length) return null;
                 return (
                   <select value=""
-                    onChange={e => { if (e.target.value) onStatusChange(caseData.id, e.target.value); }}
+                    onChange={e => { if (!e.target.value) return; e.target.value === "cancelled" ? initCancelModal(caseData.id) : onStatusChange(caseData.id, e.target.value); }}
                     className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-600">
                     <option value="">Move to…</option>
                     {validNext.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
@@ -5476,7 +5512,8 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
             return (
               <div className="border-t border-gray-100 pt-4 flex flex-wrap gap-2">
                 {validNext.map(s => (
-                  <button key={s.key} onClick={() => onStatusChange(caseData.id, s.key)}
+                  <button key={s.key}
+                    onClick={() => s.key === "cancelled" ? initCancelModal(caseData.id) : onStatusChange(caseData.id, s.key)}
                     className="px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors hover:opacity-90"
                     style={{ borderColor: s.color + "55", color: s.color, backgroundColor: s.color + "12" }}>
                     → {s.label}
@@ -5697,9 +5734,10 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
               <CaseDetail
                 caseData={selectedSubCase}
                 auth={auth}
-                onStatusChange={async (id, status) => {
-                  await supabase.from("cases").update({ status }).eq("id", id);
-                  setSelectedSubCase(prev => ({ ...prev, status }));
+                onStatusChange={(id, status) => {
+                  if (status === "cancelled") { initCancelModal(id, true); return; }
+                  supabase.from("cases").update({ status }).eq("id", id)
+                    .then(() => setSelectedSubCase(prev => ({ ...prev, status })));
                 }}
                 onDelete={async () => {
                   await supabase.from("cases").delete().eq("id", selectedSubCase.id);
@@ -6887,6 +6925,59 @@ function ConsultantDetailModal({ consultantId, auth }) {
         </div>
       )}
     </div>
+
+    {/* Cancellation reason modal */}
+    {cancelModal && (
+      <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4"
+        onClick={e => e.target === e.currentTarget && setCancelModal(null)}>
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span className="text-red-500 font-bold text-lg leading-none">✕</span>
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 text-base">Why is this case being cancelled?</h3>
+              <p className="text-sm text-gray-500 mt-0.5">Select a reason — this helps track patterns across cases.</p>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            {CANCEL_REASONS.map(r => (
+              <label key={r}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-colors select-none ${
+                  cancelReason === r ? "border-red-300 bg-red-50" : "border-gray-100 hover:bg-gray-50"
+                }`}>
+                <input type="radio" name="cxReason" value={r}
+                  checked={cancelReason === r}
+                  onChange={() => setCancelReason(r)}
+                  className="accent-red-500 flex-shrink-0" />
+                <span className={`text-sm ${cancelReason === r ? "font-semibold text-red-700" : "text-gray-700"}`}>{r}</span>
+              </label>
+            ))}
+          </div>
+
+          <div className="space-y-1.5">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+              Additional notes <span className="normal-case font-normal">(optional)</span>
+            </p>
+            <textarea value={cancelNotes} onChange={e => setCancelNotes(e.target.value)}
+              rows={3} placeholder="Provide any extra context about why this case is being cancelled…"
+              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-red-100 resize-none text-gray-800 placeholder:text-gray-400 bg-white" />
+          </div>
+
+          <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
+            <button onClick={() => setCancelModal(null)}
+              className="px-4 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50">
+              Keep Case
+            </button>
+            <button onClick={confirmCancellation} disabled={!cancelReason}
+              className="px-5 py-2 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+              Confirm Cancellation
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
   );
 }
 
@@ -9187,8 +9278,8 @@ function KanbanView({ auth }) {
         caseData={selectedCase}
         auth={auth}
         onBack={() => setSelectedCase(null)}
-        onStatusChange={async (id, status) => {
-          await updateCase(id, { status });
+        onStatusChange={async (id, status, extras = {}) => {
+          await updateCase(id, { status, ...extras });
           setSelectedCase(prev => ({ ...prev, status }));
         }}
         onDelete={async () => { await updateCase(selectedCase.id, { status: "cancelled" }); setSelectedCase(null); }}
