@@ -31,6 +31,7 @@ import {
   FileImage, Trophy, Layers,
   MapPin, UsersRound, GraduationCap, MessageSquare, X,
   Play, Pause, RotateCcw, Archive, Search,
+  Wand2, Download, Sparkles,
 } from "lucide-react";
 
 // ============================================================
@@ -5808,13 +5809,15 @@ Write a full markdown functional specification with SAP look & feel including th
         <p className="text-sm font-semibold text-gray-700">How would you like to create the functional specification?</p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { key: 'manual', emoji: '📎', title: 'Manual', desc: 'Attach documents and write the scope manually.' },
-            { key: 'wizard', emoji: '🧙', title: 'Wizard', desc: 'AI-guided interview per ABAP object. Drill down into every field and parameter.' },
-            { key: 'ai',     emoji: '✨', title: 'AI Generate', desc: 'Claude reads your case and writes the full functional spec automatically.' },
+            { key: 'manual', Icon: Paperclip, title: 'Manual', desc: 'Attach documents and write the scope manually.' },
+            { key: 'wizard', Icon: Wand2,     title: 'Wizard', desc: 'AI-guided interview per ABAP object. Drill down into every field and parameter.' },
+            { key: 'ai',     Icon: Sparkles,  title: 'AI Generate', desc: 'Claude reads your case and writes the full functional spec automatically.' },
           ].map(card => (
             <button key={card.key} onClick={() => setMode(card.key)}
               className="text-left p-5 border-2 border-gray-200 rounded-2xl hover:border-blue-400 hover:bg-blue-50/40 transition-all group">
-              <div className="text-3xl mb-3">{card.emoji}</div>
+              <div className="w-10 h-10 rounded-xl bg-blue-50 group-hover:bg-blue-100 flex items-center justify-center mb-3 transition-colors">
+                <card.Icon className="w-5 h-5 text-blue-600" />
+              </div>
               <div className="font-bold text-gray-900 text-sm mb-1 group-hover:text-blue-700">{card.title}</div>
               <p className="text-xs text-gray-500 leading-relaxed">{card.desc}</p>
             </button>
@@ -5897,7 +5900,7 @@ Write a full markdown functional specification with SAP look & feel including th
                 {documents.map(doc => (
                   <a key={doc.id} href={doc.file_url} target="_blank" rel="noopener noreferrer"
                     className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 hover:underline">
-                    <span>📎</span>
+                    <Paperclip className="w-3 h-3 flex-shrink-0" />
                     <span>{doc.file_name}</span>
                     <span className="text-blue-400">({doc.file_size_kb} KB)</span>
                   </a>
@@ -6100,13 +6103,13 @@ Write a full markdown functional specification with SAP look & feel including th
               </button>
               {savedSpecUrl ? (
                 <button onClick={openSpecInNewTab}
-                  className="px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700">
-                  📄 Open & Save as PDF
+                  className="flex items-center px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700">
+                  <Download className="w-4 h-4 mr-1.5" />Open PDF
                 </button>
               ) : (
                 <button onClick={() => saveSpecAsDocument(compiledSpec)} disabled={savingDoc}
-                  className="px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50">
-                  {savingDoc ? 'Saving…' : '📎 Save to Documents'}
+                  className="flex items-center px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50">
+                  {savingDoc ? 'Saving…' : <><Paperclip className="w-4 h-4 mr-1.5" />Save to Documents</>}
                 </button>
 
               )}
@@ -6154,7 +6157,9 @@ Write a full markdown functional specification with SAP look & feel including th
               </div>
             )}
             <div className="text-center py-6">
-              <div className="text-4xl mb-3">✨</div>
+              <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-3">
+                <Sparkles className="w-7 h-7 text-blue-600" />
+              </div>
               <p className="text-sm text-gray-600 mb-4">Claude will read your case details{(documents ?? []).length > 0 ? ' and the attached documents' : ''} and write a complete SAP functional specification.</p>
               <button onClick={handleAiGenerate}
                 className="px-6 py-3 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
@@ -6207,13 +6212,13 @@ Write a full markdown functional specification with SAP look & feel including th
               </button>
               {savedSpecUrl ? (
                 <button onClick={openSpecInNewTab}
-                  className="px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700">
-                  📄 Open & Save as PDF
+                  className="flex items-center px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700">
+                  <Download className="w-4 h-4 mr-1.5" />Open PDF
                 </button>
               ) : (
                 <button onClick={() => saveSpecAsDocument(aiContent)} disabled={savingDoc}
-                  className="px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50">
-                  {savingDoc ? 'Saving…' : '📎 Save to Documents'}
+                  className="flex items-center px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50">
+                  {savingDoc ? 'Saving…' : <><Paperclip className="w-4 h-4 mr-1.5" />Save to Documents</>}
                 </button>
 
               )}
