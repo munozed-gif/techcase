@@ -5244,9 +5244,12 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
   const [stepLoading, setStepLoading]   = useState(false);
   const [aiSpecA, setAiSpecA]           = useState(''); // custom dev spec
   const [aiSpecB, setAiSpecB]           = useState(''); // standard SAP spec
-  const [selectedSpec, setSelectedSpec] = useState(null); // 'a' | 'b'
+  const [aiSpecC, setAiSpecC]           = useState(''); // customer proposal as-is
+  const [selectedSpec, setSelectedSpec] = useState(null); // 'a' | 'b' | 'c'
   const [generatingSpecs, setGeneratingSpecs] = useState(false);
   const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [analysisCustomerContent, setAnalysisCustomerContent] = useState('');
+  const [prevMode, setPrevMode]         = useState(null); // 'manual' | 'wizard' | null
 
   // Manual state
   const [manualNotes, setManualNotes]     = useState('');
@@ -5862,7 +5865,10 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
           if (nd.proposalCheck) { setProposalCheck(nd.proposalCheck); restoredStep = 3; }
           if (nd.specA)         setAiSpecA(nd.specA);
           if (nd.specB)         setAiSpecB(nd.specB);
+          if (nd.specC)         setAiSpecC(nd.specC);
           if (nd.selectedSpec)  setSelectedSpec(nd.selectedSpec);
+          if (nd.prevMode)      setPrevMode(nd.prevMode);
+          if (nd.analysisCustomerContent) setAnalysisCustomerContent(nd.analysisCustomerContent);
         } catch (_) {}
       }
       if (spec.content) restoredStep = 3;
@@ -6246,25 +6252,99 @@ Use real standard SAP transaction codes and configuration objects for ${caseData
     }
   }
 
+  function buildSpecCPrompt(customerContent) {
+    return `Write Option C: Customer Proposal As-Is Functional Specification for this case.
+
+This option formalizes EXACTLY what the customer proposed, without any AI alternatives or suggestions. Do NOT add any SAP standard alternatives or custom dev recommendations — this is a direct formalization of the customer's own technical proposal.
+
+Case: ${caseData.title}
+Description: ${caseData.description ?? '(none)'}
+SAP Module: ${caseData.area_sap ?? ''}
+Industry: ${caseData.area_industry ?? ''}
+Customer Proposal / Notes:
+${customerContent || '(see case description above)'}
+
+Generate with EXACTLY these sections:
+
+## 1. Executive Summary
+[2-3 sentence overview of the customer's proposed solution exactly as they described it]
+
+## 2. Scope
+- [scope items as described by the customer, no additions]
+
+## 3. Customer Proposal Details
+[Detailed description of exactly what the customer wants to implement, in their own terms formalized into functional spec language]
+
+## 4. Technical Objects
+
+| # | Object | Type | Description | Hours |
+|---|--------|------|-------------|-------|
+| 1 | Z[NAME] | [type] | [description per customer proposal] | [h] |
+| | | | **Subtotal** | **[total]** |
+
+## 5. Time Estimation
+
+| Phase | Included Objects | Hours |
+|-------|-----------------|-------|
+| Analysis & Design | [objects] | [h] |
+| Development | [objects] | [h] |
+| Unit Testing | [objects] | [h] |
+| UAT Support | [objects] | [h] |
+| **Total** | | **[total]** |
+
+## 6. SAP Screen Prototype
+
+### 6.1 Selection Screen
+
+\`\`\`
+SCREEN:SELECTION
+TITLE:Z[TXN] - [Description from customer proposal]
+PARAM:[Field label]|[TECH_NAME]|[default]|R
+PARAM:[Field label]|[TECH_NAME]||O
+\`\`\`
+
+### 6.2 Output / Result
+
+\`\`\`
+SCREEN:OUTPUT
+TITLE:[Report title per customer proposal] | [filters]
+COL:[Column]|[width]|[L or R]
+ROW:[val1]|[val2]|[val3]|[val4]|[val5]
+TOTAL:||Total|[amount]|
+\`\`\`
+
+## 7. Assumptions
+1. [assumption based strictly on the customer proposal]
+
+## 8. Next Steps
+1. [action item derived from the customer's proposed approach]
+
+Use realistic Z object names matching the customer's described solution for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM/COL values.`;
+  }
+
   async function handleGenerateSpecs() {
     setGeneratingSpecs(true);
     setAiError(null);
     setAiSpecA('');
     setAiSpecB('');
+    setAiSpecC('');
     setSelectedSpec(null);
     try {
       const docBlocks = await buildDocumentBlocks();
       const msgContent = (prompt) => docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt;
-      const [specA, specB] = await Promise.all([
+      const customerContent = analysisCustomerContent || caseData.description || '';
+      const [specA, specB, specC] = await Promise.all([
         callClaude({ model: 'claude-haiku-4-5-20251001', system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecPrompt(true)) }], max_tokens: 4000 }),
         callClaude({ model: 'claude-haiku-4-5-20251001', system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecPrompt(false)) }], max_tokens: 4000 }),
+        callClaude({ model: 'claude-haiku-4-5-20251001', system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecCPrompt(customerContent)) }], max_tokens: 4000 }),
       ]);
       setAiSpecA(specA);
       setAiSpecB(specB);
+      setAiSpecC(specC);
       setSelectedSpec('a');
       setAiContent(specA);
       try {
-        await saveSpec({ mode: 'ai', status: 'draft', content: specA, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, selectedSpec: 'a' }), title: caseData.title + ' — Functional Spec' });
+        await saveSpec({ mode: 'ai', status: 'draft', content: specA, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, selectedSpec: 'a', prevMode, analysisCustomerContent: customerContent }), title: caseData.title + ' — Functional Spec' });
       } catch (_) {}
     } catch (e) {
       setAiError(e.message);
@@ -6280,7 +6360,7 @@ Use real standard SAP transaction codes and configuration objects for ${caseData
         status: 'submitted',
         content: specContent ?? null,
         objects: specObjects ?? [],
-        notes: specMode === 'manual' ? manualNotes : (specMode === 'ai' ? JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, selectedSpec }) : null),
+        notes: specMode === 'manual' ? manualNotes : (specMode === 'ai' ? JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent }) : null),
         document_ids: specMode === 'manual' ? manualDocIds : [],
         title: caseData.title + ' — Functional Spec',
       });
@@ -6294,12 +6374,13 @@ Use real standard SAP transaction codes and configuration objects for ${caseData
     setSapCheck(null);
     try {
       const docBlocks = await buildDocumentBlocks();
+      const customerCtx = analysisCustomerContent ? `\nCustomer Proposal / Notes:\n${analysisCustomerContent}` : '';
       const prompt = `Analyze this SAP case and determine whether STANDARD SAP functionality covers the requirement — without any custom ABAP development.${docBlocks.length > 0 ? '\n\nThe attached documents contain the detailed requirements.' : ''}
 
 Case: ${caseData.title}
 Description: ${caseData.description ?? ''}
 SAP Module: ${caseData.area_sap ?? ''}
-Industry: ${caseData.area_industry ?? ''}
+Industry: ${caseData.area_industry ?? ''}${customerCtx}
 
 Respond with ONLY a valid JSON object, no markdown fences:
 {
@@ -6339,12 +6420,13 @@ coverage meanings:
     setProposalCheck(null);
     try {
       const docBlocks = await buildDocumentBlocks();
+      const customerCtx2 = analysisCustomerContent ? `\nCustomer Proposal / Notes:\n${analysisCustomerContent}` : '';
       const prompt = `Validate the proposed custom SAP development for this case.${docBlocks.length > 0 ? '\n\nThe attached documents contain the requirements.' : ''}
 
 Case: ${caseData.title}
 Description: ${caseData.description ?? ''}
 SAP Module: ${caseData.area_sap ?? ''}
-Industry: ${caseData.area_industry ?? ''}
+Industry: ${caseData.area_industry ?? ''}${customerCtx2}
 
 Standard SAP coverage analysis already completed:
 - Coverage: ${sapCheck.coverage}
@@ -6606,12 +6688,14 @@ Respond with ONLY a valid JSON object, no markdown fences:
           }} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-50">
             {manualSaving ? 'Saving…' : 'Save Draft'}
           </button>
-          {canSubmit && (
-            <button disabled={manualSaving} onClick={() => handleSubmit(null, 'manual', [])}
-              className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
-              Submit for Approval
-            </button>
-          )}
+          <button disabled={!manualNotes.trim()} onClick={() => {
+            setAnalysisCustomerContent(manualNotes);
+            setPrevMode('manual');
+            setSapCheck(null); setProposalCheck(null); setAiSpecA(''); setAiSpecB(''); setAiSpecC(''); setSelectedSpec(null); setAiStep(1);
+            setMode('ai');
+          }} className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-40">
+            Validate &amp; Generate Formal Spec →
+          </button>
         </div>
       </div>
     );
@@ -6802,10 +6886,15 @@ Respond with ONLY a valid JSON object, no markdown fences:
               <button onClick={() => setWizardStage('interview')} className="text-xs text-gray-400 hover:text-gray-600">← Interview</button>
               <span className="text-sm font-semibold text-gray-700">Compiled Specification</span>
             </div>
-            {canSubmit && compiledSpec && (
-              <button onClick={() => handleSubmit(compiledSpec, 'wizard', wizardObjects)}
-                className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900">
-                Submit for Approval
+            {compiledSpec && (
+              <button onClick={() => {
+                const qaSummary = wizardObjects.map(o => `${o.name} (${o.type}): ${(o.questions ?? []).map(q => `${q.question} → ${q.a}`).join('; ')}`).join('\n');
+                setAnalysisCustomerContent(qaSummary || compiledSpec);
+                setPrevMode('wizard');
+                setSapCheck(null); setProposalCheck(null); setAiSpecA(''); setAiSpecB(''); setAiSpecC(''); setSelectedSpec(null); setAiStep(1);
+                setMode('ai');
+              }} className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900">
+                Validate &amp; Generate Formal Spec →
               </button>
             )}
           </div>
@@ -6848,12 +6937,15 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 </button>
 
               )}
-              {canSubmit && (
-                <button onClick={() => handleSubmit(compiledSpec, 'wizard', wizardObjects)}
-                  className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900">
-                  Submit for Approval
-                </button>
-              )}
+              <button onClick={() => {
+                const qaSummary = wizardObjects.map(o => `${o.name} (${o.type}): ${(o.questions ?? []).map(q => `${q.question} → ${q.a}`).join('; ')}`).join('\n');
+                setAnalysisCustomerContent(qaSummary || compiledSpec);
+                setPrevMode('wizard');
+                setSapCheck(null); setProposalCheck(null); setAiSpecA(''); setAiSpecB(''); setAiSpecC(''); setSelectedSpec(null); setAiStep(1);
+                setMode('ai');
+              }} className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900">
+                Validate &amp; Generate Formal Spec →
+              </button>
             </div>
           )}
         </div>
@@ -6876,9 +6968,15 @@ Respond with ONLY a valid JSON object, no markdown fences:
       <div className="space-y-5">
         {/* Header + back */}
         <div className="flex items-center gap-2">
-          <button onClick={() => { setMode(null); setAiStep(1); setSapCheck(null); setProposalCheck(null); setAiContent(''); }}
-            className="text-xs text-gray-400 hover:text-gray-600">← Back</button>
-          <span className="text-sm font-semibold text-gray-700">AI Generate</span>
+          <button onClick={() => {
+            const dest = prevMode ?? null;
+            setMode(dest);
+            setAiStep(1); setSapCheck(null); setProposalCheck(null); setAiContent('');
+            if (!dest) { setPrevMode(null); setAnalysisCustomerContent(''); }
+          }} className="text-xs text-gray-400 hover:text-gray-600">← Back</button>
+          <span className="text-sm font-semibold text-gray-700">
+            {prevMode === 'manual' ? 'AI Analysis — Manual Mode' : prevMode === 'wizard' ? 'AI Analysis — Wizard Mode' : 'AI Generate'}
+          </span>
         </div>
 
         {/* Step indicator */}
@@ -7157,45 +7255,52 @@ Respond with ONLY a valid JSON object, no markdown fences:
             )}
 
             {/* Generate button */}
-            {!aiSpecA && !aiSpecB && !generatingSpecs && (
+            {!aiSpecA && !aiSpecB && !aiSpecC && !generatingSpecs && (
               <div className="text-center py-6">
                 <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-3">
                   <Sparkles className="w-7 h-7 text-blue-600" />
                 </div>
-                <p className="text-sm text-gray-600 mb-2">Claude will generate <strong>two specifications</strong> based on the analysis:</p>
-                <div className="flex justify-center gap-4 mb-5 text-xs text-gray-500">
+                <p className="text-sm text-gray-600 mb-2">Claude will generate <strong>three specifications</strong> based on the analysis:</p>
+                <div className="flex flex-wrap justify-center gap-4 mb-5 text-xs text-gray-500">
                   <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"/><strong>Option A</strong> — Custom ABAP development (with pros &amp; cons)</span>
                   <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"/><strong>Option B</strong> — Standard SAP configuration</span>
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-purple-400 inline-block"/><strong>Option C</strong> — Customer proposal as-is</span>
                 </div>
                 <button onClick={handleGenerateSpecs}
                   className="px-6 py-3 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
-                  Generate Both Specifications
+                  Generate All Three Specifications
                 </button>
               </div>
             )}
 
             {generatingSpecs && (
               <div className="flex items-center justify-center py-16 gap-3 text-gray-400">
-                <Spinner /><span className="text-sm">Claude is generating both specifications simultaneously…</span>
+                <Spinner /><span className="text-sm">Claude is generating all three specifications simultaneously…</span>
               </div>
             )}
 
             {/* Spec selector tabs */}
-            {(aiSpecA || aiSpecB) && !generatingSpecs && (
+            {(aiSpecA || aiSpecB || aiSpecC) && !generatingSpecs && (
               <div className="space-y-0">
                 {/* Tab bar */}
                 <div className="flex border-b border-gray-200">
                   <button onClick={() => { setSelectedSpec('a'); setAiContent(aiSpecA); }}
-                    className={`flex-1 py-3 px-4 text-sm font-semibold border-b-2 transition-colors text-left flex items-center gap-2 ${selectedSpec === 'a' ? 'border-[#1A4B8C] text-[#1A4B8C] bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
+                    className={`flex-1 py-3 px-2 text-sm font-semibold border-b-2 transition-colors text-left flex items-center gap-2 ${selectedSpec === 'a' ? 'border-[#1A4B8C] text-[#1A4B8C] bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
                     <span className="w-5 h-5 rounded-full bg-amber-400 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold">A</span>
-                    <span>Custom ABAP Development</span>
-                    {selectedSpec === 'a' && <span className="ml-auto text-xs font-semibold text-[#1A4B8C] bg-blue-100 px-2 py-0.5 rounded-full">Selected</span>}
+                    <span className="truncate">Custom ABAP</span>
+                    {selectedSpec === 'a' && <span className="ml-auto text-xs font-semibold text-[#1A4B8C] bg-blue-100 px-2 py-0.5 rounded-full flex-shrink-0">Selected</span>}
                   </button>
                   <button onClick={() => { setSelectedSpec('b'); setAiContent(aiSpecB); }}
-                    className={`flex-1 py-3 px-4 text-sm font-semibold border-b-2 transition-colors text-left flex items-center gap-2 ${selectedSpec === 'b' ? 'border-[#1A4B8C] text-[#1A4B8C] bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
+                    className={`flex-1 py-3 px-2 text-sm font-semibold border-b-2 transition-colors text-left flex items-center gap-2 ${selectedSpec === 'b' ? 'border-[#1A4B8C] text-[#1A4B8C] bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
                     <span className="w-5 h-5 rounded-full bg-green-500 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold">B</span>
-                    <span>Standard SAP Configuration</span>
-                    {selectedSpec === 'b' && <span className="ml-auto text-xs font-semibold text-[#1A4B8C] bg-blue-100 px-2 py-0.5 rounded-full">Selected</span>}
+                    <span className="truncate">Standard SAP</span>
+                    {selectedSpec === 'b' && <span className="ml-auto text-xs font-semibold text-[#1A4B8C] bg-blue-100 px-2 py-0.5 rounded-full flex-shrink-0">Selected</span>}
+                  </button>
+                  <button onClick={() => { setSelectedSpec('c'); setAiContent(aiSpecC); }}
+                    className={`flex-1 py-3 px-2 text-sm font-semibold border-b-2 transition-colors text-left flex items-center gap-2 ${selectedSpec === 'c' ? 'border-[#1A4B8C] text-[#1A4B8C] bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
+                    <span className="w-5 h-5 rounded-full bg-purple-500 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold">C</span>
+                    <span className="truncate">Customer Proposal</span>
+                    {selectedSpec === 'c' && <span className="ml-auto text-xs font-semibold text-[#1A4B8C] bg-blue-100 px-2 py-0.5 rounded-full flex-shrink-0">Selected</span>}
                   </button>
                 </div>
 
@@ -7204,7 +7309,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   {/* Edit toggle row */}
                   <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200">
                     <span className="text-xs text-gray-500">
-                      {selectedSpec === 'a' ? 'Option A: Custom ABAP Development Specification' : selectedSpec === 'b' ? 'Option B: Standard SAP Configuration Specification' : 'Select an option above'}
+                      {selectedSpec === 'a' ? 'Option A: Custom ABAP Development' : selectedSpec === 'b' ? 'Option B: Standard SAP Configuration' : selectedSpec === 'c' ? 'Option C: Customer Proposal As-Is' : 'Select an option above'}
                     </span>
                     <div className="flex gap-2">
                       <button onClick={() => setAiEditing(p => !p)}
@@ -7213,7 +7318,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       </button>
                       <button onClick={handleGenerateSpecs}
                         className="px-2.5 py-1 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
-                        Re-generate both
+                        Re-generate all
                       </button>
                     </div>
                   </div>
@@ -7221,12 +7326,18 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   {/* Content */}
                   <div className="p-5 max-h-[600px] overflow-y-auto">
                     {aiEditing ? (
-                      <textarea value={selectedSpec === 'b' ? aiSpecB : aiSpecA}
-                        onChange={e => { if (selectedSpec === 'b') { setAiSpecB(e.target.value); setAiContent(e.target.value); } else { setAiSpecA(e.target.value); setAiContent(e.target.value); } }}
+                      <textarea
+                        value={selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA}
+                        onChange={e => {
+                          const v = e.target.value;
+                          if (selectedSpec === 'b') { setAiSpecB(v); setAiContent(v); }
+                          else if (selectedSpec === 'c') { setAiSpecC(v); setAiContent(v); }
+                          else { setAiSpecA(v); setAiContent(v); }
+                        }}
                         rows={25} className="w-full border border-gray-200 rounded-xl p-3 text-sm font-mono resize-y focus:outline-none focus:border-blue-400" />
                     ) : (
                       <div className="text-sm text-gray-800 leading-relaxed"
-                        dangerouslySetInnerHTML={{ __html: '<div>' + renderMarkdown(selectedSpec === 'b' ? aiSpecB : aiSpecA) + '</div>' }} />
+                        dangerouslySetInnerHTML={{ __html: '<div>' + renderMarkdown(selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA) + '</div>' }} />
                     )}
                   </div>
                 </div>
@@ -7234,12 +7345,12 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 {/* Action bar */}
                 <div className="flex gap-3 items-center justify-between pt-3 border-t border-gray-100">
                   <p className="text-xs text-gray-500">
-                    {selectedSpec ? `Submitting: Option ${selectedSpec.toUpperCase()} — ${selectedSpec === 'a' ? 'Custom ABAP' : 'Standard SAP'}` : 'Click a tab to select which spec to submit'}
+                    {selectedSpec ? `Submitting: Option ${selectedSpec.toUpperCase()} — ${selectedSpec === 'a' ? 'Custom ABAP' : selectedSpec === 'b' ? 'Standard SAP' : 'Customer Proposal'}` : 'Click a tab to select which spec to submit'}
                   </p>
                   <div className="flex gap-2">
                     <button onClick={async () => {
-                      const content = selectedSpec === 'b' ? aiSpecB : aiSpecA;
-                      try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, selectedSpec }), title: caseData.title + ' — Functional Spec' }); await refetch(); } catch (e) { alert(e.message); }
+                      const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA;
+                      try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent }), title: caseData.title + ' — Functional Spec' }); await refetch(); } catch (e) { alert(e.message); }
                     }} disabled={!selectedSpec} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-40">
                       Save Draft
                     </button>
@@ -7249,13 +7360,13 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         <Download className="w-4 h-4 mr-1.5" />Open PDF
                       </button>
                     ) : (
-                      <button onClick={() => saveSpecAsDocument(selectedSpec === 'b' ? aiSpecB : aiSpecA)} disabled={!selectedSpec || savingDoc}
+                      <button onClick={() => saveSpecAsDocument(selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA)} disabled={!selectedSpec || savingDoc}
                         className="flex items-center px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-40">
                         {savingDoc ? 'Saving…' : <><Paperclip className="w-4 h-4 mr-1.5" />Save PDF</>}
                       </button>
                     )}
                     {canSubmit && (
-                      <button onClick={() => handleSubmit(selectedSpec === 'b' ? aiSpecB : aiSpecA, 'ai', [])} disabled={!selectedSpec}
+                      <button onClick={() => handleSubmit(selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA, 'ai', [])} disabled={!selectedSpec}
                         className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-40">
                         Submit for Approval
                       </button>
