@@ -5238,6 +5238,10 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
   const [aiContent, setAiContent]       = useState('');
   const [aiEditing, setAiEditing]       = useState(false);
   const [aiError, setAiError]           = useState(null);
+  const [aiStep, setAiStep]             = useState(1);   // 1 | 2 | 3
+  const [sapCheck, setSapCheck]         = useState(null);
+  const [proposalCheck, setProposalCheck] = useState(null);
+  const [stepLoading, setStepLoading]   = useState(false);
 
   // Manual state
   const [manualNotes, setManualNotes]     = useState('');
@@ -5845,6 +5849,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
       setManualDocIds(spec.document_ids ?? []);
     } else if (spec.mode === 'ai') {
       setAiContent(spec.content ?? '');
+      if (spec.content) setAiStep(3);
     } else if (spec.mode === 'wizard') {
       setWizardObjects(spec.objects ?? []);
       if ((spec.objects ?? []).length > 0) {
@@ -6186,6 +6191,97 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
       });
       await refetch();
     } catch (e) { alert(e.message); }
+  }
+
+  async function handleSapCheck() {
+    setStepLoading(true);
+    setAiError(null);
+    setSapCheck(null);
+    try {
+      const docBlocks = await buildDocumentBlocks();
+      const prompt = `Analyze this SAP case and determine whether STANDARD SAP functionality covers the requirement — without any custom ABAP development.${docBlocks.length > 0 ? '\n\nThe attached documents contain the detailed requirements.' : ''}
+
+Case: ${caseData.title}
+Description: ${caseData.description ?? ''}
+SAP Module: ${caseData.area_sap ?? ''}
+Industry: ${caseData.area_industry ?? ''}
+
+Respond with ONLY a valid JSON object, no markdown fences:
+{
+  "coverage": "full" | "partial" | "none",
+  "summary": "2-3 sentences explaining coverage level",
+  "standard_transactions": ["T001 - description", "F.01 - description"],
+  "gaps": ["Gap 1 that requires custom dev", "Gap 2"],
+  "recommendation": "One sentence recommending the approach"
+}
+
+coverage meanings:
+"full"    = Standard SAP configuration / standard transactions fully satisfy the requirement
+"partial" = Standard SAP covers most of it; some custom development still needed
+"none"    = Custom ABAP development is required — standard SAP cannot satisfy this`;
+
+      const raw = await callClaude({
+        model: 'claude-haiku-4-5-20251001',
+        system: 'You are an SAP senior consultant. Respond ONLY with a valid JSON object, no markdown.',
+        messages: [{ role: 'user', content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt }],
+        max_tokens: 800,
+      });
+      let parsed;
+      try { parsed = JSON.parse(raw.trim()); } catch (_) {
+        const m = raw.match(/\{[\s\S]*\}/);
+        parsed = m ? JSON.parse(m[0]) : { coverage: 'none', summary: raw, standard_transactions: [], gaps: [], recommendation: '' };
+      }
+      setSapCheck(parsed);
+    } catch (e) { setAiError(e.message); }
+    setStepLoading(false);
+  }
+
+  async function handleProposalValidation() {
+    if (!sapCheck) return;
+    setStepLoading(true);
+    setAiError(null);
+    setProposalCheck(null);
+    try {
+      const docBlocks = await buildDocumentBlocks();
+      const prompt = `Validate the proposed custom SAP development for this case.${docBlocks.length > 0 ? '\n\nThe attached documents contain the requirements.' : ''}
+
+Case: ${caseData.title}
+Description: ${caseData.description ?? ''}
+SAP Module: ${caseData.area_sap ?? ''}
+Industry: ${caseData.area_industry ?? ''}
+
+Standard SAP coverage analysis already completed:
+- Coverage: ${sapCheck.coverage}
+- Summary: ${sapCheck.summary}
+- Gaps requiring custom dev: ${(sapCheck.gaps ?? []).join('; ') || 'none listed'}
+
+Now validate whether proceeding with custom ABAP development is well-justified, correctly scoped, and technically sound.
+
+Respond with ONLY a valid JSON object, no markdown fences:
+{
+  "valid": true | false,
+  "score": 1-10,
+  "risk_level": "low" | "medium" | "high",
+  "strengths": ["strength 1", "strength 2"],
+  "concerns": ["concern 1", "concern 2"],
+  "recommendation": "2-3 sentences on whether and how to proceed"
+}`;
+
+      const raw = await callClaude({
+        model: 'claude-haiku-4-5-20251001',
+        system: 'You are an SAP senior consultant. Validate development proposals. Respond ONLY with a valid JSON object, no markdown.',
+        messages: [{ role: 'user', content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt }],
+        max_tokens: 800,
+      });
+      let parsed;
+      try { parsed = JSON.parse(raw.trim()); } catch (_) {
+        const m = raw.match(/\{[\s\S]*\}/);
+        parsed = m ? JSON.parse(m[0]) : { valid: true, score: 7, risk_level: 'medium', strengths: [], concerns: [], recommendation: raw };
+      }
+      setProposalCheck(parsed);
+      setAiStep(3);
+    } catch (e) { setAiError(e.message); }
+    setStepLoading(false);
   }
 
   async function handleApprove() {
@@ -6670,108 +6766,316 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
 
   // ── AI Generate mode ─────────────────────────────────────────
   if (mode === 'ai') {
+    const STEPS = [
+      { n: 1, label: 'SAP Standard Check' },
+      { n: 2, label: 'Proposal Validation' },
+      { n: 3, label: 'Generate Spec' },
+    ];
+    const coverageColor = { full: ['bg-green-50','border-green-200','text-green-700','text-green-800'], partial: ['bg-amber-50','border-amber-200','text-amber-700','text-amber-800'], none: ['bg-red-50','border-red-200','text-red-700','text-red-800'] };
+    const riskColor = { low: 'text-green-700 bg-green-50', medium: 'text-amber-700 bg-amber-50', high: 'text-red-700 bg-red-50' };
+    const cc = coverageColor[sapCheck?.coverage] ?? coverageColor.none;
+
     return (
-      <div className="space-y-4">
+      <div className="space-y-5">
+        {/* Header + back */}
         <div className="flex items-center gap-2">
-          <button onClick={() => setMode(null)} className="text-xs text-gray-400 hover:text-gray-600">← Back</button>
+          <button onClick={() => { setMode(null); setAiStep(1); setSapCheck(null); setProposalCheck(null); setAiContent(''); }}
+            className="text-xs text-gray-400 hover:text-gray-600">← Back</button>
           <span className="text-sm font-semibold text-gray-700">AI Generate</span>
         </div>
 
-        {!aiContent && !aiGenerating && (
-          <div className="space-y-4">
-            {(documents ?? []).length > 0 ? (
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
-                <p className="text-xs font-semibold text-blue-700 mb-2">Documents Claude will read:</p>
-                <div className="flex flex-col gap-1">
-                  {documents.map(doc => (
-                    <a key={doc.id} href={doc.file_url} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 hover:underline">
-                      <span>📎</span>
-                      <span>{doc.file_name}</span>
-                      <span className="text-blue-400">({doc.file_size_kb} KB)</span>
-                    </a>
-                  ))}
-                </div>
+        {/* Step indicator */}
+        <div className="flex items-center">
+          {STEPS.map((step, idx) => (
+            <Fragment key={step.n}>
+              <div className="flex flex-col items-center min-w-0">
+                <button
+                  onClick={() => { if (step.n <= aiStep) setAiStep(step.n); }}
+                  disabled={step.n > aiStep}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-colors ${
+                    aiStep > step.n  ? 'bg-green-500 border-green-500 text-white' :
+                    aiStep === step.n ? 'bg-[#1A4B8C] border-[#1A4B8C] text-white' :
+                    'bg-white border-gray-300 text-gray-400 cursor-not-allowed'
+                  }`}>
+                  {aiStep > step.n ? '✓' : step.n}
+                </button>
+                <span className={`text-xs mt-1 font-medium text-center leading-tight ${
+                  aiStep === step.n ? 'text-[#1A4B8C]' : aiStep > step.n ? 'text-green-600' : 'text-gray-400'
+                }`}>{step.label}</span>
               </div>
-            ) : (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
-                No documents attached. Upload files in the <span className="font-semibold">Documents</span> tab to help Claude understand the requirements.
-              </div>
-            )}
-            <div className="text-center py-6">
-              <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-3">
-                <Sparkles className="w-7 h-7 text-blue-600" />
-              </div>
-              <p className="text-sm text-gray-600 mb-4">Claude will read your case details{(documents ?? []).length > 0 ? ' and the attached documents' : ''} and write a complete SAP functional specification.</p>
-              <button onClick={handleAiGenerate}
-                className="px-6 py-3 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
-                Generate Specification
-              </button>
+              {idx < 2 && (
+                <div className={`flex-1 h-0.5 mx-2 mb-5 rounded ${aiStep > step.n ? 'bg-green-400' : 'bg-gray-200'}`} />
+              )}
+            </Fragment>
+          ))}
+        </div>
+
+        {/* Documents panel (always visible) */}
+        {(documents ?? []).length > 0 ? (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+            <p className="text-xs font-semibold text-blue-700 mb-1.5">Documents Claude will read:</p>
+            <div className="flex flex-col gap-1">
+              {documents.map(doc => (
+                <a key={doc.id} href={doc.file_url} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-xs text-blue-600 hover:underline">
+                  <Paperclip className="w-3 h-3" /><span>{doc.file_name}</span>
+                  <span className="text-blue-400">({doc.file_size_kb} KB)</span>
+                </a>
+              ))}
             </div>
           </div>
-        )}
-
-        {aiGenerating && (
-          <div className="flex items-center justify-center py-16 gap-3 text-gray-400">
-            <Spinner />
-            <span className="text-sm">Claude is writing your functional specification…</span>
+        ) : (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
+            No documents attached. Upload files in the <span className="font-semibold">Documents</span> tab for better results.
           </div>
         )}
 
+        {/* Error */}
         {aiError && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{aiError}</div>
         )}
 
-        {aiContent && !aiGenerating && (
-          <Fragment>
-            <div className="flex items-center gap-2 justify-end flex-wrap">
-              <button onClick={() => setAiEditing(p => !p)}
-                className="px-3 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">
-                {aiEditing ? 'Preview' : 'Edit'}
-              </button>
-              <button onClick={handleAiGenerate}
-                className="px-3 py-1.5 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
-                Re-generate
-              </button>
+        {/* ── STEP 1: SAP Standard Check ── */}
+        {aiStep === 1 && (
+          <div className="space-y-4">
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+              <h3 className="text-sm font-semibold text-gray-800 mb-1">Step 1 — SAP Standard Coverage Check</h3>
+              <p className="text-xs text-gray-500">Claude will analyze whether standard SAP configuration and transactions can cover this requirement before recommending custom development.</p>
             </div>
 
-            {aiEditing ? (
-              <textarea value={aiContent} onChange={e => setAiContent(e.target.value)} rows={20}
-                className="w-full border border-gray-200 rounded-xl p-4 text-sm font-mono resize-y focus:outline-none focus:border-blue-400" />
-            ) : (
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 text-sm text-gray-800 leading-relaxed overflow-x-auto"
-                dangerouslySetInnerHTML={{ __html: '<p style="margin:0.5rem 0">' + renderMarkdown(aiContent) + '</p>' }} />
+            {!sapCheck && !stepLoading && (
+              <div className="text-center py-4">
+                <button onClick={handleSapCheck}
+                  className="px-6 py-2.5 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
+                  Check SAP Standard Coverage
+                </button>
+              </div>
             )}
 
-            <div className="flex gap-3 justify-end pt-2 border-t border-gray-100">
-              <button onClick={async () => {
-                try {
-                  await saveSpec({ mode: 'ai', status: 'draft', content: aiContent, title: caseData.title + ' — Functional Spec' });
-                  await refetch();
-                } catch (e) { alert(e.message); }
-              }} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50">
-                Save Draft
-              </button>
-              {savedSpecUrl ? (
-                <button onClick={openSpecInNewTab}
-                  className="flex items-center px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700">
-                  <Download className="w-4 h-4 mr-1.5" />Open PDF
-                </button>
-              ) : (
-                <button onClick={() => saveSpecAsDocument(aiContent)} disabled={savingDoc}
-                  className="flex items-center px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50">
-                  {savingDoc ? 'Saving…' : <><Paperclip className="w-4 h-4 mr-1.5" />Save to Documents</>}
-                </button>
+            {stepLoading && (
+              <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
+                <Spinner /><span className="text-sm">Checking SAP standard functionality…</span>
+              </div>
+            )}
 
-              )}
-              {canSubmit && (
-                <button onClick={() => handleSubmit(aiContent, 'ai', [])}
-                  className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900">
-                  Submit for Approval
+            {sapCheck && !stepLoading && (
+              <div className={`border rounded-xl p-4 space-y-3 ${cc[0]} ${cc[1]}`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-sm font-bold ${cc[3]}`}>
+                    {sapCheck.coverage === 'full' ? '✓ Fully covered by SAP standard' :
+                     sapCheck.coverage === 'partial' ? '⚠ Partially covered — gaps exist' :
+                     '✗ Custom ABAP development required'}
+                  </span>
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${cc[1]} ${cc[2]} uppercase`}>{sapCheck.coverage}</span>
+                </div>
+                <p className={`text-sm ${cc[2]}`}>{sapCheck.summary}</p>
+
+                {(sapCheck.standard_transactions ?? []).length > 0 && (
+                  <div>
+                    <p className={`text-xs font-semibold mb-1 ${cc[3]}`}>Standard SAP transactions available:</p>
+                    <ul className={`text-xs space-y-0.5 ${cc[2]}`}>
+                      {sapCheck.standard_transactions.map((t, i) => <li key={i} className="flex gap-1"><span>•</span><span>{t}</span></li>)}
+                    </ul>
+                  </div>
+                )}
+
+                {(sapCheck.gaps ?? []).length > 0 && (
+                  <div>
+                    <p className={`text-xs font-semibold mb-1 ${cc[3]}`}>Gaps requiring custom development:</p>
+                    <ul className={`text-xs space-y-0.5 ${cc[2]}`}>
+                      {sapCheck.gaps.map((g, i) => <li key={i} className="flex gap-1"><span>→</span><span>{g}</span></li>)}
+                    </ul>
+                  </div>
+                )}
+
+                {sapCheck.recommendation && (
+                  <p className={`text-xs italic border-t pt-2 ${cc[1]} ${cc[2]}`}>{sapCheck.recommendation}</p>
+                )}
+
+                <div className="flex gap-3 justify-between items-center pt-1">
+                  <button onClick={handleSapCheck} className={`text-xs underline ${cc[2]}`}>Re-run check</button>
+                  <button onClick={() => setAiStep(2)}
+                    className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
+                    Continue to Proposal Validation →
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── STEP 2: Proposal Validation ── */}
+        {aiStep === 2 && (
+          <div className="space-y-4">
+            {/* Step 1 summary badge */}
+            {sapCheck && (
+              <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg border ${cc[0]} ${cc[1]} ${cc[2]}`}>
+                <span className="font-semibold">Step 1:</span>
+                <span>Coverage — <span className="font-bold uppercase">{sapCheck.coverage}</span></span>
+                <span className="ml-auto opacity-70">{sapCheck.recommendation}</span>
+              </div>
+            )}
+
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+              <h3 className="text-sm font-semibold text-gray-800 mb-1">Step 2 — Proposal Validation</h3>
+              <p className="text-xs text-gray-500">Claude will validate whether the custom development proposal is technically justified, correctly scoped, and low-risk before writing the spec.</p>
+            </div>
+
+            {!proposalCheck && !stepLoading && (
+              <div className="text-center py-4">
+                <button onClick={handleProposalValidation}
+                  className="px-6 py-2.5 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
+                  Validate Proposal
                 </button>
+              </div>
+            )}
+
+            {stepLoading && (
+              <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
+                <Spinner /><span className="text-sm">Validating proposal…</span>
+              </div>
+            )}
+
+            {proposalCheck && !stepLoading && (
+              <div className={`border rounded-xl p-4 space-y-3 ${proposalCheck.valid ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <span className={`text-sm font-bold ${proposalCheck.valid ? 'text-green-800' : 'text-amber-800'}`}>
+                    {proposalCheck.valid ? '✓ Proposal is valid' : '⚠ Proposal has concerns'}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${riskColor[proposalCheck.risk_level] ?? riskColor.medium}`}>
+                      Risk: {proposalCheck.risk_level ?? 'medium'}
+                    </span>
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-700">
+                      Score: {proposalCheck.score}/10
+                    </span>
+                  </div>
+                </div>
+
+                {(proposalCheck.strengths ?? []).length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-green-700 mb-1">Strengths:</p>
+                    <ul className="text-xs text-green-700 space-y-0.5">
+                      {proposalCheck.strengths.map((s, i) => <li key={i} className="flex gap-1"><span>✓</span><span>{s}</span></li>)}
+                    </ul>
+                  </div>
+                )}
+
+                {(proposalCheck.concerns ?? []).length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-amber-700 mb-1">Concerns:</p>
+                    <ul className="text-xs text-amber-700 space-y-0.5">
+                      {proposalCheck.concerns.map((c, i) => <li key={i} className="flex gap-1"><span>⚠</span><span>{c}</span></li>)}
+                    </ul>
+                  </div>
+                )}
+
+                {proposalCheck.recommendation && (
+                  <p className={`text-xs italic border-t pt-2 ${proposalCheck.valid ? 'border-green-200 text-green-700' : 'border-amber-200 text-amber-700'}`}>
+                    {proposalCheck.recommendation}
+                  </p>
+                )}
+
+                <div className="flex gap-3 justify-between items-center pt-1">
+                  <button onClick={handleProposalValidation}
+                    className={`text-xs underline ${proposalCheck.valid ? 'text-green-700' : 'text-amber-700'}`}>Re-validate</button>
+                  <button onClick={() => setAiStep(3)}
+                    className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
+                    Generate Functional Specification →
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── STEP 3: Generate Spec ── */}
+        {aiStep === 3 && (
+          <div className="space-y-4">
+            {/* Summary badges from steps 1 & 2 */}
+            <div className="flex flex-wrap gap-2">
+              {sapCheck && (
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${cc[0]} ${cc[1]} ${cc[2]}`}>
+                  Step 1: Coverage — {sapCheck.coverage?.toUpperCase()}
+                </span>
+              )}
+              {proposalCheck && (
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${proposalCheck.valid ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+                  Step 2: {proposalCheck.valid ? 'Valid' : 'Concerns noted'} · Score {proposalCheck.score}/10 · Risk {proposalCheck.risk_level}
+                </span>
               )}
             </div>
-          </Fragment>
+
+            {!aiContent && !aiGenerating && (
+              <div className="text-center py-6">
+                <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-3">
+                  <Sparkles className="w-7 h-7 text-blue-600" />
+                </div>
+                <p className="text-sm text-gray-600 mb-4">Claude will now write the complete SAP functional specification based on the analysis above.</p>
+                <button onClick={handleAiGenerate}
+                  className="px-6 py-3 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
+                  Generate Functional Specification
+                </button>
+              </div>
+            )}
+
+            {aiGenerating && (
+              <div className="flex items-center justify-center py-16 gap-3 text-gray-400">
+                <Spinner /><span className="text-sm">Claude is writing the functional specification…</span>
+              </div>
+            )}
+
+            {aiContent && !aiGenerating && (
+              <Fragment>
+                <div className="flex items-center gap-2 justify-end flex-wrap">
+                  <button onClick={() => setAiEditing(p => !p)}
+                    className="px-3 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">
+                    {aiEditing ? 'Preview' : 'Edit'}
+                  </button>
+                  <button onClick={handleAiGenerate}
+                    className="px-3 py-1.5 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
+                    Re-generate
+                  </button>
+                </div>
+
+                {aiEditing ? (
+                  <textarea value={aiContent} onChange={e => setAiContent(e.target.value)} rows={20}
+                    className="w-full border border-gray-200 rounded-xl p-4 text-sm font-mono resize-y focus:outline-none focus:border-blue-400" />
+                ) : (
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 text-sm text-gray-800 leading-relaxed overflow-x-auto"
+                    dangerouslySetInnerHTML={{ __html: '<p style="margin:0.5rem 0">' + renderMarkdown(aiContent) + '</p>' }} />
+                )}
+
+                <div className="flex gap-3 justify-end pt-2 border-t border-gray-100">
+                  <button onClick={async () => {
+                    try {
+                      await saveSpec({ mode: 'ai', status: 'draft', content: aiContent, title: caseData.title + ' — Functional Spec' });
+                      await refetch();
+                    } catch (e) { alert(e.message); }
+                  }} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50">
+                    Save Draft
+                  </button>
+                  {savedSpecUrl ? (
+                    <button onClick={openSpecInNewTab}
+                      className="flex items-center px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700">
+                      <Download className="w-4 h-4 mr-1.5" />Open PDF
+                    </button>
+                  ) : (
+                    <button onClick={() => saveSpecAsDocument(aiContent)} disabled={savingDoc}
+                      className="flex items-center px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50">
+                      {savingDoc ? 'Saving…' : <><Paperclip className="w-4 h-4 mr-1.5" />Save to Documents</>}
+                    </button>
+                  )}
+                  {canSubmit && (
+                    <button onClick={() => handleSubmit(aiContent, 'ai', [])}
+                      className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900">
+                      Submit for Approval
+                    </button>
+                  )}
+                </div>
+              </Fragment>
+            )}
+          </div>
         )}
       </div>
     );
