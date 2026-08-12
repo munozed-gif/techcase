@@ -5430,10 +5430,12 @@ Write a full markdown functional specification with these sections:
 
   // ── AI Generate ─────────────────────────────────────────────
   async function handleAiGenerate() {
+    alert('Starting generation...');
     setAiGenerating(true);
     setAiError(null);
     try {
       const docBlocks = await buildDocumentBlocks();
+      alert('Documents loaded: ' + docBlocks.length + ' blocks');
       const prompt = `Write a complete SAP Functional Specification for this case.${docBlocks.length > 0 ? '\n\nThe attached document(s) above are the source requirements — read them carefully and base the specification on their content.' : ''}
 
 # Case Information
@@ -5455,7 +5457,7 @@ Write a full markdown functional specification with these sections:
 8. Open Questions & Assumptions
 9. Sign-off`;
       const result = await callClaude({
-        model: 'claude-sonnet-5',
+        model: 'claude-haiku-4-5-20251001',
         system: 'You are an SAP functional consultant. Write a professional, structured functional specification in markdown.',
         messages: [{
           role: 'user',
@@ -5463,10 +5465,11 @@ Write a full markdown functional specification with these sections:
         }],
         max_tokens: 4000,
       });
+      alert('Got result: ' + (result ? result.slice(0, 80) : 'EMPTY'));
       setAiContent(result);
     } catch (e) {
       setAiError(e.message);
-      alert('Generation failed: ' + e.message);
+      alert('Error: ' + e.message);
     }
     setAiGenerating(false);
   }
