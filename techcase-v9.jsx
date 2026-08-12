@@ -5946,9 +5946,10 @@ Write a full markdown functional specification with these sections:
                 </a>
               ) : (
                 <button onClick={() => saveSpecAsDocument(compiledSpec)} disabled={savingDoc}
-                  className="px-4 py-2 text-sm border border-green-200 text-green-700 font-semibold rounded-xl hover:bg-green-50 disabled:opacity-50">
+                  className="px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50"
                   {savingDoc ? 'Saving…' : '📎 Save to Documents'}
                 </button>
+
               )}
               {canSubmit && (
                 <button onClick={() => handleSubmit(compiledSpec, 'wizard', wizardObjects)}
@@ -6052,9 +6053,10 @@ Write a full markdown functional specification with these sections:
                 </a>
               ) : (
                 <button onClick={() => saveSpecAsDocument(aiContent)} disabled={savingDoc}
-                  className="px-4 py-2 text-sm border border-green-200 text-green-700 font-semibold rounded-xl hover:bg-green-50 disabled:opacity-50">
+                  className="px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50"
                   {savingDoc ? 'Saving…' : '📎 Save to Documents'}
                 </button>
+
               )}
               {canSubmit && (
                 <button onClick={() => handleSubmit(aiContent, 'ai', [])}
