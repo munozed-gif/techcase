@@ -5353,6 +5353,237 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
     });
     y = doc.lastAutoTable.finalY + 8;
 
+    // ── SAP SCREEN RENDERER ──────────────────────────────────────
+    function renderSapScreen(startY, content) {
+      const allLines = content.split('\n').map(l => l.trim()).filter(Boolean);
+      const firstLine = (allLines[0] || '').toUpperCase();
+      const isSelection = firstLine.includes('SELECTION') || firstLine.includes('SELECCION');
+      const BW = R - L;
+      const navy   = [26, 55, 100];
+      const midBlue= [55, 95, 160];
+      const gray1  = [238, 241, 246];
+      const gray2  = [220, 226, 238];
+      const bord   = [155, 175, 215];
+      const white  = [255, 255, 255];
+
+      let screenTitle = '';
+      const params = [];
+      const cols   = [];
+      const rows   = [];
+      let totalRow = null;
+
+      allLines.forEach(line => {
+        if (/^SCREEN:/i.test(line)) return;
+        if (/^TITLE:/i.test(line)) { screenTitle = line.replace(/^TITLE:\s*/i, ''); return; }
+        if (/^PARAM:/i.test(line)) {
+          const p = line.replace(/^PARAM:\s*/i, '').split('|');
+          params.push({ label: (p[0]||'').trim(), tech: (p[1]||'').trim(), value: (p[2]||'').trim(), req: (p[3]||'').trim().toUpperCase()==='R' });
+          return;
+        }
+        if (/^COL:/i.test(line)) {
+          const p = line.replace(/^COL:\s*/i, '').split('|');
+          cols.push({ label: (p[0]||'').trim(), width: parseInt(p[1])||15, align: ((p[2]||'L').trim().toUpperCase()) });
+          return;
+        }
+        if (/^ROW:/i.test(line)) { rows.push(line.replace(/^ROW:\s*/i,'').split('|').map(v=>v.trim())); return; }
+        if (/^TOTAL:/i.test(line)) { totalRow = line.replace(/^TOTAL:\s*/i,'').split('|').map(v=>v.trim()); return; }
+        if (line.includes('|') && !screenTitle) {
+          const parts = line.split('|').map(p=>p.trim()).filter(Boolean);
+          if (isSelection) params.push({ label: parts[0]||'', tech:'', value: parts[1]||'', req:false });
+          else if (cols.length===0) parts.forEach(p=>cols.push({label:p,width:20,align:'L'}));
+          else rows.push(parts);
+        } else if (!screenTitle && line && !firstLine.startsWith('SCREEN')) {
+          screenTitle = line;
+        }
+      });
+
+      if (!screenTitle) screenTitle = isSelection ? 'Selection Screen' : 'Output Report';
+      const fieldsCount  = params.length  || 4;
+      const rowsCount    = rows.length    || 5;
+      const colsCount    = (cols.length   || 5);
+      const estH = isSelection
+        ? 24 + fieldsCount * 8 + 20
+        : 24 + 7 + rowsCount * 5.5 + (totalRow ? 7 : 0) + 8;
+      const screenH = Math.min(Math.max(estH, 70), 190);
+
+      if (startY + screenH > 272) { doc.addPage(); startY = 14; }
+      let sy = startY;
+
+      // Outer frame
+      doc.setFillColor(...gray2);
+      doc.setDrawColor(...bord);
+      doc.setLineWidth(0.5);
+      doc.rect(L, sy, BW, screenH, 'FD');
+
+      // Title bar
+      doc.setFillColor(...navy);
+      doc.rect(L, sy, BW, 8, 'F');
+      doc.setTextColor(255,255,255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7);
+      doc.text(screenTitle.substring(0,72), L+3, sy+5.5);
+      [[200,80,60,'×'], [80,130,200,'□'], [100,100,110,'─']].forEach(([r,g,b,c], i) => {
+        const bx = L + BW - 5 - i*7;
+        doc.setFillColor(r,g,b); doc.rect(bx-3,sy+1.5,5.5,5,'F');
+        doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(6);
+        doc.text(c, bx-1.8, sy+5.5);
+      });
+      sy += 8;
+
+      // Menu bar
+      doc.setFillColor(...gray1); doc.rect(L, sy, BW, 5.5, 'F');
+      doc.setDrawColor(...bord); doc.setLineWidth(0.2); doc.line(L, sy+5.5, L+BW, sy+5.5);
+      doc.setTextColor(20,20,20); doc.setFont('helvetica','normal'); doc.setFontSize(6);
+      let mx = L+3;
+      ['Sistema','Editar','Pasar a','Favoritos','Extras','Entorno','Ayuda'].forEach(m => {
+        doc.text(m, mx, sy+4); mx += doc.getTextWidth(m)+4.5;
+      });
+      sy += 5.5;
+
+      // Toolbar
+      doc.setFillColor(232,237,246); doc.rect(L, sy, BW, 7.5, 'F');
+      doc.setDrawColor(...bord); doc.line(L, sy+7.5, L+BW, sy+7.5);
+      doc.setFillColor(...white); doc.setDrawColor(120,150,200); doc.setLineWidth(0.3);
+      doc.rect(L+2, sy+1.5, 25, 4.5, 'FD');
+      let tx = L+29;
+      (isSelection ? [0,1,2,3,4] : [0,1,2,3,4,5,6,7,8]).forEach((_, i) => {
+        if (i===2||i===5) { doc.setDrawColor(155,175,215); doc.line(tx+1,sy+2,tx+1,sy+6); tx+=3; return; }
+        doc.setFillColor(215,224,242); doc.setDrawColor(145,165,210); doc.setLineWidth(0.25);
+        doc.rect(tx,sy+1.5,5.5,4.5,'FD');
+        doc.setFillColor(60,90,160); doc.rect(tx+1.5,sy+2.5,2.5,2,'F');
+        tx += 6.5;
+      });
+      sy += 7.5;
+
+      // Body background
+      const bodyH = screenH - (sy - startY) - 6;
+      doc.setFillColor(248, 250, 254); doc.rect(L, sy, BW, bodyH, 'F');
+
+      if (isSelection) {
+        // GROUP BOX
+        const gx = L+5, gw = BW-10, gy2 = sy+4;
+        const gh = Math.min(fieldsCount*8+12, bodyH-18);
+        doc.setFillColor(...white); doc.setDrawColor(135,165,215); doc.setLineWidth(0.4);
+        doc.rect(gx, gy2, gw, gh, 'FD');
+        doc.setFillColor(248,250,254); doc.rect(gx+6, gy2-2.5, 52, 5, 'F');
+        doc.setTextColor(30,60,145); doc.setFont('helvetica','bold'); doc.setFontSize(6.5);
+        doc.text('Parámetros de selección', gx+7, gy2+0.5);
+
+        let fy = gy2+9;
+        const fieldSlots = Math.floor((gh-12)/8);
+        const displayParams = params.length ? params.slice(0,fieldSlots) : [
+          {label:'Sociedad',tech:'BUKRS',value:'1000',req:true},
+          {label:'Ejercicio',tech:'GJAHR',value:'2024',req:true},
+          {label:'Período de',tech:'MONAT',value:'01',req:false},
+          {label:'Período a',tech:'MONAT2',value:'12',req:false},
+        ].slice(0,fieldSlots);
+
+        displayParams.forEach(p => {
+          if (p.req) {
+            doc.setTextColor(190,30,30); doc.setFont('helvetica','bold'); doc.setFontSize(7);
+            doc.text('*', gx+2, fy+3.8);
+          }
+          doc.setTextColor(40,55,85); doc.setFont('helvetica','normal'); doc.setFontSize(7);
+          doc.text(p.label.substring(0,22), gx+6, fy+3.8);
+          const fx = gx+58, fw = Math.min(gw-72, 80);
+          doc.setFillColor(...white); doc.setDrawColor(135,165,215); doc.setLineWidth(0.3);
+          doc.rect(fx, fy, fw, 5.5, 'FD');
+          doc.setDrawColor(40,100,215); doc.setLineWidth(0.7);
+          doc.line(fx, fy+5.5, fx+fw, fy+5.5); doc.setLineWidth(0.3);
+          if (p.value) {
+            doc.setTextColor(0,30,120); doc.setFont('helvetica','normal'); doc.setFontSize(7);
+            doc.text(p.value.substring(0,16), fx+2, fy+4);
+          }
+          doc.setFillColor(220,230,248); doc.setDrawColor(125,155,210);
+          doc.rect(fx+fw+1, fy, 6, 5.5, 'FD');
+          doc.setTextColor(40,80,175); doc.setFont('helvetica','bold'); doc.setFontSize(6);
+          doc.text('▼', fx+fw+2, fy+4.2);
+          fy += 8;
+        });
+
+        const btnY = sy + bodyH - 13;
+        [['Ejecutar (F8)', navy, white], ['Cancelar', gray2, [40,40,60]], ['Variante', gray2, [40,40,60]]].forEach(([lbl,bg,fg], i) => {
+          const bx = gx + i*37;
+          doc.setFillColor(...bg); doc.setDrawColor(100,135,195); doc.setLineWidth(0.4);
+          doc.rect(bx, btnY, 34, 7, 'FD');
+          doc.setTextColor(...fg); doc.setFont('helvetica','bold'); doc.setFontSize(6.5);
+          const tw = doc.getTextWidth(lbl);
+          doc.text(lbl, bx+(34-tw)/2, btnY+4.8);
+        });
+
+      } else {
+        // ALV GRID
+        const useCols = cols.length ? cols : [
+          {label:'Sociedad',width:10,align:'L'},{label:'Cuenta',width:15,align:'L'},
+          {label:'Descripción',width:35,align:'L'},{label:'Importe ML',width:22,align:'R'},{label:'Moneda',width:10,align:'L'},
+        ];
+        const useRows = rows.length ? rows : [
+          ['1000','100000','Activos circulantes','1,500,000.00','EUR'],
+          ['1000','200000','Cuentas por cobrar','500,000.00','EUR'],
+          ['1000','300000','Inventario','800,000.00','EUR'],
+        ];
+        const useTotalRow = totalRow || ['','','Total general','2,800,000.00',''];
+        const totalW = useCols.reduce((s,c)=>s+c.width,0);
+        const uw = BW - 4;
+        const getW = c => (c.width/totalW)*uw;
+        let gy2 = sy+2;
+
+        useCols.forEach((col, ci) => {
+          const cx = L+2 + useCols.slice(0,ci).reduce((s,c)=>s+getW(c),0);
+          const cw = getW(col);
+          doc.setFillColor(58,98,158); doc.setDrawColor(40,80,140); doc.setLineWidth(0.3);
+          doc.rect(cx, gy2, cw-0.3, 6.5, 'FD');
+          doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(6);
+          const lbl = col.label.substring(0,Math.floor(cw/2.1));
+          const tw = doc.getTextWidth(lbl);
+          if (col.align==='R') doc.text(lbl, cx+cw-tw-2, gy2+4.5);
+          else doc.text(lbl, cx+2, gy2+4.5);
+        });
+        gy2 += 6.5;
+
+        const rowH = 5.5;
+        const maxR = Math.floor((bodyH-6.5-(useTotalRow?7:0)-6)/rowH);
+        useRows.slice(0,maxR).forEach((row, ri) => {
+          useCols.forEach((col, ci) => {
+            const cx = L+2 + useCols.slice(0,ci).reduce((s,c)=>s+getW(c),0);
+            const cw = getW(col);
+            doc.setFillColor(ri%2===0?255:244, ri%2===0?255:247, ri%2===0?255:253);
+            doc.setDrawColor(188,205,232); doc.setLineWidth(0.2);
+            doc.rect(cx, gy2, cw-0.3, rowH, 'FD');
+            const val = (row[ci]||'').substring(0,Math.floor(cw/2));
+            doc.setTextColor(20,38,65); doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
+            const tw = doc.getTextWidth(val);
+            if (col.align==='R') doc.text(val, cx+cw-tw-2, gy2+4);
+            else doc.text(val, cx+2, gy2+4);
+          });
+          gy2 += rowH;
+        });
+
+        useCols.forEach((col, ci) => {
+          const cx = L+2 + useCols.slice(0,ci).reduce((s,c)=>s+getW(c),0);
+          const cw = getW(col);
+          doc.setFillColor(208,226,252); doc.setDrawColor(95,145,215); doc.setLineWidth(0.3);
+          doc.rect(cx, gy2, cw-0.3, 6.5, 'FD');
+          const val = (useTotalRow[ci]||'').substring(0,Math.floor(cw/2));
+          doc.setTextColor(10,30,110); doc.setFont('helvetica','bold'); doc.setFontSize(6.5);
+          const tw = doc.getTextWidth(val);
+          if (col.align==='R') doc.text(val, cx+cw-tw-2, gy2+4.5);
+          else doc.text(val, cx+2, gy2+4.5);
+        });
+      }
+
+      // Status bar
+      const sbY = startY + screenH - 6;
+      doc.setFillColor(...gray1); doc.rect(L, sbY, BW, 6, 'F');
+      doc.setDrawColor(...bord); doc.setLineWidth(0.3); doc.line(L, sbY, L+BW, sbY);
+      doc.setTextColor(40,60,115); doc.setFont('helvetica','normal'); doc.setFontSize(5.5);
+      doc.text('Sistema: TechCase-DEV  |  Mandante: 100  |  Usuario: CONSULTOR', L+3, sbY+4);
+      doc.setTextColor(0,130,0); doc.setFont('helvetica','bold');
+      doc.text('● Listo', L+BW-18, sbY+4);
+
+      return startY + screenH + 6;
+    }
+
     // ── CONTENT NODES ────────────────────────────────────────────
     const nodes = parseMarkdownNodes(markdown);
     const chkPage = (h) => { if (y + h > 272) { doc.addPage(); y = 14; } };
@@ -5388,27 +5619,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
         });
         y = doc.lastAutoTable.finalY + 6;
       } else if (node.type === 'code') {
-        const codeLines = node.content.split('\n');
-        const lineH = 4.2;
-        const boxH = codeLines.length * lineH + 10;
-        chkPage(boxH);
-        doc.setFillColor(240, 244, 250);
-        doc.setDrawColor(160, 190, 220);
-        doc.setLineWidth(0.4);
-        doc.rect(L, y, R - L, boxH, 'FD');
-        doc.setFillColor(60, 100, 160);
-        doc.rect(L, y, R - L, 5.5, 'F');
-        doc.setTextColor(215, 230, 250);
-        doc.setFont('courier', 'bold');
-        doc.setFontSize(6.5);
-        doc.text('SAP  Screen Prototype', L + 3, y + 3.8);
-        doc.setTextColor(20, 40, 80);
-        doc.setFont('courier', 'normal');
-        doc.setFontSize(7);
-        codeLines.forEach((cl, idx) => {
-          doc.text(cl.substring(0, 103), L + 3, y + 8 + idx * lineH);
-        });
-        y += boxH + 6;
+        y = renderSapScreen(y, node.content);
       } else if (node.type === 'list') {
         for (let idx = 0; idx < node.items.length; idx++) {
           const prefix = node.ordered ? (idx + 1) + '.  ' : '•  ';
@@ -5693,13 +5904,23 @@ Generate the specification with EXACTLY these sections in order:
 ### 7.1 Selection Screen
 
 \`\`\`
-[ASCII box-drawing SAP selection screen with parameters, using characters like ┌─┐│└┘]
+SCREEN:SELECTION
+TITLE:Z[TXN] - [Description]
+PARAM:[Field label]|[TECH_NAME]|[default value]|[R=required or O=optional]
+PARAM:[Field label]|[TECH_NAME]|[default value]|R
+PARAM:[Field label]|[TECH_NAME]||O
 \`\`\`
 
 ### 7.2 Output / Result
 
 \`\`\`
-[ASCII box-drawing SAP output screen or ALV grid with columns]
+SCREEN:OUTPUT
+TITLE:[Report Title] | [key filters]
+COL:[Column header]|[width 8-35]|[L or R for alignment]
+COL:[Column header]|[width]|R
+ROW:[val1]|[val2]|[val3]|[val4]|[val5]
+ROW:[val1]|[val2]|[val3]|[val4]|[val5]
+TOTAL:||Total general|[amount]|
 \`\`\`
 
 ## 8. Risks & Assumptions
@@ -5708,7 +5929,7 @@ Generate the specification with EXACTLY these sections in order:
 ## 9. Next Steps
 1. [action item]
 
-Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA1, MARA, etc.) relevant to ${caseData.area_sap ?? 'the module'}. Make screen prototypes detailed with box-drawing characters.`;
+Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA1, MARA, etc.) for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM and COL lines with actual field names and columns relevant to this case — do NOT leave placeholder bracket text.`;
 
       const spec = await callClaude({
         model: 'claude-haiku-4-5-20251001',
@@ -5788,13 +6009,23 @@ Generate the specification with EXACTLY these sections in order:
 ### 7.1 Selection Screen
 
 \`\`\`
-[ASCII box-drawing SAP selection screen with parameters, using characters ┌─┐│└┘├┤]
+SCREEN:SELECTION
+TITLE:Z[TXN] - [Description]
+PARAM:[Field label]|[TECH_NAME]|[default]|[R=required or O=optional]
+PARAM:[Field label]|[TECH_NAME]|[default]|R
+PARAM:[Field label]|[TECH_NAME]||O
 \`\`\`
 
 ### 7.2 Output / Result
 
 \`\`\`
-[ASCII box-drawing SAP ALV output grid or report output with column headers and sample rows]
+SCREEN:OUTPUT
+TITLE:[Report Title] | [key filter info]
+COL:[Column header]|[width 8-35]|[L or R for alignment]
+COL:[Column header]|[width]|L
+ROW:[val1]|[val2]|[val3]|[val4]|[val5]
+ROW:[val1]|[val2]|[val3]|[val4]|[val5]
+TOTAL:||Total general|[total amount]|
 \`\`\`
 
 ## 8. Risks & Assumptions
@@ -5803,7 +6034,7 @@ Generate the specification with EXACTLY these sections in order:
 ## 9. Next Steps
 1. [concrete action item]
 
-Important: Use realistic Z object names, reference actual SAP tables (BKPF, BSEG, KNA1, MARA, T001, etc.) appropriate to ${caseData.area_sap ?? 'the module'}. Make screen prototypes detailed and realistic using box-drawing characters.`;
+Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA1, MARA, T001, etc.) for ${caseData.area_sap ?? 'the module'}. For the screen prototype, fill in the PARAM and COL lines with real field names and columns relevant to this case — do NOT leave placeholder text.`;
       const result = await callClaude({
         model: 'claude-haiku-4-5-20251001',
         system: 'You are an SAP functional consultant. Write a professional, structured functional specification in markdown.',
