@@ -5129,6 +5129,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
   const [approving, setApproving]         = useState(false);
   const [savedSpecUrl, setSavedSpecUrl]   = useState(null);
   const [savingDoc, setSavingDoc]         = useState(false);
+  const [specHtml, setSpecHtml]           = useState(null);
 
   // ── Document helpers ─────────────────────────────────────────
   function blobToBase64(blob) {
@@ -5231,15 +5232,24 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
       const safeName = (caseData.title ?? 'Spec').replace(/[^a-z0-9]/gi, '_');
       const fileName = `FuncSpec_${safeName}_${new Date().toISOString().slice(0, 10)}.html`;
       const html = buildSpecHtml(markdown);
+      setSpecHtml(html);
       const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
       const file = new File([blob], fileName, { type: 'text/html' });
-      const url = await addDocument(file, 'Auto-generated functional specification');
-      setSavedSpecUrl(url);
+      await addDocument(file, 'Auto-generated functional specification');
+      setSavedSpecUrl(fileName);
       if (refetchDocuments) await refetchDocuments();
     } catch (e) {
       alert('Could not save document: ' + e.message);
     }
     setSavingDoc(false);
+  }
+
+  function openSpecInNewTab() {
+    if (!specHtml) return;
+    const blob = new Blob([specHtml], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, '_blank');
+    if (win) setTimeout(() => URL.revokeObjectURL(url), 30000);
   }
 
   const canApprove = auth.isAdmin || auth.isManager || auth.isConsultant;
@@ -5430,12 +5440,10 @@ Write a full markdown functional specification with these sections:
 
   // ── AI Generate ─────────────────────────────────────────────
   async function handleAiGenerate() {
-    alert('Starting generation...');
     setAiGenerating(true);
     setAiError(null);
     try {
       const docBlocks = await buildDocumentBlocks();
-      alert('Documents loaded: ' + docBlocks.length + ' blocks');
       const prompt = `Write a complete SAP Functional Specification for this case.${docBlocks.length > 0 ? '\n\nThe attached document(s) above are the source requirements — read them carefully and base the specification on their content.' : ''}
 
 # Case Information
@@ -5465,11 +5473,10 @@ Write a full markdown functional specification with these sections:
         }],
         max_tokens: 4000,
       });
-      alert('Got result: ' + (result ? result.slice(0, 80) : 'EMPTY'));
       setAiContent(result);
     } catch (e) {
       setAiError(e.message);
-      alert('Error: ' + e.message);
+      alert(e.message);
     }
     setAiGenerating(false);
   }
@@ -5944,10 +5951,10 @@ Write a full markdown functional specification with these sections:
                 Save Draft
               </button>
               {savedSpecUrl ? (
-                <a href={savedSpecUrl} target="_blank" rel="noopener noreferrer"
-                  className="px-4 py-2 text-sm border border-green-300 text-green-700 font-semibold rounded-xl hover:bg-green-50 flex items-center gap-1">
-                  📎 Open Saved Document
-                </a>
+                <button onClick={openSpecInNewTab}
+                  className="px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700">
+                  📎 Open Document
+                </button>
               ) : (
                 <button onClick={() => saveSpecAsDocument(compiledSpec)} disabled={savingDoc}
                   className="px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50">
@@ -6051,10 +6058,10 @@ Write a full markdown functional specification with these sections:
                 Save Draft
               </button>
               {savedSpecUrl ? (
-                <a href={savedSpecUrl} target="_blank" rel="noopener noreferrer"
-                  className="px-4 py-2 text-sm border border-green-300 text-green-700 font-semibold rounded-xl hover:bg-green-50 flex items-center gap-1">
-                  📎 Open Saved Document
-                </a>
+                <button onClick={openSpecInNewTab}
+                  className="px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700">
+                  📎 Open Document
+                </button>
               ) : (
                 <button onClick={() => saveSpecAsDocument(aiContent)} disabled={savingDoc}
                   className="px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50">
