@@ -5466,6 +5466,7 @@ Write a full markdown functional specification with these sections:
       setAiContent(result);
     } catch (e) {
       setAiError(e.message);
+      alert('Generation failed: ' + e.message);
     }
     setAiGenerating(false);
   }
