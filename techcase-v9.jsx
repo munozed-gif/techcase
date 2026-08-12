@@ -5236,30 +5236,167 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
 </html>`;
   }
 
+  function parseMarkdownSections(md) {
+    const sections = [];
+    let title = null, lines = [];
+    for (const line of (md ?? '').split('\n')) {
+      if (/^#{1,2}\s/.test(line)) {
+        if (title !== null) sections.push({ title, content: lines.join('\n').trim() });
+        title = line.replace(/^#+\s+/, '');
+        lines = [];
+      } else {
+        const clean = line
+          .replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1')
+          .replace(/`(.+?)`/g, '$1').replace(/^[-*]\s+/, '• ');
+        lines.push(clean);
+      }
+    }
+    if (title !== null) sections.push({ title, content: lines.join('\n').trim() });
+    return sections;
+  }
+
+  async function buildSpecPdf(markdown) {
+    const { jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const W = 210, L = 14, RR = 196;
+    const sapBlue = [26, 75, 140];
+    const sapGray = [236, 240, 247];
+    const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    // ── HEADER ──────────────────────────────────────────────────
+    doc.setFillColor(...sapBlue);
+    doc.rect(0, 0, W, 44, 'F');
+    doc.setFillColor(255, 255, 255, 0.15);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.text('SAP Functional Specification', L, 18);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.text(caseData.title ?? '', L, 29);
+    doc.setFontSize(8);
+    doc.setTextColor(200, 215, 235);
+    doc.text('CONFIDENTIAL — For ABAP Development Team Only', L, 38);
+
+    // SAP logo area (right side)
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(RR - 28, 6, 28, 14, 2, 2, 'F');
+    doc.setTextColor(...sapBlue);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('SAP', RR - 21, 16);
+
+    // ── METADATA TABLE ──────────────────────────────────────────
+    let y = 52;
+    autoTable(doc, {
+      startY: y,
+      head: [['Case ID', 'SAP Module', 'Industry', 'Priority', 'Date']],
+      body: [[
+        '#' + (caseData.id ?? '').slice(0, 8),
+        caseData.area_sap ?? '—',
+        caseData.area_industry ?? '—',
+        (caseData.priority ?? '—').toUpperCase(),
+        date,
+      ]],
+      styles: { fontSize: 8.5, cellPadding: 3 },
+      headStyles: { fillColor: sapBlue, textColor: [255,255,255], fontStyle: 'bold', fontSize: 8 },
+      bodyStyles: { fillColor: sapGray },
+      theme: 'grid',
+      margin: { left: L, right: 14 },
+    });
+    y = doc.lastAutoTable.finalY + 10;
+
+    // ── CONTENT SECTIONS ────────────────────────────────────────
+    const sections = parseMarkdownSections(markdown);
+    for (const sec of sections) {
+      const titleH = 8, lineH = 4.8;
+      const contentLines = doc.splitTextToSize(sec.content, RR - L - 4);
+      const blockH = titleH + contentLines.length * lineH + 10;
+      if (y + blockH > 272) { doc.addPage(); y = 16; }
+
+      // Section title bar
+      doc.setFillColor(...sapBlue);
+      doc.rect(L, y, RR - L, titleH, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text(sec.title.toUpperCase(), L + 3, y + 5.5);
+      y += titleH + 1;
+
+      // Content area with light background
+      doc.setFillColor(...sapGray);
+      doc.rect(L, y, RR - L, contentLines.length * lineH + 6, 'F');
+      doc.setTextColor(30, 30, 30);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.text(contentLines, L + 3, y + 4.5, { lineHeightFactor: 1.4 });
+      y += contentLines.length * lineH + 12;
+    }
+
+    // ── SIGNATURE SECTION ───────────────────────────────────────
+    if (y > 245) { doc.addPage(); y = 20; }
+    const sigY = Math.max(y + 10, 248);
+    doc.setFillColor(...sapBlue);
+    doc.rect(L, sigY, RR - L, 7, 'F');
+    doc.setTextColor(255,255,255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('APPROVAL SIGNATURES', L + 3, sigY + 5);
+    const cols = [L, L + 62, L + 124];
+    const labels = ['Functional Analyst', 'ABAP Developer', 'Client / Manager'];
+    labels.forEach((lbl, i) => {
+      const bx = cols[i], bw = 56, by = sigY + 10;
+      doc.setFillColor(...sapGray);
+      doc.rect(bx, by, bw, 22, 'F');
+      doc.setTextColor(80, 80, 80);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.text(lbl.toUpperCase(), bx + 3, by + 5);
+      doc.setDrawColor(26, 75, 140);
+      doc.line(bx + 3, by + 16, bx + bw - 3, by + 16);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(130, 130, 130);
+      doc.setFontSize(7);
+      doc.text('Name / Signature / Date', bx + 3, by + 20);
+    });
+
+    // ── PAGE NUMBERS ─────────────────────────────────────────────
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(140, 140, 140);
+      doc.text(`Page ${i} of ${pageCount}  |  TechCase — ${caseData.title ?? ''}`, L, 290);
+    }
+
+    return doc.output('blob');
+  }
+
   async function saveSpecAsDocument(markdown) {
     setSavingDoc(true);
     try {
       const safeName = (caseData.title ?? 'Spec').replace(/[^a-z0-9]/gi, '_');
-      const fileName = `FuncSpec_${safeName}_${new Date().toISOString().slice(0, 10)}.html`;
-      const html = buildSpecHtml(markdown);
-      setSpecHtml(html);
-      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-      const file = new File([blob], fileName, { type: 'text/html' });
+      const fileName = `FuncSpec_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`;
+      const pdfBlob = await buildSpecPdf(markdown);
+      setSpecHtml(pdfBlob);
+      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
       await addDocument(file, 'Auto-generated functional specification');
       setSavedSpecUrl(fileName);
       if (refetchDocuments) await refetchDocuments();
     } catch (e) {
-      alert('Could not save document: ' + e.message);
+      alert('Could not generate PDF: ' + e.message);
     }
     setSavingDoc(false);
   }
 
   function openSpecInNewTab() {
     if (!specHtml) return;
-    const blob = new Blob([specHtml], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(specHtml);
     const win = window.open(url, '_blank');
-    if (win) setTimeout(() => URL.revokeObjectURL(url), 30000);
+    if (win) setTimeout(() => URL.revokeObjectURL(url), 60000);
+    else { const a = document.createElement('a'); a.href = url; a.download = 'FuncSpec.pdf'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 5000); }
   }
 
   const canApprove = auth.isAdmin || auth.isManager || auth.isConsultant;
@@ -5415,14 +5552,15 @@ Key User: ${caseData.key_user_email ?? ''}
 # Interview Q&A per Object
 ${qaSummary}
 
-Write a full markdown functional specification with these sections:
+Write a full markdown SAP functional specification with these sections:
 1. Overview & Scope
 2. Business Requirements
-3. For each ABAP object: Technical Specification (object name, type, description, detailed design)
-4. Data Flow
-5. Error Handling & Edge Cases
-6. Testing Requirements
-7. Sign-off`;
+3. For each ABAP object: Technical Specification — include object name, type, transaction code, SAP tables used, and a field-level table (Field | Type | Length | Description)
+4. Screen Prototype — SAP screen layout mockup (selection screen parameters, ALV grid columns, or Smartform fields) using text-based representation
+5. Data Flow & Integration Points
+6. Error Handling & Edge Cases
+7. Testing Requirements & Acceptance Criteria
+8. Sign-off`;
 
       const spec = await callClaude({
         model: 'claude-sonnet-5',
@@ -5464,12 +5602,12 @@ Industry: ${caseData.area_industry ?? ''}
 Key User Email: ${caseData.key_user_email ?? ''}
 Priority: ${caseData.priority ?? ''}
 
-Write a full markdown functional specification with these sections:
+Write a full markdown functional specification with SAP look & feel including these sections:
 1. Overview & Scope
 2. Business Requirements & Objectives
-3. Functional Design (proposed ABAP objects with details)
-4. Technical Approach
-5. Data Flow & Integration Points
+3. Functional Design — list each ABAP object (Report/FM/BAdI/etc.) with: technical name, type, transaction code, tables used, and a field-level specification table (Field | Type | Length | Description)
+4. Screen Prototype — describe the SAP screen layout (selection screen parameters, ALV grid columns, or form fields) using a text-based mockup
+5. Technical Approach & Data Flow
 6. Error Handling & Edge Cases
 7. Testing Requirements & Acceptance Criteria
 8. Open Questions & Assumptions
