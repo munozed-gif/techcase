@@ -6592,13 +6592,13 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
           {/* Badges row with optional Edit button */}
           <div className="flex items-center justify-between">
             <div className="flex flex-wrap gap-2">
-              {(() => {
+              {showEditWizard && (() => {
                 const stage = lifecycleStages.find(s => s.key === caseData.status);
                 return stage
                   ? <span className="px-2 py-0.5 text-xs font-semibold rounded-lg" style={{ backgroundColor: stage.color + "22", color: stage.color }}>{stage.label}</span>
                   : <Badge className={STATUS_COLORS[caseData.status] ?? "bg-gray-100 text-gray-600"}>{cap(fmt(caseData.status))}</Badge>;
               })()}
-              <Badge className={PRIORITY_COLORS[caseData.priority]}>{cap(caseData.priority)}</Badge>
+              {showEditWizard && <Badge className={PRIORITY_COLORS[caseData.priority]}>{cap(caseData.priority)}</Badge>}
               {caseData.parent_case_id && (
                 <Badge className="bg-violet-100 text-blue-700">Sub-case</Badge>
               )}
@@ -6617,7 +6617,9 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
             )}
           </div>
 
-          <p className="text-gray-700 text-sm leading-relaxed">{caseData.description || "No description provided."}</p>
+          {showEditWizard && (
+            <p className="text-gray-700 text-sm leading-relaxed">{caseData.description || "No description provided."}</p>
+          )}
 
           {/* Overview card */}
           <div className="border border-gray-100 rounded-xl p-4">
