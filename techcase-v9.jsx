@@ -5242,6 +5242,11 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
   const [sapCheck, setSapCheck]         = useState(null);
   const [proposalCheck, setProposalCheck] = useState(null);
   const [stepLoading, setStepLoading]   = useState(false);
+  const [aiSpecA, setAiSpecA]           = useState(''); // custom dev spec
+  const [aiSpecB, setAiSpecB]           = useState(''); // standard SAP spec
+  const [selectedSpec, setSelectedSpec] = useState(null); // 'a' | 'b'
+  const [generatingSpecs, setGeneratingSpecs] = useState(false);
+  const [analysisOpen, setAnalysisOpen] = useState(false);
 
   // Manual state
   const [manualNotes, setManualNotes]     = useState('');
@@ -5849,7 +5854,19 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
       setManualDocIds(spec.document_ids ?? []);
     } else if (spec.mode === 'ai') {
       setAiContent(spec.content ?? '');
-      if (spec.content) setAiStep(3);
+      let restoredStep = 1;
+      if (spec.notes) {
+        try {
+          const nd = JSON.parse(spec.notes);
+          if (nd.sapCheck)      { setSapCheck(nd.sapCheck);           restoredStep = 2; }
+          if (nd.proposalCheck) { setProposalCheck(nd.proposalCheck); restoredStep = 3; }
+          if (nd.specA)         setAiSpecA(nd.specA);
+          if (nd.specB)         setAiSpecB(nd.specB);
+          if (nd.selectedSpec)  setSelectedSpec(nd.selectedSpec);
+        } catch (_) {}
+      }
+      if (spec.content) restoredStep = 3;
+      setAiStep(restoredStep);
     } else if (spec.mode === 'wizard') {
       setWizardObjects(spec.objects ?? []);
       if ((spec.objects ?? []).length > 0) {
@@ -6080,43 +6097,43 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
     ));
   }
 
-  // ── AI Generate ─────────────────────────────────────────────
-  async function handleAiGenerate() {
-    setAiGenerating(true);
-    setAiError(null);
-    try {
-      const docBlocks = await buildDocumentBlocks();
-      const prompt = `Write a complete SAP Functional Specification for this case.${docBlocks.length > 0 ? '\n\nThe attached document(s) above are the source requirements — read them carefully and base the specification on their content.' : ''}
+  // ── AI Generate — two specs ─────────────────────────────────
+  function buildSpecPrompt(isCustomDev) {
+    const sapCtx = sapCheck ? `\nSAP Standard Coverage Analysis: ${sapCheck.coverage} — ${sapCheck.summary}\nGaps: ${(sapCheck.gaps??[]).join('; ')||'none'}\nStandard transactions: ${(sapCheck.standard_transactions??[]).join(', ')||'none'}` : '';
+    const propCtx = proposalCheck ? `\nProposal Validation: score ${proposalCheck.score}/10, risk ${proposalCheck.risk_level}\nStrengths: ${(proposalCheck.strengths??[]).join('; ')||'none'}\nConcerns: ${(proposalCheck.concerns??[]).join('; ')||'none'}` : '';
+
+    if (isCustomDev) {
+      return `Write Option A: Custom ABAP Development Functional Specification for this case.${sapCtx}${propCtx}
 
 Case: ${caseData.title}
 Description: ${caseData.description ?? '(none)'}
 SAP Module: ${caseData.area_sap ?? ''}
 Industry: ${caseData.area_industry ?? ''}
-Key User: ${caseData.key_user_email ?? ''}
-Priority: ${caseData.priority ?? ''}
 
-Generate the specification with EXACTLY these sections in order:
+IMPORTANT: The Pros & Cons section must reference the step analysis above — use the actual gaps as justification for custom dev, and the proposal strengths/concerns as pros/cons.
+
+Generate with EXACTLY these sections:
 
 ## 1. Executive Summary
-[2-3 sentence executive overview]
+[2-3 sentence overview of the custom development approach]
 
 ## 2. Scope
-- [bullet scope items derived from the requirements]
+- [scope items for the custom ABAP solution]
 
 ## 3. Pros & Cons
 
 | In Favor | Against |
 |----------|---------|
-| [pro] | [con] |
+| [use proposal strengths + technical benefits] | [use proposal concerns + development risks] |
 
 ## 4. Technical Recommendation
-[recommended technical approach]
+[why custom development is the right approach given the gaps identified]
 
 ## 5. Technical Objects
 
 | # | Object | Type | Description | Hours |
 |---|--------|------|-------------|-------|
-| 1 | Z[NAME] | [Report/FM/BAdI/Class/etc.] | [description] | [h] |
+| 1 | Z[NAME] | [type] | [description] | [h] |
 | | | | **Subtotal** | **[total]** |
 
 ## 6. Time Estimation
@@ -6136,7 +6153,6 @@ Generate the specification with EXACTLY these sections in order:
 \`\`\`
 SCREEN:SELECTION
 TITLE:Z[TXN] - [Description]
-PARAM:[Field label]|[TECH_NAME]|[default]|[R=required or O=optional]
 PARAM:[Field label]|[TECH_NAME]|[default]|R
 PARAM:[Field label]|[TECH_NAME]||O
 \`\`\`
@@ -6145,36 +6161,115 @@ PARAM:[Field label]|[TECH_NAME]||O
 
 \`\`\`
 SCREEN:OUTPUT
-TITLE:[Report Title] | [key filter info]
-COL:[Column header]|[width 8-35]|[L or R for alignment]
-COL:[Column header]|[width]|L
+TITLE:[Report title] | [filters]
+COL:[Column]|[width]|[L or R]
 ROW:[val1]|[val2]|[val3]|[val4]|[val5]
-ROW:[val1]|[val2]|[val3]|[val4]|[val5]
-TOTAL:||Total general|[total amount]|
+TOTAL:||Total|[amount]|
 \`\`\`
 
 ## 8. Risks & Assumptions
-1. [specific risk or assumption]
+1. [risk based on proposal concerns and development complexity]
 
 ## 9. Next Steps
-1. [concrete action item]
+1. [action item to start the custom development]
 
-Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA1, MARA, T001, etc.) for ${caseData.area_sap ?? 'the module'}. For the screen prototype, fill in the PARAM and COL lines with real field names and columns relevant to this case — do NOT leave placeholder text.`;
-      const result = await callClaude({
-        model: 'claude-haiku-4-5-20251001',
-        system: 'You are an SAP functional consultant. Write a professional, structured functional specification in markdown.',
-        messages: [{
-          role: 'user',
-          content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt,
-        }],
-        max_tokens: 4000,
-      });
-      setAiContent(result);
+Use realistic Z object names, actual SAP table names for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM/COL values.`;
+    } else {
+      return `Write Option B: Standard SAP Configuration Functional Specification for this case.${sapCtx}
+
+Case: ${caseData.title}
+Description: ${caseData.description ?? '(none)'}
+SAP Module: ${caseData.area_sap ?? ''}
+Industry: ${caseData.area_industry ?? ''}
+
+IMPORTANT: This spec covers the approach WITHOUT custom ABAP development. It uses only standard SAP transactions, configuration, and possibly SAPscript/Smartform-based standard tools. Reference the standard transactions found in the coverage analysis.
+
+## 1. Executive Summary
+[2-3 sentence overview of the standard SAP approach]
+
+## 2. Scope
+- [scope items achievable with standard SAP configuration]
+
+## 3. Pros & Cons
+
+| In Favor | Against |
+|----------|---------|
+| [benefits of standard SAP: no dev cost, SAP support, upgrade safe] | [limitations: not fully tailored, workarounds needed] |
+
+## 4. Technical Recommendation
+[recommend using standard SAP with specific configuration; acknowledge limitations]
+
+## 5. Configuration Objects
+
+| # | Object / Transaction | Type | Description | Effort (days) |
+|---|---------------------|------|-------------|---------------|
+| 1 | [T-code from coverage analysis] | Standard | [what it covers] | [d] |
+| | | | **Subtotal** | **[total]** |
+
+## 6. Implementation Timeline
+
+| Phase | Activities | Days |
+|-------|-----------|------|
+| Configuration | [standard SAP config steps] | [d] |
+| Testing | [user acceptance testing] | [d] |
+| Training | [end user training] | [d] |
+| **Total** | | **[total]** |
+
+## 7. SAP Screen Prototype
+
+### 7.1 Standard Transaction Screen
+
+\`\`\`
+SCREEN:SELECTION
+TITLE:[Standard T-code] - [Standard description]
+PARAM:[Field label]|[TECH_NAME]|[default]|R
+PARAM:[Field label]|[TECH_NAME]||O
+\`\`\`
+
+### 7.2 Standard Output
+
+\`\`\`
+SCREEN:OUTPUT
+TITLE:[Standard report title] | [filters]
+COL:[Column]|[width]|[L or R]
+ROW:[sample val1]|[val2]|[val3]|[val4]|[val5]
+TOTAL:||Total|[amount]|
+\`\`\`
+
+## 8. Risks & Assumptions
+1. [risk: standard SAP may not cover 100% of requirement]
+
+## 9. Next Steps
+1. [action item: configure standard SAP]
+
+Use real standard SAP transaction codes and configuration objects for ${caseData.area_sap ?? 'the module'}.`;
+    }
+  }
+
+  async function handleGenerateSpecs() {
+    setGeneratingSpecs(true);
+    setAiError(null);
+    setAiSpecA('');
+    setAiSpecB('');
+    setSelectedSpec(null);
+    try {
+      const docBlocks = await buildDocumentBlocks();
+      const msgContent = (prompt) => docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt;
+      const [specA, specB] = await Promise.all([
+        callClaude({ model: 'claude-haiku-4-5-20251001', system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecPrompt(true)) }], max_tokens: 4000 }),
+        callClaude({ model: 'claude-haiku-4-5-20251001', system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecPrompt(false)) }], max_tokens: 4000 }),
+      ]);
+      setAiSpecA(specA);
+      setAiSpecB(specB);
+      setSelectedSpec('a');
+      setAiContent(specA);
+      try {
+        await saveSpec({ mode: 'ai', status: 'draft', content: specA, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, selectedSpec: 'a' }), title: caseData.title + ' — Functional Spec' });
+      } catch (_) {}
     } catch (e) {
       setAiError(e.message);
-      alert(e.message);
     }
-    setAiGenerating(false);
+    setGeneratingSpecs(false);
   }
 
   // ── Approval helpers ─────────────────────────────────────────
@@ -6185,7 +6280,7 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
         status: 'submitted',
         content: specContent ?? null,
         objects: specObjects ?? [],
-        notes: specMode === 'manual' ? manualNotes : null,
+        notes: specMode === 'manual' ? manualNotes : (specMode === 'ai' ? JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, selectedSpec }) : null),
         document_ids: specMode === 'manual' ? manualDocIds : [],
         title: caseData.title + ' — Functional Spec',
       });
@@ -6232,6 +6327,7 @@ coverage meanings:
         parsed = m ? JSON.parse(m[0]) : { coverage: 'none', summary: raw, standard_transactions: [], gaps: [], recommendation: '' };
       }
       setSapCheck(parsed);
+      try { await saveSpec({ mode: 'ai', status: 'draft', content: null, objects: [], notes: JSON.stringify({ sapCheck: parsed }), title: caseData.title + ' — Functional Spec' }); } catch (_) {}
     } catch (e) { setAiError(e.message); }
     setStepLoading(false);
   }
@@ -6279,6 +6375,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
         parsed = m ? JSON.parse(m[0]) : { valid: true, score: 7, risk_level: 'medium', strengths: [], concerns: [], recommendation: raw };
       }
       setProposalCheck(parsed);
+      try { await saveSpec({ mode: 'ai', status: 'draft', content: null, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck: parsed }), title: caseData.title + ' — Functional Spec' }); } catch (_) {}
       setAiStep(3);
     } catch (e) { setAiError(e.message); }
     setStepLoading(false);
@@ -6989,91 +7086,183 @@ Respond with ONLY a valid JSON object, no markdown fences:
           </div>
         )}
 
-        {/* ── STEP 3: Generate Spec ── */}
+        {/* ── STEP 3: Generate & Choose Spec ── */}
         {aiStep === 3 && (
           <div className="space-y-4">
-            {/* Summary badges from steps 1 & 2 */}
-            <div className="flex flex-wrap gap-2">
-              {sapCheck && (
-                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${cc[0]} ${cc[1]} ${cc[2]}`}>
-                  Step 1: Coverage — {sapCheck.coverage?.toUpperCase()}
-                </span>
-              )}
-              {proposalCheck && (
-                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${proposalCheck.valid ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
-                  Step 2: {proposalCheck.valid ? 'Valid' : 'Concerns noted'} · Score {proposalCheck.score}/10 · Risk {proposalCheck.risk_level}
-                </span>
-              )}
-            </div>
 
-            {!aiContent && !aiGenerating && (
+            {/* Analysis results accordion */}
+            {(sapCheck || proposalCheck) && (
+              <div className="border border-gray-200 rounded-xl overflow-hidden">
+                <button onClick={() => setAnalysisOpen(p => !p)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 text-sm font-semibold text-gray-700">
+                  <span>Analysis Results from Steps 1 & 2</span>
+                  <span className="text-gray-400 text-xs">{analysisOpen ? '▲ Hide' : '▼ Show'}</span>
+                </button>
+                {analysisOpen && (
+                  <div className="p-4 space-y-4 border-t border-gray-200">
+
+                    {/* Step 1 full result */}
+                    {sapCheck && (
+                      <div className={`border rounded-xl p-3 space-y-2 ${cc[0]} ${cc[1]}`}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-gray-500 uppercase">Step 1 — SAP Standard Coverage</span>
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full border uppercase ${cc[1]} ${cc[2]}`}>{sapCheck.coverage}</span>
+                        </div>
+                        <p className={`text-xs ${cc[2]}`}>{sapCheck.summary}</p>
+                        {(sapCheck.standard_transactions??[]).length > 0 && (
+                          <div>
+                            <p className={`text-xs font-semibold mb-0.5 ${cc[3]}`}>Standard transactions:</p>
+                            <ul className={`text-xs space-y-0.5 ${cc[2]}`}>{sapCheck.standard_transactions.map((t,i)=><li key={i} className="flex gap-1"><span>•</span><span>{t}</span></li>)}</ul>
+                          </div>
+                        )}
+                        {(sapCheck.gaps??[]).length > 0 && (
+                          <div>
+                            <p className={`text-xs font-semibold mb-0.5 ${cc[3]}`}>Gaps requiring custom dev:</p>
+                            <ul className={`text-xs space-y-0.5 ${cc[2]}`}>{sapCheck.gaps.map((g,i)=><li key={i} className="flex gap-1"><span>→</span><span>{g}</span></li>)}</ul>
+                          </div>
+                        )}
+                        {sapCheck.recommendation && <p className={`text-xs italic border-t pt-1 ${cc[1]} ${cc[2]}`}>{sapCheck.recommendation}</p>}
+                      </div>
+                    )}
+
+                    {/* Step 2 full result */}
+                    {proposalCheck && (
+                      <div className={`border rounded-xl p-3 space-y-2 ${proposalCheck.valid ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-bold text-gray-500 uppercase">Step 2 — Proposal Validation</span>
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${proposalCheck.valid ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+                            {proposalCheck.valid ? 'Valid' : 'Concerns'}
+                          </span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${riskColor[proposalCheck.risk_level]??riskColor.medium}`}>Risk: {proposalCheck.risk_level}</span>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-700 font-bold">Score: {proposalCheck.score}/10</span>
+                        </div>
+                        {(proposalCheck.strengths??[]).length > 0 && (
+                          <div>
+                            <p className="text-xs font-semibold text-green-700 mb-0.5">Strengths:</p>
+                            <ul className="text-xs text-green-700 space-y-0.5">{proposalCheck.strengths.map((s,i)=><li key={i} className="flex gap-1"><span>✓</span><span>{s}</span></li>)}</ul>
+                          </div>
+                        )}
+                        {(proposalCheck.concerns??[]).length > 0 && (
+                          <div>
+                            <p className="text-xs font-semibold text-amber-700 mb-0.5">Concerns:</p>
+                            <ul className="text-xs text-amber-700 space-y-0.5">{proposalCheck.concerns.map((c,i)=><li key={i} className="flex gap-1"><span>⚠</span><span>{c}</span></li>)}</ul>
+                          </div>
+                        )}
+                        {proposalCheck.recommendation && <p className={`text-xs italic border-t pt-1 ${proposalCheck.valid ? 'border-green-200 text-green-700' : 'border-amber-200 text-amber-700'}`}>{proposalCheck.recommendation}</p>}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Generate button */}
+            {!aiSpecA && !aiSpecB && !generatingSpecs && (
               <div className="text-center py-6">
                 <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-3">
                   <Sparkles className="w-7 h-7 text-blue-600" />
                 </div>
-                <p className="text-sm text-gray-600 mb-4">Claude will now write the complete SAP functional specification based on the analysis above.</p>
-                <button onClick={handleAiGenerate}
+                <p className="text-sm text-gray-600 mb-2">Claude will generate <strong>two specifications</strong> based on the analysis:</p>
+                <div className="flex justify-center gap-4 mb-5 text-xs text-gray-500">
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"/><strong>Option A</strong> — Custom ABAP development (with pros &amp; cons)</span>
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"/><strong>Option B</strong> — Standard SAP configuration</span>
+                </div>
+                <button onClick={handleGenerateSpecs}
                   className="px-6 py-3 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
-                  Generate Functional Specification
+                  Generate Both Specifications
                 </button>
               </div>
             )}
 
-            {aiGenerating && (
+            {generatingSpecs && (
               <div className="flex items-center justify-center py-16 gap-3 text-gray-400">
-                <Spinner /><span className="text-sm">Claude is writing the functional specification…</span>
+                <Spinner /><span className="text-sm">Claude is generating both specifications simultaneously…</span>
               </div>
             )}
 
-            {aiContent && !aiGenerating && (
-              <Fragment>
-                <div className="flex items-center gap-2 justify-end flex-wrap">
-                  <button onClick={() => setAiEditing(p => !p)}
-                    className="px-3 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">
-                    {aiEditing ? 'Preview' : 'Edit'}
+            {/* Spec selector tabs */}
+            {(aiSpecA || aiSpecB) && !generatingSpecs && (
+              <div className="space-y-0">
+                {/* Tab bar */}
+                <div className="flex border-b border-gray-200">
+                  <button onClick={() => { setSelectedSpec('a'); setAiContent(aiSpecA); }}
+                    className={`flex-1 py-3 px-4 text-sm font-semibold border-b-2 transition-colors text-left flex items-center gap-2 ${selectedSpec === 'a' ? 'border-[#1A4B8C] text-[#1A4B8C] bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
+                    <span className="w-5 h-5 rounded-full bg-amber-400 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold">A</span>
+                    <span>Custom ABAP Development</span>
+                    {selectedSpec === 'a' && <span className="ml-auto text-xs font-semibold text-[#1A4B8C] bg-blue-100 px-2 py-0.5 rounded-full">Selected</span>}
                   </button>
-                  <button onClick={handleAiGenerate}
-                    className="px-3 py-1.5 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
-                    Re-generate
+                  <button onClick={() => { setSelectedSpec('b'); setAiContent(aiSpecB); }}
+                    className={`flex-1 py-3 px-4 text-sm font-semibold border-b-2 transition-colors text-left flex items-center gap-2 ${selectedSpec === 'b' ? 'border-[#1A4B8C] text-[#1A4B8C] bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
+                    <span className="w-5 h-5 rounded-full bg-green-500 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold">B</span>
+                    <span>Standard SAP Configuration</span>
+                    {selectedSpec === 'b' && <span className="ml-auto text-xs font-semibold text-[#1A4B8C] bg-blue-100 px-2 py-0.5 rounded-full">Selected</span>}
                   </button>
                 </div>
 
-                {aiEditing ? (
-                  <textarea value={aiContent} onChange={e => setAiContent(e.target.value)} rows={20}
-                    className="w-full border border-gray-200 rounded-xl p-4 text-sm font-mono resize-y focus:outline-none focus:border-blue-400" />
-                ) : (
-                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 text-sm text-gray-800 leading-relaxed overflow-x-auto"
-                    dangerouslySetInnerHTML={{ __html: '<p style="margin:0.5rem 0">' + renderMarkdown(aiContent) + '</p>' }} />
-                )}
+                {/* Tab content */}
+                <div className="border border-t-0 border-gray-200 rounded-b-xl overflow-hidden">
+                  {/* Edit toggle row */}
+                  <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200">
+                    <span className="text-xs text-gray-500">
+                      {selectedSpec === 'a' ? 'Option A: Custom ABAP Development Specification' : selectedSpec === 'b' ? 'Option B: Standard SAP Configuration Specification' : 'Select an option above'}
+                    </span>
+                    <div className="flex gap-2">
+                      <button onClick={() => setAiEditing(p => !p)}
+                        className="px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-white">
+                        {aiEditing ? 'Preview' : 'Edit'}
+                      </button>
+                      <button onClick={handleGenerateSpecs}
+                        className="px-2.5 py-1 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
+                        Re-generate both
+                      </button>
+                    </div>
+                  </div>
 
-                <div className="flex gap-3 justify-end pt-2 border-t border-gray-100">
-                  <button onClick={async () => {
-                    try {
-                      await saveSpec({ mode: 'ai', status: 'draft', content: aiContent, title: caseData.title + ' — Functional Spec' });
-                      await refetch();
-                    } catch (e) { alert(e.message); }
-                  }} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50">
-                    Save Draft
-                  </button>
-                  {savedSpecUrl ? (
-                    <button onClick={openSpecInNewTab}
-                      className="flex items-center px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700">
-                      <Download className="w-4 h-4 mr-1.5" />Open PDF
-                    </button>
-                  ) : (
-                    <button onClick={() => saveSpecAsDocument(aiContent)} disabled={savingDoc}
-                      className="flex items-center px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50">
-                      {savingDoc ? 'Saving…' : <><Paperclip className="w-4 h-4 mr-1.5" />Save to Documents</>}
-                    </button>
-                  )}
-                  {canSubmit && (
-                    <button onClick={() => handleSubmit(aiContent, 'ai', [])}
-                      className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900">
-                      Submit for Approval
-                    </button>
-                  )}
+                  {/* Content */}
+                  <div className="p-5 max-h-[600px] overflow-y-auto">
+                    {aiEditing ? (
+                      <textarea value={selectedSpec === 'b' ? aiSpecB : aiSpecA}
+                        onChange={e => { if (selectedSpec === 'b') { setAiSpecB(e.target.value); setAiContent(e.target.value); } else { setAiSpecA(e.target.value); setAiContent(e.target.value); } }}
+                        rows={25} className="w-full border border-gray-200 rounded-xl p-3 text-sm font-mono resize-y focus:outline-none focus:border-blue-400" />
+                    ) : (
+                      <div className="text-sm text-gray-800 leading-relaxed"
+                        dangerouslySetInnerHTML={{ __html: '<div>' + renderMarkdown(selectedSpec === 'b' ? aiSpecB : aiSpecA) + '</div>' }} />
+                    )}
+                  </div>
                 </div>
-              </Fragment>
+
+                {/* Action bar */}
+                <div className="flex gap-3 items-center justify-between pt-3 border-t border-gray-100">
+                  <p className="text-xs text-gray-500">
+                    {selectedSpec ? `Submitting: Option ${selectedSpec.toUpperCase()} — ${selectedSpec === 'a' ? 'Custom ABAP' : 'Standard SAP'}` : 'Click a tab to select which spec to submit'}
+                  </p>
+                  <div className="flex gap-2">
+                    <button onClick={async () => {
+                      const content = selectedSpec === 'b' ? aiSpecB : aiSpecA;
+                      try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, selectedSpec }), title: caseData.title + ' — Functional Spec' }); await refetch(); } catch (e) { alert(e.message); }
+                    }} disabled={!selectedSpec} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-40">
+                      Save Draft
+                    </button>
+                    {savedSpecUrl ? (
+                      <button onClick={openSpecInNewTab}
+                        className="flex items-center px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700">
+                        <Download className="w-4 h-4 mr-1.5" />Open PDF
+                      </button>
+                    ) : (
+                      <button onClick={() => saveSpecAsDocument(selectedSpec === 'b' ? aiSpecB : aiSpecA)} disabled={!selectedSpec || savingDoc}
+                        className="flex items-center px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-40">
+                        {savingDoc ? 'Saving…' : <><Paperclip className="w-4 h-4 mr-1.5" />Save PDF</>}
+                      </button>
+                    )}
+                    {canSubmit && (
+                      <button onClick={() => handleSubmit(selectedSpec === 'b' ? aiSpecB : aiSpecA, 'ai', [])} disabled={!selectedSpec}
+                        className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-40">
+                        Submit for Approval
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         )}
