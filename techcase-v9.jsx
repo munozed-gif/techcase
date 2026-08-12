@@ -5946,7 +5946,7 @@ Write a full markdown functional specification with these sections:
                 </a>
               ) : (
                 <button onClick={() => saveSpecAsDocument(compiledSpec)} disabled={savingDoc}
-                  className="px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50"
+                  className="px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50">
                   {savingDoc ? 'Saving…' : '📎 Save to Documents'}
                 </button>
 
@@ -6053,7 +6053,7 @@ Write a full markdown functional specification with these sections:
                 </a>
               ) : (
                 <button onClick={() => saveSpecAsDocument(aiContent)} disabled={savingDoc}
-                  className="px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50"
+                  className="px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50">
                   {savingDoc ? 'Saving…' : '📎 Save to Documents'}
                 </button>
 
