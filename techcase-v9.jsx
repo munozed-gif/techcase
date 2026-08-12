@@ -5179,6 +5179,10 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
 <style>
   *{box-sizing:border-box}
   body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;color:#1a1a1a;max-width:900px;margin:0 auto;padding:40px}
+  .print-bar{position:fixed;top:0;left:0;right:0;background:#1A4B8C;color:#fff;padding:10px 24px;display:flex;align-items:center;justify-content:space-between;z-index:999;font-size:13px}
+  .print-bar button{background:#fff;color:#1A4B8C;border:none;padding:7px 18px;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px}
+  .print-bar span{opacity:.85}
+  .doc-wrap{margin-top:52px}
   .doc-header{background:#1A4B8C;color:#fff;margin:-40px -40px 32px;padding:32px 40px}
   .doc-header h1{margin:0 0 6px;font-size:22px;font-weight:800}
   .doc-header .sub{font-size:13px;opacity:.8}
@@ -5202,10 +5206,15 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
   .footer{margin-top:48px;border-top:2px solid #e5e7eb;padding-top:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
   .sig label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;color:#9ca3af;margin-bottom:20px}
   .sig .line{border-top:1px solid #374151;padding-top:4px;font-size:11px;color:#6b7280}
-  @media print{body{padding:20px}.doc-header{margin:-20px -20px 24px;padding:24px 20px}}
+  @media print{.print-bar{display:none!important}.doc-wrap{margin-top:0}body{padding:20px}.doc-header{margin:-20px -20px 24px;padding:24px 20px}}
 </style>
 </head>
 <body>
+<div class="print-bar">
+  <span>SAP Functional Specification — ${caseData.title}</span>
+  <button onclick="window.print()">⬇ Save as PDF</button>
+</div>
+<div class="doc-wrap">
 <div class="doc-header">
   <h1>SAP Functional Specification</h1>
   <div class="sub">${caseData.title}</div>
@@ -5221,6 +5230,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
   <div class="sig"><label>Functional Analyst</label><div class="line">Signature / Date</div></div>
   <div class="sig"><label>ABAP Developer</label><div class="line">Signature / Date</div></div>
   <div class="sig"><label>Client Approval</label><div class="line">Signature / Date</div></div>
+</div>
 </div>
 </body>
 </html>`;
@@ -5953,7 +5963,7 @@ Write a full markdown functional specification with these sections:
               {savedSpecUrl ? (
                 <button onClick={openSpecInNewTab}
                   className="px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700">
-                  📎 Open Document
+                  📄 Open & Save as PDF
                 </button>
               ) : (
                 <button onClick={() => saveSpecAsDocument(compiledSpec)} disabled={savingDoc}
@@ -6060,7 +6070,7 @@ Write a full markdown functional specification with these sections:
               {savedSpecUrl ? (
                 <button onClick={openSpecInNewTab}
                   className="px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700">
-                  📎 Open Document
+                  📄 Open & Save as PDF
                 </button>
               ) : (
                 <button onClick={() => saveSpecAsDocument(aiContent)} disabled={savingDoc}
