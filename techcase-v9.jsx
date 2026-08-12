@@ -5237,129 +5237,231 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
 </html>`;
   }
 
-  function parseMarkdownSections(md) {
-    const sections = [];
-    let title = null, lines = [];
-    for (const line of (md ?? '').split('\n')) {
+  function parseMarkdownNodes(md) {
+    const nodes = [];
+    const lines = (md ?? '').split('\n');
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i];
       if (/^#{1,2}\s/.test(line)) {
-        if (title !== null) sections.push({ title, content: lines.join('\n').trim() });
-        title = line.replace(/^#+\s+/, '');
-        lines = [];
-      } else {
-        const clean = line
-          .replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1')
-          .replace(/`(.+?)`/g, '$1').replace(/^[-*]\s+/, '• ');
-        lines.push(clean);
+        nodes.push({ type: 'heading', text: line.replace(/^#+\s+/, '') });
+        i++; continue;
       }
+      if (/^#{3,}\s/.test(line)) {
+        nodes.push({ type: 'subheading', text: line.replace(/^#+\s+/, '') });
+        i++; continue;
+      }
+      if (/^```/.test(line)) {
+        i++;
+        const codeLines = [];
+        while (i < lines.length && !/^```/.test(lines[i])) { codeLines.push(lines[i]); i++; }
+        i++;
+        if (codeLines.length) nodes.push({ type: 'code', content: codeLines.join('\n') });
+        continue;
+      }
+      if (line.trim().startsWith('|') && line.includes('|')) {
+        const tableLines = [];
+        while (i < lines.length && lines[i].trim().startsWith('|')) { tableLines.push(lines[i]); i++; }
+        const dataRows = tableLines.filter(l => !/^\s*\|[-: |]+\|\s*$/.test(l));
+        if (dataRows.length > 1) {
+          const parseRow = r => r.replace(/^\||\|$/g, '').split('|').map(c => c.trim().replace(/\*\*(.+?)\*\*/g, '$1'));
+          nodes.push({ type: 'table', head: parseRow(dataRows[0]), body: dataRows.slice(1).map(parseRow) });
+        }
+        continue;
+      }
+      if (/^[-*•]\s/.test(line)) {
+        const items = [];
+        while (i < lines.length && /^[-*•]\s/.test(lines[i])) {
+          items.push(lines[i].replace(/^[-*•]\s+/, '').replace(/\*\*(.+?)\*\*/g, '$1'));
+          i++;
+        }
+        nodes.push({ type: 'list', ordered: false, items });
+        continue;
+      }
+      if (/^\d+[.)]\s/.test(line)) {
+        const items = [];
+        while (i < lines.length && /^\d+[.)]\s/.test(lines[i])) {
+          items.push(lines[i].replace(/^\d+[.)]\s+/, '').replace(/\*\*(.+?)\*\*/g, '$1'));
+          i++;
+        }
+        nodes.push({ type: 'list', ordered: true, items });
+        continue;
+      }
+      if (!line.trim()) { i++; continue; }
+      const textLines = [];
+      while (i < lines.length && lines[i].trim() &&
+        !/^#/.test(lines[i]) && !/^```/.test(lines[i]) &&
+        !lines[i].trim().startsWith('|') &&
+        !/^[-*•]\s/.test(lines[i]) && !/^\d+[.)]\s/.test(lines[i])) {
+        textLines.push(lines[i].replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1').replace(/`(.+?)`/g, '$1'));
+        i++;
+      }
+      if (textLines.length) nodes.push({ type: 'text', content: textLines.join(' ') });
     }
-    if (title !== null) sections.push({ title, content: lines.join('\n').trim() });
-    return sections;
+    return nodes;
   }
 
   async function buildSpecPdf(markdown) {
     const { jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-    const W = 210, L = 14, RR = 196;
+    const W = 210, L = 12, R = 198;
     const sapBlue = [26, 75, 140];
-    const sapGray = [236, 240, 247];
+    const sapLightBlue = [232, 240, 251];
     const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
     // ── HEADER ──────────────────────────────────────────────────
     doc.setFillColor(...sapBlue);
-    doc.rect(0, 0, W, 44, 'F');
-    doc.setFillColor(255, 255, 255, 0.15);
+    doc.rect(0, 0, W, 42, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(20);
-    doc.text('SAP Functional Specification', L, 18);
+    doc.setFontSize(7.5);
+    doc.text('SAP  /  Functional Specification  /  ' + (caseData.area_sap ?? 'Module'), L, 11);
+    doc.setFontSize(16);
+    const titleText = (caseData.title ?? 'Case Title');
+    doc.text(titleText.length > 65 ? titleText.substring(0, 63) + '...' : titleText, L, 23);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
-    doc.text(caseData.title ?? '', L, 29);
-    doc.setFontSize(8);
-    doc.setTextColor(200, 215, 235);
-    doc.text('CONFIDENTIAL — For ABAP Development Team Only', L, 38);
-
-    // SAP logo area (right side)
+    doc.setFontSize(8.5);
+    doc.setTextColor(170, 205, 240);
+    const subLine = [caseData.area_sap, caseData.area_industry].filter(Boolean).join('  ·  ');
+    if (subLine) doc.text(subLine, L, 33);
     doc.setFillColor(255, 255, 255);
-    doc.roundedRect(RR - 28, 6, 28, 14, 2, 2, 'F');
+    doc.roundedRect(R - 22, 7, 22, 12, 2, 2, 'F');
     doc.setTextColor(...sapBlue);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.text('SAP', RR - 21, 16);
+    doc.setFontSize(13);
+    doc.text('SAP', R - 17, 16);
 
     // ── METADATA TABLE ──────────────────────────────────────────
-    let y = 52;
+    let y = 50;
     autoTable(doc, {
       startY: y,
-      head: [['Case ID', 'SAP Module', 'Industry', 'Priority', 'Date']],
+      head: [['Requirement ID', 'SAP Module', 'Industry', 'Requested by', 'Due Date', 'Priority']],
       body: [[
         '#' + (caseData.id ?? '').slice(0, 8),
         caseData.area_sap ?? '—',
         caseData.area_industry ?? '—',
+        caseData.key_user_email ?? '—',
+        caseData.due_date ? new Date(caseData.due_date + 'T00:00:00').toLocaleDateString() : '—',
         (caseData.priority ?? '—').toUpperCase(),
-        date,
       ]],
-      styles: { fontSize: 8.5, cellPadding: 3 },
-      headStyles: { fillColor: sapBlue, textColor: [255,255,255], fontStyle: 'bold', fontSize: 8 },
-      bodyStyles: { fillColor: sapGray },
+      styles: { fontSize: 7.5, cellPadding: 2.5, lineColor: [200, 215, 235] },
+      headStyles: { fillColor: [50, 100, 170], textColor: [255,255,255], fontStyle: 'bold', fontSize: 7.5 },
+      bodyStyles: { fillColor: sapLightBlue, textColor: [30, 50, 80] },
       theme: 'grid',
-      margin: { left: L, right: 14 },
+      margin: { left: L, right: 12 },
     });
-    y = doc.lastAutoTable.finalY + 10;
+    y = doc.lastAutoTable.finalY + 8;
 
-    // ── CONTENT SECTIONS ────────────────────────────────────────
-    const sections = parseMarkdownSections(markdown);
-    for (const sec of sections) {
-      const titleH = 8, lineH = 4.8;
-      const contentLines = doc.splitTextToSize(sec.content, RR - L - 4);
-      const blockH = titleH + contentLines.length * lineH + 10;
-      if (y + blockH > 272) { doc.addPage(); y = 16; }
+    // ── CONTENT NODES ────────────────────────────────────────────
+    const nodes = parseMarkdownNodes(markdown);
+    const chkPage = (h) => { if (y + h > 272) { doc.addPage(); y = 14; } };
 
-      // Section title bar
-      doc.setFillColor(...sapBlue);
-      doc.rect(L, y, RR - L, titleH, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text(sec.title.toUpperCase(), L + 3, y + 5.5);
-      y += titleH + 1;
-
-      // Content area with light background
-      doc.setFillColor(...sapGray);
-      doc.rect(L, y, RR - L, contentLines.length * lineH + 6, 'F');
-      doc.setTextColor(30, 30, 30);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8.5);
-      doc.text(contentLines, L + 3, y + 4.5, { lineHeightFactor: 1.4 });
-      y += contentLines.length * lineH + 12;
+    for (const node of nodes) {
+      if (node.type === 'heading') {
+        chkPage(10);
+        doc.setFillColor(...sapBlue);
+        doc.rect(L, y, R - L, 7.5, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.text(node.text.toUpperCase(), L + 3, y + 5.2);
+        y += 9;
+      } else if (node.type === 'subheading') {
+        chkPage(8);
+        doc.setTextColor(...sapBlue);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.text(node.text, L + 2, y + 4.5);
+        y += 7;
+      } else if (node.type === 'table') {
+        autoTable(doc, {
+          startY: y,
+          head: [node.head],
+          body: node.body,
+          styles: { fontSize: 7.5, cellPadding: 2.5, lineColor: [200, 215, 235], lineWidth: 0.3 },
+          headStyles: { fillColor: sapBlue, textColor: [255,255,255], fontStyle: 'bold' },
+          alternateRowStyles: { fillColor: sapLightBlue },
+          bodyStyles: { textColor: [30, 50, 80] },
+          theme: 'grid',
+          margin: { left: L, right: 12 },
+        });
+        y = doc.lastAutoTable.finalY + 6;
+      } else if (node.type === 'code') {
+        const codeLines = node.content.split('\n');
+        const lineH = 4.2;
+        const boxH = codeLines.length * lineH + 10;
+        chkPage(boxH);
+        doc.setFillColor(240, 244, 250);
+        doc.setDrawColor(160, 190, 220);
+        doc.setLineWidth(0.4);
+        doc.rect(L, y, R - L, boxH, 'FD');
+        doc.setFillColor(60, 100, 160);
+        doc.rect(L, y, R - L, 5.5, 'F');
+        doc.setTextColor(215, 230, 250);
+        doc.setFont('courier', 'bold');
+        doc.setFontSize(6.5);
+        doc.text('SAP  Screen Prototype', L + 3, y + 3.8);
+        doc.setTextColor(20, 40, 80);
+        doc.setFont('courier', 'normal');
+        doc.setFontSize(7);
+        codeLines.forEach((cl, idx) => {
+          doc.text(cl.substring(0, 103), L + 3, y + 8 + idx * lineH);
+        });
+        y += boxH + 6;
+      } else if (node.type === 'list') {
+        for (let idx = 0; idx < node.items.length; idx++) {
+          const prefix = node.ordered ? (idx + 1) + '.  ' : '•  ';
+          const wrapped = doc.splitTextToSize(prefix + node.items[idx], R - L - 8);
+          const itemH = wrapped.length * 4.5 + 1.5;
+          chkPage(itemH);
+          doc.setTextColor(30, 50, 80);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(8.5);
+          doc.text(wrapped, L + 5, y + 3.5, { lineHeightFactor: 1.35 });
+          y += itemH;
+        }
+        y += 3;
+      } else if (node.type === 'text') {
+        const wrapped = doc.splitTextToSize(node.content, R - L);
+        const textH = wrapped.length * 4.8 + 3;
+        chkPage(textH);
+        doc.setTextColor(30, 50, 80);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        doc.text(wrapped, L, y + 3, { lineHeightFactor: 1.4 });
+        y += textH;
+      }
     }
 
     // ── SIGNATURE SECTION ───────────────────────────────────────
-    if (y > 245) { doc.addPage(); y = 20; }
-    const sigY = Math.max(y + 10, 248);
+    chkPage(40);
+    y += 8;
     doc.setFillColor(...sapBlue);
-    doc.rect(L, sigY, RR - L, 7, 'F');
+    doc.rect(L, y, R - L, 7, 'F');
     doc.setTextColor(255,255,255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.text('APPROVAL SIGNATURES', L + 3, sigY + 5);
-    const cols = [L, L + 62, L + 124];
-    const labels = ['Functional Analyst', 'ABAP Developer', 'Client / Manager'];
-    labels.forEach((lbl, i) => {
-      const bx = cols[i], bw = 56, by = sigY + 10;
-      doc.setFillColor(...sapGray);
-      doc.rect(bx, by, bw, 22, 'F');
-      doc.setTextColor(80, 80, 80);
+    doc.setFontSize(8.5);
+    doc.text('APPROVAL SIGNATURES', L + 3, y + 5);
+    y += 9;
+    const sigCols = [L, L + 62, L + 124];
+    const sigLabels = ['Functional Analyst', 'ABAP Developer', 'Client / Manager'];
+    sigLabels.forEach((lbl, i) => {
+      const bx = sigCols[i], bw = 56;
+      doc.setFillColor(...sapLightBlue);
+      doc.setDrawColor(...sapBlue);
+      doc.setLineWidth(0.3);
+      doc.rect(bx, y, bw, 22, 'FD');
+      doc.setTextColor(60, 90, 140);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(7.5);
-      doc.text(lbl.toUpperCase(), bx + 3, by + 5);
-      doc.setDrawColor(26, 75, 140);
-      doc.line(bx + 3, by + 16, bx + bw - 3, by + 16);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(130, 130, 130);
       doc.setFontSize(7);
-      doc.text('Name / Signature / Date', bx + 3, by + 20);
+      doc.text(lbl.toUpperCase(), bx + 3, y + 5);
+      doc.setDrawColor(100, 140, 195);
+      doc.line(bx + 3, y + 15, bx + bw - 3, y + 15);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(150, 170, 200);
+      doc.setFontSize(6.5);
+      doc.text('Name / Signature / Date', bx + 3, y + 20);
     });
 
     // ── PAGE NUMBERS ─────────────────────────────────────────────
@@ -5368,8 +5470,9 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
       doc.setPage(i);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7);
-      doc.setTextColor(140, 140, 140);
-      doc.text(`Page ${i} of ${pageCount}  |  TechCase — ${caseData.title ?? ''}`, L, 290);
+      doc.setTextColor(160, 170, 190);
+      doc.text('TechCase  ·  SAP Functional Specification  ·  ' + (caseData.title ?? '').substring(0, 50), L, 290);
+      doc.text('Page ' + i + ' of ' + pageCount, R, 290, { align: 'right' });
     }
 
     return doc.output('blob');
@@ -5541,31 +5644,75 @@ Generate 4-7 targeted questions relevant to the ${obj.type} type (e.g. for a Rep
         return `## Object: ${o.name} (${o.type})\nPurpose: ${o.purpose}\n${qa}`;
       }).join('\n\n---\n\n');
 
-      const prompt = `Write a complete SAP Functional Specification based on this case and interview data.${docBlocks.length > 0 ? '\n\nThe attached document(s) above are the original requirements — cross-reference them for completeness.' : ''}
+      const prompt = `Write a complete SAP Functional Specification based on this case and the interview answers below.${docBlocks.length > 0 ? '\n\nThe attached document(s) above contain the original requirements — use them as the primary source.' : ''}
 
-# Case Information
-Title: ${caseData.title}
-Description: ${caseData.description ?? ''}
-SAP Area: ${caseData.area_sap ?? ''}
+Case: ${caseData.title}
+SAP Module: ${caseData.area_sap ?? ''}
 Industry: ${caseData.area_industry ?? ''}
 Key User: ${caseData.key_user_email ?? ''}
 
-# Interview Q&A per Object
+Interview Q&A per Object:
 ${qaSummary}
 
-Write a full markdown SAP functional specification with these sections:
-1. Overview & Scope
-2. Business Requirements
-3. For each ABAP object: Technical Specification — include object name, type, transaction code, SAP tables used, and a field-level table (Field | Type | Length | Description)
-4. Screen Prototype — SAP screen layout mockup (selection screen parameters, ALV grid columns, or Smartform fields) using text-based representation
-5. Data Flow & Integration Points
-6. Error Handling & Edge Cases
-7. Testing Requirements & Acceptance Criteria
-8. Sign-off`;
+Generate the specification with EXACTLY these sections in order:
+
+## 1. Executive Summary
+[2-3 sentence executive overview]
+
+## 2. Scope
+- [bullet scope items]
+
+## 3. Pros & Cons
+
+| In Favor | Against |
+|----------|---------|
+| [pro] | [con] |
+
+## 4. Technical Recommendation
+[recommended approach paragraph]
+
+## 5. Technical Objects
+
+| # | Object | Type | Description | Hours |
+|---|--------|------|-------------|-------|
+| 1 | Z[NAME] | [type] | [description] | [h] |
+| | | | **Subtotal** | **[total]** |
+
+## 6. Time Estimation
+
+| Phase | Included Objects | Hours |
+|-------|-----------------|-------|
+| Analysis & Design | [objects] | [h] |
+| Development | [objects] | [h] |
+| Unit Testing | [objects] | [h] |
+| UAT Support | [objects] | [h] |
+| **Total** | | **[total]** |
+
+## 7. SAP Screen Prototype
+
+### 7.1 Selection Screen
+
+\`\`\`
+[ASCII box-drawing SAP selection screen with parameters, using characters like ┌─┐│└┘]
+\`\`\`
+
+### 7.2 Output / Result
+
+\`\`\`
+[ASCII box-drawing SAP output screen or ALV grid with columns]
+\`\`\`
+
+## 8. Risks & Assumptions
+1. [risk or assumption]
+
+## 9. Next Steps
+1. [action item]
+
+Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA1, MARA, etc.) relevant to ${caseData.area_sap ?? 'the module'}. Make screen prototypes detailed with box-drawing characters.`;
 
       const spec = await callClaude({
-        model: 'claude-sonnet-5',
-        system: 'You are an SAP functional consultant. Write a professional, structured functional specification in markdown.',
+        model: 'claude-haiku-4-5-20251001',
+        system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template provided.',
         messages: [{
           role: 'user',
           content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt,
@@ -5595,24 +5742,68 @@ Write a full markdown SAP functional specification with these sections:
       const docBlocks = await buildDocumentBlocks();
       const prompt = `Write a complete SAP Functional Specification for this case.${docBlocks.length > 0 ? '\n\nThe attached document(s) above are the source requirements — read them carefully and base the specification on their content.' : ''}
 
-# Case Information
-Title: ${caseData.title}
+Case: ${caseData.title}
 Description: ${caseData.description ?? '(none)'}
-SAP Area: ${caseData.area_sap ?? ''}
+SAP Module: ${caseData.area_sap ?? ''}
 Industry: ${caseData.area_industry ?? ''}
-Key User Email: ${caseData.key_user_email ?? ''}
+Key User: ${caseData.key_user_email ?? ''}
 Priority: ${caseData.priority ?? ''}
 
-Write a full markdown functional specification with SAP look & feel including these sections:
-1. Overview & Scope
-2. Business Requirements & Objectives
-3. Functional Design — list each ABAP object (Report/FM/BAdI/etc.) with: technical name, type, transaction code, tables used, and a field-level specification table (Field | Type | Length | Description)
-4. Screen Prototype — describe the SAP screen layout (selection screen parameters, ALV grid columns, or form fields) using a text-based mockup
-5. Technical Approach & Data Flow
-6. Error Handling & Edge Cases
-7. Testing Requirements & Acceptance Criteria
-8. Open Questions & Assumptions
-9. Sign-off`;
+Generate the specification with EXACTLY these sections in order:
+
+## 1. Executive Summary
+[2-3 sentence executive overview]
+
+## 2. Scope
+- [bullet scope items derived from the requirements]
+
+## 3. Pros & Cons
+
+| In Favor | Against |
+|----------|---------|
+| [pro] | [con] |
+
+## 4. Technical Recommendation
+[recommended technical approach]
+
+## 5. Technical Objects
+
+| # | Object | Type | Description | Hours |
+|---|--------|------|-------------|-------|
+| 1 | Z[NAME] | [Report/FM/BAdI/Class/etc.] | [description] | [h] |
+| | | | **Subtotal** | **[total]** |
+
+## 6. Time Estimation
+
+| Phase | Included Objects | Hours |
+|-------|-----------------|-------|
+| Analysis & Design | [objects] | [h] |
+| Development | [objects] | [h] |
+| Unit Testing | [objects] | [h] |
+| UAT Support | [objects] | [h] |
+| **Total** | | **[total]** |
+
+## 7. SAP Screen Prototype
+
+### 7.1 Selection Screen
+
+\`\`\`
+[ASCII box-drawing SAP selection screen with parameters, using characters ┌─┐│└┘├┤]
+\`\`\`
+
+### 7.2 Output / Result
+
+\`\`\`
+[ASCII box-drawing SAP ALV output grid or report output with column headers and sample rows]
+\`\`\`
+
+## 8. Risks & Assumptions
+1. [specific risk or assumption]
+
+## 9. Next Steps
+1. [concrete action item]
+
+Important: Use realistic Z object names, reference actual SAP tables (BKPF, BSEG, KNA1, MARA, T001, etc.) appropriate to ${caseData.area_sap ?? 'the module'}. Make screen prototypes detailed and realistic using box-drawing characters.`;
       const result = await callClaude({
         model: 'claude-haiku-4-5-20251001',
         system: 'You are an SAP functional consultant. Write a professional, structured functional specification in markdown.',
