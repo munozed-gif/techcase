@@ -2810,7 +2810,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         status: startConfirmed ? "confirmed" : (() => {
           const selProject = wizardProjects.find(p => p.id === selectedProjectId);
           const stages = getLifecycleStages(selProject?.case_lifecycle ?? null, lcTemplates);
-          return stages.find(s => !s.is_terminal)?.key ?? "open";
+          return (stages.find(s => s.is_initial) ?? stages.find(s => !s.is_terminal))?.key ?? "open";
         })(),
         area_sap:      basics.area_sap || null,
         area_industry: basics.area_industry || null,
@@ -10677,6 +10677,9 @@ function LifecycleSettingsView({ auth }) {
     const cur = editStages[i].allowed_next ?? [];
     updateStage(i, { allowed_next: cur.includes(key) ? cur.filter(k => k !== key) : [...cur, key] });
   }
+  function setInitialStage(i) {
+    setEditStages(p => p.map((s, j) => ({ ...s, is_initial: j === i })));
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -10743,11 +10746,22 @@ function LifecycleSettingsView({ auth }) {
                     className="flex-1 text-sm font-medium bg-transparent border-0 focus:outline-none text-gray-800 min-w-0"
                     placeholder="Stage name" />
                   <select value={stage.is_terminal ? "terminal" : "active"}
-                    onChange={e => updateStage(idx, { is_terminal: e.target.value === "terminal", ...(e.target.value === "terminal" ? { allowed_next: [], allowed_roles: [] } : {}) })}
+                    onChange={e => updateStage(idx, { is_terminal: e.target.value === "terminal", ...(e.target.value === "terminal" ? { allowed_next: [], allowed_roles: [], is_initial: false } : {}) })}
                     className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600 focus:outline-none flex-shrink-0">
                     <option value="active">Active</option>
                     <option value="terminal">Terminal</option>
                   </select>
+                  {!stage.is_terminal && (
+                    <button onClick={() => setInitialStage(idx)}
+                      title="Set as the starting status when a case is created"
+                      className={`text-xs px-2 py-1 rounded-lg border font-semibold transition-colors flex-shrink-0 ${
+                        stage.is_initial
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                          : "bg-white text-gray-400 border-gray-200 hover:border-emerald-300 hover:text-emerald-600"
+                      }`}>
+                      Initial
+                    </button>
+                  )}
                   <button onClick={() => moveStage(idx, -1)} disabled={idx === 0}
                     className="text-gray-400 hover:text-gray-600 disabled:opacity-20 w-5 text-center flex-shrink-0">↑</button>
                   <button onClick={() => moveStage(idx, 1)} disabled={idx === editStages.length - 1}
