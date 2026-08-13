@@ -1265,6 +1265,50 @@ function fmtDate(d) {
   if (!d) return "—";
   return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
+function timeAgo(d) {
+  if (!d) return '';
+  const s = Math.floor((Date.now() - new Date(d)) / 1000);
+  if (s < 60)  return 'just now';
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  if (s < 604800) return `${Math.floor(s / 86400)}d ago`;
+  return fmtDate(d);
+}
+
+function useGlobalActivity(visibleCaseIds) {
+  const [activities, setActivities] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const key = visibleCaseIds.slice(0, 80).sort().join(',');
+
+  useEffect(() => {
+    if (visibleCaseIds.length === 0) { setActivities([]); return; }
+    setLoading(true);
+    (async () => {
+      const ids = visibleCaseIds.slice(0, 80);
+      const [{ data: comments }, { data: assignments }] = await Promise.all([
+        supabase.from('case_comments')
+          .select('id, case_id, body, created_at, is_internal, progress_update, hours_logged, author:author_id(full_name)')
+          .in('case_id', ids)
+          .order('created_at', { ascending: false })
+          .limit(40),
+        supabase.from('case_assignments')
+          .select('id, case_id, created_at, time_commitment, consultant:consultant_id(full_name)')
+          .in('case_id', ids)
+          .order('created_at', { ascending: false })
+          .limit(20),
+      ]);
+      const items = [
+        ...(comments ?? []).map(c => ({ ...c, _type: c.progress_update !== null ? 'progress' : 'comment' })),
+        ...(assignments ?? []).map(a => ({ ...a, _type: 'assignment' })),
+      ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 40);
+      setActivities(items);
+      setLoading(false);
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  return { activities, loading };
+}
 function stars(n, max = 5) {
   return Array.from({ length: max }, (_, i) => (
     <span key={i} className={i < Math.round(n) ? "text-yellow-400" : "text-gray-300"}>★</span>
@@ -1940,6 +1984,10 @@ function Dashboard({ auth }) {
   const myCases          = cases.filter(c => c.client_id === auth.user?.id);
   const managedCases     = cases.filter(c => c.manager_id === auth.user?.id);
 
+  const visibleCaseIds   = cases.map(c => c.id);
+  const { activities, loading: actLoading } = useGlobalActivity(visibleCaseIds);
+  const caseById = Object.fromEntries(cases.map(c => [c.id, c]));
+
   // ── Client strip ─────────────────────────────────────────────
   const STRIP_PALETTE = [
     { bg:'#dbeafe', fg:'#1e40af' }, { bg:'#ccfbf1', fg:'#0f766e' },
@@ -2381,33 +2429,132 @@ function Dashboard({ auth }) {
             </div>
           )}
 
-          {/* Recent / Assigned Cases */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-            <div className="p-6 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-900">
-                {auth.isConsultant ? "My Assigned Cases" : "Recent Cases"}
-              </h2>
+          {/* Two-column row: recent cases + activity feed */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            {/* Recent / Assigned Cases */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+              <div className="p-5 border-b border-gray-100">
+                <h2 className="text-base font-bold text-gray-900">
+                  {auth.isConsultant ? "My Assigned Cases" : "Recent Cases"}
+                </h2>
+              </div>
+              <div className="divide-y divide-gray-50">
+                {(auth.isConsultant ? assignedCases : cases.slice(0, 8)).map(c => (
+                  <div key={c.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 font-bold text-xs flex-shrink-0">
+                        {c.title?.[0]}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-medium text-gray-900 text-sm truncate">{c.title}</div>
+                        <div className="text-xs text-gray-400">{fmtDate(c.created_at)}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                      <Badge className={STATUS_COLORS[c.status]}>{cap(fmt(c.status))}</Badge>
+                    </div>
+                  </div>
+                ))}
+                {cases.length === 0 && <div className="p-8 text-center text-gray-400 text-sm">No cases yet</div>}
+              </div>
             </div>
-            <div className="divide-y divide-gray-50">
-              {(auth.isConsultant ? assignedCases : cases.slice(0, 5)).map(c => (
-                <div key={c.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 font-bold text-sm">
-                      {c.title?.[0]}
-                    </div>
-                    <div>
-                      <div className="font-medium text-gray-900 text-sm">{c.title}</div>
-                      <div className="text-xs text-gray-400">{fmtDate(c.created_at)}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
-                    <Badge className={STATUS_COLORS[c.status]}>{cap(fmt(c.status))}</Badge>
-                  </div>
+
+            {/* Activity Feed */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col">
+              <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-gray-400" />
+                  <h2 className="text-base font-bold text-gray-900">Activity</h2>
                 </div>
-              ))}
-              {cases.length === 0 && <div className="p-8 text-center text-gray-400 text-sm">No cases yet</div>}
+                <span className="text-xs text-gray-400">All visible cases</span>
+              </div>
+
+              {actLoading && (
+                <div className="flex items-center justify-center py-10 gap-2 text-gray-400">
+                  <Spinner /><span className="text-sm">Loading…</span>
+                </div>
+              )}
+
+              {!actLoading && activities.length === 0 && (
+                <div className="p-8 text-center text-gray-400 text-sm">No recent activity</div>
+              )}
+
+              {!actLoading && activities.length > 0 && (
+                <div className="divide-y divide-gray-50 overflow-y-auto max-h-[480px]">
+                  {activities.map((act, i) => {
+                    const relCase = caseById[act.case_id];
+                    const caseTitle = relCase?.title ?? 'Unknown case';
+
+                    if (act._type === 'comment') {
+                      return (
+                        <div key={act.id + '-c'} className="flex gap-3 p-4 hover:bg-gray-50">
+                          <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <MessageSquare className="w-3.5 h-3.5 text-blue-500" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs text-gray-800 leading-snug">
+                              <span className="font-semibold">{act.author?.full_name ?? 'Someone'}</span>
+                              {' '}added a note on{' '}
+                              <span className="font-semibold text-[#1A4B8C]">{caseTitle}</span>
+                            </p>
+                            {act.body && (
+                              <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{act.body}</p>
+                            )}
+                            <p className="text-xs text-gray-400 mt-1">{timeAgo(act.created_at)}</p>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (act._type === 'progress') {
+                      return (
+                        <div key={act.id + '-p'} className="flex gap-3 p-4 hover:bg-gray-50">
+                          <div className="w-7 h-7 rounded-full bg-green-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <Activity className="w-3.5 h-3.5 text-green-500" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs text-gray-800 leading-snug">
+                              <span className="font-semibold">{act.author?.full_name ?? 'Someone'}</span>
+                              {' '}updated progress to{' '}
+                              <span className="font-semibold text-green-600">{act.progress_update}%</span>
+                              {' '}on{' '}
+                              <span className="font-semibold text-[#1A4B8C]">{caseTitle}</span>
+                            </p>
+                            {act.body && (
+                              <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{act.body}</p>
+                            )}
+                            <p className="text-xs text-gray-400 mt-1">{timeAgo(act.created_at)}</p>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (act._type === 'assignment') {
+                      return (
+                        <div key={act.id + '-a'} className="flex gap-3 p-4 hover:bg-gray-50">
+                          <div className="w-7 h-7 rounded-full bg-violet-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <UserCheck className="w-3.5 h-3.5 text-violet-500" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs text-gray-800 leading-snug">
+                              <span className="font-semibold">{act.consultant?.full_name ?? 'A consultant'}</span>
+                              {' '}was assigned to{' '}
+                              <span className="font-semibold text-[#1A4B8C]">{caseTitle}</span>
+                              {act.time_commitment ? <span className="text-gray-400"> · {act.time_commitment}%</span> : null}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">{timeAgo(act.created_at)}</p>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return null;
+                  })}
+                </div>
+              )}
             </div>
+
           </div>
         </>
       )}
