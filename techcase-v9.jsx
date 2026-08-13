@@ -3828,6 +3828,22 @@ const PROJECT_STATUS_COLORS = {
   cancelled: "bg-red-100 text-red-700",
 };
 
+const PROJECT_LIFECYCLE_STAGES = [
+  { key: "draft",     label: "Draft",     color: "#6B7280", is_terminal: false },
+  { key: "active",    label: "Active",    color: "#2563EB", is_terminal: false },
+  { key: "on_hold",   label: "On Hold",   color: "#D97706", is_terminal: false },
+  { key: "completed", label: "Completed", color: "#059669", is_terminal: true  },
+  { key: "cancelled", label: "Cancelled", color: "#DC2626", is_terminal: true  },
+];
+
+const PROJECT_NEXT_META = {
+  draft:     { Icon: FileText,    desc: "Move back to draft for rework" },
+  active:    { Icon: Play,        desc: "Activate and begin work on this project" },
+  on_hold:   { Icon: PauseCircle, desc: "Pause the project temporarily" },
+  completed: { Icon: Archive,     desc: "Mark this project as successfully completed" },
+  cancelled: { Icon: X,          desc: "Cancel and close this project" },
+};
+
 function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel, clients = [], initialData = null }) {
   const isEdit = !!initialData;
   const [step, setSt] = useState(0);
@@ -4403,16 +4419,6 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
               {cap(fmt(project.status))}
             </span>
             {canEdit && (
-              <select
-                value={project.status}
-                onChange={e => handleStatusChange(e.target.value)}
-                className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                {["draft","active","on_hold","completed","cancelled"].map(s => (
-                  <option key={s} value={s}>{cap(fmt(s))}</option>
-                ))}
-              </select>
-            )}
-            {canEdit && (
               <button onClick={() => setShowEditWizard(true)}
                 className="text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-3 py-1.5">
                 Edit
@@ -4428,6 +4434,42 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
         {project.description && (
           <p className="text-sm text-gray-600 leading-relaxed">{project.description}</p>
         )}
+
+        {/* Project Next Steps */}
+        {canEdit && (() => {
+          const curStage = PROJECT_LIFECYCLE_STAGES.find(s => s.key === project.status);
+          if (!curStage || curStage.is_terminal) return null;
+          const validNext = PROJECT_LIFECYCLE_STAGES.filter(s => s.key !== project.status);
+          return (
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Next Steps</p>
+              <div className={`grid gap-3 ${validNext.length === 1 ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"}`}>
+                {validNext.map(s => {
+                  const { Icon, desc } = PROJECT_NEXT_META[s.key] ?? { Icon: Zap, desc: "Move to this stage" };
+                  const isCancelled = s.key === "cancelled";
+                  return (
+                    <button key={s.key}
+                      onClick={() => handleStatusChange(s.key)}
+                      className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl border-2 text-left transition-all hover:shadow-md active:scale-[0.98] bg-white ${
+                        isCancelled
+                          ? "border-red-100 hover:border-red-300 hover:bg-red-50"
+                          : "border-gray-100 hover:border-blue-200 hover:bg-blue-50/30"
+                      }`}>
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{ backgroundColor: s.color + "22" }}>
+                        <Icon className="w-6 h-6" style={{ color: s.color }} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-900 text-sm">{s.label}</p>
+                        <p className="text-xs text-gray-400 mt-0.5 leading-snug">{desc}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Icon Tiles */}
