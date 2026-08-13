@@ -7960,27 +7960,43 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
         const canChange = auth.isAdmin || !allowedRoles || allowedRoles.includes(auth.role);
         if (!canChange) return null;
         const currentIdx = lifecycleStages.findIndex(s => s.key === caseData.status);
+        const statusInLifecycle = currentIdx !== -1;
         const validNext = allowedNext
           ? lifecycleStages.filter(s => allowedNext.includes(s.key))
-          : [
-              ...lifecycleStages.filter((s, i) => !s.is_terminal && i === currentIdx + 1),
-              ...lifecycleStages.filter(s => s.is_terminal),
-            ];
+          : !statusInLifecycle
+            // status not in this lifecycle — show all stages so user can enter the flow
+            ? lifecycleStages.filter(s => !s.is_terminal)
+            : [
+                ...lifecycleStages.filter((s, i) => !s.is_terminal && i === currentIdx + 1),
+                ...lifecycleStages.filter(s => s.is_terminal),
+              ];
         if (!validNext.length) return null;
 
         const NEXT_META = {
-          open:        { Icon: FolderOpen,   desc: "Re-open this case for further action" },
-          evaluation:  { Icon: Search,       desc: "Move into the evaluation phase" },
-          confirmed:   { Icon: CheckCircle2, desc: "Confirm and move this case forward" },
-          planning:    { Icon: Target,       desc: "Begin planning the work" },
-          in_progress: { Icon: Play,         desc: "Start active work on this case" },
-          review:      { Icon: Activity,     desc: "Send for review before closing" },
-          closed:      { Icon: Archive,      desc: "Mark as successfully completed" },
-          cancelled:   { Icon: X,            desc: "Stop work and close this case" },
-          new:         { Icon: Inbox,        desc: "Mark as a new incoming request" },
-          user_test:   { Icon: Users,        desc: "Send for user testing and sign-off" },
-          returned:    { Icon: RotateCcw,    desc: "Return for rework or additional input" },
-          resolved:    { Icon: CheckCircle2, desc: "Mark this case as fully resolved" },
+          open:            { Icon: FolderOpen,   desc: "Re-open this case for further action" },
+          estimated:       { Icon: BarChart2,    desc: "Functional spec approved — move to estimation" },
+          evaluation:      { Icon: Search,       desc: "Move into the evaluation phase" },
+          confirmed:       { Icon: CheckCircle2, desc: "Confirm and move this case forward" },
+          planning:        { Icon: Target,       desc: "Begin planning the work" },
+          in_progress:     { Icon: Play,         desc: "Start active work on this case" },
+          on_hold:         { Icon: PauseCircle,  desc: "Pause work on this case temporarily" },
+          review:          { Icon: Activity,     desc: "Send for review before closing" },
+          completed:       { Icon: Archive,      desc: "Mark as successfully completed" },
+          closed:          { Icon: Archive,      desc: "Mark as successfully completed" },
+          cancelled:       { Icon: X,            desc: "Stop work and close this case" },
+          new:             { Icon: Inbox,        desc: "Mark as a new incoming request" },
+          screening:       { Icon: Search,       desc: "Begin the screening process" },
+          shortlisted:     { Icon: Star,         desc: "Add to shortlist for further review" },
+          assigned:        { Icon: UserCheck,    desc: "Assign a consultant to this case" },
+          standby:         { Icon: Clock,        desc: "Place on standby for now" },
+          functional_test: { Icon: Settings,     desc: "Move to functional testing phase" },
+          user_test:       { Icon: Users,        desc: "Send for user testing and sign-off" },
+          adjustments:     { Icon: SlidersHorizontal, desc: "Apply adjustments before closing" },
+          approved:        { Icon: BadgeCheck,   desc: "Mark as approved" },
+          returned:        { Icon: RotateCcw,    desc: "Return for rework or additional input" },
+          resolved:        { Icon: CheckCircle2, desc: "Mark this case as fully resolved" },
+          terminated:      { Icon: XCircle,      desc: "Terminate this case" },
+          sourcing:        { Icon: Globe,        desc: "Begin sourcing for this case" },
         };
 
         return (
@@ -8234,12 +8250,16 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
             const canChange = auth.isAdmin || !allowedRoles || allowedRoles.includes(auth.role);
             if (!canChange) return null;
             const currentIdx = lifecycleStages.findIndex(s => s.key === caseData.status);
+            const statusInLifecycle2 = currentIdx !== -1;
             const validNext = allowedNext
               ? lifecycleStages.filter(s => allowedNext.includes(s.key))
-              : curStage?.is_terminal ? [] : [
-                  ...lifecycleStages.filter((s, i) => !s.is_terminal && i === currentIdx + 1),
-                  ...lifecycleStages.filter(s => s.is_terminal),
-                ];
+              : curStage?.is_terminal ? []
+              : !statusInLifecycle2
+                ? lifecycleStages.filter(s => !s.is_terminal)
+                : [
+                    ...lifecycleStages.filter((s, i) => !s.is_terminal && i === currentIdx + 1),
+                    ...lifecycleStages.filter(s => s.is_terminal),
+                  ];
             if (!validNext.length) return null;
             return (
               <div className="border-t border-gray-100 pt-4 flex flex-wrap gap-2">
