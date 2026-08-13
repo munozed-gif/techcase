@@ -1940,6 +1940,40 @@ function Dashboard({ auth }) {
   const myCases          = cases.filter(c => c.client_id === auth.user?.id);
   const managedCases     = cases.filter(c => c.manager_id === auth.user?.id);
 
+  // ── Client strip ─────────────────────────────────────────────
+  const STRIP_PALETTE = [
+    { bg:'#dbeafe', fg:'#1e40af' }, { bg:'#ccfbf1', fg:'#0f766e' },
+    { bg:'#ede9fe', fg:'#6d28d9' }, { bg:'#fce7f3', fg:'#9d174d' },
+    { bg:'#fef3c7', fg:'#92400e' }, { bg:'#d1fae5', fg:'#065f46' },
+    { bg:'#e0f2fe', fg:'#075985' }, { bg:'#fee2e2', fg:'#991b1b' },
+  ];
+  const stripSource = auth.isConsultant ? assignedCases
+    : auth.isManager ? managedCases
+    : auth.isAdmin   ? cases
+    : [];
+  const clientStripMap = new Map();
+  stripSource.forEach(c => {
+    if (!c.client_id) return;
+    const cpRaw = c.client?.client_profiles;
+    const company = (Array.isArray(cpRaw) ? cpRaw[0]?.company_name : cpRaw?.company_name)
+      || c.client?.full_name || 'Unknown';
+    if (!clientStripMap.has(c.client_id)) {
+      const ws = company.trim().split(/\s+/);
+      clientStripMap.set(c.client_id, {
+        id: c.client_id, name: company,
+        initials: ws.length >= 2 ? (ws[0][0] + ws[1][0]).toUpperCase() : company.slice(0, 2).toUpperCase(),
+        color: STRIP_PALETTE[clientStripMap.size % STRIP_PALETTE.length],
+        activeCases: 0, pastCases: 0,
+      });
+    }
+    const e = clientStripMap.get(c.client_id);
+    if (['in_progress', 'open'].includes(c.status)) e.activeCases++;
+    else if (c.status === 'completed') e.pastCases++;
+  });
+  const activeClients = [...clientStripMap.values()].filter(cl => cl.activeCases > 0);
+  const pastClients   = [...clientStripMap.values()].filter(cl => cl.activeCases === 0 && cl.pastCases > 0);
+  const showClientStrip = activeClients.length + pastClients.length > 0;
+
   // Stat tiles — each carries its pre-filtered items and type for the list panel
   const statDefs = {
     admin: [
@@ -1999,6 +2033,72 @@ function Dashboard({ auth }) {
         </h1>
         <p className="text-gray-500 mt-1">Here's what's happening on the platform today.</p>
       </div>
+
+      {/* ── Client strip ── */}
+      {showClientStrip && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4 mb-6">
+          <style>{`
+            @keyframes _stripSpin  { to { transform: rotate(360deg);  } }
+            @keyframes _stripStill { to { transform: rotate(-360deg); } }
+          `}</style>
+
+          <div className="flex items-center gap-2 mb-4">
+            <Users className="w-3.5 h-3.5 text-gray-400" />
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Clients</span>
+          </div>
+
+          <div style={{ display:'flex', alignItems:'flex-start', gap:0, overflowX:'auto', paddingBottom:2, scrollbarWidth:'none' }}>
+
+            {/* Working now */}
+            {activeClients.length > 0 && (
+              <div style={{ flexShrink:0 }}>
+                <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.07em', textTransform:'uppercase', color:'#8fa8c2', marginBottom:10 }}>Working now</div>
+                <div style={{ display:'flex', gap:18 }}>
+                  {activeClients.map(cl => (
+                    <div key={cl.id} style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
+                      {/* spinning ring wrapper */}
+                      <div style={{ padding:3, borderRadius:'50%', background:'conic-gradient(#1A4B8C 0%, #5B9BD5 55%, #10b981 100%)', animation:'_stripSpin 4s linear infinite' }}>
+                        {/* counter-rotating avatar keeps initials still */}
+                        <div style={{ width:52, height:52, borderRadius:'50%', background:cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid #ffffff', position:'relative', animation:'_stripStill 4s linear infinite' }}>
+                          {cl.initials}
+                          <div style={{ width:9, height:9, background:'#10b981', border:'1.5px solid #ffffff', borderRadius:'50%', position:'absolute', bottom:1, right:1 }} />
+                        </div>
+                      </div>
+                      <div style={{ fontSize:10.5, fontWeight:600, color:'#5b7a9b', maxWidth:66, textAlign:'center', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{cl.name}</div>
+                      <div style={{ fontSize:9, fontWeight:700, color:'#8fa8c2', textAlign:'center', marginTop:-4 }}>{cl.activeCases} {cl.activeCases === 1 ? 'case' : 'cases'}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Divider */}
+            {activeClients.length > 0 && pastClients.length > 0 && (
+              <div style={{ width:1, background:'#d4e6f5', alignSelf:'stretch', flexShrink:0, margin:'0 20px', minHeight:80 }} />
+            )}
+
+            {/* Past clients */}
+            {pastClients.length > 0 && (
+              <div style={{ flexShrink:0 }}>
+                <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.07em', textTransform:'uppercase', color:'#8fa8c2', marginBottom:10 }}>Past clients</div>
+                <div style={{ display:'flex', gap:18 }}>
+                  {pastClients.map(cl => (
+                    <div key={cl.id} style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', gap:6, opacity:.5, filter:'grayscale(.35)' }}>
+                      <div style={{ padding:3, borderRadius:'50%', background:'#d4e6f5' }}>
+                        <div style={{ width:52, height:52, borderRadius:'50%', background:cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid #ffffff' }}>
+                          {cl.initials}
+                        </div>
+                      </div>
+                      <div style={{ fontSize:10.5, fontWeight:600, color:'#5b7a9b', maxWidth:66, textAlign:'center', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{cl.name}</div>
+                      <div style={{ fontSize:9, fontWeight:700, color:'#8fa8c2', textAlign:'center', marginTop:-4 }}>{cl.pastCases} done ✓</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Clickable stat tiles */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
