@@ -2140,21 +2140,23 @@ function Dashboard({ auth }) {
       )}
 
       {/* Clickable stat tiles */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-4 gap-3 mb-6">
         {myStats.map(s => {
           const isActive = activeTab === s.id;
           return (
             <button key={s.id}
               onClick={() => setActiveTab(t => t === s.id ? null : s.id)}
-              className={`text-left bg-white rounded-2xl p-6 shadow-sm border transition-all ${
+              className={`text-left bg-white rounded-xl px-4 py-3 shadow-sm border transition-all flex items-center gap-3 ${
                 isActive ? `ring-2 ${colorMap[s.color].ring} border-transparent` : "border-gray-100 hover:shadow-md hover:border-gray-200"
               }`}>
-              <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl mb-3 ${colorMap[s.color].icon}`}>
-                <s.Icon className="w-5 h-5" />
+              <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 ${colorMap[s.color].icon}`}>
+                <s.Icon className="w-4 h-4" />
               </div>
-              <div className="text-3xl font-bold text-gray-900">{s.items.length}</div>
-              <div className="text-sm text-gray-500 mt-1">{s.label}</div>
-              {isActive && <div className="text-xs text-gray-400 mt-1.5 font-medium">▲ showing list</div>}
+              <div className="min-w-0">
+                <div className="text-xl font-bold text-gray-900 leading-none">{s.items.length}</div>
+                <div className="text-xs text-gray-500 mt-0.5 truncate">{s.label}</div>
+                {isActive && <div className="text-xs text-gray-400 mt-0.5 font-medium">▲ list</div>}
+              </div>
             </button>
           );
         })}
