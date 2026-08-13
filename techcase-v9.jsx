@@ -7959,9 +7959,13 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
         const allowedRoles = curStage.allowed_roles?.length ? curStage.allowed_roles : null;
         const canChange = auth.isAdmin || !allowedRoles || allowedRoles.includes(auth.role);
         if (!canChange) return null;
+        const currentIdx = lifecycleStages.findIndex(s => s.key === caseData.status);
         const validNext = allowedNext
           ? lifecycleStages.filter(s => allowedNext.includes(s.key))
-          : lifecycleStages.filter(s => s.key !== caseData.status);
+          : [
+              ...lifecycleStages.filter((s, i) => !s.is_terminal && i === currentIdx + 1),
+              ...lifecycleStages.filter(s => s.is_terminal),
+            ];
         if (!validNext.length) return null;
 
         const NEXT_META = {
@@ -8229,9 +8233,13 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
             const allowedRoles = curStage?.allowed_roles?.length ? curStage.allowed_roles : null;
             const canChange = auth.isAdmin || !allowedRoles || allowedRoles.includes(auth.role);
             if (!canChange) return null;
+            const currentIdx = lifecycleStages.findIndex(s => s.key === caseData.status);
             const validNext = allowedNext
               ? lifecycleStages.filter(s => allowedNext.includes(s.key))
-              : lifecycleStages.filter(s => s.key !== caseData.status && !curStage?.is_terminal);
+              : curStage?.is_terminal ? [] : [
+                  ...lifecycleStages.filter((s, i) => !s.is_terminal && i === currentIdx + 1),
+                  ...lifecycleStages.filter(s => s.is_terminal),
+                ];
             if (!validNext.length) return null;
             return (
               <div className="border-t border-gray-100 pt-4 flex flex-wrap gap-2">
