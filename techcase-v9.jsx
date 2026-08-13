@@ -7960,17 +7960,12 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
         const allowedRoles = curStage.allowed_roles?.length ? curStage.allowed_roles : null;
         const canChange = auth.isAdmin || !allowedRoles || allowedRoles.includes(auth.role);
         if (!canChange) return null;
-        const currentIdx = lifecycleStages.findIndex(s => s.key === caseData.status);
-        const statusInLifecycle = currentIdx !== -1;
+        const statusInLifecycle = lifecycleStages.some(s => s.key === caseData.status);
         const validNext = allowedNext
+          // explicit allowed_next configured — use exactly that
           ? lifecycleStages.filter(s => allowedNext.includes(s.key))
-          : !statusInLifecycle
-            // status not in this lifecycle — show all stages so user can enter the flow
-            ? lifecycleStages.filter(s => !s.is_terminal)
-            : [
-                ...lifecycleStages.filter((s, i) => !s.is_terminal && i === currentIdx + 1),
-                ...lifecycleStages.filter(s => s.is_terminal),
-              ];
+          // no allowed_next: show all other stages in this lifecycle (any direction)
+          : lifecycleStages.filter(s => s.key !== caseData.status || !statusInLifecycle);
         if (!validNext.length) return null;
 
         const NEXT_META = {
@@ -8250,17 +8245,13 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
             const allowedRoles = curStage?.allowed_roles?.length ? curStage.allowed_roles : null;
             const canChange = auth.isAdmin || !allowedRoles || allowedRoles.includes(auth.role);
             if (!canChange) return null;
-            const currentIdx = lifecycleStages.findIndex(s => s.key === caseData.status);
-            const statusInLifecycle2 = currentIdx !== -1;
-            const validNext = allowedNext
-              ? lifecycleStages.filter(s => allowedNext.includes(s.key))
-              : curStage?.is_terminal ? []
-              : !statusInLifecycle2
-                ? lifecycleStages.filter(s => !s.is_terminal)
-                : [
-                    ...lifecycleStages.filter((s, i) => !s.is_terminal && i === currentIdx + 1),
-                    ...lifecycleStages.filter(s => s.is_terminal),
-                  ];
+            const statusInLifecycle2 = lifecycleStages.some(s => s.key === caseData.status);
+            const validNext = curStage?.is_terminal ? []
+              : allowedNext
+                // explicit allowed_next configured — use exactly that
+                ? lifecycleStages.filter(s => allowedNext.includes(s.key))
+                // no allowed_next: show all other stages in this lifecycle (any direction)
+                : lifecycleStages.filter(s => s.key !== caseData.status || !statusInLifecycle2);
             if (!validNext.length) return null;
             return (
               <div className="border-t border-gray-100 pt-4 flex flex-wrap gap-2">
