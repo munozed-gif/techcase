@@ -30,7 +30,8 @@ import {
   Mail, TrendingUp, Link, Plane, Heart, Star, Trash2, Paperclip,
   FileImage, Trophy, Layers,
   MapPin, UsersRound, GraduationCap, MessageSquare, X,
-  Play, Pause, RotateCcw, Archive, Search,
+  Play, Pause, PauseCircle, RotateCcw, Archive, Search,
+  BadgeCheck, XCircle,
   Wand2, Download, Sparkles,
 } from "lucide-react";
 
