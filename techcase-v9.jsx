@@ -1964,7 +1964,7 @@ function Dashboard({ auth }) {
       .filter(a => a.consultant_id === auth.user?.id)
       .map(a => a.case_id ?? a.id)
   );
-  const availableCases   = cases.filter(c => c.status === "open" && !appliedCaseIds.has(c.id) && !assignedCaseIds.has(c.id));
+  const availableCases   = cases.filter(c => c.status === "estimated" && !appliedCaseIds.has(c.id) && !assignedCaseIds.has(c.id));
 
   const filteredAvailable = availableCases.filter(c => {
     if (filterSap       && c.area_sap      !== filterSap)      return false;
@@ -6772,6 +6772,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
     setApproving(true);
     try {
       await saveSpec({ status: 'approved', approved_by: auth.user?.id, approved_at: new Date().toISOString(), rejected_reason: null });
+      await supabase.from('cases').update({ status: 'estimated' }).eq('id', caseData.id);
       await refetch();
     } catch (e) { alert(e.message); }
     setApproving(false);
@@ -8758,7 +8759,7 @@ function ArenaView({ auth }) {
   const { cases, loading: casesLoading }    = useCases();
   const { applications }                    = useApplications();
 
-  const openCases       = cases.filter(c => c.status === "open");
+  const openCases       = cases.filter(c => c.status === "estimated");
   const myApplications  = applications.filter(a => a.consultant_id === auth.user?.id);
   const appliedCaseIds  = new Set(myApplications.map(a => a.case_id));
 
@@ -8766,7 +8767,7 @@ function ArenaView({ auth }) {
     if (casesLoading) return <Spinner />;
     if (openCases.length === 0) return (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center text-gray-400 text-sm">
-        No open cases available right now.
+        No estimated cases available right now.
       </div>
     );
     return (
