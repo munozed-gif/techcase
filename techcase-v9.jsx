@@ -2097,14 +2097,14 @@ function Dashboard({ auth }) {
                 <div style={{ display:'flex', gap:18 }}>
                   {followedClients.map(cl => (
                     <div key={cl.id} style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
-                      <div style={{ padding:3, borderRadius:'50%', background:'conic-gradient(#f472b6 0%, #c084fc 50%, #818cf8 100%)', animation:'_stripSpin 5s linear infinite' }}>
+                      <div style={{ padding:3, borderRadius:'50%', background:'conic-gradient(#93c5fd 0%, #5B9BD5 50%, #bfdbfe 100%)', animation:'_stripSpin 5s linear infinite' }}>
                         <div style={{ width:52, height:52, borderRadius:'50%', background:cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid #ffffff', position:'relative', animation:'_stripStill 5s linear infinite' }}>
                           {cl.initials}
                           <div style={{ fontSize:9, position:'absolute', bottom:0, right:-1, lineHeight:1 }}>♥</div>
                         </div>
                       </div>
                       <div style={{ fontSize:10.5, fontWeight:600, color:'#5b7a9b', maxWidth:66, textAlign:'center', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{cl.name}</div>
-                      <div style={{ fontSize:9, fontWeight:700, color:'#c084fc', textAlign:'center', marginTop:-4 }}>Following</div>
+                      <div style={{ fontSize:9, fontWeight:700, color:'#5B9BD5', textAlign:'center', marginTop:-4 }}>Following</div>
                     </div>
                   ))}
                 </div>
