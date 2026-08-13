@@ -1916,7 +1916,7 @@ function Dashboard({ auth }) {
   const [filterSap, setFilterSap]       = useState("");
   const [filterIndustry, setFilterInd]  = useState("");
   const [filterStartFrom, setStartFrom] = useState("");
-  const { isFollowing, toggle: toggleFollow } = useFollowedClients();
+  const { followed, isFollowing, toggle: toggleFollow } = useFollowedClients();
 
   // Pre-compute filtered sets
   const myApplications   = applications.filter(a => a.consultant_id === auth.user?.id);
@@ -1947,32 +1947,45 @@ function Dashboard({ auth }) {
     { bg:'#fef3c7', fg:'#92400e' }, { bg:'#d1fae5', fg:'#065f46' },
     { bg:'#e0f2fe', fg:'#075985' }, { bg:'#fee2e2', fg:'#991b1b' },
   ];
-  const stripSource = auth.isConsultant ? assignedCases
-    : auth.isManager ? managedCases
-    : auth.isAdmin   ? cases
-    : [];
-  const clientStripMap = new Map();
-  stripSource.forEach(c => {
+  function stripClientEntry(c, map) {
     if (!c.client_id) return;
     const cpRaw = c.client?.client_profiles;
     const company = (Array.isArray(cpRaw) ? cpRaw[0]?.company_name : cpRaw?.company_name)
       || c.client?.full_name || 'Unknown';
-    if (!clientStripMap.has(c.client_id)) {
+    if (!map.has(c.client_id)) {
       const ws = company.trim().split(/\s+/);
-      clientStripMap.set(c.client_id, {
+      map.set(c.client_id, {
         id: c.client_id, name: company,
         initials: ws.length >= 2 ? (ws[0][0] + ws[1][0]).toUpperCase() : company.slice(0, 2).toUpperCase(),
-        color: STRIP_PALETTE[clientStripMap.size % STRIP_PALETTE.length],
-        activeCases: 0, pastCases: 0,
+        color: STRIP_PALETTE[map.size % STRIP_PALETTE.length],
+        activeCases: 0, pastCases: 0, isFollowed: false,
       });
     }
+  }
+  const clientStripMap = new Map();
+  // 1. seed from role-appropriate assigned/managed cases
+  const stripSource = auth.isConsultant ? assignedCases
+    : auth.isManager ? managedCases
+    : auth.isAdmin   ? cases : [];
+  stripSource.forEach(c => {
+    stripClientEntry(c, clientStripMap);
     const e = clientStripMap.get(c.client_id);
+    if (!e) return;
     if (['in_progress', 'open'].includes(c.status)) e.activeCases++;
     else if (c.status === 'completed') e.pastCases++;
   });
-  const activeClients = [...clientStripMap.values()].filter(cl => cl.activeCases > 0);
-  const pastClients   = [...clientStripMap.values()].filter(cl => cl.activeCases === 0 && cl.pastCases > 0);
-  const showClientStrip = activeClients.length + pastClients.length > 0;
+  // 2. also seed from followed clients (look up via any visible case)
+  if (auth.isConsultant && followed.length > 0) {
+    cases.forEach(c => {
+      if (!c.client_id || !followed.includes(c.client_id)) return;
+      stripClientEntry(c, clientStripMap);
+      clientStripMap.get(c.client_id).isFollowed = true;
+    });
+  }
+  const activeClients   = [...clientStripMap.values()].filter(cl => cl.activeCases > 0);
+  const followedClients = [...clientStripMap.values()].filter(cl => cl.activeCases === 0 && cl.pastCases === 0 && cl.isFollowed);
+  const pastClients     = [...clientStripMap.values()].filter(cl => cl.activeCases === 0 && cl.pastCases > 0);
+  const showClientStrip = activeClients.length + followedClients.length + pastClients.length > 0;
 
   // Stat tiles — each carries its pre-filtered items and type for the list panel
   const statDefs = {
@@ -2072,8 +2085,34 @@ function Dashboard({ auth }) {
               </div>
             )}
 
-            {/* Divider */}
-            {activeClients.length > 0 && pastClients.length > 0 && (
+            {/* Divider: active → following */}
+            {activeClients.length > 0 && followedClients.length > 0 && (
+              <div style={{ width:1, background:'#d4e6f5', alignSelf:'stretch', flexShrink:0, margin:'0 20px', minHeight:80 }} />
+            )}
+
+            {/* Following (liked but no active/past cases) */}
+            {followedClients.length > 0 && (
+              <div style={{ flexShrink:0 }}>
+                <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.07em', textTransform:'uppercase', color:'#8fa8c2', marginBottom:10 }}>Following</div>
+                <div style={{ display:'flex', gap:18 }}>
+                  {followedClients.map(cl => (
+                    <div key={cl.id} style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
+                      <div style={{ padding:3, borderRadius:'50%', background:'conic-gradient(#f472b6 0%, #c084fc 50%, #818cf8 100%)', animation:'_stripSpin 5s linear infinite' }}>
+                        <div style={{ width:52, height:52, borderRadius:'50%', background:cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid #ffffff', position:'relative', animation:'_stripStill 5s linear infinite' }}>
+                          {cl.initials}
+                          <div style={{ fontSize:9, position:'absolute', bottom:0, right:-1, lineHeight:1 }}>♥</div>
+                        </div>
+                      </div>
+                      <div style={{ fontSize:10.5, fontWeight:600, color:'#5b7a9b', maxWidth:66, textAlign:'center', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{cl.name}</div>
+                      <div style={{ fontSize:9, fontWeight:700, color:'#c084fc', textAlign:'center', marginTop:-4 }}>Following</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Divider: following/active → past */}
+            {(activeClients.length > 0 || followedClients.length > 0) && pastClients.length > 0 && (
               <div style={{ width:1, background:'#d4e6f5', alignSelf:'stretch', flexShrink:0, margin:'0 20px', minHeight:80 }} />
             )}
 
