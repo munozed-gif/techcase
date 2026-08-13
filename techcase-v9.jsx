@@ -1583,10 +1583,15 @@ function AuthScreen({ onAuth }) {
   const logo = (
     <div className="text-center mb-8">
       <div className="inline-flex items-center justify-center mb-4">
-        <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
-          <polygon points="40,4 74,22 74,58 40,76 6,58 6,22" fill="#1A4B8C" stroke="#5B9BD5" strokeWidth="3"/>
-          <circle cx="40" cy="40" r="22" fill="#153A6E"/>
-          <text x="40" y="46" textAnchor="middle" fill="#93C5FD" fontSize="16" fontWeight="bold" fontFamily="Arial, sans-serif">TC</text>
+        <svg width="80" height="80" viewBox="0 0 100 100" fill="none">
+          {/* Outer hexagon – vivid blue, pointy-top */}
+          <polygon points="50,4 89,27 89,73 50,96 11,73 11,27" fill="#1A90F5"/>
+          {/* Inner hexagon – light powder blue */}
+          <polygon points="50,13 82,31 82,69 50,87 18,69 18,31" fill="#AED9F9"/>
+          {/* Dark navy circle */}
+          <circle cx="50" cy="50" r="26" fill="#1555B0"/>
+          {/* Flame / phoenix – light blue */}
+          <path d="M50 74 C56 64,62 56,62 48 C62 40,64 32,66 22 C67 13,61 12,57 22 C55 29,52 36,51 42 C50.5 44,49.5 44,49 42 C48 36,45 29,43 22 C39 12,33 13,34 22 C36 32,38 40,38 48 C38 56,44 64,50 74 Z" fill="#AED9F9"/>
         </svg>
       </div>
       <h1 className="text-3xl font-bold text-[#1C3557]">TechCase</h1>
@@ -1887,10 +1892,11 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
       {/* Logo */}
       <div className="p-6 border-b border-blue-900">
         <div className="flex items-center gap-3">
-          <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-            <polygon points="18,2 33,10 33,26 18,34 3,26 3,10" fill="#1A4B8C" stroke="#5B9BD5" strokeWidth="2"/>
-            <circle cx="18" cy="18" r="9" fill="#153A6E"/>
-            <text x="18" y="22" textAnchor="middle" fill="#93C5FD" fontSize="9" fontWeight="bold" fontFamily="Arial">TC</text>
+          <svg width="36" height="36" viewBox="0 0 100 100" fill="none">
+            <polygon points="50,4 89,27 89,73 50,96 11,73 11,27" fill="#1A90F5"/>
+            <polygon points="50,13 82,31 82,69 50,87 18,69 18,31" fill="#AED9F9"/>
+            <circle cx="50" cy="50" r="26" fill="#1555B0"/>
+            <path d="M50 74 C56 64,62 56,62 48 C62 40,64 32,66 22 C67 13,61 12,57 22 C55 29,52 36,51 42 C50.5 44,49.5 44,49 42 C48 36,45 29,43 22 C39 12,33 13,34 22 C36 32,38 40,38 48 C38 56,44 64,50 74 Z" fill="#AED9F9"/>
           </svg>
           <div>
             <div className="font-bold text-white">TechCase</div>
