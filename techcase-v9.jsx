@@ -7750,7 +7750,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   }, [caseData.project_id]);
 
   const effectiveLifecycle = caseData.case_lifecycle ?? projectLifecycle ?? clientLifecycle;
-  const lifecycleStages = getLifecycleStages(effectiveLifecycle);
+  const lifecycleStages = getLifecycleStages(effectiveLifecycle, caseLcTemplates);
   const isTerminalStatus = lifecycleStages.find(s => s.key === caseData.status)?.is_terminal
     ?? ["completed","cancelled"].includes(caseData.status);
   const canEditCase = onUpdate && !isTerminalStatus
