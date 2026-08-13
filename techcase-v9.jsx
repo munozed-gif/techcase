@@ -2637,8 +2637,10 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
     }
   }, []);
 
+  const { templates: lcTemplates } = useLifecycleTemplates();
+
   useEffect(() => {
-    let q = supabase.from("projects").select("id, name, status, area_sap").eq("status", "active").order("name");
+    let q = supabase.from("projects").select("id, name, status, area_sap, case_lifecycle").eq("status", "active").order("name");
     if (auth.isClient) q = q.eq("client_id", auth.user?.id);
     q.then(({ data }) => setWizardProjects(data ?? []));
   }, [auth.user?.id]);
@@ -2805,7 +2807,11 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
       const { _skills, client_id, sla, ...rest } = scope;
       const payload = {
         ...basics,
-        status: startConfirmed ? "confirmed" : "open",
+        status: startConfirmed ? "confirmed" : (() => {
+          const selProject = wizardProjects.find(p => p.id === selectedProjectId);
+          const stages = getLifecycleStages(selProject?.case_lifecycle ?? null, lcTemplates);
+          return stages.find(s => !s.is_terminal)?.key ?? "open";
+        })(),
         area_sap:      basics.area_sap || null,
         area_industry: basics.area_industry || null,
         is_confidential: basics.is_confidential,
