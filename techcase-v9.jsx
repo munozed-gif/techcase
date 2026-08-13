@@ -1974,7 +1974,7 @@ function Dashboard({ auth }) {
     if (['in_progress', 'open'].includes(c.status)) e.activeCases++;
     else if (c.status === 'completed') e.pastCases++;
   });
-  // 2. also seed from followed clients (look up via any visible case)
+  // 2. seed from followed clients (look up via any visible case)
   if (auth.isConsultant && followed.length > 0) {
     cases.forEach(c => {
       if (!c.client_id || !followed.includes(c.client_id)) return;
@@ -1982,10 +1982,17 @@ function Dashboard({ auth }) {
       clientStripMap.get(c.client_id).isFollowed = true;
     });
   }
-  const activeClients   = [...clientStripMap.values()].filter(cl => cl.activeCases > 0);
-  const followedClients = [...clientStripMap.values()].filter(cl => cl.activeCases === 0 && cl.pastCases === 0 && cl.isFollowed);
-  const pastClients     = [...clientStripMap.values()].filter(cl => cl.activeCases === 0 && cl.pastCases > 0);
-  const showClientStrip = activeClients.length + followedClients.length + pastClients.length > 0;
+  // 3. seed ALL clients with active cases visible on the platform
+  cases.forEach(c => {
+    if (!c.client_id || !['in_progress', 'open'].includes(c.status)) return;
+    stripClientEntry(c, clientStripMap);
+    clientStripMap.get(c.client_id).hasActivePlatformCase = true;
+  });
+  const activeClients    = [...clientStripMap.values()].filter(cl => cl.activeCases > 0);
+  const followedClients  = [...clientStripMap.values()].filter(cl => cl.activeCases === 0 && cl.pastCases === 0 && cl.isFollowed);
+  const platformClients  = [...clientStripMap.values()].filter(cl => cl.activeCases === 0 && !cl.isFollowed && cl.hasActivePlatformCase);
+  const pastClients      = [...clientStripMap.values()].filter(cl => cl.activeCases === 0 && cl.pastCases > 0 && !cl.hasActivePlatformCase);
+  const showClientStrip  = activeClients.length + followedClients.length + platformClients.length + pastClients.length > 0;
 
   // Stat tiles — each carries its pre-filtered items and type for the list panel
   const statDefs = {
@@ -2111,8 +2118,33 @@ function Dashboard({ auth }) {
               </div>
             )}
 
-            {/* Divider: following/active → past */}
-            {(activeClients.length > 0 || followedClients.length > 0) && pastClients.length > 0 && (
+            {/* Divider: following → platform active */}
+            {(activeClients.length > 0 || followedClients.length > 0) && platformClients.length > 0 && (
+              <div style={{ width:1, background:'#d4e6f5', alignSelf:'stretch', flexShrink:0, margin:'0 20px', minHeight:80 }} />
+            )}
+
+            {/* All clients with active cases on platform (not assigned, not followed) */}
+            {platformClients.length > 0 && (
+              <div style={{ flexShrink:0 }}>
+                <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.07em', textTransform:'uppercase', color:'#8fa8c2', marginBottom:10 }}>Active cases</div>
+                <div style={{ display:'flex', gap:18 }}>
+                  {platformClients.map(cl => (
+                    <div key={cl.id} style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
+                      <div style={{ padding:3, borderRadius:'50%', background:'#e2e8f0' }}>
+                        <div style={{ width:52, height:52, borderRadius:'50%', background:cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid #ffffff' }}>
+                          {cl.initials}
+                        </div>
+                      </div>
+                      <div style={{ fontSize:10.5, fontWeight:600, color:'#5b7a9b', maxWidth:66, textAlign:'center', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{cl.name}</div>
+                      <div style={{ fontSize:9, fontWeight:700, color:'#94a3b8', textAlign:'center', marginTop:-4 }}>Active</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Divider: platform active → past */}
+            {(activeClients.length > 0 || followedClients.length > 0 || platformClients.length > 0) && pastClients.length > 0 && (
               <div style={{ width:1, background:'#d4e6f5', alignSelf:'stretch', flexShrink:0, margin:'0 20px', minHeight:80 }} />
             )}
 
