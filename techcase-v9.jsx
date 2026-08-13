@@ -1040,10 +1040,11 @@ const APP_STATUS_COLORS = {
 const LIFECYCLE_PRESETS = {
   short: {
     name: "Short",
-    subtitle: "4 stages",
+    subtitle: "5 stages",
     description: "Simple flow for straightforward consulting requests.",
     stages: [
       { key: "open",        label: "New Request", color: "#60A5FA", is_terminal: false },
+      { key: "estimated",   label: "Estimated",   color: "#34D399", is_terminal: false },
       { key: "in_progress", label: "Active",      color: "#1E40AF", is_terminal: false },
       { key: "completed",   label: "Done",        color: "#374151", is_terminal: true  },
       { key: "cancelled",   label: "Cancelled",   color: "#6B7280", is_terminal: true  },
@@ -1051,10 +1052,11 @@ const LIFECYCLE_PRESETS = {
   },
   standard: {
     name: "Standard",
-    subtitle: "5 stages",
+    subtitle: "6 stages",
     description: "Default consulting flow with an On Hold pause state.",
     stages: [
       { key: "open",        label: "Open",        color: "#93C5FD", is_terminal: false },
+      { key: "estimated",   label: "Estimated",   color: "#34D399", is_terminal: false },
       { key: "in_progress", label: "In Progress", color: "#2563EB", is_terminal: false },
       { key: "on_hold",     label: "On Hold",     color: "#1D4ED8", is_terminal: false },
       { key: "completed",   label: "Completed",   color: "#374151", is_terminal: true  },
@@ -1063,12 +1065,13 @@ const LIFECYCLE_PRESETS = {
   },
   large: {
     name: "Large",
-    subtitle: "7 stages",
+    subtitle: "8 stages",
     description: "Full consulting pipeline from sourcing through placement.",
     stages: [
       { key: "open",        label: "Sourcing",    color: "#93C5FD", is_terminal: false },
       { key: "screening",   label: "Screening",   color: "#60A5FA", is_terminal: false },
       { key: "shortlisted", label: "Shortlisted", color: "#3B82F6", is_terminal: false },
+      { key: "estimated",   label: "Estimated",   color: "#34D399", is_terminal: false },
       { key: "in_progress", label: "In Progress", color: "#1D4ED8", is_terminal: false },
       { key: "on_hold",     label: "Negotiation", color: "#1E40AF", is_terminal: false },
       { key: "completed",   label: "Placed",      color: "#374151", is_terminal: true  },
