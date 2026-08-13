@@ -1585,7 +1585,7 @@ function AuthScreen({ onAuth }) {
   const logo = (
     <div className="text-center mb-8">
       <div className="inline-flex items-center justify-center mb-4">
-        <img src={TECHCASE_LOGO_URI} width="128" height="128" alt="TechCase" style={{objectFit:"contain"}}/>
+        <img src={TECHCASE_LOGO_URI} width="256" height="256" alt="TechCase" style={{objectFit:"contain"}}/>
       </div>
       <h1 className="text-3xl font-bold text-[#1C3557]">TechCase</h1>
       <p className="text-blue-500 mt-1">Consultant case management platform</p>
