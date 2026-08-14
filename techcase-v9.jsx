@@ -702,8 +702,19 @@ function computeApplicantScore(app, caseData, pastAssignments, allRatings) {
     ratePts = ratio <= 0.9 ? 10 : ratio <= 1.0 ? 8 : ratio <= 1.15 ? 5 : 2;
   }
 
-  // 7. Time commitment (5 pts)
-  const commitPts = !app.time_commitment ? 3 : app.time_commitment >= 75 ? 5 : app.time_commitment >= 50 ? 3 : 1;
+  // 7. Time commitment vs available capacity (5 pts)
+  // Score how much of their free capacity they're committing, not raw %.
+  const maxAvail = app.max_available_at_submission ?? 100;
+  const ratio = maxAvail > 0 ? (app.time_commitment ?? 0) / maxAvail : 0;
+  const commitPts = !app.time_commitment ? 0
+    : ratio >= 0.8 ? 5
+    : ratio >= 0.6 ? 4
+    : ratio >= 0.4 ? 3
+    : ratio >= 0.2 ? 2
+    : 1;
+  const commitDetail = app.time_commitment
+    ? `${app.time_commitment}% of ${maxAvail}% avail (${Math.round(ratio * 100)}%)`
+    : "—";
 
   const total = skillPts + ratingPts + familiarityPts + clientRatingPts + expPts + ratePts + commitPts;
   return {
@@ -716,7 +727,7 @@ function computeApplicantScore(app, caseData, pastAssignments, allRatings) {
       clientRating:      { pts: clientRatingPts,  max: 15, label: "Client Rating",    detail: clientRatings.length ? `${clientAvg.toFixed(1)}★ from client` : "No client ratings" },
       experience:        { pts: expPts,           max: 10, label: "Experience",       detail: minExp ? `${theirExp}y / min ${minExp}y` : `${theirExp}y exp` },
       rate:              { pts: ratePts,          max: 10, label: "Rate",             detail: proposed ? `$${proposed}/hr` : "Not specified" },
-      commitment:        { pts: commitPts,        max: 5,  label: "Availability",     detail: app.time_commitment ? `${app.time_commitment}%` : "—" },
+      commitment:        { pts: commitPts,        max: 5,  label: "Availability",     detail: commitDetail },
     },
   };
 }
@@ -3909,6 +3920,35 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
   const [submitting, setSubmit] = useState(false);
   const [pitch, setPitch]       = useState({ cover_letter: "" });
   const [terms, setTerms]       = useState({ proposed_rate: "", time_commitment: 20 });
+  const [maxAvailable, setMaxAvailable] = useState(100);
+  const [availLoading, setAvailLoading] = useState(true);
+
+  const TERMINAL = ["completed", "cancelled", "terminated", "closed", "approved"];
+
+  useEffect(() => {
+    (async () => {
+      setAvailLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      const [{ data: profile }, { data: assignments }] = await Promise.all([
+        supabase.from("consultant_profiles")
+          .select("external_occupancy_pct")
+          .eq("id", user.id)
+          .maybeSingle(),
+        supabase.from("case_assignments")
+          .select("time_commitment, case:case_id(status)")
+          .eq("consultant_id", user.id),
+      ]);
+      const externalPct = profile?.external_occupancy_pct ?? 0;
+      const activePct = (assignments ?? [])
+        .filter(a => !TERMINAL.includes(a.case?.status))
+        .reduce((sum, a) => sum + (a.time_commitment ?? 0), 0);
+      const free = Math.max(0, 100 - externalPct - activePct);
+      setMaxAvailable(free);
+      setTerms(p => ({ ...p, time_commitment: Math.min(p.time_commitment, free || 10) }));
+      setAvailLoading(false);
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const isLast = step === APPLY_STEPS.length - 1;
 
@@ -3922,6 +3962,7 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
         cover_letter: pitch.cover_letter || null,
         proposed_rate: terms.proposed_rate ? Number(terms.proposed_rate) : null,
         time_commitment: Number(terms.time_commitment),
+        max_available_at_submission: maxAvailable,
       });
       if (error) throw error;
       onComplete();
@@ -4016,22 +4057,54 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
             <Input label="Proposed Rate ($/hr)" type="number" value={terms.proposed_rate}
               onChange={e => setTerms(p => ({ ...p, proposed_rate: e.target.value }))}
               placeholder="e.g. 150" />
-            <div className="mt-4">
+
+            {/* Availability cap indicator */}
+            <div className={`mt-4 mb-4 rounded-xl p-4 ${maxAvailable === 0 ? "bg-red-50 border border-red-200" : "bg-blue-50 border border-blue-100"}`}>
+              {availLoading ? (
+                <p className="text-sm text-gray-400">Calculating your availability…</p>
+              ) : maxAvailable === 0 ? (
+                <div>
+                  <p className="text-sm font-semibold text-red-700">No availability</p>
+                  <p className="text-xs text-red-500 mt-0.5">Your active cases fill 100% of your capacity. Complete or reduce existing commitments before applying.</p>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold text-blue-800">Your current availability</span>
+                    <span className="text-xl font-black text-blue-700">{maxAvailable}%</span>
+                  </div>
+                  <div className="h-2 bg-blue-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-blue-500 rounded-full transition-all"
+                      style={{ width: `${maxAvailable}%` }} />
+                  </div>
+                  <p className="text-xs text-blue-500 mt-1.5">This is the maximum you can commit — calculated from your active cases and external work.</p>
+                </div>
+              )}
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">
-                Time Commitment — <span className="text-blue-600 font-bold">{terms.time_commitment}%</span> of your available time
+                Time Commitment — <span className="text-blue-600 font-bold">{terms.time_commitment}%</span>
+                <span className="text-gray-400 font-normal"> of {maxAvailable}% available</span>
               </label>
-              <input type="range" min="10" max="100" step="10"
-                value={terms.time_commitment}
-                onChange={e => setTerms(p => ({ ...p, time_commitment: Number(e.target.value) }))}
-                className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-blue-600" />
+              <input type="range" min="10" max={Math.max(10, maxAvailable)} step="10"
+                value={Math.min(terms.time_commitment, maxAvailable)}
+                disabled={maxAvailable === 0}
+                onChange={e => {
+                  const v = Number(e.target.value);
+                  setTerms(p => ({ ...p, time_commitment: Math.min(v, maxAvailable) }));
+                }}
+                className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-blue-600 disabled:opacity-40 disabled:cursor-not-allowed" />
               <div className="flex justify-between text-xs text-gray-400 mt-1.5">
-                <span>10%</span><span>50%</span><span>100%</span>
+                <span>10%</span>
+                <span>{Math.round(maxAvailable / 2)}%</span>
+                <span className="font-semibold text-blue-600">{maxAvailable}% max</span>
               </div>
               <p className="text-xs text-gray-400 mt-3">
                 {terms.time_commitment <= 25 && "Part-time — a few hours per week alongside other engagements."}
                 {terms.time_commitment > 25 && terms.time_commitment <= 60 && "Half-time — significant focus on this case with room for others."}
-                {terms.time_commitment > 60 && terms.time_commitment < 100 && "Mostly dedicated — this case would be your primary engagement."}
-                {terms.time_commitment === 100 && "Full-time — this would be your sole engagement during the case."}
+                {terms.time_commitment > 60 && terms.time_commitment < maxAvailable && "Mostly dedicated — this case would be your primary engagement."}
+                {terms.time_commitment === maxAvailable && maxAvailable > 0 && "Full capacity — you'd be committing all your available time to this case."}
               </p>
             </div>
           </>
@@ -4069,6 +4142,10 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
                     <div className="text-gray-400 text-xs mb-0.5">Time Commitment</div>
                     <div className="font-semibold text-gray-900">{terms.time_commitment}%</div>
                   </div>
+                  <div>
+                    <div className="text-gray-400 text-xs mb-0.5">Available Capacity</div>
+                    <div className="font-semibold text-gray-900">{maxAvailable}%</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -4084,7 +4161,8 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
         </button>
         {!isLast ? (
           <button onClick={() => setSt(s => s + 1)}
-            className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-colors shadow-md">
+            disabled={step === 2 && maxAvailable === 0}
+            className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-colors shadow-md disabled:opacity-40 disabled:cursor-not-allowed">
             Continue →
           </button>
         ) : (
