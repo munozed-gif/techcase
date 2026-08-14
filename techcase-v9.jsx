@@ -9103,7 +9103,7 @@ function ArenaView({ auth }) {
   const [applyingToCase, setApplying]       = useState(null);
   const [arenaSelectedCase, setArenaSelected] = useState(null);
   const { leaderboard, loading: lbLoading } = useLeaderboard();
-  const { cases, loading: casesLoading, updateCase } = useCases();
+  const { cases, loading: casesLoading } = useCases();
   const { applications, reviewApplication } = useApplications();
 
   const openCases       = cases.filter(c => c.status === "estimated");
@@ -9336,20 +9336,66 @@ function ArenaView({ auth }) {
   }
 
   if (arenaSelectedCase && canViewRanking) {
+    const c = arenaSelectedCase;
+    const companyName = c.client?.client_profiles?.company_name || c.client?.full_name;
+    const caseApps = applications.filter(a => a.case_id === c.id);
+    const appCount = caseApps.length;
     return (
-      <CaseDetail
-        caseData={arenaSelectedCase}
-        auth={auth}
-        onBack={() => setArenaSelected(null)}
-        onStatusChange={async (caseId, status, extras = {}) => {
-          await updateCase(caseId, { status, ...extras });
-          setArenaSelected(prev => ({ ...prev, status }));
-        }}
-        onUpdate={async (id, payload) => {
-          await updateCase(id, payload);
-          setArenaSelected(prev => ({ ...prev, ...payload }));
-        }}
-      />
+      <div className="space-y-5">
+        <button onClick={() => setArenaSelected(null)}
+          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700">
+          ← Arena
+        </button>
+
+        {/* Case overview */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div className="flex items-start justify-between gap-4 mb-3">
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold text-gray-900 leading-tight">{c.title}</h1>
+              <div className="flex flex-wrap gap-2 mt-2">
+                <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
+                {c.area_sap      && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{c.area_sap}</span>}
+                {c.area_industry && <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg text-xs font-medium">{c.area_industry}</span>}
+                {c.is_confidential && <span className="px-2 py-0.5 bg-gray-800 text-white rounded-lg text-xs font-semibold">Private</span>}
+                {c.nda_required  && <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">NDA</span>}
+              </div>
+            </div>
+            <div className="flex-shrink-0 text-right">
+              <div className="text-2xl font-black text-gray-900">{appCount}</div>
+              <div className="text-xs text-gray-400">applicant{appCount !== 1 ? "s" : ""}</div>
+            </div>
+          </div>
+
+          {companyName && <p className="text-sm text-blue-600 font-semibold mb-2">{companyName}</p>}
+          {c.description && <p className="text-sm text-gray-600 leading-relaxed mb-4">{c.description}</p>}
+
+          <div className="flex flex-wrap gap-4 text-sm text-gray-500 mb-4">
+            {c.start_date && <span><span className="font-medium text-gray-700">Start:</span> {fmtDate(c.start_date)}</span>}
+            {c.due_date   && <span><span className="font-medium text-gray-700">Due:</span> {fmtDate(c.due_date)}</span>}
+            {c.budget     && <span><span className="font-medium text-gray-700">Budget:</span> ${Number(c.budget).toLocaleString()}</span>}
+            {c.min_years_experience > 0 && <span><span className="font-medium text-gray-700">Experience:</span> {c.min_years_experience}+ yrs</span>}
+          </div>
+
+          {c.skills_required?.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {c.skills_required.map(s => (
+                <span key={s} className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{s}</span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Ranked applicants */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Applicant Ranking</p>
+          <ApplicantRankingSection
+            caseData={c}
+            auth={auth}
+            applications={caseApps}
+            reviewApplication={reviewApplication}
+          />
+        </div>
+      </div>
     );
   }
 
