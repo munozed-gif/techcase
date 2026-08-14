@@ -44,7 +44,7 @@ VALUES (
   '13 stages',
   'Full SAP support center flow: intake, validation, estimation, execution, testing, and approval.',
   '[
-    {"key":"new",           "label":"New",           "color":"#10b981","is_terminal":false,"allowed_next":["confirmed","cancelled"],               "allowed_roles":["manager","client"]},
+    {"key":"open",          "label":"New",           "color":"#10b981","is_terminal":false,"allowed_next":["confirmed","cancelled"],               "allowed_roles":["manager","client"]},
     {"key":"confirmed",     "label":"Confirmed",     "color":"#3b82f6","is_terminal":false,"allowed_next":["estimated","returned"],               "allowed_roles":["manager"]},
     {"key":"returned",      "label":"Returned",      "color":"#f59e0b","is_terminal":false,"allowed_next":["confirmed","cancelled"],               "allowed_roles":["manager","client"]},
     {"key":"estimated",     "label":"Estimated",     "color":"#8b5cf6","is_terminal":false,"allowed_next":["assigned"],                           "allowed_roles":["manager"]},
