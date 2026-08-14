@@ -9103,7 +9103,7 @@ function ArenaView({ auth }) {
   const [applyingToCase, setApplying]       = useState(null);
   const [arenaSelectedCase, setArenaSelected] = useState(null);
   const { leaderboard, loading: lbLoading } = useLeaderboard();
-  const { cases, loading: casesLoading }    = useCases();
+  const { cases, loading: casesLoading, updateCase } = useCases();
   const { applications, reviewApplication } = useApplications();
 
   const openCases       = cases.filter(c => c.status === "estimated");
@@ -9335,6 +9335,24 @@ function ArenaView({ auth }) {
     );
   }
 
+  if (arenaSelectedCase && canViewRanking) {
+    return (
+      <CaseDetail
+        caseData={arenaSelectedCase}
+        auth={auth}
+        onBack={() => setArenaSelected(null)}
+        onStatusChange={async (caseId, status, extras = {}) => {
+          await updateCase(caseId, { status, ...extras });
+          setArenaSelected(prev => ({ ...prev, status }));
+        }}
+        onUpdate={async (id, payload) => {
+          await updateCase(id, payload);
+          setArenaSelected(prev => ({ ...prev, ...payload }));
+        }}
+      />
+    );
+  }
+
   return (
     <div>
       <div className="mb-6 flex items-end justify-between">
@@ -9369,29 +9387,6 @@ function ArenaView({ auth }) {
       {arenaTab === "leaderboard" && renderLeaderboard()}
       {arenaTab === "cards"       && renderCards()}
       {arenaTab === "compare"     && renderCompare()}
-
-      {/* Applicant Ranking Panel — for managers/clients/admins clicking a case */}
-      {arenaSelectedCase && canViewRanking && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setArenaSelected(null)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className="flex items-start justify-between p-6 border-b border-gray-100 flex-shrink-0">
-              <div>
-                <h2 className="font-bold text-lg text-gray-900 leading-tight">{arenaSelectedCase.title}</h2>
-                <p className="text-sm text-gray-400 mt-0.5">Applicant Rankings</p>
-              </div>
-              <button onClick={() => setArenaSelected(null)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none ml-4 flex-shrink-0">×</button>
-            </div>
-            <div className="overflow-y-auto flex-1 p-6">
-              <ApplicantRankingSection
-                caseData={arenaSelectedCase}
-                auth={auth}
-                applications={applications.filter(a => a.case_id === arenaSelectedCase.id)}
-                reviewApplication={reviewApplication}
-              />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
