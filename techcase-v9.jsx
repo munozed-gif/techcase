@@ -650,6 +650,282 @@ function useRatings(consultantId = null) {
   return { ratings, avgRating, loading, submitRating };
 }
 
+// ============================================================
+// APPLICANT RANKING ENGINE
+// ============================================================
+function computeApplicantScore(app, caseData, pastAssignments, allRatings) {
+  const profile = Array.isArray(app.consultant?.consultant_profiles)
+    ? app.consultant.consultant_profiles[0]
+    : app.consultant?.consultant_profiles;
+  const consultantSkills = profile?.skills ?? [];
+  const required = [
+    ...(caseData.skills_required ?? []),
+    caseData.area_sap, caseData.area_industry,
+  ].filter(Boolean);
+
+  // 1. Skill match (25 pts)
+  const matched = required.length
+    ? required.filter(r => consultantSkills.some(s =>
+        s.toLowerCase().includes(r.toLowerCase()) || r.toLowerCase().includes(s.toLowerCase())
+      )).length
+    : 0;
+  const skillPts = required.length ? Math.round((matched / required.length) * 25) : 13;
+
+  // 2. Overall avg rating (20 pts)
+  const myRatings = allRatings.filter(r => r.consultant_id === app.consultant_id);
+  const avgRating = myRatings.length ? myRatings.reduce((s, r) => s + r.score, 0) / myRatings.length : 0;
+  const ratingPts = myRatings.length ? Math.round((avgRating / 5) * 20) : 0;
+
+  // 3. Client familiarity (15 pts)
+  const clientWork = (pastAssignments ?? []).filter(
+    a => a.consultant_id === app.consultant_id && (a.case?.client_id ?? null) === caseData.client_id
+  );
+  const familiarityPts = clientWork.length ? 15 : 0;
+
+  // 4. Client-specific rating (15 pts)
+  const clientCaseIds = new Set(clientWork.map(a => a.case_id));
+  const clientRatings = myRatings.filter(r => clientCaseIds.has(r.case_id));
+  const clientAvg = clientRatings.length ? clientRatings.reduce((s, r) => s + r.score, 0) / clientRatings.length : 0;
+  const clientRatingPts = clientRatings.length ? Math.round((clientAvg / 5) * 15) : 0;
+
+  // 5. Experience match (10 pts)
+  const minExp = caseData.min_years_experience ?? 0;
+  const theirExp = profile?.years_experience ?? 0;
+  const expPts = minExp === 0 ? 10 : theirExp >= minExp * 1.5 ? 10 : theirExp >= minExp ? 8 : theirExp >= minExp * 0.75 ? 4 : 0;
+
+  // 6. Rate fit vs profile hourly rate (10 pts)
+  const profileRate = profile?.hourly_rate;
+  const proposed = app.proposed_rate;
+  let ratePts = 5;
+  if (proposed && profileRate) {
+    const ratio = proposed / profileRate;
+    ratePts = ratio <= 0.9 ? 10 : ratio <= 1.0 ? 8 : ratio <= 1.15 ? 5 : 2;
+  }
+
+  // 7. Time commitment (5 pts)
+  const commitPts = !app.time_commitment ? 3 : app.time_commitment >= 75 ? 5 : app.time_commitment >= 50 ? 3 : 1;
+
+  const total = skillPts + ratingPts + familiarityPts + clientRatingPts + expPts + ratePts + commitPts;
+  return {
+    ...app,
+    totalScore: total,
+    breakdown: {
+      skills:            { pts: skillPts,        max: 25, label: "Skill Match",       detail: required.length ? `${matched}/${required.length} matched` : "No requirements" },
+      rating:            { pts: ratingPts,        max: 20, label: "Overall Rating",   detail: myRatings.length ? `${avgRating.toFixed(1)}★ (${myRatings.length})` : "No ratings yet" },
+      clientFamiliarity: { pts: familiarityPts,   max: 15, label: "Client Exp.",      detail: clientWork.length ? `${clientWork.length}× with client` : "First time" },
+      clientRating:      { pts: clientRatingPts,  max: 15, label: "Client Rating",    detail: clientRatings.length ? `${clientAvg.toFixed(1)}★ from client` : "No client ratings" },
+      experience:        { pts: expPts,           max: 10, label: "Experience",       detail: minExp ? `${theirExp}y / min ${minExp}y` : `${theirExp}y exp` },
+      rate:              { pts: ratePts,          max: 10, label: "Rate",             detail: proposed ? `$${proposed}/hr` : "Not specified" },
+      commitment:        { pts: commitPts,        max: 5,  label: "Availability",     detail: app.time_commitment ? `${app.time_commitment}%` : "—" },
+    },
+  };
+}
+
+function useApplicantRanking(caseData, applications) {
+  const [ranking, setRanking] = useState([]);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    if (!caseData?.id || !applications?.length) { setRanking([]); return; }
+    const ids = [...new Set(applications.map(a => a.consultant_id))];
+    (async () => {
+      setLoading(true);
+      const [{ data: ratings }, { data: assignments }] = await Promise.all([
+        supabase.from("ratings").select("consultant_id, score, case_id, case:case_id(client_id)").in("consultant_id", ids),
+        supabase.from("case_assignments").select("consultant_id, case_id, case:case_id(client_id)").in("consultant_id", ids),
+      ]);
+      const scored = applications
+        .map(app => computeApplicantScore(app, caseData, assignments ?? [], ratings ?? []))
+        .sort((a, b) => b.totalScore - a.totalScore);
+      setRanking(scored);
+      setLoading(false);
+    })();
+  }, [caseData?.id, applications?.length]);
+  return { ranking, loading };
+}
+
+function CaseFeedbackModal({ caseData, onClose }) {
+  const consultants = caseData.case_assignments ?? [];
+  const [ratings, setRatings] = useState(
+    Object.fromEntries(consultants.map(a => [a.consultant_id, { score: 0, comment: "" }]))
+  );
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit() {
+    setSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      for (const a of consultants) {
+        const r = ratings[a.consultant_id];
+        if (r?.score > 0) {
+          await supabase.from("ratings").upsert({
+            consultant_id: a.consultant_id, case_id: caseData.id,
+            rated_by: user.id, score: r.score, comment: r.comment || null, is_public: true,
+          });
+        }
+      }
+      onClose();
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  if (!consultants.length) return null;
+  const hasAnyRating = Object.values(ratings).some(r => r.score > 0);
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+        <div>
+          <h2 className="font-bold text-lg text-gray-900">Rate the Consultants</h2>
+          <p className="text-sm text-gray-400 mt-0.5">How did they perform on "{caseData.title}"?</p>
+        </div>
+        {consultants.map(a => {
+          const r = ratings[a.consultant_id] ?? { score: 0, comment: "" };
+          const name = a.users?.full_name ?? "Consultant";
+          return (
+            <div key={a.consultant_id} className="border border-gray-100 rounded-xl p-4 space-y-2">
+              <div className="font-medium text-sm text-gray-900">{name}</div>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map(n => (
+                  <button key={n} onClick={() => setRatings(p => ({ ...p, [a.consultant_id]: { ...p[a.consultant_id], score: n } }))}
+                    className={`text-2xl transition-transform hover:scale-110 ${n <= r.score ? "text-yellow-400" : "text-gray-200"}`}>★</button>
+                ))}
+              </div>
+              {r.score > 0 && (
+                <textarea value={r.comment}
+                  onChange={e => setRatings(p => ({ ...p, [a.consultant_id]: { ...p[a.consultant_id], comment: e.target.value } }))}
+                  placeholder="Optional comment…" rows={2}
+                  className="w-full text-sm border border-gray-200 rounded-lg p-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              )}
+            </div>
+          );
+        })}
+        <div className="flex gap-2 pt-2">
+          <button onClick={onClose} className="flex-1 py-2 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50">Skip</button>
+          <button onClick={handleSubmit} disabled={saving || !hasAnyRating}
+            className="flex-1 py-2 text-sm font-semibold bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50">
+            {saving ? "Saving…" : "Submit Ratings"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const RANKING_CRITERIA = ["skills", "rating", "clientFamiliarity", "clientRating", "experience", "rate", "commitment"];
+
+function ApplicantRankingSection({ caseData, auth, applications, reviewApplication }) {
+  const { ranking, loading } = useApplicantRanking(caseData, applications);
+  if (!applications.length) return <p className="text-sm text-gray-400 py-4">No applications yet.</p>;
+  if (loading) return <Spinner />;
+  const best = ranking[0];
+
+  return (
+    <div className="space-y-6">
+      {/* Recommended consultant */}
+      {best && (
+        <div>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Recommended Consultant</p>
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-5">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 rounded-full bg-blue-200 flex items-center justify-center text-blue-800 font-bold text-lg flex-shrink-0">
+                {best.consultant?.full_name?.[0]}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-gray-900">{best.consultant?.full_name}</div>
+                <div className="text-xs text-gray-500">
+                  {(Array.isArray(best.consultant?.consultant_profiles)
+                    ? best.consultant.consultant_profiles[0]
+                    : best.consultant?.consultant_profiles)?.headline ?? ""}
+                </div>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <div className="text-2xl font-black text-blue-700">{best.totalScore}</div>
+                <div className="text-xs text-gray-400">/ 100 pts</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+              {RANKING_CRITERIA.map(key => {
+                const c = best.breakdown[key];
+                const pct = Math.round((c.pts / c.max) * 100);
+                return (
+                  <div key={key} className="bg-white/80 rounded-xl p-2.5">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide truncate">{c.label}</span>
+                      <span className="text-xs font-bold text-blue-700 ml-1 flex-shrink-0">{c.pts}/{c.max}</span>
+                    </div>
+                    <div className="h-1 bg-gray-100 rounded-full mb-1">
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: pct >= 80 ? "#22c55e" : pct >= 50 ? "#3b82f6" : pct >= 25 ? "#f59e0b" : "#ef4444" }} />
+                    </div>
+                    <div className="text-[10px] text-gray-400 truncate">{c.detail}</div>
+                  </div>
+                );
+              })}
+            </div>
+            {(auth.isAdmin || auth.isManager) && best.status === "pending" && (
+              <button onClick={() => reviewApplication(best.id, "accepted")}
+                className="w-full py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">
+                Accept this Consultant
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* All applicants ranked */}
+      <div>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">All Applicants — Ranked</p>
+        <div className="space-y-3">
+          {ranking.map((app, i) => {
+            const profile = Array.isArray(app.consultant?.consultant_profiles)
+              ? app.consultant.consultant_profiles[0]
+              : app.consultant?.consultant_profiles;
+            const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`;
+            return (
+              <div key={app.id} className={`border rounded-xl p-4 ${i === 0 ? "border-blue-200 bg-blue-50/30" : "border-gray-100 bg-white"}`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-bold text-sm flex-shrink-0">{medal}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-sm text-gray-900">{app.consultant?.full_name}</div>
+                    <div className="text-xs text-gray-400">{profile?.headline ?? (profile?.years_experience ? `${profile.years_experience}y exp` : "")}</div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className="font-black text-gray-900 text-lg">{app.totalScore}<span className="text-xs font-normal text-gray-400">/100</span></div>
+                    <Badge className={APP_STATUS_COLORS[app.status]}>{cap(app.status)}</Badge>
+                  </div>
+                </div>
+                {/* Score bars */}
+                <div className="flex gap-1 mb-3" title="Skill | Rating | Client Exp | Client Rating | Experience | Rate | Availability">
+                  {RANKING_CRITERIA.map(key => {
+                    const c = app.breakdown[key];
+                    const pct = Math.round((c.pts / c.max) * 100);
+                    return (
+                      <div key={key} className="flex-1" title={`${c.label}: ${c.pts}/${c.max} — ${c.detail}`}>
+                        <div className="h-8 bg-gray-100 rounded relative overflow-hidden">
+                          <div className="absolute bottom-0 w-full rounded transition-all"
+                            style={{ height: `${pct}%`, backgroundColor: pct >= 80 ? "#22c55e" : pct >= 50 ? "#3b82f6" : pct >= 25 ? "#f59e0b" : "#ef4444" }} />
+                        </div>
+                        <div className="text-[8px] text-gray-400 text-center mt-0.5 truncate">{c.label.split(" ")[0]}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {app.cover_letter && <p className="text-xs text-gray-500 mb-2 line-clamp-1 italic">"{app.cover_letter}"</p>}
+                {(auth.isAdmin || auth.isManager) && app.status === "pending" && (
+                  <div className="flex gap-2">
+                    <button onClick={() => reviewApplication(app.id, "accepted")} className="px-3 py-1 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">Accept</button>
+                    <button onClick={() => reviewApplication(app.id, "rejected")} className="px-3 py-1 bg-red-100 text-red-700 text-xs rounded-lg hover:bg-red-200">Reject</button>
+                    <button onClick={() => reviewApplication(app.id, "under_review")} className="px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-lg hover:bg-blue-200">Review</button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function useFavorites() {
   const [favorites, setFavorites] = useState([]);
 
@@ -5013,6 +5289,7 @@ function CasesView({ auth }) {
   const [selectedCase, setSelected]   = useState(null);
   const [showCreate, setShowCreate]   = useState(false);
   const [showFavOnly, setShowFavOnly] = useState(false);
+  const [feedbackCase, setFeedbackCase] = useState(null);
   const [filterProjects, setFilterProjects] = useState([]);
   const { isFavorite, toggle }        = useFavorites();
 
@@ -5041,7 +5318,15 @@ function CasesView({ auth }) {
 
   async function handleStatusChange(caseId, status, extras = {}) {
     await updateCase(caseId, { status, ...extras });
-    if (selectedCase?.id === caseId) setSelected(prev => ({ ...prev, status }));
+    const TERMINAL_STATUSES = ["completed", "terminated", "cancelled", "closed", "approved"];
+    if (selectedCase?.id === caseId) {
+      const updatedCase = { ...selectedCase, status };
+      setSelected(updatedCase);
+      if (TERMINAL_STATUSES.includes(status) && (auth.isAdmin || auth.isManager || auth.isClient)
+          && updatedCase.case_assignments?.length) {
+        setFeedbackCase(updatedCase);
+      }
+    }
   }
 
   if (loading) return <Spinner />;
@@ -5061,17 +5346,22 @@ function CasesView({ auth }) {
 
   if (selectedCase) {
     return (
-      <CaseDetail
-        caseData={selectedCase}
-        auth={auth}
-        onBack={() => setSelected(null)}
-        onStatusChange={handleStatusChange}
-        onDelete={async () => { await deleteCase(selectedCase.id); setSelected(null); }}
-        onUpdate={async (id, payload) => {
-          await updateCase(id, payload);
-          setSelected(prev => ({ ...prev, ...payload }));
-        }}
-      />
+      <>
+        {feedbackCase && (
+          <CaseFeedbackModal caseData={feedbackCase} onClose={() => setFeedbackCase(null)} />
+        )}
+        <CaseDetail
+          caseData={selectedCase}
+          auth={auth}
+          onBack={() => setSelected(null)}
+          onStatusChange={handleStatusChange}
+          onDelete={async () => { await deleteCase(selectedCase.id); setSelected(null); }}
+          onUpdate={async (id, payload) => {
+            await updateCase(id, payload);
+            setSelected(prev => ({ ...prev, ...payload }));
+          }}
+        />
+      </>
     );
   }
 
@@ -7942,7 +8232,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
     { id: "subcases",   label: "Sub-cases",    icon: Layers,        count: subCases.length },
     { id: "documents",  label: "Docs",         icon: Paperclip,     count: documents.length },
     { id: "time",       label: "Time",         icon: Clock,         count: `${totalTimeHours.toFixed(1)}h` },
-    ...(auth.isAdmin || auth.isManager ? [{ id: "applications", label: "Applications", icon: Users, count: applications.length }] : []),
+    ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "applications", label: "Applicants", icon: Users, count: applications.length }] : []),
     ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "lifecycle", label: "Lifecycle", icon: TrendingUp, count: null }] : []),
     { id: "spec", label: "Spec", icon: FileText, count: null },
   ];
@@ -8547,33 +8837,13 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
       )}
 
       {/* Applications Tab */}
-      {activeTab === "applications" && (auth.isAdmin || auth.isManager) && (
-        <div className="space-y-3">
-          {applications.map(app => (
-            <div key={app.id} className="border border-gray-100 rounded-xl p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="font-medium text-sm">{app.consultant?.full_name}</div>
-                <Badge className={APP_STATUS_COLORS[app.status]}>{cap(app.status)}</Badge>
-              </div>
-              {app.cover_letter && <p className="text-xs text-gray-500 mb-3 line-clamp-2">{app.cover_letter}</p>}
-              <div className="flex gap-3 text-xs text-gray-400 mb-2">
-                {app.proposed_rate && <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" />${app.proposed_rate}/hr</span>}
-                {app.time_commitment && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{app.time_commitment}% time</span>}
-              </div>
-              {app.status === "pending" && (
-                <div className="flex gap-2 mt-2">
-                  <button onClick={() => reviewApplication(app.id, "accepted")}
-                    className="px-3 py-1 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">Accept</button>
-                  <button onClick={() => reviewApplication(app.id, "rejected")}
-                    className="px-3 py-1 bg-red-100 text-red-700 text-xs rounded-lg hover:bg-red-200">Reject</button>
-                  <button onClick={() => reviewApplication(app.id, "under_review")}
-                    className="px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-lg hover:bg-blue-200">Review</button>
-                </div>
-              )}
-            </div>
-          ))}
-          {applications.length === 0 && <p className="text-sm text-gray-400">No applications yet.</p>}
-        </div>
+      {activeTab === "applications" && (auth.isAdmin || auth.isManager || auth.isClient) && (
+        <ApplicantRankingSection
+          caseData={caseData}
+          auth={auth}
+          applications={applications}
+          reviewApplication={reviewApplication}
+        />
       )}
 
       {/* V9 Documents Tab */}
@@ -8829,15 +9099,17 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
 // ARENA (COMPETITIVE BIDDING)
 // ============================================================
 function ArenaView({ auth }) {
-  const [arenaTab, setArenaTab]         = useState("cases");
-  const [applyingToCase, setApplying]   = useState(null);
+  const [arenaTab, setArenaTab]             = useState("cases");
+  const [applyingToCase, setApplying]       = useState(null);
+  const [arenaSelectedCase, setArenaSelected] = useState(null);
   const { leaderboard, loading: lbLoading } = useLeaderboard();
   const { cases, loading: casesLoading }    = useCases();
-  const { applications }                    = useApplications();
+  const { applications, reviewApplication } = useApplications();
 
   const openCases       = cases.filter(c => c.status === "estimated");
   const myApplications  = applications.filter(a => a.consultant_id === auth.user?.id);
   const appliedCaseIds  = new Set(myApplications.map(a => a.case_id));
+  const canViewRanking  = auth.isAdmin || auth.isManager || auth.isClient;
 
   const renderCases = () => {
     if (casesLoading) return <Spinner />;
@@ -8853,7 +9125,8 @@ function ArenaView({ auth }) {
           const alreadyApplied = appliedCaseIds.has(c.id);
           const appCount     = c.applications?.[0]?.count ?? 0;
           return (
-            <div key={c.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
+            <div key={c.id} className={`bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow ${canViewRanking ? "cursor-pointer" : ""}`}
+              onClick={canViewRanking ? () => setArenaSelected(c) : undefined}>
               <div className="flex items-start justify-between gap-2 mb-2">
                 <h3 className="font-semibold text-gray-900 text-sm leading-snug">{c.title}</h3>
                 <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
@@ -9096,6 +9369,29 @@ function ArenaView({ auth }) {
       {arenaTab === "leaderboard" && renderLeaderboard()}
       {arenaTab === "cards"       && renderCards()}
       {arenaTab === "compare"     && renderCompare()}
+
+      {/* Applicant Ranking Panel — for managers/clients/admins clicking a case */}
+      {arenaSelectedCase && canViewRanking && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setArenaSelected(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between p-6 border-b border-gray-100 flex-shrink-0">
+              <div>
+                <h2 className="font-bold text-lg text-gray-900 leading-tight">{arenaSelectedCase.title}</h2>
+                <p className="text-sm text-gray-400 mt-0.5">Applicant Rankings</p>
+              </div>
+              <button onClick={() => setArenaSelected(null)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none ml-4 flex-shrink-0">×</button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-6">
+              <ApplicantRankingSection
+                caseData={arenaSelectedCase}
+                auth={auth}
+                applications={applications.filter(a => a.case_id === arenaSelectedCase.id)}
+                reviewApplication={reviewApplication}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
