@@ -7800,6 +7800,10 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
 
   const effectiveLifecycle = caseData.case_lifecycle ?? projectLifecycle ?? clientLifecycle;
   const lifecycleStages = getLifecycleStages(effectiveLifecycle, caseLcTemplates);
+  const subCaseInitialStatus = (lifecycleStages.find(s => s.is_initial) ?? lifecycleStages.find(s => !s.is_terminal))?.key ?? "open";
+  useEffect(() => {
+    setSubCaseForm(p => ({ ...p, status: subCaseInitialStatus }));
+  }, [subCaseInitialStatus]);
   const isTerminalStatus = lifecycleStages.find(s => s.key === caseData.status)?.is_terminal
     ?? ["completed","cancelled"].includes(caseData.status);
   const canEditCase = onUpdate && !isTerminalStatus
@@ -7887,7 +7891,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
         client_id: caseData.client_id,
         manager_id: caseData.manager_id,
       });
-      setSubCaseForm({ title: "", description: "", priority: "medium", status: "open" });
+      setSubCaseForm({ title: "", description: "", priority: "medium", status: subCaseInitialStatus });
       setShowSubCaseForm(false);
     } catch (e) { alert(e.message); }
     setSavingSubCase(false);
