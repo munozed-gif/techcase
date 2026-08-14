@@ -5,6 +5,7 @@
 -- Run in: Supabase Dashboard → SQL Editor
 -- ============================================================
 
+ALTER TYPE case_status ADD VALUE IF NOT EXISTS 'estimated';
 ALTER TYPE case_status ADD VALUE IF NOT EXISTS 'confirmed';
 ALTER TYPE case_status ADD VALUE IF NOT EXISTS 'returned';
 ALTER TYPE case_status ADD VALUE IF NOT EXISTS 'assigned';
