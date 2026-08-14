@@ -8319,6 +8319,23 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const effectiveLifecycle = caseData.case_lifecycle ?? projectLifecycle ?? clientLifecycle;
   const lifecycleStages = getLifecycleStages(effectiveLifecycle, caseLcTemplates);
   const subCaseInitialStatus = (lifecycleStages.find(s => s.is_initial) ?? lifecycleStages.find(s => !s.is_terminal))?.key ?? "open";
+
+  async function handleReviewApplication(appId, appStatus, notes) {
+    await reviewApplication(appId, appStatus, notes);
+    if (appStatus === "accepted" && onStatusChange) {
+      const curStage = lifecycleStages.find(s => s.key === caseData.status);
+      if (curStage && !curStage.is_terminal) {
+        const allowedNextKeys = curStage.allowed_next?.length
+          ? curStage.allowed_next
+          : lifecycleStages.map(s => s.key).filter(k => k !== caseData.status);
+        const autoStage = lifecycleStages.find(s =>
+          allowedNextKeys.includes(s.key) &&
+          (s.trigger === "auto" || s.trigger === "both")
+        );
+        if (autoStage) await onStatusChange(caseData.id, autoStage.key);
+      }
+    }
+  }
   useEffect(() => {
     setSubCaseForm(p => ({ ...p, status: subCaseInitialStatus }));
   }, [subCaseInitialStatus]);
@@ -8532,10 +8549,10 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
         if (!canChange) return null;
         const statusInLifecycle = lifecycleStages.some(s => s.key === caseData.status);
         const validNext = allowedNext
-          // explicit allowed_next configured — use exactly that
-          ? lifecycleStages.filter(s => allowedNext.includes(s.key))
-          // no allowed_next: show all other stages in this lifecycle (any direction)
-          : lifecycleStages.filter(s => s.key !== caseData.status || !statusInLifecycle);
+          // explicit allowed_next configured — use exactly that (exclude auto-only stages)
+          ? lifecycleStages.filter(s => allowedNext.includes(s.key) && s.trigger !== "auto")
+          // no allowed_next: show all other stages in this lifecycle (exclude auto-only)
+          : lifecycleStages.filter(s => (s.key !== caseData.status || !statusInLifecycle) && s.trigger !== "auto");
         if (!validNext.length) return null;
 
         const NEXT_META = {
@@ -8818,10 +8835,10 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
             const statusInLifecycle2 = lifecycleStages.some(s => s.key === caseData.status);
             const validNext = curStage?.is_terminal ? []
               : allowedNext
-                // explicit allowed_next configured — use exactly that
-                ? lifecycleStages.filter(s => allowedNext.includes(s.key))
-                // no allowed_next: show all other stages in this lifecycle (any direction)
-                : lifecycleStages.filter(s => s.key !== caseData.status || !statusInLifecycle2);
+                // explicit allowed_next configured — use exactly that (exclude auto-only stages)
+                ? lifecycleStages.filter(s => allowedNext.includes(s.key) && s.trigger !== "auto")
+                // no allowed_next: show all other stages in this lifecycle (exclude auto-only)
+                : lifecycleStages.filter(s => (s.key !== caseData.status || !statusInLifecycle2) && s.trigger !== "auto");
             if (!validNext.length) return null;
             return (
               <div className="border-t border-gray-100 pt-4 flex flex-wrap gap-2">
@@ -9069,7 +9086,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
           caseData={caseData}
           auth={auth}
           applications={applications}
-          reviewApplication={reviewApplication}
+          reviewApplication={handleReviewApplication}
         />
       )}
 
@@ -9330,8 +9347,28 @@ function ArenaView({ auth }) {
   const [applyingToCase, setApplying]       = useState(null);
   const [arenaSelectedCase, setArenaSelected] = useState(null);
   const { leaderboard, loading: lbLoading } = useLeaderboard();
-  const { cases, loading: casesLoading } = useCases();
+  const { cases, loading: casesLoading, updateCase } = useCases();
   const { applications, reviewApplication } = useApplications();
+  const { templates: arenaLcTemplates } = useLifecycleTemplates();
+
+  async function handleArenaReviewApplication(appId, appStatus, notes) {
+    await reviewApplication(appId, appStatus, notes);
+    if (appStatus === "accepted" && arenaSelectedCase) {
+      const c = arenaSelectedCase;
+      const stages = getLifecycleStages(c.case_lifecycle, arenaLcTemplates);
+      const curStage = stages.find(s => s.key === c.status);
+      if (curStage && !curStage.is_terminal) {
+        const allowedNextKeys = curStage.allowed_next?.length
+          ? curStage.allowed_next
+          : stages.map(s => s.key).filter(k => k !== c.status);
+        const autoStage = stages.find(s =>
+          allowedNextKeys.includes(s.key) &&
+          (s.trigger === "auto" || s.trigger === "both")
+        );
+        if (autoStage) await updateCase(c.id, { status: autoStage.key });
+      }
+    }
+  }
 
   const openCases       = cases.filter(c => c.status === "estimated");
   const myApplications  = applications.filter(a => a.consultant_id === auth.user?.id);
@@ -9619,7 +9656,7 @@ function ArenaView({ auth }) {
             caseData={c}
             auth={auth}
             applications={caseApps}
-            reviewApplication={reviewApplication}
+            reviewApplication={handleArenaReviewApplication}
           />
         </div>
       </div>
@@ -11249,6 +11286,11 @@ function LifecycleSettingsView({ auth }) {
   function setInitialStage(i) {
     setEditStages(p => p.map((s, j) => ({ ...s, is_initial: j === i })));
   }
+  function cycleTrigger(i) {
+    const cur = editStages[i].trigger ?? "manual";
+    const next = cur === "manual" ? "auto" : cur === "auto" ? "both" : "manual";
+    updateStage(i, { trigger: next });
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -11321,15 +11363,28 @@ function LifecycleSettingsView({ auth }) {
                     <option value="terminal">Terminal</option>
                   </select>
                   {!stage.is_terminal && (
-                    <button onClick={() => setInitialStage(idx)}
-                      title="Set as the starting status when a case is created"
-                      className={`text-xs px-2 py-1 rounded-lg border font-semibold transition-colors flex-shrink-0 ${
-                        stage.is_initial
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-300"
-                          : "bg-white text-gray-400 border-gray-200 hover:border-emerald-300 hover:text-emerald-600"
-                      }`}>
-                      Initial
-                    </button>
+                    <>
+                      <button onClick={() => setInitialStage(idx)}
+                        title="Set as the starting status when a case is created"
+                        className={`text-xs px-2 py-1 rounded-lg border font-semibold transition-colors flex-shrink-0 ${
+                          stage.is_initial
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                            : "bg-white text-gray-400 border-gray-200 hover:border-emerald-300 hover:text-emerald-600"
+                        }`}>
+                        Initial
+                      </button>
+                      <button onClick={() => cycleTrigger(idx)}
+                        title="How this stage is reached: Manual (by user), Auto (by system), Both"
+                        className={`text-xs px-2 py-1 rounded-lg border font-semibold transition-colors flex-shrink-0 ${
+                          (stage.trigger ?? "manual") === "auto"
+                            ? "bg-purple-50 text-purple-700 border-purple-300"
+                            : (stage.trigger ?? "manual") === "both"
+                            ? "bg-indigo-50 text-indigo-700 border-indigo-300"
+                            : "bg-white text-gray-400 border-gray-200 hover:border-gray-300"
+                        }`}>
+                        {(stage.trigger ?? "manual") === "auto" ? "Auto" : (stage.trigger ?? "manual") === "both" ? "Manual+Auto" : "Manual"}
+                      </button>
+                    </>
                   )}
                   <button onClick={() => moveStage(idx, -1)} disabled={idx === 0}
                     className="text-gray-400 hover:text-gray-600 disabled:opacity-20 w-5 text-center flex-shrink-0">↑</button>
