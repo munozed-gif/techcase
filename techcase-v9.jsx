@@ -5574,7 +5574,7 @@ function renderMarkdown(md) {
   return out.join('\n');
 }
 
-function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocuments }) {
+function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocuments, onUpdate }) {
   const { spec, loading: specLoading, saveSpec, refetch } = useCaseSpecification(caseData.id, auth.user?.id);
 
   // Mode selection
@@ -6826,6 +6826,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
       await saveSpec({ status: 'approved', approved_by: auth.user?.id, approved_at: new Date().toISOString(), rejected_reason: null });
       await supabase.from('cases').update({ status: 'estimated' }).eq('id', caseData.id);
       await refetch();
+      onUpdate?.(caseData.id, { status: 'estimated' });
     } catch (e) { alert(e.message); }
     setApproving(false);
   }
@@ -8731,7 +8732,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
       {/* Lifecycle Tab */}
       {/* Spec Tab */}
       {activeTab === "spec" && (
-        <SpecificationTab caseData={caseData} auth={auth} documents={documents} addDocument={addDocument} refetchDocuments={refetchDocuments} />
+        <SpecificationTab caseData={caseData} auth={auth} documents={documents} addDocument={addDocument} refetchDocuments={refetchDocuments} onUpdate={onUpdate} />
       )}
 
       {activeTab === "lifecycle" && (auth.isAdmin || auth.isManager || auth.isClient) && (() => {
