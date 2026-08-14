@@ -653,7 +653,18 @@ function useRatings(consultantId = null) {
 // ============================================================
 // APPLICANT RANKING ENGINE
 // ============================================================
-function computeApplicantScore(app, caseData, pastAssignments, allRatings) {
+function computeApplicantScore(app, caseData, pastAssignments, allRatings, clientWeights = null) {
+  // Normalize client weights so they always sum to 100
+  const RAW_W = clientWeights ?? { skills: 25, rating: 20, clientFamiliarity: 15, clientRating: 15, experience: 10, rate: 10, commitment: 5 };
+  const wSum = Object.values(RAW_W).reduce((s, v) => s + (v || 0), 0) || 100;
+  const wKeys = ["skills","rating","clientFamiliarity","clientRating","experience","rate","commitment"];
+  let allocated = 0;
+  const W = {};
+  wKeys.forEach((k, i) => {
+    if (i === wKeys.length - 1) { W[k] = 100 - allocated; }
+    else { W[k] = Math.round(((RAW_W[k] ?? 0) / wSum) * 100); allocated += W[k]; }
+  });
+
   const profile = Array.isArray(app.consultant?.consultant_profiles)
     ? app.consultant.consultant_profiles[0]
     : app.consultant?.consultant_profiles;
@@ -663,44 +674,46 @@ function computeApplicantScore(app, caseData, pastAssignments, allRatings) {
     caseData.area_sap, caseData.area_industry,
   ].filter(Boolean);
 
-  // 1. Skill match (25 pts)
+  // 1. Skill match
   const matched = required.length
     ? required.filter(r => consultantSkills.some(s =>
         s.toLowerCase().includes(r.toLowerCase()) || r.toLowerCase().includes(s.toLowerCase())
       )).length
     : 0;
-  const skillPts = required.length ? Math.round((matched / required.length) * 25) : 13;
+  const skillPts = required.length ? Math.round((matched / required.length) * W.skills) : Math.round(W.skills * 0.5);
 
-  // 2. Overall avg rating (20 pts)
+  // 2. Overall avg rating
   const myRatings = allRatings.filter(r => r.consultant_id === app.consultant_id);
   const avgRating = myRatings.length ? myRatings.reduce((s, r) => s + r.score, 0) / myRatings.length : 0;
-  const ratingPts = myRatings.length ? Math.round((avgRating / 5) * 20) : 0;
+  const ratingPts = myRatings.length ? Math.round((avgRating / 5) * W.rating) : 0;
 
-  // 3. Client familiarity (15 pts)
+  // 3. Client familiarity
   const clientWork = (pastAssignments ?? []).filter(
     a => a.consultant_id === app.consultant_id && (a.case?.client_id ?? null) === caseData.client_id
   );
-  const familiarityPts = clientWork.length ? 15 : 0;
+  const familiarityPts = clientWork.length ? W.clientFamiliarity : 0;
 
-  // 4. Client-specific rating (15 pts)
+  // 4. Client-specific rating
   const clientCaseIds = new Set(clientWork.map(a => a.case_id));
   const clientRatings = myRatings.filter(r => clientCaseIds.has(r.case_id));
   const clientAvg = clientRatings.length ? clientRatings.reduce((s, r) => s + r.score, 0) / clientRatings.length : 0;
-  const clientRatingPts = clientRatings.length ? Math.round((clientAvg / 5) * 15) : 0;
+  const clientRatingPts = clientRatings.length ? Math.round((clientAvg / 5) * W.clientRating) : 0;
 
-  // 5. Experience match (10 pts)
+  // 5. Experience match
   const minExp = caseData.min_years_experience ?? 0;
   const theirExp = profile?.years_experience ?? 0;
-  const expPts = minExp === 0 ? 10 : theirExp >= minExp * 1.5 ? 10 : theirExp >= minExp ? 8 : theirExp >= minExp * 0.75 ? 4 : 0;
+  const expRatio = minExp === 0 ? 1 : theirExp >= minExp * 1.5 ? 1 : theirExp >= minExp ? 0.8 : theirExp >= minExp * 0.75 ? 0.4 : 0;
+  const expPts = Math.round(expRatio * W.experience);
 
-  // 6. Rate fit vs profile hourly rate (10 pts)
+  // 6. Rate fit vs profile hourly rate
   const profileRate = profile?.hourly_rate;
   const proposed = app.proposed_rate;
-  let ratePts = 5;
+  let rateRatio = 0.5;
   if (proposed && profileRate) {
-    const ratio = proposed / profileRate;
-    ratePts = ratio <= 0.9 ? 10 : ratio <= 1.0 ? 8 : ratio <= 1.15 ? 5 : 2;
+    const r = proposed / profileRate;
+    rateRatio = r <= 0.9 ? 1 : r <= 1.0 ? 0.8 : r <= 1.15 ? 0.5 : 0.2;
   }
+  const ratePts = Math.round(rateRatio * W.rate);
 
   // 7. Time commitment vs available capacity (5 pts)
   // Score how much of their free capacity they're committing, not raw %.
@@ -721,13 +734,13 @@ function computeApplicantScore(app, caseData, pastAssignments, allRatings) {
     ...app,
     totalScore: total,
     breakdown: {
-      skills:            { pts: skillPts,        max: 25, label: "Skill Match",       detail: required.length ? `${matched}/${required.length} matched` : "No requirements" },
-      rating:            { pts: ratingPts,        max: 20, label: "Overall Rating",   detail: myRatings.length ? `${avgRating.toFixed(1)}★ (${myRatings.length})` : "No ratings yet" },
-      clientFamiliarity: { pts: familiarityPts,   max: 15, label: "Client Exp.",      detail: clientWork.length ? `${clientWork.length}× with client` : "First time" },
-      clientRating:      { pts: clientRatingPts,  max: 15, label: "Client Rating",    detail: clientRatings.length ? `${clientAvg.toFixed(1)}★ from client` : "No client ratings" },
-      experience:        { pts: expPts,           max: 10, label: "Experience",       detail: minExp ? `${theirExp}y / min ${minExp}y` : `${theirExp}y exp` },
-      rate:              { pts: ratePts,          max: 10, label: "Rate",             detail: proposed ? `$${proposed}/hr` : "Not specified" },
-      commitment:        { pts: commitPts,        max: 5,  label: "Availability",     detail: commitDetail },
+      skills:            { pts: skillPts,        max: W.skills,            label: "Skill Match",     detail: required.length ? `${matched}/${required.length} matched` : "No requirements" },
+      rating:            { pts: ratingPts,        max: W.rating,            label: "Overall Rating",  detail: myRatings.length ? `${avgRating.toFixed(1)}★ (${myRatings.length})` : "No ratings yet" },
+      clientFamiliarity: { pts: familiarityPts,   max: W.clientFamiliarity, label: "Client Exp.",     detail: clientWork.length ? `${clientWork.length}× with client` : "First time" },
+      clientRating:      { pts: clientRatingPts,  max: W.clientRating,      label: "Client Rating",   detail: clientRatings.length ? `${clientAvg.toFixed(1)}★ from client` : "No client ratings" },
+      experience:        { pts: expPts,           max: W.experience,        label: "Experience",      detail: minExp ? `${theirExp}y / min ${minExp}y` : `${theirExp}y exp` },
+      rate:              { pts: ratePts,          max: W.rate,              label: "Rate",            detail: proposed ? `$${proposed}/hr` : "Not specified" },
+      commitment:        { pts: commitPts,        max: W.commitment,        label: "Availability",    detail: commitDetail },
     },
   };
 }
@@ -735,6 +748,17 @@ function computeApplicantScore(app, caseData, pastAssignments, allRatings) {
 function useApplicantRanking(caseData, applications) {
   const [ranking, setRanking] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [clientSettings, setClientSettings] = useState(null);
+
+  useEffect(() => {
+    if (!caseData?.client_id) return;
+    supabase.from("client_profiles")
+      .select("assignment_settings")
+      .eq("id", caseData.client_id)
+      .maybeSingle()
+      .then(({ data }) => setClientSettings(data?.assignment_settings ?? null));
+  }, [caseData?.client_id]);
+
   useEffect(() => {
     if (!caseData?.id || !applications?.length) { setRanking([]); return; }
     const ids = [...new Set(applications.map(a => a.consultant_id))];
@@ -744,14 +768,23 @@ function useApplicantRanking(caseData, applications) {
         supabase.from("ratings").select("consultant_id, score, case_id, case:case_id(client_id)").in("consultant_id", ids),
         supabase.from("case_assignments").select("consultant_id, case_id, case:case_id(client_id)").in("consultant_id", ids),
       ]);
+      const weights = clientSettings ? {
+        skills:            clientSettings.weight_skills            ?? 25,
+        rating:            clientSettings.weight_rating            ?? 20,
+        clientFamiliarity: clientSettings.weight_client_familiarity ?? 15,
+        clientRating:      clientSettings.weight_client_rating      ?? 15,
+        experience:        clientSettings.weight_experience         ?? 10,
+        rate:              clientSettings.weight_rate               ?? 10,
+        commitment:        clientSettings.weight_commitment         ?? 5,
+      } : null;
       const scored = applications
-        .map(app => computeApplicantScore(app, caseData, assignments ?? [], ratings ?? []))
+        .map(app => computeApplicantScore(app, caseData, assignments ?? [], ratings ?? [], weights))
         .sort((a, b) => b.totalScore - a.totalScore);
       setRanking(scored);
       setLoading(false);
     })();
-  }, [caseData?.id, applications?.length]);
-  return { ranking, loading };
+  }, [caseData?.id, applications?.length, clientSettings]);
+  return { ranking, loading, clientSettings };
 }
 
 function CaseFeedbackModal({ caseData, onClose }) {
@@ -825,7 +858,8 @@ function CaseFeedbackModal({ caseData, onClose }) {
 const RANKING_CRITERIA = ["skills", "rating", "clientFamiliarity", "clientRating", "experience", "rate", "commitment"];
 
 function ApplicantRankingSection({ caseData, auth, applications, reviewApplication }) {
-  const { ranking, loading } = useApplicantRanking(caseData, applications);
+  const { ranking, loading, clientSettings } = useApplicantRanking(caseData, applications);
+  const overcommitTolerance = clientSettings?.max_overcommitment_tolerance ?? 0;
   const [liveAvailability, setLiveAvailability] = useState({});
   const [recalculating, setRecalculating]       = useState(false);
   const [lastRecalculated, setLastRecalculated] = useState(null);
@@ -873,7 +907,7 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
         return {
           ...app,
           liveAvailability: live,
-          overcommitted: (app.time_commitment ?? 0) > live,
+          overcommitted: (app.time_commitment ?? 0) > live + overcommitTolerance,
           totalScore: app.totalScore - oldCommit + commitPts,
           breakdown: {
             ...app.breakdown,
@@ -11671,6 +11705,211 @@ function CaseDefaultsPanel({ profile, updateProfile }) {
   );
 }
 
+const AS_DEFAULTS = {
+  auto_assign_enabled: false, application_window_days: 7, min_applicants: 3,
+  require_manager_approval: true, prefer_known_consultants: true,
+  allow_new_consultants: true, max_hourly_rate: "", preferred_expertise_level: "any",
+  max_overcommitment_tolerance: 0, notify_on_new_application: true, notify_on_auto_assign: true,
+  weight_skills: 25, weight_rating: 20, weight_client_familiarity: 15,
+  weight_client_rating: 15, weight_experience: 10, weight_rate: 10, weight_commitment: 5,
+};
+
+function AssignmentSettingsPanel({ profile, updateProfile }) {
+  const [form, setForm] = useState(AS_DEFAULTS);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const s = profile?.assignment_settings ?? {};
+    setForm({ ...AS_DEFAULTS, ...s, max_hourly_rate: s.max_hourly_rate ?? "" });
+  }, [profile]);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await updateProfile({
+        assignment_settings: { ...form, max_hourly_rate: form.max_hourly_rate ? Number(form.max_hourly_rate) : null },
+      });
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  const totalWeight = (form.weight_skills ?? 0) + (form.weight_rating ?? 0) +
+    (form.weight_client_familiarity ?? 0) + (form.weight_client_rating ?? 0) +
+    (form.weight_experience ?? 0) + (form.weight_rate ?? 0) + (form.weight_commitment ?? 0);
+
+  const sHdr = txt => <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{txt}</p>;
+
+  const Toggle = ({ field, label, desc }) => (
+    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+      <div>
+        <div className="text-sm font-medium text-gray-900">{label}</div>
+        {desc && <div className="text-xs text-gray-400 mt-0.5">{desc}</div>}
+      </div>
+      <button type="button" onClick={() => setForm(p => ({ ...p, [field]: !p[field] }))}
+        className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ml-4 ${form[field] ? "bg-blue-600" : "bg-gray-300"}`}>
+        <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${form[field] ? "translate-x-6" : "translate-x-1"}`} />
+      </button>
+    </div>
+  );
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
+      <div>
+        <h2 className="font-bold text-gray-900">Assignment Settings</h2>
+        <p className="text-sm text-gray-400 mt-0.5">Configure how consultants are selected and automatically assigned to your cases.</p>
+      </div>
+
+      {/* Auto-assignment */}
+      <div>
+        {sHdr("Auto-assignment")}
+        <div className="space-y-3">
+          <Toggle field="auto_assign_enabled" label="Enable Auto-assignment"
+            desc="Automatically assign the top-ranked consultant when the application window closes" />
+          {form.auto_assign_enabled && (
+            <div className="pl-4 border-l-2 border-blue-100 space-y-3 mt-1">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Application Window (days)</label>
+                  <input type="number" min="1" max="90" value={form.application_window_days}
+                    onChange={e => setForm(p => ({ ...p, application_window_days: Number(e.target.value) }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <p className="text-xs text-gray-400 mt-1">Days after case creation that applications are accepted. When the window closes, auto-assignment runs.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Applicants Required</label>
+                  <input type="number" min="1" max="20" value={form.min_applicants}
+                    onChange={e => setForm(p => ({ ...p, min_applicants: Number(e.target.value) }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <p className="text-xs text-gray-400 mt-1">Auto-assignment is skipped if fewer applicants are received — manager is notified instead.</p>
+                </div>
+              </div>
+              <Toggle field="require_manager_approval" label="Require Manager Approval"
+                desc="Manager must confirm the auto-selection before the consultant is notified of their assignment" />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Selection preferences */}
+      <div className="border-t border-gray-100 pt-5">
+        {sHdr("Selection Preferences")}
+        <div className="space-y-3">
+          <Toggle field="prefer_known_consultants" label="Prefer Known Consultants"
+            desc="Scoring bonus for consultants who have previously worked with your company" />
+          <Toggle field="allow_new_consultants" label="Allow New Consultants"
+            desc="When off, only consultants with prior experience at your company are considered" />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Max Hourly Rate ($)</label>
+              <input type="number" min="0" value={form.max_hourly_rate}
+                onChange={e => setForm(p => ({ ...p, max_hourly_rate: e.target.value }))}
+                placeholder="No cap"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <p className="text-xs text-gray-400 mt-1">Applicants above this rate are excluded from auto-assignment</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Expertise Level</label>
+              <select value={form.preferred_expertise_level}
+                onChange={e => setForm(p => ({ ...p, preferred_expertise_level: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                {[["any","Any Level"],["junior","Junior"],["mid","Mid-level"],["senior","Senior"],["expert","Expert / Principal"]].map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Overcommitment Tolerance — <span className="text-blue-600 font-bold">{form.max_overcommitment_tolerance}%</span>
+            </label>
+            <input type="range" min="0" max="20" step="5" value={form.max_overcommitment_tolerance}
+              onChange={e => setForm(p => ({ ...p, max_overcommitment_tolerance: Number(e.target.value) }))}
+              className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-blue-600" />
+            <div className="flex justify-between text-xs text-gray-400 mt-1">
+              <span>0% — strict</span><span>10%</span><span>20% — flexible</span>
+            </div>
+            <p className="text-xs text-gray-400 mt-1.5">
+              {form.max_overcommitment_tolerance === 0
+                ? "Only consultants with full available capacity are considered."
+                : `Consultants up to ${form.max_overcommitment_tolerance}% over their free capacity may still be selected.`}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Scoring weights */}
+      <div className="border-t border-gray-100 pt-5">
+        {sHdr("Scoring Priorities")}
+        <p className="text-xs text-gray-400 mb-4">
+          Adjust how much each criterion contributes to consultant ranking.
+          Weights are normalized automatically — raise one to make it matter more.
+          Total: <span className={`font-bold ${totalWeight === 100 ? "text-green-600" : "text-blue-600"}`}>{totalWeight} pts</span>
+        </p>
+        <div className="space-y-4">
+          {[
+            ["weight_skills",             "Skill Match",      "Skills vs case requirements"],
+            ["weight_rating",             "Overall Rating",   "Average rating across all past cases"],
+            ["weight_client_familiarity", "Client Exp.",      "Prior work with your company"],
+            ["weight_client_rating",      "Your Rating",      "How your company rated them specifically"],
+            ["weight_experience",         "Experience",       "Years of experience vs minimum required"],
+            ["weight_rate",               "Rate Fit",         "How competitive their proposed rate is"],
+            ["weight_commitment",         "Availability",     "Proportion of free capacity they're offering"],
+          ].map(([field, label, desc]) => (
+            <div key={field}>
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-900">{label}</span>
+                  <span className="text-xs text-gray-400">{desc}</span>
+                </div>
+                <span className="text-sm font-bold text-blue-700 w-8 text-right flex-shrink-0">{form[field] ?? 0}</span>
+              </div>
+              <input type="range" min="0" max="50" step="5" value={form[field] ?? 0}
+                onChange={e => setForm(p => ({ ...p, [field]: Number(e.target.value) }))}
+                className="w-full h-1.5 bg-gray-200 rounded-full appearance-none cursor-pointer accent-blue-600" />
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex gap-3">
+          <div className="flex-1 bg-gray-50 rounded-xl p-3">
+            <div className="text-xs text-gray-400 mb-2">Weight distribution</div>
+            <div className="flex h-3 rounded-full overflow-hidden gap-0.5">
+              {[
+                ["weight_skills","#3b82f6"],["weight_rating","#8b5cf6"],
+                ["weight_client_familiarity","#06b6d4"],["weight_client_rating","#14b8a6"],
+                ["weight_experience","#f59e0b"],["weight_rate","#10b981"],["weight_commitment","#f97316"],
+              ].map(([field, color]) => (
+                <div key={field} style={{ flex: form[field] ?? 0, backgroundColor: color, minWidth: (form[field] ?? 0) > 0 ? 2 : 0 }} />
+              ))}
+            </div>
+          </div>
+          <button type="button" onClick={() => setForm(p => ({ ...p, ...AS_DEFAULTS }))}
+            className="px-3 py-2 text-xs text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50">
+            Reset to defaults
+          </button>
+        </div>
+      </div>
+
+      {/* Notifications */}
+      <div className="border-t border-gray-100 pt-5">
+        {sHdr("Notifications")}
+        <div className="space-y-3">
+          <Toggle field="notify_on_new_application" label="New Application Alert"
+            desc="Notify when a consultant applies to one of your cases" />
+          <Toggle field="notify_on_auto_assign" label="Auto-assignment Alert"
+            desc="Notify when the auto-assignment process runs for one of your cases" />
+        </div>
+      </div>
+
+      <div className="flex justify-end pt-2 border-t border-gray-100">
+        <button onClick={handleSave} disabled={saving}
+          className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
+          {saving ? "Saving…" : "Save Assignment Settings"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function useClientProfile(userId) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -11858,6 +12097,7 @@ function ClientProfileView({ auth }) {
     { id: "team",         label: "Team",         icon: Users,             count: members.length },
     { id: "lifecycle",    label: "Lifecycle",    icon: TrendingUp,        count: null },
     { id: "defaults",     label: "Defaults",     icon: ClipboardList,     count: null },
+    { id: "assignment",   label: "Assignment",   icon: UserCheck,         count: null },
   ];
 
   return (
@@ -12399,6 +12639,10 @@ function ClientProfileView({ auth }) {
 
       {tab === "defaults" && (
         <CaseDefaultsPanel profile={profile} updateProfile={updateProfile} />
+      )}
+
+      {tab === "assignment" && (
+        <AssignmentSettingsPanel profile={profile} updateProfile={updateProfile} />
       )}
     </div>
   );
