@@ -284,7 +284,8 @@ function useProjects(filters = {}) {
     await supabase.from("cases")
       .update({ status: newStatus })
       .eq("project_id", id)
-      .not("status", "in", `(completed,cancelled)`);
+      .neq("status", "completed")
+      .neq("status", "cancelled");
     const { data: row, error } = await supabase.from("projects").update({ status: newStatus }).eq("id", id).select().single();
     if (error) throw error;
     await fetchProjects();
@@ -921,6 +922,31 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
       }).sort((a, b) => b.totalScore - a.totalScore)
     : ranking;
 
+  const [autoAssigning, setAutoAssigning] = useState(false);
+
+  async function runAutoAssign() {
+    const candidate = displayRanking.find(a => !a.overcommitted && a.status === "pending");
+    if (!candidate) return;
+    setAutoAssigning(true);
+    try { await reviewApplication(candidate.id, "accepted", "Auto-assigned by system"); }
+    catch (e) { alert(e.message); }
+    setAutoAssigning(false);
+  }
+
+  const windowDays = clientSettings?.application_window_days ?? 7;
+  const windowClosed = caseData.created_at
+    ? (Date.now() - new Date(caseData.created_at).getTime()) / 86400000 >= windowDays
+    : false;
+  const minApplicants = clientSettings?.min_applicants ?? 1;
+  const pendingCount = applications.filter(a => a.status === "pending").length;
+  const canAutoAssign = clientSettings?.auto_assign_enabled
+    && (auth.isAdmin || auth.isManager)
+    && windowClosed
+    && pendingCount >= minApplicants;
+  const autoAssignBlocked = clientSettings?.auto_assign_enabled
+    && (auth.isAdmin || auth.isManager)
+    && (!windowClosed || pendingCount < minApplicants);
+
   if (!applications.length) return <p className="text-sm text-gray-400 py-4">No applications yet.</p>;
   if (loading) return <Spinner />;
   const best = displayRanking[0];
@@ -937,9 +963,9 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
       {/* Recommended consultant */}
       {best && (
         <div>
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Recommended Consultant</p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {lastRecalculated && (
                 <span className="text-[10px] text-gray-400">Updated {fmtTime(lastRecalculated)}</span>
               )}
@@ -948,6 +974,20 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                 <RotateCcw className={`w-3 h-3 ${recalculating ? "animate-spin" : ""}`} />
                 {recalculating ? "Recalculating…" : "Recalculate Availability"}
               </button>
+              {canAutoAssign && (
+                <button onClick={runAutoAssign} disabled={autoAssigning}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-xl disabled:opacity-50 transition-colors shadow-sm">
+                  <Wand2 className="w-3 h-3" />
+                  {autoAssigning ? "Assigning…" : "Auto-Assign Top Pick"}
+                </button>
+              )}
+              {autoAssignBlocked && (
+                <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg">
+                  {!windowClosed
+                    ? `Window closes in ${Math.max(0, Math.ceil(windowDays - (Date.now() - new Date(caseData.created_at).getTime()) / 86400000))}d`
+                    : `Need ${minApplicants - pendingCount} more applicant${minApplicants - pendingCount !== 1 ? "s" : ""}`}
+                </span>
+              )}
             </div>
           </div>
           <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-5">
@@ -2316,6 +2356,11 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
       { id: "consultants",    Icon: UserCheck,       label: "Consultants" },
       { id: "client-profile", Icon: Building2,       label: "Company Profile" },
     ],
+    key_user: [
+      { id: "dashboard", Icon: LayoutDashboard, label: "Dashboard" },
+      { id: "my-cases",  Icon: FolderOpen,      label: "My Cases" },
+      { id: "kanban",    Icon: LayoutGrid,      label: "Kanban" },
+    ],
   };
 
   const items = navItems[role] ?? [];
@@ -2499,16 +2544,23 @@ function Dashboard({ auth }) {
       { id: "active",    label: "Active",    Icon: Activity,     color: "blue",  type: "cases", items: myCases.filter(c => c.status === "in_progress") },
       { id: "completed", label: "Completed", Icon: CheckCircle2, color: "green", type: "cases", items: myCases.filter(c => c.status === "completed") },
     ],
+    key_user: (() => {
+      const kuCases = cases.filter(c => c.case_key_users?.some(ku => ku.user_id === auth.user?.id));
+      return [
+        { id: "mycases",   label: "My Cases",  Icon: FolderOpen,   color: "blue",  type: "cases", items: kuCases },
+        { id: "active",    label: "Active",    Icon: Activity,     color: "blue",  type: "cases", items: kuCases.filter(c => c.status === "in_progress") },
+        { id: "completed", label: "Completed", Icon: CheckCircle2, color: "green", type: "cases", items: kuCases.filter(c => c.status === "completed") },
+      ];
+    })(),
   };
 
   const myStats    = statDefs[auth.role] ?? [];
   const activeStat = myStats.find(s => s.id === activeTab);
 
   const colorMap = {
-    blue:   { icon: "bg-blue-50 text-blue-600", ring: "ring-blue-400 bg-blue-50" },
-    green:  { icon: "bg-green-50 text-green-600",   ring: "ring-green-400 bg-green-50" },
     blue:   { icon: "bg-blue-50 text-blue-600",     ring: "ring-blue-400 bg-blue-50" },
-    purple: { icon: "bg-sky-50 text-sky-600", ring: "ring-sky-400 bg-sky-50" },
+    green:  { icon: "bg-green-50 text-green-600",   ring: "ring-green-400 bg-green-50" },
+    purple: { icon: "bg-purple-50 text-purple-600", ring: "ring-purple-400 bg-purple-50" },
     yellow: { icon: "bg-yellow-50 text-yellow-600", ring: "ring-yellow-400 bg-yellow-50" },
   };
 
@@ -10603,43 +10655,88 @@ function ReportsView() {
   const { applications } = useApplications();
   const { invoices } = useInvoices();
   const { entries: timeEntries } = useTimeEntries();
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo]     = useState("");
+
+  const inRange = (dateStr) => {
+    if (!dateStr) return true;
+    const d = dateStr.slice(0, 10);
+    if (dateFrom && d < dateFrom) return false;
+    if (dateTo   && d > dateTo)   return false;
+    return true;
+  };
+
+  const filtCases   = cases.filter(c => inRange(c.created_at));
+  const filtApps    = applications.filter(a => inRange(a.submitted_at));
+  const filtInvoices = invoices.filter(i => inRange(i.issue_date ?? i.created_at));
+  const filtEntries  = timeEntries.filter(e => inRange(e.date));
 
   const byStatus = ["open","in_progress","on_hold","completed","cancelled"].map(s => ({
     label: cap(fmt(s)),
-    count: cases.filter(c => c.status === s).length,
+    count: filtCases.filter(c => c.status === s).length,
     color: s === "open" ? "bg-emerald-400" : s === "in_progress" ? "bg-blue-400" :
            s === "on_hold" ? "bg-yellow-400" : s === "completed" ? "bg-gray-300" : "bg-red-300",
   }));
 
-  const totalApps = applications.length;
-  const acceptedApps = applications.filter(a => a.status === "accepted").length;
+  const totalApps = filtApps.length;
+  const acceptedApps = filtApps.filter(a => a.status === "accepted").length;
   const conversionRate = totalApps > 0 ? Math.round((acceptedApps / totalApps) * 100) : 0;
 
   const byAppStatus = ["pending","under_review","accepted","rejected","withdrawn"].map(s => ({
     label: cap(fmt(s)),
-    count: applications.filter(a => a.status === s).length,
+    count: filtApps.filter(a => a.status === s).length,
   }));
 
-  const totalInvoiced    = invoices.reduce((s, i) => s + (i.amount ?? 0), 0);
-  const totalPaid        = invoices.filter(i => i.status === "paid").reduce((s, i) => s + (i.amount ?? 0), 0);
-  const totalOutstanding = invoices.filter(i => ["sent","overdue"].includes(i.status)).reduce((s, i) => s + (i.amount ?? 0), 0);
-  const totalHours       = timeEntries.reduce((s, e) => s + (e.hours ?? 0), 0);
-  const billableHours    = timeEntries.filter(e => e.is_billable).reduce((s, e) => s + (e.hours ?? 0), 0);
+  const totalInvoiced    = filtInvoices.reduce((s, i) => s + (i.amount ?? 0), 0);
+  const totalPaid        = filtInvoices.filter(i => i.status === "paid").reduce((s, i) => s + (i.amount ?? 0), 0);
+  const totalOutstanding = filtInvoices.filter(i => ["sent","overdue"].includes(i.status)).reduce((s, i) => s + (i.amount ?? 0), 0);
+  const totalHours       = filtEntries.reduce((s, e) => s + (e.hours ?? 0), 0);
+  const billableHours    = filtEntries.filter(e => e.is_billable).reduce((s, e) => s + (e.hours ?? 0), 0);
+
+  // Per-consultant breakdown
+  const consultantHours = Object.values(
+    filtEntries.reduce((acc, e) => {
+      const id = e.consultant_id;
+      const name = e.consultant?.full_name ?? "Unknown";
+      if (!acc[id]) acc[id] = { name, total: 0, billable: 0 };
+      acc[id].total += (e.hours ?? 0);
+      acc[id].billable += e.is_billable ? (e.hours ?? 0) : 0;
+      return acc;
+    }, {})
+  ).sort((a, b) => b.total - a.total).slice(0, 8);
+
+  const isFiltered = dateFrom || dateTo;
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
-        <p className="text-gray-500 text-sm mt-1">Platform analytics overview</p>
+      <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
+          <p className="text-gray-500 text-sm mt-1">Platform analytics{isFiltered ? " (filtered)" : " — all time"}</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-medium text-gray-500">From</span>
+          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+            className="border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <span className="text-xs font-medium text-gray-500">To</span>
+          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+            className="border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          {isFiltered && (
+            <button onClick={() => { setDateFrom(""); setDateTo(""); }}
+              className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5 border border-gray-200 rounded-xl hover:bg-gray-50">
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
-          { label: "Total Cases",     value: cases.length,                     Icon: FolderOpen },
-          { label: "Conversion Rate", value: `${conversionRate}%`,             Icon: Target },
-          { label: "Hours Logged",    value: `${totalHours.toFixed(0)}h`,      Icon: Clock },
-          { label: "Revenue (Paid)",  value: `$${totalPaid.toLocaleString()}`, Icon: DollarSign },
+          { label: "Total Cases",     value: filtCases.length,                     Icon: FolderOpen },
+          { label: "Conversion Rate", value: `${conversionRate}%`,                 Icon: Target },
+          { label: "Hours Logged",    value: `${totalHours.toFixed(0)}h`,           Icon: Clock },
+          { label: "Revenue (Paid)",  value: `$${totalPaid.toLocaleString()}`,      Icon: DollarSign },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
             <div className="mb-2"><s.Icon className="w-5 h-5 text-gray-400" /></div>
@@ -10662,7 +10759,7 @@ function ReportsView() {
                 </div>
                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                   <div className={`h-full ${s.color} rounded-full transition-all`}
-                    style={{ width: cases.length ? `${(s.count / cases.length) * 100}%` : "0%" }} />
+                    style={{ width: filtCases.length ? `${(s.count / filtCases.length) * 100}%` : "0%" }} />
                 </div>
               </div>
             ))}
@@ -10709,8 +10806,8 @@ function ReportsView() {
               </div>
             ))}
             <div className="pt-2 border-t border-gray-100 text-sm text-gray-500">
-              {invoices.length} invoice{invoices.length !== 1 ? "s" : ""} total ·{" "}
-              {invoices.filter(i => i.status === "overdue").length} overdue
+              {filtInvoices.length} invoice{filtInvoices.length !== 1 ? "s" : ""} total ·{" "}
+              {filtInvoices.filter(i => i.status === "overdue").length} overdue
             </div>
           </div>
         </div>
@@ -10728,16 +10825,35 @@ function ReportsView() {
               <div className="text-xs text-green-500 mt-1">Billable</div>
             </div>
           </div>
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-gray-500 mb-4">
             <div className="flex justify-between mb-1">
               <span>Approved entries</span>
-              <span className="font-medium">{timeEntries.filter(e => e.is_approved).length} / {timeEntries.length}</span>
+              <span className="font-medium">{filtEntries.filter(e => e.is_approved).length} / {filtEntries.length}</span>
             </div>
             <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
               <div className="h-full bg-green-400 rounded-full"
-                style={{ width: timeEntries.length ? `${(timeEntries.filter(e => e.is_approved).length / timeEntries.length) * 100}%` : "0%" }} />
+                style={{ width: filtEntries.length ? `${(filtEntries.filter(e => e.is_approved).length / filtEntries.length) * 100}%` : "0%" }} />
             </div>
           </div>
+          {consultantHours.length > 0 && (
+            <div className="border-t border-gray-100 pt-4">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Hours by Consultant</p>
+              <div className="space-y-2">
+                {consultantHours.map(c => (
+                  <div key={c.name}>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-gray-700 font-medium truncate max-w-[60%]">{c.name}</span>
+                      <span className="text-gray-500">{c.total.toFixed(1)}h <span className="text-green-600">({c.billable.toFixed(1)}h billable)</span></span>
+                    </div>
+                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-400 rounded-full"
+                        style={{ width: totalHours ? `${(c.total / totalHours) * 100}%` : "0%" }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -12888,15 +13004,9 @@ function InvoicesView({ auth }) {
 // ============================================================
 // V9: KANBAN VIEW
 // ============================================================
-const KANBAN_COLUMNS = [
-  { id: "open",        label: "Open",        headerColor: "border-t-emerald-400", bg: "bg-emerald-50/50" },
-  { id: "in_progress", label: "In Progress",  headerColor: "border-t-blue-400",   bg: "bg-blue-50/50" },
-  { id: "on_hold",     label: "On Hold",      headerColor: "border-t-yellow-400", bg: "bg-yellow-50/50" },
-  { id: "completed",   label: "Completed",    headerColor: "border-t-gray-300",   bg: "bg-gray-50/50" },
-];
-
 function KanbanView({ auth }) {
   const { cases, loading, updateCase } = useCases();
+  const { templates: lcTemplates } = useLifecycleTemplates();
   const [selectedCase, setSelectedCase] = useState(null);
   const [movingId, setMovingId]         = useState(null);
 
@@ -12906,6 +13016,21 @@ function KanbanView({ auth }) {
     if (auth.isKeyUser)    return c.case_key_users?.some(ku => ku.user_id === auth.user?.id);
     return true;
   });
+
+  // Build a stage catalog from all known presets + custom DB templates
+  const stageCatalog = {};
+  Object.values(LIFECYCLE_PRESETS).forEach(preset =>
+    preset.stages.forEach(s => { stageCatalog[s.key] = s; })
+  );
+  lcTemplates.forEach(t =>
+    (t.stages ?? []).forEach(s => { stageCatalog[s.key] = s; })
+  );
+
+  // Derive columns from statuses actually present in visible cases
+  const usedKeys = [...new Set(filteredCases.map(c => c.status).filter(Boolean))];
+  const kanbanCols = usedKeys
+    .map(key => stageCatalog[key] ?? { key, label: cap(key.replace(/_/g, " ")), color: "#9ca3af", is_terminal: false })
+    .sort((a, b) => (a.is_terminal ? 1 : 0) - (b.is_terminal ? 1 : 0));
 
   async function handleMove(caseId, newStatus) {
     if (newStatus === cases.find(c => c.id === caseId)?.status) return;
@@ -12943,13 +13068,19 @@ function KanbanView({ auth }) {
         <p className="text-gray-500 text-sm mt-1">Visual case pipeline · {filteredCases.length} cases</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
-        {KANBAN_COLUMNS.map(col => {
-          const colCases = filteredCases.filter(c => c.status === col.id);
+      {kanbanCols.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center text-gray-400 text-sm">
+          No cases to show.
+        </div>
+      ) : (
+      <div className={`grid gap-4 items-start grid-cols-1 ${kanbanCols.length <= 2 ? "md:grid-cols-2" : kanbanCols.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2 xl:grid-cols-4"}`}>
+        {kanbanCols.map(col => {
+          const colCases = filteredCases.filter(c => c.status === col.key);
           return (
-            <div key={col.id} className={`rounded-2xl border-t-4 ${col.headerColor} ${col.bg} border border-gray-100 shadow-sm`}>
+            <div key={col.key} className="rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
+              style={{ borderTop: `4px solid ${col.color}`, background: col.color + "0d" }}>
               <div className="px-4 pt-4 pb-2 flex items-center justify-between">
-                <span className="font-semibold text-gray-800 text-sm">{col.label}</span>
+                <span className="font-semibold text-sm" style={{ color: col.color }}>{col.label}</span>
                 <span className="text-xs text-gray-400 bg-white rounded-full px-2 py-0.5 border border-gray-100">{colCases.length}</span>
               </div>
               <div className="p-3 space-y-2 min-h-20">
@@ -12980,10 +13111,9 @@ function KanbanView({ auth }) {
                           value={c.status}
                           onChange={e => handleMove(c.id, e.target.value)}
                           className="w-full text-xs border border-gray-100 rounded-lg px-2 py-1 bg-gray-50 text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50">
-                          {KANBAN_COLUMNS.map(col2 => (
-                            <option key={col2.id} value={col2.id}>{col2.label}</option>
+                          {kanbanCols.map(col2 => (
+                            <option key={col2.key} value={col2.key}>{col2.label}</option>
                           ))}
-                          <option value="cancelled">Cancelled</option>
                         </select>
                       </div>
                     )}
@@ -12997,6 +13127,7 @@ function KanbanView({ auth }) {
           );
         })}
       </div>
+      )}
 
     </div>
   );
