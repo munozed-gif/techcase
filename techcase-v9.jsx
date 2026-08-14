@@ -826,16 +826,96 @@ const RANKING_CRITERIA = ["skills", "rating", "clientFamiliarity", "clientRating
 
 function ApplicantRankingSection({ caseData, auth, applications, reviewApplication }) {
   const { ranking, loading } = useApplicantRanking(caseData, applications);
+  const [liveAvailability, setLiveAvailability] = useState({});
+  const [recalculating, setRecalculating]       = useState(false);
+  const [lastRecalculated, setLastRecalculated] = useState(null);
+
+  const TERMINAL_S = ["completed", "cancelled", "terminated", "closed", "approved"];
+
+  const recalculate = useCallback(async () => {
+    if (!applications.length) return;
+    setRecalculating(true);
+    const ids = [...new Set(applications.map(a => a.consultant_id))];
+    const [{ data: profiles }, { data: assignments }] = await Promise.all([
+      supabase.from("consultant_profiles")
+        .select("id, external_occupancy_pct")
+        .in("id", ids),
+      supabase.from("case_assignments")
+        .select("consultant_id, time_commitment, case:case_id(status)")
+        .in("consultant_id", ids)
+        .neq("case_id", caseData.id),
+    ]);
+    const extMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p.external_occupancy_pct ?? 0]));
+    const liveMap = {};
+    for (const id of ids) {
+      const active = (assignments ?? [])
+        .filter(a => a.consultant_id === id && !TERMINAL_S.includes(a.case?.status))
+        .reduce((sum, a) => sum + (a.time_commitment ?? 0), 0);
+      liveMap[id] = Math.max(0, 100 - (extMap[id] ?? 0) - active);
+    }
+    setLiveAvailability(liveMap);
+    setLastRecalculated(new Date());
+    setRecalculating(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caseData.id, applications.length]);
+
+  useEffect(() => { recalculate(); }, [recalculate]);
+
+  // Re-score ranking using live availability if available
+  const hasLive = Object.keys(liveAvailability).length > 0;
+  const displayRanking = hasLive
+    ? ranking.map(app => {
+        const live = liveAvailability[app.consultant_id] ?? (app.max_available_at_submission ?? 100);
+        const ratio = live > 0 ? (app.time_commitment ?? 0) / live : 0;
+        const commitPts = !app.time_commitment ? 0
+          : ratio >= 0.8 ? 5 : ratio >= 0.6 ? 4 : ratio >= 0.4 ? 3 : ratio >= 0.2 ? 2 : 1;
+        const oldCommit = app.breakdown.commitment.pts;
+        return {
+          ...app,
+          liveAvailability: live,
+          overcommitted: (app.time_commitment ?? 0) > live,
+          totalScore: app.totalScore - oldCommit + commitPts,
+          breakdown: {
+            ...app.breakdown,
+            commitment: {
+              ...app.breakdown.commitment,
+              pts: commitPts,
+              detail: `${app.time_commitment ?? 0}% of ${live}% now (${Math.round(ratio * 100)}%)`,
+            },
+          },
+        };
+      }).sort((a, b) => b.totalScore - a.totalScore)
+    : ranking;
+
   if (!applications.length) return <p className="text-sm text-gray-400 py-4">No applications yet.</p>;
   if (loading) return <Spinner />;
-  const best = ranking[0];
+  const best = displayRanking[0];
+
+  const fmtTime = d => {
+    const diff = Math.round((Date.now() - d.getTime()) / 1000);
+    if (diff < 5) return "just now";
+    if (diff < 60) return `${diff}s ago`;
+    return `${Math.round(diff / 60)}m ago`;
+  };
 
   return (
     <div className="space-y-6">
       {/* Recommended consultant */}
       {best && (
         <div>
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Recommended Consultant</p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Recommended Consultant</p>
+            <div className="flex items-center gap-2">
+              {lastRecalculated && (
+                <span className="text-[10px] text-gray-400">Updated {fmtTime(lastRecalculated)}</span>
+              )}
+              <button onClick={recalculate} disabled={recalculating}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 hover:border-gray-300 disabled:opacity-50 transition-colors shadow-sm">
+                <RotateCcw className={`w-3 h-3 ${recalculating ? "animate-spin" : ""}`} />
+                {recalculating ? "Recalculating…" : "Recalculate Availability"}
+              </button>
+            </div>
+          </div>
           <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-5">
             <div className="flex items-center gap-4 mb-4">
               <div className="w-12 h-12 rounded-full bg-blue-200 flex items-center justify-center text-blue-800 font-bold text-lg flex-shrink-0">
@@ -854,6 +934,19 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                 <div className="text-xs text-gray-400">/ 100 pts</div>
               </div>
             </div>
+            {/* Live availability row for best */}
+            {hasLive && (
+              <div className={`flex items-center gap-3 mb-4 px-3 py-2 rounded-xl text-xs font-medium ${
+                best.overcommitted
+                  ? "bg-red-50 border border-red-200 text-red-700"
+                  : "bg-white/70 text-gray-600"
+              }`}>
+                {best.overcommitted
+                  ? <>⚠️ <span>Availability conflict: committed <strong>{best.time_commitment}%</strong> but now only has <strong>{best.liveAvailability}%</strong> free</span></>
+                  : <>✓ <span>Current availability: <strong>{best.liveAvailability}%</strong> free — committed <strong>{best.time_commitment}%</strong></span></>
+                }
+              </div>
+            )}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
               {RANKING_CRITERIA.map(key => {
                 const c = best.breakdown[key];
@@ -886,17 +979,27 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
       <div>
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">All Applicants — Ranked</p>
         <div className="space-y-3">
-          {ranking.map((app, i) => {
+          {displayRanking.map((app, i) => {
             const profile = Array.isArray(app.consultant?.consultant_profiles)
               ? app.consultant.consultant_profiles[0]
               : app.consultant?.consultant_profiles;
             const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`;
+            const conflict = hasLive && app.overcommitted;
             return (
-              <div key={app.id} className={`border rounded-xl p-4 ${i === 0 ? "border-blue-200 bg-blue-50/30" : "border-gray-100 bg-white"}`}>
+              <div key={app.id} className={`border rounded-xl p-4 ${
+                conflict ? "border-red-200 bg-red-50/30"
+                : i === 0 ? "border-blue-200 bg-blue-50/30"
+                : "border-gray-100 bg-white"
+              }`}>
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-bold text-sm flex-shrink-0">{medal}</div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-sm text-gray-900">{app.consultant?.full_name}</div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm text-gray-900">{app.consultant?.full_name}</span>
+                      {conflict && (
+                        <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded">⚠ Overcommitted</span>
+                      )}
+                    </div>
                     <div className="text-xs text-gray-400">{profile?.headline ?? (profile?.years_experience ? `${profile.years_experience}y exp` : "")}</div>
                   </div>
                   <div className="text-right flex-shrink-0">
@@ -904,6 +1007,18 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                     <Badge className={APP_STATUS_COLORS[app.status]}>{cap(app.status)}</Badge>
                   </div>
                 </div>
+                {/* Live availability bar */}
+                {hasLive && (
+                  <div className="flex items-center gap-2 mb-3 text-xs">
+                    <span className="text-gray-400 flex-shrink-0">Availability now:</span>
+                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all"
+                        style={{ width: `${app.liveAvailability}%`, backgroundColor: app.liveAvailability === 0 ? "#ef4444" : app.liveAvailability < (app.time_commitment ?? 0) ? "#f59e0b" : "#22c55e" }} />
+                    </div>
+                    <span className={`font-semibold flex-shrink-0 ${conflict ? "text-red-600" : "text-gray-700"}`}>{app.liveAvailability}%</span>
+                    <span className="text-gray-400 flex-shrink-0">· committed {app.time_commitment ?? 0}%</span>
+                  </div>
+                )}
                 {/* Score bars */}
                 <div className="flex gap-1 mb-3" title="Skill | Rating | Client Exp | Client Rating | Experience | Rate | Availability">
                   {RANKING_CRITERIA.map(key => {
