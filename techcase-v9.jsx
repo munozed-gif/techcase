@@ -1593,6 +1593,90 @@ function useLifecycleTemplates() {
   return { templates, loadingTmpl, fetchTemplates, getTemplateStages };
 }
 
+async function runStartDateMonitor(auth, cases) {
+  const todayMs = Date.now();
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const assignedWithStart = cases.filter(c => c.status === "assigned" && c.start_date);
+  if (!assignedWithStart.length) return;
+
+  const clientIds = [...new Set(assignedWithStart.map(c => c.client_id).filter(Boolean))];
+  const settingsMap = {};
+  if (clientIds.length) {
+    try {
+      const { data } = await supabase.from("client_profiles")
+        .select("id, assignment_settings").in("id", clientIds);
+      (data ?? []).forEach(cp => { settingsMap[cp.id] = cp.assignment_settings ?? {}; });
+    } catch (_) {}
+  }
+  const SD = {
+    start_reminders_enabled: true, start_reminder_1_days: 3, start_reminder_2_days: 1,
+    start_overdue_action: "auto_start", start_overdue_grace_hours: 24,
+  };
+
+  for (const c of assignedWithStart) {
+    const s = { ...SD, ...(settingsMap[c.client_id] ?? {}) };
+    if (!s.start_reminders_enabled) continue;
+    const startMs = new Date(c.start_date + "T00:00:00").getTime();
+    const daysUntil = Math.ceil((startMs - todayMs) / 86400000);
+    const hoursOverdue = daysUntil <= 0 ? (todayMs - startMs) / 3600000 : 0;
+    const consultants = (c.case_assignments ?? []).map(a => a.consultant_id).filter(Boolean);
+
+    if (daysUntil <= s.start_reminder_1_days && daysUntil > s.start_reminder_2_days) {
+      const key = `sdrem1_${c.id}`;
+      if (!localStorage.getItem(key)) {
+        localStorage.setItem(key, todayStr);
+        for (const uid of consultants)
+          await notify(uid, "Case Starting Soon",
+            `"${c.title}" starts in ${daysUntil} day${daysUntil !== 1 ? "s" : ""} (${c.start_date}). Please be ready to begin on time.`);
+      }
+    }
+
+    if (daysUntil <= s.start_reminder_2_days && daysUntil > 0) {
+      const key = `sdrem2_${c.id}`;
+      if (!localStorage.getItem(key)) {
+        localStorage.setItem(key, todayStr);
+        for (const uid of consultants)
+          await notify(uid, daysUntil === 1 ? "Case Starts Tomorrow" : "Case Starting Today",
+            `"${c.title}" must start by ${c.start_date}. If not started in time it may be auto-progressed or reassigned.`);
+        await notifyManagers("Case Starting Soon",
+          `"${c.title}" is set to begin in ${daysUntil} day${daysUntil !== 1 ? "s" : ""}. Current status: Assigned.`);
+      }
+    }
+
+    if (daysUntil <= 0 && hoursOverdue >= s.start_overdue_grace_hours && (auth.isAdmin || auth.isManager)) {
+      const key = `sdovr_${c.id}`;
+      if (!localStorage.getItem(key)) {
+        localStorage.setItem(key, todayStr);
+        const daysLate = Math.floor(hoursOverdue / 24);
+        if (s.start_overdue_action === "auto_start") {
+          await supabase.from("cases").update({ status: "in_progress" }).eq("id", c.id);
+          for (const uid of consultants)
+            await notify(uid, "Case Auto-Started", `"${c.title}" was automatically moved to In Progress as the start date has passed.`);
+          await notifyManagers("Case Auto-Started", `"${c.title}" was automatically moved to In Progress — start date ${c.start_date} has passed.`);
+        } else if (s.start_overdue_action === "auto_unassign") {
+          await supabase.from("case_assignments").delete().eq("case_id", c.id);
+          await supabase.from("cases").update({ status: "open" }).eq("id", c.id);
+          for (const uid of consultants)
+            await notify(uid, "Assignment Removed", `Your assignment to "${c.title}" was removed — work was not started by the planned date (${c.start_date}).`);
+          await notifyManagers("Case Unassigned", `"${c.title}" was unassigned — consultant did not start by ${c.start_date}.`);
+        } else {
+          await notifyManagers("Case Start Overdue",
+            `"${c.title}" is ${daysLate} day${daysLate !== 1 ? "s" : ""} overdue. Still in Assigned status.`);
+        }
+      }
+    }
+  }
+}
+
+function useStartDateMonitor(auth, cases) {
+  const fired = useRef(false);
+  useEffect(() => {
+    if (!auth?.user?.id || !cases.length || fired.current) return;
+    fired.current = true;
+    runStartDateMonitor(auth, cases);
+  }, [auth?.user?.id, cases.length]);
+}
+
 const SLA_PRIORITIES = [
   { key: "critical", label: "Critical", dot: "bg-red-500",    badge: "bg-red-50 text-red-700 border border-red-200"         },
   { key: "high",     label: "High",     dot: "bg-orange-500", badge: "bg-orange-50 text-orange-700 border border-orange-200" },
@@ -3031,6 +3115,51 @@ function Dashboard({ auth }) {
               {cases.length === 0 && <div className="p-8 text-center text-gray-400 text-sm">No cases yet</div>}
             </div>
           </div>
+
+          {/* Starting Soon — managers and admins */}
+          {(auth.isAdmin || auth.isManager) && (() => {
+            const startingSoon = cases.filter(c => {
+              if (c.status !== "assigned" || !c.start_date) return false;
+              const d = Math.ceil((new Date(c.start_date + "T00:00:00") - Date.now()) / 86400000);
+              return d <= 7;
+            }).sort((a, b) => (a.start_date < b.start_date ? -1 : 1));
+            if (!startingSoon.length) return null;
+            return (
+              <div className="bg-white rounded-2xl shadow-sm border border-amber-100 mt-6">
+                <div className="p-5 border-b border-amber-100 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-500" />
+                  <h2 className="text-base font-bold text-gray-900">Starting Soon</h2>
+                  <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-lg">{startingSoon.length}</span>
+                </div>
+                <div className="divide-y divide-gray-50">
+                  {startingSoon.map(c => {
+                    const d = Math.ceil((new Date(c.start_date + "T00:00:00") - Date.now()) / 86400000);
+                    const late = d < 0;
+                    const consultant = c.case_assignments?.[0]?.consultant?.full_name ?? "Unassigned";
+                    return (
+                      <div key={c.id} className="flex items-center justify-between p-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs flex-shrink-0 ${late ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"}`}>
+                            {c.title?.[0]}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-medium text-gray-900 text-sm truncate">{c.title}</div>
+                            <div className="text-xs text-gray-400">{consultant}</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+                          <span className={`px-2 py-0.5 rounded-lg text-xs font-semibold ${late ? "bg-red-100 text-red-700" : d <= 1 ? "bg-orange-100 text-orange-700" : "bg-amber-100 text-amber-700"}`}>
+                            {late ? `${Math.abs(d)}d late` : d === 0 ? "Today" : d === 1 ? "Tomorrow" : `In ${d}d`}
+                          </span>
+                          <span className="text-xs text-gray-400">{c.start_date}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
         </>
       )}
     </div>
@@ -5708,13 +5837,20 @@ function CasesView({ auth }) {
                     <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
                   </div>
                   <p className="text-sm text-gray-500 line-clamp-2">{c.description}</p>
-                  <div className="flex items-center gap-4 mt-3 text-xs text-gray-400">
+                  <div className="flex items-center gap-4 mt-3 text-xs text-gray-400 flex-wrap">
                     {c.skills_required?.length > 0 && (
                       <span>Skills: {c.skills_required.slice(0, 3).join(", ")}{c.skills_required.length > 3 ? "…" : ""}</span>
                     )}
                     {c.due_date && <span>Due: {fmtDate(c.due_date)}</span>}
                     {c.budget && <span>Budget: ${Number(c.budget).toLocaleString()}</span>}
                     <span>{c.applications?.[0]?.count ?? 0} applicant{c.applications?.[0]?.count !== 1 ? "s" : ""}</span>
+                    {c.status === "assigned" && c.start_date && (() => {
+                      const d = Math.ceil((new Date(c.start_date + "T00:00:00") - Date.now()) / 86400000);
+                      if (d > 3) return null;
+                      const late = d < 0;
+                      const txt = late ? `${Math.abs(d)}d start overdue` : d === 0 ? "Starts today" : d === 1 ? "Starts tomorrow" : `Starts in ${d}d`;
+                      return <span className={`px-2 py-0.5 rounded-lg font-semibold ${late ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>{txt}</span>;
+                    })()}
                   </div>
                 </div>
                 {auth.isConsultant && (
@@ -8699,6 +8835,29 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
       {/* Detail Tab */}
       {activeTab === "detail" && (
         <div className="space-y-4">
+          {/* Start-date countdown banner */}
+          {caseData.status === "assigned" && caseData.start_date && (() => {
+            const d = Math.ceil((new Date(caseData.start_date + "T00:00:00") - Date.now()) / 86400000);
+            if (d > 7) return null;
+            const late = d < 0;
+            const urgent = d <= 1;
+            const bannerCls = late
+              ? "bg-red-50 border-red-200 text-red-800"
+              : urgent ? "bg-orange-50 border-orange-200 text-orange-800"
+              : "bg-amber-50 border-amber-200 text-amber-800";
+            const msg = late
+              ? `This case was scheduled to start ${Math.abs(d)} day${Math.abs(d) !== 1 ? "s" : ""} ago (${caseData.start_date}). Action may be taken automatically soon.`
+              : d === 0 ? `This case is scheduled to start today (${caseData.start_date}). Begin work to avoid automatic status change.`
+              : d === 1 ? `This case starts tomorrow (${caseData.start_date}). Prepare to begin on time.`
+              : `This case starts in ${d} days (${caseData.start_date}).`;
+            return (
+              <div className={`flex items-start gap-3 p-3 rounded-xl border text-sm ${bannerCls}`}>
+                <Clock className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <span>{msg}</span>
+              </div>
+            );
+          })()}
+
           {/* Badges row with optional Edit button */}
           <div className="flex items-center justify-between">
             <div className="flex flex-wrap gap-2">
@@ -11883,6 +12042,8 @@ const AS_DEFAULTS = {
   max_overcommitment_tolerance: 0, notify_on_new_application: true, notify_on_auto_assign: true,
   weight_skills: 25, weight_rating: 20, weight_client_familiarity: 15,
   weight_client_rating: 15, weight_experience: 10, weight_rate: 10, weight_commitment: 5,
+  start_reminders_enabled: true, start_reminder_1_days: 3, start_reminder_2_days: 1,
+  start_overdue_action: "auto_start", start_overdue_grace_hours: 24,
 };
 
 function AssignmentSettingsPanel({ profile, updateProfile }) {
@@ -12057,6 +12218,55 @@ function AssignmentSettingsPanel({ profile, updateProfile }) {
             className="px-3 py-2 text-xs text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50">
             Reset to defaults
           </button>
+        </div>
+      </div>
+
+      {/* Start Date Reminders */}
+      <div className="border-t border-gray-100 pt-5">
+        {sHdr("Start Date Reminders")}
+        <div className="space-y-3">
+          <Toggle field="start_reminders_enabled" label="Enable Start Date Reminders"
+            desc="Automatically notify consultants before their assigned case start date" />
+          {form.start_reminders_enabled && (
+            <div className="pl-4 border-l-2 border-amber-100 space-y-3 mt-1">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">First Reminder (days before)</label>
+                  <input type="number" min="1" max="30" value={form.start_reminder_1_days}
+                    onChange={e => setForm(p => ({ ...p, start_reminder_1_days: Number(e.target.value) }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <p className="text-xs text-gray-400 mt-1">Days before start to send the first reminder</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Second Reminder (days before)</label>
+                  <input type="number" min="1" max="14" value={form.start_reminder_2_days}
+                    onChange={e => setForm(p => ({ ...p, start_reminder_2_days: Number(e.target.value) }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <p className="text-xs text-gray-400 mt-1">Days before start to send the final reminder</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Action if Not Started</label>
+                  <select value={form.start_overdue_action}
+                    onChange={e => setForm(p => ({ ...p, start_overdue_action: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="auto_start">Auto-start (move to In Progress)</option>
+                    <option value="notify_manager">Notify Manager Only</option>
+                    <option value="auto_unassign">Auto-unassign &amp; Reopen</option>
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">Triggered once the grace period expires</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Grace Period (hours)</label>
+                  <input type="number" min="0" max="72" step="1" value={form.start_overdue_grace_hours}
+                    onChange={e => setForm(p => ({ ...p, start_overdue_grace_hours: Number(e.target.value) }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <p className="text-xs text-gray-400 mt-1">Hours after start date before action triggers</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -13979,6 +14189,12 @@ function ManagerAdminWelcomeView({ auth, onComplete }) {
 // ============================================================
 // ROOT APP
 // ============================================================
+function StartDateMonitor({ auth }) {
+  const { cases } = useCases();
+  useStartDateMonitor(auth, cases);
+  return null;
+}
+
 export default function App() {
   const auth = useAuth();
   const [activeView, setActiveView]     = useState("dashboard");
@@ -14068,21 +14284,24 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#EAF4FD]">
-      <Sidebar
-        role={auth.role}
-        activeView={activeView}
-        onNav={setActiveView}
-        onSignOut={handleSignOut}
-        profile={auth.profile}
-        unreadCount={unreadCount}
-      />
-      <main className="ml-64 p-8 min-h-screen">
-        <div className="max-w-5xl mx-auto">
-          {renderView()}
-        </div>
-      </main>
-    </div>
+    <>
+      <StartDateMonitor auth={auth} />
+      <div className="min-h-screen bg-[#EAF4FD]">
+        <Sidebar
+          role={auth.role}
+          activeView={activeView}
+          onNav={setActiveView}
+          onSignOut={handleSignOut}
+          profile={auth.profile}
+          unreadCount={unreadCount}
+        />
+        <main className="ml-64 p-8 min-h-screen">
+          <div className="max-w-5xl mx-auto">
+            {renderView()}
+          </div>
+        </main>
+      </div>
+    </>
   );
 }
 
