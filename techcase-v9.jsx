@@ -9566,7 +9566,7 @@ function ArenaView({ auth }) {
   const [arenaSelectedCase, setArenaSelected] = useState(null);
   const { leaderboard, loading: lbLoading } = useLeaderboard();
   const { cases, loading: casesLoading, updateCase } = useCases();
-  const { applications, reviewApplication } = useApplications();
+  const { applications, reviewApplication, refetch: refetchApps } = useApplications();
   const { templates: arenaLcTemplates } = useLifecycleTemplates();
 
   async function handleArenaReviewApplication(appId, appStatus, notes) {
@@ -9811,7 +9811,7 @@ function ArenaView({ auth }) {
         <ApplyWizard
           caseData={applyingToCase}
           auth={auth}
-          onComplete={() => setApplying(null)}
+          onComplete={() => { setApplying(null); refetchApps(); }}
           onCancel={() => setApplying(null)}
         />
       </div>
