@@ -1648,7 +1648,7 @@ async function runStartDateMonitor(auth, cases) {
       }
     }
 
-    if (daysUntil <= 0 && hoursOverdue >= s.start_overdue_grace_hours && (auth.isAdmin || auth.isManager)) {
+    if (daysUntil < 0 && hoursOverdue >= s.start_overdue_grace_hours && (auth.isAdmin || auth.isManager)) {
       const key = `sdovr_${c.id}`;
       if (!localStorage.getItem(key)) {
         localStorage.setItem(key, todayStr);
@@ -3126,7 +3126,7 @@ function Dashboard({ auth }) {
             const startingSoon = cases.filter(c => {
               if (c.status !== "assigned" || !c.start_date) return false;
               const d = Math.ceil((new Date(c.start_date + "T00:00:00") - Date.now()) / 86400000);
-              return d <= 7;
+              return d >= -30 && d <= 7;
             }).sort((a, b) => (a.start_date < b.start_date ? -1 : 1));
             if (!startingSoon.length) return null;
             return (
@@ -10840,10 +10840,11 @@ function ReportsView() {
   const filtInvoices = invoices.filter(i => inRange(i.issue_date ?? i.created_at));
   const filtEntries  = timeEntries.filter(e => inRange(e.date));
 
-  const byStatus = ["open","in_progress","on_hold","completed","cancelled"].map(s => ({
+  const byStatus = ["open","estimated","assigned","in_progress","on_hold","completed","cancelled"].map(s => ({
     label: cap(fmt(s)),
     count: filtCases.filter(c => c.status === s).length,
-    color: s === "open" ? "bg-emerald-400" : s === "in_progress" ? "bg-blue-400" :
+    color: s === "open" ? "bg-emerald-400" : s === "estimated" ? "bg-teal-400" :
+           s === "assigned" ? "bg-violet-400" : s === "in_progress" ? "bg-blue-400" :
            s === "on_hold" ? "bg-yellow-400" : s === "completed" ? "bg-gray-300" : "bg-red-300",
   }));
 
@@ -10867,12 +10868,17 @@ function ReportsView() {
     filtEntries.reduce((acc, e) => {
       const id = e.consultant_id;
       const name = e.consultant?.full_name ?? "Unknown";
-      if (!acc[id]) acc[id] = { name, total: 0, billable: 0 };
+      if (!acc[id]) acc[id] = { id, name, total: 0, billable: 0 };
       acc[id].total += (e.hours ?? 0);
       acc[id].billable += e.is_billable ? (e.hours ?? 0) : 0;
       return acc;
     }, {})
-  ).sort((a, b) => b.total - a.total).slice(0, 8);
+  ).map(c => ({
+    ...c,
+    caseCount: filtCases.filter(fc =>
+      fc.case_assignments?.some(a => a.consultant_id === c.id)
+    ).length,
+  })).sort((a, b) => b.total - a.total).slice(0, 8);
 
   const isFiltered = dateFrom || dateTo;
 
@@ -10896,6 +10902,27 @@ function ReportsView() {
               Clear
             </button>
           )}
+          <button
+            onClick={() => {
+              const rows = [
+                ["Case Title","Status","Client","Manager","Created"],
+                ...filtCases.map(c => [
+                  `"${(c.title ?? "").replace(/"/g,'""')}"`,
+                  c.status ?? "",
+                  `"${(c.client?.full_name ?? "").replace(/"/g,'""')}"`,
+                  `"${(c.manager?.full_name ?? "").replace(/"/g,'""')}"`,
+                  (c.created_at ?? "").slice(0,10),
+                ]),
+              ];
+              const csv = rows.map(r => r.join(",")).join("\n");
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+              a.download = `techcase-report-${new Date().toISOString().slice(0,10)}.csv`;
+              a.click();
+            }}
+            className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-900 px-3 py-1.5 border border-gray-200 rounded-xl hover:bg-gray-50 font-medium">
+            <Download className="w-3.5 h-3.5" /> Export CSV
+          </button>
         </div>
       </div>
 
@@ -11011,8 +11038,11 @@ function ReportsView() {
                 {consultantHours.map(c => (
                   <div key={c.name}>
                     <div className="flex justify-between text-xs mb-1">
-                      <span className="text-gray-700 font-medium truncate max-w-[60%]">{c.name}</span>
-                      <span className="text-gray-500">{c.total.toFixed(1)}h <span className="text-green-600">({c.billable.toFixed(1)}h billable)</span></span>
+                      <span className="text-gray-700 font-medium truncate max-w-[50%]">{c.name}</span>
+                      <span className="text-gray-500">
+                        <span className="text-indigo-600 mr-2">{c.caseCount} case{c.caseCount !== 1 ? "s" : ""}</span>
+                        {c.total.toFixed(1)}h <span className="text-green-600">({c.billable.toFixed(1)}h billable)</span>
+                      </span>
                     </div>
                     <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                       <div className="h-full bg-blue-400 rounded-full"
@@ -11550,6 +11580,9 @@ function LifecycleSettingsView({ auth }) {
   const [editStages, setEditStages] = useState([]);
   const [saving, setSaving] = useState(false);
   const [viewTmpl, setViewTmpl] = useState(null);
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newDesc, setNewDesc] = useState("");
 
   function startEdit(tmpl) { setSelected(tmpl); setEditStages(tmpl.stages.map(s => ({ ...s }))); }
   function cancelEdit() { setSelected(null); setEditStages([]); }
@@ -11590,6 +11623,36 @@ function LifecycleSettingsView({ auth }) {
     setSaving(false);
   }
 
+  async function handleCreate() {
+    const name = newName.trim();
+    if (!name) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("lifecycle_templates").insert({
+        name,
+        description: newDesc.trim() || null,
+        key: name.toLowerCase().replace(/\s+/g, "_"),
+        stages: LIFECYCLE_PRESETS.standard.stages,
+        is_active: true,
+        sort_order: templates.length + 1,
+      });
+      if (error) throw error;
+      await fetchTemplates();
+      setCreating(false); setNewName(""); setNewDesc("");
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  async function handleDelete(tmpl) {
+    if (!window.confirm(`Delete "${tmpl.name}"? This cannot be undone.`)) return;
+    try {
+      const { error } = await supabase.from("lifecycle_templates").delete().eq("id", tmpl.id);
+      if (error) throw error;
+      await fetchTemplates();
+      if (viewTmpl?.id === tmpl.id) setViewTmpl(null);
+    } catch (e) { alert(e.message); }
+  }
+
   useEffect(() => {
     if (!templates.length) return;
     if (viewTmpl) {
@@ -11611,12 +11674,49 @@ function LifecycleSettingsView({ auth }) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">Lifecycle Templates</h2>
-        <p className="text-sm text-gray-500 mt-1">
-          Define stages, transitions, and which roles can move a case to each next stage. Admin always has full access.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Lifecycle Templates</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Define stages, transitions, and which roles can move a case to each next stage. Admin always has full access.
+          </p>
+        </div>
+        {!selected && !creating && (
+          <button onClick={() => setCreating(true)}
+            className="flex-shrink-0 px-4 py-2 bg-[#1A4B8C] hover:bg-blue-900 text-white text-sm font-semibold rounded-xl">
+            + New Template
+          </button>
+        )}
       </div>
+
+      {creating && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+          <h3 className="font-semibold text-gray-900">New Lifecycle Template</h3>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Name</label>
+              <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
+                placeholder="e.g. Enterprise Lifecycle"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Description</label>
+              <input type="text" value={newDesc} onChange={e => setNewDesc(e.target.value)}
+                placeholder="Optional description"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+          <p className="text-xs text-gray-400">The template will be pre-populated with the Standard lifecycle stages. You can edit them after creation.</p>
+          <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
+            <button onClick={() => { setCreating(false); setNewName(""); setNewDesc(""); }}
+              className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
+            <button onClick={handleCreate} disabled={!newName.trim() || saving}
+              className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
+              {saving ? "Creating…" : "Create Template"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {selected ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
@@ -11737,13 +11837,20 @@ function LifecycleSettingsView({ auth }) {
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex" style={{ minHeight: 420 }}>
           {/* Left sidebar — template list */}
-          <div className="w-44 flex-shrink-0 border-r border-gray-100 flex flex-col py-2">
+          <div className="w-48 flex-shrink-0 border-r border-gray-100 flex flex-col py-2">
             {templates.map(tmpl => (
-              <button key={tmpl.id} onClick={() => setViewTmpl(tmpl)}
-                className={`text-left px-4 py-3 transition-colors ${viewTmpl?.id === tmpl.id ? "bg-blue-50" : "hover:bg-gray-50"}`}>
-                <div className={`font-semibold text-sm ${viewTmpl?.id === tmpl.id ? "text-blue-700" : "text-gray-800"}`}>{tmpl.name}</div>
-                <div className="text-xs text-gray-400 mt-0.5 leading-tight">{tmpl.description}</div>
-              </button>
+              <div key={tmpl.id}
+                className={`group flex items-start gap-1 pr-2 transition-colors ${viewTmpl?.id === tmpl.id ? "bg-blue-50" : "hover:bg-gray-50"}`}>
+                <button onClick={() => setViewTmpl(tmpl)} className="flex-1 text-left px-4 py-3 min-w-0">
+                  <div className={`font-semibold text-sm ${viewTmpl?.id === tmpl.id ? "text-blue-700" : "text-gray-800"}`}>{tmpl.name}</div>
+                  <div className="text-xs text-gray-400 mt-0.5 leading-tight">{tmpl.description}</div>
+                </button>
+                <button onClick={() => handleDelete(tmpl)}
+                  title="Delete template"
+                  className="opacity-0 group-hover:opacity-100 mt-3 text-red-300 hover:text-red-500 text-base leading-none flex-shrink-0 px-1">
+                  ×
+                </button>
+              </div>
             ))}
           </div>
 
@@ -11760,10 +11867,16 @@ function LifecycleSettingsView({ auth }) {
                   </div>
                   <p className="text-sm text-gray-500">{viewTmpl.description}</p>
                 </div>
-                <button onClick={() => startEdit(viewTmpl)}
-                  className="flex-shrink-0 ml-4 px-4 py-1.5 bg-[#1A4B8C] hover:bg-blue-900 text-white text-sm font-semibold rounded-xl">
-                  ✎ Edit Stages
-                </button>
+                <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+                  <button onClick={() => startEdit(viewTmpl)}
+                    className="px-4 py-1.5 bg-[#1A4B8C] hover:bg-blue-900 text-white text-sm font-semibold rounded-xl">
+                    ✎ Edit Stages
+                  </button>
+                  <button onClick={() => handleDelete(viewTmpl)}
+                    className="px-3 py-1.5 border border-red-200 text-red-500 hover:bg-red-50 text-sm font-semibold rounded-xl">
+                    Delete
+                  </button>
+                </div>
               </div>
 
               <div className="max-w-md">
