@@ -8828,10 +8828,12 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const tabs = stageRules.visible_tabs
     ? allTabs.filter(t => stageRules.visible_tabs.includes(t.id))
     : allTabs;
-  // If the active tab was hidden by stage rules, fall back to detail
+  // If the active tab was hidden by stage rules, fall back to first visible tab
   useEffect(() => {
-    if (stageRules.visible_tabs && !stageRules.visible_tabs.includes(activeTab)) {
-      setActiveTab("detail");
+    if (!stageRules.visible_tabs) return;
+    if (!stageRules.visible_tabs.includes(activeTab)) {
+      const fallback = stageRules.visible_tabs[0];
+      if (fallback && fallback !== activeTab) setActiveTab(fallback);
     }
   }, [stageRules.visible_tabs, activeTab]);
 
