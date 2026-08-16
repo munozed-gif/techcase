@@ -409,6 +409,35 @@ function useCaseActivities(caseId) {
   return { activities, loading, addActivity, updateActivity, deleteActivity, refetch: fetchActivities };
 }
 
+// ── Stage access rules ───────────────────────────────────────
+// Returns effective permissions for the current user + lifecycle stage.
+// bypass_roles always get the fully-open set regardless of rules.
+function getStageRules(stage, userAuth) {
+  const open = {
+    editable: true, can_log_time: true, can_add_activities: true,
+    can_comment: true, can_upload_docs: true, visible_tabs: null,
+  };
+  if (!stage?.rules) return open;
+  const r = stage.rules;
+  const bypass = r.bypass_roles ?? ["admin", "manager"];
+  const isBypassed = bypass.some(role => {
+    if (role === "admin")      return userAuth.isAdmin;
+    if (role === "manager")    return userAuth.isManager;
+    if (role === "consultant") return userAuth.isConsultant;
+    if (role === "client")     return userAuth.isClient;
+    return false;
+  });
+  if (isBypassed) return open;
+  return {
+    editable:           r.editable           ?? true,
+    can_log_time:       r.can_log_time       ?? true,
+    can_add_activities: r.can_add_activities ?? true,
+    can_comment:        r.can_comment        ?? true,
+    can_upload_docs:    r.can_upload_docs    ?? true,
+    visible_tabs:       r.visible_tabs       ?? null,
+  };
+}
+
 // ── Activity adherence helper ────────────────────────────────
 function activityAdherence(act) {
   if (act.progress_pct === 100) return "complete";
@@ -8628,7 +8657,9 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   }, [subCaseInitialStatus]);
   const isTerminalStatus = lifecycleStages.find(s => s.key === caseData.status)?.is_terminal
     ?? ["completed","cancelled"].includes(caseData.status);
-  const canEditCase = onUpdate && !isTerminalStatus
+  const currentStage = lifecycleStages.find(s => s.key === caseData.status);
+  const stageRules   = getStageRules(currentStage, auth);
+  const canEditCase  = onUpdate && !isTerminalStatus && stageRules.editable
     && (auth.isAdmin || auth.isManager || (auth.isClient && caseData.client_id === auth.user?.id));
 
   async function handleSaveCaseLc() {
@@ -8675,8 +8706,9 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const myApp = applications.find(a => a.consultant_id === auth.user?.id);
   const doneMilestones = milestones.filter(m => m.is_done).length;
   const milestonePct = milestones.length ? Math.round((doneMilestones / milestones.length) * 100) : 0;
-  const canAddSubCase = (auth.isAdmin || auth.isManager || auth.isClient) &&
-    !["completed", "cancelled"].includes(caseData.status);
+  const canAddSubCase = (auth.isAdmin || auth.isManager || auth.isClient)
+    && !["completed", "cancelled"].includes(caseData.status)
+    && stageRules.editable;
 
   const canDelete =
     caseData.status === "open" &&
@@ -8781,7 +8813,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
     a.activity_type === "sub_case" ? (a.sub_progress ?? 0) === 100 : a.progress_pct === 100
   );
 
-  const tabs = [
+  const allTabs = [
     { id: "detail",     label: "Details",      icon: ClipboardList, count: null },
     { id: "activities", label: "Activities",   icon: ListChecks,    count: activities.length || null },
     { id: "milestones", label: "Milestones",   icon: Flag,          count: `${doneMilestones}/${milestones.length}` },
@@ -8793,6 +8825,15 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
     ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "lifecycle", label: "Lifecycle", icon: TrendingUp, count: null }] : []),
     { id: "spec", label: "Spec", icon: FileText, count: null },
   ];
+  const tabs = stageRules.visible_tabs
+    ? allTabs.filter(t => stageRules.visible_tabs.includes(t.id))
+    : allTabs;
+  // If the active tab was hidden by stage rules, fall back to detail
+  useEffect(() => {
+    if (stageRules.visible_tabs && !stageRules.visible_tabs.includes(activeTab)) {
+      setActiveTab("detail");
+    }
+  }, [stageRules.visible_tabs, activeTab]);
 
   return (
     <div className="space-y-4">
@@ -8956,6 +8997,27 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
           })}
         </div>
         <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
+
+      {/* Stage lock banner — shown when the current stage restricts any action */}
+      {currentStage?.rules && (() => {
+        const locked = [
+          !stageRules.editable && "Editing",
+          !stageRules.can_log_time && "Time logging",
+          !stageRules.can_add_activities && "Activities",
+          !stageRules.can_comment && "Comments",
+          !stageRules.can_upload_docs && "Document uploads",
+        ].filter(Boolean);
+        if (!locked.length) return null;
+        return (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-start gap-2.5">
+            <AlertTriangle size={14} className="text-amber-500 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800">
+              <span className="font-semibold">{currentStage.label} stage — restricted: </span>
+              {locked.join(", ")} not available. Contact your manager to change the stage.
+            </p>
+          </div>
+        );
+      })()}
 
       {/* Detail Tab */}
       {activeTab === "detail" && (
@@ -9249,7 +9311,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
           {milestones.length === 0 && (
             <p className="text-sm text-gray-400 text-center py-4">No milestones yet. Add one below.</p>
           )}
-          {(auth.isAdmin || auth.isManager || auth.isConsultant) && (
+          {(auth.isAdmin || auth.isManager || auth.isConsultant) && stageRules.editable && (
             <div className="flex gap-2 mt-4">
               <input value={newMilestone} onChange={e => setNewMilestone(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleAddMilestone()}
@@ -9293,7 +9355,12 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
           </div>
 
           {/* Add comment */}
-          <div className="border border-gray-200 rounded-xl p-4 space-y-3">
+          {!stageRules.can_comment && (
+            <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
+              <AlertTriangle size={13} className="flex-shrink-0" /> Comments are not allowed in the <strong>{currentStage?.label ?? "current"}</strong> stage.
+            </div>
+          )}
+          {stageRules.can_comment && <div className="border border-gray-200 rounded-xl p-4 space-y-3">
             <Textarea label="Comment / Update" value={commentForm.body}
               onChange={e => setCommentForm(p => ({ ...p, body: e.target.value }))}
               placeholder="Add a note, progress update, or comment…" />
@@ -9324,7 +9391,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
               className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2 rounded-xl disabled:opacity-50">
               {sendingComment ? "Posting…" : "Post Comment"}
             </button>
-          </div>
+          </div>}
         </div>
       )}
 
@@ -9449,10 +9516,12 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold text-gray-700">{documents.length} document{documents.length !== 1 ? "s" : ""}</div>
-            <button onClick={() => setShowDocForm(p => !p)}
-              className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700">
-              + Upload
-            </button>
+            {stageRules.can_upload_docs && (
+              <button onClick={() => setShowDocForm(p => !p)}
+                className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700">
+                + Upload
+              </button>
+            )}
           </div>
           {showDocForm && (
             <div className="bg-gray-50 rounded-xl p-4 space-y-3">
@@ -9509,7 +9578,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
 
       {/* ── Activities Tab ── */}
       {activeTab === "activities" && (() => {
-        const canManage = auth.isAdmin || auth.isManager || auth.isConsultant;
+        const canManage = (auth.isAdmin || auth.isManager || auth.isConsultant) && stageRules.can_add_activities;
         const totalActualHoursAll = timeEntries.reduce((s, e) => s + (e.hours ?? 0), 0);
 
         function statusColor(s) {
@@ -10061,7 +10130,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
               Total: <span className="text-blue-600">{totalTimeHours.toFixed(1)}h</span>
               {" · "}Billable: <span className="text-green-600">{timeEntries.filter(e => e.is_billable).reduce((s, e) => s + e.hours, 0).toFixed(1)}h</span>
             </div>
-            {auth.isConsultant && (
+            {auth.isConsultant && stageRules.can_log_time && (
               <button onClick={() => setShowTimeForm(p => !p)}
                 className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700">
                 + Log Time
@@ -12378,6 +12447,27 @@ function LifecycleSettingsView({ auth }) {
     { key: "key_user",   label: "Key User",   color: "#5b21b6", bg: "#ede9fe" },
   ];
 
+  const ALL_TABS = [
+    { id: "detail",       label: "Details" },
+    { id: "activities",   label: "Activities" },
+    { id: "milestones",   label: "Milestones" },
+    { id: "comments",     label: "Activity" },
+    { id: "subcases",     label: "Sub-cases" },
+    { id: "documents",    label: "Docs" },
+    { id: "time",         label: "Time" },
+    { id: "applications", label: "Applicants" },
+    { id: "lifecycle",    label: "Lifecycle" },
+    { id: "spec",         label: "Spec" },
+  ];
+
+  const ACTION_RULES = [
+    { key: "editable",           label: "Edit case" },
+    { key: "can_log_time",       label: "Log time" },
+    { key: "can_add_activities", label: "Activities" },
+    { key: "can_comment",        label: "Comments" },
+    { key: "can_upload_docs",    label: "Docs upload" },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -12524,6 +12614,80 @@ function LifecycleSettingsView({ auth }) {
                         {!(stage.allowed_next ?? []).length && (
                           <span className="text-[10px] text-gray-400 italic">no restriction — any stage</span>
                         )}
+                      </div>
+                    </div>
+
+                    {/* Access Rules */}
+                    <div className="pt-2 border-t border-gray-200 space-y-2">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 block">Access Rules</span>
+
+                      {/* Action toggles */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-14 flex-shrink-0">Allow</span>
+                        {ACTION_RULES.map(({ key, label }) => {
+                          const allowed = stage.rules?.[key] ?? true;
+                          return (
+                            <button key={key}
+                              onClick={() => updateStage(idx, { rules: { ...(stage.rules ?? {}), [key]: !allowed } })}
+                              className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border transition-colors ${
+                                allowed
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                  : "bg-red-50 text-red-500 border-red-200"
+                              }`}>
+                              {allowed ? "✓" : "✗"} {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Tab visibility */}
+                      <div className="flex items-start gap-2 flex-wrap">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-14 flex-shrink-0 pt-0.5">Tabs</span>
+                        <div className="flex flex-wrap gap-1">
+                          {ALL_TABS.map(t => {
+                            const visibleTabs = stage.rules?.visible_tabs ?? null;
+                            const isOn = !visibleTabs || visibleTabs.includes(t.id);
+                            return (
+                              <button key={t.id}
+                                onClick={() => {
+                                  const cur = stage.rules?.visible_tabs ?? ALL_TABS.map(x => x.id);
+                                  const next = isOn ? cur.filter(id => id !== t.id) : [...cur, t.id];
+                                  updateStage(idx, { rules: { ...(stage.rules ?? {}), visible_tabs: next.length === ALL_TABS.length ? null : next } });
+                                }}
+                                className={`text-[11px] px-2 py-0.5 rounded-full font-semibold border transition-colors ${
+                                  isOn ? "bg-blue-50 text-blue-600 border-blue-200" : "bg-gray-100 text-gray-400 border-gray-200"
+                                }`}>
+                                {t.label}
+                              </button>
+                            );
+                          })}
+                          {!stage.rules?.visible_tabs && (
+                            <span className="text-[10px] text-gray-400 italic">all visible</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Bypass roles */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-14 flex-shrink-0">Bypass</span>
+                        {["admin", "manager", "consultant", "client"].map(role => {
+                          const bypass = stage.rules?.bypass_roles ?? ["admin", "manager"];
+                          const on = bypass.includes(role);
+                          return (
+                            <button key={role}
+                              onClick={() => {
+                                const cur = stage.rules?.bypass_roles ?? ["admin", "manager"];
+                                const next = on ? cur.filter(r => r !== role) : [...cur, role];
+                                updateStage(idx, { rules: { ...(stage.rules ?? {}), bypass_roles: next } });
+                              }}
+                              className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border transition-colors ${
+                                on ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-white text-gray-400 border-gray-200"
+                              }`}>
+                              {cap(role)}
+                            </button>
+                          );
+                        })}
+                        <span className="text-[10px] text-gray-400 italic">bypass all restrictions</span>
                       </div>
                     </div>
                   </div>
