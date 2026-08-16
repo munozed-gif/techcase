@@ -33,6 +33,8 @@ import {
   Play, Pause, PauseCircle, RotateCcw, Archive, Search,
   BadgeCheck, XCircle,
   Wand2, Download, Sparkles,
+  ListChecks, ChevronDown, ChevronRight, AlertTriangle, CircleSlash,
+  GripVertical, Pencil, Timer,
 } from "lucide-react";
 
 // ============================================================
@@ -344,6 +346,66 @@ function useTimeEntries(caseId = null) {
   }
 
   return { entries, loading, addTimeEntry, approveEntry, deleteEntry, refetch: fetchEntries };
+}
+
+// ── Case Activities ──────────────────────────────────────────
+function useCaseActivities(caseId) {
+  const [activities, setActivities] = useState([]);
+  const [loading, setLoading]       = useState(true);
+
+  const fetchActivities = useCallback(async () => {
+    if (!caseId) { setLoading(false); return; }
+    setLoading(true);
+    const { data } = await supabase
+      .from("case_activities")
+      .select("*")
+      .eq("case_id", caseId)
+      .order("sort_order")
+      .order("task_no");
+    setActivities(data ?? []);
+    setLoading(false);
+  }, [caseId]);
+
+  useEffect(() => { fetchActivities(); }, [fetchActivities]);
+
+  async function addActivity(data) {
+    const maxNo = activities.length ? Math.max(...activities.map(a => a.task_no)) : 0;
+    const { error } = await supabase.from("case_activities").insert({
+      ...data, case_id: caseId, task_no: maxNo + 1, sort_order: maxNo + 1,
+    });
+    if (error) throw error;
+    await fetchActivities();
+  }
+
+  async function updateActivity(id, updates) {
+    const { error } = await supabase.from("case_activities")
+      .update({ ...updates, updated_at: new Date().toISOString() }).eq("id", id);
+    if (error) throw error;
+    await fetchActivities();
+  }
+
+  async function deleteActivity(id) {
+    const { error } = await supabase.from("case_activities").delete().eq("id", id);
+    if (error) throw error;
+    await fetchActivities();
+  }
+
+  return { activities, loading, addActivity, updateActivity, deleteActivity, refetch: fetchActivities };
+}
+
+// ── Activity adherence helper ────────────────────────────────
+function activityAdherence(act) {
+  if (act.progress_pct === 100) return "complete";
+  if (!act.end_date_plan) return null;
+  const today = new Date().toISOString().slice(0, 10);
+  if (today > act.end_date_plan) return "overdue";
+  if (!act.start_date_plan) return "on_track";
+  const total = (new Date(act.end_date_plan) - new Date(act.start_date_plan + "T00:00:00")) / 86400000;
+  const elapsed = (Date.now() - new Date(act.start_date_plan + "T00:00:00")) / 86400000;
+  const expected = total > 0 ? Math.round((elapsed / total) * 100) : 0;
+  if (act.progress_pct >= expected - 10) return "on_track";
+  if (act.progress_pct >= expected - 25) return "at_risk";
+  return "behind";
 }
 
 function useCaseDocuments(caseId) {
@@ -8460,6 +8522,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const { subCases, createSubCase } = useSubCases(caseData.id);
   const { documents, addDocument, deleteDocument, refetch: refetchDocuments } = useCaseDocuments(caseData.id);
   const { entries: timeEntries, addTimeEntry, approveEntry } = useTimeEntries(caseData.id);
+  const { activities, addActivity, updateActivity, deleteActivity } = useCaseActivities(caseData.id);
 
   const [activeTab, setActiveTab]   = useState("detail");
   const [newMilestone, setNewMilestone] = useState("");
@@ -8478,8 +8541,15 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [pendingDocFile, setPendingDocFile] = useState(null);
   // V9 Time entry state
   const [showTimeForm, setShowTimeForm] = useState(false);
-  const [timeForm, setTimeForm]         = useState({ date: new Date().toISOString().slice(0, 10), hours: 1, description: "", is_billable: true });
+  const [timeForm, setTimeForm]         = useState({ date: new Date().toISOString().slice(0, 10), hours: 1, description: "", is_billable: true, activity_id: "" });
   const [savingTime, setSavingTime]     = useState(false);
+  // Activities state
+  const [showActForm, setShowActForm]   = useState(false);
+  const [actForm, setActForm]           = useState({ title: "", description: "", detail: "", est_hours: 4, start_date_plan: "", end_date_plan: "" });
+  const [savingAct, setSavingAct]       = useState(false);
+  const [editingActId, setEditingActId] = useState(null);
+  const [editActForm, setEditActForm]   = useState({});
+  const [expandedActId, setExpandedActId] = useState(null);
 
   const [showEditWizard, setShowEditWizard] = useState(false);
   const [clientLifecycle, setClientLifecycle] = useState(null);
@@ -8643,8 +8713,19 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
     if (!timeForm.hours || !timeForm.description.trim()) return;
     setSavingTime(true);
     try {
-      await addTimeEntry({ ...timeForm, case_id: caseData.id, hours: Number(timeForm.hours) });
-      setTimeForm({ date: new Date().toISOString().slice(0, 10), hours: 1, description: "", is_billable: true });
+      const entryData = { ...timeForm, case_id: caseData.id, hours: Number(timeForm.hours) };
+      if (!entryData.activity_id) delete entryData.activity_id;
+      await addTimeEntry(entryData);
+      // Auto-transition: if activity was pending, move it to in_progress
+      if (timeForm.activity_id) {
+        const act = activities.find(a => a.id === timeForm.activity_id);
+        if (act?.status === "pending") await updateActivity(timeForm.activity_id, { status: "in_progress" });
+      }
+      // Auto-transition: if case is "assigned" and this is the first time entry, move to in_progress
+      if (caseData.status === "assigned" && timeEntries.length === 0 && onStatusChange) {
+        await onStatusChange(caseData.id, "in_progress");
+      }
+      setTimeForm({ date: new Date().toISOString().slice(0, 10), hours: 1, description: "", is_billable: true, activity_id: "" });
       setShowTimeForm(false);
     } catch (e) { alert(e.message); }
     setSavingTime(false);
@@ -8664,8 +8745,16 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
     try { await onDelete(); } catch (e) { alert(e.message); }
   }
 
+  // Activities-derived progress
+  const totalEstHours   = activities.reduce((s, a) => s + (a.est_hours || 0), 0);
+  const caseProgress    = activities.length === 0 ? (caseData.progress_pct ?? 0) :
+    Math.round(activities.reduce((s, a) => s + a.progress_pct * (a.est_hours || 1), 0) /
+               activities.reduce((s, a) => s + (a.est_hours || 1), 0));
+  const allActivitiesDone = activities.length > 0 && activities.every(a => a.progress_pct === 100);
+
   const tabs = [
     { id: "detail",     label: "Details",      icon: ClipboardList, count: null },
+    { id: "activities", label: "Activities",   icon: ListChecks,    count: activities.length || null },
     { id: "milestones", label: "Milestones",   icon: Flag,          count: `${doneMilestones}/${milestones.length}` },
     { id: "comments",   label: "Activity",     icon: MessageSquare, count: comments.length },
     { id: "subcases",   label: "Sub-cases",    icon: Layers,        count: subCases.length },
@@ -8909,6 +8998,24 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
               {caseData.area_sap && <div><span className="text-gray-400">SAP Area: </span><span className="font-medium">{caseData.area_sap}</span></div>}
               {caseData.area_industry && <div><span className="text-gray-400">Industry: </span><span className="font-medium">{caseData.area_industry}</span></div>}
             </div>
+            {activities.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
+                    <ListChecks size={12} className="text-blue-400" /> Plan Progress
+                  </span>
+                  <span className="text-sm font-bold text-blue-700">{caseProgress}%</span>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full transition-all ${caseProgress === 100 ? "bg-emerald-500" : "bg-blue-500"}`}
+                    style={{ width: `${caseProgress}%` }} />
+                </div>
+                <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                  <span>{activities.filter(a => a.status === "completed").length}/{activities.length} activities</span>
+                  <span>{totalEstHours}h estimated</span>
+                </div>
+              </div>
+            )}
             <div className="mt-3">
               <ProjectFieldEditor caseData={caseData} auth={auth} />
             </div>
@@ -9371,6 +9478,287 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
         </div>
       )}
 
+      {/* ── Activities Tab ── */}
+      {activeTab === "activities" && (() => {
+        const canManage = auth.isAdmin || auth.isManager || auth.isConsultant;
+        const totalActualHoursAll = timeEntries.reduce((s, e) => s + (e.hours ?? 0), 0);
+
+        function statusColor(s) {
+          return s === "completed" ? "bg-emerald-100 text-emerald-700"
+            : s === "in_progress" ? "bg-blue-100 text-blue-700"
+            : s === "blocked"     ? "bg-red-100 text-red-700"
+            : "bg-gray-100 text-gray-500";
+        }
+        function statusLabel(s) {
+          return s === "in_progress" ? "In Progress" : s === "completed" ? "Completed"
+            : s === "blocked" ? "Blocked" : "Pending";
+        }
+
+        const ADHERENCE = {
+          complete:  { label: "Complete",  cls: "bg-emerald-100 text-emerald-700" },
+          on_track:  { label: "On Track",  cls: "bg-blue-100 text-blue-700" },
+          at_risk:   { label: "At Risk",   cls: "bg-amber-100 text-amber-700" },
+          behind:    { label: "Behind",    cls: "bg-orange-100 text-orange-700" },
+          overdue:   { label: "Overdue",   cls: "bg-red-100 text-red-700" },
+        };
+
+        async function handleAddActivity() {
+          if (!actForm.title.trim()) return;
+          setSavingAct(true);
+          try {
+            await addActivity({ ...actForm, est_hours: Number(actForm.est_hours) || 0 });
+            setActForm({ title: "", description: "", detail: "", est_hours: 4, start_date_plan: "", end_date_plan: "" });
+            setShowActForm(false);
+          } catch (e) { alert(e.message); }
+          setSavingAct(false);
+        }
+
+        async function handleSaveEdit(id) {
+          setSavingAct(true);
+          try {
+            await updateActivity(id, { ...editActForm, est_hours: Number(editActForm.est_hours) || 0 });
+            setEditingActId(null);
+          } catch (e) { alert(e.message); }
+          setSavingAct(false);
+        }
+
+        return (
+          <div className="space-y-5">
+            {/* Overall progress bar */}
+            <div className="bg-gray-50 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold text-gray-700">Overall Case Progress</span>
+                <span className="text-xl font-bold text-blue-700">{caseProgress}%</span>
+              </div>
+              <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                <div className="h-full bg-blue-500 rounded-full transition-all"
+                  style={{ width: `${caseProgress}%` }} />
+              </div>
+              <div className="text-xs text-gray-400 mt-1.5 flex gap-4">
+                <span>{activities.filter(a => a.status === "completed").length} of {activities.length} activities complete</span>
+                {totalEstHours > 0 && <span>{totalActualHoursAll.toFixed(1)}h logged of {totalEstHours}h estimated</span>}
+              </div>
+            </div>
+
+            {/* All-complete banner */}
+            {allActivitiesDone && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-emerald-800">All activities complete</p>
+                  <p className="text-xs text-emerald-600">Consider advancing the case to the next lifecycle stage.</p>
+                </div>
+              </div>
+            )}
+
+            {/* Add activity form */}
+            {canManage && showActForm && (
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-3">
+                <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">New Activity</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <Input label="Title *" value={actForm.title}
+                      onChange={e => setActForm(p => ({ ...p, title: e.target.value }))}
+                      placeholder="e.g. Configure Material Ledger" />
+                  </div>
+                  <Input label="Estimated Hours" type="number" min="0" step="0.5" value={actForm.est_hours}
+                    onChange={e => setActForm(p => ({ ...p, est_hours: e.target.value }))} />
+                  <div />
+                  <Input label="Planned Start" type="date" value={actForm.start_date_plan}
+                    onChange={e => setActForm(p => ({ ...p, start_date_plan: e.target.value }))} />
+                  <Input label="Planned End" type="date" value={actForm.end_date_plan}
+                    onChange={e => setActForm(p => ({ ...p, end_date_plan: e.target.value }))} />
+                  <div className="col-span-2">
+                    <Textarea label="Description" value={actForm.description}
+                      onChange={e => setActForm(p => ({ ...p, description: e.target.value }))}
+                      placeholder="Brief summary of the task" />
+                  </div>
+                  <div className="col-span-2">
+                    <Textarea label="Detail / Acceptance Criteria" value={actForm.detail}
+                      onChange={e => setActForm(p => ({ ...p, detail: e.target.value }))}
+                      placeholder="Detailed steps, deliverables, or acceptance criteria" />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-1 border-t border-blue-100">
+                  <button onClick={() => setShowActForm(false)} className="text-sm text-gray-500 px-3 py-1.5">Cancel</button>
+                  <button onClick={handleAddActivity} disabled={savingAct || !actForm.title.trim()}
+                    className="px-4 py-1.5 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
+                    {savingAct ? "Adding…" : "Add Activity"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Activity list */}
+            {activities.length === 0 ? (
+              <div className="text-center py-12 text-gray-400">
+                <ListChecks className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+                <p className="text-sm font-medium">No activities yet</p>
+                <p className="text-xs mt-1">Add tasks to track plan progress and charge time per activity</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {activities.map(act => {
+                  const isEditing  = editingActId === act.id;
+                  const isExpanded = expandedActId === act.id;
+                  const adh        = activityAdherence(act);
+                  const adhInfo    = adh ? ADHERENCE[adh] : null;
+                  const actEntries = timeEntries.filter(e => e.activity_id === act.id);
+                  const actHours   = actEntries.reduce((s, e) => s + (e.hours ?? 0), 0);
+
+                  if (isEditing) return (
+                    <div key={act.id} className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
+                      <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Edit Activity #{act.task_no}</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="col-span-2">
+                          <Input label="Title" value={editActForm.title ?? ""}
+                            onChange={e => setEditActForm(p => ({ ...p, title: e.target.value }))} />
+                        </div>
+                        <Input label="Estimated Hours" type="number" min="0" step="0.5"
+                          value={editActForm.est_hours ?? ""}
+                          onChange={e => setEditActForm(p => ({ ...p, est_hours: e.target.value }))} />
+                        <div>
+                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Status</label>
+                          <select value={editActForm.status ?? "pending"}
+                            onChange={e => setEditActForm(p => ({ ...p, status: e.target.value }))}
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="pending">Pending</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="completed">Completed</option>
+                            <option value="blocked">Blocked</option>
+                          </select>
+                        </div>
+                        <Input label="Planned Start" type="date" value={editActForm.start_date_plan ?? ""}
+                          onChange={e => setEditActForm(p => ({ ...p, start_date_plan: e.target.value }))} />
+                        <Input label="Planned End" type="date" value={editActForm.end_date_plan ?? ""}
+                          onChange={e => setEditActForm(p => ({ ...p, end_date_plan: e.target.value }))} />
+                        <div className="col-span-2">
+                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Progress — {editActForm.progress_pct ?? 0}%</label>
+                          <input type="range" min="0" max="100" step="5"
+                            value={editActForm.progress_pct ?? 0}
+                            onChange={e => setEditActForm(p => ({ ...p, progress_pct: Number(e.target.value) }))}
+                            className="w-full accent-blue-600" />
+                        </div>
+                        <div className="col-span-2">
+                          <Textarea label="Description" value={editActForm.description ?? ""}
+                            onChange={e => setEditActForm(p => ({ ...p, description: e.target.value }))} />
+                        </div>
+                        <div className="col-span-2">
+                          <Textarea label="Detail / Acceptance Criteria" value={editActForm.detail ?? ""}
+                            onChange={e => setEditActForm(p => ({ ...p, detail: e.target.value }))} />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between pt-1 border-t border-blue-100">
+                        <button onClick={() => { if(window.confirm("Delete this activity?")) deleteActivity(act.id); }}
+                          className="text-xs text-red-400 hover:text-red-600">Delete</button>
+                        <div className="flex gap-2">
+                          <button onClick={() => setEditingActId(null)} className="text-sm text-gray-500 px-3 py-1.5">Cancel</button>
+                          <button onClick={() => handleSaveEdit(act.id)} disabled={savingAct}
+                            className="px-4 py-1.5 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
+                            {savingAct ? "Saving…" : "Save"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+
+                  return (
+                    <div key={act.id} className="border border-gray-200 rounded-xl overflow-hidden">
+                      {/* Main row */}
+                      <div className="flex items-center gap-3 px-4 py-3 bg-white hover:bg-gray-50">
+                        {/* Task # */}
+                        <span className="text-xs font-bold text-gray-400 w-6 flex-shrink-0 text-center">#{act.task_no}</span>
+                        {/* Status chip */}
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${statusColor(act.status)}`}>
+                          {statusLabel(act.status)}
+                        </span>
+                        {/* Title */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-800 truncate">{act.title}</p>
+                          {act.description && <p className="text-xs text-gray-400 truncate mt-0.5">{act.description}</p>}
+                        </div>
+                        {/* Progress bar */}
+                        <div className="w-28 flex-shrink-0">
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="text-gray-500">{act.progress_pct}%</span>
+                            <span className="text-gray-400 font-mono">{actHours.toFixed(1)}h / {act.est_hours ?? 0}h</span>
+                          </div>
+                          <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full transition-all ${act.progress_pct === 100 ? "bg-emerald-500" : act.status === "blocked" ? "bg-red-400" : "bg-blue-500"}`}
+                              style={{ width: `${act.progress_pct}%` }} />
+                          </div>
+                        </div>
+                        {/* Dates */}
+                        {act.end_date_plan && (
+                          <span className="text-xs text-gray-400 flex-shrink-0 hidden sm:block">
+                            {act.start_date_plan ? `${act.start_date_plan} → ` : "→ "}{act.end_date_plan}
+                          </span>
+                        )}
+                        {/* Adherence badge */}
+                        {adhInfo && (
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${adhInfo.cls}`}>
+                            {adhInfo.label}
+                          </span>
+                        )}
+                        {/* Actions */}
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {canManage && (
+                            <button onClick={() => { setEditingActId(act.id); setEditActForm({ ...act }); }}
+                              className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                              <Pencil size={13} />
+                            </button>
+                          )}
+                          <button onClick={() => setExpandedActId(expandedActId === act.id ? null : act.id)}
+                            className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                            {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                          </button>
+                        </div>
+                      </div>
+                      {/* Expanded: time ledger + detail */}
+                      {isExpanded && (
+                        <div className="border-t border-gray-100 bg-gray-50 px-4 py-3 space-y-3">
+                          {act.detail && (
+                            <p className="text-xs text-gray-600 whitespace-pre-line">{act.detail}</p>
+                          )}
+                          <div>
+                            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                              Time Logged ({actHours.toFixed(1)}h)
+                            </p>
+                            {actEntries.length === 0 ? (
+                              <p className="text-xs text-gray-400 italic">No time charged to this activity yet.</p>
+                            ) : (
+                              <div className="space-y-1">
+                                {actEntries.map(e => (
+                                  <div key={e.id} className="flex items-center gap-3 text-xs">
+                                    <span className="text-gray-400 w-20 flex-shrink-0">{fmtDate(e.date)}</span>
+                                    <span className="font-medium text-gray-700">{e.consultant?.full_name ?? "—"}</span>
+                                    <span className="text-blue-700 font-semibold">{e.hours}h</span>
+                                    {e.is_billable && <span className="text-green-600 text-[10px] font-bold">Billable</span>}
+                                    <span className="text-gray-500 truncate flex-1">{e.description}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Add button */}
+            {canManage && !showActForm && (
+              <button onClick={() => setShowActForm(true)}
+                className="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-400 hover:border-blue-300 hover:text-blue-600 transition-colors flex items-center justify-center gap-2">
+                <ListChecks size={14} /> Add Activity
+              </button>
+            )}
+          </div>
+        );
+      })()}
+
       {/* V9 Time Entries Tab */}
       {activeTab === "time" && (
         <div className="space-y-4">
@@ -9394,6 +9782,19 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
                 <Input label="Hours" type="number" min="0.25" step="0.25" value={timeForm.hours}
                   onChange={e => setTimeForm(p => ({ ...p, hours: e.target.value }))} />
               </div>
+              {activities.length > 0 && (
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Activity (optional)</label>
+                  <select value={timeForm.activity_id}
+                    onChange={e => setTimeForm(p => ({ ...p, activity_id: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    <option value="">— General / no specific activity —</option>
+                    {activities.filter(a => a.status !== "completed").map(a => (
+                      <option key={a.id} value={a.id}>#{a.task_no} {a.title}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <Textarea label="Description" value={timeForm.description}
                 onChange={e => setTimeForm(p => ({ ...p, description: e.target.value }))}
                 placeholder="What did you work on?" />
@@ -9419,17 +9820,27 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
                   <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">Date</th>
                   <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">Consultant</th>
                   <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">Hours</th>
+                  {activities.length > 0 && <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">Activity</th>}
                   <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">Description</th>
                   <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">Billable</th>
                   <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {timeEntries.map(e => (
+                {timeEntries.map(e => {
+                  const linkedAct = activities.find(a => a.id === e.activity_id);
+                  return (
                   <tr key={e.id} className="hover:bg-gray-50">
                     <td className="py-2 text-gray-600">{fmtDate(e.date)}</td>
                     <td className="py-2 text-gray-700">{e.consultant?.full_name ?? "—"}</td>
                     <td className="py-2 font-semibold text-blue-700">{e.hours}h</td>
+                    {activities.length > 0 && (
+                      <td className="py-2">
+                        {linkedAct ? (
+                          <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-medium">#{linkedAct.task_no} {linkedAct.title}</span>
+                        ) : <span className="text-xs text-gray-300">—</span>}
+                      </td>
+                    )}
                     <td className="py-2 text-gray-500 max-w-xs truncate">{e.description}</td>
                     <td className="py-2">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${e.is_billable ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
@@ -9448,7 +9859,8 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
                       }
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
             {timeEntries.length === 0 && (
