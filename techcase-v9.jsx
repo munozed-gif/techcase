@@ -12361,13 +12361,31 @@ function LifecycleSettingsView({ auth }) {
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
 
-  function startEdit(tmpl) { setSelected(tmpl); setEditStages(tmpl.stages.map(s => ({ ...s }))); }
+  const [activeStageIdx, setActiveStageIdx] = useState(0);
+
+  function startEdit(tmpl) { setSelected(tmpl); setEditStages(tmpl.stages.map(s => ({ ...s }))); setActiveStageIdx(0); }
   function cancelEdit() { setSelected(null); setEditStages([]); }
   function addStage() {
-    setEditStages(p => [...p, { key: `s${Date.now()}`, label: "New Stage", color: "#6b7280", is_terminal: false, allowed_next: [], allowed_roles: [] }]);
+    setEditStages(p => {
+      const next = [...p, { key: `s${Date.now()}`, label: "New Stage", color: "#6b7280", is_terminal: false, allowed_next: [], allowed_roles: [] }];
+      setActiveStageIdx(next.length - 1);
+      return next;
+    });
   }
-  function removeStage(i) { setEditStages(p => p.filter((_, j) => j !== i)); }
-  function moveStage(i, d) { setEditStages(p => { const n = [...p]; const [x] = n.splice(i, 1); n.splice(i + d, 0, x); return n; }); }
+  function removeStage(i) {
+    setEditStages(p => {
+      const next = p.filter((_, j) => j !== i);
+      setActiveStageIdx(prev => Math.min(prev, Math.max(0, next.length - 1)));
+      return next;
+    });
+  }
+  function moveStage(i, d) {
+    setEditStages(p => {
+      const n = [...p]; const [x] = n.splice(i, 1); n.splice(i + d, 0, x);
+      setActiveStageIdx(i + d);
+      return n;
+    });
+  }
   function updateStage(i, u) { setEditStages(p => p.map((s, j) => j === i ? { ...s, ...u } : s)); }
 
   function toggleRole(i, role) {
@@ -12526,177 +12544,214 @@ function LifecycleSettingsView({ auth }) {
             <button onClick={cancelEdit} className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
           </div>
 
-          <div className="space-y-3">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Stages &amp; Transitions</p>
-            {editStages.map((stage, idx) => (
-              <div key={idx} className="bg-gray-50 rounded-xl p-3 space-y-2.5">
-                {/* Row 1: color, label, type, controls */}
-                <div className="flex items-center gap-2">
-                  <input type="color" value={stage.color}
-                    onChange={e => updateStage(idx, { color: e.target.value })}
-                    className="w-7 h-7 rounded-lg cursor-pointer border border-gray-200 p-0.5 bg-white flex-shrink-0" />
-                  <input type="text" value={stage.label}
-                    onChange={e => updateStage(idx, { label: e.target.value })}
-                    className="flex-1 text-sm font-medium bg-transparent border-0 focus:outline-none text-gray-800 min-w-0"
-                    placeholder="Stage name" />
-                  <select value={stage.is_terminal ? "terminal" : "active"}
-                    onChange={e => updateStage(idx, { is_terminal: e.target.value === "terminal", ...(e.target.value === "terminal" ? { allowed_next: [], allowed_roles: [], is_initial: false } : {}) })}
-                    className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600 focus:outline-none flex-shrink-0">
-                    <option value="active">Active</option>
-                    <option value="terminal">Terminal</option>
-                  </select>
-                  {!stage.is_terminal && (
-                    <>
-                      <button onClick={() => setInitialStage(idx)}
-                        title="Set as the starting status when a case is created"
-                        className={`text-xs px-2 py-1 rounded-lg border font-semibold transition-colors flex-shrink-0 ${
-                          stage.is_initial
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-300"
-                            : "bg-white text-gray-400 border-gray-200 hover:border-emerald-300 hover:text-emerald-600"
-                        }`}>
-                        Initial
-                      </button>
-                      <button onClick={() => cycleTrigger(idx)}
-                        title="How this stage is reached: Manual (by user), Auto (by system), Both"
-                        className={`text-xs px-2 py-1 rounded-lg border font-semibold transition-colors flex-shrink-0 ${
-                          (stage.trigger ?? "manual") === "auto"
-                            ? "bg-purple-50 text-purple-700 border-purple-300"
-                            : (stage.trigger ?? "manual") === "both"
-                            ? "bg-indigo-50 text-indigo-700 border-indigo-300"
-                            : "bg-white text-gray-400 border-gray-200 hover:border-gray-300"
-                        }`}>
-                        {(stage.trigger ?? "manual") === "auto" ? "Auto" : (stage.trigger ?? "manual") === "both" ? "Manual+Auto" : "Manual"}
-                      </button>
-                    </>
-                  )}
-                  <button onClick={() => moveStage(idx, -1)} disabled={idx === 0}
-                    className="text-gray-400 hover:text-gray-600 disabled:opacity-20 w-5 text-center flex-shrink-0">↑</button>
-                  <button onClick={() => moveStage(idx, 1)} disabled={idx === editStages.length - 1}
-                    className="text-gray-400 hover:text-gray-600 disabled:opacity-20 w-5 text-center flex-shrink-0">↓</button>
-                  <button onClick={() => removeStage(idx)}
-                    className="text-red-300 hover:text-red-500 w-5 text-center flex-shrink-0 text-base leading-none">×</button>
-                </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Stages &amp; Transitions</p>
+              <button onClick={addStage}
+                className="text-xs font-semibold text-blue-600 hover:text-blue-700 border border-blue-200 rounded-lg px-2.5 py-1 hover:bg-blue-50">
+                + Add Stage
+              </button>
+            </div>
 
-                {/* Row 2: roles + allowed_next (only for active stages) */}
-                {!stage.is_terminal && (
-                  <div className="pl-9 space-y-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-16 flex-shrink-0">Roles</span>
-                      {ROLES.map(r => {
-                        const on = (stage.allowed_roles ?? []).includes(r.key);
-                        return (
-                          <button key={r.key} onClick={() => toggleRole(idx, r.key)}
-                            className="text-xs px-2.5 py-0.5 rounded-full font-semibold border transition-colors"
-                            style={on
-                              ? { backgroundColor: r.bg, color: r.color, borderColor: r.bg }
-                              : { backgroundColor: "white", color: "#9ca3af", borderColor: "#e5e7eb" }}>
-                            {r.label}
-                          </button>
-                        );
-                      })}
-                      {!(stage.allowed_roles ?? []).length && (
-                        <span className="text-[10px] text-gray-400 italic">no restriction — any role</span>
-                      )}
-                    </div>
-                    <div className="flex items-start gap-2 flex-wrap">
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-16 flex-shrink-0 pt-0.5">Next →</span>
-                      <div className="flex flex-wrap gap-1">
-                        {editStages.filter((_, j) => j !== idx).map(s => {
-                          const on = (stage.allowed_next ?? []).includes(s.key);
+            {/* Stage tab bar — same tile pattern as case detail */}
+            <div className="flex flex-wrap gap-2">
+              {editStages.map((s, i) => (
+                <button key={i} onClick={() => setActiveStageIdx(i)}
+                  className={`flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl border transition-all min-w-[76px] ${
+                    activeStageIdx === i
+                      ? "border-[#1A4B8C] bg-[#1A4B8C] text-white shadow-md"
+                      : "bg-white border-gray-200 text-gray-500 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                  }`}>
+                  <div className="w-3.5 h-3.5 rounded-full flex-shrink-0 ring-2 ring-white/40"
+                    style={{ backgroundColor: s.color }} />
+                  <span className="text-xs font-medium text-center leading-tight">{s.label || "Stage"}</span>
+                  {(s.is_terminal || s.is_initial) && (
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                      activeStageIdx === i ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"
+                    }`}>
+                      {s.is_initial ? "Initial" : "Terminal"}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Single stage editor panel */}
+            {editStages[activeStageIdx] && (() => {
+              const stage = editStages[activeStageIdx];
+              const idx   = activeStageIdx;
+              return (
+                <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 space-y-4">
+                  {/* Row 1: color, label, type, move, delete */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input type="color" value={stage.color}
+                      onChange={e => updateStage(idx, { color: e.target.value })}
+                      className="w-7 h-7 rounded-lg cursor-pointer border border-gray-200 p-0.5 bg-white flex-shrink-0" />
+                    <input type="text" value={stage.label}
+                      onChange={e => updateStage(idx, { label: e.target.value })}
+                      className="flex-1 text-sm font-semibold bg-white border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-0"
+                      placeholder="Stage name" />
+                    <select value={stage.is_terminal ? "terminal" : "active"}
+                      onChange={e => updateStage(idx, { is_terminal: e.target.value === "terminal", ...(e.target.value === "terminal" ? { allowed_next: [], allowed_roles: [], is_initial: false } : {}) })}
+                      className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-600 focus:outline-none flex-shrink-0">
+                      <option value="active">Active</option>
+                      <option value="terminal">Terminal</option>
+                    </select>
+                    {!stage.is_terminal && (
+                      <>
+                        <button onClick={() => setInitialStage(idx)}
+                          title="Set as the starting status when a case is created"
+                          className={`text-xs px-2 py-1.5 rounded-lg border font-semibold transition-colors flex-shrink-0 ${
+                            stage.is_initial
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                              : "bg-white text-gray-400 border-gray-200 hover:border-emerald-300 hover:text-emerald-600"
+                          }`}>
+                          Initial
+                        </button>
+                        <button onClick={() => cycleTrigger(idx)}
+                          title="How this stage is reached"
+                          className={`text-xs px-2 py-1.5 rounded-lg border font-semibold transition-colors flex-shrink-0 ${
+                            (stage.trigger ?? "manual") === "auto"
+                              ? "bg-purple-50 text-purple-700 border-purple-300"
+                              : (stage.trigger ?? "manual") === "both"
+                              ? "bg-indigo-50 text-indigo-700 border-indigo-300"
+                              : "bg-white text-gray-400 border-gray-200 hover:border-gray-300"
+                          }`}>
+                          {(stage.trigger ?? "manual") === "auto" ? "Auto" : (stage.trigger ?? "manual") === "both" ? "Manual+Auto" : "Manual"}
+                        </button>
+                      </>
+                    )}
+                    <button onClick={() => moveStage(idx, -1)} disabled={idx === 0}
+                      className="text-gray-400 hover:text-gray-600 disabled:opacity-20 w-6 text-center flex-shrink-0 font-bold">↑</button>
+                    <button onClick={() => moveStage(idx, 1)} disabled={idx === editStages.length - 1}
+                      className="text-gray-400 hover:text-gray-600 disabled:opacity-20 w-6 text-center flex-shrink-0 font-bold">↓</button>
+                    <button onClick={() => removeStage(idx)}
+                      className="text-red-300 hover:text-red-500 w-6 text-center flex-shrink-0 text-lg leading-none">×</button>
+                  </div>
+
+                  {/* Roles + allowed_next + access rules (only for active stages) */}
+                  {!stage.is_terminal && (
+                    <div className="space-y-3">
+                      {/* Roles */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-16 flex-shrink-0">Roles</span>
+                        {ROLES.map(r => {
+                          const on = (stage.allowed_roles ?? []).includes(r.key);
                           return (
-                            <button key={s.key} onClick={() => toggleNext(idx, s.key)}
-                              className="text-[11px] px-2 py-0.5 rounded-full font-semibold border transition-colors"
+                            <button key={r.key} onClick={() => toggleRole(idx, r.key)}
+                              className="text-xs px-2.5 py-0.5 rounded-full font-semibold border transition-colors"
                               style={on
-                                ? { backgroundColor: s.color + "22", color: s.color, borderColor: s.color + "55" }
+                                ? { backgroundColor: r.bg, color: r.color, borderColor: r.bg }
                                 : { backgroundColor: "white", color: "#9ca3af", borderColor: "#e5e7eb" }}>
-                              {s.label || s.key}
+                              {r.label}
                             </button>
                           );
                         })}
-                        {!(stage.allowed_next ?? []).length && (
-                          <span className="text-[10px] text-gray-400 italic">no restriction — any stage</span>
+                        {!(stage.allowed_roles ?? []).length && (
+                          <span className="text-[10px] text-gray-400 italic">no restriction — any role</span>
                         )}
                       </div>
-                    </div>
 
-                    {/* Access Rules */}
-                    <div className="pt-2 border-t border-gray-200 space-y-2">
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 block">Access Rules</span>
-
-                      {/* Action toggles */}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-14 flex-shrink-0">Allow</span>
-                        {ACTION_RULES.map(({ key, label }) => {
-                          const allowed = stage.rules?.[key] ?? true;
-                          return (
-                            <button key={key}
-                              onClick={() => updateStage(idx, { rules: { ...(stage.rules ?? {}), [key]: !allowed } })}
-                              className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border transition-colors ${
-                                allowed
-                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                  : "bg-red-50 text-red-500 border-red-200"
-                              }`}>
-                              {allowed ? "✓" : "✗"} {label}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* Tab visibility */}
+                      {/* Next → */}
                       <div className="flex items-start gap-2 flex-wrap">
-                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-14 flex-shrink-0 pt-0.5">Tabs</span>
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-16 flex-shrink-0 pt-0.5">Next →</span>
                         <div className="flex flex-wrap gap-1">
-                          {ALL_TABS.map(t => {
-                            const visibleTabs = stage.rules?.visible_tabs ?? null;
-                            const isOn = !visibleTabs || visibleTabs.includes(t.id);
+                          {editStages.filter((_, j) => j !== idx).map(s => {
+                            const on = (stage.allowed_next ?? []).includes(s.key);
                             return (
-                              <button key={t.id}
-                                onClick={() => {
-                                  const cur = stage.rules?.visible_tabs ?? ALL_TABS.map(x => x.id);
-                                  const next = isOn ? cur.filter(id => id !== t.id) : [...cur, t.id];
-                                  updateStage(idx, { rules: { ...(stage.rules ?? {}), visible_tabs: next.length === ALL_TABS.length ? null : next } });
-                                }}
-                                className={`text-[11px] px-2 py-0.5 rounded-full font-semibold border transition-colors ${
-                                  isOn ? "bg-blue-50 text-blue-600 border-blue-200" : "bg-gray-100 text-gray-400 border-gray-200"
-                                }`}>
-                                {t.label}
+                              <button key={s.key} onClick={() => toggleNext(idx, s.key)}
+                                className="text-[11px] px-2 py-0.5 rounded-full font-semibold border transition-colors"
+                                style={on
+                                  ? { backgroundColor: s.color + "22", color: s.color, borderColor: s.color + "55" }
+                                  : { backgroundColor: "white", color: "#9ca3af", borderColor: "#e5e7eb" }}>
+                                {s.label || s.key}
                               </button>
                             );
                           })}
-                          {!stage.rules?.visible_tabs && (
-                            <span className="text-[10px] text-gray-400 italic">all visible</span>
+                          {!(stage.allowed_next ?? []).length && (
+                            <span className="text-[10px] text-gray-400 italic">no restriction — any stage</span>
                           )}
                         </div>
                       </div>
 
-                      {/* Bypass roles */}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-14 flex-shrink-0">Bypass</span>
-                        {["admin", "manager", "consultant", "client"].map(role => {
-                          const bypass = stage.rules?.bypass_roles ?? ["admin", "manager"];
-                          const on = bypass.includes(role);
-                          return (
-                            <button key={role}
-                              onClick={() => {
-                                const cur = stage.rules?.bypass_roles ?? ["admin", "manager"];
-                                const next = on ? cur.filter(r => r !== role) : [...cur, role];
-                                updateStage(idx, { rules: { ...(stage.rules ?? {}), bypass_roles: next } });
-                              }}
-                              className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border transition-colors ${
-                                on ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-white text-gray-400 border-gray-200"
-                              }`}>
-                              {cap(role)}
-                            </button>
-                          );
-                        })}
-                        <span className="text-[10px] text-gray-400 italic">bypass all restrictions</span>
+                      {/* Access Rules */}
+                      <div className="pt-3 border-t border-gray-200 space-y-2.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 block">Access Rules</span>
+
+                        {/* Action toggles */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-14 flex-shrink-0">Allow</span>
+                          {ACTION_RULES.map(({ key, label }) => {
+                            const allowed = stage.rules?.[key] ?? true;
+                            return (
+                              <button key={key}
+                                onClick={() => updateStage(idx, { rules: { ...(stage.rules ?? {}), [key]: !allowed } })}
+                                className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border transition-colors ${
+                                  allowed
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                    : "bg-red-50 text-red-500 border-red-200"
+                                }`}>
+                                {allowed ? "✓" : "✗"} {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Tab visibility */}
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-14 flex-shrink-0 pt-0.5">Tabs</span>
+                          <div className="flex flex-wrap gap-1">
+                            {ALL_TABS.map(t => {
+                              const visibleTabs = stage.rules?.visible_tabs ?? null;
+                              const isOn = !visibleTabs || visibleTabs.includes(t.id);
+                              return (
+                                <button key={t.id}
+                                  onClick={() => {
+                                    const cur = stage.rules?.visible_tabs ?? ALL_TABS.map(x => x.id);
+                                    const next = isOn ? cur.filter(id => id !== t.id) : [...cur, t.id];
+                                    updateStage(idx, { rules: { ...(stage.rules ?? {}), visible_tabs: next.length === ALL_TABS.length ? null : next } });
+                                  }}
+                                  className={`text-[11px] px-2 py-0.5 rounded-full font-semibold border transition-colors ${
+                                    isOn ? "bg-blue-50 text-blue-600 border-blue-200" : "bg-gray-100 text-gray-400 border-gray-200"
+                                  }`}>
+                                  {t.label}
+                                </button>
+                              );
+                            })}
+                            {!stage.rules?.visible_tabs && (
+                              <span className="text-[10px] text-gray-400 italic">all visible</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Bypass roles */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-14 flex-shrink-0">Bypass</span>
+                          {["admin", "manager", "consultant", "client"].map(role => {
+                            const bypass = stage.rules?.bypass_roles ?? ["admin", "manager"];
+                            const on = bypass.includes(role);
+                            return (
+                              <button key={role}
+                                onClick={() => {
+                                  const cur = stage.rules?.bypass_roles ?? ["admin", "manager"];
+                                  const next = on ? cur.filter(r => r !== role) : [...cur, role];
+                                  updateStage(idx, { rules: { ...(stage.rules ?? {}), bypass_roles: next } });
+                                }}
+                                className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border transition-colors ${
+                                  on ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-white text-gray-400 border-gray-200"
+                                }`}>
+                                {cap(role)}
+                              </button>
+                            );
+                          })}
+                          <span className="text-[10px] text-gray-400 italic">bypass all restrictions</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
-            <button onClick={addStage} className="text-sm text-blue-600 hover:text-blue-700 font-medium">+ Add Stage</button>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           <div className="flex justify-end pt-2 border-t border-gray-100">
