@@ -14190,8 +14190,16 @@ function ManagerAdminWelcomeView({ auth, onComplete }) {
 // ROOT APP
 // ============================================================
 function StartDateMonitor({ auth }) {
-  const { cases } = useCases();
-  useStartDateMonitor(auth, cases);
+  const [monitorCases, setMonitorCases] = useState([]);
+  useEffect(() => {
+    if (!auth?.user?.id) return;
+    supabase.from("cases")
+      .select("id, title, status, start_date, client_id, case_assignments(consultant_id)")
+      .eq("status", "assigned")
+      .not("start_date", "is", null)
+      .then(({ data }) => setMonitorCases(data ?? []));
+  }, [auth?.user?.id]);
+  useStartDateMonitor(auth, monitorCases);
   return null;
 }
 
