@@ -34,7 +34,7 @@ import {
   BadgeCheck, XCircle,
   Wand2, Download, Sparkles,
   ListChecks, ChevronDown, ChevronRight, AlertTriangle, CircleSlash,
-  GripVertical, Pencil, Timer,
+  GripVertical, Pencil, Timer, Link2, ExternalLink,
 } from "lucide-react";
 
 // ============================================================
@@ -358,11 +358,27 @@ function useCaseActivities(caseId) {
     setLoading(true);
     const { data } = await supabase
       .from("case_activities")
-      .select("*")
+      .select("*, linked_case:linked_case_id(id, title, case_ref, status, progress_pct)")
       .eq("case_id", caseId)
       .order("sort_order")
       .order("task_no");
-    setActivities(data ?? []);
+
+    // Enrich sub_case activities with computed progress from the linked case's own activities
+    const enriched = await Promise.all((data ?? []).map(async (act) => {
+      if (act.activity_type !== "sub_case" || !act.linked_case_id) return act;
+      const [{ data: subActs }, { data: timeData }] = await Promise.all([
+        supabase.from("case_activities").select("progress_pct, est_hours").eq("case_id", act.linked_case_id),
+        supabase.from("time_entries").select("hours").eq("case_id", act.linked_case_id),
+      ]);
+      const subProgress = subActs?.length
+        ? Math.round(subActs.reduce((s, a) => s + a.progress_pct * (a.est_hours || 1), 0) /
+                     subActs.reduce((s, a) => s + (a.est_hours || 1), 0))
+        : (act.linked_case?.progress_pct ?? 0);
+      const subHoursUsed = timeData?.reduce((s, t) => s + (t.hours || 0), 0) ?? 0;
+      return { ...act, sub_progress: subProgress, sub_hours_used: subHoursUsed };
+    }));
+
+    setActivities(enriched);
     setLoading(false);
   }, [caseId]);
 
@@ -8550,6 +8566,12 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [editingActId, setEditingActId] = useState(null);
   const [editActForm, setEditActForm]   = useState({});
   const [expandedActId, setExpandedActId] = useState(null);
+  const [actType, setActType]             = useState("task");       // "task" | "sub_case"
+  const [subCaseMode, setSubCaseMode]     = useState("create");     // "create" | "link"
+  const [caseSearchQuery, setCaseSearchQuery]   = useState("");
+  const [caseSearchResults, setCaseSearchResults] = useState([]);
+  const [searchingCases, setSearchingCases]       = useState(false);
+  const [selectedLinkedCase, setSelectedLinkedCase] = useState(null);
 
   const [showEditWizard, setShowEditWizard] = useState(false);
   const [clientLifecycle, setClientLifecycle] = useState(null);
@@ -8745,12 +8767,19 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
     try { await onDelete(); } catch (e) { alert(e.message); }
   }
 
-  // Activities-derived progress
-  const totalEstHours   = activities.reduce((s, a) => s + (a.est_hours || 0), 0);
-  const caseProgress    = activities.length === 0 ? (caseData.progress_pct ?? 0) :
-    Math.round(activities.reduce((s, a) => s + a.progress_pct * (a.est_hours || 1), 0) /
-               activities.reduce((s, a) => s + (a.est_hours || 1), 0));
-  const allActivitiesDone = activities.length > 0 && activities.every(a => a.progress_pct === 100);
+  // Activities-derived progress (sub_case activities use the linked case's computed progress)
+  const totalEstHours = activities.reduce((s, a) => s + (a.est_hours || 0), 0);
+  const caseProgress  = activities.length === 0 ? (caseData.progress_pct ?? 0) :
+    Math.round(
+      activities.reduce((s, a) => {
+        const pct = a.activity_type === "sub_case" ? (a.sub_progress ?? 0) : a.progress_pct;
+        return s + pct * (a.est_hours || 1);
+      }, 0) /
+      activities.reduce((s, a) => s + (a.est_hours || 1), 0)
+    );
+  const allActivitiesDone = activities.length > 0 && activities.every(a =>
+    a.activity_type === "sub_case" ? (a.sub_progress ?? 0) === 100 : a.progress_pct === 100
+  );
 
   const tabs = [
     { id: "detail",     label: "Details",      icon: ClipboardList, count: null },
@@ -9502,13 +9531,73 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
           overdue:   { label: "Overdue",   cls: "bg-red-100 text-red-700" },
         };
 
+        async function searchCasesToLink(q) {
+          if (!q || q.length < 2) { setCaseSearchResults([]); return; }
+          setSearchingCases(true);
+          const { data } = await supabase.from("cases")
+            .select("id, title, case_ref, status")
+            .eq("client_id", caseData.client_id)
+            .neq("id", caseData.id)
+            .is("parent_case_id", null)
+            .ilike("title", `%${q}%`)
+            .limit(6);
+          setCaseSearchResults(data ?? []);
+          setSearchingCases(false);
+        }
+
+        function resetActForm() {
+          setActForm({ title: "", description: "", detail: "", est_hours: 4, start_date_plan: "", end_date_plan: "" });
+          setActType("task");
+          setSubCaseMode("create");
+          setCaseSearchQuery("");
+          setCaseSearchResults([]);
+          setSelectedLinkedCase(null);
+          setShowActForm(false);
+        }
+
         async function handleAddActivity() {
-          if (!actForm.title.trim()) return;
           setSavingAct(true);
           try {
-            await addActivity({ ...actForm, est_hours: Number(actForm.est_hours) || 0 });
-            setActForm({ title: "", description: "", detail: "", est_hours: 4, start_date_plan: "", end_date_plan: "" });
-            setShowActForm(false);
+            if (actType === "task") {
+              if (!actForm.title.trim()) { setSavingAct(false); return; }
+              await addActivity({ ...actForm, activity_type: "task", est_hours: Number(actForm.est_hours) || 0 });
+            } else {
+              // sub_case type
+              if (subCaseMode === "link") {
+                if (!selectedLinkedCase) { setSavingAct(false); return; }
+                // Set parent_case_id on the linked case to formalise the hierarchy
+                await supabase.from("cases").update({ parent_case_id: caseData.id }).eq("id", selectedLinkedCase.id);
+                await addActivity({
+                  title: selectedLinkedCase.title,
+                  activity_type: "sub_case",
+                  linked_case_id: selectedLinkedCase.id,
+                  est_hours: Number(actForm.est_hours) || 0,
+                  start_date_plan: actForm.start_date_plan,
+                  end_date_plan: actForm.end_date_plan,
+                });
+              } else {
+                // create mode — spin up a new sub-case then link it
+                if (!actForm.title.trim()) { setSavingAct(false); return; }
+                const newSubCase = await createSubCase({
+                  title: actForm.title,
+                  description: actForm.description,
+                  priority: "medium",
+                  status: subCaseInitialStatus,
+                  client_id: caseData.client_id,
+                  manager_id: caseData.manager_id,
+                });
+                await addActivity({
+                  title: actForm.title,
+                  description: actForm.description,
+                  activity_type: "sub_case",
+                  linked_case_id: newSubCase.id,
+                  est_hours: Number(actForm.est_hours) || 0,
+                  start_date_plan: actForm.start_date_plan,
+                  end_date_plan: actForm.end_date_plan,
+                });
+              }
+            }
+            resetActForm();
           } catch (e) { alert(e.message); }
           setSavingAct(false);
         }
@@ -9535,7 +9624,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
                   style={{ width: `${caseProgress}%` }} />
               </div>
               <div className="text-xs text-gray-400 mt-1.5 flex gap-4">
-                <span>{activities.filter(a => a.status === "completed").length} of {activities.length} activities complete</span>
+                <span>{activities.filter(a => a.activity_type === "sub_case" ? (a.sub_progress ?? 0) === 100 : a.status === "completed").length} of {activities.length} activities complete</span>
                 {totalEstHours > 0 && <span>{totalActualHoursAll.toFixed(1)}h logged of {totalEstHours}h estimated</span>}
               </div>
             </div>
@@ -9554,36 +9643,140 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
             {/* Add activity form */}
             {canManage && showActForm && (
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-3">
-                <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">New Activity</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="col-span-2">
-                    <Input label="Title *" value={actForm.title}
-                      onChange={e => setActForm(p => ({ ...p, title: e.target.value }))}
-                      placeholder="e.g. Configure Material Ledger" />
+                {/* Type toggle — only show Sub-case option if this case is not itself a sub-case */}
+                {!caseData.parent_case_id && (
+                  <div className="flex items-center gap-1 p-0.5 bg-white border border-blue-200 rounded-xl w-fit">
+                    <button onClick={() => setActType("task")}
+                      className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${actType === "task" ? "bg-blue-600 text-white" : "text-gray-500 hover:text-gray-700"}`}>
+                      Task
+                    </button>
+                    <button onClick={() => setActType("sub_case")}
+                      className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 ${actType === "sub_case" ? "bg-violet-600 text-white" : "text-gray-500 hover:text-gray-700"}`}>
+                      <Link2 size={11} /> Sub-case
+                    </button>
                   </div>
-                  <Input label="Estimated Hours" type="number" min="0" step="0.5" value={actForm.est_hours}
-                    onChange={e => setActForm(p => ({ ...p, est_hours: e.target.value }))} />
-                  <div />
-                  <Input label="Planned Start" type="date" value={actForm.start_date_plan}
-                    onChange={e => setActForm(p => ({ ...p, start_date_plan: e.target.value }))} />
-                  <Input label="Planned End" type="date" value={actForm.end_date_plan}
-                    onChange={e => setActForm(p => ({ ...p, end_date_plan: e.target.value }))} />
-                  <div className="col-span-2">
-                    <Textarea label="Description" value={actForm.description}
-                      onChange={e => setActForm(p => ({ ...p, description: e.target.value }))}
-                      placeholder="Brief summary of the task" />
-                  </div>
-                  <div className="col-span-2">
-                    <Textarea label="Detail / Acceptance Criteria" value={actForm.detail}
-                      onChange={e => setActForm(p => ({ ...p, detail: e.target.value }))}
-                      placeholder="Detailed steps, deliverables, or acceptance criteria" />
-                  </div>
-                </div>
+                )}
+
+                {actType === "task" ? (
+                  <>
+                    <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">New Task</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="col-span-2">
+                        <Input label="Title *" value={actForm.title}
+                          onChange={e => setActForm(p => ({ ...p, title: e.target.value }))}
+                          placeholder="e.g. Configure Material Ledger" />
+                      </div>
+                      <Input label="Estimated Hours" type="number" min="0" step="0.5" value={actForm.est_hours}
+                        onChange={e => setActForm(p => ({ ...p, est_hours: e.target.value }))} />
+                      <div />
+                      <Input label="Planned Start" type="date" value={actForm.start_date_plan}
+                        onChange={e => setActForm(p => ({ ...p, start_date_plan: e.target.value }))} />
+                      <Input label="Planned End" type="date" value={actForm.end_date_plan}
+                        onChange={e => setActForm(p => ({ ...p, end_date_plan: e.target.value }))} />
+                      <div className="col-span-2">
+                        <Textarea label="Description" value={actForm.description}
+                          onChange={e => setActForm(p => ({ ...p, description: e.target.value }))}
+                          placeholder="Brief summary of the task" />
+                      </div>
+                      <div className="col-span-2">
+                        <Textarea label="Detail / Acceptance Criteria" value={actForm.detail}
+                          onChange={e => setActForm(p => ({ ...p, detail: e.target.value }))}
+                          placeholder="Detailed steps, deliverables, or acceptance criteria" />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide">New Sub-case Activity</p>
+                    {/* Create / Link toggle */}
+                    <div className="flex gap-2">
+                      <button onClick={() => { setSubCaseMode("create"); setSelectedLinkedCase(null); setCaseSearchQuery(""); setCaseSearchResults([]); }}
+                        className={`px-3 py-1 text-xs rounded-lg border ${subCaseMode === "create" ? "border-violet-500 bg-violet-50 text-violet-700 font-semibold" : "border-gray-200 text-gray-500"}`}>
+                        Create new sub-case
+                      </button>
+                      <button onClick={() => setSubCaseMode("link")}
+                        className={`px-3 py-1 text-xs rounded-lg border ${subCaseMode === "link" ? "border-violet-500 bg-violet-50 text-violet-700 font-semibold" : "border-gray-200 text-gray-500"}`}>
+                        Link existing case
+                      </button>
+                    </div>
+
+                    {subCaseMode === "create" ? (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="col-span-2">
+                          <Input label="Sub-case Title *" value={actForm.title}
+                            onChange={e => setActForm(p => ({ ...p, title: e.target.value }))}
+                            placeholder="e.g. Phase 2 — Integration Testing" />
+                        </div>
+                        <Input label="Estimated Hours" type="number" min="0" step="0.5" value={actForm.est_hours}
+                          onChange={e => setActForm(p => ({ ...p, est_hours: e.target.value }))} />
+                        <div />
+                        <Input label="Planned Start" type="date" value={actForm.start_date_plan}
+                          onChange={e => setActForm(p => ({ ...p, start_date_plan: e.target.value }))} />
+                        <Input label="Planned End" type="date" value={actForm.end_date_plan}
+                          onChange={e => setActForm(p => ({ ...p, end_date_plan: e.target.value }))} />
+                        <div className="col-span-2">
+                          <Textarea label="Description" value={actForm.description}
+                            onChange={e => setActForm(p => ({ ...p, description: e.target.value }))}
+                            placeholder="What needs to be done in this sub-case?" />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {/* Search */}
+                        <div className="relative">
+                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Search Cases</label>
+                          <input
+                            value={caseSearchQuery}
+                            onChange={e => { setCaseSearchQuery(e.target.value); searchCasesToLink(e.target.value); }}
+                            placeholder="Type to search cases for this client…"
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                          {searchingCases && <span className="absolute right-3 top-8 text-xs text-gray-400">Searching…</span>}
+                          {caseSearchResults.length > 0 && !selectedLinkedCase && (
+                            <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+                              {caseSearchResults.map(c => (
+                                <button key={c.id}
+                                  onClick={() => { setSelectedLinkedCase(c); setCaseSearchQuery(c.title); setCaseSearchResults([]); }}
+                                  className="w-full text-left px-4 py-2.5 hover:bg-violet-50 border-b border-gray-100 last:border-0">
+                                  <span className="text-sm font-medium text-gray-800">{c.title}</span>
+                                  {c.case_ref && <span className="text-xs text-gray-400 ml-2">#{c.case_ref}</span>}
+                                  <span className="text-xs text-gray-400 ml-2">{cap(fmt(c.status))}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {selectedLinkedCase && (
+                          <div className="flex items-center gap-2 bg-violet-50 border border-violet-200 rounded-xl px-3 py-2">
+                            <Link2 size={13} className="text-violet-500 flex-shrink-0" />
+                            <span className="text-sm font-medium text-violet-800 flex-1">{selectedLinkedCase.title}</span>
+                            <button onClick={() => { setSelectedLinkedCase(null); setCaseSearchQuery(""); }}
+                              className="text-violet-400 hover:text-violet-600"><X size={14} /></button>
+                          </div>
+                        )}
+                        <div className="grid grid-cols-2 gap-3">
+                          <Input label="Estimated Hours" type="number" min="0" step="0.5" value={actForm.est_hours}
+                            onChange={e => setActForm(p => ({ ...p, est_hours: e.target.value }))} />
+                          <div />
+                          <Input label="Planned Start" type="date" value={actForm.start_date_plan}
+                            onChange={e => setActForm(p => ({ ...p, start_date_plan: e.target.value }))} />
+                          <Input label="Planned End" type="date" value={actForm.end_date_plan}
+                            onChange={e => setActForm(p => ({ ...p, end_date_plan: e.target.value }))} />
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
                 <div className="flex justify-end gap-2 pt-1 border-t border-blue-100">
-                  <button onClick={() => setShowActForm(false)} className="text-sm text-gray-500 px-3 py-1.5">Cancel</button>
-                  <button onClick={handleAddActivity} disabled={savingAct || !actForm.title.trim()}
-                    className="px-4 py-1.5 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
-                    {savingAct ? "Adding…" : "Add Activity"}
+                  <button onClick={resetActForm} className="text-sm text-gray-500 px-3 py-1.5">Cancel</button>
+                  <button onClick={handleAddActivity} disabled={
+                    savingAct ||
+                    (actType === "task" && !actForm.title.trim()) ||
+                    (actType === "sub_case" && subCaseMode === "create" && !actForm.title.trim()) ||
+                    (actType === "sub_case" && subCaseMode === "link" && !selectedLinkedCase)
+                  }
+                    className={`px-4 py-1.5 text-white text-sm font-semibold rounded-xl disabled:opacity-50 ${actType === "sub_case" ? "bg-violet-600 hover:bg-violet-700" : "bg-[#1A4B8C] hover:bg-blue-900"}`}>
+                    {savingAct ? "Adding…" : actType === "sub_case" ? (subCaseMode === "create" ? "Create Sub-case" : "Link Sub-case") : "Add Task"}
                   </button>
                 </div>
               </div>
@@ -9607,54 +9800,66 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
                   const actHours   = actEntries.reduce((s, e) => s + (e.hours ?? 0), 0);
 
                   if (isEditing) return (
-                    <div key={act.id} className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
-                      <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Edit Activity #{act.task_no}</p>
+                    <div key={act.id} className={`border rounded-xl p-4 space-y-3 ${act.activity_type === "sub_case" ? "bg-violet-50 border-violet-200" : "bg-blue-50 border-blue-200"}`}>
+                      <p className={`text-xs font-semibold uppercase tracking-wide ${act.activity_type === "sub_case" ? "text-violet-700" : "text-blue-700"}`}>
+                        {act.activity_type === "sub_case" ? `Edit Sub-case #${act.task_no} (dates & hours only)` : `Edit Activity #${act.task_no}`}
+                      </p>
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="col-span-2">
-                          <Input label="Title" value={editActForm.title ?? ""}
-                            onChange={e => setEditActForm(p => ({ ...p, title: e.target.value }))} />
-                        </div>
+                        {act.activity_type !== "sub_case" && (
+                          <div className="col-span-2">
+                            <Input label="Title" value={editActForm.title ?? ""}
+                              onChange={e => setEditActForm(p => ({ ...p, title: e.target.value }))} />
+                          </div>
+                        )}
                         <Input label="Estimated Hours" type="number" min="0" step="0.5"
                           value={editActForm.est_hours ?? ""}
                           onChange={e => setEditActForm(p => ({ ...p, est_hours: e.target.value }))} />
-                        <div>
-                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Status</label>
-                          <select value={editActForm.status ?? "pending"}
-                            onChange={e => setEditActForm(p => ({ ...p, status: e.target.value }))}
-                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="pending">Pending</option>
-                            <option value="in_progress">In Progress</option>
-                            <option value="completed">Completed</option>
-                            <option value="blocked">Blocked</option>
-                          </select>
-                        </div>
+                        {act.activity_type !== "sub_case" && (
+                          <div>
+                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Status</label>
+                            <select value={editActForm.status ?? "pending"}
+                              onChange={e => setEditActForm(p => ({ ...p, status: e.target.value }))}
+                              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                              <option value="pending">Pending</option>
+                              <option value="in_progress">In Progress</option>
+                              <option value="completed">Completed</option>
+                              <option value="blocked">Blocked</option>
+                            </select>
+                          </div>
+                        )}
                         <Input label="Planned Start" type="date" value={editActForm.start_date_plan ?? ""}
                           onChange={e => setEditActForm(p => ({ ...p, start_date_plan: e.target.value }))} />
                         <Input label="Planned End" type="date" value={editActForm.end_date_plan ?? ""}
                           onChange={e => setEditActForm(p => ({ ...p, end_date_plan: e.target.value }))} />
-                        <div className="col-span-2">
-                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Progress — {editActForm.progress_pct ?? 0}%</label>
-                          <input type="range" min="0" max="100" step="5"
-                            value={editActForm.progress_pct ?? 0}
-                            onChange={e => setEditActForm(p => ({ ...p, progress_pct: Number(e.target.value) }))}
-                            className="w-full accent-blue-600" />
-                        </div>
-                        <div className="col-span-2">
-                          <Textarea label="Description" value={editActForm.description ?? ""}
-                            onChange={e => setEditActForm(p => ({ ...p, description: e.target.value }))} />
-                        </div>
-                        <div className="col-span-2">
-                          <Textarea label="Detail / Acceptance Criteria" value={editActForm.detail ?? ""}
-                            onChange={e => setEditActForm(p => ({ ...p, detail: e.target.value }))} />
-                        </div>
+                        {act.activity_type !== "sub_case" && (
+                          <>
+                            <div className="col-span-2">
+                              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Progress — {editActForm.progress_pct ?? 0}%</label>
+                              <input type="range" min="0" max="100" step="5"
+                                value={editActForm.progress_pct ?? 0}
+                                onChange={e => setEditActForm(p => ({ ...p, progress_pct: Number(e.target.value) }))}
+                                className="w-full accent-blue-600" />
+                            </div>
+                            <div className="col-span-2">
+                              <Textarea label="Description" value={editActForm.description ?? ""}
+                                onChange={e => setEditActForm(p => ({ ...p, description: e.target.value }))} />
+                            </div>
+                            <div className="col-span-2">
+                              <Textarea label="Detail / Acceptance Criteria" value={editActForm.detail ?? ""}
+                                onChange={e => setEditActForm(p => ({ ...p, detail: e.target.value }))} />
+                            </div>
+                          </>
+                        )}
                       </div>
                       <div className="flex items-center justify-between pt-1 border-t border-blue-100">
-                        <button onClick={() => { if(window.confirm("Delete this activity?")) deleteActivity(act.id); }}
-                          className="text-xs text-red-400 hover:text-red-600">Delete</button>
+                        <button onClick={() => { if(window.confirm(act.activity_type === "sub_case" ? "Remove this sub-case link? The sub-case will NOT be deleted." : "Delete this activity?")) deleteActivity(act.id); }}
+                          className="text-xs text-red-400 hover:text-red-600">
+                          {act.activity_type === "sub_case" ? "Remove link" : "Delete"}
+                        </button>
                         <div className="flex gap-2">
                           <button onClick={() => setEditingActId(null)} className="text-sm text-gray-500 px-3 py-1.5">Cancel</button>
                           <button onClick={() => handleSaveEdit(act.id)} disabled={savingAct}
-                            className="px-4 py-1.5 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
+                            className={`px-4 py-1.5 text-white text-sm font-semibold rounded-xl disabled:opacity-50 ${act.activity_type === "sub_case" ? "bg-violet-600 hover:bg-violet-700" : "bg-[#1A4B8C] hover:bg-blue-900"}`}>
                             {savingAct ? "Saving…" : "Save"}
                           </button>
                         </div>
@@ -9662,6 +9867,95 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
                     </div>
                   );
 
+                  // ── Sub-case activity row ────────────────────────────
+                  if (act.activity_type === "sub_case") {
+                    const subPct   = act.sub_progress ?? 0;
+                    const subHours = act.sub_hours_used ?? 0;
+                    const scAdh    = activityAdherence({ ...act, progress_pct: subPct });
+                    const scAdhInfo = scAdh ? ADHERENCE[scAdh] : null;
+                    return (
+                      <div key={act.id} className="border border-violet-200 rounded-xl overflow-hidden">
+                        <div className="flex items-center gap-3 px-4 py-3 bg-white hover:bg-violet-50">
+                          <span className="text-xs font-bold text-gray-400 w-6 flex-shrink-0 text-center">#{act.task_no}</span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 bg-violet-100 text-violet-700 flex items-center gap-1">
+                            <Link2 size={9} /> Sub-case
+                          </span>
+                          {/* Title — click to open sub-case */}
+                          <div className="flex-1 min-w-0 cursor-pointer"
+                            onClick={() => { if (act.linked_case) { setSelectedSubCase(act.linked_case); setActiveTab("subcases"); } }}>
+                            <div className="flex items-center gap-1">
+                              <p className="text-sm font-semibold text-gray-800 truncate">{act.title}</p>
+                              <ExternalLink size={11} className="text-violet-400 flex-shrink-0" />
+                            </div>
+                            {act.linked_case?.status && (
+                              <p className="text-xs text-gray-400 mt-0.5">
+                                {cap(fmt(act.linked_case.status))}
+                              </p>
+                            )}
+                          </div>
+                          {/* Progress (derived from linked case) */}
+                          <div className="w-28 flex-shrink-0">
+                            <div className="flex items-center justify-between text-xs mb-1">
+                              <span className="text-violet-600 font-semibold">{subPct}%</span>
+                              <span className="text-gray-400 font-mono">{subHours.toFixed(1)}h / {act.est_hours ?? 0}h</span>
+                            </div>
+                            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full transition-all ${subPct === 100 ? "bg-emerald-500" : "bg-violet-500"}`}
+                                style={{ width: `${subPct}%` }} />
+                            </div>
+                          </div>
+                          {act.end_date_plan && (
+                            <span className="text-xs text-gray-400 flex-shrink-0 hidden sm:block">
+                              {act.start_date_plan ? `${act.start_date_plan} → ` : "→ "}{act.end_date_plan}
+                            </span>
+                          )}
+                          {scAdhInfo && (
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${scAdhInfo.cls}`}>
+                              {scAdhInfo.label}
+                            </span>
+                          )}
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            {canManage && (
+                              <button
+                                onClick={() => { setEditingActId(act.id); setEditActForm({ est_hours: act.est_hours, start_date_plan: act.start_date_plan ?? "", end_date_plan: act.end_date_plan ?? "" }); }}
+                                className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                                title="Edit dates / estimated hours">
+                                <Pencil size={13} />
+                              </button>
+                            )}
+                            <button onClick={() => setExpandedActId(expandedActId === act.id ? null : act.id)}
+                              className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                              {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                            </button>
+                          </div>
+                        </div>
+                        {/* Expanded: sub-case summary */}
+                        {isExpanded && (
+                          <div className="border-t border-violet-100 bg-violet-50 px-4 py-3 space-y-2">
+                            <div className="flex items-center gap-4 text-xs text-gray-500">
+                              <span>Logged on sub-case: <strong className="text-gray-700">{subHours.toFixed(1)}h</strong></span>
+                              <span>Progress: <strong className="text-violet-700">{subPct}%</strong></span>
+                              {act.linked_case?.status && (
+                                <span>Status: <strong className="text-gray-700">{cap(fmt(act.linked_case.status))}</strong></span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-violet-600">
+                              Progress and time are read from the linked sub-case. Open the sub-case to log time or update progress.
+                            </p>
+                            {canManage && (
+                              <button
+                                onClick={() => { if(window.confirm("Remove this sub-case link? The sub-case itself will NOT be deleted.")) deleteActivity(act.id); }}
+                                className="text-xs text-red-400 hover:text-red-600 mt-1">
+                                Remove link
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  // ── Regular task row ─────────────────────────────────
                   return (
                     <div key={act.id} className="border border-gray-200 rounded-xl overflow-hidden">
                       {/* Main row */}
