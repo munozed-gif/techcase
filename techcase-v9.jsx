@@ -1490,6 +1490,8 @@ const INDUSTRY_AREAS = [
 
 const STATUS_COLORS = {
   open:        "bg-emerald-100 text-emerald-800",
+  estimated:   "bg-teal-100 text-teal-800",
+  assigned:    "bg-violet-100 text-violet-800",
   in_progress: "bg-blue-100 text-blue-800",
   on_hold:     "bg-yellow-100 text-yellow-800",
   completed:   "bg-gray-100 text-gray-800",
@@ -1517,11 +1519,12 @@ const APP_STATUS_COLORS = {
 const LIFECYCLE_PRESETS = {
   short: {
     name: "Short",
-    subtitle: "5 stages",
+    subtitle: "6 stages",
     description: "Simple flow for straightforward consulting requests.",
     stages: [
       { key: "open",        label: "New Request", color: "#60A5FA", is_terminal: false },
       { key: "estimated",   label: "Estimated",   color: "#34D399", is_terminal: false },
+      { key: "assigned",    label: "Assigned",    color: "#8B5CF6", is_terminal: false, trigger: "auto" },
       { key: "in_progress", label: "Active",      color: "#1E40AF", is_terminal: false },
       { key: "completed",   label: "Done",        color: "#374151", is_terminal: true  },
       { key: "cancelled",   label: "Cancelled",   color: "#6B7280", is_terminal: true  },
@@ -1529,11 +1532,12 @@ const LIFECYCLE_PRESETS = {
   },
   standard: {
     name: "Standard",
-    subtitle: "6 stages",
+    subtitle: "7 stages",
     description: "Default consulting flow with an On Hold pause state.",
     stages: [
       { key: "open",        label: "Open",        color: "#93C5FD", is_terminal: false },
       { key: "estimated",   label: "Estimated",   color: "#34D399", is_terminal: false },
+      { key: "assigned",    label: "Assigned",    color: "#8B5CF6", is_terminal: false, trigger: "auto" },
       { key: "in_progress", label: "In Progress", color: "#2563EB", is_terminal: false },
       { key: "on_hold",     label: "On Hold",     color: "#1D4ED8", is_terminal: false },
       { key: "completed",   label: "Completed",   color: "#374151", is_terminal: true  },
@@ -1542,13 +1546,14 @@ const LIFECYCLE_PRESETS = {
   },
   large: {
     name: "Large",
-    subtitle: "8 stages",
+    subtitle: "9 stages",
     description: "Full consulting pipeline from sourcing through placement.",
     stages: [
       { key: "open",        label: "Sourcing",    color: "#93C5FD", is_terminal: false },
       { key: "screening",   label: "Screening",   color: "#60A5FA", is_terminal: false },
       { key: "shortlisted", label: "Shortlisted", color: "#3B82F6", is_terminal: false },
       { key: "estimated",   label: "Estimated",   color: "#34D399", is_terminal: false },
+      { key: "assigned",    label: "Assigned",    color: "#8B5CF6", is_terminal: false, trigger: "auto" },
       { key: "in_progress", label: "In Progress", color: "#1D4ED8", is_terminal: false },
       { key: "on_hold",     label: "Negotiation", color: "#1E40AF", is_terminal: false },
       { key: "completed",   label: "Placed",      color: "#374151", is_terminal: true  },
@@ -8511,17 +8516,19 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   async function handleReviewApplication(appId, appStatus, notes) {
     await reviewApplication(appId, appStatus, notes);
     if (appStatus === "accepted" && onStatusChange) {
+      if (caseData.status === "assigned") return; // already in target status
       const curStage = lifecycleStages.find(s => s.key === caseData.status);
-      if (curStage && !curStage.is_terminal) {
-        const allowedNextKeys = curStage.allowed_next?.length
-          ? curStage.allowed_next
-          : lifecycleStages.map(s => s.key).filter(k => k !== caseData.status);
-        const autoStage = lifecycleStages.find(s =>
-          allowedNextKeys.includes(s.key) &&
-          (s.trigger === "auto" || s.trigger === "both")
-        );
-        if (autoStage) await onStatusChange(caseData.id, autoStage.key);
-      }
+      const isTerminal = curStage?.is_terminal ?? ["completed","cancelled"].includes(caseData.status);
+      if (isTerminal) return;
+      const allowedNextKeys = curStage?.allowed_next?.length
+        ? curStage.allowed_next
+        : lifecycleStages.map(s => s.key).filter(k => k !== caseData.status);
+      const autoStage = lifecycleStages.find(s =>
+        allowedNextKeys.includes(s.key) &&
+        (s.trigger === "auto" || s.trigger === "both")
+      );
+      // Use auto-trigger stage from lifecycle config, or fall back to "assigned"
+      await onStatusChange(caseData.id, autoStage?.key ?? "assigned");
     }
   }
   useEffect(() => {
@@ -9566,18 +9573,19 @@ function ArenaView({ auth }) {
     await reviewApplication(appId, appStatus, notes);
     if (appStatus === "accepted" && arenaSelectedCase) {
       const c = arenaSelectedCase;
+      if (c.status === "assigned") return;
       const stages = getLifecycleStages(c.case_lifecycle, arenaLcTemplates);
       const curStage = stages.find(s => s.key === c.status);
-      if (curStage && !curStage.is_terminal) {
-        const allowedNextKeys = curStage.allowed_next?.length
-          ? curStage.allowed_next
-          : stages.map(s => s.key).filter(k => k !== c.status);
-        const autoStage = stages.find(s =>
-          allowedNextKeys.includes(s.key) &&
-          (s.trigger === "auto" || s.trigger === "both")
-        );
-        if (autoStage) await updateCase(c.id, { status: autoStage.key });
-      }
+      const isTerminal = curStage?.is_terminal ?? ["completed","cancelled"].includes(c.status);
+      if (isTerminal) return;
+      const allowedNextKeys = curStage?.allowed_next?.length
+        ? curStage.allowed_next
+        : stages.map(s => s.key).filter(k => k !== c.status);
+      const autoStage = stages.find(s =>
+        allowedNextKeys.includes(s.key) &&
+        (s.trigger === "auto" || s.trigger === "both")
+      );
+      await updateCase(c.id, { status: autoStage?.key ?? "assigned" });
     }
   }
 
