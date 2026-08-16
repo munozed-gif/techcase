@@ -9589,7 +9589,9 @@ function ArenaView({ auth }) {
     }
   }
 
-  const openCases       = cases.filter(c => c.status === "estimated");
+  const openCases       = cases.filter(c =>
+    c.status === "estimated" && (!c.case_assignments || c.case_assignments.length === 0)
+  );
   const myApplications  = applications.filter(a => a.consultant_id === auth.user?.id);
   const appliedCaseIds  = new Set(myApplications.map(a => a.case_id));
   const canViewRanking  = auth.isAdmin || auth.isManager || auth.isClient;
