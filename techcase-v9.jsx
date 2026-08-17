@@ -9091,11 +9091,11 @@ Extract every discrete task, activity, deliverable, or work item. If you find no
       <div>
         <div className="flex justify-between text-xs text-gray-500 mb-1">
           <span>Overall Progress</span>
-          <span className="font-semibold text-gray-800">{progressPct}%</span>
+          <span className="font-semibold text-gray-800">{caseProgress}%</span>
         </div>
         <div className="h-2.5 bg-blue-200 rounded-full overflow-hidden">
           <div className="h-full bg-blue-500 rounded-full transition-all"
-            style={{ width: `${progressPct}%` }} />
+            style={{ width: `${caseProgress}%` }} />
         </div>
         {milestones.length > 0 && (
           <div className="text-xs text-gray-400 mt-1">Milestones: {milestonePct}% complete</div>
