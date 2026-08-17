@@ -8656,7 +8656,8 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [newMilestone, setNewMilestone] = useState("");
   const [commentForm, setCommentForm]  = useState({ body: "", hoursLogged: 0, progressUpdate: "", isInternal: false });
   const [sendingComment, setSendingComment] = useState(false);
-  const [progressPct, setProgressPct] = useState(caseData.progress_pct ?? 0);
+  const [progressPct, setProgressPct]       = useState(caseData.progress_pct ?? 0);
+  const [pendingStageKey, setPendingStageKey] = useState(null); // soft-warning inline confirm
   const [showSubCaseForm, setShowSubCaseForm] = useState(false);
   const [subCaseForm, setSubCaseForm] = useState({ title: "", description: "", priority: "medium", status: "open" });
   const [savingSubCase, setSavingSubCase] = useState(false);
@@ -9304,15 +9305,15 @@ Tester signature, Approver signature, Date.`;
                 const { Icon, desc } = NEXT_META[s.key] ?? { Icon: Zap, desc: "Move to this stage" };
                 const isCancelled = s.key === "cancelled";
                 const isTestStage = TEST_STAGES.includes(s.key);
+                const needsConfirm = isTestStage && caseProgress < 100 && activities.length > 0;
+                const isPending = pendingStageKey === s.key;
                 const color = isCancelled ? "#EF4444" : s.color;
                 return (
                   <button key={s.key}
                     onClick={() => {
                       if (isCancelled) return initCancelModal(caseData.id);
-                      if (isTestStage && caseProgress < 100 && activities.length > 0) {
-                        const msg = `Only ${caseProgress}% complete (${doneCount}/${activities.length} activities done).\n\nMove to ${s.label} anyway?`;
-                        if (!window.confirm(msg)) return;
-                      }
+                      if (needsConfirm && !isPending) { setPendingStageKey(s.key); return; }
+                      setPendingStageKey(null);
                       onStatusChange(caseData.id, s.key);
                     }}
                     className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl border-2 text-left transition-all hover:shadow-md active:scale-[0.98] bg-white ${
@@ -9326,9 +9327,22 @@ Tester signature, Approver signature, Date.`;
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-bold text-gray-900 text-sm">{s.label}</div>
-                      <div className="text-xs text-gray-500 mt-0.5 leading-relaxed">{desc}</div>
+                      {isPending ? (
+                        <div className="mt-1">
+                          <p className="text-xs text-amber-700 font-medium mb-1.5">
+                            Only {caseProgress}% complete ({doneCount}/{activities.length} activities). Confirm move?
+                          </p>
+                          <div className="flex gap-2">
+                            <span className="px-2.5 py-1 text-xs bg-amber-500 text-white font-semibold rounded-lg">Tap again to confirm</span>
+                            <span onClick={e => { e.stopPropagation(); setPendingStageKey(null); }}
+                              className="px-2.5 py-1 text-xs border border-gray-200 text-gray-500 rounded-lg">Cancel</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-500 mt-0.5 leading-relaxed">{desc}</div>
+                      )}
                     </div>
-                    <span className="text-gray-300 text-xl flex-shrink-0">›</span>
+                    {!isPending && <span className="text-gray-300 text-xl flex-shrink-0">›</span>}
                   </button>
                 );
               })}
