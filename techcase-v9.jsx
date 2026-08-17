@@ -6434,7 +6434,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
   const [rejectReason, setRejectReason]   = useState('');
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [approving, setApproving]         = useState(false);
-  const [savedSpecUrl, setSavedSpecUrl]   = useState(null);
+  const [savedSpecUrls, setSavedSpecUrls] = useState({ a: null, b: null, c: null });
   const [savingDoc, setSavingDoc]         = useState(false);
   const [specHtml, setSpecHtml]           = useState(null);
 
@@ -6995,19 +6995,73 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
     return doc.output('blob');
   }
 
-  async function saveSpecAsDocument(markdown) {
+  function buildValidationMarkdown(sap, proposal) {
+    if (!sap && !proposal) return '';
+    const lines = ['## Analysis Summary\n'];
+    if (sap) {
+      const coverageLabel = sap.coverage === 'full' ? 'Full — standard SAP covers the requirement' : sap.coverage === 'partial' ? 'Partial — gaps require additional work' : 'None — custom development required';
+      lines.push('### SAP Standard Coverage Check');
+      lines.push(`**Coverage:** ${coverageLabel}`);
+      if (sap.summary) lines.push(`**Summary:** ${sap.summary}`);
+      if ((sap.standard_transactions ?? []).length > 0) lines.push(`**Standard Transactions:** ${sap.standard_transactions.join(', ')}`);
+      if ((sap.gaps ?? []).length > 0) lines.push('**Gaps identified:**\n' + sap.gaps.map(g => `- ${g}`).join('\n'));
+      if (sap.recommendation) lines.push(`**Recommendation:** ${sap.recommendation}`);
+      lines.push('');
+    }
+    if (proposal) {
+      const riskMap = { low: 'Low', medium: 'Medium', high: 'High' };
+      lines.push('### Proposal Validation');
+      lines.push(`**Result:** ${proposal.valid ? 'Valid' : 'Has concerns'}  |  **Risk:** ${riskMap[proposal.risk_level] ?? proposal.risk_level}  |  **Score:** ${proposal.score}/10`);
+      if ((proposal.strengths ?? []).length > 0) lines.push('**Strengths:**\n' + proposal.strengths.map(s => `- ${s}`).join('\n'));
+      if ((proposal.concerns ?? []).length > 0) lines.push('**Concerns:**\n' + proposal.concerns.map(c => `- ${c}`).join('\n'));
+      if (proposal.recommendation) lines.push(`**Recommendation:** ${proposal.recommendation}`);
+      lines.push('');
+    }
+    lines.push('---\n');
+    return lines.join('\n');
+  }
+
+  async function saveSpecAsDocument(markdown, filePrefix, docNote) {
     setSavingDoc(true);
     try {
       const safeName = (caseData.title ?? 'Spec').replace(/[^a-z0-9]/gi, '_');
-      const fileName = `FuncSpec_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`;
+      const prefix = filePrefix ?? 'FuncSpec';
+      const fileName = `${prefix}_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`;
       const pdfBlob = await buildSpecPdf(markdown);
       setSpecHtml(pdfBlob);
       const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
-      await addDocument(file, 'Auto-generated functional specification');
-      setSavedSpecUrl(fileName);
+      await addDocument(file, docNote ?? 'Auto-generated functional specification');
+      setSavedSpecUrls(p => ({ ...p, a: fileName }));
       if (refetchDocuments) await refetchDocuments();
     } catch (e) {
       alert('Could not generate PDF: ' + e.message);
+    }
+    setSavingDoc(false);
+  }
+
+  async function saveAllSpecsAsDocuments(specA, specB, specC, sap, proposal) {
+    setSavingDoc(true);
+    try {
+      const safeName = (caseData.title ?? 'Spec').replace(/[^a-z0-9]/gi, '_');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const valSection = buildValidationMarkdown(sap, proposal);
+      const specs = [
+        { key: 'a', content: valSection + specA, prefix: 'SpecA_CustomABAP',      note: 'Option A — Custom ABAP Development' },
+        { key: 'b', content: valSection + specB, prefix: 'SpecB_StandardSAP',     note: 'Option B — Standard SAP Configuration' },
+        { key: 'c', content: valSection + specC, prefix: 'SpecC_CustomerProposal', note: 'Option C — Customer Proposal As-Is' },
+      ];
+      const newUrls = { a: null, b: null, c: null };
+      for (const s of specs) {
+        const fileName = `${s.prefix}_${safeName}_${dateStr}.pdf`;
+        const pdfBlob = await buildSpecPdf(s.content);
+        const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+        await addDocument(file, s.note);
+        newUrls[s.key] = fileName;
+      }
+      setSavedSpecUrls(newUrls);
+      if (refetchDocuments) await refetchDocuments();
+    } catch (e) {
+      alert('Could not save PDFs: ' + e.message);
     }
     setSavingDoc(false);
   }
@@ -7517,9 +7571,12 @@ Use realistic Z object names matching the customer's described solution for ${ca
       setAiSpecC(specC);
       setSelectedSpec('a');
       setAiContent(specA);
+      setSavedSpecUrls({ a: null, b: null, c: null });
       try {
         await saveSpec({ mode: 'ai', status: 'draft', content: specA, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, selectedSpec: 'a', prevMode, analysisCustomerContent: customerContent }), title: caseData.title + ' — Functional Spec' });
       } catch (_) {}
+      // Auto-save all 3 as PDF documents (includes validation results)
+      await saveAllSpecsAsDocuments(specA, specB, specC, sapCheck, proposalCheck);
     } catch (e) {
       setAiError(e.message);
     }
@@ -8101,18 +8158,10 @@ Respond with ONLY a valid JSON object, no markdown fences:
               }} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50">
                 Save Draft
               </button>
-              {savedSpecUrl ? (
-                <button onClick={openSpecInNewTab}
-                  className="flex items-center px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700">
-                  <Download className="w-4 h-4 mr-1.5" />Open PDF
-                </button>
-              ) : (
-                <button onClick={() => saveSpecAsDocument(compiledSpec)} disabled={savingDoc}
-                  className="flex items-center px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50">
-                  {savingDoc ? 'Saving…' : <><Paperclip className="w-4 h-4 mr-1.5" />Save to Documents</>}
-                </button>
-
-              )}
+              <button onClick={() => saveSpecAsDocument(compiledSpec)} disabled={savingDoc}
+                className="flex items-center px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50">
+                {savingDoc ? 'Saving…' : <><Paperclip className="w-4 h-4 mr-1.5" />Save to Documents</>}
+              </button>
               <button onClick={() => {
                 const qaSummary = wizardObjects.map(o => `${o.name} (${o.type}): ${(o.questions ?? []).map(q => `${q.question} → ${q.a}`).join('; ')}`).join('\n');
                 setAnalysisCustomerContent(qaSummary || compiledSpec);
@@ -8519,34 +8568,44 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 </div>
 
                 {/* Action bar */}
-                <div className="flex gap-3 items-center justify-between pt-3 border-t border-gray-100">
-                  <p className="text-xs text-gray-500">
-                    {selectedSpec ? `Submitting: Option ${selectedSpec.toUpperCase()} — ${selectedSpec === 'a' ? 'Custom ABAP' : selectedSpec === 'b' ? 'Standard SAP' : 'Customer Proposal'}` : 'Click a tab to select which spec to submit'}
-                  </p>
-                  <div className="flex gap-2">
-                    <button onClick={async () => {
-                      const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA;
-                      try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent }), title: caseData.title + ' — Functional Spec' }); await refetch(); } catch (e) { alert(e.message); }
-                    }} disabled={!selectedSpec} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-40">
-                      Save Draft
-                    </button>
-                    {savedSpecUrl ? (
-                      <button onClick={openSpecInNewTab}
-                        className="flex items-center px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700">
-                        <Download className="w-4 h-4 mr-1.5" />Open PDF
+                <div className="space-y-2 pt-3 border-t border-gray-100">
+                  {/* PDF status row */}
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {[
+                      { key: 'a', label: 'Custom ABAP', color: 'bg-amber-400' },
+                      { key: 'b', label: 'Standard SAP', color: 'bg-green-500' },
+                      { key: 'c', label: 'Customer Proposal', color: 'bg-purple-500' },
+                    ].map(({ key, label, color }) => (
+                      <span key={key} className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${savedSpecUrls[key] ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
+                        <span className={`w-2 h-2 rounded-full ${savedSpecUrls[key] ? 'bg-green-500' : color} opacity-70`} />
+                        {label} {savedSpecUrls[key] ? '✓ saved' : 'not saved'}
+                      </span>
+                    ))}
+                    {savingDoc && <span className="text-xs text-blue-600 flex items-center gap-1"><Spinner />&nbsp;Saving PDFs…</span>}
+                  </div>
+                  <div className="flex gap-2 items-center justify-between">
+                    <p className="text-xs text-gray-500">
+                      {selectedSpec ? `Submitting: Option ${selectedSpec.toUpperCase()} — ${selectedSpec === 'a' ? 'Custom ABAP' : selectedSpec === 'b' ? 'Standard SAP' : 'Customer Proposal'}` : 'Click a tab above to select which spec to submit'}
+                    </p>
+                    <div className="flex gap-2">
+                      <button onClick={async () => {
+                        const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA;
+                        try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent }), title: caseData.title + ' — Functional Spec' }); await refetch(); } catch (e) { alert(e.message); }
+                      }} disabled={!selectedSpec} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-40">
+                        Save Draft
                       </button>
-                    ) : (
-                      <button onClick={() => saveSpecAsDocument(selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA)} disabled={!selectedSpec || savingDoc}
+                      <button onClick={() => saveAllSpecsAsDocuments(aiSpecA, aiSpecB, aiSpecC, sapCheck, proposalCheck)}
+                        disabled={savingDoc || (!aiSpecA && !aiSpecB && !aiSpecC)}
                         className="flex items-center px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-40">
-                        {savingDoc ? 'Saving…' : <><Paperclip className="w-4 h-4 mr-1.5" />Save PDF</>}
+                        <Paperclip className="w-4 h-4 mr-1.5" />{savingDoc ? 'Saving…' : 'Save All 3 PDFs'}
                       </button>
-                    )}
-                    {canSubmit && (
-                      <button onClick={() => handleSubmit(selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA, 'ai', [])} disabled={!selectedSpec}
-                        className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-40">
-                        Submit for Approval
-                      </button>
-                    )}
+                      {canSubmit && (
+                        <button onClick={() => handleSubmit(selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA, 'ai', [])} disabled={!selectedSpec}
+                          className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-40">
+                          Submit for Approval
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
