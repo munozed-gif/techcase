@@ -356,26 +356,35 @@ function useCaseActivities(caseId, refreshKey = 0) {
   const fetchActivities = useCallback(async () => {
     if (!caseId) { setLoading(false); return; }
     setLoading(true);
-    const { data } = await supabase
+
+    // Fetch activities without a FK join so a missing column never silences the whole query.
+    const { data, error: fetchErr } = await supabase
       .from("case_activities")
-      .select("*, linked_case:linked_case_id(id, title, case_ref, status, progress_pct)")
+      .select("*")
       .eq("case_id", caseId)
       .order("sort_order")
       .order("task_no");
 
-    // Enrich sub_case activities with computed progress from the linked case's own activities
+    if (fetchErr) {
+      console.error("[useCaseActivities] SELECT failed:", fetchErr.message);
+      setLoading(false);
+      return;
+    }
+
+    // Enrich sub_case activities: fetch linked case + its time in parallel.
     const enriched = await Promise.all((data ?? []).map(async (act) => {
       if (act.activity_type !== "sub_case" || !act.linked_case_id) return act;
-      const [{ data: subActs }, { data: timeData }] = await Promise.all([
+      const [{ data: linkedCase }, { data: subActs }, { data: timeData }] = await Promise.all([
+        supabase.from("cases").select("id, title, case_ref, status, progress_pct").eq("id", act.linked_case_id).maybeSingle(),
         supabase.from("case_activities").select("progress_pct, est_hours").eq("case_id", act.linked_case_id),
         supabase.from("time_entries").select("hours").eq("case_id", act.linked_case_id),
       ]);
       const subProgress = subActs?.length
         ? Math.round(subActs.reduce((s, a) => s + a.progress_pct * (a.est_hours || 1), 0) /
                      subActs.reduce((s, a) => s + (a.est_hours || 1), 0))
-        : (act.linked_case?.progress_pct ?? 0);
+        : (linkedCase?.progress_pct ?? 0);
       const subHoursUsed = timeData?.reduce((s, t) => s + (t.hours || 0), 0) ?? 0;
-      return { ...act, sub_progress: subProgress, sub_hours_used: subHoursUsed };
+      return { ...act, linked_case: linkedCase, sub_progress: subProgress, sub_hours_used: subHoursUsed };
     }));
 
     setActivities(enriched);
