@@ -8594,11 +8594,16 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       }} disabled={!selectedSpec} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-40">
                         Save Draft
                       </button>
-                      <button onClick={() => saveAllSpecsAsDocuments(aiSpecA, aiSpecB, aiSpecC, sapCheck, proposalCheck)}
-                        disabled={savingDoc || (!aiSpecA && !aiSpecB && !aiSpecC)}
-                        className="flex items-center px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-40">
-                        <Paperclip className="w-4 h-4 mr-1.5" />{savingDoc ? 'Saving…' : 'Save All 3 PDFs'}
-                      </button>
+                      {(() => {
+                        const allSaved = savedSpecUrls.a && savedSpecUrls.b && savedSpecUrls.c;
+                        return (
+                          <button onClick={() => saveAllSpecsAsDocuments(aiSpecA, aiSpecB, aiSpecC, sapCheck, proposalCheck)}
+                            disabled={savingDoc || allSaved || (!aiSpecA && !aiSpecB && !aiSpecC)}
+                            className={`flex items-center px-4 py-2 text-sm font-semibold rounded-xl disabled:opacity-40 ${allSaved ? 'bg-gray-100 text-gray-500 border border-gray-200 cursor-default' : 'bg-green-600 text-white hover:bg-green-700'}`}>
+                            {savingDoc ? 'Saving…' : allSaved ? <>✓&nbsp;3 PDFs saved</> : <><Paperclip className="w-4 h-4 mr-1.5" />Save All 3 PDFs</>}
+                          </button>
+                        );
+                      })()}
                       {canSubmit && (
                         <button onClick={() => handleSubmit(selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA, 'ai', [])} disabled={!selectedSpec}
                           className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-40">
