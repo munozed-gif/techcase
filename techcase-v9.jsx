@@ -8662,6 +8662,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [showTimeForm, setShowTimeForm] = useState(false);
   const [timeForm, setTimeForm]         = useState({ date: new Date().toISOString().slice(0, 10), hours: 1, description: "", is_billable: true, activity_id: "" });
   const [savingTime, setSavingTime]     = useState(false);
+  const [logTimeActId, setLogTimeActId] = useState(null); // inline time-log per activity
   // Activities state
   const [showActForm, setShowActForm]   = useState(false);
   const [actForm, setActForm]           = useState({ title: "", description: "", detail: "", est_hours: 4, start_date_plan: "", end_date_plan: "" });
@@ -10290,9 +10291,73 @@ Extract every discrete task, activity, deliverable, or work item. If you find no
                             <p className="text-xs text-gray-600 whitespace-pre-line">{act.detail}</p>
                           )}
                           <div>
-                            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">
-                              Time Logged ({actHours.toFixed(1)}h)
-                            </p>
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+                                Time Logged ({actHours.toFixed(1)}h{act.est_hours ? ` / ${act.est_hours}h est.` : ''})
+                              </p>
+                              {stageRules.can_log_time && auth.isConsultant && logTimeActId !== act.id && (
+                                <button
+                                  onClick={() => { setLogTimeActId(act.id); setTimeForm({ date: new Date().toISOString().slice(0,10), hours: 1, description: '', is_billable: true, activity_id: act.id }); }}
+                                  className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50">
+                                  <Clock size={10} /> Log Time
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Inline time-log form */}
+                            {logTimeActId === act.id && (
+                              <div className="bg-white border border-blue-200 rounded-xl p-3 space-y-2 mb-2">
+                                <div className="flex gap-2">
+                                  <div className="flex-1">
+                                    <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide block mb-1">Date</label>
+                                    <input type="date" value={timeForm.date}
+                                      onChange={e => setTimeForm(p => ({ ...p, date: e.target.value }))}
+                                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
+                                  </div>
+                                  <div className="w-20">
+                                    <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide block mb-1">Hours</label>
+                                    <input type="number" min="0.25" step="0.25" value={timeForm.hours}
+                                      onChange={e => setTimeForm(p => ({ ...p, hours: e.target.value }))}
+                                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide block mb-1">Description *</label>
+                                  <input type="text" value={timeForm.description} placeholder="What did you work on?"
+                                    onChange={e => setTimeForm(p => ({ ...p, description: e.target.value }))}
+                                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+                                    <input type="checkbox" checked={timeForm.is_billable}
+                                      onChange={e => setTimeForm(p => ({ ...p, is_billable: e.target.checked }))}
+                                      className="accent-blue-600" />
+                                    Billable
+                                  </label>
+                                  <div className="flex gap-2">
+                                    <button onClick={() => setLogTimeActId(null)}
+                                      className="px-2.5 py-1 text-xs border border-gray-200 text-gray-500 rounded-lg hover:bg-gray-50">
+                                      Cancel
+                                    </button>
+                                    <button
+                                      disabled={savingTime || !timeForm.hours || !timeForm.description.trim()}
+                                      onClick={async () => {
+                                        setSavingTime(true);
+                                        try {
+                                          await addTimeEntry({ ...timeForm, case_id: caseData.id, hours: Number(timeForm.hours) });
+                                          if (act.status === 'pending') await updateActivity(act.id, { status: 'in_progress' });
+                                          setLogTimeActId(null);
+                                        } catch (e) { alert(e.message); }
+                                        setSavingTime(false);
+                                      }}
+                                      className="px-2.5 py-1 text-xs bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-40">
+                                      {savingTime ? 'Saving…' : 'Save'}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
                             {actEntries.length === 0 ? (
                               <p className="text-xs text-gray-400 italic">No time charged to this activity yet.</p>
                             ) : (
