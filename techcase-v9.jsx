@@ -9004,19 +9004,21 @@ Extract every discrete task, activity, deliverable, or work item. If you find no
     }
   }
 
-  // Activities-derived progress (sub_case activities use the linked case's computed progress)
+  // Activities-derived progress — time-logged hours blend in when est_hours is set.
+  // effectivePct = max(manual progress_pct, time-derived pct from logged/est_hours).
   const totalEstHours = activities.reduce((s, a) => s + (a.est_hours || 0), 0);
+  function actEffectivePct(act) {
+    if (act.activity_type === "sub_case") return act.sub_progress ?? 0;
+    const logged = timeEntries.filter(e => e.activity_id === act.id).reduce((s, e) => s + (e.hours ?? 0), 0);
+    const timePct = act.est_hours > 0 ? Math.min(100, Math.round((logged / act.est_hours) * 100)) : 0;
+    return Math.max(act.progress_pct ?? 0, timePct);
+  }
   const caseProgress  = activities.length === 0 ? (caseData.progress_pct ?? 0) :
     Math.round(
-      activities.reduce((s, a) => {
-        const pct = a.activity_type === "sub_case" ? (a.sub_progress ?? 0) : a.progress_pct;
-        return s + pct * (a.est_hours || 1);
-      }, 0) /
+      activities.reduce((s, a) => s + actEffectivePct(a) * (a.est_hours || 1), 0) /
       activities.reduce((s, a) => s + (a.est_hours || 1), 0)
     );
-  const allActivitiesDone = activities.length > 0 && activities.every(a =>
-    a.activity_type === "sub_case" ? (a.sub_progress ?? 0) === 100 : a.progress_pct === 100
-  );
+  const allActivitiesDone = activities.length > 0 && activities.every(a => actEffectivePct(a) === 100);
 
   const allTabs = [
     { id: "detail",     label: "Details",      icon: ClipboardList, count: null },
@@ -10070,10 +10072,13 @@ Extract every discrete task, activity, deliverable, or work item. If you find no
                 {activities.map(act => {
                   const isEditing  = editingActId === act.id;
                   const isExpanded = expandedActId === act.id;
-                  const adh        = activityAdherence(act);
-                  const adhInfo    = adh ? ADHERENCE[adh] : null;
                   const actEntries = timeEntries.filter(e => e.activity_id === act.id);
                   const actHours   = actEntries.reduce((s, e) => s + (e.hours ?? 0), 0);
+                  const dispPct    = act.activity_type !== "sub_case"
+                    ? Math.max(act.progress_pct ?? 0, act.est_hours > 0 ? Math.min(100, Math.round((actHours / act.est_hours) * 100)) : 0)
+                    : (act.sub_progress ?? 0);
+                  const adh        = activityAdherence({ ...act, progress_pct: dispPct });
+                  const adhInfo    = adh ? ADHERENCE[adh] : null;
 
                   if (isEditing) return (
                     <div key={act.id} className={`border rounded-xl p-4 space-y-3 ${act.activity_type === "sub_case" ? "bg-violet-50 border-violet-200" : "bg-blue-50 border-blue-200"}`}>
@@ -10250,12 +10255,12 @@ Extract every discrete task, activity, deliverable, or work item. If you find no
                         {/* Progress bar */}
                         <div className="w-28 flex-shrink-0">
                           <div className="flex items-center justify-between text-xs mb-1">
-                            <span className="text-gray-500">{act.progress_pct}%</span>
+                            <span className="text-gray-500">{dispPct}%</span>
                             <span className="text-gray-400 font-mono">{actHours.toFixed(1)}h / {act.est_hours ?? 0}h</span>
                           </div>
                           <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full transition-all ${act.progress_pct === 100 ? "bg-emerald-500" : act.status === "blocked" ? "bg-red-400" : "bg-blue-500"}`}
-                              style={{ width: `${act.progress_pct}%` }} />
+                            <div className={`h-full rounded-full transition-all ${dispPct === 100 ? "bg-emerald-500" : act.status === "blocked" ? "bg-red-400" : "bg-blue-500"}`}
+                              style={{ width: `${dispPct}%` }} />
                           </div>
                         </div>
                         {/* Dates */}
