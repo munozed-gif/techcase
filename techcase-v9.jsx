@@ -34,7 +34,7 @@ import {
   BadgeCheck, XCircle,
   Wand2, Download, Sparkles,
   ListChecks, ChevronDown, ChevronRight, AlertTriangle, CircleSlash,
-  GripVertical, Pencil, Timer, Link2, ExternalLink, Upload,
+  GripVertical, Pencil, Timer, Link2, ExternalLink, Upload, Code2,
 } from "lucide-react";
 
 // ============================================================
@@ -1635,45 +1635,53 @@ const APP_STATUS_COLORS = {
 const LIFECYCLE_PRESETS = {
   short: {
     name: "Short",
-    subtitle: "6 stages",
+    subtitle: "8 stages",
     description: "Simple flow for straightforward consulting requests.",
     stages: [
-      { key: "open",        label: "New Request", color: "#60A5FA", is_terminal: false },
-      { key: "estimated",   label: "Estimated",   color: "#34D399", is_terminal: false },
-      { key: "assigned",    label: "Assigned",    color: "#8B5CF6", is_terminal: false, trigger: "auto" },
-      { key: "in_progress", label: "Active",      color: "#1E40AF", is_terminal: false },
-      { key: "completed",   label: "Done",        color: "#374151", is_terminal: true  },
-      { key: "cancelled",   label: "Cancelled",   color: "#6B7280", is_terminal: true  },
+      { key: "open",            label: "New Request",      color: "#60A5FA", is_terminal: false },
+      { key: "estimated",       label: "Estimated",        color: "#34D399", is_terminal: false },
+      { key: "assigned",        label: "Assigned",         color: "#8B5CF6", is_terminal: false, trigger: "auto" },
+      { key: "in_progress",     label: "Active",           color: "#1E40AF", is_terminal: false },
+      { key: "functional_test", label: "Functional Test",  color: "#F59E0B", is_terminal: false },
+      { key: "user_test",       label: "User Test (UAT)",  color: "#EF4444", is_terminal: false },
+      { key: "completed",       label: "Done",             color: "#374151", is_terminal: true  },
+      { key: "cancelled",       label: "Cancelled",        color: "#6B7280", is_terminal: true  },
     ],
   },
   standard: {
     name: "Standard",
-    subtitle: "7 stages",
-    description: "Default consulting flow with an On Hold pause state.",
+    subtitle: "10 stages",
+    description: "Default consulting flow with full test pipeline.",
     stages: [
-      { key: "open",        label: "Open",        color: "#93C5FD", is_terminal: false },
-      { key: "estimated",   label: "Estimated",   color: "#34D399", is_terminal: false },
-      { key: "assigned",    label: "Assigned",    color: "#8B5CF6", is_terminal: false, trigger: "auto" },
-      { key: "in_progress", label: "In Progress", color: "#2563EB", is_terminal: false },
-      { key: "on_hold",     label: "On Hold",     color: "#1D4ED8", is_terminal: false },
-      { key: "completed",   label: "Completed",   color: "#374151", is_terminal: true  },
-      { key: "cancelled",   label: "Cancelled",   color: "#6B7280", is_terminal: true  },
+      { key: "open",            label: "Open",             color: "#93C5FD", is_terminal: false },
+      { key: "estimated",       label: "Estimated",        color: "#34D399", is_terminal: false },
+      { key: "assigned",        label: "Assigned",         color: "#8B5CF6", is_terminal: false, trigger: "auto" },
+      { key: "in_progress",     label: "In Progress",      color: "#2563EB", is_terminal: false },
+      { key: "on_hold",         label: "On Hold",          color: "#1D4ED8", is_terminal: false },
+      { key: "technical_test",  label: "Technical Test",   color: "#6366F1", is_terminal: false },
+      { key: "functional_test", label: "Functional Test",  color: "#F59E0B", is_terminal: false },
+      { key: "user_test",       label: "User Test (UAT)",  color: "#EF4444", is_terminal: false },
+      { key: "completed",       label: "Completed",        color: "#374151", is_terminal: true  },
+      { key: "cancelled",       label: "Cancelled",        color: "#6B7280", is_terminal: true  },
     ],
   },
   large: {
     name: "Large",
-    subtitle: "9 stages",
-    description: "Full consulting pipeline from sourcing through placement.",
+    subtitle: "12 stages",
+    description: "Full consulting pipeline with complete test phases.",
     stages: [
-      { key: "open",        label: "Sourcing",    color: "#93C5FD", is_terminal: false },
-      { key: "screening",   label: "Screening",   color: "#60A5FA", is_terminal: false },
-      { key: "shortlisted", label: "Shortlisted", color: "#3B82F6", is_terminal: false },
-      { key: "estimated",   label: "Estimated",   color: "#34D399", is_terminal: false },
-      { key: "assigned",    label: "Assigned",    color: "#8B5CF6", is_terminal: false, trigger: "auto" },
-      { key: "in_progress", label: "In Progress", color: "#1D4ED8", is_terminal: false },
-      { key: "on_hold",     label: "Negotiation", color: "#1E40AF", is_terminal: false },
-      { key: "completed",   label: "Placed",      color: "#374151", is_terminal: true  },
-      { key: "cancelled",   label: "Closed Lost", color: "#6B7280", is_terminal: true  },
+      { key: "open",            label: "Sourcing",         color: "#93C5FD", is_terminal: false },
+      { key: "screening",       label: "Screening",        color: "#60A5FA", is_terminal: false },
+      { key: "shortlisted",     label: "Shortlisted",      color: "#3B82F6", is_terminal: false },
+      { key: "estimated",       label: "Estimated",        color: "#34D399", is_terminal: false },
+      { key: "assigned",        label: "Assigned",         color: "#8B5CF6", is_terminal: false, trigger: "auto" },
+      { key: "in_progress",     label: "In Progress",      color: "#1D4ED8", is_terminal: false },
+      { key: "on_hold",         label: "Negotiation",      color: "#1E40AF", is_terminal: false },
+      { key: "technical_test",  label: "Technical Test",   color: "#6366F1", is_terminal: false },
+      { key: "functional_test", label: "Functional Test",  color: "#F59E0B", is_terminal: false },
+      { key: "user_test",       label: "User Test (UAT)",  color: "#EF4444", is_terminal: false },
+      { key: "completed",       label: "Placed",           color: "#374151", is_terminal: true  },
+      { key: "cancelled",       label: "Closed Lost",      color: "#6B7280", is_terminal: true  },
     ],
   },
 };
@@ -6061,8 +6069,9 @@ function ProjectFieldEditor({ caseData, auth }) {
 const STAGE_ICON_MAP = {
   new: Inbox, open: Inbox, confirmed: CheckCircle2, returned: RotateCcw,
   estimated: BarChart2, assigned: UserCheck, in_progress: Play,
-  standby: Pause, on_hold: Pause, functional_test: Target,
-  user_test: Users, adjustments: SlidersHorizontal, approved: Star,
+  standby: Pause, on_hold: Pause,
+  technical_test: Code2, functional_test: Target, user_test: Users,
+  adjustments: SlidersHorizontal, approved: Star,
   completed: CheckCircle2, terminated: Archive, cancelled: X,
   screening: Search, shortlisted: Star, sourcing: Search,
 };
@@ -8662,7 +8671,9 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [showTimeForm, setShowTimeForm] = useState(false);
   const [timeForm, setTimeForm]         = useState({ date: new Date().toISOString().slice(0, 10), hours: 1, description: "", is_billable: true, activity_id: "" });
   const [savingTime, setSavingTime]     = useState(false);
-  const [logTimeActId, setLogTimeActId] = useState(null); // inline time-log per activity
+  const [logTimeActId, setLogTimeActId]       = useState(null);
+  const [generatingTestPlan, setGeneratingTestPlan] = useState(false);
+  const [testPlanSaved, setTestPlanSaved]     = useState(false);
   // Activities state
   const [showActForm, setShowActForm]   = useState(false);
   const [actForm, setActForm]           = useState({ title: "", description: "", detail: "", est_hours: 4, start_date_plan: "", end_date_plan: "" });
@@ -9004,6 +9015,131 @@ Extract every discrete task, activity, deliverable, or work item. If you find no
     }
   }
 
+  async function generateTestPlan() {
+    const stage = caseData.status;
+    const stageLabel = lifecycleStages.find(s => s.key === stage)?.label ?? stage.replace(/_/g, ' ');
+    const actList = activities.map((a, i) => `${i + 1}. ${a.title}${a.description ? ': ' + a.description : ''}`).join('\n');
+    const stageInstructions = {
+      technical_test:  'Focus on technical validation: code correctness (no syntax errors or dumps), edge cases, error handling, performance, and data integrity at DB level.',
+      functional_test: 'Focus on functional validation: each feature behaves per the functional specification, business rules are enforced, reports match expected output, and integration points work correctly.',
+      user_test:       'Focus on user acceptance: real end-to-end business scenarios, usability from the end-user perspective, data entry validation, and confirmation that all business requirements are met for sign-off.',
+    };
+    const prompt = `Generate a professional ${stageLabel} Plan for this SAP consulting case.
+
+Case: ${caseData.title}
+Description: ${caseData.description ?? '(none)'}
+SAP Module: ${caseData.area_sap ?? 'N/A'}
+Industry: ${caseData.area_industry ?? 'N/A'}
+
+Activities / Scope:
+${actList || '(no activities defined)'}
+
+${stageInstructions[stage] ?? ''}
+
+Structure the test plan with these sections:
+## 1. Scope & Objectives
+## 2. Test Scenarios
+For each activity create a scenario with: Scenario name, Test Steps (numbered), Expected Result, Test Data required, Pass/Fail Criteria.
+## 3. Execution Log
+Table: # | Scenario | Tester | Date | Result (Pass/Fail/Blocked) | Observations
+## 4. Sign-off
+Tester signature, Approver signature, Date.`;
+
+    setGeneratingTestPlan(true);
+    setTestPlanSaved(false);
+    try {
+      const markdown = await callClaude({
+        model: 'claude-haiku-4-5-20251001',
+        system: 'You are an SAP testing specialist. Generate clear, professional test plans in markdown. Be specific and practical.',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 4096,
+      });
+
+      // Build PDF using jsPDF
+      const { jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const W = 210, L = 12, R = 198;
+      const headerColor = [26, 75, 140];
+      const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+      // Header
+      doc.setFillColor(...headerColor);
+      doc.rect(0, 0, W, 38, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7);
+      doc.text('SAP CONSULTING — TEST PLAN', L, 10);
+      doc.setFontSize(14);
+      doc.text(`${stageLabel.toUpperCase()}`, L, 20);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text(caseData.title ?? '', L, 29);
+      doc.text(date, R, 29, { align: 'right' });
+      doc.setTextColor(0, 0, 0);
+
+      // Metadata
+      let y = 45;
+      autoTable(doc, {
+        startY: y,
+        head: [['Case', 'SAP Module', 'Industry', 'Test Type', 'Date']],
+        body: [[caseData.title ?? '', caseData.area_sap ?? '', caseData.area_industry ?? '', stageLabel, date]],
+        styles: { fontSize: 8, cellPadding: 3 },
+        headStyles: { fillColor: headerColor, textColor: 255, fontStyle: 'bold' },
+        margin: { left: L, right: W - R },
+      });
+      y = doc.lastAutoTable.finalY + 8;
+
+      // Render markdown body
+      const lines = markdown.split('\n');
+      doc.setFont('helvetica', 'normal');
+      for (const raw of lines) {
+        const line = raw.trimEnd();
+        if (y > 275) { doc.addPage(); y = 15; }
+        if (line.startsWith('## ')) {
+          y += 3;
+          doc.setFillColor(...headerColor);
+          doc.rect(L, y - 4, R - L, 7, 'F');
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
+          doc.text(line.replace(/^## /, ''), L + 2, y);
+          doc.setTextColor(0, 0, 0); y += 6;
+        } else if (line.startsWith('### ')) {
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(26, 75, 140);
+          doc.text(line.replace(/^### /, ''), L, y); doc.setTextColor(0, 0, 0); y += 5;
+        } else if (line.startsWith('**') && line.endsWith('**')) {
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+          doc.text(line.replace(/\*\*/g, ''), L + 2, y); y += 5;
+        } else if (line.startsWith('- ') || line.startsWith('* ')) {
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+          const wrapped = doc.splitTextToSize('• ' + line.slice(2), R - L - 4);
+          wrapped.forEach(l => { if (y > 275) { doc.addPage(); y = 15; } doc.text(l, L + 4, y); y += 4.5; });
+        } else if (/^\d+\. /.test(line)) {
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+          const wrapped = doc.splitTextToSize(line, R - L - 4);
+          wrapped.forEach(l => { if (y > 275) { doc.addPage(); y = 15; } doc.text(l, L + 4, y); y += 4.5; });
+        } else if (line.trim()) {
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+          const wrapped = doc.splitTextToSize(line, R - L);
+          wrapped.forEach(l => { if (y > 275) { doc.addPage(); y = 15; } doc.text(l, L, y); y += 4.5; });
+        } else {
+          y += 2;
+        }
+      }
+
+      const pdfBlob = doc.output('blob');
+      const safeName = (caseData.title ?? 'Case').replace(/[^a-z0-9]/gi, '_');
+      const fileName = `TestPlan_${stage}_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`;
+      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+      await addDocument(file, `${stageLabel} — auto-generated test plan`);
+      if (refetchDocuments) await refetchDocuments();
+      setTestPlanSaved(true);
+    } catch (e) {
+      alert('Test plan generation failed: ' + e.message);
+    } finally {
+      setGeneratingTestPlan(false);
+    }
+  }
+
   // Activities-derived progress — time-logged hours blend in when est_hours is set.
   // effectivePct = max(manual progress_pct, time-derived pct from logged/est_hours).
   const totalEstHours = activities.reduce((s, a) => s + (a.est_hours || 0), 0);
@@ -9102,6 +9238,17 @@ Extract every discrete task, activity, deliverable, or work item. If you find no
         )}
       </div>
 
+      {/* Ready-to-test banner */}
+      {allActivitiesDone && activities.length > 0 && !['technical_test','functional_test','user_test','completed','terminated','cancelled','closed','approved'].includes(caseData.status) && (
+        <div className="flex items-start gap-3 bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+          <CheckCircle2 size={18} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-emerald-800">All activities complete — ready for testing</p>
+            <p className="text-xs text-emerald-600 mt-0.5">100% of the planned work is done. Use the Next Steps below to move into the test phase.</p>
+          </div>
+        </div>
+      )}
+
       {/* Next Steps — big action buttons */}
       {onStatusChange && (() => {
         const curStage = lifecycleStages.find(s => s.key === caseData.status);
@@ -9135,8 +9282,9 @@ Extract every discrete task, activity, deliverable, or work item. If you find no
           shortlisted:     { Icon: Star,         desc: "Add to shortlist for further review" },
           assigned:        { Icon: UserCheck,    desc: "Assign a consultant to this case" },
           standby:         { Icon: Clock,        desc: "Place on standby for now" },
-          functional_test: { Icon: Settings,     desc: "Move to functional testing phase" },
-          user_test:       { Icon: Users,        desc: "Send for user testing and sign-off" },
+          technical_test:  { Icon: Code2,        desc: "Verify code correctness, no dumps, edge cases handled" },
+          functional_test: { Icon: Target,       desc: "Validate solution against the functional specification" },
+          user_test:       { Icon: Users,        desc: "User acceptance testing — business sign-off" },
           adjustments:     { Icon: SlidersHorizontal, desc: "Apply adjustments before closing" },
           approved:        { Icon: BadgeCheck,   desc: "Mark as approved" },
           returned:        { Icon: RotateCcw,    desc: "Return for rework or additional input" },
@@ -9145,6 +9293,9 @@ Extract every discrete task, activity, deliverable, or work item. If you find no
           sourcing:        { Icon: Globe,        desc: "Begin sourcing for this case" },
         };
 
+        const TEST_STAGES = ['technical_test', 'functional_test', 'user_test'];
+        const doneCount = activities.filter(a => actEffectivePct(a) === 100).length;
+
         return (
           <div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Next Steps</p>
@@ -9152,10 +9303,18 @@ Extract every discrete task, activity, deliverable, or work item. If you find no
               {validNext.map(s => {
                 const { Icon, desc } = NEXT_META[s.key] ?? { Icon: Zap, desc: "Move to this stage" };
                 const isCancelled = s.key === "cancelled";
+                const isTestStage = TEST_STAGES.includes(s.key);
                 const color = isCancelled ? "#EF4444" : s.color;
                 return (
                   <button key={s.key}
-                    onClick={() => isCancelled ? initCancelModal(caseData.id) : onStatusChange(caseData.id, s.key)}
+                    onClick={() => {
+                      if (isCancelled) return initCancelModal(caseData.id);
+                      if (isTestStage && caseProgress < 100 && activities.length > 0) {
+                        const msg = `Only ${caseProgress}% complete (${doneCount}/${activities.length} activities done).\n\nMove to ${s.label} anyway?`;
+                        if (!window.confirm(msg)) return;
+                      }
+                      onStatusChange(caseData.id, s.key);
+                    }}
                     className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl border-2 text-left transition-all hover:shadow-md active:scale-[0.98] bg-white ${
                       isCancelled
                         ? "border-red-100 hover:border-red-300 hover:bg-red-50"
@@ -9177,6 +9336,27 @@ Extract every discrete task, activity, deliverable, or work item. If you find no
           </div>
         );
       })()}
+
+      {/* Test Plan generator — visible only during test stages */}
+      {['technical_test','functional_test','user_test'].includes(caseData.status) && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <Code2 size={16} className="text-indigo-600" />
+            <p className="text-sm font-semibold text-indigo-800">
+              {lifecycleStages.find(s => s.key === caseData.status)?.label ?? 'Test'} Plan
+            </p>
+          </div>
+          <p className="text-xs text-indigo-600">
+            Generate an AI test plan based on this case's activities and scope. It will be saved as a PDF in the Docs tab.
+          </p>
+          <button
+            onClick={generateTestPlan}
+            disabled={generatingTestPlan || testPlanSaved}
+            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+            {generatingTestPlan ? <><Spinner size={12} /> Generating…</> : testPlanSaved ? '✓ Test Plan saved to Docs' : <><Sparkles size={12} /> Generate Test Plan</>}
+          </button>
+        </div>
+      )}
 
       {/* Icon Tiles */}
       <div>
