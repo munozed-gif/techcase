@@ -349,7 +349,7 @@ function useTimeEntries(caseId = null) {
 }
 
 // ── Case Activities ──────────────────────────────────────────
-function useCaseActivities(caseId) {
+function useCaseActivities(caseId, refreshKey = 0) {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading]       = useState(true);
 
@@ -380,7 +380,7 @@ function useCaseActivities(caseId) {
 
     setActivities(enriched);
     setLoading(false);
-  }, [caseId]);
+  }, [caseId, refreshKey]);
 
   useEffect(() => { fetchActivities(); }, [fetchActivities]);
 
@@ -8631,7 +8631,8 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const { subCases, createSubCase } = useSubCases(caseData.id);
   const { documents, addDocument, deleteDocument, refetch: refetchDocuments } = useCaseDocuments(caseData.id);
   const { entries: timeEntries, addTimeEntry, approveEntry } = useTimeEntries(caseData.id);
-  const { activities, addActivity, updateActivity, deleteActivity, refetch: refetchActivities } = useCaseActivities(caseData.id);
+  const [actRefreshKey, setActRefreshKey] = useState(0);
+  const { activities, addActivity, updateActivity, deleteActivity, refetch: refetchActivities } = useCaseActivities(caseData.id, actRefreshKey);
 
   const [activeTab, setActiveTab]   = useState("detail");
   const [newMilestone, setNewMilestone] = useState("");
@@ -8980,11 +8981,12 @@ Extract every discrete task, activity, deliverable, or work item. If you find no
       }));
       const { error } = await supabase.from('case_activities').insert(rows);
       if (error) throw error;
-      // Show success first, then refetch in next tick so the list update
-      // isn't batched away with the panel state changes in the same render.
+      // Incrementing actRefreshKey changes the useCallback dependency in
+      // useCaseActivities, which triggers the useEffect to re-run fetchActivities.
+      // This is the reliable React pattern — no timing hacks needed.
       setImportResult({ count: rows.length });
       setImportStep('done');
-      setTimeout(() => refetchActivities(), 0);
+      setActRefreshKey(k => k + 1);
     } catch (e) {
       setImportResult({ error: e.message || JSON.stringify(e) });
     } finally {
