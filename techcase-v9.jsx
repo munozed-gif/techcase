@@ -8631,7 +8631,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const { subCases, createSubCase } = useSubCases(caseData.id);
   const { documents, addDocument, deleteDocument, refetch: refetchDocuments } = useCaseDocuments(caseData.id);
   const { entries: timeEntries, addTimeEntry, approveEntry } = useTimeEntries(caseData.id);
-  const { activities, addActivity, updateActivity, deleteActivity } = useCaseActivities(caseData.id);
+  const { activities, addActivity, updateActivity, deleteActivity, refetch: refetchActivities } = useCaseActivities(caseData.id);
 
   const [activeTab, setActiveTab]   = useState("detail");
   const [newMilestone, setNewMilestone] = useState("");
@@ -8946,10 +8946,16 @@ Extract every discrete task, activity, deliverable, or work item. If you find no
   }
 
   async function importSelectedActivities() {
-    setImportingActs(true);
     const toImport = extractedActs.filter(a => a._selected);
-    for (const a of toImport) {
-      await addActivity({
+    if (!toImport.length) return;
+    setImportingActs(true);
+    try {
+      // Compute base task_no once from current activities (avoids stale-closure issue with loop)
+      const maxNo = activities.length ? Math.max(...activities.map(a => a.task_no)) : 0;
+      const rows = toImport.map((a, i) => ({
+        case_id: caseData.id,
+        task_no: maxNo + i + 1,
+        sort_order: maxNo + i + 1,
         title: a.title,
         description: a.description ?? '',
         detail: a.detail ?? '',
@@ -8957,13 +8963,21 @@ Extract every discrete task, activity, deliverable, or work item. If you find no
         start_date_plan: a.start_date_plan || null,
         end_date_plan: a.end_date_plan || null,
         activity_type: 'task',
-      });
+        status: 'pending',
+        progress_pct: 0,
+      }));
+      const { error } = await supabase.from('case_activities').insert(rows);
+      if (error) throw error;
+      await refetchActivities();
+      setShowImportAct(false);
+      setExtractedActs([]);
+      setImportDocId(null);
+      setImportDocFile(null);
+    } catch (e) {
+      alert('Import failed: ' + e.message);
+    } finally {
+      setImportingActs(false);
     }
-    setImportingActs(false);
-    setShowImportAct(false);
-    setExtractedActs([]);
-    setImportDocId(null);
-    setImportDocFile(null);
   }
 
   // Activities-derived progress (sub_case activities use the linked case's computed progress)
