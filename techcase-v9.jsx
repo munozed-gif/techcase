@@ -8673,6 +8673,8 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [extractingActs, setExtractingActs]       = useState(false);
   const [extractedActs, setExtractedActs]         = useState([]);
   const [importingActs, setImportingActs]         = useState(false);
+  const [importResult, setImportResult]           = useState(null); // { count } | { error }
+  const [importStep, setImportStep]               = useState('select'); // 'select' | 'preview' | 'done'
 
   const [showEditWizard, setShowEditWizard] = useState(false);
   const [clientLifecycle, setClientLifecycle] = useState(null);
@@ -8939,42 +8941,54 @@ Extract every discrete task, activity, deliverable, or work item. If you find no
         parsed = m ? JSON.parse(m[0]) : [];
       }
       setExtractedActs((parsed ?? []).map((a, i) => ({ ...a, _id: i, _selected: true })));
+      setImportStep('preview');
     } catch (e) {
       alert('Extraction failed: ' + e.message);
     }
     setExtractingActs(false);
   }
 
+  function toIsoDate(v) {
+    if (!v) return null;
+    const s = String(v).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;   // already ISO
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+    return null;
+  }
+
   async function importSelectedActivities() {
     const toImport = extractedActs.filter(a => a._selected);
     if (!toImport.length) return;
     setImportingActs(true);
+    setImportResult(null);
     try {
-      // Compute base task_no once from current activities (avoids stale-closure issue with loop)
       const maxNo = activities.length ? Math.max(...activities.map(a => a.task_no)) : 0;
       const rows = toImport.map((a, i) => ({
         case_id: caseData.id,
         task_no: maxNo + i + 1,
         sort_order: maxNo + i + 1,
-        title: a.title,
-        description: a.description ?? '',
-        detail: a.detail ?? '',
-        est_hours: Number(a.est_hours) || 4,
-        start_date_plan: a.start_date_plan || null,
-        end_date_plan: a.end_date_plan || null,
+        title: String(a.title ?? '').slice(0, 500) || 'Untitled',
+        description: String(a.description ?? ''),
+        detail: String(a.detail ?? ''),
+        est_hours: Math.max(0, Number(a.est_hours) || 0) || null,
+        start_date_plan: toIsoDate(a.start_date_plan),
+        end_date_plan: toIsoDate(a.end_date_plan),
         activity_type: 'task',
         status: 'pending',
         progress_pct: 0,
       }));
-      const { error } = await supabase.from('case_activities').insert(rows);
+      const { data: inserted, error } = await supabase
+        .from('case_activities')
+        .insert(rows)
+        .select('id');
       if (error) throw error;
+      const count = (inserted ?? rows).length;
       await refetchActivities();
-      setShowImportAct(false);
-      setExtractedActs([]);
-      setImportDocId(null);
-      setImportDocFile(null);
+      setImportResult({ count });
+      setImportStep('done');
     } catch (e) {
-      alert('Import failed: ' + e.message);
+      setImportResult({ error: e.message || JSON.stringify(e) });
     } finally {
       setImportingActs(false);
     }
@@ -10309,115 +10323,162 @@ Extract every discrete task, activity, deliverable, or work item. If you find no
             )}
 
             {/* Import from document panel */}
-            {canManage && showImportAct && (
-              <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Import Activities from Document</p>
-                  <button onClick={() => { setShowImportAct(false); setExtractedActs([]); }} className="text-gray-400 hover:text-gray-600">✕</button>
-                </div>
+            {canManage && showImportAct && (() => {
+              const resetImport = () => { setShowImportAct(false); setExtractedActs([]); setImportDocId(null); setImportDocFile(null); setImportResult(null); setImportStep('select'); };
+              return (
+                <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Import Activities from Document</p>
+                    <button onClick={resetImport} className="text-gray-400 hover:text-gray-600">✕</button>
+                  </div>
 
-                {extractedActs.length === 0 && !extractingActs && (
-                  <div className="space-y-3">
-                    {/* Pick from attached documents */}
-                    {documents.length > 0 && (
-                      <div>
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Select attached document</label>
-                        <div className="space-y-1 max-h-40 overflow-y-auto">
-                          {documents.map(doc => (
-                            <label key={doc.id} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer border transition-colors ${importDocId === doc.id ? 'border-violet-400 bg-violet-100' : 'border-gray-200 bg-white hover:border-violet-200'}`}>
-                              <input type="radio" name="importDoc" className="accent-violet-600"
-                                checked={importDocId === doc.id}
-                                onChange={() => { setImportDocId(doc.id); setImportDocFile(null); }} />
-                              <Paperclip size={12} className="text-gray-400 flex-shrink-0" />
-                              <span className="text-sm text-gray-700 truncate">{doc.file_name}</span>
-                              <span className="text-xs text-gray-400 flex-shrink-0">{doc.file_size_kb}kb</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {documents.length > 0 && (
-                      <div className="flex items-center gap-2 text-xs text-gray-400">
-                        <div className="flex-1 border-t border-gray-200" />or upload a new file<div className="flex-1 border-t border-gray-200" />
-                      </div>
-                    )}
-
-                    {/* Upload new file */}
-                    <div>
-                      {!importDocFile ? (
-                        <button onClick={() => importActFileRef.current?.click()}
-                          className="w-full py-3 border-2 border-dashed border-violet-200 rounded-xl text-sm text-violet-500 hover:border-violet-400 hover:bg-violet-50 transition-colors flex items-center justify-center gap-2">
-                          <Upload size={14} /> Upload file (PDF, TXT, CSV, MD)
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-2 px-3 py-2 bg-white border border-violet-300 rounded-xl">
-                          <Paperclip size={13} className="text-violet-500 flex-shrink-0" />
-                          <span className="text-sm text-gray-700 truncate flex-1">{importDocFile.name}</span>
-                          <button onClick={() => setImportDocFile(null)} className="text-gray-400 hover:text-red-500 text-xs">✕</button>
+                  {/* Step: select document */}
+                  {importStep === 'select' && !extractingActs && (
+                    <div className="space-y-3">
+                      {documents.length > 0 && (
+                        <div>
+                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Select attached document</label>
+                          <div className="space-y-1 max-h-40 overflow-y-auto">
+                            {documents.map(doc => (
+                              <label key={doc.id} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer border transition-colors ${importDocId === doc.id ? 'border-violet-400 bg-violet-100' : 'border-gray-200 bg-white hover:border-violet-200'}`}>
+                                <input type="radio" name="importDoc" className="accent-violet-600"
+                                  checked={importDocId === doc.id}
+                                  onChange={() => { setImportDocId(doc.id); setImportDocFile(null); }} />
+                                <Paperclip size={12} className="text-gray-400 flex-shrink-0" />
+                                <span className="text-sm text-gray-700 truncate">{doc.file_name}</span>
+                                <span className="text-xs text-gray-400 flex-shrink-0">{doc.file_size_kb}kb</span>
+                              </label>
+                            ))}
+                          </div>
                         </div>
                       )}
-                      <input type="file" ref={importActFileRef} className="hidden"
-                        accept=".pdf,.txt,.md,.csv"
-                        onChange={e => { const f = e.target.files?.[0]; if (f) { setImportDocFile(f); setImportDocId(null); } e.target.value = ''; }} />
+                      {documents.length > 0 && (
+                        <div className="flex items-center gap-2 text-xs text-gray-400">
+                          <div className="flex-1 border-t border-gray-200" />or upload a new file<div className="flex-1 border-t border-gray-200" />
+                        </div>
+                      )}
+                      <div>
+                        {!importDocFile ? (
+                          <button onClick={() => importActFileRef.current?.click()}
+                            className="w-full py-3 border-2 border-dashed border-violet-200 rounded-xl text-sm text-violet-500 hover:border-violet-400 hover:bg-violet-50 transition-colors flex items-center justify-center gap-2">
+                            <Upload size={14} /> Upload file (PDF, TXT, CSV, MD)
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-2 px-3 py-2 bg-white border border-violet-300 rounded-xl">
+                            <Paperclip size={13} className="text-violet-500 flex-shrink-0" />
+                            <span className="text-sm text-gray-700 truncate flex-1">{importDocFile.name}</span>
+                            <button onClick={() => setImportDocFile(null)} className="text-gray-400 hover:text-red-500 text-xs">✕</button>
+                          </div>
+                        )}
+                        <input type="file" ref={importActFileRef} className="hidden"
+                          accept=".pdf,.txt,.md,.csv"
+                          onChange={e => { const f = e.target.files?.[0]; if (f) { setImportDocFile(f); setImportDocId(null); } e.target.value = ''; }} />
+                      </div>
+                      <button onClick={extractActivitiesFromDoc}
+                        disabled={!importDocId && !importDocFile}
+                        className="w-full py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 disabled:opacity-40 flex items-center justify-center gap-2">
+                        <Sparkles size={14} /> Extract Activities with AI
+                      </button>
                     </div>
+                  )}
 
-                    <button onClick={extractActivitiesFromDoc}
-                      disabled={!importDocId && !importDocFile}
-                      className="w-full py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 disabled:opacity-40 flex items-center justify-center gap-2">
-                      <Sparkles size={14} /> Extract Activities with AI
-                    </button>
-                  </div>
-                )}
+                  {/* Step: extracting */}
+                  {extractingActs && (
+                    <div className="flex items-center justify-center py-8 gap-2 text-violet-500">
+                      <Spinner /><span className="text-sm">Extracting activities from document…</span>
+                    </div>
+                  )}
 
-                {extractingActs && (
-                  <div className="flex items-center justify-center py-8 gap-2 text-violet-500">
-                    <Spinner /><span className="text-sm">Extracting activities…</span>
-                  </div>
-                )}
-
-                {extractedActs.length > 0 && !extractingActs && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-gray-700">{extractedActs.filter(a => a._selected).length} of {extractedActs.length} selected</p>
-                      <div className="flex gap-2">
-                        <button onClick={() => setExtractedActs(p => p.map(a => ({ ...a, _selected: true })))} className="text-xs text-violet-600 underline">All</button>
-                        <button onClick={() => setExtractedActs(p => p.map(a => ({ ...a, _selected: false })))} className="text-xs text-gray-400 underline">None</button>
+                  {/* Step: preview extracted list */}
+                  {importStep === 'preview' && extractedActs.length > 0 && !extractingActs && !importingActs && !importResult && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-gray-700">
+                          Found {extractedActs.length} {extractedActs.length === 1 ? 'activity' : 'activities'} — {extractedActs.filter(a => a._selected).length} selected
+                        </p>
+                        <div className="flex gap-2">
+                          <button onClick={() => setExtractedActs(p => p.map(a => ({ ...a, _selected: true })))} className="text-xs text-violet-600 underline">All</button>
+                          <button onClick={() => setExtractedActs(p => p.map(a => ({ ...a, _selected: false })))} className="text-xs text-gray-400 underline">None</button>
+                        </div>
+                      </div>
+                      <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                        {extractedActs.map((a, i) => (
+                          <label key={a._id} className={`flex items-start gap-2.5 px-3 py-2.5 rounded-xl border cursor-pointer transition-colors ${a._selected ? 'border-violet-300 bg-violet-50' : 'border-gray-200 bg-white opacity-60'}`}>
+                            <input type="checkbox" className="accent-violet-600 mt-0.5 flex-shrink-0"
+                              checked={a._selected}
+                              onChange={e => setExtractedActs(p => p.map((x, j) => j === i ? { ...x, _selected: e.target.checked } : x))} />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-gray-800">{a.title}</p>
+                              {a.description && <p className="text-xs text-gray-500 mt-0.5 truncate">{a.description}</p>}
+                              <div className="flex gap-3 mt-1 text-[10px] text-gray-400">
+                                {a.est_hours ? <span>{a.est_hours}h</span> : null}
+                                {a.start_date_plan && <span>From {a.start_date_plan}</span>}
+                                {a.end_date_plan && <span>To {a.end_date_plan}</span>}
+                              </div>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <button onClick={() => { setExtractedActs([]); setImportStep('select'); }}
+                          className="px-4 py-2 text-sm border border-gray-200 text-gray-500 rounded-xl hover:bg-gray-50">
+                          Back
+                        </button>
+                        <button onClick={importSelectedActivities}
+                          disabled={extractedActs.filter(a => a._selected).length === 0}
+                          className="flex-1 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 disabled:opacity-40 flex items-center justify-center gap-2">
+                          Import {extractedActs.filter(a => a._selected).length} {extractedActs.filter(a => a._selected).length === 1 ? 'Activity' : 'Activities'}
+                        </button>
                       </div>
                     </div>
-                    <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                      {extractedActs.map((a, i) => (
-                        <label key={a._id} className={`flex items-start gap-2.5 px-3 py-2.5 rounded-xl border cursor-pointer transition-colors ${a._selected ? 'border-violet-300 bg-violet-50' : 'border-gray-200 bg-white opacity-60'}`}>
-                          <input type="checkbox" className="accent-violet-600 mt-0.5 flex-shrink-0"
-                            checked={a._selected}
-                            onChange={e => setExtractedActs(p => p.map((x, j) => j === i ? { ...x, _selected: e.target.checked } : x))} />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-gray-800">{a.title}</p>
-                            {a.description && <p className="text-xs text-gray-500 mt-0.5 truncate">{a.description}</p>}
-                            <div className="flex gap-3 mt-1 text-[10px] text-gray-400">
-                              {a.est_hours ? <span>{a.est_hours}h</span> : null}
-                              {a.start_date_plan && <span>From {a.start_date_plan}</span>}
-                              {a.end_date_plan && <span>To {a.end_date_plan}</span>}
-                            </div>
-                          </div>
-                        </label>
-                      ))}
+                  )}
+
+                  {/* Importing spinner */}
+                  {importingActs && (
+                    <div className="flex items-center justify-center py-8 gap-2 text-violet-500">
+                      <Spinner /><span className="text-sm">Adding activities to case…</span>
                     </div>
-                    <div className="flex gap-2 pt-1">
-                      <button onClick={() => { setExtractedActs([]); setImportDocId(null); setImportDocFile(null); }}
-                        className="px-4 py-2 text-sm border border-gray-200 text-gray-500 rounded-xl hover:bg-gray-50">
-                        Re-select
-                      </button>
-                      <button onClick={importSelectedActivities}
-                        disabled={importingActs || extractedActs.filter(a => a._selected).length === 0}
-                        className="flex-1 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 disabled:opacity-40 flex items-center justify-center gap-2">
-                        {importingActs ? <><Spinner />&nbsp;Importing…</> : `Import ${extractedActs.filter(a => a._selected).length} Activities`}
-                      </button>
+                  )}
+
+                  {/* Step: result */}
+                  {importStep === 'done' && importResult && !importingActs && (
+                    <div className="space-y-3">
+                      {importResult.error ? (
+                        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                          <p className="text-sm font-semibold text-red-700 mb-1">Import failed</p>
+                          <p className="text-xs text-red-600 font-mono break-all">{importResult.error}</p>
+                        </div>
+                      ) : (
+                        <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+                          <p className="text-sm font-semibold text-green-700">
+                            ✓ {importResult.count} {importResult.count === 1 ? 'activity' : 'activities'} added to the case
+                          </p>
+                          <p className="text-xs text-green-600 mt-1">Scroll up to see them in the activities list.</p>
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        {importResult?.error && (
+                          <button onClick={() => { setImportResult(null); setImportStep('preview'); }}
+                            className="flex-1 py-2 text-sm border border-violet-200 text-violet-600 rounded-xl hover:bg-violet-50">
+                            Try again
+                          </button>
+                        )}
+                        <button onClick={resetImport}
+                          className="flex-1 py-2 text-sm bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200">
+                          {importResult?.error ? 'Cancel' : 'Close'}
+                        </button>
+                        {!importResult?.error && (
+                          <button onClick={() => { setImportResult(null); setExtractedActs([]); setImportStep('select'); setImportDocId(null); setImportDocFile(null); }}
+                            className="flex-1 py-2 text-sm bg-violet-600 text-white font-semibold rounded-xl hover:bg-violet-700">
+                            Import more
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
+                  )}
+                </div>
+              );
+            })()}
           </div>
         );
       })()}
