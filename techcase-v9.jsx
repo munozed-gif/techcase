@@ -34,7 +34,7 @@ import {
   BadgeCheck, XCircle,
   Wand2, Download, Sparkles,
   ListChecks, ChevronDown, ChevronRight, AlertTriangle, CircleSlash,
-  GripVertical, Pencil, Timer, Link2, ExternalLink,
+  GripVertical, Pencil, Timer, Link2, ExternalLink, Upload,
 } from "lucide-react";
 
 // ============================================================
@@ -8665,6 +8665,14 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [caseSearchResults, setCaseSearchResults] = useState([]);
   const [searchingCases, setSearchingCases]       = useState(false);
   const [selectedLinkedCase, setSelectedLinkedCase] = useState(null);
+  // Import activities from document
+  const [showImportAct, setShowImportAct]         = useState(false);
+  const [importDocId, setImportDocId]             = useState(null);
+  const [importDocFile, setImportDocFile]         = useState(null);
+  const importActFileRef                          = useRef();
+  const [extractingActs, setExtractingActs]       = useState(false);
+  const [extractedActs, setExtractedActs]         = useState([]);
+  const [importingActs, setImportingActs]         = useState(false);
 
   const [showEditWizard, setShowEditWizard] = useState(false);
   const [clientLifecycle, setClientLifecycle] = useState(null);
@@ -8861,6 +8869,101 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
     }
     if (!window.confirm(`Permanently delete "${caseData.title}"? This cannot be undone.`)) return;
     try { await onDelete(); } catch (e) { alert(e.message); }
+  }
+
+  // ── Import activities from document ─────────────────────────
+  async function extractActivitiesFromDoc() {
+    setExtractingActs(true);
+    setExtractedActs([]);
+    try {
+      let block;
+      if (importDocFile) {
+        const reader = new FileReader();
+        const b64 = await new Promise((res, rej) => {
+          reader.onload = () => res(reader.result.split(',')[1]);
+          reader.onerror = rej;
+          reader.readAsDataURL(importDocFile);
+        });
+        const isPdf = importDocFile.type === 'application/pdf' || importDocFile.name.endsWith('.pdf');
+        if (isPdf) {
+          block = { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } };
+        } else {
+          const text = await importDocFile.text();
+          block = { type: 'text', text: `[Document: ${importDocFile.name}]\n${text.slice(0, 12000)}` };
+        }
+      } else if (importDocId) {
+        const doc = documents.find(d => d.id === importDocId);
+        if (!doc) throw new Error('Document not found');
+        const resp = await fetch(doc.file_url);
+        const isPdf = (doc.file_name ?? '').toLowerCase().endsWith('.pdf') || (doc.file_type ?? '').includes('pdf');
+        if (isPdf) {
+          const blob = await resp.blob();
+          const reader = new FileReader();
+          const b64 = await new Promise((res, rej) => {
+            reader.onload = () => res(reader.result.split(',')[1]);
+            reader.onerror = rej;
+            reader.readAsDataURL(blob);
+          });
+          block = { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } };
+        } else {
+          const text = await resp.text();
+          block = { type: 'text', text: `[Document: ${doc.file_name}]\n${text.slice(0, 12000)}` };
+        }
+      } else {
+        throw new Error('Please select a document or upload a file');
+      }
+      const prompt = `Extract a list of activities, tasks, or work items from the document above.
+
+For each activity found, return a JSON object with:
+- title: short task name (required)
+- description: one-sentence summary (optional)
+- detail: acceptance criteria or details (optional)
+- est_hours: estimated hours as a number (default 4 if not found)
+- start_date_plan: ISO date YYYY-MM-DD if mentioned (null if not)
+- end_date_plan: ISO date YYYY-MM-DD if mentioned (null if not)
+
+Respond ONLY with a valid JSON array, no markdown fences:
+[{"title":"...","description":"...","detail":"...","est_hours":4,"start_date_plan":null,"end_date_plan":null}]
+
+Extract every discrete task, activity, deliverable, or work item. If you find none, return [].`;
+
+      const raw = await callClaude({
+        model: 'claude-haiku-4-5-20251001',
+        system: 'You are a project analyst. Extract structured activity lists from documents. Return only valid JSON arrays.',
+        messages: [{ role: 'user', content: [block, { type: 'text', text: prompt }] }],
+        max_tokens: 3000,
+      });
+      let parsed;
+      try { parsed = JSON.parse(raw.trim()); } catch (_) {
+        const m = raw.match(/\[[\s\S]*\]/);
+        parsed = m ? JSON.parse(m[0]) : [];
+      }
+      setExtractedActs((parsed ?? []).map((a, i) => ({ ...a, _id: i, _selected: true })));
+    } catch (e) {
+      alert('Extraction failed: ' + e.message);
+    }
+    setExtractingActs(false);
+  }
+
+  async function importSelectedActivities() {
+    setImportingActs(true);
+    const toImport = extractedActs.filter(a => a._selected);
+    for (const a of toImport) {
+      await addActivity({
+        title: a.title,
+        description: a.description ?? '',
+        detail: a.detail ?? '',
+        est_hours: Number(a.est_hours) || 4,
+        start_date_plan: a.start_date_plan || null,
+        end_date_plan: a.end_date_plan || null,
+        activity_type: 'task',
+      });
+    }
+    setImportingActs(false);
+    setShowImportAct(false);
+    setExtractedActs([]);
+    setImportDocId(null);
+    setImportDocFile(null);
   }
 
   // Activities-derived progress (sub_case activities use the linked case's computed progress)
@@ -10177,12 +10280,129 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
               </div>
             )}
 
-            {/* Add button */}
-            {canManage && !showActForm && (
-              <button onClick={() => setShowActForm(true)}
-                className="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-400 hover:border-blue-300 hover:text-blue-600 transition-colors flex items-center justify-center gap-2">
-                <ListChecks size={14} /> Add Activity
-              </button>
+            {/* Add / Import buttons */}
+            {canManage && !showActForm && !showImportAct && (
+              <div className="flex gap-2">
+                <button onClick={() => setShowActForm(true)}
+                  className="flex-1 py-3 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-400 hover:border-blue-300 hover:text-blue-600 transition-colors flex items-center justify-center gap-2">
+                  <ListChecks size={14} /> Add Activity
+                </button>
+                <button onClick={() => { setShowImportAct(true); setExtractedActs([]); setImportDocId(null); setImportDocFile(null); }}
+                  className="flex-1 py-3 border-2 border-dashed border-violet-200 rounded-xl text-sm text-violet-400 hover:border-violet-400 hover:text-violet-600 transition-colors flex items-center justify-center gap-2">
+                  <Upload size={14} /> Import from Document
+                </button>
+              </div>
+            )}
+
+            {/* Import from document panel */}
+            {canManage && showImportAct && (
+              <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Import Activities from Document</p>
+                  <button onClick={() => { setShowImportAct(false); setExtractedActs([]); }} className="text-gray-400 hover:text-gray-600">✕</button>
+                </div>
+
+                {extractedActs.length === 0 && !extractingActs && (
+                  <div className="space-y-3">
+                    {/* Pick from attached documents */}
+                    {documents.length > 0 && (
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Select attached document</label>
+                        <div className="space-y-1 max-h-40 overflow-y-auto">
+                          {documents.map(doc => (
+                            <label key={doc.id} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer border transition-colors ${importDocId === doc.id ? 'border-violet-400 bg-violet-100' : 'border-gray-200 bg-white hover:border-violet-200'}`}>
+                              <input type="radio" name="importDoc" className="accent-violet-600"
+                                checked={importDocId === doc.id}
+                                onChange={() => { setImportDocId(doc.id); setImportDocFile(null); }} />
+                              <Paperclip size={12} className="text-gray-400 flex-shrink-0" />
+                              <span className="text-sm text-gray-700 truncate">{doc.file_name}</span>
+                              <span className="text-xs text-gray-400 flex-shrink-0">{doc.file_size_kb}kb</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {documents.length > 0 && (
+                      <div className="flex items-center gap-2 text-xs text-gray-400">
+                        <div className="flex-1 border-t border-gray-200" />or upload a new file<div className="flex-1 border-t border-gray-200" />
+                      </div>
+                    )}
+
+                    {/* Upload new file */}
+                    <div>
+                      {!importDocFile ? (
+                        <button onClick={() => importActFileRef.current?.click()}
+                          className="w-full py-3 border-2 border-dashed border-violet-200 rounded-xl text-sm text-violet-500 hover:border-violet-400 hover:bg-violet-50 transition-colors flex items-center justify-center gap-2">
+                          <Upload size={14} /> Upload file (PDF, TXT, CSV, MD)
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-white border border-violet-300 rounded-xl">
+                          <Paperclip size={13} className="text-violet-500 flex-shrink-0" />
+                          <span className="text-sm text-gray-700 truncate flex-1">{importDocFile.name}</span>
+                          <button onClick={() => setImportDocFile(null)} className="text-gray-400 hover:text-red-500 text-xs">✕</button>
+                        </div>
+                      )}
+                      <input type="file" ref={importActFileRef} className="hidden"
+                        accept=".pdf,.txt,.md,.csv"
+                        onChange={e => { const f = e.target.files?.[0]; if (f) { setImportDocFile(f); setImportDocId(null); } e.target.value = ''; }} />
+                    </div>
+
+                    <button onClick={extractActivitiesFromDoc}
+                      disabled={!importDocId && !importDocFile}
+                      className="w-full py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 disabled:opacity-40 flex items-center justify-center gap-2">
+                      <Sparkles size={14} /> Extract Activities with AI
+                    </button>
+                  </div>
+                )}
+
+                {extractingActs && (
+                  <div className="flex items-center justify-center py-8 gap-2 text-violet-500">
+                    <Spinner /><span className="text-sm">Extracting activities…</span>
+                  </div>
+                )}
+
+                {extractedActs.length > 0 && !extractingActs && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-gray-700">{extractedActs.filter(a => a._selected).length} of {extractedActs.length} selected</p>
+                      <div className="flex gap-2">
+                        <button onClick={() => setExtractedActs(p => p.map(a => ({ ...a, _selected: true })))} className="text-xs text-violet-600 underline">All</button>
+                        <button onClick={() => setExtractedActs(p => p.map(a => ({ ...a, _selected: false })))} className="text-xs text-gray-400 underline">None</button>
+                      </div>
+                    </div>
+                    <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                      {extractedActs.map((a, i) => (
+                        <label key={a._id} className={`flex items-start gap-2.5 px-3 py-2.5 rounded-xl border cursor-pointer transition-colors ${a._selected ? 'border-violet-300 bg-violet-50' : 'border-gray-200 bg-white opacity-60'}`}>
+                          <input type="checkbox" className="accent-violet-600 mt-0.5 flex-shrink-0"
+                            checked={a._selected}
+                            onChange={e => setExtractedActs(p => p.map((x, j) => j === i ? { ...x, _selected: e.target.checked } : x))} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-gray-800">{a.title}</p>
+                            {a.description && <p className="text-xs text-gray-500 mt-0.5 truncate">{a.description}</p>}
+                            <div className="flex gap-3 mt-1 text-[10px] text-gray-400">
+                              {a.est_hours ? <span>{a.est_hours}h</span> : null}
+                              {a.start_date_plan && <span>From {a.start_date_plan}</span>}
+                              {a.end_date_plan && <span>To {a.end_date_plan}</span>}
+                            </div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <button onClick={() => { setExtractedActs([]); setImportDocId(null); setImportDocFile(null); }}
+                        className="px-4 py-2 text-sm border border-gray-200 text-gray-500 rounded-xl hover:bg-gray-50">
+                        Re-select
+                      </button>
+                      <button onClick={importSelectedActivities}
+                        disabled={importingActs || extractedActs.filter(a => a._selected).length === 0}
+                        className="flex-1 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 disabled:opacity-40 flex items-center justify-center gap-2">
+                        {importingActs ? <><Spinner />&nbsp;Importing…</> : `Import ${extractedActs.filter(a => a._selected).length} Activities`}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         );
