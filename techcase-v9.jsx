@@ -8978,15 +8978,13 @@ Extract every discrete task, activity, deliverable, or work item. If you find no
         status: 'pending',
         progress_pct: 0,
       }));
-      const { data: inserted, error } = await supabase
-        .from('case_activities')
-        .insert(rows)
-        .select('id');
+      const { error } = await supabase.from('case_activities').insert(rows);
       if (error) throw error;
-      const count = (inserted ?? rows).length;
-      await refetchActivities();
-      setImportResult({ count });
+      // Show success first, then refetch in next tick so the list update
+      // isn't batched away with the panel state changes in the same render.
+      setImportResult({ count: rows.length });
       setImportStep('done');
+      setTimeout(() => refetchActivities(), 0);
     } catch (e) {
       setImportResult({ error: e.message || JSON.stringify(e) });
     } finally {
