@@ -12785,6 +12785,102 @@ function DbConnectionsView({ auth }) {
   );
 }
 
+function SapProfileFields({ meta = {}, onChange, dbType }) {
+  const SAP_COMPONENTS = ["FI","CO","MM","SD","PP","PM","QM","WM","EWM","HCM","PS","RE","FI-AA","TR","GRC","BW","PI/PO","ABAP","BC","SRM","CRM","IS-Retail","IS-Utilities","IS-Oil","LE","CS"];
+  const set = (key, val) => onChange({ ...meta, [key]: val });
+  const toggleComp = (comp) => {
+    const comps = meta.components ?? [];
+    set("components", comps.includes(comp) ? comps.filter(c => c !== comp) : [...comps, comp]);
+  };
+  return (
+    <div className="border border-indigo-100 bg-indigo-50/30 rounded-xl p-4 space-y-3">
+      <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide">SAP System Profile</p>
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">SAP Product</label>
+          <select value={meta.sap_product ?? "S/4HANA"} onChange={e => set("sap_product", e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
+            {["S/4HANA","ECC 6.0","BW/4HANA","SAP BW","SAP CRM","SAP SRM","SAP GRC","SAP HCM","SAP HANA","SAP PI/PO","Other"].map(v => <option key={v}>{v}</option>)}
+          </select>
+        </div>
+        <Input label="Release / SP Level" value={meta.sap_release ?? ""}
+          onChange={e => set("sap_release", e.target.value)} placeholder="2023 / FPS01" />
+        <Input label="Basis Release" value={meta.basis_release ?? ""}
+          onChange={e => set("basis_release", e.target.value)} placeholder="7.58" />
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">System Role</label>
+          <select value={meta.system_role ?? "DEV"} onChange={e => set("system_role", e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
+            {[["DEV","Development"],["QAS","Quality / Test"],["PRD","Production"],["SBX","Sandbox"],["TRN","Training"]].map(([v,l]) => <option key={v} value={v}>{l} ({v})</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Logon Language</label>
+          <select value={meta.language ?? "EN"} onChange={e => set("language", e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
+            {[["EN","English"],["ES","Spanish"],["DE","German"],["FR","French"],["PT","Portuguese"],["IT","Italian"],["NL","Dutch"],["PL","Polish"],["ZH","Chinese"],["JA","Japanese"],["AR","Arabic"]].map(([v,l]) => <option key={v} value={v}>{l} ({v})</option>)}
+          </select>
+        </div>
+        <Input label="Transport Route" value={meta.transport_route ?? ""}
+          onChange={e => set("transport_route", e.target.value)} placeholder="DEV → QAS → PRD" />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-600 mb-2">Installed Components</label>
+        <div className="flex flex-wrap gap-1.5">
+          {SAP_COMPONENTS.map(comp => {
+            const active = (meta.components ?? []).includes(comp);
+            return (
+              <button key={comp} type="button" onClick={() => toggleComp(comp)}
+                className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors ${active ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600"}`}>
+                {comp}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {(dbType === "sap_gui" || dbType === "sap_rfc") && (
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Logon Group" value={meta.logon_group ?? ""}
+            onChange={e => set("logon_group", e.target.value)} placeholder="PUBLIC" />
+          <Input label="Message Server" value={meta.message_server ?? ""}
+            onChange={e => set("message_server", e.target.value)} placeholder="sap-ms.example.com" />
+        </div>
+      )}
+      {dbType === "sap_rfc" && (
+        <Input label="RFC Destination" value={meta.rfc_destination ?? ""}
+          onChange={e => set("rfc_destination", e.target.value)} placeholder="TECHCASE_RFC" />
+      )}
+    </div>
+  );
+}
+
+function SapProfileBadges({ meta = {} }) {
+  if (!meta.system_role && !meta.sap_product && !meta.components?.length) return null;
+  const roleColors = {
+    DEV: "bg-blue-100 text-blue-700", QAS: "bg-amber-100 text-amber-700",
+    PRD: "bg-red-100 text-red-700", SBX: "bg-gray-100 text-gray-600", TRN: "bg-purple-100 text-purple-700",
+  };
+  return (
+    <div className="mt-2 space-y-1.5">
+      <div className="flex flex-wrap gap-1.5 items-center">
+        {meta.system_role && <span className={`text-xs px-2 py-0.5 rounded-md font-semibold ${roleColors[meta.system_role] ?? "bg-gray-100 text-gray-600"}`}>{meta.system_role}</span>}
+        {meta.sap_product && <span className="text-xs text-gray-600">{meta.sap_product}{meta.sap_release ? ` ${meta.sap_release}` : ""}</span>}
+        {meta.basis_release && <span className="text-xs text-gray-400">Basis {meta.basis_release}</span>}
+        {meta.language && meta.language !== "EN" && <span className="text-xs text-gray-400">{meta.language}</span>}
+      </div>
+      {meta.components?.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {meta.components.map(c => <span key={c} className="text-xs bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-mono">{c}</span>)}
+        </div>
+      )}
+      {meta.transport_route && <p className="text-xs text-gray-400 font-mono">Route: {meta.transport_route}</p>}
+      {meta.logon_group && <p className="text-xs text-gray-400">Logon group: {meta.logon_group}</p>}
+    </div>
+  );
+}
+
 function DbConnectionsList({ client, auth }) {
   const { connections, addConnection, deleteConnection } = useDbConnections(client.id);
   const [showAdd, setShowAdd] = useState(false);
@@ -12904,6 +13000,11 @@ function DbConnectionsList({ client, auth }) {
             </div>
           )}
 
+          {/* SAP system profile */}
+          {isSapType(form.db_type) && (
+            <SapProfileFields meta={form.meta} onChange={meta => setForm(p => ({ ...p, meta }))} dbType={form.db_type} />
+          )}
+
           {/* VPN fields */}
           {isVpnType(form.db_type) && (
             <div className="grid grid-cols-3 gap-3">
@@ -12921,7 +13022,7 @@ function DbConnectionsList({ client, auth }) {
           )}
 
           <Textarea label="Notes" value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-            placeholder={isSapType(form.db_type) ? "Logon group, message server, access instructions…" : isVpnType(form.db_type) ? "Config file location, certificate path, access instructions…" : "Access instructions, connection details…"} />
+            placeholder={isSapType(form.db_type) ? "Additional access instructions, firewall rules…" : isVpnType(form.db_type) ? "Config file location, certificate path, access instructions…" : "Access instructions, connection details…"} />
           <div className="flex justify-end gap-3">
             <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
             <button onClick={handleAdd} disabled={saving}
@@ -12955,6 +13056,7 @@ function DbConnectionsList({ client, auth }) {
               {conn.username && <span>{conn.username}@</span>}{conn.host}{conn.port ? `:${conn.port}` : ""}
               {isSapType(conn.db_type) && conn.db_name && conn.db_name !== conn.host && <span className="ml-2 text-gray-400">SID: {conn.db_name}</span>}
             </div>
+            {isSapType(conn.db_type) && <SapProfileBadges meta={conn.meta ?? {}} />}
             {conn.notes && <p className="text-xs text-gray-400 mt-2">{conn.notes}</p>}
           </div>
         ))}
@@ -14690,6 +14792,9 @@ function ClientProfileView({ auth }) {
                   <Input label="Username / OAuth Client" value={connForm.username} onChange={e => setConnForm(p => ({ ...p, username: e.target.value }))} />
                 </div>
               )}
+              {isSapConnType(connForm.db_type) && (
+                <SapProfileFields meta={connForm.meta} onChange={meta => setConnForm(p => ({ ...p, meta }))} dbType={connForm.db_type} />
+              )}
               {isVpnConnType(connForm.db_type) && (
                 <div className="grid grid-cols-3 gap-3">
                   <div>
@@ -14706,7 +14811,7 @@ function ClientProfileView({ auth }) {
               )}
               <Textarea label="Notes" value={connForm.notes}
                 onChange={e => setConnForm(p => ({ ...p, notes: e.target.value }))}
-                placeholder={isSapConnType(connForm.db_type) ? "Logon group, message server, access instructions…" : isVpnConnType(connForm.db_type) ? "Config file location, certificate path, access instructions…" : "Access instructions, connection details…"} />
+                placeholder={isSapConnType(connForm.db_type) ? "Additional access instructions, firewall rules…" : isVpnConnType(connForm.db_type) ? "Config file location, certificate path, access instructions…" : "Access instructions, connection details…"} />
               <div className="flex justify-end gap-3">
                 <button onClick={() => setShowAddConn(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
                 <button onClick={handleAddConn} disabled={savingConn}
@@ -14738,6 +14843,7 @@ function ClientProfileView({ auth }) {
                   {conn.username && <span>{conn.username}@</span>}{conn.host}{conn.port ? `:${conn.port}` : ""}
                   {isSapConnType(conn.db_type) && conn.db_name && conn.db_name !== conn.host && <span className="ml-2 text-gray-400">SID: {conn.db_name}</span>}
                 </div>
+                {isSapConnType(conn.db_type) && <SapProfileBadges meta={conn.meta ?? {}} />}
                 {conn.notes && <p className="text-xs text-gray-400 mt-2">{conn.notes}</p>}
               </div>
             ))}
