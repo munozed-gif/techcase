@@ -64,6 +64,10 @@ function useMilestones(caseId) {
       .update({ is_done: !isDone, done_at: !isDone ? new Date().toISOString() : null })
       .eq("id", id);
     await fetchMilestones();
+    if (!isDone) {
+      const ms = milestones.find(m => m.id === id);
+      if (ms) notifyCaseParticipants(caseId, null, "Milestone reached", `Milestone completed: "${ms.title}".`);
+    }
   }
   async function addMilestone(title) {
     await supabase.from("case_milestones")
@@ -92,6 +96,7 @@ function useCaseComments(caseId) {
     });
     if (progressUpdate !== null) {
       await supabase.from("cases").update({ progress_pct: progressUpdate }).eq("id", caseId);
+      notifyCaseParticipants(caseId, user?.id, "Progress updated", `Case progress updated to ${progressUpdate}%.`);
     }
     if (!isInternal) {
       notifyCaseParticipants(caseId, user?.id, "New comment on case", body.length > 100 ? body.slice(0, 97) + "…" : body);
@@ -328,6 +333,11 @@ function useTimeEntries(caseId = null) {
       .insert({ ...data, consultant_id: user.id }).select().single();
     if (error) throw error;
     await fetchEntries();
+    // Notify manager: someone logged time
+    const { data: me } = await supabase.from("users").select("full_name").eq("id", user.id).single().catch(() => ({ data: null }));
+    const who = me?.full_name ?? "A consultant";
+    const hrs = Number(data.hours).toFixed(1);
+    notifyCaseParticipants(caseId, user.id, "Time logged", `${who} logged ${hrs}h${data.description ? ` — ${data.description}` : ""}.`);
     return row;
   }
 
@@ -494,6 +504,7 @@ function useCaseDocuments(caseId) {
     });
     if (error) throw error;
     await fetchDocs();
+    notifyCaseParticipants(caseId, user.id, "Document uploaded", `New document attached: "${file.name}"${notes ? ` — ${notes}` : ""}.`);
     return publicUrl;
   }
 
@@ -646,7 +657,20 @@ function useCases(filters = {}) {
     await fetchCases();
     if (updates.status) {
       const { data: { user } } = await supabase.auth.getUser();
-      notifyCaseParticipants(id, user?.id, "Case status updated", `Case status changed to "${updates.status}".`);
+      const STATUS_LABELS = {
+        open: "Open", in_progress: "In Progress", on_hold: "On Hold",
+        technical_test: "Technical Test", functional_test: "Functional Test",
+        user_test: "User Test (UAT)", completed: "Completed", cancelled: "Cancelled",
+        estimated: "Estimated", assigned: "Assigned",
+      };
+      const label = STATUS_LABELS[updates.status] ?? updates.status.replace(/_/g, " ");
+      const TEST_MSG = {
+        technical_test:  "The case has moved to Technical Testing — verify code correctness and edge cases.",
+        functional_test: "The case has moved to Functional Testing — validate against the functional specification.",
+        user_test:       "The case is ready for User Acceptance Testing (UAT) — business sign-off required.",
+      };
+      const body = TEST_MSG[updates.status] ?? `Case status changed to "${label}".`;
+      notifyCaseParticipants(id, user?.id, `Status → ${label}`, body);
     }
     return row;
   }
@@ -1401,12 +1425,13 @@ async function notifyManagers(title, body) {
 async function notifyCaseParticipants(caseId, excludeUserId, title, body) {
   try {
     const { data: c } = await supabase.from("cases")
-      .select("client_id, case_key_users(user_id), case_assignments(consultant_id)").eq("id", caseId).single();
+      .select("client_id, manager_id, case_key_users(user_id), case_assignments(consultant_id)").eq("id", caseId).single();
     if (!c) return;
     const ids = new Set();
-    if (c.client_id && c.client_id !== excludeUserId) ids.add(c.client_id);
-    (c.case_key_users ?? []).forEach(ku => { if (ku.user_id !== excludeUserId) ids.add(ku.user_id); });
-    (c.case_assignments ?? []).forEach(a => { if (a.consultant_id !== excludeUserId) ids.add(a.consultant_id); });
+    if (c.client_id  && c.client_id  !== excludeUserId) ids.add(c.client_id);
+    if (c.manager_id && c.manager_id !== excludeUserId) ids.add(c.manager_id);
+    (c.case_key_users  ?? []).forEach(ku => { if (ku.user_id      !== excludeUserId) ids.add(ku.user_id); });
+    (c.case_assignments ?? []).forEach(a  => { if (a.consultant_id !== excludeUserId) ids.add(a.consultant_id); });
     if (!ids.size) return;
     await supabase.from("notifications").insert([...ids].map(uid => ({ user_id: uid, title, body, is_read: false })));
   } catch (_) {}
@@ -1803,7 +1828,34 @@ function useStartDateMonitor(auth, cases) {
     if (!auth?.user?.id || !cases.length || fired.current) return;
     fired.current = true;
     runStartDateMonitor(auth, cases);
+    runDueDateMonitor(cases);
   }, [auth?.user?.id, cases.length]);
+}
+
+async function runDueDateMonitor(cases) {
+  const todayMs = Date.now();
+  const TERMINAL = ["completed","cancelled","terminated","closed","approved"];
+  const active = cases.filter(c => c.due_date && !TERMINAL.includes(c.status));
+  for (const c of active) {
+    const dueMs = new Date(c.due_date + "T00:00:00").getTime();
+    const daysLeft = Math.ceil((dueMs - todayMs) / 86400000);
+    const lsKey3 = `duerem3_${c.id}`, lsKey1 = `duerem1_${c.id}`;
+    if (daysLeft === 3 && !localStorage.getItem(lsKey3)) {
+      localStorage.setItem(lsKey3, "1");
+      notifyCaseParticipants(c.id, null, "Due date in 3 days", `"${c.title}" is due on ${c.due_date} — 3 days remaining.`);
+      notifyManagers("Due date approaching", `"${c.title}" is due in 3 days (${c.due_date}).`);
+    }
+    if (daysLeft <= 1 && daysLeft >= 0 && !localStorage.getItem(lsKey1)) {
+      localStorage.setItem(lsKey1, "1");
+      const when = daysLeft === 0 ? "today" : "tomorrow";
+      notifyCaseParticipants(c.id, null, `Due date ${when}`, `"${c.title}" is due ${when} (${c.due_date}).`);
+      notifyManagers("Due date urgent", `"${c.title}" is due ${when} (${c.due_date}) and is still in progress.`);
+    }
+    if (daysLeft < 0 && !localStorage.getItem(`dueoverdue_${c.id}`)) {
+      localStorage.setItem(`dueoverdue_${c.id}`, "1");
+      notifyManagers("Case overdue", `"${c.title}" passed its due date (${c.due_date}) and is still open.`);
+    }
+  }
 }
 
 const SLA_PRIORITIES = [
@@ -9156,6 +9208,16 @@ Tester signature, Approver signature, Date.`;
       activities.reduce((s, a) => s + (a.est_hours || 1), 0)
     );
   const allActivitiesDone = activities.length > 0 && activities.every(a => actEffectivePct(a) === 100);
+
+  // Notify when all activities first reach 100%
+  const prevAllDoneRef = useRef(false);
+  useEffect(() => {
+    if (allActivitiesDone && !prevAllDoneRef.current) {
+      notifyCaseParticipants(caseData.id, null, "All activities complete", `All activities for "${caseData.title}" are done — ready to move to the test phase.`);
+      notifyManagers("Case ready for testing", `"${caseData.title}" has all activities at 100% and is ready for Technical Test.`);
+    }
+    prevAllDoneRef.current = allActivitiesDone;
+  }, [allActivitiesDone]);
 
   const allTabs = [
     { id: "detail",     label: "Details",      icon: ClipboardList, count: null },
