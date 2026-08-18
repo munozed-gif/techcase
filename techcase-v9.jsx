@@ -5552,8 +5552,25 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
   );
 }
 
+const AVATAR_PALETTE = [
+  { bg:'#dbeafe', fg:'#1e40af' }, { bg:'#ccfbf1', fg:'#0f766e' },
+  { bg:'#ede9fe', fg:'#6d28d9' }, { bg:'#fce7f3', fg:'#9d174d' },
+  { bg:'#fef3c7', fg:'#92400e' }, { bg:'#d1fae5', fg:'#065f46' },
+  { bg:'#e0f2fe', fg:'#075985' }, { bg:'#fee2e2', fg:'#991b1b' },
+];
+function UserAvatar({ name, size = 36, title: tooltipTitle }) {
+  const c = AVATAR_PALETTE[Math.abs((name ?? '?').charCodeAt(0)) % AVATAR_PALETTE.length];
+  const initials = (name ?? '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+  return (
+    <div title={tooltipTitle ?? name}
+      style={{ width: size, height: size, borderRadius: '50%', background: c.bg, color: c.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: Math.round(size * 0.36), fontWeight: 700, flexShrink: 0, letterSpacing: '-0.02em' }}>
+      {initials}
+    </div>
+  );
+}
+
 function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] }) {
-  const { createCase } = useCases({});
+  const { createCase, updateCase, deleteCase } = useCases({});
   const [projCases, setProjCases] = useState([]);
   const [showCreateCase, setShowCreateCase] = useState(false);
   const [showEditWizard, setShowEditWizard] = useState(false);
@@ -5563,16 +5580,21 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
   const [projLcMode, setProjLcMode] = useState(project.case_lifecycle?.preset ?? "standard");
   const [savingProjLc, setSavingProjLc] = useState(false);
   const [clientLcConfig, setClientLcConfig] = useState(null);
+  const [expandedCase, setExpandedCase] = useState(null);
+  const [expandedConsultant, setExpandedConsultant] = useState(null);
+  const [projSelectedCase, setProjSelectedCase] = useState(null);
   const { templates: lcTemplates2, getTemplateStages: getProjTmplStages } = useLifecycleTemplates();
 
-  useEffect(() => {
+  const loadProjCases = useCallback(async () => {
     if (!project?.id) return;
-    supabase.from("cases")
-      .select("*, case_assignments(consultant_id, users(full_name))")
+    const { data } = await supabase.from("cases")
+      .select("*, manager:manager_id(id, full_name, email), case_assignments(consultant_id, time_commitment, users:consultant_id(id, full_name, email))")
       .eq("project_id", project.id)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => setProjCases(data ?? []));
+      .order("created_at", { ascending: false });
+    setProjCases(data ?? []);
   }, [project?.id]);
+
+  useEffect(() => { loadProjCases(); }, [loadProjCases]);
 
   useEffect(() => {
     if (!project?.client_id) return;
@@ -5602,11 +5624,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
 
   async function handleAssignCase(caseId) {
     await supabase.from("cases").update({ project_id: project.id }).eq("id", caseId);
-    const { data } = await supabase.from("cases")
-      .select("*, case_assignments(consultant_id, users(full_name))")
-      .eq("project_id", project.id)
-      .order("created_at", { ascending: false });
-    setProjCases(data ?? []);
+    await loadProjCases();
     setShowAssign(false);
   }
 
@@ -5626,6 +5644,20 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
   }
 
   const canEdit = auth.isAdmin || auth.isManager || auth.isClient || auth.isKeyUser;
+  const TERMINAL = ["completed", "cancelled", "terminated", "closed", "approved"];
+  const projProgress = projCases.length === 0 ? 0 : Math.round(projCases.filter(c => TERMINAL.includes(c.status)).length / projCases.length * 100);
+
+  // Derived consultants list: all unique consultants across cases
+  const consultantMap = new Map();
+  projCases.forEach(c => {
+    (c.case_assignments ?? []).forEach(a => {
+      const uid = a.consultant_id;
+      if (!uid) return;
+      if (!consultantMap.has(uid)) consultantMap.set(uid, { id: uid, name: a.users?.full_name ?? "Unknown", cases: [] });
+      consultantMap.get(uid).cases.push({ ...c, time_commitment: a.time_commitment });
+    });
+  });
+  const consultants = [...consultantMap.values()];
 
   async function handleSaveProjLc() {
     setSavingProjLc(true);
@@ -5639,10 +5671,24 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
     { id: "overview",     label: "Overview",      icon: BarChart2,         count: null },
     { id: "objectives",   label: "Objectives",    icon: Target,            count: null },
     { id: "team",         label: "Team",          icon: Users,             count: null },
+    { id: "consultants",  label: "Consultants",   icon: UserCheck,         count: consultants.length },
     { id: "requirements", label: "Requirements",  icon: SlidersHorizontal, count: null },
     { id: "cases",        label: "Cases",         icon: FolderOpen,        count: projCases.length },
     ...(canEdit ? [{ id: "lifecycle", label: "Lifecycle", icon: TrendingUp, count: null }] : []),
   ];
+
+  if (projSelectedCase) {
+    return (
+      <CaseDetail
+        caseData={projSelectedCase}
+        auth={auth}
+        onBack={() => setProjSelectedCase(null)}
+        onStatusChange={async (cid, status) => { await updateCase(cid, { status }); setProjSelectedCase(p => ({ ...p, status })); await loadProjCases(); }}
+        onDelete={async () => { await deleteCase(projSelectedCase.id); setProjSelectedCase(null); await loadProjCases(); }}
+        onUpdate={async (payload) => { await updateCase(projSelectedCase.id, payload); setProjSelectedCase(p => ({ ...p, ...payload })); }}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -5652,9 +5698,19 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
           className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-4">
           ← Projects
         </button>
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
-          <div className="flex items-center gap-2">
+        <div className="flex items-start justify-between gap-4 mb-3">
+          <div className="flex items-center gap-3 min-w-0">
+            {project.client && (
+              <UserAvatar name={project.client?.client_profiles?.company_name ?? project.client?.full_name} size={44} />
+            )}
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold text-gray-900 leading-tight">{project.name}</h1>
+              {(auth.isAdmin || auth.isManager) && project.client?.client_profiles?.company_name && (
+                <p className="text-sm text-gray-500 mt-0.5">{project.client.client_profiles.company_name}</p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
             <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${PROJECT_STATUS_COLORS[project.status] ?? "bg-gray-100 text-gray-600"}`}>
               {cap(fmt(project.status))}
             </span>
@@ -5666,13 +5722,20 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
             )}
           </div>
         </div>
-        {(auth.isAdmin || auth.isManager) && project.client?.client_profiles?.company_name && (
-          <p className="text-sm text-gray-500 mb-2">
-            Client: <span className="font-medium text-gray-700">{project.client.client_profiles.company_name}</span>
-          </p>
-        )}
         {project.description && (
-          <p className="text-sm text-gray-600 leading-relaxed">{project.description}</p>
+          <p className="text-sm text-gray-600 leading-relaxed mb-3">{project.description}</p>
+        )}
+        {/* Progress bar */}
+        {projCases.length > 0 && (
+          <div className="mb-3">
+            <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+              <span>Project progress</span>
+              <span className="font-semibold text-gray-700">{projProgress}% · {projCases.filter(c => TERMINAL.includes(c.status)).length}/{projCases.length} cases done</span>
+            </div>
+            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${projProgress}%` }} />
+            </div>
+          </div>
         )}
 
         {/* Project Next Steps */}
@@ -5837,27 +5900,97 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
         )}
 
         {/* Team & Contacts */}
-        {activeTab === "team" && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-            {(project.stakeholder_name || project.stakeholder_email) && (
-              <div className="border border-gray-100 rounded-xl p-4">
-                <p className="text-xs text-gray-400 mb-1">Key Stakeholder</p>
-                {project.stakeholder_name && <p className="font-medium text-gray-900">{project.stakeholder_name}</p>}
-                {project.stakeholder_email && <p className="text-gray-500 text-xs mt-0.5">{project.stakeholder_email}</p>}
-              </div>
-            )}
-            {(project.billing_contact_name || project.billing_contact_email) && (
-              <div className="border border-gray-100 rounded-xl p-4">
-                <p className="text-xs text-gray-400 mb-1">Billing Contact</p>
-                {project.billing_contact_name && <p className="font-medium text-gray-900">{project.billing_contact_name}</p>}
-                {project.billing_contact_email && <p className="text-gray-500 text-xs mt-0.5">{project.billing_contact_email}</p>}
-              </div>
-            )}
-            {!project.stakeholder_name && !project.stakeholder_email && !project.billing_contact_name && !project.billing_contact_email && (
-              <p className="text-sm text-gray-400">No team contacts defined yet. Edit the project to add them.</p>
-            )}
-          </div>
-        )}
+        {activeTab === "team" && (() => {
+          const clientName = project.client?.client_profiles?.company_name ?? project.client?.full_name;
+          const uniqueManagers = [...new Map(projCases.filter(c => c.manager?.id).map(c => [c.manager.id, c.manager])).values()];
+          return (
+            <div className="space-y-5 text-sm">
+              {/* Client */}
+              {project.client && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Client</p>
+                  <div className="flex items-center gap-3 border border-gray-100 rounded-xl px-4 py-3">
+                    <UserAvatar name={clientName} size={40} />
+                    <div>
+                      <p className="font-semibold text-gray-900">{clientName}</p>
+                      {project.client.full_name && project.client.client_profiles?.company_name && (
+                        <p className="text-xs text-gray-500 mt-0.5">{project.client.full_name}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Managers */}
+              {uniqueManagers.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Manager{uniqueManagers.length > 1 ? 's' : ''}</p>
+                  <div className="space-y-2">
+                    {uniqueManagers.map(m => (
+                      <div key={m.id} className="flex items-center gap-3 border border-gray-100 rounded-xl px-4 py-3">
+                        <UserAvatar name={m.full_name} size={36} />
+                        <div>
+                          <p className="font-semibold text-gray-900">{m.full_name}</p>
+                          {m.email && <p className="text-xs text-gray-500 mt-0.5">{m.email}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Consultants */}
+              {consultants.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Consultants ({consultants.length})</p>
+                  <div className="flex flex-wrap gap-2">
+                    {consultants.map(con => (
+                      <div key={con.id} className="flex items-center gap-2 border border-gray-100 rounded-xl px-3 py-2 bg-gray-50">
+                        <UserAvatar name={con.name} size={28} />
+                        <span className="font-medium text-gray-800 text-xs">{con.name}</span>
+                        <span className="text-[10px] text-gray-400">{con.cases.length} case{con.cases.length !== 1 ? 's' : ''}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Contacts */}
+              {(project.stakeholder_name || project.stakeholder_email || project.billing_contact_name || project.billing_contact_email) && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Contacts</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(project.stakeholder_name || project.stakeholder_email) && (
+                      <div className="flex items-center gap-3 border border-gray-100 rounded-xl px-4 py-3">
+                        <UserAvatar name={project.stakeholder_name ?? 'S'} size={36} />
+                        <div>
+                          <p className="text-[10px] text-gray-400 mb-0.5">Key Stakeholder</p>
+                          {project.stakeholder_name && <p className="font-medium text-gray-900">{project.stakeholder_name}</p>}
+                          {project.stakeholder_email && <p className="text-xs text-gray-500 mt-0.5">{project.stakeholder_email}</p>}
+                        </div>
+                      </div>
+                    )}
+                    {(project.billing_contact_name || project.billing_contact_email) && (
+                      <div className="flex items-center gap-3 border border-gray-100 rounded-xl px-4 py-3">
+                        <UserAvatar name={project.billing_contact_name ?? 'B'} size={36} />
+                        <div>
+                          <p className="text-[10px] text-gray-400 mb-0.5">Billing Contact</p>
+                          {project.billing_contact_name && <p className="font-medium text-gray-900">{project.billing_contact_name}</p>}
+                          {project.billing_contact_email && <p className="text-xs text-gray-500 mt-0.5">{project.billing_contact_email}</p>}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {!project.client && uniqueManagers.length === 0 && consultants.length === 0 &&
+               !project.stakeholder_name && !project.billing_contact_name && (
+                <p className="text-sm text-gray-400">No team members yet. Cases with assignments will appear here automatically.</p>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Requirements */}
         {activeTab === "requirements" && (
@@ -5909,26 +6042,174 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
             ) : (
               <div className="space-y-2">
                 {projCases.map(c => {
-                  const consultant = c.case_assignments?.[0]?.users?.full_name;
+                  const isExpanded = expandedCase === c.id;
+                  const assignees = c.case_assignments ?? [];
+                  const progress = c.progress_pct ?? 0;
+                  const isDone = TERMINAL.includes(c.status);
                   return (
-                    <div key={c.id} className="flex items-center justify-between border border-gray-100 rounded-xl px-4 py-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="font-medium text-gray-900 truncate">{c.title}</span>
-                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
-                          {cap(fmt(c.status))}
-                        </span>
-                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${PRIORITY_COLORS[c.priority] ?? ""}`}>
-                          {cap(c.priority)}
-                        </span>
-                        {consultant && (
-                          <span className="text-xs text-gray-400 hidden sm:inline">{consultant}</span>
-                        )}
+                    <div key={c.id} className={`border rounded-xl overflow-hidden transition-all ${isExpanded ? "border-blue-200 shadow-sm" : "border-gray-100"}`}>
+                      {/* Row header */}
+                      <div
+                        className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                        onClick={() => setExpandedCase(isExpanded ? null : c.id)}>
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <ChevronRight size={14} className={`flex-shrink-0 text-gray-400 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                          <span className="font-medium text-gray-900 truncate text-sm">{c.title}</span>
+                          <span className={`flex-shrink-0 px-2 py-0.5 text-[10px] font-semibold rounded-lg ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
+                            {cap(fmt(c.status))}
+                          </span>
+                          {c.priority && (
+                            <span className={`flex-shrink-0 px-2 py-0.5 text-[10px] font-semibold rounded-lg ${PRIORITY_COLORS[c.priority] ?? ""}`}>
+                              {cap(c.priority)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 flex-shrink-0 ml-3">
+                          {assignees.length > 0 && (
+                            <div className="flex -space-x-2 hidden sm:flex">
+                              {assignees.slice(0, 3).map(a => (
+                                <UserAvatar key={a.consultant_id} name={a.users?.full_name ?? '?'} size={24} title={a.users?.full_name} />
+                              ))}
+                              {assignees.length > 3 && (
+                                <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[9px] font-bold text-gray-500 border-2 border-white">
+                                  +{assignees.length - 3}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {canEdit && (
+                            <button onClick={e => { e.stopPropagation(); handleRemoveCase(c.id); }}
+                              className="text-xs text-red-400 hover:text-red-600">
+                              Remove
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      {canEdit && (
-                        <button onClick={() => handleRemoveCase(c.id)}
-                          className="text-xs text-red-400 hover:text-red-600 ml-4 flex-shrink-0">
-                          Remove
-                        </button>
+
+                      {/* Progress bar (always visible) */}
+                      {progress > 0 && (
+                        <div className="px-4 pb-2">
+                          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full transition-all ${isDone ? "bg-green-500" : "bg-blue-500"}`}
+                              style={{ width: `${progress}%` }} />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Expanded detail */}
+                      {isExpanded && (
+                        <div className="px-4 pb-4 pt-1 border-t border-gray-100 bg-gray-50/50 space-y-3">
+                          {assignees.length === 0 ? (
+                            <p className="text-xs text-gray-400">No consultants assigned to this case.</p>
+                          ) : (
+                            <div>
+                              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Assigned Consultants</p>
+                              <div className="space-y-1.5">
+                                {assignees.map(a => (
+                                  <div key={a.consultant_id} className="flex items-center gap-2.5">
+                                    <UserAvatar name={a.users?.full_name ?? '?'} size={28} />
+                                    <span className="text-sm font-medium text-gray-800">{a.users?.full_name ?? 'Unknown'}</span>
+                                    {a.time_commitment && (
+                                      <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{a.time_commitment}%</span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {c.manager && (
+                            <div className="flex items-center gap-2.5">
+                              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-16 flex-shrink-0">Manager</p>
+                              <UserAvatar name={c.manager.full_name} size={24} />
+                              <span className="text-xs text-gray-700">{c.manager.full_name}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between pt-1">
+                            <div className="text-xs text-gray-400">
+                              Progress: <span className="font-semibold text-gray-700">{progress}%</span>
+                            </div>
+                            <button
+                              onClick={() => setProjSelectedCase(c)}
+                              className="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                              Open case →
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Consultants */}
+        {activeTab === "consultants" && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm font-semibold text-gray-900">
+                {consultants.length} consultant{consultants.length !== 1 ? "s" : ""} on this project
+              </span>
+            </div>
+            {consultants.length === 0 ? (
+              <EmptyState Icon={UserCheck} title="No consultants yet" subtitle="Consultants are added automatically when they are assigned to cases in this project." />
+            ) : (
+              <div className="space-y-3">
+                {consultants.map(con => {
+                  const isExpanded = expandedConsultant === con.id;
+                  const activeCases = con.cases.filter(c => !TERMINAL.includes(c.status));
+                  const doneCases = con.cases.filter(c => TERMINAL.includes(c.status));
+                  return (
+                    <div key={con.id} className={`border rounded-xl overflow-hidden transition-all ${isExpanded ? "border-blue-200 shadow-sm" : "border-gray-100"}`}>
+                      <div
+                        className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                        onClick={() => setExpandedConsultant(isExpanded ? null : con.id)}>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <ChevronRight size={14} className={`flex-shrink-0 text-gray-400 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                          <UserAvatar name={con.name} size={36} />
+                          <div className="min-w-0">
+                            <p className="font-semibold text-gray-900 text-sm">{con.name}</p>
+                            <p className="text-[10px] text-gray-400 mt-0.5">
+                              {con.cases.length} case{con.cases.length !== 1 ? "s" : ""}
+                              {activeCases.length > 0 && ` · ${activeCases.length} active`}
+                              {doneCases.length > 0 && ` · ${doneCases.length} completed`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-1 flex-shrink-0">
+                          {activeCases.length > 0 && (
+                            <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-blue-50 text-blue-700">{activeCases.length} active</span>
+                          )}
+                          {doneCases.length > 0 && (
+                            <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-green-50 text-green-700">{doneCases.length} done</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {isExpanded && (
+                        <div className="px-4 pb-4 pt-1 border-t border-gray-100 bg-gray-50/50 space-y-1.5">
+                          {con.cases.map(c => (
+                            <div key={c.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <span className="font-medium text-gray-800 text-sm truncate">{c.title}</span>
+                                <span className={`flex-shrink-0 px-2 py-0.5 text-[10px] font-semibold rounded-lg ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
+                                  {cap(fmt(c.status))}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-3 flex-shrink-0 ml-2">
+                                {c.time_commitment != null && (
+                                  <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{c.time_commitment}%</span>
+                                )}
+                                <button
+                                  onClick={() => setProjSelectedCase(c)}
+                                  className="text-[10px] font-semibold text-blue-600 hover:text-blue-800">
+                                  Open →
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
                   );
@@ -6179,7 +6460,7 @@ function ProjectsView({ auth }) {
         ))}
       </div>
 
-      {/* Grid */}
+      {/* Project list */}
       {displayed.length === 0 ? (
         <EmptyState
           Icon={Layers}
@@ -6195,37 +6476,75 @@ function ProjectsView({ auth }) {
           }
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-3">
           {displayed.map(p => {
+            const TERM_S = ["completed","cancelled","terminated","closed","approved"];
             const totalCases     = p.cases?.length ?? 0;
-            const openCases      = p.cases?.filter(c => !["completed","cancelled"].includes(c.status)).length ?? 0;
-            const completedCases = p.cases?.filter(c => c.status === "completed").length ?? 0;
+            const doneCases      = p.cases?.filter(c => TERM_S.includes(c.status)).length ?? 0;
+            const activeCases    = p.cases?.filter(c => c.status === "in_progress").length ?? 0;
+            const progress       = totalCases === 0 ? 0 : Math.round(doneCases / totalCases * 100);
             const company        = p.client?.client_profiles?.company_name ?? p.client?.full_name;
             return (
               <div key={p.id}
                 className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer p-5"
                 onClick={() => setSelectedProject(p)}>
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <h3 className="font-bold text-gray-900 truncate">{p.name}</h3>
-                  <span className={`flex-shrink-0 px-2 py-0.5 text-xs font-semibold rounded-lg ${PROJECT_STATUS_COLORS[p.status] ?? "bg-gray-100 text-gray-600"}`}>
-                    {cap(fmt(p.status))}
-                  </span>
-                </div>
-                {(auth.isAdmin || auth.isManager) && company && (
-                  <p className="text-xs text-gray-500 mb-2">{company}</p>
-                )}
-                <div className="flex items-center gap-4 text-xs text-gray-500 mb-2">
-                  <span>Cases: {totalCases} total · {openCases} open · {completedCases} done</span>
-                </div>
-                <div className="flex items-center gap-3 text-xs text-gray-400 mb-2">
-                  <span>Budget: {p.total_budget ? `$${Number(p.total_budget).toLocaleString()}` : "—"}</span>
-                  {p.area_sap && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg">{p.area_sap}</span>}
-                  {p.industry && <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg">{p.industry}</span>}
-                </div>
-                <div className="text-xs text-gray-400">
-                  {p.start_date || p.end_date
-                    ? `${p.start_date ? fmtDate(p.start_date) : "?"} → ${p.end_date ? fmtDate(p.end_date) : "?"}`
-                    : "No dates set"}
+                <div className="flex items-start gap-4">
+                  {/* Client avatar */}
+                  {p.client && (
+                    <div className="flex-shrink-0 mt-0.5">
+                      <UserAvatar name={company ?? '?'} size={44} />
+                    </div>
+                  )}
+
+                  <div className="flex-1 min-w-0">
+                    {/* Title row */}
+                    <div className="flex items-start justify-between gap-3 mb-1">
+                      <div className="min-w-0">
+                        <h3 className="font-bold text-gray-900 text-base leading-snug">{p.name}</h3>
+                        {(auth.isAdmin || auth.isManager) && company && (
+                          <p className="text-xs text-gray-500 mt-0.5">{company}</p>
+                        )}
+                      </div>
+                      <span className={`flex-shrink-0 px-2 py-0.5 text-xs font-semibold rounded-lg ${PROJECT_STATUS_COLORS[p.status] ?? "bg-gray-100 text-gray-600"}`}>
+                        {cap(fmt(p.status))}
+                      </span>
+                    </div>
+
+                    {/* Meta row */}
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-400 mb-3">
+                      {totalCases > 0 && (
+                        <span>
+                          <span className="font-semibold text-gray-700">{totalCases}</span> case{totalCases !== 1 ? "s" : ""}
+                          {activeCases > 0 && <span className="ml-1 text-blue-500 font-semibold">· {activeCases} active</span>}
+                        </span>
+                      )}
+                      {p.total_budget && (
+                        <span>Budget: <span className="font-semibold text-gray-700">${Number(p.total_budget).toLocaleString()}</span></span>
+                      )}
+                      {p.area_sap && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg font-medium">{p.area_sap}</span>}
+                      {p.industry && <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg font-medium">{p.industry}</span>}
+                      {(p.start_date || p.end_date) && (
+                        <span>
+                          {p.start_date ? fmtDate(p.start_date) : "?"} → {p.end_date ? fmtDate(p.end_date) : "?"}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Progress bar */}
+                    {totalCases > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between text-[10px] text-gray-400 mb-1">
+                          <span>Progress</span>
+                          <span className="font-semibold text-gray-600">{progress}% · {doneCases}/{totalCases} done</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${progress === 100 ? "bg-green-500" : "bg-blue-500"}`}
+                            style={{ width: `${progress}%` }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             );
