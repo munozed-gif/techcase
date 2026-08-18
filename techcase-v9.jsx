@@ -12788,21 +12788,42 @@ function DbConnectionsView({ auth }) {
 function DbConnectionsList({ client, auth }) {
   const { connections, addConnection, deleteConnection } = useDbConnections(client.id);
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm]       = useState({ db_type: "postgresql", host: "", port: 5432, db_name: "", username: "", notes: "" });
+  const defaultForm = { db_type: "postgresql", host: "", port: 5432, db_name: "", username: "", notes: "", meta: {} };
+  const [form, setForm]       = useState(defaultForm);
   const [saving, setSaving]   = useState(false);
 
+  const isSapType = t => ["sap_gui","sap_hana","sap_rfc","sap_odata"].includes(t);
+  const isVpnType = t => t === "vpn";
+
+  function handleTypeChange(t) {
+    const defaultPorts = { postgresql: 5432, mysql: 3306, mssql: 1433, oracle: 1521, mongodb: 27017, sap_hana: 39015, sap_gui: 3200, sap_rfc: 3300, sap_odata: 443, vpn: 1194 };
+    setForm(p => ({ ...p, db_type: t, port: defaultPorts[t] ?? p.port, meta: {} }));
+  }
+
   async function handleAdd() {
-    if (!form.host || !form.db_name) return;
+    if (!form.host || (!isVpnType(form.db_type) && !form.db_name)) return;
     setSaving(true);
     try {
       await addConnection(form);
-      setForm({ db_type: "postgresql", host: "", port: 5432, db_name: "", username: "", notes: "" });
+      setForm(defaultForm);
       setShowAdd(false);
     } catch (e) { alert(e.message); }
     setSaving(false);
   }
 
-  const dbTypeColors = { postgresql: "bg-blue-100 text-blue-700", mysql: "bg-orange-100 text-orange-700", mssql: "bg-red-100 text-red-700", oracle: "bg-red-100 text-red-700", mongodb: "bg-green-100 text-green-700", other: "bg-gray-100 text-gray-700" };
+  const CONN_COLORS = {
+    postgresql: "bg-blue-100 text-blue-700", mysql: "bg-orange-100 text-orange-700",
+    mssql: "bg-red-100 text-red-700", oracle: "bg-red-100 text-red-700",
+    mongodb: "bg-green-100 text-green-700",
+    sap_gui: "bg-indigo-100 text-indigo-700", sap_hana: "bg-cyan-100 text-cyan-700",
+    sap_rfc: "bg-purple-100 text-purple-700", sap_odata: "bg-teal-100 text-teal-700",
+    vpn: "bg-slate-100 text-slate-700", other: "bg-gray-100 text-gray-700",
+  };
+  const CONN_LABELS = {
+    postgresql: "PostgreSQL", mysql: "MySQL", mssql: "MSSQL", oracle: "Oracle",
+    mongodb: "MongoDB", sap_gui: "SAP GUI", sap_hana: "SAP HANA",
+    sap_rfc: "SAP RFC", sap_odata: "SAP OData", vpn: "VPN", other: "Other",
+  };
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
@@ -12822,23 +12843,85 @@ function DbConnectionsList({ client, auth }) {
       {showAdd && (
         <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <Select label="Database Type" value={form.db_type}
-              onChange={e => setForm(p => ({ ...p, db_type: e.target.value }))}
-              options={["postgresql","mysql","mssql","oracle","mongodb","other"].map(t => ({ value: t, label: t.toUpperCase() }))} />
-            <Input label="Host / Server" value={form.host}
-              onChange={e => setForm(p => ({ ...p, host: e.target.value }))} placeholder="db.example.com" />
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Connection Type</label>
+              <select value={form.db_type} onChange={e => handleTypeChange(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <optgroup label="Databases">
+                  {["postgresql","mysql","mssql","oracle","mongodb","other"].map(t => (
+                    <option key={t} value={t}>{CONN_LABELS[t]}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="SAP">
+                  {["sap_gui","sap_hana","sap_rfc","sap_odata"].map(t => (
+                    <option key={t} value={t}>{CONN_LABELS[t]}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Network">
+                  <option value="vpn">VPN</option>
+                </optgroup>
+              </select>
+            </div>
+            <Input label={isSapType(form.db_type) ? "Application Server" : isVpnType(form.db_type) ? "VPN Host" : "Host / Server"}
+              value={form.host} onChange={e => setForm(p => ({ ...p, host: e.target.value }))}
+              placeholder={isSapType(form.db_type) ? "saphost.example.com" : "host.example.com"} />
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <Input label="Port" type="number" value={form.port}
-              onChange={e => setForm(p => ({ ...p, port: Number(e.target.value) }))} />
-            <Input label="Database Name" value={form.db_name}
-              onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} />
-            <Input label="Username" value={form.username}
-              onChange={e => setForm(p => ({ ...p, username: e.target.value }))} />
-          </div>
-          <Textarea label="Notes" value={form.notes}
-            onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-            placeholder="Access instructions, VPN requirements…" />
+
+          {/* Standard DB fields */}
+          {!isSapType(form.db_type) && !isVpnType(form.db_type) && (
+            <div className="grid grid-cols-3 gap-3">
+              <Input label="Port" type="number" value={form.port} onChange={e => setForm(p => ({ ...p, port: Number(e.target.value) }))} />
+              <Input label="Database Name" value={form.db_name} onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} />
+              <Input label="Username" value={form.username} onChange={e => setForm(p => ({ ...p, username: e.target.value }))} />
+            </div>
+          )}
+
+          {/* SAP GUI / RFC fields */}
+          {(form.db_type === "sap_gui" || form.db_type === "sap_rfc") && (
+            <div className="grid grid-cols-4 gap-3">
+              <Input label="System Number" type="number" value={form.port} onChange={e => setForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="00" />
+              <Input label="System ID (SID)" value={form.db_name} onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} placeholder="PRD" />
+              <Input label="SAP Client" value={form.meta?.sap_client ?? ""} onChange={e => setForm(p => ({ ...p, meta: { ...p.meta, sap_client: e.target.value } }))} placeholder="100" />
+              <Input label="Username" value={form.username} onChange={e => setForm(p => ({ ...p, username: e.target.value }))} />
+            </div>
+          )}
+
+          {/* SAP HANA fields */}
+          {form.db_type === "sap_hana" && (
+            <div className="grid grid-cols-3 gap-3">
+              <Input label="Port" type="number" value={form.port} onChange={e => setForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="39015" />
+              <Input label="Database / Schema" value={form.db_name} onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} />
+              <Input label="Username" value={form.username} onChange={e => setForm(p => ({ ...p, username: e.target.value }))} />
+            </div>
+          )}
+
+          {/* SAP OData fields */}
+          {form.db_type === "sap_odata" && (
+            <div className="grid grid-cols-3 gap-3">
+              <Input label="Port" type="number" value={form.port} onChange={e => setForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="443" />
+              <Input label="Service Path" value={form.db_name} onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} placeholder="/sap/opu/odata/sap/..." />
+              <Input label="Username / OAuth Client" value={form.username} onChange={e => setForm(p => ({ ...p, username: e.target.value }))} />
+            </div>
+          )}
+
+          {/* VPN fields */}
+          {isVpnType(form.db_type) && (
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">VPN Protocol</label>
+                <select value={form.meta?.vpn_protocol ?? "OpenVPN"}
+                  onChange={e => setForm(p => ({ ...p, meta: { ...p.meta, vpn_protocol: e.target.value } }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {["OpenVPN","IPSec/IKEv2","WireGuard","SSL/TLS","PPTP","L2TP"].map(v => <option key={v}>{v}</option>)}
+                </select>
+              </div>
+              <Input label="Port" type="number" value={form.port} onChange={e => setForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="1194" />
+              <Input label="Profile / Label" value={form.db_name} onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} placeholder="Corporate VPN" />
+            </div>
+          )}
+
+          <Textarea label="Notes" value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+            placeholder={isSapType(form.db_type) ? "Logon group, message server, access instructions…" : isVpnType(form.db_type) ? "Config file location, certificate path, access instructions…" : "Access instructions, connection details…"} />
           <div className="flex justify-end gap-3">
             <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
             <button onClick={handleAdd} disabled={saving}
@@ -12853,9 +12936,13 @@ function DbConnectionsList({ client, auth }) {
         {connections.map(conn => (
           <div key={conn.id} className="border border-gray-100 rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Badge className={dbTypeColors[conn.db_type] ?? dbTypeColors.other}>{conn.db_type?.toUpperCase()}</Badge>
-                <span className="font-mono text-sm text-gray-800">{conn.db_name}</span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge className={CONN_COLORS[conn.db_type] ?? CONN_COLORS.other}>{CONN_LABELS[conn.db_type] ?? conn.db_type?.toUpperCase()}</Badge>
+                <span className="font-mono text-sm text-gray-800">
+                  {isSapType(conn.db_type) ? (conn.db_name || conn.host) : isVpnType(conn.db_type) ? (conn.db_name || conn.host) : conn.db_name}
+                </span>
+                {conn.meta?.sap_client && <span className="text-xs text-gray-500 font-mono">Client {conn.meta.sap_client}</span>}
+                {conn.meta?.vpn_protocol && <span className="text-xs text-indigo-500 font-mono">{conn.meta.vpn_protocol}</span>}
               </div>
               {(auth.isAdmin || auth.isManager) && (
                 <button onClick={() => deleteConnection(conn.id)}
@@ -12865,7 +12952,8 @@ function DbConnectionsList({ client, auth }) {
               )}
             </div>
             <div className="text-xs text-gray-500 font-mono">
-              {conn.username && <span>{conn.username}@</span>}{conn.host}:{conn.port}
+              {conn.username && <span>{conn.username}@</span>}{conn.host}{conn.port ? `:${conn.port}` : ""}
+              {isSapType(conn.db_type) && conn.db_name && conn.db_name !== conn.host && <span className="ml-2 text-gray-400">SID: {conn.db_name}</span>}
             </div>
             {conn.notes && <p className="text-xs text-gray-400 mt-2">{conn.notes}</p>}
           </div>
@@ -12873,7 +12961,7 @@ function DbConnectionsList({ client, auth }) {
         {connections.length === 0 && (
           <div className="text-center py-8 text-gray-400">
             <div className="mb-2 flex justify-center"><Database className="w-8 h-8 text-gray-300" /></div>
-            <p className="text-sm">No database connections configured.</p>
+            <p className="text-sm">No connections configured.</p>
           </div>
         )}
       </div>
@@ -14084,7 +14172,8 @@ function ClientProfileView({ auth }) {
 
   // DB connection form
   const [showAddConn, setShowAddConn] = useState(false);
-  const [connForm, setConnForm] = useState({ db_type: "postgresql", host: "", port: 5432, db_name: "", username: "", notes: "" });
+  const defaultConnForm = { db_type: "postgresql", host: "", port: 5432, db_name: "", username: "", notes: "", meta: {} };
+  const [connForm, setConnForm] = useState(defaultConnForm);
   const [savingConn, setSavingConn] = useState(false);
 
   // Team member form
@@ -14188,12 +14277,20 @@ function ClientProfileView({ auth }) {
     setSavingLifecycle(false);
   }
 
+  const isSapConnType = t => ["sap_gui","sap_hana","sap_rfc","sap_odata"].includes(t);
+  const isVpnConnType = t => t === "vpn";
+
+  function handleConnTypeChange(t) {
+    const defaultPorts = { postgresql: 5432, mysql: 3306, mssql: 1433, oracle: 1521, mongodb: 27017, sap_hana: 39015, sap_gui: 3200, sap_rfc: 3300, sap_odata: 443, vpn: 1194 };
+    setConnForm(p => ({ ...p, db_type: t, port: defaultPorts[t] ?? p.port, meta: {} }));
+  }
+
   async function handleAddConn() {
-    if (!connForm.host || !connForm.db_name) return;
+    if (!connForm.host || (!isVpnConnType(connForm.db_type) && !connForm.db_name)) return;
     setSavingConn(true);
     try {
       await addConnection(connForm);
-      setConnForm({ db_type: "postgresql", host: "", port: 5432, db_name: "", username: "", notes: "" });
+      setConnForm(defaultConnForm);
       setShowAddConn(false);
     } catch (e) { alert(e.message); }
     setSavingConn(false);
@@ -14213,7 +14310,19 @@ function ClientProfileView({ auth }) {
   if (loading) return <Spinner />;
 
   const tierColors = { standard: "bg-gray-100 text-gray-700", premium: "bg-blue-100 text-blue-700", enterprise: "bg-violet-100 text-blue-700" };
-  const dbTypeColors = { postgresql: "bg-blue-100 text-blue-700", mysql: "bg-orange-100 text-orange-700", mssql: "bg-red-100 text-red-700", mongodb: "bg-green-100 text-green-700", other: "bg-gray-100 text-gray-700" };
+  const dbTypeColors = {
+    postgresql: "bg-blue-100 text-blue-700", mysql: "bg-orange-100 text-orange-700",
+    mssql: "bg-red-100 text-red-700", oracle: "bg-red-100 text-red-700",
+    mongodb: "bg-green-100 text-green-700",
+    sap_gui: "bg-indigo-100 text-indigo-700", sap_hana: "bg-cyan-100 text-cyan-700",
+    sap_rfc: "bg-purple-100 text-purple-700", sap_odata: "bg-teal-100 text-teal-700",
+    vpn: "bg-slate-100 text-slate-700", other: "bg-gray-100 text-gray-700",
+  };
+  const connTypeLabels = {
+    postgresql: "PostgreSQL", mysql: "MySQL", mssql: "MSSQL", oracle: "Oracle",
+    mongodb: "MongoDB", sap_gui: "SAP GUI", sap_hana: "SAP HANA",
+    sap_rfc: "SAP RFC", sap_odata: "SAP OData", vpn: "VPN", other: "Other",
+  };
 
   const tabs = [
     { id: "overview",     label: "Overview",     icon: Building2,         count: null },
@@ -14529,23 +14638,75 @@ function ClientProfileView({ auth }) {
           {showAddConn && (
             <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <Select label="Database Type" value={connForm.db_type}
-                  onChange={e => setConnForm(p => ({ ...p, db_type: e.target.value }))}
-                  options={["postgresql","mysql","mssql","oracle","mongodb","other"].map(t => ({ value: t, label: t.toUpperCase() }))} />
-                <Input label="Host / Server" value={connForm.host}
-                  onChange={e => setConnForm(p => ({ ...p, host: e.target.value }))} placeholder="db.example.com" />
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Connection Type</label>
+                  <select value={connForm.db_type} onChange={e => handleConnTypeChange(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <optgroup label="Databases">
+                      {["postgresql","mysql","mssql","oracle","mongodb","other"].map(t => (
+                        <option key={t} value={t}>{connTypeLabels[t]}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="SAP">
+                      {["sap_gui","sap_hana","sap_rfc","sap_odata"].map(t => (
+                        <option key={t} value={t}>{connTypeLabels[t]}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Network">
+                      <option value="vpn">VPN</option>
+                    </optgroup>
+                  </select>
+                </div>
+                <Input label={isSapConnType(connForm.db_type) ? "Application Server" : isVpnConnType(connForm.db_type) ? "VPN Host" : "Host / Server"}
+                  value={connForm.host} onChange={e => setConnForm(p => ({ ...p, host: e.target.value }))}
+                  placeholder={isSapConnType(connForm.db_type) ? "saphost.example.com" : "host.example.com"} />
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                <Input label="Port" type="number" value={connForm.port}
-                  onChange={e => setConnForm(p => ({ ...p, port: Number(e.target.value) }))} />
-                <Input label="Database Name" value={connForm.db_name}
-                  onChange={e => setConnForm(p => ({ ...p, db_name: e.target.value }))} />
-                <Input label="Username" value={connForm.username}
-                  onChange={e => setConnForm(p => ({ ...p, username: e.target.value }))} />
-              </div>
+              {!isSapConnType(connForm.db_type) && !isVpnConnType(connForm.db_type) && (
+                <div className="grid grid-cols-3 gap-3">
+                  <Input label="Port" type="number" value={connForm.port} onChange={e => setConnForm(p => ({ ...p, port: Number(e.target.value) }))} />
+                  <Input label="Database Name" value={connForm.db_name} onChange={e => setConnForm(p => ({ ...p, db_name: e.target.value }))} />
+                  <Input label="Username" value={connForm.username} onChange={e => setConnForm(p => ({ ...p, username: e.target.value }))} />
+                </div>
+              )}
+              {(connForm.db_type === "sap_gui" || connForm.db_type === "sap_rfc") && (
+                <div className="grid grid-cols-4 gap-3">
+                  <Input label="System Number" type="number" value={connForm.port} onChange={e => setConnForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="00" />
+                  <Input label="System ID (SID)" value={connForm.db_name} onChange={e => setConnForm(p => ({ ...p, db_name: e.target.value }))} placeholder="PRD" />
+                  <Input label="SAP Client" value={connForm.meta?.sap_client ?? ""} onChange={e => setConnForm(p => ({ ...p, meta: { ...p.meta, sap_client: e.target.value } }))} placeholder="100" />
+                  <Input label="Username" value={connForm.username} onChange={e => setConnForm(p => ({ ...p, username: e.target.value }))} />
+                </div>
+              )}
+              {connForm.db_type === "sap_hana" && (
+                <div className="grid grid-cols-3 gap-3">
+                  <Input label="Port" type="number" value={connForm.port} onChange={e => setConnForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="39015" />
+                  <Input label="Database / Schema" value={connForm.db_name} onChange={e => setConnForm(p => ({ ...p, db_name: e.target.value }))} />
+                  <Input label="Username" value={connForm.username} onChange={e => setConnForm(p => ({ ...p, username: e.target.value }))} />
+                </div>
+              )}
+              {connForm.db_type === "sap_odata" && (
+                <div className="grid grid-cols-3 gap-3">
+                  <Input label="Port" type="number" value={connForm.port} onChange={e => setConnForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="443" />
+                  <Input label="Service Path" value={connForm.db_name} onChange={e => setConnForm(p => ({ ...p, db_name: e.target.value }))} placeholder="/sap/opu/odata/sap/..." />
+                  <Input label="Username / OAuth Client" value={connForm.username} onChange={e => setConnForm(p => ({ ...p, username: e.target.value }))} />
+                </div>
+              )}
+              {isVpnConnType(connForm.db_type) && (
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">VPN Protocol</label>
+                    <select value={connForm.meta?.vpn_protocol ?? "OpenVPN"}
+                      onChange={e => setConnForm(p => ({ ...p, meta: { ...p.meta, vpn_protocol: e.target.value } }))}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      {["OpenVPN","IPSec/IKEv2","WireGuard","SSL/TLS","PPTP","L2TP"].map(v => <option key={v}>{v}</option>)}
+                    </select>
+                  </div>
+                  <Input label="Port" type="number" value={connForm.port} onChange={e => setConnForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="1194" />
+                  <Input label="Profile / Label" value={connForm.db_name} onChange={e => setConnForm(p => ({ ...p, db_name: e.target.value }))} placeholder="Corporate VPN" />
+                </div>
+              )}
               <Textarea label="Notes" value={connForm.notes}
                 onChange={e => setConnForm(p => ({ ...p, notes: e.target.value }))}
-                placeholder="VPN requirements, access instructions…" />
+                placeholder={isSapConnType(connForm.db_type) ? "Logon group, message server, access instructions…" : isVpnConnType(connForm.db_type) ? "Config file location, certificate path, access instructions…" : "Access instructions, connection details…"} />
               <div className="flex justify-end gap-3">
                 <button onClick={() => setShowAddConn(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
                 <button onClick={handleAddConn} disabled={savingConn}
@@ -14560,9 +14721,13 @@ function ClientProfileView({ auth }) {
             {connections.map(conn => (
               <div key={conn.id} className="border border-gray-100 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Badge className={dbTypeColors[conn.db_type] ?? dbTypeColors.other}>{conn.db_type?.toUpperCase()}</Badge>
-                    <span className="font-mono text-sm font-semibold text-gray-800">{conn.db_name}</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge className={dbTypeColors[conn.db_type] ?? dbTypeColors.other}>{connTypeLabels[conn.db_type] ?? conn.db_type?.toUpperCase()}</Badge>
+                    <span className="font-mono text-sm font-semibold text-gray-800">
+                      {isSapConnType(conn.db_type) ? (conn.db_name || conn.host) : isVpnConnType(conn.db_type) ? (conn.db_name || conn.host) : conn.db_name}
+                    </span>
+                    {conn.meta?.sap_client && <span className="text-xs text-gray-500 font-mono">Client {conn.meta.sap_client}</span>}
+                    {conn.meta?.vpn_protocol && <span className="text-xs text-indigo-500 font-mono">{conn.meta.vpn_protocol}</span>}
                   </div>
                   <button onClick={() => deleteConnection(conn.id)}
                     className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded border border-red-100 hover:bg-red-50">
@@ -14570,7 +14735,8 @@ function ClientProfileView({ auth }) {
                   </button>
                 </div>
                 <div className="text-xs text-gray-500 font-mono">
-                  {conn.username && <span>{conn.username}@</span>}{conn.host}:{conn.port}
+                  {conn.username && <span>{conn.username}@</span>}{conn.host}{conn.port ? `:${conn.port}` : ""}
+                  {isSapConnType(conn.db_type) && conn.db_name && conn.db_name !== conn.host && <span className="ml-2 text-gray-400">SID: {conn.db_name}</span>}
                 </div>
                 {conn.notes && <p className="text-xs text-gray-400 mt-2">{conn.notes}</p>}
               </div>
@@ -14578,7 +14744,7 @@ function ClientProfileView({ auth }) {
             {connections.length === 0 && (
               <div className="text-center py-8 text-gray-400">
                 <div className="mb-2 flex justify-center"><Database className="w-8 h-8 text-gray-300" /></div>
-                <p className="text-sm">No database connections yet. Add one above.</p>
+                <p className="text-sm">No connections configured yet. Add one above.</p>
               </div>
             )}
           </div>
