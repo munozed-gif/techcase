@@ -66,7 +66,7 @@ function useMilestones(caseId) {
     await fetchMilestones();
     if (!isDone) {
       const ms = milestones.find(m => m.id === id);
-      if (ms) notifyCaseParticipants(caseId, null, "Milestone reached", `Milestone completed: "${ms.title}".`);
+      if (ms) notifyCaseParticipants(caseId, null, "Milestone reached", `Milestone completed: "${ms.title}".`, { case_id: caseId, event_type: "milestone" });
     }
   }
   async function addMilestone(title) {
@@ -96,10 +96,10 @@ function useCaseComments(caseId) {
     });
     if (progressUpdate !== null) {
       await supabase.from("cases").update({ progress_pct: progressUpdate }).eq("id", caseId);
-      notifyCaseParticipants(caseId, user?.id, "Progress updated", `Case progress updated to ${progressUpdate}%.`);
+      notifyCaseParticipants(caseId, user?.id, "Progress updated", `Case progress updated to ${progressUpdate}%.`, { case_id: caseId, event_type: "progress" });
     }
     if (!isInternal) {
-      notifyCaseParticipants(caseId, user?.id, "New comment on case", body.length > 100 ? body.slice(0, 97) + "…" : body);
+      notifyCaseParticipants(caseId, user?.id, "New comment on case", body.length > 100 ? body.slice(0, 97) + "…" : body, { case_id: caseId, event_type: "comment" });
     }
     await fetchComments();
   }
@@ -337,7 +337,7 @@ function useTimeEntries(caseId = null) {
     const { data: me } = await supabase.from("users").select("full_name").eq("id", user.id).single().catch(() => ({ data: null }));
     const who = me?.full_name ?? "A consultant";
     const hrs = Number(data.hours).toFixed(1);
-    notifyCaseParticipants(caseId, user.id, "Time logged", `${who} logged ${hrs}h${data.description ? ` — ${data.description}` : ""}.`);
+    notifyCaseParticipants(caseId, user.id, "Time logged", `${who} logged ${hrs}h${data.description ? ` — ${data.description}` : ""}.`, { case_id: caseId, event_type: "time_log" });
     return row;
   }
 
@@ -504,7 +504,7 @@ function useCaseDocuments(caseId) {
     });
     if (error) throw error;
     await fetchDocs();
-    notifyCaseParticipants(caseId, user.id, "Document uploaded", `New document attached: "${file.name}"${notes ? ` — ${notes}` : ""}.`);
+    notifyCaseParticipants(caseId, user.id, "Document uploaded", `New document attached: "${file.name}"${notes ? ` — ${notes}` : ""}.`, { case_id: caseId, event_type: "document" });
     return publicUrl;
   }
 
@@ -670,7 +670,7 @@ function useCases(filters = {}) {
         user_test:       "The case is ready for User Acceptance Testing (UAT) — business sign-off required.",
       };
       const body = TEST_MSG[updates.status] ?? `Case status changed to "${label}".`;
-      notifyCaseParticipants(id, user?.id, `Status → ${label}`, body);
+      notifyCaseParticipants(id, user?.id, `Status → ${label}`, body, { case_id: id, event_type: "status_change" });
     }
     return row;
   }
@@ -1422,7 +1422,7 @@ async function notifyManagers(title, body) {
     await supabase.from("notifications").insert(data.map(u => ({ user_id: u.id, title, body, is_read: false })));
   } catch (_) {}
 }
-async function notifyCaseParticipants(caseId, excludeUserId, title, body) {
+async function notifyCaseParticipants(caseId, excludeUserId, title, body, opts = {}) {
   try {
     const { data: c } = await supabase.from("cases")
       .select("client_id, manager_id, case_key_users(user_id), case_assignments(consultant_id)").eq("id", caseId).single();
@@ -1433,7 +1433,11 @@ async function notifyCaseParticipants(caseId, excludeUserId, title, body) {
     (c.case_key_users  ?? []).forEach(ku => { if (ku.user_id      !== excludeUserId) ids.add(ku.user_id); });
     (c.case_assignments ?? []).forEach(a  => { if (a.consultant_id !== excludeUserId) ids.add(a.consultant_id); });
     if (!ids.size) return;
-    await supabase.from("notifications").insert([...ids].map(uid => ({ user_id: uid, title, body, is_read: false })));
+    await supabase.from("notifications").insert([...ids].map(uid => ({
+      user_id: uid, title, body, is_read: false,
+      case_id: opts.case_id ?? caseId ?? null,
+      event_type: opts.event_type ?? "general",
+    })));
   } catch (_) {}
 }
 // ─────────────────────────────────────────────────────────────
@@ -1842,13 +1846,13 @@ async function runDueDateMonitor(cases) {
     const lsKey3 = `duerem3_${c.id}`, lsKey1 = `duerem1_${c.id}`;
     if (daysLeft === 3 && !localStorage.getItem(lsKey3)) {
       localStorage.setItem(lsKey3, "1");
-      notifyCaseParticipants(c.id, null, "Due date in 3 days", `"${c.title}" is due on ${c.due_date} — 3 days remaining.`);
+      notifyCaseParticipants(c.id, null, "Due date in 3 days", `"${c.title}" is due on ${c.due_date} — 3 days remaining.`, { case_id: c.id, event_type: "due_date" });
       notifyManagers("Due date approaching", `"${c.title}" is due in 3 days (${c.due_date}).`);
     }
     if (daysLeft <= 1 && daysLeft >= 0 && !localStorage.getItem(lsKey1)) {
       localStorage.setItem(lsKey1, "1");
       const when = daysLeft === 0 ? "today" : "tomorrow";
-      notifyCaseParticipants(c.id, null, `Due date ${when}`, `"${c.title}" is due ${when} (${c.due_date}).`);
+      notifyCaseParticipants(c.id, null, `Due date ${when}`, `"${c.title}" is due ${when} (${c.due_date}).`, { case_id: c.id, event_type: "due_date" });
       notifyManagers("Due date urgent", `"${c.title}" is due ${when} (${c.due_date}) and is still in progress.`);
     }
     if (daysLeft < 0 && !localStorage.getItem(`dueoverdue_${c.id}`)) {
@@ -2020,6 +2024,281 @@ function timeAgo(d) {
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   if (s < 604800) return `${Math.floor(s / 86400)}d ago`;
   return fmtDate(d);
+}
+
+function useActivityFeed(visibleCaseIds, userId) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const key = visibleCaseIds.slice(0, 80).sort().join(',');
+
+  const refresh = useCallback(async () => {
+    if (!userId) return;
+    setLoading(true);
+    const ids = visibleCaseIds.slice(0, 80);
+    const [commRes, assignRes, notifRes] = await Promise.all([
+      ids.length > 0
+        ? supabase.from('case_comments')
+            .select('id, case_id, body, created_at, progress_update, is_internal, author:author_id(id, full_name)')
+            .in('case_id', ids).eq('is_internal', false)
+            .order('created_at', { ascending: false }).limit(50)
+        : { data: [] },
+      ids.length > 0
+        ? supabase.from('case_assignments')
+            .select('id, case_id, created_at, time_commitment, consultant:consultant_id(id, full_name)')
+            .in('case_id', ids).order('created_at', { ascending: false }).limit(30)
+        : { data: [] },
+      supabase.from('notifications')
+        .select('*').eq('user_id', userId)
+        .order('created_at', { ascending: false }).limit(50),
+    ]);
+    const merged = [
+      ...(commRes.data ?? []).map(c => ({
+        ...c, _type: c.progress_update !== null ? 'progress' : 'comment',
+        actor_name: c.author?.full_name ?? 'Someone', _key: `comment-${c.id}`, is_unread: false,
+      })),
+      ...(assignRes.data ?? []).map(a => ({
+        ...a, _type: 'assignment',
+        actor_name: a.consultant?.full_name ?? 'A consultant', _key: `assign-${a.id}`, is_unread: false,
+      })),
+      ...(notifRes.data ?? []).map(n => ({
+        ...n,
+        _type: n.event_type === 'status_change' ? 'status_change'
+             : n.event_type === 'due_date' ? 'alert'
+             : n.event_type === 'milestone' ? 'milestone'
+             : n.event_type === 'document' ? 'document'
+             : 'alert',
+        actor_name: null, _key: `notif-${n.id}`, is_unread: !n.is_read,
+      })),
+    ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 60);
+    setItems(merged);
+    setLoading(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, userId]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+  return { items, loading, refresh };
+}
+
+function useFeedPrefs(userId) {
+  const key = `feed_prefs_${userId}`;
+  const defaults = {
+    show_comments: true, show_progress: true, show_status: true,
+    show_assignments: true, show_alerts: true, show_documents: true,
+    scope: 'my_cases',
+    visible_comments: true, visible_progress: true,
+    visible_status: true, visible_assignments: true,
+  };
+  const [prefs, setPrefsState] = useState(() => {
+    try { return { ...defaults, ...JSON.parse(localStorage.getItem(key) ?? '{}') }; } catch { return defaults; }
+  });
+  function savePrefs(next) {
+    const merged = { ...prefs, ...next };
+    setPrefsState(merged);
+    localStorage.setItem(key, JSON.stringify(merged));
+  }
+  return { prefs, savePrefs };
+}
+
+const FEED_TYPE_STYLES = {
+  comment:      { bg: 'bg-blue-100',   text: 'text-blue-600',   Icon: MessageSquare, label: 'Comment' },
+  progress:     { bg: 'bg-green-100',  text: 'text-green-600',  Icon: Activity,      label: 'Progress' },
+  assignment:   { bg: 'bg-violet-100', text: 'text-violet-600', Icon: UserCheck,     label: 'Assignment' },
+  status_change:{ bg: 'bg-indigo-100', text: 'text-indigo-600', Icon: ChevronRight,  label: 'Status' },
+  milestone:    { bg: 'bg-emerald-100',text: 'text-emerald-600',Icon: CheckCircle2,  label: 'Milestone' },
+  document:     { bg: 'bg-sky-100',    text: 'text-sky-600',    Icon: FileText,      label: 'Document' },
+  alert:        { bg: 'bg-amber-100',  text: 'text-amber-700',  Icon: AlertTriangle, label: 'Alert' },
+};
+
+function FeedCard({ item, caseData, onOpenCase, onMarkRead }) {
+  const caseTitle = caseData?.title ?? item.title ?? 'Unknown case';
+  const style = FEED_TYPE_STYLES[item._type] ?? FEED_TYPE_STYLES.alert;
+  const actorInitials = item.actor_name
+    ? item.actor_name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
+    : null;
+
+  function handleClick() {
+    if (item.is_unread && item._key?.startsWith('notif-') && onMarkRead) onMarkRead(item.id);
+    if (caseData && onOpenCase) onOpenCase(caseData);
+  }
+
+  return (
+    <div
+      className={`rounded-2xl border p-4 transition-all cursor-pointer hover:shadow-md ${item.is_unread ? 'border-blue-200 bg-blue-50/30' : 'border-gray-100 bg-white'}`}
+      onClick={handleClick}>
+      <div className="flex gap-3">
+        {/* Avatar */}
+        <div className="flex-shrink-0 mt-0.5">
+          {actorInitials ? (
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold ${style.bg} ${style.text}`}>
+              {actorInitials}
+            </div>
+          ) : (
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center ${style.bg}`}>
+              <style.Icon className={`w-4 h-4 ${style.text}`} />
+            </div>
+          )}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-2 mb-1">
+            <p className="text-sm text-gray-900 leading-snug">
+              {item._type === 'comment' && <><span className="font-semibold">{item.actor_name}</span>{' commented on '}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span></>}
+              {item._type === 'progress' && <><span className="font-semibold">{item.actor_name}</span>{' updated '}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span>{' to '}<span className="font-semibold text-green-600">{item.progress_update}%</span></>}
+              {item._type === 'assignment' && <><span className="font-semibold">{item.actor_name}</span>{' joined '}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span>{item.time_commitment ? <span className="text-gray-500"> · {item.time_commitment}% commitment</span> : null}</>}
+              {item._type === 'status_change' && <>{'Status changed on '}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span>{': '}<span className="font-semibold text-indigo-600">{(item.title ?? '').replace('Status → ', '')}</span></>}
+              {item._type === 'milestone' && <span className="font-semibold text-gray-900">{item.title}</span>}
+              {item._type === 'document' && <span className="font-semibold text-gray-900">{item.title}</span>}
+              {item._type === 'alert' && <span className="font-semibold text-amber-800">{item.title}</span>}
+            </p>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {item.is_unread && <div className="w-2 h-2 bg-blue-500 rounded-full" />}
+              <span className="text-xs text-gray-400 whitespace-nowrap">{timeAgo(item.created_at)}</span>
+            </div>
+          </div>
+
+          {/* Body */}
+          {item._type === 'comment' && item.body && (
+            <div className="mt-2 bg-gray-50 rounded-xl px-3 py-2.5 text-sm text-gray-600 line-clamp-3 leading-relaxed">{item.body}</div>
+          )}
+          {item._type === 'progress' && (
+            <div className="mt-2 flex items-center gap-2">
+              <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-full bg-green-500 rounded-full" style={{ width: `${item.progress_update}%` }} />
+              </div>
+              <span className="text-xs font-semibold text-green-600">{item.progress_update}%</span>
+            </div>
+          )}
+          {(item._type === 'status_change' || item._type === 'alert' || item._type === 'milestone' || item._type === 'document') && item.body && (
+            <p className="mt-1 text-sm text-gray-500 leading-snug">{item.body}</p>
+          )}
+
+          {/* Case footer */}
+          {caseData && (
+            <div className="mt-3 flex items-center gap-2">
+              <Badge className={STATUS_COLORS[caseData.status] ?? 'bg-gray-100 text-gray-600'}>{cap(fmt(caseData.status))}</Badge>
+              {caseData.area_sap && <span className="text-xs text-gray-400">{caseData.area_sap}</span>}
+              {caseData.progress_pct != null && <span className="text-xs text-gray-400">{caseData.progress_pct}%</span>}
+              <span className="ml-auto text-xs text-[#1A4B8C] font-semibold hover:underline">Open case →</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FeedPreferencesModal({ open, onClose, auth, prefs, savePrefs }) {
+  if (!open) return null;
+  const isClient = auth.isClient;
+  const isConsultant = auth.isConsultant;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal className="w-4 h-4 text-gray-500" />
+            <h2 className="font-bold text-gray-900">Feed Preferences</h2>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+        </div>
+        <div className="p-5 space-y-5">
+          {isConsultant && (
+            <>
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Show in my feed</p>
+                <div className="space-y-2">
+                  {[
+                    { key: 'show_comments',    label: 'Comments on cases' },
+                    { key: 'show_progress',    label: 'Progress updates' },
+                    { key: 'show_status',      label: 'Status changes' },
+                    { key: 'show_assignments', label: 'Consultant assignments' },
+                    { key: 'show_documents',   label: 'Document uploads' },
+                    { key: 'show_alerts',      label: 'Due date & milestone alerts' },
+                  ].map(({ key, label }) => (
+                    <label key={key} className="flex items-center justify-between gap-3 cursor-pointer">
+                      <span className="text-sm text-gray-700">{label}</span>
+                      <button
+                        onClick={() => savePrefs({ [key]: !prefs[key] })}
+                        className={`relative w-10 h-5.5 rounded-full transition-colors flex-shrink-0 ${prefs[key] ? 'bg-blue-600' : 'bg-gray-200'}`}
+                        style={{ width: 40, height: 22 }}>
+                        <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${prefs[key] ? 'translate-x-5' : 'translate-x-0.5'}`} style={{ transitionProperty: 'transform' }} />
+                      </button>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Case scope</p>
+                <div className="flex gap-2">
+                  {[['my_cases','My cases only'],['all','All platform activity']].map(([v, l]) => (
+                    <button key={v} onClick={() => savePrefs({ scope: v })}
+                      className={`flex-1 py-2 text-sm font-medium rounded-xl border transition-colors ${prefs.scope === v ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+          {isClient && (
+            <div>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">What your team can see about your cases</p>
+              <p className="text-xs text-gray-400 mb-3">Controls what events are visible to consultants and managers working on your cases.</p>
+              <div className="space-y-2">
+                {[
+                  { key: 'visible_comments',    label: 'Comments — visible to team' },
+                  { key: 'visible_progress',    label: 'Progress updates — visible to team' },
+                  { key: 'visible_status',      label: 'Status changes — visible to team' },
+                  { key: 'visible_assignments', label: 'Consultant assignments — visible to team' },
+                ].map(({ key, label }) => (
+                  <label key={key} className="flex items-center justify-between gap-3 cursor-pointer">
+                    <span className="text-sm text-gray-700">{label}</span>
+                    <button
+                      onClick={() => savePrefs({ [key]: !prefs[key] })}
+                      className={`relative rounded-full transition-colors flex-shrink-0 ${prefs[key] ? 'bg-blue-600' : 'bg-gray-200'}`}
+                      style={{ width: 40, height: 22 }}>
+                      <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${prefs[key] ? 'translate-x-5' : 'translate-x-0.5'}`} style={{ transitionProperty: 'transform' }} />
+                    </button>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+          {!isClient && !isConsultant && (
+            <div>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Show in my feed</p>
+              <div className="space-y-2">
+                {[
+                  { key: 'show_comments',    label: 'Comments' },
+                  { key: 'show_progress',    label: 'Progress updates' },
+                  { key: 'show_status',      label: 'Status changes' },
+                  { key: 'show_assignments', label: 'Assignments' },
+                  { key: 'show_documents',   label: 'Documents' },
+                  { key: 'show_alerts',      label: 'Alerts' },
+                ].map(({ key, label }) => (
+                  <label key={key} className="flex items-center justify-between gap-3 cursor-pointer">
+                    <span className="text-sm text-gray-700">{label}</span>
+                    <button onClick={() => savePrefs({ [key]: !prefs[key] })}
+                      className={`relative rounded-full transition-colors flex-shrink-0 ${prefs[key] ? 'bg-blue-600' : 'bg-gray-200'}`}
+                      style={{ width: 40, height: 22 }}>
+                      <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${prefs[key] ? 'translate-x-5' : 'translate-x-0.5'}`} style={{ transitionProperty: 'transform' }} />
+                    </button>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="px-5 pb-5">
+          <button onClick={onClose} className="w-full py-2.5 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 text-sm">
+            Save preferences
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function useGlobalActivity(visibleCaseIds) {
@@ -2696,7 +2975,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
 // DASHBOARD
 // ============================================================
 function Dashboard({ auth }) {
-  const { cases, loading: casesLoading } = useCases();
+  const { cases, loading: casesLoading, updateCase, deleteCase } = useCases();
   const { applications } = useApplications();
   const [applyingToCase, setApplying]   = useState(null);
   const [activeTab, setActiveTab]       = useState(null);
@@ -2704,7 +2983,12 @@ function Dashboard({ auth }) {
   const [filterSap, setFilterSap]       = useState("");
   const [filterIndustry, setFilterInd]  = useState("");
   const [filterStartFrom, setStartFrom] = useState("");
+  const [feedFilter, setFeedFilter]     = useState("all");
+  const [showFeedPrefs, setShowFeedPrefs] = useState(false);
+  const [selectedCase, setSelectedCase] = useState(null);
   const { followed, isFollowing, toggle: toggleFollow } = useFollowedClients();
+  const { prefs, savePrefs } = useFeedPrefs(auth.user?.id);
+  const { markRead } = useNotifications();
 
   // Pre-compute filtered sets
   const myApplications   = applications.filter(a => a.consultant_id === auth.user?.id);
@@ -2730,7 +3014,27 @@ function Dashboard({ auth }) {
 
   const visibleCaseIds   = cases.map(c => c.id);
   const { activities, loading: actLoading } = useGlobalActivity(visibleCaseIds);
+  const { items: feedItems, loading: feedLoading, refresh: refreshFeed } = useActivityFeed(
+    prefs.scope === 'all' ? visibleCaseIds
+      : auth.isConsultant ? cases.filter(c => c.case_assignments?.some(a => a.consultant_id === auth.user?.id)).map(c => c.id)
+      : auth.isClient ? cases.filter(c => c.client_id === auth.user?.id).map(c => c.id)
+      : visibleCaseIds,
+    auth.user?.id
+  );
   const caseById = Object.fromEntries(cases.map(c => [c.id, c]));
+
+  // Filter feed items by type and prefs
+  const filteredFeed = feedItems.filter(item => {
+    if (feedFilter !== 'all' && item._type !== feedFilter) return false;
+    if (!prefs.show_comments    && item._type === 'comment')       return false;
+    if (!prefs.show_progress    && item._type === 'progress')      return false;
+    if (!prefs.show_status      && item._type === 'status_change') return false;
+    if (!prefs.show_assignments && item._type === 'assignment')    return false;
+    if (!prefs.show_documents   && item._type === 'document')      return false;
+    if (!prefs.show_alerts      && (item._type === 'alert' || item._type === 'milestone')) return false;
+    return true;
+  });
+  const unreadFeedCount = feedItems.filter(i => i.is_unread).length;
 
   // ── Client strip ─────────────────────────────────────────────
   const STRIP_PALETTE = [
@@ -2831,6 +3135,22 @@ function Dashboard({ auth }) {
 
   if (casesLoading) return <Spinner />;
 
+  if (selectedCase) {
+    return (
+      <CaseDetail
+        caseData={selectedCase}
+        auth={auth}
+        onBack={() => setSelectedCase(null)}
+        onStatusChange={async (caseId, status) => {
+          await updateCase(caseId, { status });
+          setSelectedCase(p => ({ ...p, status }));
+        }}
+        onDelete={async () => { await deleteCase(selectedCase.id); setSelectedCase(null); }}
+        onUpdate={async (payload) => { await updateCase(selectedCase.id, payload); setSelectedCase(p => ({ ...p, ...payload })); }}
+      />
+    );
+  }
+
   if (applyingToCase) {
     return (
       <div className="min-h-screen bg-[#EAF4FD] p-6">
@@ -2844,102 +3164,25 @@ function Dashboard({ auth }) {
     );
   }
 
-  // Activity feed sidebar JSX — defined once, rendered on the right
-  const activitySidebar = (
-    <div className="w-80 flex-shrink-0 self-start sticky top-6">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col">
-        <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Activity className="w-4 h-4 text-gray-400" />
-            <span className="text-sm font-bold text-gray-900">Activity</span>
-          </div>
-          <span className="text-xs text-gray-400">All visible cases</span>
-        </div>
-
-        {actLoading && (
-          <div className="flex items-center justify-center py-10 gap-2 text-gray-400">
-            <Spinner /><span className="text-sm">Loading…</span>
-          </div>
-        )}
-
-        {!actLoading && activities.length === 0 && (
-          <div className="p-8 text-center text-gray-400 text-sm">No recent activity</div>
-        )}
-
-        {!actLoading && activities.length > 0 && (
-          <div className="divide-y divide-gray-50 overflow-y-auto max-h-[calc(100vh-180px)]">
-            {activities.map((act) => {
-              const relCase = caseById[act.case_id];
-              const caseTitle = relCase?.title ?? 'Unknown case';
-
-              if (act._type === 'comment') return (
-                <div key={act.id + '-c'} className="flex gap-3 p-4 hover:bg-gray-50">
-                  <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <MessageSquare className="w-3.5 h-3.5 text-blue-500" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs text-gray-800 leading-snug">
-                      <span className="font-semibold">{act.author?.full_name ?? 'Someone'}</span>
-                      {' '}added a note on{' '}
-                      <span className="font-semibold text-[#1A4B8C]">{caseTitle}</span>
-                    </p>
-                    {act.body && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{act.body}</p>}
-                    <p className="text-xs text-gray-400 mt-1">{timeAgo(act.created_at)}</p>
-                  </div>
-                </div>
-              );
-
-              if (act._type === 'progress') return (
-                <div key={act.id + '-p'} className="flex gap-3 p-4 hover:bg-gray-50">
-                  <div className="w-7 h-7 rounded-full bg-green-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Activity className="w-3.5 h-3.5 text-green-500" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs text-gray-800 leading-snug">
-                      <span className="font-semibold">{act.author?.full_name ?? 'Someone'}</span>
-                      {' '}updated progress to{' '}
-                      <span className="font-semibold text-green-600">{act.progress_update}%</span>
-                      {' '}on{' '}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span>
-                    </p>
-                    {act.body && <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{act.body}</p>}
-                    <p className="text-xs text-gray-400 mt-1">{timeAgo(act.created_at)}</p>
-                  </div>
-                </div>
-              );
-
-              if (act._type === 'assignment') return (
-                <div key={act.id + '-a'} className="flex gap-3 p-4 hover:bg-gray-50">
-                  <div className="w-7 h-7 rounded-full bg-violet-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <UserCheck className="w-3.5 h-3.5 text-violet-500" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs text-gray-800 leading-snug">
-                      <span className="font-semibold">{act.consultant?.full_name ?? 'A consultant'}</span>
-                      {' '}was assigned to{' '}
-                      <span className="font-semibold text-[#1A4B8C]">{caseTitle}</span>
-                      {act.time_commitment ? <span className="text-gray-400"> · {act.time_commitment}%</span> : null}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">{timeAgo(act.created_at)}</p>
-                  </div>
-                </div>
-              );
-
-              return null;
-            })}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  const FEED_TABS = [
+    { id: 'all',           label: 'All' },
+    { id: 'comment',       label: 'Comments' },
+    { id: 'progress',      label: 'Progress' },
+    { id: 'status_change', label: 'Status' },
+    { id: 'assignment',    label: 'Assignments' },
+    { id: 'alert',         label: 'Alerts' },
+  ];
 
   return (
     <div className="flex gap-6 items-start">
     <div className="flex-1 min-w-0">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Welcome back, {auth.profile?.full_name?.split(" ")[0] ?? "there"} 👋
-        </h1>
-        <p className="text-gray-500 mt-1">Here's what's happening on the platform today.</p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Welcome back, {auth.profile?.full_name?.split(" ")[0] ?? "there"} 👋
+          </h1>
+          <p className="text-gray-500 mt-1">Here's what's happening on the platform today.</p>
+        </div>
       </div>
 
       {/* ── Client strip ── */}
@@ -3318,7 +3561,7 @@ function Dashboard({ auth }) {
                     const late = d < 0;
                     const consultant = c.case_assignments?.[0]?.consultant?.full_name ?? "Unassigned";
                     return (
-                      <div key={c.id} className="flex items-center justify-between p-4">
+                      <div key={c.id} className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50" onClick={() => setSelectedCase(c)}>
                         <div className="flex items-center gap-3 min-w-0">
                           <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs flex-shrink-0 ${late ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"}`}>
                             {c.title?.[0]}
@@ -3343,8 +3586,134 @@ function Dashboard({ auth }) {
           })()}
         </>
       )}
+
+      {/* ── Activity Feed ── */}
+      <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-100">
+        {/* Feed header */}
+        <div className="px-5 pt-5 pb-0">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-gray-400" />
+              <span className="font-bold text-gray-900">Activity Feed</span>
+              {unreadFeedCount > 0 && (
+                <span className="px-2 py-0.5 bg-blue-600 text-white text-xs font-bold rounded-full">{unreadFeedCount}</span>
+              )}
+            </div>
+            <button onClick={() => setShowFeedPrefs(true)}
+              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              Preferences
+            </button>
+          </div>
+          {/* Filter tabs */}
+          <div className="flex gap-1 overflow-x-auto pb-0" style={{ scrollbarWidth: 'none' }}>
+            {FEED_TABS.map(tab => (
+              <button key={tab.id} onClick={() => setFeedFilter(tab.id)}
+                className={`px-3 py-2 text-xs font-semibold rounded-t-lg whitespace-nowrap border-b-2 transition-colors ${
+                  feedFilter === tab.id
+                    ? 'text-blue-600 border-blue-600'
+                    : 'text-gray-500 border-transparent hover:text-gray-700'
+                }`}>
+                {tab.label}
+                {tab.id === 'all' && feedItems.length > 0 && (
+                  <span className="ml-1 text-gray-400 font-normal">{feedItems.length}</span>
+                )}
+              </button>
+            ))}
+          </div>
+          <div className="border-b border-gray-100 -mx-5" />
+        </div>
+
+        {/* Feed items */}
+        <div className="p-4 space-y-3">
+          {feedLoading && (
+            <div className="flex items-center justify-center py-10 gap-2 text-gray-400">
+              <div className="w-5 h-5 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+              <span className="text-sm">Loading feed…</span>
+            </div>
+          )}
+          {!feedLoading && filteredFeed.length === 0 && (
+            <div className="py-12 text-center text-gray-400">
+              <Activity className="w-8 h-8 mx-auto mb-3 text-gray-200" />
+              <p className="text-sm font-medium">No activity yet</p>
+              <p className="text-xs mt-1">Events from your cases will appear here.</p>
+            </div>
+          )}
+          {!feedLoading && filteredFeed.map(item => (
+            <FeedCard
+              key={item._key}
+              item={item}
+              caseData={item.case_id ? caseById[item.case_id] : null}
+              onOpenCase={setSelectedCase}
+              onMarkRead={markRead}
+            />
+          ))}
+        </div>
+      </div>
     </div>
-    {activitySidebar}
+
+    {/* Right sidebar — compact case list */}
+    <div className="w-72 flex-shrink-0 self-start sticky top-6 space-y-4">
+      {/* Recent cases mini list */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+        <div className="p-4 border-b border-gray-100">
+          <span className="text-sm font-bold text-gray-900">
+            {auth.isConsultant ? "My Cases" : auth.isClient ? "My Cases" : "Recent Cases"}
+          </span>
+        </div>
+        <div className="divide-y divide-gray-50">
+          {(auth.isConsultant ? assignedCases : auth.isClient ? myCases : cases.slice(0, 6)).slice(0, 6).map(c => (
+            <div key={c.id} className="flex items-center gap-2.5 px-4 py-3 hover:bg-gray-50 cursor-pointer" onClick={() => setSelectedCase(c)}>
+              <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center text-blue-700 font-bold text-xs flex-shrink-0">{c.title?.[0]}</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-medium text-gray-900 truncate">{c.title}</div>
+                <Badge className={`mt-0.5 ${STATUS_COLORS[c.status] ?? 'bg-gray-100 text-gray-600'}`}>{cap(fmt(c.status))}</Badge>
+              </div>
+            </div>
+          ))}
+          {(auth.isConsultant ? assignedCases : auth.isClient ? myCases : cases).length === 0 && (
+            <div className="px-4 py-6 text-center text-xs text-gray-400">No cases yet</div>
+          )}
+        </div>
+      </div>
+
+      {/* Starting Soon — compact, right sidebar */}
+      {(auth.isAdmin || auth.isManager) && (() => {
+        const soon = cases.filter(c => {
+          if (!c.start_date) return false;
+          const d = Math.ceil((new Date(c.start_date + "T00:00:00") - Date.now()) / 86400000);
+          return d >= 0 && d <= 7;
+        }).slice(0, 4);
+        if (!soon.length) return null;
+        return (
+          <div className="bg-white rounded-2xl border border-amber-100 shadow-sm">
+            <div className="p-4 border-b border-amber-100 flex items-center gap-2">
+              <Clock className="w-3.5 h-3.5 text-amber-500" />
+              <span className="text-sm font-bold text-gray-900">Starting Soon</span>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {soon.map(c => {
+                const d = Math.ceil((new Date(c.start_date + "T00:00:00") - Date.now()) / 86400000);
+                return (
+                  <div key={c.id} className="px-4 py-3 flex items-center justify-between gap-2 cursor-pointer hover:bg-gray-50" onClick={() => setSelectedCase(c)}>
+                    <span className="text-xs font-medium text-gray-800 truncate">{c.title}</span>
+                    <span className="text-xs text-amber-600 font-semibold flex-shrink-0">{d === 0 ? "Today" : `${d}d`}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+
+    <FeedPreferencesModal
+      open={showFeedPrefs}
+      onClose={() => setShowFeedPrefs(false)}
+      auth={auth}
+      prefs={prefs}
+      savePrefs={savePrefs}
+    />
     </div>
   );
 }
@@ -9213,7 +9582,7 @@ Tester signature, Approver signature, Date.`;
   const prevAllDoneRef = useRef(false);
   useEffect(() => {
     if (allActivitiesDone && !prevAllDoneRef.current) {
-      notifyCaseParticipants(caseData.id, null, "All activities complete", `All activities for "${caseData.title}" are done — ready to move to the test phase.`);
+      notifyCaseParticipants(caseData.id, null, "All activities complete", `All activities for "${caseData.title}" are done — ready to move to the test phase.`, { case_id: caseData.id, event_type: "milestone" });
       notifyManagers("Case ready for testing", `"${caseData.title}" has all activities at 100% and is ready for Technical Test.`);
     }
     prevAllDoneRef.current = allActivitiesDone;
