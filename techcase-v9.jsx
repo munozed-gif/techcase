@@ -9456,6 +9456,9 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [cancelModal, setCancelModal] = useState(null); // { caseId, isSubCase }
   const [cancelReason, setCancelReason] = useState("");
   const [cancelNotes, setCancelNotes] = useState("");
+  const [standbyModal, setStandbyModal] = useState(false);
+  const [standbyReason, setStandbyReason] = useState("");
+  const [standbyNotes, setStandbyNotes] = useState("");
   const [projectLifecycle, setProjectLifecycle] = useState(null);
   const [lcMode, setLcMode] = useState(caseData.case_lifecycle?.preset ?? "standard");
   const [savingLc, setSavingLc] = useState(false);
@@ -9533,6 +9536,16 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
     "Other",
   ];
 
+  const STANDBY_REASONS = [
+    "Awaiting client decision",
+    "Waiting for budget approval",
+    "Pending resource availability",
+    "Blocked by external dependency",
+    "Client requested pause",
+    "Awaiting deliverable from client",
+    "Other",
+  ];
+
   function initCancelModal(caseId, isSubCase = false) {
     setCancelReason("");
     setCancelNotes("");
@@ -9553,6 +9566,27 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
       });
     }
     setCancelModal(null);
+  }
+
+  async function confirmStandby() {
+    if (!standbyReason) return;
+    const detail = standbyNotes.trim() ? ` — ${standbyNotes.trim()}` : "";
+    await onStatusChange(caseData.id, "standby", {
+      standby_reason: standbyReason,
+      standby_notes: standbyNotes || null,
+    });
+    await addComment({
+      body: `Case placed on standby.\nReason: ${standbyReason}${detail}`,
+      isInternal: false,
+    });
+    await notifyCaseParticipants(caseData.id, auth.user?.id,
+      "Case on standby",
+      `"${caseData.title}" has been placed on standby. Reason: ${standbyReason}${detail}`,
+      { case_id: caseData.id, event_type: "status_change" }
+    );
+    setStandbyModal(false);
+    setStandbyReason("");
+    setStandbyNotes("");
   }
 
   const myApp = applications.find(a => a.consultant_id === auth.user?.id);
@@ -9969,6 +10003,11 @@ Tester signature, Approver signature, Date.`;
                 <Badge className={PRIORITY_COLORS[caseData.priority]}>{cap(caseData.priority)}</Badge>
                 {caseData.is_confidential && <span className="px-2 py-0.5 bg-gray-800 text-white rounded-lg text-xs font-semibold">Private</span>}
                 {caseData.nda_required && <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">NDA</span>}
+                {caseData.status === "standby" && caseData.standby_reason && (
+                  <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-lg text-xs font-semibold flex items-center gap-1">
+                    ⏸ {caseData.standby_reason}
+                  </span>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -10077,6 +10116,7 @@ Tester signature, Approver signature, Date.`;
                   <button key={s.key}
                     onClick={() => {
                       if (isCancelled) return initCancelModal(caseData.id);
+                      if (s.key === "standby") { setStandbyReason(""); setStandbyNotes(""); setStandbyModal(true); return; }
                       if (needsConfirm && !isPending) { setPendingStageKey(s.key); return; }
                       setPendingStageKey(null);
                       onStatusChange(caseData.id, s.key);
@@ -10428,7 +10468,7 @@ Tester signature, Approver signature, Date.`;
               <div className="border-t border-gray-100 pt-4 flex flex-wrap gap-2">
                 {validNext.map(s => (
                   <button key={s.key}
-                    onClick={() => s.key === "cancelled" ? initCancelModal(caseData.id) : onStatusChange(caseData.id, s.key)}
+                    onClick={() => s.key === "cancelled" ? initCancelModal(caseData.id) : s.key === "standby" ? (setStandbyReason(""), setStandbyNotes(""), setStandbyModal(true)) : onStatusChange(caseData.id, s.key)}
                     className="px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors hover:opacity-90"
                     style={{ borderColor: s.color + "55", color: s.color, backgroundColor: s.color + "12" }}>
                     → {s.label}
@@ -13059,6 +13099,60 @@ function ConsultantDetailModal({ consultantId, auth }) {
       )}
 
       {/* Cancellation reason modal */}
+    {/* ── Standby Modal ── */}
+    {standbyModal && (
+      <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4"
+        onClick={e => e.target === e.currentTarget && setStandbyModal(false)}>
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span className="text-yellow-600 font-bold text-lg leading-none">⏸</span>
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 text-base">Why is this case going on standby?</h3>
+              <p className="text-sm text-gray-500 mt-0.5">Select a reason — this will be posted as a comment and notified to participants.</p>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            {STANDBY_REASONS.map(r => (
+              <label key={r}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-colors select-none ${
+                  standbyReason === r ? "border-yellow-300 bg-yellow-50" : "border-gray-100 hover:bg-gray-50"
+                }`}>
+                <input type="radio" name="sbReason" value={r}
+                  checked={standbyReason === r}
+                  onChange={() => setStandbyReason(r)}
+                  className="accent-yellow-500 flex-shrink-0" />
+                <span className={`text-sm ${standbyReason === r ? "font-semibold text-yellow-800" : "text-gray-700"}`}>{r}</span>
+              </label>
+            ))}
+          </div>
+
+          <div className="space-y-1.5">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+              Additional detail {standbyReason === "Other" && <span className="text-red-400">*</span>}
+            </p>
+            <textarea value={standbyNotes} onChange={e => setStandbyNotes(e.target.value)}
+              rows={3} placeholder="e.g. waiting on board approval expected next Monday…"
+              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-yellow-100 resize-none text-gray-800 placeholder:text-gray-400 bg-white" />
+          </div>
+
+          <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
+            <button onClick={() => setStandbyModal(false)}
+              className="px-4 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50">
+              Cancel
+            </button>
+            <button onClick={confirmStandby}
+              disabled={!standbyReason || (standbyReason === "Other" && !standbyNotes.trim())}
+              className="px-5 py-2 text-sm font-semibold text-white bg-yellow-500 hover:bg-yellow-600 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+              Confirm Standby
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
     {cancelModal && (
       <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4"
         onClick={e => e.target === e.currentTarget && setCancelModal(null)}>
