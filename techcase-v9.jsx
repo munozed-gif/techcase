@@ -9822,9 +9822,11 @@ Extract every discrete task, activity, deliverable, or work item. If you find no
 
   // Phase-to-next-test-phase mapping
   const PHASE_TEST_TRIGGERS = [
-    { fromPhase: "development",     toPhase: "technical_test",  label: "Technical Test" },
-    { fromPhase: "technical_test",  toPhase: "functional_test", label: "Functional Test" },
-    { fromPhase: "functional_test", toPhase: "user_test",       label: "User Test" },
+    { fromPhase: "development",           toPhase: "technical_test",  label: "Technical Test" },
+    { fromPhase: "technical_test",        toPhase: "functional_test", label: "Functional Test" },
+    { fromPhase: "technical_adjustment",  toPhase: "functional_test", label: "Functional Test" },
+    { fromPhase: "functional_test",       toPhase: "user_test",       label: "User Test" },
+    { fromPhase: "functional_adjustment", toPhase: "user_test",       label: "User Test" },
   ];
 
   const PHASE_ADJ_TRIGGERS = [
@@ -9911,7 +9913,9 @@ Tester signature, Approver signature, Date.`;
             est_hours: Math.max(0.5, Math.min(40, Number(a.est_hours) || 2)),
             _selected: true,
           }));
-        } catch (_) { /* ignore parse error, still save PDF */ }
+        } catch (_) {
+          console.warn('Could not parse activities JSON from Claude response — PDF saved, activities skipped.');
+        }
       }
 
       // Strip JSON block from markdown
@@ -10130,7 +10134,9 @@ Approver signature, Date.`;
             est_hours: Math.max(0.5, Math.min(40, Number(a.est_hours) || 3)),
             _selected: true,
           }));
-        } catch (_) { /* ignore */ }
+        } catch (_) {
+          console.warn('Could not parse activities JSON from Claude response — PDF saved, activities skipped.');
+        }
       }
       const markdown = raw.replace(/```json[\s\S]*?```/, '').trim();
 
@@ -10349,7 +10355,7 @@ Write a practical user manual in markdown. Include:
 Be practical, concise, and written from the end-user perspective. Avoid technical jargon.`;
 
       const userManual = await callClaude({
-        model: 'claude-sonnet-5',
+        model: 'claude-haiku-4-5-20251001',
         system: 'You are a technical writer specializing in SAP end-user documentation. Write clear, practical user manuals.',
         messages: [{ role: 'user', content: userManualPrompt }],
         max_tokens: 4000,
@@ -11728,6 +11734,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 if (failedActs.length === 0) return null; // all passed — handled below
                 if (adjStat && adjStat.count > 0) return null; // adjustment already created
                 if (generatedAdjPhases.includes(trigger.adjPhase)) return null;
+                if (adjustmentPreview?.adjPhase === trigger.adjPhase) return null; // preview already open
                 const isGenerating = generatingAdjustment && adjustmentTarget?.adjPhase === trigger.adjPhase;
                 return (
                   <div key={trigger.adjPhase} className="bg-amber-50 border border-amber-200 rounded-xl p-4">
@@ -11772,10 +11779,18 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 if (!fromStat || fromStat.count === 0 || fromStat.pct < 100) return null;
                 if (toStat && toStat.count > 0) return null;
                 if (generatedPlanPhases.includes(trigger.toPhase)) return null;
-                // If source is a test phase and any activities need adjustment, skip — show adj banner instead
+                if (testPlanPreview?.targetPhase === trigger.toPhase) return null; // preview already open
+                // If source is a test phase and any activities need adjustment,
+                // only suppress if the corresponding adjustment phase isn't done yet
                 if (TEST_PHASES.includes(trigger.fromPhase)) {
                   const fromActs = activities.filter(a => a.phase === trigger.fromPhase);
-                  if (fromActs.some(a => a.test_outcome === 'needs_adjustment')) return null;
+                  const hasFailures = fromActs.some(a => a.test_outcome === 'needs_adjustment');
+                  if (hasFailures) {
+                    const adjTrigger = PHASE_ADJ_TRIGGERS.find(t => t.testPhase === trigger.fromPhase);
+                    const adjStat = adjTrigger && phaseStats.find(p => p.key === adjTrigger.adjPhase);
+                    const adjDone = adjStat && adjStat.count > 0 && adjStat.pct === 100;
+                    if (!adjDone) return null; // show adj banner instead; come back after adj completes
+                  }
                 }
                 const isGenerating = generatingTestPlan && testPlanTarget?.toPhase === trigger.toPhase;
                 const fromPhaseActs = activities.filter(a => a.phase === trigger.fromPhase);
@@ -12487,7 +12502,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                         {/* Actions */}
                         <div className="flex items-center gap-1 flex-shrink-0">
                           {canManage && (
-                            <button onClick={() => { setEditingActId(act.id); setEditActForm({ ...act }); }}
+                            <button onClick={() => { setEditingActId(act.id); setEditActForm({ test_outcome: null, adjustment_notes: null, coverage_pct: null, ...act }); }}
                               className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
                               <Pencil size={13} />
                             </button>
