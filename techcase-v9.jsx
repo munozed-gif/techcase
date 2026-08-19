@@ -11341,6 +11341,41 @@ Tester signature, Approver signature, Date.`;
                               <Textarea label="Detail / Acceptance Criteria" value={editActForm.detail ?? ""}
                                 onChange={e => setEditActForm(p => ({ ...p, detail: e.target.value }))} />
                             </div>
+                            {/* Phase */}
+                            <div>
+                              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Phase</label>
+                              <select value={editActForm.phase ?? ""}
+                                onChange={e => setEditActForm(p => ({ ...p, phase: e.target.value || null }))}
+                                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">— No phase —</option>
+                                {resolvedPhases.map(ph => (
+                                  <option key={ph.key} value={ph.key}>{ph.label}{ph.required_status ? ` (needs ${ph.required_status.replace(/_/g, " ")})` : ""}</option>
+                                ))}
+                              </select>
+                            </div>
+                            {/* Predecessors */}
+                            {activities.filter(a => a.id !== act.id && a.activity_type !== "sub_case").length > 0 && (
+                              <div>
+                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Predecessors</label>
+                                <div className="space-y-1 max-h-28 overflow-y-auto border border-gray-200 rounded-xl p-2 bg-white">
+                                  {activities.filter(a => a.id !== act.id && a.activity_type !== "sub_case").map(a => (
+                                    <label key={a.id} className="flex items-center gap-2 cursor-pointer text-xs">
+                                      <input type="checkbox"
+                                        checked={(editActForm.predecessor_ids ?? []).includes(a.id)}
+                                        onChange={e => setEditActForm(p => ({
+                                          ...p,
+                                          predecessor_ids: e.target.checked
+                                            ? [...(p.predecessor_ids ?? []), a.id]
+                                            : (p.predecessor_ids ?? []).filter(id => id !== a.id),
+                                        }))}
+                                        className="accent-blue-600" />
+                                      <span className="text-gray-500">#{a.task_no}</span>
+                                      <span className="text-gray-800 truncate">{a.title}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </>
                         )}
                       </div>
