@@ -9471,6 +9471,9 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [standbyModal, setStandbyModal] = useState(false);
   const [standbyReason, setStandbyReason] = useState("");
   const [standbyNotes, setStandbyNotes] = useState("");
+  const [approvalModal, setApprovalModal]     = useState(false);
+  const [approvalBypass, setApprovalBypass]   = useState("");
+  const [generatingClosure, setGeneratingClosure] = useState(false);
   const [projectLifecycle, setProjectLifecycle] = useState(null);
   const [lcMode, setLcMode] = useState(caseData.case_lifecycle?.preset ?? "standard");
   const [savingLc, setSavingLc] = useState(false);
@@ -10264,6 +10267,402 @@ Approver signature, Date.`;
     }
   }
 
+  async function generateClosureReport(bypass, bypassReason) {
+    setGeneratingClosure(true);
+    try {
+      // Fetch spec from DB
+      const { data: specData } = await supabase
+        .from("case_specifications")
+        .select("*")
+        .eq("case_id", caseData.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const specContent = specData?.content ?? null;
+      const specMode    = specData?.mode ?? null;
+
+      // Build activity context by phase
+      const phaseOrder = ['design','development','technical_test','technical_adjustment',
+                          'functional_test','functional_adjustment','user_test','user_adjustment'];
+      const allPhaseActs = phaseOrder.map(pk => {
+        const phaseDef = DEFAULT_ACTIVITY_PHASES.find(p => p.key === pk);
+        const acts = activities.filter(a => a.phase === pk);
+        return { phase: phaseDef ?? { key: pk, label: pk.replace(/_/g, ' '), color: '#6b7280' }, acts };
+      }).filter(g => g.acts.length > 0);
+
+      const unassignedActs = activities.filter(a => !a.phase || !phaseOrder.includes(a.phase));
+
+      // Build dev summary
+      const devActs = activities.filter(a => a.phase === 'development');
+      const devSummary = devActs.map(a =>
+        `- ${a.title}${a.description ? ': ' + a.description : ''} (${a.est_hours ?? 0}h est.)`
+      ).join('\n') || '(no development activities)';
+
+      // Build test summary
+      const testPhases = ['technical_test','functional_test','user_test'];
+      const testSummary = testPhases.map(pk => {
+        const label = DEFAULT_ACTIVITY_PHASES.find(p => p.key === pk)?.label ?? pk;
+        const acts = activities.filter(a => a.phase === pk);
+        if (!acts.length) return null;
+        const passed = acts.filter(a => a.test_outcome === 'passed').length;
+        const failed = acts.filter(a => a.test_outcome === 'needs_adjustment').length;
+        const pending = acts.filter(a => !a.test_outcome).length;
+        const rows = acts.map(a =>
+          `  • ${a.title}: ${a.test_outcome === 'passed' ? '✓ Passed' : a.test_outcome === 'needs_adjustment' ? '⚠ Needs Adj.' : 'Pending'}` +
+          (a.adjustment_notes ? ` — ${a.adjustment_notes}` : '') +
+          (a.coverage_pct != null ? ` (coverage: ${a.coverage_pct}%)` : '')
+        ).join('\n');
+        return `${label}: ${passed} passed, ${failed} adjusted, ${pending} pending\n${rows}`;
+      }).filter(Boolean).join('\n\n') || '(no test activities)';
+
+      // Build adjustment summary
+      const adjPhases = ['technical_adjustment','functional_adjustment','user_adjustment'];
+      const adjSummary = adjPhases.map(pk => {
+        const label = DEFAULT_ACTIVITY_PHASES.find(p => p.key === pk)?.label ?? pk;
+        const acts = activities.filter(a => a.phase === pk);
+        if (!acts.length) return null;
+        const rows = acts.map(a => `  • ${a.title}${a.description ? ': ' + a.description.slice(0,120) : ''}`).join('\n');
+        return `${label}:\n${rows}`;
+      }).filter(Boolean).join('\n\n') || '(no adjustments required)';
+
+      // AI prompt for User Manual section
+      const userManualPrompt = `Write a concise user manual for the following SAP consulting delivery.
+
+Case: ${caseData.title}
+SAP Module: ${caseData.area_sap ?? 'N/A'}
+Industry: ${caseData.area_industry ?? 'N/A'}
+Description: ${caseData.description ?? '(none)'}
+
+What was developed:
+${devSummary}
+
+${specContent ? `Functional specification (summary):\n${specContent.slice(0, 2000)}` : ''}
+
+Write a practical user manual in markdown. Include:
+## How to Access and Navigate
+## Key Features and How to Use Them
+(one subsection per main feature/activity developed)
+## Common Scenarios and Step-by-Step Guides
+## Troubleshooting and Support
+
+Be practical, concise, and written from the end-user perspective. Avoid technical jargon.`;
+
+      const userManual = await callClaude({
+        model: 'claude-sonnet-5',
+        system: 'You are a technical writer specializing in SAP end-user documentation. Write clear, practical user manuals.',
+        messages: [{ role: 'user', content: userManualPrompt }],
+        max_tokens: 4000,
+      });
+
+      // Build the PDF
+      const { jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const W = 210, L = 12, R = 198, PW = R - L;
+      const headerColor = [26, 75, 140];
+      const accentColor = [16, 185, 129];
+      const today = new Date();
+      const dateStr = today.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+      function addPage() { doc.addPage(); return 20; }
+
+      function sectionHeader(y, title, color) {
+        if (y > 260) y = addPage();
+        doc.setFillColor(...(color ?? headerColor));
+        doc.rect(L, y, PW, 8, 'F');
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(255, 255, 255);
+        doc.text(title, L + 3, y + 5.5);
+        doc.setTextColor(0, 0, 0);
+        return y + 12;
+      }
+
+      function paragraph(y, text, indent) {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(50, 50, 50);
+        const x = L + (indent ?? 0);
+        const wrapped = doc.splitTextToSize(text, PW - (indent ?? 0));
+        wrapped.forEach(l => {
+          if (y > 275) { doc.addPage(); y = 15; }
+          doc.text(l, x, y); y += 4.5;
+        });
+        doc.setTextColor(0, 0, 0);
+        return y + 2;
+      }
+
+      function renderMarkdownSection(y, md) {
+        const lines = md.split('\n');
+        for (const raw of lines) {
+          const line = raw.trimEnd();
+          if (y > 275) { doc.addPage(); y = 15; }
+          if (line.startsWith('## ')) {
+            y += 2;
+            doc.setFillColor(230, 237, 250);
+            doc.rect(L, y - 4, PW, 7, 'F');
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(26, 75, 140);
+            doc.text(line.replace(/^## /, ''), L + 2, y);
+            doc.setTextColor(0, 0, 0); y += 6;
+          } else if (line.startsWith('### ')) {
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(26, 75, 140);
+            doc.text(line.replace(/^### /, ''), L + 2, y); doc.setTextColor(0, 0, 0); y += 5;
+          } else if (line.startsWith('**') && line.endsWith('**')) {
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+            doc.text(line.replace(/\*\*/g, ''), L + 2, y); y += 5;
+          } else if (line.startsWith('- ') || line.startsWith('* ')) {
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+            const wrapped = doc.splitTextToSize('• ' + line.slice(2), PW - 6);
+            wrapped.forEach(l => { if (y > 275) { doc.addPage(); y = 15; } doc.text(l, L + 5, y); y += 4.5; });
+          } else if (/^\d+\. /.test(line)) {
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+            const wrapped = doc.splitTextToSize(line, PW - 6);
+            wrapped.forEach(l => { if (y > 275) { doc.addPage(); y = 15; } doc.text(l, L + 5, y); y += 4.5; });
+          } else if (line.trim()) {
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+            const wrapped = doc.splitTextToSize(line, PW);
+            wrapped.forEach(l => { if (y > 275) { doc.addPage(); y = 15; } doc.text(l, L, y); y += 4.5; });
+          } else {
+            y += 2;
+          }
+        }
+        return y + 3;
+      }
+
+      // ── PAGE 1: Cover ──────────────────────────────────────────
+      doc.setFillColor(...headerColor);
+      doc.rect(0, 0, W, 60, 'F');
+      doc.setFillColor(...accentColor);
+      doc.rect(0, 60, W, 3, 'F');
+
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(180, 200, 230);
+      doc.text('SAP CONSULTING — CASE CLOSURE REPORT', L, 14);
+      doc.setFontSize(20); doc.setTextColor(255, 255, 255);
+      const titleLines = doc.splitTextToSize(caseData.title ?? 'Case Closure Report', PW - 10);
+      titleLines.forEach((l, i) => doc.text(l, L, 26 + i * 9));
+      doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+      doc.text(dateStr, L, 56);
+
+      let y = 80;
+      autoTable(doc, {
+        startY: y,
+        body: [
+          ['Case Reference', caseData.case_ref ?? '—'],
+          ['Client', caseData.client_name ?? '—'],
+          ['SAP Module', caseData.area_sap ?? '—'],
+          ['Industry', caseData.area_industry ?? '—'],
+          ['Priority', caseData.priority ?? '—'],
+          ['Approved', dateStr],
+          [bypass ? 'Approval Note' : 'Approval', bypass ? `Bypassed — ${bypassReason}` : 'All activities at 100%'],
+        ],
+        styles: { fontSize: 9, cellPadding: 3.5 },
+        columnStyles: { 0: { fontStyle: 'bold', fillColor: [245, 247, 250], cellWidth: 50 } },
+        margin: { left: L, right: W - R },
+      });
+      y = doc.lastAutoTable.finalY + 12;
+
+      // Summary stats
+      const totalHrs = timeEntries.reduce((s, e) => s + (e.hours ?? 0), 0);
+      autoTable(doc, {
+        startY: y,
+        head: [['Total Activities', 'Hours Logged', 'Test Phases', 'Adjustments']],
+        body: [[
+          String(activities.length),
+          totalHrs.toFixed(1) + 'h',
+          String(testPhases.filter(pk => activities.some(a => a.phase === pk)).length),
+          String(adjPhases.filter(pk => activities.some(a => a.phase === pk)).length),
+        ]],
+        styles: { fontSize: 9, cellPadding: 3, halign: 'center' },
+        headStyles: { fillColor: headerColor, textColor: 255, fontStyle: 'bold' },
+        margin: { left: L, right: W - R },
+      });
+
+      // ── SECTION 1: Initial Request ─────────────────────────────
+      doc.addPage(); y = 15;
+      y = sectionHeader(y, '1. INITIAL REQUEST', headerColor);
+      y = paragraph(y, caseData.description ?? '(No description provided.)');
+
+      if (specData?.notes) {
+        try {
+          const notes = JSON.parse(specData.notes);
+          if (notes.analysisCustomerContent) {
+            y += 3;
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(26, 75, 140);
+            doc.text('Customer Input:', L, y); doc.setTextColor(0, 0, 0); y += 6;
+            y = paragraph(y, notes.analysisCustomerContent.slice(0, 1500));
+          }
+        } catch (_) {}
+      }
+
+      // ── SECTION 2: Functional Specification ───────────────────
+      if (y > 220) { doc.addPage(); y = 15; }
+      y = sectionHeader(y, '2. FUNCTIONAL SPECIFICATION', headerColor);
+      if (specContent) {
+        y = renderMarkdownSection(y, specContent.slice(0, 4000));
+      } else {
+        y = paragraph(y, '(No functional specification was recorded for this case.)');
+      }
+
+      // ── SECTION 3: Development Scope ──────────────────────────
+      doc.addPage(); y = 15;
+      y = sectionHeader(y, '3. DEVELOPMENT SCOPE', headerColor);
+      if (devActs.length > 0) {
+        autoTable(doc, {
+          startY: y,
+          head: [['#', 'Activity', 'Description', 'Est. Hours', 'Progress']],
+          body: devActs.map((a, i) => [
+            String(i + 1),
+            a.title,
+            (a.description ?? '').slice(0, 80),
+            String(a.est_hours ?? '—'),
+            actEffectivePct(a) + '%',
+          ]),
+          styles: { fontSize: 7.5, cellPadding: 2.5 },
+          headStyles: { fillColor: headerColor, textColor: 255, fontStyle: 'bold' },
+          columnStyles: { 0: { cellWidth: 8 }, 3: { cellWidth: 18 }, 4: { cellWidth: 16 } },
+          margin: { left: L, right: W - R },
+        });
+        y = doc.lastAutoTable.finalY + 8;
+      } else {
+        y = paragraph(y, '(No development activities recorded.)');
+      }
+
+      // ── SECTION 4: Quality Assurance / Test Results ───────────
+      if (y > 220) { doc.addPage(); y = 15; }
+      y = sectionHeader(y, '4. QUALITY ASSURANCE — TEST RESULTS', headerColor);
+      const testPhasesDone = testPhases.filter(pk => activities.some(a => a.phase === pk));
+      if (testPhasesDone.length > 0) {
+        for (const pk of testPhasesDone) {
+          const label = DEFAULT_ACTIVITY_PHASES.find(p => p.key === pk)?.label ?? pk;
+          const phActs = activities.filter(a => a.phase === pk);
+          const passed = phActs.filter(a => a.test_outcome === 'passed').length;
+          const failed = phActs.filter(a => a.test_outcome === 'needs_adjustment').length;
+          if (y > 240) { doc.addPage(); y = 15; }
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(26, 75, 140);
+          doc.text(`${label} — ${passed}/${phActs.length} passed`, L, y); doc.setTextColor(0, 0, 0); y += 6;
+          autoTable(doc, {
+            startY: y,
+            head: [['Activity', 'Outcome', 'Coverage', 'Issue / Notes']],
+            body: phActs.map(a => [
+              a.title,
+              a.test_outcome === 'passed' ? '✓ Passed' : a.test_outcome === 'needs_adjustment' ? '⚠ Adjustment' : 'Pending',
+              a.coverage_pct != null ? a.coverage_pct + '%' : '—',
+              (a.adjustment_notes ?? '').slice(0, 100),
+            ]),
+            styles: { fontSize: 7.5, cellPadding: 2.5 },
+            headStyles: { fillColor: [240, 245, 255], textColor: headerColor, fontStyle: 'bold' },
+            columnStyles: { 1: { cellWidth: 22 }, 2: { cellWidth: 18 } },
+            didParseCell: (data) => {
+              if (data.column.index === 1) {
+                if (data.cell.raw === '✓ Passed') data.cell.styles.textColor = [5, 150, 105];
+                if (data.cell.raw === '⚠ Adjustment') data.cell.styles.textColor = [180, 83, 9];
+              }
+            },
+            margin: { left: L, right: W - R },
+          });
+          y = doc.lastAutoTable.finalY + 8;
+          if (failed > 0) y += 2;
+        }
+      } else {
+        y = paragraph(y, '(No test activities recorded.)');
+      }
+
+      // ── SECTION 5: Adjustments Made ──────────────────────────
+      if (y > 220) { doc.addPage(); y = 15; }
+      y = sectionHeader(y, '5. ADJUSTMENTS MADE', headerColor);
+      const adjPhasesDone = adjPhases.filter(pk => activities.some(a => a.phase === pk));
+      if (adjPhasesDone.length > 0) {
+        for (const pk of adjPhasesDone) {
+          const label = DEFAULT_ACTIVITY_PHASES.find(p => p.key === pk)?.label ?? pk;
+          const phActs = activities.filter(a => a.phase === pk);
+          if (y > 240) { doc.addPage(); y = 15; }
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(26, 75, 140);
+          doc.text(label, L, y); doc.setTextColor(0, 0, 0); y += 6;
+          autoTable(doc, {
+            startY: y,
+            head: [['#', 'Corrective Activity', 'Description', 'Est. Hours']],
+            body: phActs.map((a, i) => [
+              String(i + 1),
+              a.title,
+              (a.description ?? '').slice(0, 100),
+              String(a.est_hours ?? '—'),
+            ]),
+            styles: { fontSize: 7.5, cellPadding: 2.5 },
+            headStyles: { fillColor: [240, 245, 255], textColor: headerColor, fontStyle: 'bold' },
+            columnStyles: { 0: { cellWidth: 8 }, 3: { cellWidth: 18 } },
+            margin: { left: L, right: W - R },
+          });
+          y = doc.lastAutoTable.finalY + 8;
+        }
+      } else {
+        y = paragraph(y, '(No adjustments were required.)');
+      }
+
+      // ── SECTION 6: Final Delivered Scope ─────────────────────
+      if (y > 220) { doc.addPage(); y = 15; }
+      y = sectionHeader(y, '6. FINAL DELIVERED SCOPE', headerColor);
+      // All activities that are 100% done
+      const deliveredActs = activities.filter(a => actEffectivePct(a) === 100 && a.activity_type !== 'sub_case');
+      if (deliveredActs.length > 0) {
+        autoTable(doc, {
+          startY: y,
+          head: [['Phase', 'Delivered Item', 'Hours Logged']],
+          body: deliveredActs.map(a => {
+            const phaseDef = DEFAULT_ACTIVITY_PHASES.find(p => p.key === a.phase);
+            const logged = timeEntries.filter(e => e.activity_id === a.id).reduce((s, e) => s + (e.hours ?? 0), 0);
+            return [phaseDef?.label ?? 'Unassigned', a.title, logged.toFixed(1) + 'h'];
+          }),
+          styles: { fontSize: 7.5, cellPadding: 2.5 },
+          headStyles: { fillColor: headerColor, textColor: 255, fontStyle: 'bold' },
+          columnStyles: { 2: { cellWidth: 22 } },
+          margin: { left: L, right: W - R },
+        });
+        y = doc.lastAutoTable.finalY + 8;
+      } else {
+        y = paragraph(y, '(No completed activities recorded.)');
+      }
+
+      // ── SECTION 7: User Manual ────────────────────────────────
+      doc.addPage(); y = 15;
+      y = sectionHeader(y, '7. USER MANUAL', [16, 185, 129]);
+      y = renderMarkdownSection(y, userManual);
+
+      // ── Sign-off page ─────────────────────────────────────────
+      if (y > 220) { doc.addPage(); y = 15; }
+      y = sectionHeader(y, 'SIGN-OFF', headerColor);
+      autoTable(doc, {
+        startY: y,
+        head: [['Role', 'Name', 'Signature', 'Date']],
+        body: [
+          ['Project Manager', '', '', ''],
+          ['Lead Consultant', '', '', ''],
+          ['Client Representative', '', '', ''],
+          ['Quality Approver', '', '', ''],
+        ],
+        styles: { fontSize: 9, cellPadding: 6 },
+        headStyles: { fillColor: headerColor, textColor: 255, fontStyle: 'bold' },
+        margin: { left: L, right: W - R },
+      });
+
+      // Save
+      const pdfBlob = doc.output('blob');
+      const safeName = (caseData.title ?? 'Case').replace(/[^a-z0-9]/gi, '_');
+      const fileName = `ClosureReport_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`;
+      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+      await addDocument(file, 'Case Closure Report — auto-generated on approval');
+      if (refetchDocuments) await refetchDocuments();
+
+      // Change status to approved
+      await onStatusChange(caseData.id, 'approved');
+      await addComment({
+        body: `Case approved${bypass ? ` (bypassed by ${auth.user?.email ?? 'manager'}: ${bypassReason})` : ''}. Case Closure Report saved to Docs.`,
+        isInternal: false,
+      });
+      setApprovalModal(false);
+    } catch (e) {
+      alert('Closure report generation failed: ' + e.message);
+    } finally {
+      setGeneratingClosure(false);
+    }
+  }
+
   // Activities-derived progress — time-logged hours blend in when est_hours is set.
   // effectivePct = max(manual progress_pct, time-derived pct from logged/est_hours).
   const totalEstHours = activities.reduce((s, a) => s + (a.est_hours || 0), 0);
@@ -10451,6 +10850,7 @@ Approver signature, Date.`;
                     onClick={() => {
                       if (isCancelled) return initCancelModal(caseData.id);
                       if (s.key === "standby") { setStandbyReason(""); setStandbyNotes(""); setStandbyModal(true); return; }
+                      if (s.key === "approved") { setApprovalBypass(""); setApprovalModal(true); return; }
                       if (needsConfirm && !isPending) { setPendingStageKey(s.key); return; }
                       setPendingStageKey(null);
                       onStatusChange(caseData.id, s.key);
@@ -13600,6 +14000,127 @@ function ConsultantDetailModal({ consultantId, auth }) {
       )}
 
       {/* Cancellation reason modal */}
+
+    {/* ── Approval Gate Modal ── */}
+    {approvalModal && (
+      <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4"
+        onClick={e => e.target === e.currentTarget && !generatingClosure && setApprovalModal(false)}>
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+          {/* Header */}
+          <div className="flex items-start gap-3 p-6 border-b border-gray-100">
+            <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
+              <BadgeCheck size={20} className="text-green-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-gray-900 text-base">Approve Case & Generate Closure Report</h3>
+              <p className="text-sm text-gray-500 mt-0.5">
+                This will generate a 7-section PDF Closure Report and mark the case as Approved.
+              </p>
+            </div>
+            {!generatingClosure && (
+              <button onClick={() => setApprovalModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={18} />
+              </button>
+            )}
+          </div>
+
+          {/* Completion check */}
+          <div className="p-6 space-y-4">
+            {(() => {
+              const incomplete = activities.filter(a => actEffectivePct(a) < 100);
+              const allDone = incomplete.length === 0;
+              const canBypass = auth.isAdmin || auth.isManager;
+              return (
+                <>
+                  {allDone ? (
+                    <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                      <CheckCircle2 size={18} className="text-emerald-600 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-semibold text-emerald-800">All {activities.length} activities at 100%</p>
+                        <p className="text-xs text-emerald-600">Ready to approve and generate the closure report.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                        <AlertTriangle size={18} className="text-amber-600 flex-shrink-0" />
+                        <div>
+                          <p className="text-sm font-semibold text-amber-800">{incomplete.length} activit{incomplete.length !== 1 ? 'ies' : 'y'} not at 100%</p>
+                          <p className="text-xs text-amber-600">
+                            {canBypass ? 'You can bypass this as a manager/admin — provide a reason below.' : 'All activities must be complete before approval.'}
+                          </p>
+                        </div>
+                      </div>
+                      {/* List of incomplete activities */}
+                      <div className="max-h-40 overflow-y-auto space-y-1 rounded-xl border border-gray-100 p-3">
+                        {incomplete.slice(0, 12).map(a => {
+                          const phaseDef = DEFAULT_ACTIVITY_PHASES.find(p => p.key === a.phase);
+                          return (
+                            <div key={a.id} className="flex items-center gap-2 text-xs">
+                              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: phaseDef?.color ?? '#9ca3af' }} />
+                              <span className="text-gray-500 flex-shrink-0 font-medium">{phaseDef?.label ?? 'Unassigned'}</span>
+                              <span className="text-gray-700 truncate">{a.title}</span>
+                              <span className="ml-auto font-semibold text-amber-600 flex-shrink-0">{actEffectivePct(a)}%</span>
+                            </div>
+                          );
+                        })}
+                        {incomplete.length > 12 && <p className="text-xs text-gray-400 text-center">…and {incomplete.length - 12} more</p>}
+                      </div>
+                      {/* Bypass — managers/admins only */}
+                      {canBypass && (
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">
+                            Bypass reason <span className="text-red-400">*</span>
+                          </label>
+                          <textarea value={approvalBypass} onChange={e => setApprovalBypass(e.target.value)}
+                            rows={2} placeholder="e.g. Remaining tasks are minor cosmetic items, client signed off…"
+                            className="w-full text-sm border border-amber-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-100 resize-none" />
+                        </div>
+                      )}
+                      {!canBypass && (
+                        <p className="text-xs text-gray-500 text-center">Contact a manager or admin to bypass this check.</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Report sections preview */}
+                  <div className="bg-gray-50 rounded-xl p-3 space-y-1.5">
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Closure Report will include:</p>
+                    {['1. Initial Request','2. Functional Specification','3. Development Scope',
+                      '4. Quality Assurance — Test Results','5. Adjustments Made',
+                      '6. Final Delivered Scope','7. User Manual (AI-generated)'].map(s => (
+                      <div key={s} className="flex items-center gap-2 text-xs text-gray-600">
+                        <CheckCircle2 size={11} className="text-green-500 flex-shrink-0" />
+                        {s}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex justify-between gap-3 border-t border-gray-100 pt-4">
+                    <button onClick={() => setApprovalModal(false)} disabled={generatingClosure}
+                      className="px-4 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40">
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        const bypass = !allDone;
+                        if (bypass && !approvalBypass.trim()) return;
+                        generateClosureReport(bypass, approvalBypass.trim());
+                      }}
+                      disabled={generatingClosure || (!allDone && !(auth.isAdmin || auth.isManager)) || (!allDone && (auth.isAdmin || auth.isManager) && !approvalBypass.trim())}
+                      className="flex items-center gap-2 px-6 py-2 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 rounded-xl disabled:opacity-40 transition-colors">
+                      {generatingClosure
+                        ? <><Spinner size={13} /> Generating Report…</>
+                        : <><BadgeCheck size={14} /> Approve & Generate Report</>}
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      </div>
+    )}
 
     {/* ── Adjustment Plan Preview Modal ── */}
     {adjustmentPreview && (
