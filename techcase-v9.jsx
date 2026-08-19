@@ -34,7 +34,7 @@ import {
   BadgeCheck, XCircle,
   Wand2, Download, Sparkles,
   ListChecks, ChevronDown, ChevronRight, AlertTriangle, CircleSlash,
-  GripVertical, Pencil, Timer, Link2, ExternalLink, Upload, Code2,
+  GripVertical, Pencil, Timer, Link2, ExternalLink, Upload, Code2, Lock,
 } from "lucide-react";
 
 // ============================================================
@@ -972,7 +972,7 @@ function CaseFeedbackModal({ caseData, onClose }) {
               <div className="flex gap-1">
                 {[1, 2, 3, 4, 5].map(n => (
                   <button key={n} onClick={() => setRatings(p => ({ ...p, [a.consultant_id]: { ...p[a.consultant_id], score: n } }))}
-                    className={`text-2xl transition-transform hover:scale-110 ${n <= r.score ? "text-yellow-400" : "text-gray-200"}`}>★</button>
+                    className={`text-2xl transition-transform hover:scale-110 ${n <= r.score ? "text-yellow-400" : "text-gray-200"}`}><Star size={18} fill={n <= r.score ? "currentColor" : "none"} /></button>
                 ))}
               </div>
               {r.score > 0 && (
@@ -1156,8 +1156,8 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                   : "bg-white/70 text-gray-600"
               }`}>
                 {best.overcommitted
-                  ? <>⚠️ <span>Availability conflict: committed <strong>{best.time_commitment}%</strong> but now only has <strong>{best.liveAvailability}%</strong> free</span></>
-                  : <>✓ <span>Current availability: <strong>{best.liveAvailability}%</strong> free — committed <strong>{best.time_commitment}%</strong></span></>
+                  ? <><AlertTriangle size={13} className="inline mr-1 flex-shrink-0" /><span>Availability conflict: committed <strong>{best.time_commitment}%</strong> but now only has <strong>{best.liveAvailability}%</strong> free</span></>
+                  : <><Check size={13} className="inline mr-1 flex-shrink-0" /><span>Current availability: <strong>{best.liveAvailability}%</strong> free — committed <strong>{best.time_commitment}%</strong></span></>
                 }
               </div>
             )}
@@ -1197,7 +1197,7 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
             const profile = Array.isArray(app.consultant?.consultant_profiles)
               ? app.consultant.consultant_profiles[0]
               : app.consultant?.consultant_profiles;
-            const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`;
+            const medal = i === 0 ? <Trophy size={14} className="text-yellow-500" /> : i === 1 ? <span className="text-[11px] font-bold text-slate-400">2</span> : i === 2 ? <span className="text-[11px] font-bold text-amber-600">3</span> : `#${i + 1}`;
             const conflict = hasLive && app.overcommitted;
             return (
               <div key={app.id} className={`border rounded-xl p-4 ${
@@ -1211,7 +1211,7 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-sm text-gray-900">{app.consultant?.full_name}</span>
                       {conflict && (
-                        <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded">⚠ Overcommitted</span>
+                        <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded"><AlertTriangle size={9} className="inline mr-0.5" />Overcommitted</span>
                       )}
                     </div>
                     <div className="text-xs text-gray-400">{profile?.headline ?? (profile?.years_experience ? `${profile.years_experience}y exp` : "")}</div>
@@ -1993,12 +1993,12 @@ function SlaMatrixEditor({ caseTypes, matrix, editing, onChangeCaseTypes, onChan
                     ) : (
                       <div className="space-y-1 text-center">
                         <div className="text-xs flex items-center justify-center gap-1">
-                          <span className="text-blue-400">↩</span>
+                          <RotateCcw size={10} className="text-blue-400" />
                           <span className="font-medium text-gray-800">{cell.response}</span>
                           <span className="text-gray-400">{SLA_UNIT_LABELS[cell.response_unit]}</span>
                         </div>
                         <div className="text-xs flex items-center justify-center gap-1">
-                          <span className="text-green-500">✓</span>
+                          <Check size={10} className="text-green-500" />
                           <span className="font-medium text-gray-800">{cell.resolution}</span>
                           <span className="text-gray-400">{SLA_UNIT_LABELS[cell.resolution_unit]}</span>
                         </div>
@@ -2350,7 +2350,7 @@ function useGlobalActivity(visibleCaseIds) {
 }
 function stars(n, max = 5) {
   return Array.from({ length: max }, (_, i) => (
-    <span key={i} className={i < Math.round(n) ? "text-yellow-400" : "text-gray-300"}>★</span>
+    <Star key={i} size={12} fill={i < Math.round(n) ? "currentColor" : "none"} className={i < Math.round(n) ? "text-yellow-400" : "text-gray-300"} />
   ));
 }
 
@@ -2680,7 +2680,7 @@ function AuthScreen({ onAuth }) {
                     i < step  ? "bg-emerald-500 text-white ring-emerald-100"
                     : i === step ? "bg-[#1C3557] text-white ring-blue-200"
                                  : "bg-gray-100 text-gray-400 ring-gray-200"}`}>
-                    {i < step ? "✓" : i + 1}
+                    {i < step ? <Check size={11} /> : i + 1}
                   </div>
                   <span className={`text-xs font-medium ${i === step ? "text-[#1C3557]" : i < step ? "text-emerald-600" : "text-gray-400"}`}>
                     {s.label}
@@ -3192,7 +3192,7 @@ function Dashboard({ auth }) {
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            Welcome back, {auth.profile?.full_name?.split(" ")[0] ?? "there"} 👋
+            Welcome back, {auth.profile?.full_name?.split(" ")[0] ?? "there"}
           </h1>
           <p className="text-gray-500 mt-1">Here's what's happening on the platform today.</p>
         </div>
@@ -3251,7 +3251,7 @@ function Dashboard({ auth }) {
                       <div style={{ padding:3, borderRadius:'50%', background:'conic-gradient(#93c5fd 0%, #5B9BD5 50%, #bfdbfe 100%)', animation:'_stripSpin 5s linear infinite' }}>
                         <div style={{ width:52, height:52, borderRadius:'50%', background:cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid #ffffff', position:'relative', animation:'_stripStill 5s linear infinite' }}>
                           {cl.initials}
-                          <div style={{ fontSize:9, position:'absolute', bottom:0, right:-1, lineHeight:1 }}>♥</div>
+                          <div style={{ fontSize:9, position:'absolute', bottom:0, right:-1, lineHeight:1 }}><Heart size={7} className="fill-current" /></div>
                         </div>
                       </div>
                       <div style={{ fontSize:10.5, fontWeight:600, color:'#5b7a9b', maxWidth:66, textAlign:'center', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{cl.name}</div>
@@ -3305,7 +3305,7 @@ function Dashboard({ auth }) {
                         </div>
                       </div>
                       <div style={{ fontSize:10.5, fontWeight:600, color:'#5b7a9b', maxWidth:66, textAlign:'center', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{cl.name}</div>
-                      <div style={{ fontSize:9, fontWeight:700, color:'#8fa8c2', textAlign:'center', marginTop:-4 }}>{cl.pastCases} done ✓</div>
+                      <div style={{ fontSize:9, fontWeight:700, color:'#8fa8c2', textAlign:'center', marginTop:-4 }}>{cl.pastCases} done <Check size={8} className="inline" /></div>
                     </div>
                   ))}
                 </div>
@@ -3347,7 +3347,7 @@ function Dashboard({ auth }) {
               <h2 className="text-base font-bold text-gray-900">{activeStat.label}</h2>
               <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs font-semibold rounded-lg">{activeStat.items.length}</span>
             </div>
-            <button onClick={() => setActiveTab(null)} className="text-gray-400 hover:text-gray-600 text-sm">✕ Close</button>
+            <button onClick={() => setActiveTab(null)} className="text-gray-400 hover:text-gray-600 text-sm"><X size={13} className="mr-1 inline" />Close</button>
           </div>
           <div className="divide-y divide-gray-50 max-h-96 overflow-y-auto">
             {activeStat.items.length === 0 && (
@@ -3442,7 +3442,7 @@ function Dashboard({ auth }) {
                   className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 {(filterSap || filterIndustry || filterStartFrom) && (
                   <button onClick={() => { setFilterSap(""); setFilterInd(""); setStartFrom(""); }}
-                    className="text-xs text-gray-400 hover:text-gray-600 px-2">✕ Clear</button>
+                    className="text-xs text-gray-400 hover:text-gray-600 px-2"><X size={11} className="mr-0.5 inline" />Clear</button>
                 )}
               </div>
 
@@ -3472,7 +3472,7 @@ function Dashboard({ auth }) {
                     return (
                       <div className="p-8 text-center text-gray-400 text-sm">
                         {availTab === "following"
-                          ? "No cases from companies you follow yet. Click ♡ on any case card to follow that company."
+                          ? <>No cases from companies you follow yet. Click <Heart size={11} className="inline text-gray-400" /> on any case card to follow that company.</>
                           : "No open cases available right now."}
                       </div>
                     );
@@ -4064,7 +4064,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         </div>
         <button onClick={onCancel}
           className="text-sm text-gray-600 hover:text-gray-800 bg-white border border-gray-300 px-3 py-1.5 rounded-xl hover:bg-gray-100">
-          ✕ Cancel
+          <X size={13} className="mr-1 inline" />Cancel
         </button>
       </div>
 
@@ -4766,7 +4766,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
       <div className="sticky bottom-0 bg-white border-t-2 border-gray-100 shadow-xl rounded-2xl px-6 py-4 flex items-center justify-between mt-4">
         <button onClick={prevStep}
           className="px-5 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors font-medium">
-          {step === 0 ? "✕ Cancel" : "← Back"}
+          {step === 0 ? <><X size={13} className="mr-1 inline" />Cancel</> : "← Back"}
         </button>
         <div className="flex items-center gap-3">
           {step === 7 && mode !== "express" && (
@@ -4785,9 +4785,9 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               className={`px-7 py-2.5 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md ${startConfirmed ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}`}>
               {creating
                 ? (isEdit ? "Saving…" : "Creating…")
-                : isEdit ? "✓ Save Changes"
-                : startConfirmed ? "✓ Create Confirmed"
-                : "✓ Create Case"}
+                : isEdit ? <><Check size={13} className="mr-1 inline" />Save Changes</>
+                : startConfirmed ? <><Check size={13} className="mr-1 inline" />Create Confirmed</>
+                : <><Check size={13} className="mr-1 inline" />Create Case</>}
             </button>
           )}
         </div>
@@ -4873,7 +4873,7 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
         </div>
         <button onClick={onCancel}
           className="text-sm text-gray-600 hover:text-gray-800 bg-white border border-gray-300 px-3 py-1.5 rounded-xl hover:bg-gray-100">
-          ✕ Cancel
+          <X size={13} className="mr-1 inline" />Cancel
         </button>
       </div>
 
@@ -5050,7 +5050,7 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
       <div className="sticky bottom-0 bg-white border-t-2 border-gray-100 shadow-xl rounded-2xl px-6 py-4 flex items-center justify-between">
         <button onClick={() => step > 0 ? setSt(s => s - 1) : onCancel()}
           className="px-5 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors font-medium">
-          {step === 0 ? "✕ Cancel" : "← Back"}
+          {step === 0 ? <><X size={13} className="mr-1 inline" />Cancel</> : "← Back"}
         </button>
         {!isLast ? (
           <button onClick={() => setSt(s => s + 1)}
@@ -5061,7 +5061,7 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
         ) : (
           <button onClick={handleSubmit} disabled={submitting}
             className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
-            {submitting ? "Submitting…" : "✓ Submit Application"}
+            {submitting ? "Submitting…" : <><Check size={13} className="mr-1 inline" />Submit Application</>}
           </button>
         )}
       </div>
@@ -5171,7 +5171,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
         </div>
         <button onClick={onCancel}
           className="text-sm text-gray-600 hover:text-gray-800 bg-white border border-gray-300 px-3 py-1.5 rounded-xl hover:bg-gray-100">
-          ✕ Cancel
+          <X size={13} className="mr-1 inline" />Cancel
         </button>
       </div>
 
@@ -5538,7 +5538,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
       <div className="sticky bottom-0 bg-white border-t-2 border-gray-100 shadow-xl rounded-2xl px-6 py-4 flex items-center justify-between mt-4">
         <button onClick={() => step > 0 ? setSt(s => s - 1) : onCancel()}
           className="px-5 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors font-medium">
-          {step === 0 ? "✕ Cancel" : "← Back"}
+          {step === 0 ? <><X size={13} className="mr-1 inline" />Cancel</> : "← Back"}
         </button>
         <div className="flex items-center gap-3">
           {(step === 2 || step === 3) && (
@@ -5556,7 +5556,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
           ) : (
             <button onClick={handleCreate} disabled={creating}
               className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
-              {creating ? (isEdit ? "Saving…" : "Creating…") : (isEdit ? "✓ Save Changes" : "✓ Create Project")}
+              {creating ? (isEdit ? "Saving…" : "Creating…") : (isEdit ? <><Check size={13} className="mr-1 inline" />Save Changes</> : <><Check size={13} className="mr-1 inline" />Create Project</>)}
             </button>
           )}
         </div>
@@ -6248,7 +6248,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
                   : <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-semibold">Company profile (inherited)</span>}
                 {!projOverrideAllowed && (
                   <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold flex items-center gap-1">
-                    🔒 Override locked by company settings
+                    <Lock size={13} className="inline mr-1" />Override locked by company settings
                   </span>
                 )}
               </div>
@@ -6955,7 +6955,7 @@ function LifecycleFlowDiagram({ stages, currentStatus }) {
                       marginTop: isCurrent ? -2 : 1,
                       marginBottom: isCurrent ? -2 : 1,
                     }}>
-                      {isDone ? '✓' : ''}
+                      {isDone ? <Check size={12} /> : ''}
                     </div>
                     {!isLast && (
                       <div style={{ width: 2, flex: 1, minHeight: 10, background: lineColor }} />
@@ -8988,7 +8988,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     aiStep === step.n ? 'bg-[#1A4B8C] border-[#1A4B8C] text-white' :
                     'bg-white border-gray-300 text-gray-400 cursor-not-allowed'
                   }`}>
-                  {aiStep > step.n ? '✓' : step.n}
+                  {aiStep > step.n ? <Check size={11} /> : step.n}
                 </button>
                 <span className={`text-xs mt-1 font-medium text-center leading-tight ${
                   aiStep === step.n ? 'text-[#1A4B8C]' : aiStep > step.n ? 'text-green-600' : 'text-gray-400'
@@ -9053,9 +9053,9 @@ Respond with ONLY a valid JSON object, no markdown fences:
               <div className={`border rounded-xl p-4 space-y-3 ${cc[0]} ${cc[1]}`}>
                 <div className="flex items-center justify-between">
                   <span className={`text-sm font-bold ${cc[3]}`}>
-                    {sapCheck.coverage === 'full' ? '✓ Fully covered by SAP standard' :
-                     sapCheck.coverage === 'partial' ? '⚠ Partially covered — gaps exist' :
-                     '✗ Custom ABAP development required'}
+                    {sapCheck.coverage === 'full' ? <><Check size={11} className="inline mr-1 text-emerald-600" />Fully covered by SAP standard</> :
+                     sapCheck.coverage === 'partial' ? <><AlertTriangle size={11} className="inline mr-1 text-amber-500" />Partially covered — gaps exist</> :
+                     <><X size={11} className="inline mr-1 text-red-500" />Custom ABAP development required</>}
                   </span>
                   <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${cc[1]} ${cc[2]} uppercase`}>{sapCheck.coverage}</span>
                 </div>
@@ -9131,7 +9131,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
               <div className={`border rounded-xl p-4 space-y-3 ${proposalCheck.valid ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <span className={`text-sm font-bold ${proposalCheck.valid ? 'text-green-800' : 'text-amber-800'}`}>
-                    {proposalCheck.valid ? '✓ Proposal is valid' : '⚠ Proposal has concerns'}
+                    {proposalCheck.valid ? <><Check size={11} className="inline mr-1 text-green-700" />Proposal is valid</> : <><AlertTriangle size={11} className="inline mr-1 text-amber-800" />Proposal has concerns</>}
                   </span>
                   <div className="flex items-center gap-2">
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${riskColor[proposalCheck.risk_level] ?? riskColor.medium}`}>
@@ -9147,7 +9147,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   <div>
                     <p className="text-xs font-semibold text-green-700 mb-1">Strengths:</p>
                     <ul className="text-xs text-green-700 space-y-0.5">
-                      {proposalCheck.strengths.map((s, i) => <li key={i} className="flex gap-1"><span>✓</span><span>{s}</span></li>)}
+                      {proposalCheck.strengths.map((s, i) => <li key={i} className="flex gap-1"><Check size={11} /><span>{s}</span></li>)}
                     </ul>
                   </div>
                 )}
@@ -9156,7 +9156,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   <div>
                     <p className="text-xs font-semibold text-amber-700 mb-1">Concerns:</p>
                     <ul className="text-xs text-amber-700 space-y-0.5">
-                      {proposalCheck.concerns.map((c, i) => <li key={i} className="flex gap-1"><span>⚠</span><span>{c}</span></li>)}
+                      {proposalCheck.concerns.map((c, i) => <li key={i} className="flex gap-1"><AlertTriangle size={11} /><span>{c}</span></li>)}
                     </ul>
                   </div>
                 )}
@@ -9233,13 +9233,13 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         {(proposalCheck.strengths??[]).length > 0 && (
                           <div>
                             <p className="text-xs font-semibold text-green-700 mb-0.5">Strengths:</p>
-                            <ul className="text-xs text-green-700 space-y-0.5">{proposalCheck.strengths.map((s,i)=><li key={i} className="flex gap-1"><span>✓</span><span>{s}</span></li>)}</ul>
+                            <ul className="text-xs text-green-700 space-y-0.5">{proposalCheck.strengths.map((s,i)=><li key={i} className="flex gap-1"><Check size={11} /><span>{s}</span></li>)}</ul>
                           </div>
                         )}
                         {(proposalCheck.concerns??[]).length > 0 && (
                           <div>
                             <p className="text-xs font-semibold text-amber-700 mb-0.5">Concerns:</p>
-                            <ul className="text-xs text-amber-700 space-y-0.5">{proposalCheck.concerns.map((c,i)=><li key={i} className="flex gap-1"><span>⚠</span><span>{c}</span></li>)}</ul>
+                            <ul className="text-xs text-amber-700 space-y-0.5">{proposalCheck.concerns.map((c,i)=><li key={i} className="flex gap-1"><AlertTriangle size={11} /><span>{c}</span></li>)}</ul>
                           </div>
                         )}
                         {proposalCheck.recommendation && <p className={`text-xs italic border-t pt-1 ${proposalCheck.valid ? 'border-green-200 text-green-700' : 'border-amber-200 text-amber-700'}`}>{proposalCheck.recommendation}</p>}
@@ -9349,7 +9349,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     ].map(({ key, label, color }) => (
                       <span key={key} className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${savedSpecUrls[key] ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
                         <span className={`w-2 h-2 rounded-full ${savedSpecUrls[key] ? 'bg-green-500' : color} opacity-70`} />
-                        {label} {savedSpecUrls[key] ? '✓ saved' : 'not saved'}
+                        {label} {savedSpecUrls[key] ? <><Check size={10} className="inline mr-0.5" />saved</> : 'not saved'}
                       </span>
                     ))}
                     {savingDoc && <span className="text-xs text-blue-600 flex items-center gap-1"><Spinner />&nbsp;Saving PDFs…</span>}
@@ -9371,7 +9371,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                           <button onClick={() => saveAllSpecsAsDocuments(aiSpecA, aiSpecB, aiSpecC, sapCheck, proposalCheck)}
                             disabled={savingDoc || allSaved || (!aiSpecA && !aiSpecB && !aiSpecC)}
                             className={`flex items-center px-4 py-2 text-sm font-semibold rounded-xl disabled:opacity-40 ${allSaved ? 'bg-gray-100 text-gray-500 border border-gray-200 cursor-default' : 'bg-green-600 text-white hover:bg-green-700'}`}>
-                            {savingDoc ? 'Saving…' : allSaved ? <>✓&nbsp;3 PDFs saved</> : <><Paperclip className="w-4 h-4 mr-1.5" />Save All 3 PDFs</>}
+                            {savingDoc ? 'Saving…' : allSaved ? <><Check size={13} className="mr-1.5 inline" />3 PDFs saved</> : <><Paperclip className="w-4 h-4 mr-1.5" />Save All 3 PDFs</>}
                           </button>
                         );
                       })()}
@@ -10912,7 +10912,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             onClick={() => generateTestPlan(caseData.status)}
             disabled={generatingTestPlan || testPlanSaved}
             className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors">
-            {generatingTestPlan ? <><Spinner size={12} /> Generating…</> : testPlanSaved ? '✓ Test Plan saved to Docs' : <><Sparkles size={12} /> Generate Test Plan</>}
+            {generatingTestPlan ? <><Spinner size={12} /> Generating…</> : testPlanSaved ? <><Check size={12} className="mr-1 inline" />Test Plan saved to Docs</> : <><Sparkles size={12} /> Generate Test Plan</>}
           </button>
         </div>
       )}
@@ -11752,7 +11752,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                         <div className="mt-2 space-y-1">
                           {failedActs.slice(0, 3).map(a => (
                             <p key={a.id} className="text-[10px] text-amber-800 flex items-start gap-1.5">
-                              <span className="text-amber-500 flex-shrink-0 mt-0.5">⚠</span>
+                              <AlertTriangle size={11} className="text-amber-500 flex-shrink-0 mt-0.5" />
                               <span><span className="font-semibold">{a.title}</span>{a.adjustment_notes ? ': ' + a.adjustment_notes : ''}</span>
                             </p>
                           ))}
@@ -12117,7 +12117,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                               fill="black" fillOpacity="0.06" />
                           )}
                           <text x={pos.x + 8} y={pos.y + 16} fontSize="10" fontWeight="700" fill={c.text}>
-                            #{a.task_no} {isLocked ? "🔒" : blockedByIncomplete ? "⏳" : ""}
+                            #{a.task_no} {isLocked ? <Lock size={9} className="inline ml-0.5" /> : blockedByIncomplete ? <Clock size={9} className="inline ml-0.5" /> : ""}
                           </text>
                           <text x={pos.x + 8} y={pos.y + 30} fontSize="11" fontWeight="600" fill={c.text}>{title}</text>
                           {/* mini progress bar */}
@@ -12160,7 +12160,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                           <span className="text-xs font-bold uppercase tracking-wide" style={{ color: phase.color }}>{phase.label}</span>
                           {isLockedPhase && (
                             <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-                              🔒 Progress locked — case must be in "{phase.required_status?.replace(/_/g, " ")}" to report
+                              <Lock size={11} className="inline mr-1" />Progress locked — case must be in "{phase.required_status?.replace(/_/g, " ")}" to report
                             </span>
                           )}
                           <div className="flex-1 h-px bg-gray-200" />
@@ -12276,8 +12276,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                                   <div className="flex gap-2">
                                     {[
                                       { value: null,                label: "Pending",          cls: "border-gray-200 text-gray-500" },
-                                      { value: "passed",            label: "✓ Passed",         cls: "border-emerald-300 text-emerald-700 bg-emerald-50" },
-                                      { value: "needs_adjustment",  label: "⚠ Needs Adjustment", cls: "border-amber-300 text-amber-700 bg-amber-50" },
+                                      { value: "passed",            label: <><Check size={11} className="mr-1 inline" />Passed</>,         cls: "border-emerald-300 text-emerald-700 bg-emerald-50" },
+                                      { value: "needs_adjustment",  label: <><AlertTriangle size={11} className="mr-1 inline" />Needs Adjustment</>, cls: "border-amber-300 text-amber-700 bg-amber-50" },
                                     ].map(opt => (
                                       <button key={String(opt.value)} type="button"
                                         onClick={() => setEditActForm(p => ({ ...p, test_outcome: opt.value, adjustment_notes: opt.value !== 'needs_adjustment' ? '' : p.adjustment_notes }))}
@@ -12441,22 +12441,22 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                               return blocked ? (
                                 <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 flex-shrink-0">⏳ Waiting</span>
                               ) : (
-                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 flex-shrink-0">✓ Ready</span>
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 flex-shrink-0"><Check size={9} className="mr-0.5 inline" />Ready</span>
                               );
                             })()}
                             {/* Phase lock */}
                             {(() => {
                               const phaseDef = resolvedPhases.find(p => p.key === act.phase);
                               return phaseDef?.required_status && caseData.status !== phaseDef.required_status ? (
-                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 flex-shrink-0">🔒 {phaseDef.label}</span>
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200 flex-shrink-0"><Lock size={9} className="mr-0.5 inline" />{phaseDef.label}</span>
                               ) : null;
                             })()}
                             {/* Test outcome badge */}
                             {act.test_outcome === 'passed' && (
-                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 flex-shrink-0">✓ Passed</span>
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 flex-shrink-0"><Check size={9} className="mr-0.5 inline" />Passed</span>
                             )}
                             {act.test_outcome === 'needs_adjustment' && (
-                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 flex-shrink-0">⚠ Needs Adj.</span>
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 flex-shrink-0"><AlertTriangle size={9} className="mr-0.5 inline" />Needs Adj.</span>
                             )}
                           </div>
                           {act.description && <p className="text-xs text-gray-400 truncate mt-0.5">{act.description}</p>}
@@ -12523,7 +12523,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                           {act.test_outcome && (
                             <div className={`rounded-xl p-3 space-y-1.5 text-xs ${act.test_outcome === 'passed' ? 'bg-emerald-50 border border-emerald-100' : 'bg-amber-50 border border-amber-100'}`}>
                               <p className={`font-semibold ${act.test_outcome === 'passed' ? 'text-emerald-700' : 'text-amber-700'}`}>
-                                {act.test_outcome === 'passed' ? '✓ Test passed' : '⚠ Needs adjustment'}
+                                {act.test_outcome === 'passed' ? <><Check size={11} className="inline mr-1" />Test passed</> : <><AlertTriangle size={11} className="inline mr-1" />Needs adjustment</>}
                               </p>
                               {act.adjustment_notes && <p className="text-amber-800">{act.adjustment_notes}</p>}
                               {act.coverage_pct != null && (
@@ -12541,7 +12541,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                                 const phaseIsLocked = phaseDef?.required_status && caseData.status !== phaseDef.required_status;
                                 return phaseIsLocked ? (
                                   <span className="text-[9px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
-                                    🔒 Locked — case must be in {phaseDef.required_status.replace(/_/g, " ")}
+                                    <Lock size={11} className="inline mr-1" />Locked — case must be in {phaseDef.required_status.replace(/_/g, " ")}
                                   </span>
                                 ) : (
                                   <button
@@ -12658,7 +12658,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 space-y-4">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Import Activities from Document</p>
-                    <button onClick={resetImport} className="text-gray-400 hover:text-gray-600">✕</button>
+                    <button onClick={resetImport} className="text-gray-400 hover:text-gray-600"><X size={13} /></button>
                   </div>
 
                   {/* Step: select document */}
@@ -12696,7 +12696,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                           <div className="flex items-center gap-2 px-3 py-2 bg-white border border-violet-300 rounded-xl">
                             <Paperclip size={13} className="text-violet-500 flex-shrink-0" />
                             <span className="text-sm text-gray-700 truncate flex-1">{importDocFile.name}</span>
-                            <button onClick={() => setImportDocFile(null)} className="text-gray-400 hover:text-red-500 text-xs">✕</button>
+                            <button onClick={() => setImportDocFile(null)} className="text-gray-400 hover:text-red-500 text-xs"><X size={13} /></button>
                           </div>
                         )}
                         <input type="file" ref={importActFileRef} className="hidden"
@@ -12780,7 +12780,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       ) : (
                         <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
                           <p className="text-sm font-semibold text-green-700">
-                            ✓ {importResult.count} {importResult.count === 1 ? 'activity' : 'activities'} added to the case
+                            <><Check size={13} className="mr-1 inline" />{importResult.count} {importResult.count === 1 ? 'activity' : 'activities'} added to the case</>
                           </p>
                           <p className="text-xs text-green-600 mt-1">Scroll up to see them in the activities list.</p>
                         </div>
@@ -12952,7 +12952,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 ? <span className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full font-semibold">Company profile</span>
                 : <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-semibold">Default (Standard)</span>}
               {!caseOverrideAllowed && (
-                <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold">🔒 Override locked</span>
+                <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold"><Lock size={10} className="mr-0.5 inline" />Override locked</span>
               )}
             </div>
 
@@ -13103,7 +13103,7 @@ function ArenaView({ auth }) {
                 <span className="text-xs text-gray-400">{appCount} applicant{appCount !== 1 ? "s" : ""}</span>
                 {auth.isConsultant && (
                   alreadyApplied
-                    ? <span className="text-xs text-green-600 font-semibold">✓ Applied</span>
+                    ? <span className="text-xs text-green-600 font-semibold"><><Check size={10} className="mr-0.5 inline" />Applied</></span>
                     : <button onClick={() => setApplying(c)}
                         className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors">
                         Apply →
@@ -13785,7 +13785,7 @@ function ProfileView({ auth }) {
               : <div className="grid grid-cols-2 gap-3 mb-4">
                   {profile.work_authorizations.map(w => (
                     <div key={w.id} className="border border-gray-100 rounded-xl p-3 flex items-center gap-3">
-                      <div className="text-2xl">{w.country_code === "US" ? "🇺🇸" : w.country_code === "GB" ? "🇬🇧" : "🌐"}</div>
+                      <div className="text-2xl">{w.country_code === "US" ? "🇺🇸" : w.country_code === "GB" ? "🇬🇧" : <Globe size={18} />}</div>
                       <div>
                         <div className="text-sm font-medium">{w.country_name}</div>
                         <div className="text-xs text-gray-400 capitalize">{fmt(w.auth_type)}</div>
@@ -13959,7 +13959,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
         {(auth.isAdmin || auth.isManager || auth.isClient) && (
           <button onClick={() => setRatingModal(true)}
             className="ml-auto px-4 py-2 text-sm bg-yellow-50 border border-yellow-200 text-yellow-700 rounded-xl hover:bg-yellow-100">
-            ★ Rate
+            <Star size={13} className="mr-1 inline" />Rate
           </button>
         )}
       </div>
@@ -13997,7 +13997,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
           <div className="flex gap-2 mb-3">
             {[1,2,3,4,5].map(n => (
               <button key={n} onClick={() => setRatingForm(p => ({ ...p, score: n }))}
-                className={`text-2xl ${n <= ratingForm.score ? "text-yellow-400" : "text-gray-300"}`}>★</button>
+                className={`text-2xl ${n <= ratingForm.score ? "text-yellow-400" : "text-gray-300"}`}><Star size={22} fill={n <= ratingForm.score ? "currentColor" : "none"} /></button>
             ))}
           </div>
           <Textarea label="Comment" value={ratingForm.comment}
@@ -14255,7 +14255,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
                   </div>
                   {act.description && <p className="text-xs text-gray-500 mt-1 leading-relaxed">{act.description}</p>}
                   {act.acceptance_criteria && (
-                    <p className="text-xs text-emerald-700 mt-1 font-medium">✓ {act.acceptance_criteria}</p>
+                    <p className="text-xs text-emerald-700 mt-1 font-medium"><Check size={10} className="mr-1 inline text-emerald-600" />{act.acceptance_criteria}</p>
                   )}
                   <div className="flex items-center gap-3 mt-1.5">
                     <span className="text-[10px] text-gray-400 font-medium">{act.est_hours}h estimated</span>
@@ -14357,7 +14357,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
           <div className="flex items-start gap-3">
             <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <span className="text-red-500 font-bold text-lg leading-none">✕</span>
+              <X size={16} className="text-red-500" />
             </div>
             <div>
               <h3 className="font-bold text-gray-900 text-base">Why is this case being cancelled?</h3>
@@ -15004,7 +15004,7 @@ function SlaClientDetail({ client, auth }) {
       {!editing && sla && (
         <div className="flex items-center gap-4 text-xs text-gray-400 mb-3">
           <span><span className="text-blue-400 mr-1">↩</span>Initial Response</span>
-          <span><span className="text-green-500 mr-1">✓</span>Resolution</span>
+          <span><Check size={13} className="text-green-500 mr-1 inline" />Resolution</span>
         </div>
       )}
 
@@ -15905,7 +15905,7 @@ function LifecycleSettingsView({ auth }) {
                                     ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                     : "bg-red-50 text-red-500 border-red-200"
                                 }`}>
-                                {allowed ? "✓" : "✗"} {label}
+                                {allowed ? <Check size={12} className="inline" /> : <X size={12} className="inline" />} {label}
                               </button>
                             );
                           })}
@@ -16011,7 +16011,7 @@ function LifecycleSettingsView({ auth }) {
                 <div className="flex items-center gap-2 flex-shrink-0 ml-4">
                   <button onClick={() => startEdit(viewTmpl)}
                     className="px-4 py-1.5 bg-[#1A4B8C] hover:bg-blue-900 text-white text-sm font-semibold rounded-xl">
-                    ✎ Edit Stages
+                    <Pencil size={13} className="mr-1 inline" />Edit Stages
                   </button>
                   <button onClick={() => handleDelete(viewTmpl)}
                     className="px-3 py-1.5 border border-red-200 text-red-500 hover:bg-red-50 text-sm font-semibold rounded-xl">
@@ -17033,7 +17033,7 @@ function ClientProfileView({ auth }) {
           {!slaEditing && sla && (
             <div className="flex items-center gap-4 text-xs text-gray-400 mb-3">
               <span><span className="text-blue-400 mr-1">↩</span>Initial Response</span>
-              <span><span className="text-green-500 mr-1">✓</span>Resolution</span>
+              <span><Check size={13} className="text-green-500 mr-1 inline" />Resolution</span>
             </div>
           )}
 
@@ -17970,7 +17970,7 @@ function TimeEntriesView({ auth }) {
                   </td>
                   <td className="px-5 py-3">
                     {e.is_approved
-                      ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">✓ Approved</span>
+                      ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full"><Check size={10} className="mr-0.5 inline" />Approved</span>
                       : (auth.isAdmin || auth.isManager)
                         ? <button onClick={() => approveEntry(e.id, true)}
                             className="text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 px-2 py-0.5 rounded-full hover:bg-yellow-100">
@@ -18230,7 +18230,7 @@ function ConsultantOnboardingView({ auth, onComplete }) {
               <div className="grid grid-cols-2 gap-3 mb-5">
                 {profile.work_authorizations.map(w => (
                   <div key={w.id} className="border border-gray-100 rounded-xl p-3 flex items-center gap-3">
-                    <span className="text-2xl">{w.country_code === "US" ? "🇺🇸" : w.country_code === "GB" ? "🇬🇧" : "🌐"}</span>
+                    <span className="text-2xl">{w.country_code === "US" ? "🇺🇸" : w.country_code === "GB" ? "🇬🇧" : <Globe size={18} />}</span>
                     <div>
                       <div className="text-sm font-medium">{w.country_name}</div>
                       <div className="text-xs text-gray-400 capitalize">{fmt(w.auth_type)}</div>
@@ -18638,7 +18638,7 @@ function ManagerAdminWelcomeView({ auth, onComplete }) {
         <ul className="space-y-2">
           {info.highlights.map(h => (
             <li key={h} className="flex items-center gap-3 text-sm text-gray-700">
-              <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-bold flex-shrink-0">✓</span>
+              <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-bold flex-shrink-0"><Check size={11} /></span>
               {h}
             </li>
           ))}
