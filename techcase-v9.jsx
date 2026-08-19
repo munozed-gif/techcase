@@ -15447,24 +15447,7 @@ function ClientProfileView({ auth }) {
     setSavingMember(false);
   }
 
-  if (loading) return <Spinner />;
-
-  const tierColors = { standard: "bg-gray-100 text-gray-700", premium: "bg-blue-100 text-blue-700", enterprise: "bg-violet-100 text-blue-700" };
-  const dbTypeColors = {
-    postgresql: "bg-blue-100 text-blue-700", mysql: "bg-orange-100 text-orange-700",
-    mssql: "bg-red-100 text-red-700", oracle: "bg-red-100 text-red-700",
-    mongodb: "bg-green-100 text-green-700",
-    sap_gui: "bg-indigo-100 text-indigo-700", sap_hana: "bg-cyan-100 text-cyan-700",
-    sap_rfc: "bg-purple-100 text-purple-700", sap_odata: "bg-teal-100 text-teal-700",
-    vpn: "bg-slate-100 text-slate-700", other: "bg-gray-100 text-gray-700",
-  };
-  const connTypeLabels = {
-    postgresql: "PostgreSQL", mysql: "MySQL", mssql: "MSSQL", oracle: "Oracle",
-    mongodb: "MongoDB", sap_gui: "SAP GUI", sap_hana: "SAP HANA",
-    sap_rfc: "SAP RFC", sap_odata: "SAP OData", vpn: "VPN", other: "Other",
-  };
-
-  // Activity phases config
+  // Activity phases config — hooks must be before early returns
   const [editingPhases, setEditingPhases] = useState(false);
   const [phasesForm, setPhasesForm]       = useState(null);
   const [savingPhases, setSavingPhases]   = useState(false);
@@ -15483,6 +15466,23 @@ function ClientProfileView({ auth }) {
     } catch (e) { alert(e.message); }
     setSavingPhases(false);
   }
+
+  if (loading) return <Spinner />;
+
+  const tierColors = { standard: "bg-gray-100 text-gray-700", premium: "bg-blue-100 text-blue-700", enterprise: "bg-violet-100 text-blue-700" };
+  const dbTypeColors = {
+    postgresql: "bg-blue-100 text-blue-700", mysql: "bg-orange-100 text-orange-700",
+    mssql: "bg-red-100 text-red-700", oracle: "bg-red-100 text-red-700",
+    mongodb: "bg-green-100 text-green-700",
+    sap_gui: "bg-indigo-100 text-indigo-700", sap_hana: "bg-cyan-100 text-cyan-700",
+    sap_rfc: "bg-purple-100 text-purple-700", sap_odata: "bg-teal-100 text-teal-700",
+    vpn: "bg-slate-100 text-slate-700", other: "bg-gray-100 text-gray-700",
+  };
+  const connTypeLabels = {
+    postgresql: "PostgreSQL", mysql: "MySQL", mssql: "MSSQL", oracle: "Oracle",
+    mongodb: "MongoDB", sap_gui: "SAP GUI", sap_hana: "SAP HANA",
+    sap_rfc: "SAP RFC", sap_odata: "SAP OData", vpn: "VPN", other: "Other",
+  };
 
   const tabs = [
     { id: "overview",     label: "Overview",     icon: Building2,         count: null },
