@@ -9425,6 +9425,10 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [logTimeActId, setLogTimeActId]       = useState(null);
   const [generatingTestPlan, setGeneratingTestPlan] = useState(false);
   const [testPlanSaved, setTestPlanSaved]     = useState(false);
+  const [testPlanTarget, setTestPlanTarget]   = useState(null); // { fromPhase, toPhase } while generating
+  const [testPlanPreview, setTestPlanPreview] = useState(null); // { targetPhase, activities: [], markdown } | null
+  const [confirmingTestPlan, setConfirmingTestPlan] = useState(false); // creating activities from preview
+  const [generatedPlanPhases, setGeneratedPlanPhases] = useState([]); // phase keys already generated this session
   // Activities state
   const [actView, setActView]           = useState("list");  // "list" | "flow"
   const [clientActivityPhases, setClientActivityPhases] = useState(null);
@@ -9805,47 +9809,98 @@ Extract every discrete task, activity, deliverable, or work item. If you find no
     }
   }
 
-  async function generateTestPlan() {
-    const stage = caseData.status;
-    const stageLabel = lifecycleStages.find(s => s.key === stage)?.label ?? stage.replace(/_/g, ' ');
-    const actList = activities.map((a, i) => `${i + 1}. ${a.title}${a.description ? ': ' + a.description : ''}`).join('\n');
+  // Phase-to-next-test-phase mapping
+  const PHASE_TEST_TRIGGERS = [
+    { fromPhase: "development",     toPhase: "technical_test",  label: "Technical Test" },
+    { fromPhase: "technical_test",  toPhase: "functional_test", label: "Functional Test" },
+    { fromPhase: "functional_test", toPhase: "user_test",       label: "User Test" },
+  ];
+
+  async function generateTestPlan(toPhaseKey, fromPhaseActivities) {
+    const trigger = PHASE_TEST_TRIGGERS.find(t => t.toPhase === toPhaseKey);
+    const targetLabel = trigger?.label ?? toPhaseKey.replace(/_/g, ' ');
+    const sourceActivities = fromPhaseActivities ?? activities;
+    const actList = sourceActivities.map((a, i) =>
+      `${i + 1}. ${a.title}${a.description ? ': ' + a.description : ''}`
+    ).join('\n');
+
     const stageInstructions = {
-      technical_test:  'Focus on technical validation: code correctness (no syntax errors or dumps), edge cases, error handling, performance, and data integrity at DB level.',
-      functional_test: 'Focus on functional validation: each feature behaves per the functional specification, business rules are enforced, reports match expected output, and integration points work correctly.',
+      technical_test:  'Focus on technical validation: code correctness (no syntax/runtime errors), edge cases, error handling, performance benchmarks, and data integrity at the DB level.',
+      functional_test: 'Focus on functional validation: each feature behaves per the functional specification, business rules are enforced, reports match expected output, and all integration points work correctly.',
       user_test:       'Focus on user acceptance: real end-to-end business scenarios, usability from the end-user perspective, data entry validation, and confirmation that all business requirements are met for sign-off.',
     };
-    const prompt = `Generate a professional ${stageLabel} Plan for this SAP consulting case.
+
+    const prompt = `Generate a detailed ${targetLabel} Plan for this SAP consulting case.
 
 Case: ${caseData.title}
 Description: ${caseData.description ?? '(none)'}
 SAP Module: ${caseData.area_sap ?? 'N/A'}
 Industry: ${caseData.area_industry ?? 'N/A'}
 
-Activities / Scope:
+Completed activities being tested:
 ${actList || '(no activities defined)'}
 
-${stageInstructions[stage] ?? ''}
+${stageInstructions[toPhaseKey] ?? ''}
 
-Structure the test plan with these sections:
+IMPORTANT: After the markdown test plan, output a JSON block with the test activities to create.
+Format exactly like this (all fields required):
+
+\`\`\`json
+{
+  "activities": [
+    {
+      "title": "Test scenario title (concise, max 100 chars)",
+      "description": "What is being tested and why",
+      "acceptance_criteria": "Specific pass/fail criteria",
+      "est_hours": 2
+    }
+  ]
+}
+\`\`\`
+
+Generate 4–10 test activities covering the most critical scenarios. Each activity maps to one or more of the completed activities above.
+
+Then provide the full test plan in markdown:
+
 ## 1. Scope & Objectives
 ## 2. Test Scenarios
-For each activity create a scenario with: Scenario name, Test Steps (numbered), Expected Result, Test Data required, Pass/Fail Criteria.
+For each activity: Scenario name, Test Steps (numbered), Expected Result, Test Data required, Pass/Fail Criteria.
 ## 3. Execution Log
 Table: # | Scenario | Tester | Date | Result (Pass/Fail/Blocked) | Observations
 ## 4. Sign-off
 Tester signature, Approver signature, Date.`;
 
     setGeneratingTestPlan(true);
+    setTestPlanTarget({ fromPhase: trigger?.fromPhase, toPhase: toPhaseKey });
     setTestPlanSaved(false);
     try {
-      const markdown = await callClaude({
+      const raw = await callClaude({
         model: 'claude-haiku-4-5-20251001',
-        system: 'You are an SAP testing specialist. Generate clear, professional test plans in markdown. Be specific and practical.',
+        system: 'You are an SAP testing specialist. Generate clear, professional test plans. Follow the output format exactly — JSON block first, then the markdown plan.',
         messages: [{ role: 'user', content: prompt }],
-        max_tokens: 4096,
+        max_tokens: 6000,
       });
 
-      // Build PDF using jsPDF
+      // Extract JSON activities block
+      let parsedActivities = [];
+      const jsonMatch = raw.match(/```json\s*([\s\S]*?)```/);
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[1]);
+          parsedActivities = (parsed.activities ?? []).map(a => ({
+            title: String(a.title ?? '').slice(0, 200),
+            description: String(a.description ?? ''),
+            acceptance_criteria: String(a.acceptance_criteria ?? ''),
+            est_hours: Math.max(0.5, Math.min(40, Number(a.est_hours) || 2)),
+            _selected: true,
+          }));
+        } catch (_) { /* ignore parse error, still save PDF */ }
+      }
+
+      // Strip JSON block from markdown
+      const markdown = raw.replace(/```json[\s\S]*?```/, '').trim();
+
+      // Save PDF document
       const { jsPDF } = await import('jspdf');
       const { default: autoTable } = await import('jspdf-autotable');
       const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -9853,7 +9908,6 @@ Tester signature, Approver signature, Date.`;
       const headerColor = [26, 75, 140];
       const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-      // Header
       doc.setFillColor(...headerColor);
       doc.rect(0, 0, W, 38, 'F');
       doc.setTextColor(255, 255, 255);
@@ -9861,30 +9915,28 @@ Tester signature, Approver signature, Date.`;
       doc.setFontSize(7);
       doc.text('SAP CONSULTING — TEST PLAN', L, 10);
       doc.setFontSize(14);
-      doc.text(`${stageLabel.toUpperCase()}`, L, 20);
+      doc.text(targetLabel.toUpperCase(), L, 20);
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
       doc.text(caseData.title ?? '', L, 29);
       doc.text(date, R, 29, { align: 'right' });
       doc.setTextColor(0, 0, 0);
 
-      // Metadata
       let y = 45;
       autoTable(doc, {
         startY: y,
         head: [['Case', 'SAP Module', 'Industry', 'Test Type', 'Date']],
-        body: [[caseData.title ?? '', caseData.area_sap ?? '', caseData.area_industry ?? '', stageLabel, date]],
+        body: [[caseData.title ?? '', caseData.area_sap ?? '', caseData.area_industry ?? '', targetLabel, date]],
         styles: { fontSize: 8, cellPadding: 3 },
         headStyles: { fillColor: headerColor, textColor: 255, fontStyle: 'bold' },
         margin: { left: L, right: W - R },
       });
       y = doc.lastAutoTable.finalY + 8;
 
-      // Render markdown body
       const lines = markdown.split('\n');
       doc.setFont('helvetica', 'normal');
-      for (const raw of lines) {
-        const line = raw.trimEnd();
+      for (const raw2 of lines) {
+        const line = raw2.trimEnd();
         if (y > 275) { doc.addPage(); y = 15; }
         if (line.startsWith('## ')) {
           y += 3;
@@ -9918,15 +9970,71 @@ Tester signature, Approver signature, Date.`;
 
       const pdfBlob = doc.output('blob');
       const safeName = (caseData.title ?? 'Case').replace(/[^a-z0-9]/gi, '_');
-      const fileName = `TestPlan_${stage}_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`;
+      const fileName = `TestPlan_${toPhaseKey}_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`;
       const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
-      await addDocument(file, `${stageLabel} — auto-generated test plan`);
+      await addDocument(file, `${targetLabel} Plan — auto-generated`);
       if (refetchDocuments) await refetchDocuments();
       setTestPlanSaved(true);
+
+      // Show preview modal if we parsed activities
+      if (parsedActivities.length > 0) {
+        setTestPlanPreview({ targetPhase: toPhaseKey, targetLabel, activities: parsedActivities, markdown });
+      } else {
+        setGeneratedPlanPhases(prev => [...prev, toPhaseKey]);
+      }
     } catch (e) {
       alert('Test plan generation failed: ' + e.message);
     } finally {
       setGeneratingTestPlan(false);
+      setTestPlanTarget(null);
+    }
+  }
+
+  async function confirmTestPlanActivities() {
+    if (!testPlanPreview) return;
+    setConfirmingTestPlan(true);
+    try {
+      const { targetPhase, activities: previewActs } = testPlanPreview;
+      const selected = previewActs.filter(a => a._selected);
+      if (!selected.length) { setTestPlanPreview(null); return; }
+
+      // Get current max task_no
+      const maxNo = activities.reduce((m, a) => Math.max(m, a.task_no ?? 0), 0);
+
+      // Insert activities sequentially; each gets the previous one as predecessor
+      const insertedIds = [];
+      for (let i = 0; i < selected.length; i++) {
+        const a = selected[i];
+        const row = {
+          case_id: caseData.id,
+          task_no: maxNo + i + 1,
+          sort_order: maxNo + i + 1,
+          title: a.title,
+          description: `${a.description}${a.acceptance_criteria ? '\n\nAcceptance criteria: ' + a.acceptance_criteria : ''}`,
+          detail: '',
+          est_hours: a.est_hours,
+          activity_type: 'task',
+          status: 'pending',
+          progress_pct: 0,
+          phase: targetPhase,
+          predecessor_ids: insertedIds.length > 0 ? [insertedIds[insertedIds.length - 1]] : null,
+        };
+        const { data, error } = await supabase.from('case_activities').insert(row).select('id').single();
+        if (error) throw error;
+        insertedIds.push(data.id);
+      }
+
+      setActRefreshKey(k => k + 1);
+      setGeneratedPlanPhases(prev => [...prev, targetPhase]);
+      setTestPlanPreview(null);
+      await addComment({
+        body: `${testPlanPreview.targetLabel} Plan generated: ${selected.length} test activities added with sequential dependencies.`,
+        isInternal: true,
+      });
+    } catch (e) {
+      alert('Failed to create activities: ' + e.message);
+    } finally {
+      setConfirmingTestPlan(false);
     }
   }
 
@@ -10169,7 +10277,7 @@ Tester signature, Approver signature, Date.`;
             Generate an AI test plan based on this case's activities and scope. It will be saved as a PDF in the Docs tab.
           </p>
           <button
-            onClick={generateTestPlan}
+            onClick={() => generateTestPlan(caseData.status)}
             disabled={generatingTestPlan || testPlanSaved}
             className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors">
             {generatingTestPlan ? <><Spinner size={12} /> Generating…</> : testPlanSaved ? '✓ Test Plan saved to Docs' : <><Sparkles size={12} /> Generate Test Plan</>}
@@ -10973,6 +11081,43 @@ Tester signature, Approver signature, Date.`;
                 </div>
               </div>
             )}
+
+            {/* Phase-completion → generate next test plan banners */}
+            {hasPhaseActivities && canManage && PHASE_TEST_TRIGGERS.map(trigger => {
+              const fromStat = phaseStats.find(p => p.key === trigger.fromPhase);
+              const toStat   = phaseStats.find(p => p.key === trigger.toPhase);
+              // Only show banner if: source phase is 100% complete AND target phase has no activities yet AND not already generated
+              if (!fromStat || fromStat.count === 0 || fromStat.pct < 100) return null;
+              if (toStat && toStat.count > 0) return null;
+              if (generatedPlanPhases.includes(trigger.toPhase)) return null;
+              const isGeneratingThis = generatingTestPlan && testPlanTarget?.toPhase === trigger.toPhase;
+              const fromPhaseActs = activities.filter(a => a.phase === trigger.fromPhase);
+              return (
+                <div key={trigger.toPhase} className="bg-violet-50 border border-violet-200 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0">
+                      <Sparkles size={16} className="text-violet-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-violet-900">
+                        {fromStat.label} complete — generate {trigger.label} Plan
+                      </p>
+                      <p className="text-xs text-violet-600 mt-0.5">
+                        All {fromStat.count} {fromStat.label} activities are done. Generate a detailed {trigger.label} plan: a PDF document and {fromStat.count > 0 ? 'test activities' : 'activities'} will be added to this case.
+                      </p>
+                      <button
+                        onClick={() => generateTestPlan(trigger.toPhase, fromPhaseActs)}
+                        disabled={generatingTestPlan}
+                        className="mt-2.5 flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 transition-colors">
+                        {isGeneratingThis
+                          ? <><Spinner size={12} /> Generating {trigger.label} Plan…</>
+                          : <><Sparkles size={12} /> Generate {trigger.label} Plan</>}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
 
             {/* View toggle (only when activities exist) */}
             {activities.length > 0 && (
@@ -13099,6 +13244,92 @@ function ConsultantDetailModal({ consultantId, auth }) {
       )}
 
       {/* Cancellation reason modal */}
+
+    {/* ── Test Plan Preview Modal ── */}
+    {testPlanPreview && (
+      <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4"
+        onClick={e => e.target === e.currentTarget && !confirmingTestPlan && setTestPlanPreview(null)}>
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+          {/* Header */}
+          <div className="flex items-start gap-3 p-6 border-b border-gray-100 flex-shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0">
+              <Sparkles size={18} className="text-violet-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-gray-900 text-base">{testPlanPreview.targetLabel} Plan — Review Activities</h3>
+              <p className="text-sm text-gray-500 mt-0.5">
+                The PDF has been saved to Docs. Review the generated test activities below, deselect any you don't need, then confirm to add them with sequential dependencies.
+              </p>
+            </div>
+            {!confirmingTestPlan && (
+              <button onClick={() => setTestPlanPreview(null)} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
+                <X size={18} />
+              </button>
+            )}
+          </div>
+
+          {/* Activity list */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-2">
+            {testPlanPreview.activities.map((act, i) => (
+              <label key={i}
+                className={`flex items-start gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors select-none ${
+                  act._selected ? "border-violet-200 bg-violet-50" : "border-gray-100 bg-gray-50 opacity-60"
+                }`}>
+                <input type="checkbox" checked={act._selected}
+                  onChange={() => setTestPlanPreview(prev => ({
+                    ...prev,
+                    activities: prev.activities.map((a, j) => j === i ? { ...a, _selected: !a._selected } : a),
+                  }))}
+                  className="mt-0.5 accent-violet-600 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-violet-500 bg-violet-100 px-1.5 py-0.5 rounded">#{i + 1}</span>
+                    <p className="text-sm font-semibold text-gray-900 leading-snug">{act.title}</p>
+                  </div>
+                  {act.description && <p className="text-xs text-gray-500 mt-1 leading-relaxed">{act.description}</p>}
+                  {act.acceptance_criteria && (
+                    <p className="text-xs text-emerald-700 mt-1 font-medium">✓ {act.acceptance_criteria}</p>
+                  )}
+                  <div className="flex items-center gap-3 mt-1.5">
+                    <span className="text-[10px] text-gray-400 font-medium">{act.est_hours}h estimated</span>
+                    {i > 0 && <span className="text-[10px] text-violet-400">→ depends on #{i}</span>}
+                  </div>
+                </div>
+                <div className="flex-shrink-0">
+                  <input type="number" min="0.5" max="40" step="0.5"
+                    value={act.est_hours}
+                    onClick={e => e.stopPropagation()}
+                    onChange={e => setTestPlanPreview(prev => ({
+                      ...prev,
+                      activities: prev.activities.map((a, j) => j === i ? { ...a, est_hours: Number(e.target.value) || 1 } : a),
+                    }))}
+                    className="w-16 text-xs text-center border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-violet-200" />
+                </div>
+              </label>
+            ))}
+            <p className="text-xs text-gray-400 text-center pt-2">
+              {testPlanPreview.activities.filter(a => a._selected).length} of {testPlanPreview.activities.length} activities selected · sequential predecessor dependencies will be set automatically
+            </p>
+          </div>
+
+          {/* Footer */}
+          <div className="flex justify-between items-center gap-3 border-t border-gray-100 p-5 flex-shrink-0">
+            <button onClick={() => setTestPlanPreview(null)} disabled={confirmingTestPlan}
+              className="px-4 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40">
+              Discard Activities
+            </button>
+            <button onClick={confirmTestPlanActivities}
+              disabled={confirmingTestPlan || testPlanPreview.activities.filter(a => a._selected).length === 0}
+              className="flex items-center gap-2 px-6 py-2 text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 rounded-xl disabled:opacity-40 transition-colors">
+              {confirmingTestPlan
+                ? <><Spinner size={13} /> Adding activities…</>
+                : <>Add {testPlanPreview.activities.filter(a => a._selected).length} Activities to Case</>}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
     {/* ── Standby Modal ── */}
     {standbyModal && (
       <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4"
