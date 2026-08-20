@@ -9501,6 +9501,15 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
       .then(({ data }) => setProjectLifecycle(data?.case_lifecycle ?? null));
   }, [caseData.project_id]);
 
+  // Sync lcMode to the inherited preset once project/client lifecycle loads,
+  // but only when the case has no explicit lifecycle override of its own.
+  useEffect(() => {
+    if (!caseData.case_lifecycle) {
+      const effectivePreset = projectLifecycle?.preset ?? clientLifecycle?.preset ?? "standard";
+      setLcMode(effectivePreset);
+    }
+  }, [projectLifecycle, clientLifecycle]);
+
   const effectiveLifecycle = caseData.case_lifecycle ?? projectLifecycle ?? clientLifecycle;
   const lifecycleStages = getLifecycleStages(effectiveLifecycle, caseLcTemplates);
   const subCaseInitialStatus = (lifecycleStages.find(s => s.is_initial) ?? lifecycleStages.find(s => !s.is_terminal))?.key ?? "open";
