@@ -10348,23 +10348,44 @@ For each activity: title, technical approach, deliverables, estimated hours.
         max_tokens: 6000,
       });
 
-      // Parse activities JSON
+      // Parse activities JSON — try multiple patterns for robustness
       let parsedActivities = [];
-      const jsonMatch = raw.match(/```json\s*([\s\S]*?)```/);
-      if (jsonMatch) {
+      const mapActivity = a => ({
+        title: String(a.title ?? '').slice(0, 200),
+        description: String(a.description ?? ''),
+        acceptance_criteria: String(a.acceptance_criteria ?? ''),
+        est_hours: Math.max(0.5, Math.min(40, Number(a.est_hours) || 4)),
+        phase: ['design', 'development'].includes(a.phase) ? a.phase : 'development',
+        _selected: true,
+      });
+      const tryParseActivities = str => {
         try {
-          const parsed = JSON.parse(jsonMatch[1]);
-          parsedActivities = (parsed.activities ?? []).map(a => ({
-            title: String(a.title ?? '').slice(0, 200),
-            description: String(a.description ?? ''),
-            acceptance_criteria: String(a.acceptance_criteria ?? ''),
-            est_hours: Math.max(0.5, Math.min(40, Number(a.est_hours) || 4)),
-            phase: ['design', 'development'].includes(a.phase) ? a.phase : 'development',
-            _selected: true,
-          }));
-        } catch (_) {
-          console.warn('Could not parse development plan activities JSON.');
-        }
+          const p = JSON.parse(str.trim());
+          return Array.isArray(p) ? p.map(mapActivity)
+               : Array.isArray(p.activities) ? p.activities.map(mapActivity)
+               : [];
+        } catch (_) { return null; }
+      };
+
+      // 1. Fenced ```json ... ``` block
+      const m1 = raw.match(/```json\s*([\s\S]*?)```/);
+      if (m1) parsedActivities = tryParseActivities(m1[1]) ?? [];
+
+      // 2. Any fenced ``` ... ``` block
+      if (!parsedActivities.length) {
+        const m2 = raw.match(/```\s*([\s\S]*?)```/);
+        if (m2) parsedActivities = tryParseActivities(m2[1]) ?? [];
+      }
+
+      // 3. Bare {"activities":[...]} object anywhere in the response
+      if (!parsedActivities.length) {
+        const m3 = raw.match(/\{[\s\S]*"activities"\s*:\s*\[[\s\S]*?\]\s*\}/);
+        if (m3) parsedActivities = tryParseActivities(m3[0]) ?? [];
+      }
+
+      console.log('[DevPlan] raw length:', raw.length, '| parsedActivities:', parsedActivities.length);
+      if (!parsedActivities.length) {
+        console.warn('[DevPlan] Could not parse activities from response. Raw (first 500):', raw.slice(0, 500));
       }
 
       const markdown = raw.replace(/```json[\s\S]*?```/, '').trim();
@@ -10447,6 +10468,7 @@ For each activity: title, technical approach, deliverables, estimated hours.
       if (parsedActivities.length > 0) {
         setDevPlanPreview({ activities: parsedActivities, markdown });
       } else {
+        alert('The AI response was generated but activities could not be extracted. The PDF plan has been saved to Docs. Please try again or add activities manually.');
         setDevPlanGenerated(true);
       }
     } catch (e) {
