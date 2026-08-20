@@ -9475,10 +9475,15 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [approvalModal, setApprovalModal]     = useState(false);
   const [approvalBypass, setApprovalBypass]   = useState("");
   const [generatingClosure, setGeneratingClosure] = useState(false);
+  const [generatingDevPlan, setGeneratingDevPlan] = useState(false);
+  const [devPlanPreview, setDevPlanPreview]   = useState(null);
+  const [confirmingDevPlan, setConfirmingDevPlan] = useState(false);
+  const [devPlanGenerated, setDevPlanGenerated] = useState(false);
   const [projectLifecycle, setProjectLifecycle] = useState(null);
   const [lcMode, setLcMode] = useState(caseData.case_lifecycle?.preset ?? "standard");
   const [savingLc, setSavingLc] = useState(false);
   const { templates: caseLcTemplates, getTemplateStages: getCaseTmplStages } = useLifecycleTemplates();
+  const { spec: caseSpec } = useCaseSpecification(caseData.id, auth.user?.id);
 
   useEffect(() => {
     if (!caseData.client_id) return;
@@ -10280,6 +10285,220 @@ Approver signature, Date.`;
       alert('Failed to create adjustment activities: ' + e.message);
     } finally {
       setConfirmingAdjustment(false);
+    }
+  }
+
+  async function generateDevelopmentPlan() {
+    setGeneratingDevPlan(true);
+    try {
+      const specContent = caseSpec?.content ?? '';
+      const prompt = `You are an SAP project delivery expert. Based on the approved functional specification below, generate a phased project plan covering the Design and Development phases.
+
+Case: ${caseData.title}
+Description: ${caseData.description ?? '(none)'}
+SAP Module: ${caseData.area_sap ?? 'N/A'}
+Industry: ${caseData.area_industry ?? 'N/A'}
+
+Approved Functional Specification:
+${specContent ? specContent.slice(0, 4000) : '(Spec content not available — use the case description to infer scope)'}
+
+Generate two groups of activities:
+1. **Design phase** — analysis, prototyping, blueprint sign-off, configuration design.
+2. **Development phase** — ABAP development, configuration, unit testing, integration.
+
+IMPORTANT: Output a JSON block first (exactly this format), then the full project plan in markdown.
+
+\`\`\`json
+{
+  "activities": [
+    {
+      "title": "Activity title (max 100 chars)",
+      "description": "What this activity entails",
+      "acceptance_criteria": "Clear done criteria",
+      "est_hours": 4,
+      "phase": "design"
+    },
+    {
+      "title": "Development activity title",
+      "description": "What this activity entails",
+      "acceptance_criteria": "Clear done criteria",
+      "est_hours": 8,
+      "phase": "development"
+    }
+  ]
+}
+\`\`\`
+
+Generate 3–5 Design activities then 4–8 Development activities (ordered logically).
+Each activity must have "phase" set to exactly "design" or "development".
+
+Then write the full project plan in markdown:
+## 1. Project Scope Summary
+## 2. Design Phase
+For each activity: title, objectives, deliverables, estimated hours.
+## 3. Development Phase
+For each activity: title, technical approach, deliverables, estimated hours.
+## 4. Dependencies & Risks
+## 5. Estimated Timeline`;
+
+      const raw = await callClaude({
+        model: 'claude-haiku-4-5-20251001',
+        system: 'You are an SAP project delivery expert. Output the JSON block first, then the markdown plan. Follow the format exactly.',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 6000,
+      });
+
+      // Parse activities JSON
+      let parsedActivities = [];
+      const jsonMatch = raw.match(/```json\s*([\s\S]*?)```/);
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[1]);
+          parsedActivities = (parsed.activities ?? []).map(a => ({
+            title: String(a.title ?? '').slice(0, 200),
+            description: String(a.description ?? ''),
+            acceptance_criteria: String(a.acceptance_criteria ?? ''),
+            est_hours: Math.max(0.5, Math.min(40, Number(a.est_hours) || 4)),
+            phase: ['design', 'development'].includes(a.phase) ? a.phase : 'development',
+            _selected: true,
+          }));
+        } catch (_) {
+          console.warn('Could not parse development plan activities JSON.');
+        }
+      }
+
+      const markdown = raw.replace(/```json[\s\S]*?```/, '').trim();
+
+      // Save PDF
+      const { jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const W = 210, L = 12, R = 198;
+      const headerColor = [26, 75, 140];
+      const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+      doc.setFillColor(...headerColor);
+      doc.rect(0, 0, W, 38, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7);
+      doc.text('SAP CONSULTING — PROJECT PLAN', L, 10);
+      doc.setFontSize(14);
+      doc.text('DESIGN & DEVELOPMENT PLAN', L, 20);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text(caseData.title ?? '', L, 29);
+      doc.text(date, R, 29, { align: 'right' });
+      doc.setTextColor(0, 0, 0);
+
+      let y = 45;
+      autoTable(doc, {
+        startY: y,
+        head: [['Case', 'SAP Module', 'Industry', 'Plan Type', 'Date']],
+        body: [[caseData.title ?? '', caseData.area_sap ?? '', caseData.area_industry ?? '', 'Design & Development', date]],
+        styles: { fontSize: 8, cellPadding: 3 },
+        headStyles: { fillColor: headerColor, textColor: 255, fontStyle: 'bold' },
+        margin: { left: L, right: W - R },
+      });
+      y = doc.lastAutoTable.finalY + 8;
+
+      const lines = markdown.split('\n');
+      doc.setFont('helvetica', 'normal');
+      for (const raw2 of lines) {
+        const line = raw2.trimEnd();
+        if (y > 275) { doc.addPage(); y = 15; }
+        if (line.startsWith('## ')) {
+          y += 3;
+          doc.setFillColor(...headerColor);
+          doc.rect(L, y - 4, R - L, 7, 'F');
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
+          doc.text(line.replace(/^## /, ''), L + 2, y);
+          doc.setTextColor(0, 0, 0); y += 6;
+        } else if (line.startsWith('### ')) {
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(26, 75, 140);
+          doc.text(line.replace(/^### /, ''), L, y); doc.setTextColor(0, 0, 0); y += 5;
+        } else if (line.startsWith('**') && line.endsWith('**')) {
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+          doc.text(line.replace(/\*\*/g, ''), L + 2, y); y += 5;
+        } else if (line.startsWith('- ') || line.startsWith('* ')) {
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+          const wrapped = doc.splitTextToSize('• ' + line.slice(2), R - L - 4);
+          wrapped.forEach(l => { if (y > 275) { doc.addPage(); y = 15; } doc.text(l, L + 4, y); y += 4.5; });
+        } else if (/^\d+\. /.test(line)) {
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+          const wrapped = doc.splitTextToSize(line, R - L - 4);
+          wrapped.forEach(l => { if (y > 275) { doc.addPage(); y = 15; } doc.text(l, L + 4, y); y += 4.5; });
+        } else if (line.trim()) {
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+          const wrapped = doc.splitTextToSize(line, R - L);
+          wrapped.forEach(l => { if (y > 275) { doc.addPage(); y = 15; } doc.text(l, L, y); y += 4.5; });
+        } else {
+          y += 2;
+        }
+      }
+
+      const pdfBlob = doc.output('blob');
+      const safeName = (caseData.title ?? 'Case').replace(/[^a-z0-9]/gi, '_');
+      const fileName = `DevPlan_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`;
+      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+      await addDocument(file, 'Design & Development Plan — auto-generated from approved spec');
+      if (refetchDocuments) await refetchDocuments();
+
+      if (parsedActivities.length > 0) {
+        setDevPlanPreview({ activities: parsedActivities, markdown });
+      } else {
+        setDevPlanGenerated(true);
+      }
+    } catch (e) {
+      alert('Development plan generation failed: ' + e.message);
+    } finally {
+      setGeneratingDevPlan(false);
+    }
+  }
+
+  async function confirmDevPlanActivities() {
+    if (!devPlanPreview) return;
+    setConfirmingDevPlan(true);
+    try {
+      const selected = devPlanPreview.activities.filter(a => a._selected);
+      if (!selected.length) { setDevPlanPreview(null); return; }
+
+      const maxNo = activities.reduce((m, a) => Math.max(m, a.task_no ?? 0), 0);
+      const insertedIds = [];
+      for (let i = 0; i < selected.length; i++) {
+        const a = selected[i];
+        const row = {
+          case_id: caseData.id,
+          task_no: maxNo + i + 1,
+          sort_order: maxNo + i + 1,
+          title: a.title,
+          description: `${a.description}${a.acceptance_criteria ? '\n\nAcceptance criteria: ' + a.acceptance_criteria : ''}`,
+          detail: '',
+          est_hours: a.est_hours,
+          activity_type: 'task',
+          status: 'pending',
+          progress_pct: 0,
+          phase: a.phase,
+          predecessor_ids: insertedIds.length > 0 ? [insertedIds[insertedIds.length - 1]] : null,
+        };
+        const { data, error } = await supabase.from('case_activities').insert(row).select('id').single();
+        if (error) throw error;
+        insertedIds.push(data.id);
+      }
+
+      setActRefreshKey(k => k + 1);
+      setDevPlanGenerated(true);
+      setDevPlanPreview(null);
+      const designCount = selected.filter(a => a.phase === 'design').length;
+      const devCount = selected.filter(a => a.phase === 'development').length;
+      await addComment({
+        body: `Design & Development Plan generated from approved spec: ${designCount} Design + ${devCount} Development activities added with sequential dependencies.`,
+        isInternal: true,
+      });
+    } catch (e) {
+      alert('Failed to create activities: ' + e.message);
+    } finally {
+      setConfirmingDevPlan(false);
     }
   }
 
@@ -11726,6 +11945,34 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 <div>
                   <p className="text-sm font-semibold text-emerald-800">All activities complete</p>
                   <p className="text-xs text-emerald-600">Consider advancing the case to the next lifecycle stage.</p>
+                </div>
+              </div>
+            )}
+
+            {/* Spec approved → generate Design & Development plan */}
+            {canManage && caseSpec?.status === 'approved' &&
+              !devPlanGenerated &&
+              !devPlanPreview &&
+              !activities.some(a => a.phase === 'design' || a.phase === 'development') && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <Sparkles size={16} className="text-blue-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-blue-900">Functional spec approved — generate your project plan</p>
+                    <p className="text-xs text-blue-600 mt-0.5">
+                      Use the approved specification to auto-generate Design and Development phase activities with sequential dependencies and save a project plan PDF to Docs.
+                    </p>
+                    <button
+                      onClick={generateDevelopmentPlan}
+                      disabled={generatingDevPlan}
+                      className="mt-2.5 flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                      {generatingDevPlan
+                        ? <><Spinner size={12} /> Generating Design & Development Plan…</>
+                        : <><Sparkles size={12} /> Generate Design & Development Plan</>}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -14223,6 +14470,93 @@ function ConsultantDetailModal({ consultantId, auth }) {
     )}
 
     {/* ── Test Plan Preview Modal ── */}
+    {devPlanPreview && (
+      <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4"
+        onClick={e => e.target === e.currentTarget && !confirmingDevPlan && setDevPlanPreview(null)}>
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+          <div className="flex items-start gap-3 p-6 border-b border-gray-100 flex-shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+              <Sparkles size={18} className="text-blue-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-gray-900 text-base">Design & Development Plan — Review Activities</h3>
+              <p className="text-sm text-gray-500 mt-0.5">
+                The PDF has been saved to Docs. Review the generated activities, deselect any you don't need, then confirm to add them with sequential dependencies.
+              </p>
+            </div>
+            {!confirmingDevPlan && (
+              <button onClick={() => setDevPlanPreview(null)} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
+                <X size={18} />
+              </button>
+            )}
+          </div>
+          <div className="flex-1 overflow-y-auto p-6 space-y-2">
+            {devPlanPreview.activities.map((act, i) => {
+              const phaseColor = act.phase === 'design'
+                ? { bg: 'bg-indigo-50', border: 'border-indigo-200', tag: 'bg-indigo-100 text-indigo-600', num: 'text-indigo-500' }
+                : { bg: 'bg-blue-50', border: 'border-blue-200', tag: 'bg-blue-100 text-blue-600', num: 'text-blue-500' };
+              return (
+                <label key={i}
+                  className={`flex items-start gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors select-none ${
+                    act._selected ? `${phaseColor.border} ${phaseColor.bg}` : "border-gray-100 bg-gray-50 opacity-60"
+                  }`}>
+                  <input type="checkbox" checked={act._selected}
+                    onChange={() => setDevPlanPreview(prev => ({
+                      ...prev,
+                      activities: prev.activities.map((a, j) => j === i ? { ...a, _selected: !a._selected } : a),
+                    }))}
+                    className="mt-0.5 accent-blue-600 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${phaseColor.tag}`}>
+                        {act.phase === 'design' ? 'Design' : 'Development'}
+                      </span>
+                      <span className={`text-[10px] font-bold ${phaseColor.num}`}>#{i + 1}</span>
+                      <p className="text-sm font-semibold text-gray-900 leading-snug">{act.title}</p>
+                    </div>
+                    {act.description && <p className="text-xs text-gray-500 mt-1 leading-relaxed">{act.description}</p>}
+                    {act.acceptance_criteria && (
+                      <p className="text-xs text-emerald-700 mt-1 font-medium"><Check size={10} className="mr-1 inline text-emerald-600" />{act.acceptance_criteria}</p>
+                    )}
+                    <div className="flex items-center gap-3 mt-1.5">
+                      <span className="text-[10px] text-gray-400 font-medium">{act.est_hours}h estimated</span>
+                      {i > 0 && <span className="text-[10px] text-blue-400">→ depends on #{i}</span>}
+                    </div>
+                  </div>
+                  <div className="flex-shrink-0">
+                    <input type="number" min="0.5" max="40" step="0.5"
+                      value={act.est_hours}
+                      onClick={e => e.stopPropagation()}
+                      onChange={e => setDevPlanPreview(prev => ({
+                        ...prev,
+                        activities: prev.activities.map((a, j) => j === i ? { ...a, est_hours: Number(e.target.value) || 1 } : a),
+                      }))}
+                      className="w-16 text-xs text-center border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                  </div>
+                </label>
+              );
+            })}
+            <p className="text-xs text-gray-400 text-center pt-2">
+              {devPlanPreview.activities.filter(a => a._selected).length} of {devPlanPreview.activities.length} activities selected · sequential predecessor dependencies will be set automatically
+            </p>
+          </div>
+          <div className="flex justify-between items-center gap-3 border-t border-gray-100 p-5 flex-shrink-0">
+            <button onClick={() => setDevPlanPreview(null)} disabled={confirmingDevPlan}
+              className="px-4 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40">
+              Discard Activities
+            </button>
+            <button onClick={confirmDevPlanActivities}
+              disabled={confirmingDevPlan || devPlanPreview.activities.filter(a => a._selected).length === 0}
+              className="flex items-center gap-2 px-6 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl disabled:opacity-40 transition-colors">
+              {confirmingDevPlan
+                ? <><Spinner size={13} /> Adding activities…</>
+                : <>Add {devPlanPreview.activities.filter(a => a._selected).length} Activities to Case</>}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
     {testPlanPreview && (
       <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4"
         onClick={e => e.target === e.currentTarget && !confirmingTestPlan && setTestPlanPreview(null)}>
