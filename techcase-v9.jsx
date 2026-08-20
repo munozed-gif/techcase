@@ -114,8 +114,8 @@ function useSlaConfig(clientId) {
     if (!clientId) { setLoading(false); return; }
     (async () => {
       const { data } = await supabase.from("sla_configs")
-        .select("*").eq("client_id", clientId).single();
-      setSla(data);
+        .select("*").eq("client_id", clientId).maybeSingle();
+      setSla(data ?? null);
       setLoading(false);
     })();
   }, [clientId]);
@@ -17055,8 +17055,8 @@ function useClientProfile(userId) {
       .from("client_profiles")
       .select("*")
       .eq("id", userId)
-      .single();
-    setProfile(data);
+      .maybeSingle();
+    setProfile(data ?? null);
     setLoading(false);
   }, [userId]);
 
@@ -17406,6 +17406,15 @@ function ClientProfileView({ auth }) {
       {/* OVERVIEW TAB */}
       {tab === "overview" && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+          {!profile && (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mb-4">
+                <Building2 size={26} className="text-blue-300" />
+              </div>
+              <p className="text-gray-700 font-medium">Your company profile is empty</p>
+              <p className="text-gray-400 text-sm mt-1">Click <strong>Edit Profile</strong> above to fill in your company details.</p>
+            </div>
+          )}
           {profile?.description && (
             <div>
               <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">About</div>
