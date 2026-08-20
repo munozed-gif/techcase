@@ -11677,6 +11677,10 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                   await supabase.from("cases").delete().eq("id", selectedSubCase.id);
                   setSelectedSubCase(null);
                 }}
+                onUpdate={async (id, updates) => {
+                  await updateCase(id, updates);
+                  setSelectedSubCase(prev => ({ ...prev, ...updates }));
+                }}
               />
             </div>
           )}
