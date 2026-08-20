@@ -652,7 +652,8 @@ function useCases(filters = {}) {
   }
 
   async function updateCase(id, updates) {
-    const { data: row, error } = await supabase.from("cases").update(updates).eq("id", id).select().single();
+    const { data: rows, error } = await supabase.from("cases").update(updates).eq("id", id).select();
+    const row = rows?.[0] ?? null;
     if (error) throw error;
     await fetchCases();
     if (updates.status) {
