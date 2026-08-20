@@ -10292,64 +10292,37 @@ Approver signature, Date.`;
     setGeneratingDevPlan(true);
     try {
       const specContent = caseSpec?.content ?? '';
-      const prompt = `You are an SAP project delivery expert. Based on the approved functional specification below, generate a phased project plan covering the Design and Development phases.
-
-Case: ${caseData.title}
+      const ctx = `Case: ${caseData.title}
 Description: ${caseData.description ?? '(none)'}
 SAP Module: ${caseData.area_sap ?? 'N/A'}
 Industry: ${caseData.area_industry ?? 'N/A'}
 
 Approved Functional Specification:
-${specContent ? specContent.slice(0, 4000) : '(Spec content not available — use the case description to infer scope)'}
+${specContent ? specContent.slice(0, 4000) : '(Spec content not available — use the case description to infer scope)'}`;
 
-Generate two groups of activities:
-1. **Design phase** — analysis, prototyping, blueprint sign-off, configuration design.
-2. **Development phase** — ABAP development, configuration, unit testing, integration.
+      // ── Call 1: JSON activities only ──────────────────────────────
+      const jsonRaw = await callClaude({
+        model: 'claude-haiku-4-5-20251001',
+        system: 'You are an SAP project delivery expert. Respond with ONLY a valid JSON object. No markdown, no code fences, no explanation — just the JSON object.',
+        messages: [{
+          role: 'user',
+          content: `${ctx}
 
-IMPORTANT: Output a JSON block first (exactly this format), then the full project plan in markdown.
+Generate 3–5 Design phase activities and 4–8 Development phase activities for this SAP case.
 
-\`\`\`json
+Return ONLY this JSON object (no other text):
 {
   "activities": [
-    {
-      "title": "Activity title (max 100 chars)",
-      "description": "What this activity entails",
-      "acceptance_criteria": "Clear done criteria",
-      "est_hours": 4,
-      "phase": "design"
-    },
-    {
-      "title": "Development activity title",
-      "description": "What this activity entails",
-      "acceptance_criteria": "Clear done criteria",
-      "est_hours": 8,
-      "phase": "development"
-    }
+    { "title": "short title", "description": "what this activity entails", "acceptance_criteria": "done criteria", "est_hours": 4, "phase": "design" },
+    { "title": "short title", "description": "what this activity entails", "acceptance_criteria": "done criteria", "est_hours": 8, "phase": "development" }
   ]
 }
-\`\`\`
 
-Generate 3–5 Design activities then 4–8 Development activities (ordered logically).
-Each activity must have "phase" set to exactly "design" or "development".
-
-Then write the full project plan in markdown:
-## 1. Project Scope Summary
-## 2. Design Phase
-For each activity: title, objectives, deliverables, estimated hours.
-## 3. Development Phase
-For each activity: title, technical approach, deliverables, estimated hours.
-## 4. Dependencies & Risks
-## 5. Estimated Timeline`;
-
-      const raw = await callClaude({
-        model: 'claude-haiku-4-5-20251001',
-        system: 'You are an SAP project delivery expert. Output the JSON block first, then the markdown plan. Follow the format exactly.',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 6000,
+Rules: phase must be exactly "design" or "development". Return ONLY the JSON, nothing else.`,
+        }],
+        max_tokens: 3000,
       });
 
-      // Parse activities JSON — try multiple patterns for robustness
-      let parsedActivities = [];
       const mapActivity = a => ({
         title: String(a.title ?? '').slice(0, 200),
         description: String(a.description ?? ''),
@@ -10358,37 +10331,52 @@ For each activity: title, technical approach, deliverables, estimated hours.
         phase: ['design', 'development'].includes(a.phase) ? a.phase : 'development',
         _selected: true,
       });
-      const tryParseActivities = str => {
+      const tryParse = str => {
         try {
           const p = JSON.parse(str.trim());
           return Array.isArray(p) ? p.map(mapActivity)
                : Array.isArray(p.activities) ? p.activities.map(mapActivity)
-               : [];
+               : null;
         } catch (_) { return null; }
       };
 
-      // 1. Fenced ```json ... ``` block
-      const m1 = raw.match(/```json\s*([\s\S]*?)```/);
-      if (m1) parsedActivities = tryParseActivities(m1[1]) ?? [];
+      // Attempt parse: direct → strip accidental fences → brute-force object extraction
+      const stripped = jsonRaw.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim();
+      const objMatch = (jsonRaw.match(/\{[\s\S]*\}/) ?? [])[0] ?? '{}';
+      const parsedActivities = tryParse(jsonRaw) ?? tryParse(stripped) ?? tryParse(objMatch) ?? [];
 
-      // 2. Any fenced ``` ... ``` block
+      console.log('[DevPlan] raw length:', jsonRaw.length, '| parsedActivities:', parsedActivities.length);
       if (!parsedActivities.length) {
-        const m2 = raw.match(/```\s*([\s\S]*?)```/);
-        if (m2) parsedActivities = tryParseActivities(m2[1]) ?? [];
+        console.warn('[DevPlan] JSON raw (first 600):', jsonRaw.slice(0, 600));
+        throw new Error('Could not extract activities from AI response. Please try again.');
       }
 
-      // 3. Bare {"activities":[...]} object anywhere in the response
-      if (!parsedActivities.length) {
-        const m3 = raw.match(/\{[\s\S]*"activities"\s*:\s*\[[\s\S]*?\]\s*\}/);
-        if (m3) parsedActivities = tryParseActivities(m3[0]) ?? [];
-      }
+      // ── Call 2: Markdown narrative for PDF ────────────────────────
+      const actSummary = parsedActivities.map((a, i) =>
+        `${i + 1}. [${a.phase.toUpperCase()}] ${a.title} (${a.est_hours}h)`).join('\n');
+      const markdown = await callClaude({
+        model: 'claude-haiku-4-5-20251001',
+        system: 'You are an SAP project delivery expert. Write clear, concise project documentation.',
+        messages: [{
+          role: 'user',
+          content: `${ctx}
 
-      console.log('[DevPlan] raw length:', raw.length, '| parsedActivities:', parsedActivities.length);
-      if (!parsedActivities.length) {
-        console.warn('[DevPlan] Could not parse activities from response. Raw (first 500):', raw.slice(0, 500));
-      }
+The following activities have been planned:
+${actSummary}
 
-      const markdown = raw.replace(/```json[\s\S]*?```/, '').trim();
+Write a brief project plan document in markdown covering:
+## 1. Project Scope Summary
+## 2. Design Phase
+For each design activity: objectives and deliverables.
+## 3. Development Phase
+For each development activity: technical approach and deliverables.
+## 4. Dependencies & Risks
+## 5. Estimated Timeline
+
+Keep each section concise.`,
+        }],
+        max_tokens: 3000,
+      });
 
       // Save PDF
       const { jsPDF } = await import('jspdf');
@@ -10465,12 +10453,7 @@ For each activity: title, technical approach, deliverables, estimated hours.
       await addDocument(file, 'Design & Development Plan — auto-generated from approved spec');
       if (refetchDocuments) await refetchDocuments();
 
-      if (parsedActivities.length > 0) {
-        setDevPlanPreview({ activities: parsedActivities, markdown });
-      } else {
-        alert('The AI response was generated but activities could not be extracted. The PDF plan has been saved to Docs. Please try again or add activities manually.');
-        setDevPlanGenerated(true);
-      }
+      setDevPlanPreview({ activities: parsedActivities, markdown });
     } catch (e) {
       alert('Development plan generation failed: ' + e.message);
     } finally {
