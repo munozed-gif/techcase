@@ -9479,7 +9479,6 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [devPlanPreview, setDevPlanPreview]   = useState(null);
   const [confirmingDevPlan, setConfirmingDevPlan] = useState(false);
   const [devPlanGenerated, setDevPlanGenerated] = useState(false);
-  const [forceShowDevPlan, setForceShowDevPlan] = useState(false);
   const [projectLifecycle, setProjectLifecycle] = useState(null);
   const [lcMode, setLcMode] = useState(caseData.case_lifecycle?.preset ?? "standard");
   const [savingLc, setSavingLc] = useState(false);
@@ -10490,7 +10489,6 @@ For each activity: title, technical approach, deliverables, estimated hours.
       setActRefreshKey(k => k + 1);
       setDevPlanGenerated(true);
       setDevPlanPreview(null);
-      setForceShowDevPlan(false);
       const designCount = selected.filter(a => a.phase === 'design').length;
       const devCount = selected.filter(a => a.phase === 'development').length;
       await addComment({
@@ -11906,10 +11904,11 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                     {canManage && caseSpec?.status === 'approved' &&
                       activities.some(a => a.phase === 'design' || a.phase === 'development') && (
                       <button
-                        onClick={() => { setDevPlanGenerated(false); setDevPlanPreview(null); setForceShowDevPlan(true); }}
-                        className="flex items-center gap-1 text-[10px] font-semibold text-blue-500 hover:text-blue-700 transition-colors"
+                        onClick={generateDevelopmentPlan}
+                        disabled={generatingDevPlan}
+                        className="flex items-center gap-1 text-[10px] font-semibold text-blue-500 hover:text-blue-700 disabled:opacity-50 transition-colors"
                         title="Re-generate Design & Development plan from updated spec">
-                        <RotateCcw size={10} /> Regenerate plan
+                        {generatingDevPlan ? <><Spinner size={9} /> Generating…</> : <><RotateCcw size={10} /> Regenerate plan</>}
                       </button>
                     )}
                     <span className="text-lg font-bold text-blue-700">{caseProgress}%</span>
@@ -11966,7 +11965,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             {canManage && caseSpec?.status === 'approved' &&
               !devPlanGenerated &&
               !devPlanPreview &&
-              (forceShowDevPlan || !activities.some(a => a.phase === 'design' || a.phase === 'development')) && (
+              !activities.some(a => a.phase === 'design' || a.phase === 'development') && (
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                 <div className="flex items-start gap-3">
                   <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
@@ -14554,7 +14553,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
             </p>
           </div>
           <div className="flex justify-between items-center gap-3 border-t border-gray-100 p-5 flex-shrink-0">
-            <button onClick={() => { setDevPlanPreview(null); setForceShowDevPlan(false); }} disabled={confirmingDevPlan}
+            <button onClick={() => setDevPlanPreview(null)} disabled={confirmingDevPlan}
               className="px-4 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40">
               Discard Activities
             </button>
