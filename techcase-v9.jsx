@@ -2990,6 +2990,7 @@ function Dashboard({ auth }) {
   const { cases, loading: casesLoading, updateCase, deleteCase } = useCases();
   const { applications } = useApplications();
   const [applyingToCase, setApplying]   = useState(null);
+  const [clientFilter, setClientFilter] = useState(null); // { id, name } | null
   const [activeTab, setActiveTab]       = useState(null);
   const [availTab, setAvailTab]         = useState("all");
   const [filterSap, setFilterSap]       = useState("");
@@ -3218,7 +3219,10 @@ function Dashboard({ auth }) {
                 <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.07em', textTransform:'uppercase', color:'#8fa8c2', marginBottom:10 }}>Working now</div>
                 <div style={{ display:'flex', gap:18 }}>
                   {activeClients.map(cl => (
-                    <div key={cl.id} style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
+                    <div key={cl.id} onClick={() => setClientFilter(clientFilter?.id === cl.id ? null : { id: cl.id, name: cl.name })}
+                      style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', gap:6, cursor:'pointer',
+                               outline: clientFilter?.id === cl.id ? '2px solid #3b82f6' : 'none', borderRadius:8, padding:2 }}
+                      title={`View ${cl.name}'s cases`}>
                       {/* spinning ring wrapper */}
                       <div style={{ padding:3, borderRadius:'50%', background:'conic-gradient(#1A4B8C 0%, #5B9BD5 55%, #10b981 100%)', animation:'_stripSpin 4s linear infinite' }}>
                         {/* counter-rotating avatar keeps initials still */}
@@ -3246,7 +3250,10 @@ function Dashboard({ auth }) {
                 <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.07em', textTransform:'uppercase', color:'#8fa8c2', marginBottom:10 }}>Following</div>
                 <div style={{ display:'flex', gap:18 }}>
                   {followedClients.map(cl => (
-                    <div key={cl.id} style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
+                    <div key={cl.id} onClick={() => setClientFilter(clientFilter?.id === cl.id ? null : { id: cl.id, name: cl.name })}
+                      style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', gap:6, cursor:'pointer',
+                               outline: clientFilter?.id === cl.id ? '2px solid #3b82f6' : 'none', borderRadius:8, padding:2 }}
+                      title={`View ${cl.name}'s cases`}>
                       <div style={{ padding:3, borderRadius:'50%', background:'conic-gradient(#93c5fd 0%, #5B9BD5 50%, #bfdbfe 100%)', animation:'_stripSpin 5s linear infinite' }}>
                         <div style={{ width:52, height:52, borderRadius:'50%', background:cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid #ffffff', position:'relative', animation:'_stripStill 5s linear infinite' }}>
                           {cl.initials}
@@ -3272,7 +3279,10 @@ function Dashboard({ auth }) {
                 <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.07em', textTransform:'uppercase', color:'#8fa8c2', marginBottom:10 }}>Active cases</div>
                 <div style={{ display:'flex', gap:18 }}>
                   {platformClients.map(cl => (
-                    <div key={cl.id} style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
+                    <div key={cl.id} onClick={() => setClientFilter(clientFilter?.id === cl.id ? null : { id: cl.id, name: cl.name })}
+                      style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', gap:6, cursor:'pointer',
+                               outline: clientFilter?.id === cl.id ? '2px solid #3b82f6' : 'none', borderRadius:8, padding:2 }}
+                      title={`View ${cl.name}'s cases`}>
                       <div style={{ padding:3, borderRadius:'50%', background:'#e2e8f0' }}>
                         <div style={{ width:52, height:52, borderRadius:'50%', background:cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid #ffffff' }}>
                           {cl.initials}
@@ -3297,7 +3307,10 @@ function Dashboard({ auth }) {
                 <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.07em', textTransform:'uppercase', color:'#8fa8c2', marginBottom:10 }}>Past clients</div>
                 <div style={{ display:'flex', gap:18 }}>
                   {pastClients.map(cl => (
-                    <div key={cl.id} style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', gap:6, opacity:.5, filter:'grayscale(.35)' }}>
+                    <div key={cl.id} onClick={() => setClientFilter(clientFilter?.id === cl.id ? null : { id: cl.id, name: cl.name })}
+                      style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', gap:6, opacity:.5, filter:'grayscale(.35)', cursor:'pointer',
+                               outline: clientFilter?.id === cl.id ? '2px solid #3b82f6' : 'none', borderRadius:8, padding:2 }}
+                      title={`View ${cl.name}'s cases`}>
                       <div style={{ padding:3, borderRadius:'50%', background:'#d4e6f5' }}>
                         <div style={{ width:52, height:52, borderRadius:'50%', background:cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid #ffffff' }}>
                           {cl.initials}
@@ -3313,6 +3326,70 @@ function Dashboard({ auth }) {
           </div>
         </div>
       )}
+
+      {/* ── Client drill-down panel ── */}
+      {clientFilter && (() => {
+        const clientCases = cases.filter(c => c.client_id === clientFilter.id);
+        const activeCsCases = clientCases.filter(c => !["completed","cancelled"].includes(c.status));
+        const pastCsCases   = clientCases.filter(c =>  ["completed","cancelled"].includes(c.status));
+        const STATUS_COLORS = {
+          open:        "bg-emerald-100 text-emerald-700",
+          estimated:   "bg-teal-100 text-teal-700",
+          assigned:    "bg-violet-100 text-violet-700",
+          in_progress: "bg-blue-100 text-blue-700",
+          on_hold:     "bg-yellow-100 text-yellow-700",
+          completed:   "bg-gray-100 text-gray-600",
+          cancelled:   "bg-red-100 text-red-600",
+          technical_test:  "bg-cyan-100 text-cyan-700",
+          functional_test: "bg-amber-100 text-amber-700",
+          user_test:       "bg-orange-100 text-orange-700",
+        };
+        const CaseRow = ({ c }) => (
+          <div onClick={() => setSelectedCase(c)}
+            className="flex items-center justify-between px-4 py-3 hover:bg-blue-50 cursor-pointer transition-colors group">
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-gray-900 text-sm truncate group-hover:text-blue-700">{c.title}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{[c.area_sap, c.area_industry].filter(Boolean).join(" · ") || "No area set"}</p>
+            </div>
+            <div className="flex items-center gap-3 ml-4 flex-shrink-0">
+              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
+                {c.status?.replace(/_/g, " ")}
+              </span>
+              <ChevronRight size={14} className="text-gray-300 group-hover:text-blue-500" />
+            </div>
+          </div>
+        );
+        return (
+          <div className="bg-white rounded-2xl shadow-sm border border-blue-200 mb-6 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-blue-50/60">
+              <div>
+                <span className="font-semibold text-gray-900 text-sm">{clientFilter.name}</span>
+                <span className="ml-2 text-xs text-gray-400">{clientCases.length} {clientCases.length === 1 ? "case" : "cases"} total</span>
+              </div>
+              <button onClick={() => setClientFilter(null)} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={16} /></button>
+            </div>
+
+            {clientCases.length === 0 ? (
+              <p className="px-5 py-6 text-sm text-gray-400 text-center">No cases found for this client.</p>
+            ) : (
+              <>
+                {activeCsCases.length > 0 && (
+                  <div>
+                    <div className="px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-gray-400 bg-gray-50 border-b border-gray-100">Active</div>
+                    {activeCsCases.map(c => <CaseRow key={c.id} c={c} />)}
+                  </div>
+                )}
+                {pastCsCases.length > 0 && (
+                  <div>
+                    <div className="px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-gray-400 bg-gray-50 border-b border-gray-100">Past</div>
+                    {pastCsCases.map(c => <CaseRow key={c.id} c={c} />)}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Clickable stat tiles */}
       <div className="flex gap-3 mb-6 overflow-x-auto pb-1" style={{scrollbarWidth:'none'}}>
