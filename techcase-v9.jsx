@@ -19875,8 +19875,6 @@ function SystemSettingsView({ auth }) {
     { id: "platform",  label: "Platform & AI",    Icon: Sparkles },
   ];
 
-  const needsDb = ssCtx.dbError && !["users", "lifecycle", "sla"].includes(activeTab);
-
   return (
     <div>
       <div className="mb-6">
@@ -19893,21 +19891,6 @@ function SystemSettingsView({ auth }) {
           </button>
         ))}
       </div>
-
-      {needsDb && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
-          <p className="text-sm text-amber-800 font-semibold mb-1">system_settings table needed</p>
-          <p className="text-xs text-amber-700 mb-2">Run this SQL in your Supabase SQL editor to enable settings persistence:</p>
-          <pre className="bg-amber-100 rounded-lg p-3 text-xs overflow-x-auto text-amber-900 font-mono">{`CREATE TABLE IF NOT EXISTS public.system_settings (
-  key TEXT PRIMARY KEY,
-  value JSONB NOT NULL DEFAULT '{}'::jsonb,
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "admin_access" ON public.system_settings
-  USING (true) WITH CHECK (true);`}</pre>
-        </div>
-      )}
 
       {activeTab === "users"     && <SettingsUsersTab />}
       {activeTab === "lifecycle" && <LifecycleSettingsView auth={auth} />}
