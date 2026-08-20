@@ -9466,6 +9466,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
 
   const [showEditWizard, setShowEditWizard] = useState(false);
   const [clientLifecycle, setClientLifecycle] = useState(null);
+  const [parentCaseLifecycle, setParentCaseLifecycle] = useState(null);
   const [cancelModal, setCancelModal] = useState(null); // { caseId, isSubCase }
   const [cancelReason, setCancelReason] = useState("");
   const [cancelNotes, setCancelNotes] = useState("");
@@ -9480,7 +9481,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [confirmingDevPlan, setConfirmingDevPlan] = useState(false);
   const [devPlanGenerated, setDevPlanGenerated] = useState(false);
   const [projectLifecycle, setProjectLifecycle] = useState(null);
-  const [lcMode, setLcMode] = useState(caseData.case_lifecycle?.preset ?? "standard");
+  const [lcMode, setLcMode] = useState(caseData.case_lifecycle?.preset ?? null);
   const [savingLc, setSavingLc] = useState(false);
   const { templates: caseLcTemplates, getTemplateStages: getCaseTmplStages } = useLifecycleTemplates();
   const { spec: caseSpec } = useCaseSpecification(caseData.id, auth.user?.id);
@@ -9506,16 +9507,26 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
       .then(({ data }) => setProjectLifecycle(data?.case_lifecycle ?? null));
   }, [caseData.project_id]);
 
-  // Sync lcMode to the inherited preset once project/client lifecycle loads,
-  // but only when the case has no explicit lifecycle override of its own.
+  // Fetch parent case lifecycle for subcases
+  useEffect(() => {
+    if (!caseData.parent_case_id) return;
+    supabase.from("cases")
+      .select("case_lifecycle")
+      .eq("id", caseData.parent_case_id)
+      .maybeSingle()
+      .then(({ data }) => setParentCaseLifecycle(data?.case_lifecycle ?? null));
+  }, [caseData.parent_case_id]);
+
+  // Sync lcMode once inherited lifecycle resolves.
+  // Chain: parent case → project → client → standard
   useEffect(() => {
     if (!caseData.case_lifecycle) {
-      const effectivePreset = projectLifecycle?.preset ?? clientLifecycle?.preset ?? "standard";
+      const effectivePreset = parentCaseLifecycle?.preset ?? projectLifecycle?.preset ?? clientLifecycle?.preset ?? "standard";
       setLcMode(effectivePreset);
     }
-  }, [projectLifecycle, clientLifecycle]);
+  }, [parentCaseLifecycle, projectLifecycle, clientLifecycle]);
 
-  const effectiveLifecycle = caseData.case_lifecycle ?? projectLifecycle ?? clientLifecycle;
+  const effectiveLifecycle = caseData.case_lifecycle ?? parentCaseLifecycle ?? projectLifecycle ?? clientLifecycle;
   const lifecycleStages = getLifecycleStages(effectiveLifecycle, caseLcTemplates);
   const subCaseInitialStatus = (lifecycleStages.find(s => s.is_initial) ?? lifecycleStages.find(s => !s.is_terminal))?.key ?? "open";
 
@@ -9548,6 +9559,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
     && (auth.isAdmin || auth.isManager || (auth.isClient && caseData.client_id === auth.user?.id));
 
   async function handleSaveCaseLc() {
+    if (!lcMode) return;
     setSavingLc(true);
     try {
       await onUpdate(caseData.id, { case_lifecycle: { preset: lcMode } });
@@ -13211,9 +13223,10 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
       )}
 
       {activeTab === "lifecycle" && (auth.isAdmin || auth.isManager || auth.isClient) && (() => {
+        if (lcMode === null) return <div className="flex justify-center py-10"><Spinner /></div>;
         const caseOverrideAllowed = clientLifecycle?.allow_case_override ?? true;
         const tmplList = caseLcTemplates.length ? caseLcTemplates : Object.entries(LIFECYCLE_PRESETS).map(([k, v]) => ({ key: k, ...v }));
-        const inheritedPreset = caseData.case_lifecycle?.preset ?? projectLifecycle?.preset ?? clientLifecycle?.preset ?? "standard";
+        const inheritedPreset = caseData.case_lifecycle?.preset ?? parentCaseLifecycle?.preset ?? projectLifecycle?.preset ?? clientLifecycle?.preset ?? "standard";
         const previewStages = getCaseTmplStages(lcMode);
         const previewActive = previewStages.filter(s => !s.is_terminal);
         const previewTerminal = previewStages.filter(s => s.is_terminal);
@@ -13224,6 +13237,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               <span className="font-semibold text-gray-700">Lifecycle source:</span>
               {caseData.case_lifecycle
                 ? <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">This case</span>
+                : parentCaseLifecycle
+                ? <span className="px-2 py-0.5 bg-sky-100 text-sky-700 rounded-full font-semibold">Parent case</span>
                 : projectLifecycle
                 ? <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full font-semibold">Project</span>
                 : clientLifecycle
@@ -13266,7 +13281,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                   })}
                 </div>
 
-                {lcMode !== (caseData.case_lifecycle?.preset ?? projectLifecycle?.preset ?? clientLifecycle?.preset ?? "standard") && (
+                {lcMode !== (caseData.case_lifecycle?.preset ?? parentCaseLifecycle?.preset ?? projectLifecycle?.preset ?? clientLifecycle?.preset ?? "standard") && (
                   <LifecycleFlowDiagram stages={previewStages} currentStatus={null} />
                 )}
 
