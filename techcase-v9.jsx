@@ -35,6 +35,7 @@ import {
   Wand2, Download, Sparkles,
   ListChecks, ChevronDown, ChevronRight, AlertTriangle, CircleSlash,
   GripVertical, Pencil, Timer, Link2, ExternalLink, Upload, Code2, Lock,
+  Plus, Tag, RefreshCw, Shield,
 } from "lucide-react";
 
 // ============================================================
@@ -2869,33 +2870,30 @@ function AuthScreen({ onAuth }) {
 function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
   const navItems = {
     admin: [
-      { id: "dashboard",      Icon: LayoutDashboard, label: "Dashboard" },
-      { id: "projects",       Icon: Layers,          label: "Projects" },
-      { id: "cases",          Icon: FolderOpen,      label: "Cases" },
-      { id: "kanban",         Icon: LayoutGrid,      label: "Kanban" },
-      { id: "arena",          Icon: Target,          label: "Arena" },
-      { id: "invoices",       Icon: Receipt,         label: "Invoices" },
-      { id: "time",           Icon: Clock,           label: "Time Entries" },
-      { id: "users",          Icon: Users,           label: "Users" },
-      { id: "sla",            Icon: Settings,        label: "SLA Config" },
-      { id: "db-connections", Icon: Database,        label: "DB Connections" },
-      { id: "team-members",   Icon: Handshake,       label: "Client Teams" },
-      { id: "lifecycle",      Icon: TrendingUp,      label: "Lifecycle" },
-      { id: "reports",        Icon: BarChart2,       label: "Reports" },
+      { id: "dashboard",       Icon: LayoutDashboard,   label: "Dashboard" },
+      { id: "projects",        Icon: Layers,            label: "Projects" },
+      { id: "cases",           Icon: FolderOpen,        label: "Cases" },
+      { id: "kanban",          Icon: LayoutGrid,        label: "Kanban" },
+      { id: "arena",           Icon: Target,            label: "Arena" },
+      { id: "invoices",        Icon: Receipt,           label: "Invoices" },
+      { id: "time",            Icon: Clock,             label: "Time Entries" },
+      { id: "db-connections",  Icon: Database,          label: "DB Connections" },
+      { id: "team-members",    Icon: Handshake,         label: "Client Teams" },
+      { id: "reports",         Icon: BarChart2,         label: "Reports" },
+      { id: "settings",        Icon: SlidersHorizontal, label: "Settings" },
     ],
     manager: [
-      { id: "dashboard",      Icon: LayoutDashboard, label: "Dashboard" },
-      { id: "projects",       Icon: Layers,          label: "Projects" },
-      { id: "cases",          Icon: FolderOpen,      label: "Cases" },
-      { id: "kanban",         Icon: LayoutGrid,      label: "Kanban" },
-      { id: "arena",          Icon: Target,          label: "Arena" },
-      { id: "invoices",       Icon: Receipt,         label: "Invoices" },
-      { id: "time",           Icon: Clock,           label: "Time Entries" },
-      { id: "consultants",    Icon: UserCheck,       label: "Consultants" },
-      { id: "sla",            Icon: Settings,        label: "SLA Config" },
-      { id: "db-connections", Icon: Database,        label: "DB Connections" },
-      { id: "team-members",   Icon: Handshake,       label: "Client Teams" },
-      { id: "lifecycle",      Icon: TrendingUp,      label: "Lifecycle" },
+      { id: "dashboard",       Icon: LayoutDashboard,   label: "Dashboard" },
+      { id: "projects",        Icon: Layers,            label: "Projects" },
+      { id: "cases",           Icon: FolderOpen,        label: "Cases" },
+      { id: "kanban",          Icon: LayoutGrid,        label: "Kanban" },
+      { id: "arena",           Icon: Target,            label: "Arena" },
+      { id: "invoices",        Icon: Receipt,           label: "Invoices" },
+      { id: "time",            Icon: Clock,             label: "Time Entries" },
+      { id: "consultants",     Icon: UserCheck,         label: "Consultants" },
+      { id: "db-connections",  Icon: Database,          label: "DB Connections" },
+      { id: "team-members",    Icon: Handshake,         label: "Client Teams" },
+      { id: "settings",        Icon: SlidersHorizontal, label: "Settings" },
     ],
     consultant: [
       { id: "dashboard", Icon: LayoutDashboard, label: "Dashboard" },
@@ -19069,6 +19067,782 @@ function ManagerAdminWelcomeView({ auth, onComplete }) {
 }
 
 // ============================================================
+// SYSTEM SETTINGS
+// ============================================================
+
+function useSystemSettings() {
+  const [settings, setSettings] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [dbError, setDbError] = useState(null);
+
+  async function load() {
+    setLoading(true);
+    const { data, error } = await supabase.from("system_settings").select("*");
+    if (error) {
+      setDbError(error.message);
+      setSettings({});
+    } else {
+      const map = {};
+      (data ?? []).forEach(r => { map[r.key] = r.value; });
+      setSettings(map);
+      setDbError(null);
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function setSetting(key, value) {
+    const { error } = await supabase.from("system_settings")
+      .upsert({ key, value }, { onConflict: "key" });
+    if (error) throw error;
+    setSettings(prev => ({ ...prev, [key]: value }));
+  }
+
+  return { settings, loading, dbError, setSetting, reload: load };
+}
+
+function SettingsUsersTab() {
+  const [users, setUsers]       = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [showAdd, setShowAdd]   = useState(false);
+  const [addForm, setAddForm]   = useState({ full_name: "", email: "", role: "manager", password: "" });
+  const [adding, setAdding]     = useState(false);
+  const [addError, setAddError] = useState("");
+  const [editId, setEditId]     = useState(null);
+  const [editRole, setEditRole] = useState("");
+  const [saving, setSaving]     = useState(false);
+  const [resetSent, setResetSent] = useState({});
+  const [search, setSearch]     = useState("");
+
+  const ROLES = ["admin", "manager", "consultant", "client", "key_user"];
+
+  async function loadUsers() {
+    const { data } = await supabase.from("users").select("*").order("created_at", { ascending: false });
+    setUsers(data ?? []);
+  }
+
+  useEffect(() => { (async () => { await loadUsers(); setLoading(false); })(); }, []);
+
+  async function toggleActive(userId, isActive) {
+    await supabase.from("users").update({ is_active: !isActive }).eq("id", userId);
+    setUsers(p => p.map(u => u.id === userId ? { ...u, is_active: !isActive } : u));
+  }
+
+  async function saveRole(userId) {
+    setSaving(true);
+    await supabase.from("users").update({ role: editRole }).eq("id", userId);
+    setUsers(p => p.map(u => u.id === userId ? { ...u, role: editRole } : u));
+    setEditId(null);
+    setSaving(false);
+  }
+
+  async function sendPasswordReset(email) {
+    await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+    setResetSent(p => ({ ...p, [email]: true }));
+    setTimeout(() => setResetSent(p => { const n = { ...p }; delete n[email]; return n; }), 5000);
+  }
+
+  async function handleCreateUser() {
+    setAddError("");
+    if (!addForm.full_name || !addForm.email || !addForm.password) {
+      setAddError("Name, email and password are required."); return;
+    }
+    setAdding(true);
+    try {
+      const tmpClient = createClient(
+        import.meta.env.VITE_SUPABASE_URL || "",
+        import.meta.env.VITE_SUPABASE_ANON_KEY || "",
+        { auth: { persistSession: false } }
+      );
+      const { error } = await tmpClient.auth.signUp({
+        email: addForm.email, password: addForm.password,
+        options: { data: { full_name: addForm.full_name, role: addForm.role } },
+      });
+      await tmpClient.auth.signOut();
+      if (error) throw error;
+      await loadUsers();
+      setShowAdd(false);
+      setAddForm({ full_name: "", email: "", role: "manager", password: "" });
+    } catch (e) {
+      setAddError(e.message || JSON.stringify(e));
+    }
+    setAdding(false);
+  }
+
+  const filtered = users.filter(u =>
+    !search ||
+    u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+    u.email?.toLowerCase().includes(search.toLowerCase()) ||
+    u.role?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  if (loading) return <Spinner />;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div className="relative flex-1 max-w-xs">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search users…"
+            className="pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <button onClick={() => { setShowAdd(true); setAddError(""); }}
+          className="ml-4 flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors">
+          <Plus size={14} /> Add User
+        </button>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-200">
+              <th className="px-4 py-3 text-left font-semibold text-gray-600">Name</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600">Email</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600">Role</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-600">Status</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-600">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map(u => (
+              <tr key={u.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                <td className="px-4 py-3 font-medium text-gray-900">{u.full_name ?? "—"}</td>
+                <td className="px-4 py-3 text-gray-500">{u.email}</td>
+                <td className="px-4 py-3">
+                  {editId === u.id ? (
+                    <div className="flex items-center gap-2">
+                      <select value={editRole} onChange={e => setEditRole(e.target.value)}
+                        className="border border-gray-200 rounded-lg px-2 py-1 text-sm">
+                        {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                      <button onClick={() => saveRole(u.id)} disabled={saving}
+                        className="px-2 py-1 bg-green-600 text-white text-xs rounded-lg">
+                        {saving ? "…" : <Check size={12} />}
+                      </button>
+                      <button onClick={() => setEditId(null)}
+                        className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-lg"><X size={12} /></button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize
+                        ${u.role === "admin" ? "bg-red-100 text-red-700"
+                          : u.role === "manager" ? "bg-blue-100 text-blue-700"
+                          : u.role === "consultant" ? "bg-purple-100 text-purple-700"
+                          : "bg-gray-100 text-gray-700"}`}>
+                        {u.role}
+                      </span>
+                      <button onClick={() => { setEditId(u.id); setEditRole(u.role); }}
+                        className="text-gray-400 hover:text-blue-600 transition-colors">
+                        <Pencil size={12} />
+                      </button>
+                    </div>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-center">
+                  <button onClick={() => toggleActive(u.id, u.is_active)}
+                    className={`px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors
+                      ${u.is_active !== false
+                        ? "bg-green-100 text-green-700 hover:bg-red-100 hover:text-red-700"
+                        : "bg-red-100 text-red-700 hover:bg-green-100 hover:text-green-700"}`}>
+                    {u.is_active !== false ? "Active" : "Inactive"}
+                  </button>
+                </td>
+                <td className="px-4 py-3 text-center">
+                  <button onClick={() => sendPasswordReset(u.email)}
+                    title="Send password reset email"
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 mx-auto
+                      ${resetSent[u.email]
+                        ? "bg-green-100 text-green-700"
+                        : "bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700"}`}>
+                    {resetSent[u.email] ? <><Check size={12} /> Sent</> : <><RefreshCw size={12} /> Reset pwd</>}
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {filtered.length === 0 && (
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">No users found</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {showAdd && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-semibold text-gray-900">Create User Account</h2>
+              <button onClick={() => setShowAdd(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-xs text-amber-800">
+              This form creates Manager and Admin accounts. Consultant and Client users self-register.
+            </div>
+            <Input label="Full Name" value={addForm.full_name}
+              onChange={e => setAddForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Jane Smith" />
+            <Input label="Email" type="email" value={addForm.email}
+              onChange={e => setAddForm(p => ({ ...p, email: e.target.value }))} placeholder="jane@company.com" />
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+              <select value={addForm.role} onChange={e => setAddForm(p => ({ ...p, role: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm">
+                {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+            <Input label="Temporary Password" type="password" value={addForm.password}
+              onChange={e => setAddForm(p => ({ ...p, password: e.target.value }))} placeholder="Min 6 characters" />
+            {addError && <p className="text-red-600 text-xs mt-2">{addError}</p>}
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setShowAdd(false)}
+                className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 text-sm rounded-xl hover:bg-gray-50">Cancel</button>
+              <button onClick={handleCreateUser} disabled={adding}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
+                {adding ? "Creating…" : "Create User"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SettingsPhasesTab({ ssCtx }) {
+  const DEFAULT_PHASES = [
+    { key: "design",                label: "Design",                color: "#6366f1", required_status: null },
+    { key: "development",           label: "Development",           color: "#2563eb", required_status: null },
+    { key: "technical_test",        label: "Technical Test",        color: "#0891b2", required_status: "technical_test" },
+    { key: "technical_adjustment",  label: "Technical Adjustment",  color: "#0e7490", required_status: null },
+    { key: "functional_test",       label: "Functional Test",       color: "#059669", required_status: "functional_test" },
+    { key: "functional_adjustment", label: "Functional Adjustment", color: "#047857", required_status: null },
+    { key: "user_test",             label: "User Test",             color: "#7c3aed", required_status: "user_test" },
+    { key: "user_adjustment",       label: "User Adjustment",       color: "#6d28d9", required_status: null },
+  ];
+  const ALL_STATUSES = ["", "open", "estimated", "assigned", "in_progress", "on_hold",
+    "technical_test", "functional_test", "user_test", "completed", "cancelled"];
+
+  const [phases, setPhases]   = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [newPhase, setNewPhase] = useState({ key: "", label: "", color: "#6366f1", required_status: "" });
+  const [saving, setSaving]   = useState(false);
+  const [toast, setToast]     = useState(null);
+
+  useEffect(() => {
+    if (!ssCtx.loading) {
+      setPhases(ssCtx.settings["activity_phases"] ?? DEFAULT_PHASES);
+    }
+  }, [ssCtx.loading, ssCtx.settings]);
+
+  async function savePhasesData(newPhases) {
+    setSaving(true);
+    try {
+      await ssCtx.setSetting("activity_phases", newPhases);
+      setPhases(newPhases);
+      setToast("Saved!");
+      setTimeout(() => setToast(null), 2500);
+    } catch (e) {
+      setToast("Error: " + e.message);
+    }
+    setSaving(false);
+  }
+
+  async function deletePhase(key) {
+    await savePhasesData(phases.filter(p => p.key !== key));
+  }
+
+  async function saveEdit() {
+    await savePhasesData(phases.map(p => p.key === editing.key ? editing : p));
+    setEditing(null);
+  }
+
+  async function addPhase() {
+    if (!newPhase.key || !newPhase.label) return;
+    await savePhasesData([...phases, { ...newPhase, required_status: newPhase.required_status || null }]);
+    setShowAdd(false);
+    setNewPhase({ key: "", label: "", color: "#6366f1", required_status: "" });
+  }
+
+  if (ssCtx.loading || phases === null) return <Spinner />;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm text-gray-500">System-wide activity phases. Clients can override these in their profile.</p>
+        <div className="flex gap-2">
+          <button onClick={() => savePhasesData(DEFAULT_PHASES)}
+            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 flex items-center gap-1.5">
+            <RotateCcw size={13} /> Reset defaults
+          </button>
+          <button onClick={() => setShowAdd(true)}
+            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-1.5">
+            <Plus size={13} /> Add Phase
+          </button>
+        </div>
+      </div>
+
+      {toast && (
+        <div className="mb-4 px-4 py-2 bg-green-100 text-green-800 rounded-xl text-sm flex items-center gap-2">
+          <CheckCircle2 size={14} /> {toast}
+        </div>
+      )}
+
+      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-200">
+              <th className="px-4 py-3 text-left font-semibold text-gray-600 w-12">Color</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600">Key</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600">Label</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600">Required Status</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-600 w-24">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {phases.map(ph => (
+              <tr key={ph.key} className="border-b border-gray-100 last:border-0">
+                {editing?.key === ph.key ? (
+                  <>
+                    <td className="px-4 py-2">
+                      <input type="color" value={editing.color}
+                        onChange={e => setEditing(p => ({ ...p, color: e.target.value }))}
+                        className="w-8 h-8 rounded cursor-pointer border border-gray-200" />
+                    </td>
+                    <td className="px-4 py-2 text-gray-400 text-xs font-mono">{ph.key}</td>
+                    <td className="px-4 py-2">
+                      <input value={editing.label} onChange={e => setEditing(p => ({ ...p, label: e.target.value }))}
+                        className="border border-gray-200 rounded-lg px-2 py-1 text-sm w-full" />
+                    </td>
+                    <td className="px-4 py-2">
+                      <select value={editing.required_status ?? ""}
+                        onChange={e => setEditing(p => ({ ...p, required_status: e.target.value || null }))}
+                        className="border border-gray-200 rounded-lg px-2 py-1 text-sm">
+                        {ALL_STATUSES.map(s => <option key={s} value={s}>{s || "— none —"}</option>)}
+                      </select>
+                    </td>
+                    <td className="px-4 py-2 text-center">
+                      <div className="flex items-center gap-1 justify-center">
+                        <button onClick={saveEdit} disabled={saving}
+                          className="px-2 py-1 bg-green-600 text-white text-xs rounded-lg flex items-center gap-1">
+                          <Check size={11} /> Save
+                        </button>
+                        <button onClick={() => setEditing(null)}
+                          className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-lg"><X size={11} /></button>
+                      </div>
+                    </td>
+                  </>
+                ) : (
+                  <>
+                    <td className="px-4 py-3">
+                      <div className="w-6 h-6 rounded-full" style={{ background: ph.color }} />
+                    </td>
+                    <td className="px-4 py-3 text-gray-500 font-mono text-xs">{ph.key}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900">{ph.label}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs">{ph.required_status ?? "—"}</td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex items-center gap-1 justify-center">
+                        <button onClick={() => setEditing({ ...ph })}
+                          className="p-1 text-gray-400 hover:text-blue-600 transition-colors"><Pencil size={13} /></button>
+                        <button onClick={() => deletePhase(ph.key)}
+                          className="p-1 text-gray-400 hover:text-red-600 transition-colors"><Trash2 size={13} /></button>
+                      </div>
+                    </td>
+                  </>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {showAdd && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-semibold text-gray-900">Add Activity Phase</h2>
+              <button onClick={() => setShowAdd(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Key (snake_case, unique)</label>
+                <input value={newPhase.key}
+                  onChange={e => setNewPhase(p => ({ ...p, key: e.target.value.toLowerCase().replace(/\s+/g, "_") }))}
+                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full" placeholder="e.g. integration_test" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Label</label>
+                <input value={newPhase.label} onChange={e => setNewPhase(p => ({ ...p, label: e.target.value }))}
+                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full" placeholder="e.g. Integration Test" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                <div className="flex items-center gap-3">
+                  <input type="color" value={newPhase.color} onChange={e => setNewPhase(p => ({ ...p, color: e.target.value }))}
+                    className="w-10 h-10 rounded-xl cursor-pointer border border-gray-200" />
+                  <span className="text-sm text-gray-500 font-mono">{newPhase.color}</span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Required Case Status</label>
+                <select value={newPhase.required_status}
+                  onChange={e => setNewPhase(p => ({ ...p, required_status: e.target.value }))}
+                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full">
+                  {ALL_STATUSES.map(s => <option key={s} value={s}>{s || "— none —"}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setShowAdd(false)}
+                className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 text-sm rounded-xl hover:bg-gray-50">Cancel</button>
+              <button onClick={addPhase} disabled={saving || !newPhase.key || !newPhase.label}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
+                Add Phase
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SettingsCatalogTab({ ssCtx }) {
+  const CATALOG_DEFAULTS = {
+    sap_areas:        ["SAP S/4HANA", "SAP BW / Analytics", "SAP FICO", "SAP MM/SD", "SAP HCM", "SAP Basis / Infrastructure", "SAP Fiori / UI5", "SAP Integration (CPI/PI)", "Other SAP"],
+    industries:       ["Technology", "Finance & Banking", "Healthcare", "Legal", "Manufacturing", "Retail & Commerce", "Energy & Utilities", "Public Sector", "Other"],
+    sap_components:   ["FI","CO","MM","SD","PP","PM","QM","WM","EWM","HCM","PS","RE","FI-AA","TR","GRC","BW","PI/PO","ABAP","BC","SRM","CRM","IS-Retail","IS-Utilities","IS-Oil","LE","CS"],
+    work_modes:       ["remote", "on_site", "hybrid"],
+    interview_formats:["video", "phone", "in_person", "technical"],
+    expertise_levels: ["junior", "mid", "senior", "lead", "expert"],
+    priorities:       ["low", "medium", "high", "critical"],
+    connection_types: ["sap_gui", "sap_hana", "sap_rfc", "sap_odata", "rest", "soap", "jdbc", "sftp", "smtp", "ldap"],
+  };
+
+  const CATEGORY_LABELS = {
+    sap_areas:        "SAP Areas",
+    industries:       "Industries",
+    sap_components:   "SAP Components",
+    work_modes:       "Work Modes",
+    interview_formats:"Interview Formats",
+    expertise_levels: "Expertise Levels",
+    priorities:       "Priorities",
+    connection_types: "Connection Types",
+  };
+
+  const [selectedCat, setSelectedCat] = useState("sap_areas");
+  const [catalogData, setCatalogData] = useState({});
+  const [newValue, setNewValue]       = useState("");
+  const [saving, setSaving]           = useState(false);
+  const [toast, setToast]             = useState(null);
+
+  useEffect(() => {
+    if (!ssCtx.loading) {
+      const loaded = {};
+      Object.keys(CATALOG_DEFAULTS).forEach(cat => {
+        loaded[cat] = ssCtx.settings[`catalog_${cat}`] ?? CATALOG_DEFAULTS[cat];
+      });
+      setCatalogData(loaded);
+    }
+  }, [ssCtx.loading, ssCtx.settings]);
+
+  async function saveCat(cat, values) {
+    setSaving(true);
+    try {
+      await ssCtx.setSetting(`catalog_${cat}`, values);
+      setCatalogData(p => ({ ...p, [cat]: values }));
+      setToast("Saved!");
+      setTimeout(() => setToast(null), 2500);
+    } catch (e) {
+      setToast("Error: " + e.message);
+    }
+    setSaving(false);
+  }
+
+  async function addValue() {
+    if (!newValue.trim()) return;
+    await saveCat(selectedCat, [...(catalogData[selectedCat] ?? []), newValue.trim()]);
+    setNewValue("");
+  }
+
+  async function removeValue(val) {
+    await saveCat(selectedCat, (catalogData[selectedCat] ?? []).filter(v => v !== val));
+  }
+
+  if (ssCtx.loading) return <Spinner />;
+
+  const current = catalogData[selectedCat] ?? [];
+
+  return (
+    <div className="flex gap-6">
+      <div className="w-48 flex-shrink-0">
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          {Object.keys(CATALOG_DEFAULTS).map(cat => (
+            <button key={cat} onClick={() => { setSelectedCat(cat); setNewValue(""); }}
+              className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors border-r-2
+                ${selectedCat === cat ? "bg-blue-50 text-blue-700 border-blue-600" : "border-transparent text-gray-600 hover:bg-gray-50"}`}>
+              {CATEGORY_LABELS[cat]}
+              <span className="ml-1 text-xs text-gray-400">({(catalogData[cat] ?? CATALOG_DEFAULTS[cat]).length})</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex-1">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold text-gray-900">{CATEGORY_LABELS[selectedCat]}</h3>
+          <div className="flex gap-2 items-center">
+            {toast && (
+              <span className="text-xs text-green-700 bg-green-100 px-2 py-1 rounded-lg flex items-center gap-1">
+                <CheckCircle2 size={12} /> {toast}
+              </span>
+            )}
+            <button onClick={() => saveCat(selectedCat, CATALOG_DEFAULTS[selectedCat])}
+              className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 flex items-center gap-1">
+              <RotateCcw size={12} /> Reset
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-3">
+          {current.length === 0 ? (
+            <p className="px-4 py-6 text-center text-gray-400 text-sm">No values. Add one below.</p>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {current.map((val, i) => (
+                <div key={i} className="flex items-center justify-between px-4 py-2.5">
+                  <span className="text-sm text-gray-800 font-mono">{val}</span>
+                  <button onClick={() => removeValue(val)}
+                    className="text-gray-300 hover:text-red-600 transition-colors"><Trash2 size={13} /></button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2">
+          <input value={newValue} onChange={e => setNewValue(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && addValue()}
+            placeholder={`Add new ${CATEGORY_LABELS[selectedCat].toLowerCase()} value…`}
+            className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <button onClick={addValue} disabled={saving || !newValue.trim()}
+            className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
+            <Plus size={14} /> Add
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SettingsPlatformTab({ ssCtx }) {
+  const DEFAULTS = {
+    ai_model:                   "claude-haiku-4-5-20251001",
+    default_currency:           "USD",
+    scoring_weights:            { skills: 40, experience: 30, availability: 15, rate: 15 },
+    overdue_grace_days:         1,
+    invoice_due_days:           30,
+    max_applications_per_case:  10,
+  };
+
+  const AI_MODELS = [
+    { value: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5  — Fast & cost-effective" },
+    { value: "claude-sonnet-5-20251001",  label: "Claude Sonnet 5   — Balanced" },
+    { value: "claude-opus-5-20250101",    label: "Claude Opus 5     — Most capable" },
+  ];
+
+  const [form, setForm]     = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast]   = useState(null);
+
+  useEffect(() => {
+    if (!ssCtx.loading) {
+      setForm({
+        ai_model:                   ssCtx.settings["ai_model"]                   ?? DEFAULTS.ai_model,
+        default_currency:           ssCtx.settings["default_currency"]           ?? DEFAULTS.default_currency,
+        scoring_weights:            ssCtx.settings["scoring_weights"]            ?? { ...DEFAULTS.scoring_weights },
+        overdue_grace_days:         ssCtx.settings["overdue_grace_days"]         ?? DEFAULTS.overdue_grace_days,
+        invoice_due_days:           ssCtx.settings["invoice_due_days"]           ?? DEFAULTS.invoice_due_days,
+        max_applications_per_case:  ssCtx.settings["max_applications_per_case"]  ?? DEFAULTS.max_applications_per_case,
+      });
+    }
+  }, [ssCtx.loading, ssCtx.settings]);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await Promise.all([
+        ssCtx.setSetting("ai_model",                  form.ai_model),
+        ssCtx.setSetting("default_currency",          form.default_currency),
+        ssCtx.setSetting("scoring_weights",           form.scoring_weights),
+        ssCtx.setSetting("overdue_grace_days",        form.overdue_grace_days),
+        ssCtx.setSetting("invoice_due_days",          form.invoice_due_days),
+        ssCtx.setSetting("max_applications_per_case", form.max_applications_per_case),
+      ]);
+      setToast("Settings saved!");
+      setTimeout(() => setToast(null), 3000);
+    } catch (e) {
+      setToast("Error: " + e.message);
+    }
+    setSaving(false);
+  }
+
+  const totalWeight = form ? Object.values(form.scoring_weights).reduce((a, b) => a + b, 0) : 100;
+
+  if (ssCtx.loading || !form) return <Spinner />;
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Sparkles size={16} className="text-purple-600" /> AI Configuration
+        </h3>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Model for Plan Generation</label>
+          <select value={form.ai_model} onChange={e => setForm(p => ({ ...p, ai_model: e.target.value }))}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm">
+            {AI_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+          </select>
+          <p className="text-xs text-gray-400 mt-1">Used for development plan generation and SAP coverage analysis.</p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Settings size={16} className="text-gray-600" /> General
+        </h3>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Default Currency</label>
+            <input value={form.default_currency}
+              onChange={e => setForm(p => ({ ...p, default_currency: e.target.value.toUpperCase() }))}
+              maxLength={3} placeholder="USD"
+              className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Due (days)</label>
+            <input type="number" min={1} value={form.invoice_due_days}
+              onChange={e => setForm(p => ({ ...p, invoice_due_days: +e.target.value }))}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Overdue Grace Period (days)</label>
+            <input type="number" min={0} value={form.overdue_grace_days}
+              onChange={e => setForm(p => ({ ...p, overdue_grace_days: +e.target.value }))}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Max Applications per Case</label>
+            <input type="number" min={1} value={form.max_applications_per_case}
+              onChange={e => setForm(p => ({ ...p, max_applications_per_case: +e.target.value }))}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full" />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+          <SlidersHorizontal size={16} className="text-blue-600" /> Candidate Scoring Weights
+        </h3>
+        <p className="text-xs text-gray-500 mb-4">
+          Must sum to 100. Current total:{" "}
+          <span className={totalWeight === 100 ? "text-green-600 font-medium" : "text-red-600 font-medium"}>{totalWeight}</span>
+        </p>
+        <div className="grid grid-cols-2 gap-4">
+          {Object.entries(form.scoring_weights).map(([k, v]) => (
+            <div key={k}>
+              <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">{k.replace(/_/g, " ")} (%)</label>
+              <input type="number" min={0} max={100} value={v}
+                onChange={e => setForm(p => ({ ...p, scoring_weights: { ...p.scoring_weights, [k]: +e.target.value } }))}
+                className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {toast && (
+        <div className={`px-4 py-3 rounded-xl text-sm flex items-center gap-2 ${toast.startsWith("Error") ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
+          <CheckCircle2 size={14} /> {toast}
+        </div>
+      )}
+
+      <div className="flex gap-3">
+        <button onClick={() => setForm({
+            ai_model:                  DEFAULTS.ai_model,
+            default_currency:          DEFAULTS.default_currency,
+            scoring_weights:           { ...DEFAULTS.scoring_weights },
+            overdue_grace_days:        DEFAULTS.overdue_grace_days,
+            invoice_due_days:          DEFAULTS.invoice_due_days,
+            max_applications_per_case: DEFAULTS.max_applications_per_case,
+          })}
+          className="px-4 py-2 border border-gray-200 text-gray-700 text-sm rounded-xl hover:bg-gray-50 flex items-center gap-1.5">
+          <RotateCcw size={13} /> Reset defaults
+        </button>
+        <button onClick={handleSave} disabled={saving || totalWeight !== 100}
+          className="px-6 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
+          {saving ? "Saving…" : <><Check size={14} /> Save Settings</>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SystemSettingsView({ auth }) {
+  const [activeTab, setActiveTab] = useState("users");
+  const ssCtx = useSystemSettings();
+
+  const tabs = [
+    { id: "users",     label: "Users",           Icon: Users },
+    { id: "lifecycle", label: "Lifecycle",        Icon: TrendingUp },
+    { id: "phases",    label: "Activity Phases",  Icon: ListChecks },
+    { id: "catalog",   label: "Catalog Values",   Icon: Tag },
+    { id: "sla",       label: "SLA Config",       Icon: Shield },
+    { id: "platform",  label: "Platform & AI",    Icon: Sparkles },
+  ];
+
+  const needsDb = ssCtx.dbError && !["users", "lifecycle", "sla"].includes(activeTab);
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">System Settings</h1>
+        <p className="text-gray-500 text-sm mt-1">Platform configuration — admin & manager only</p>
+      </div>
+
+      <div className="flex border-b border-gray-200 mb-6 overflow-x-auto">
+        {tabs.map(({ id, label, Icon: Ic }) => (
+          <button key={id} onClick={() => setActiveTab(id)}
+            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-px
+              ${activeTab === id ? "border-blue-600 text-blue-700 bg-blue-50/50" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
+            <Ic size={14} />{label}
+          </button>
+        ))}
+      </div>
+
+      {needsDb && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+          <p className="text-sm text-amber-800 font-semibold mb-1">system_settings table needed</p>
+          <p className="text-xs text-amber-700 mb-2">Run this SQL in your Supabase SQL editor to enable settings persistence:</p>
+          <pre className="bg-amber-100 rounded-lg p-3 text-xs overflow-x-auto text-amber-900 font-mono">{`CREATE TABLE IF NOT EXISTS public.system_settings (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "admin_access" ON public.system_settings
+  USING (true) WITH CHECK (true);`}</pre>
+        </div>
+      )}
+
+      {activeTab === "users"     && <SettingsUsersTab />}
+      {activeTab === "lifecycle" && <LifecycleSettingsView auth={auth} />}
+      {activeTab === "phases"    && <SettingsPhasesTab ssCtx={ssCtx} />}
+      {activeTab === "catalog"   && <SettingsCatalogTab ssCtx={ssCtx} />}
+      {activeTab === "sla"       && <SlaView auth={auth} />}
+      {activeTab === "platform"  && <SettingsPlatformTab ssCtx={ssCtx} />}
+    </div>
+  );
+}
+
+// ============================================================
 // ROOT APP
 // ============================================================
 function StartDateMonitor({ auth }) {
@@ -19165,6 +19939,7 @@ export default function App() {
       case "team-members":   return <ClientTeamView auth={auth} />;
       case "client-profile": return auth.isClient ? <ClientProfileView auth={auth} /> : <Dashboard auth={auth} />;
       case "lifecycle":      return (auth.isAdmin || auth.isManager) ? <LifecycleSettingsView auth={auth} /> : <Dashboard auth={auth} />;
+      case "settings":       return (auth.isAdmin || auth.isManager) ? <SystemSettingsView auth={auth} /> : <Dashboard auth={auth} />;
       case "notifications":  return <NotificationsView />;
       case "invoices":       return <InvoicesView auth={auth} />;
       case "kanban":         return <KanbanView auth={auth} />;
