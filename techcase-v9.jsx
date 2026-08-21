@@ -88,7 +88,9 @@ const TRANSLATIONS = {
     "action.remove":         "Remove",
     "action.apply":          "Apply",
     "action.approve":        "Approve",
+    "action.accept":         "Accept",
     "action.reject":         "Reject",
+    "action.review":         "Review",
     "action.sign_out":       "Sign Out",
     "action.sign_in":        "Sign In",
     "action.create_account": "Create Account",
@@ -104,7 +106,19 @@ const TRANSLATIONS = {
     "consultant.search_ph":  "Search by name or skill…",
     "consultant.none_found": "No consultants found",
     "consultant.try_search": "Try a different search",
-    "label.rate":            "Rate:",
+    // ApplicantRankingSection
+    "rank.no_apps":        "No applications yet.",
+    "rank.recommended":    "Recommended Consultant",
+    "rank.recalculating":  "Recalculating…",
+    "rank.recalculate":    "Recalculate Availability",
+    "rank.assigning":      "Assigning…",
+    "rank.auto_assign":    "Auto-Assign Top Pick",
+    "rank.pts":            "/ 100 pts",
+    "rank.accept_top":     "Accept this Consultant",
+    "rank.all_ranked":     "All Applicants — Ranked",
+    "rank.overcommitted":  "Overcommitted",
+    "rank.avail_now":      "Availability now:",
+    "label.rate":          "Rate:",
     "label.experience":      "Experience:",
     "label.avail":           "Availability:",
     "label.level":           "Level:",
@@ -1355,6 +1369,50 @@ const TRANSLATIONS = {
     "cs.step_review":         "Review",
     "case.create_confirmed":  "Create Confirmed",
     "case.create_case":       "Create Case",
+    // SpecificationTab
+    "spec.rejected_title":    "Specification Rejected",
+    "spec.rejected_hint":     "Choose a mode below to create a new version.",
+    "spec.draft_exists":      "A draft spec exists. Select its mode below to continue editing, or start fresh with another mode.",
+    "spec.choose_mode":       "How would you like to create the functional specification?",
+    "spec.save_draft":        "Save Draft",
+    "spec.saving_draft":      "Saving…",
+    "spec.validate_gen":      "Validate & Generate Formal Spec →",
+    "spec.attach_docs":       "Attach Documents",
+    "spec.scope_notes":       "Scope / Notes",
+    "spec.manual_title":      "Manual Specification",
+    "spec.wiz_step1":         "Wizard — Step 1: ABAP Objects",
+    "spec.wiz_docs_lbl":      "Documents Claude will read:",
+    "spec.wiz_analyze":       "Analyze case and suggest ABAP objects →",
+    "spec.wiz_start_intv":    "Start Interview →",
+    "spec.wiz_interview":     "Interview",
+    "spec.wiz_compile":       "Compile Specification →",
+    "spec.wiz_next_obj":      "Next Object →",
+    "spec.wiz_compiled":      "Compiled Specification",
+    "spec.save_to_docs":      "Save to Documents",
+    "spec.ai_check_btn":      "Check SAP Standard Coverage",
+    "spec.approve_btn":       "Approve",
+    "spec.reject_btn":        "Reject",
+    "spec.confirm_reject":    "Confirm Rejection",
+    "spec.reject_reason":     "Rejection reason",
+    "spec.submit_btn":        "Submit for Approval",
+    "spec.submitting":        "Submitting…",
+    "spec.submitted_label":   "Submitted for approval",
+    "spec.approved_title":    "Specification Approved",
+    "spec.wiz_prev":          "← Prev",
+    "spec.compiling":         "Compiling specification…",
+    "spec.ai_step1_lbl":      "SAP Standard Check",
+    "spec.ai_step2_lbl":      "Proposal Validation",
+    "spec.ai_step3_lbl":      "Generate Spec",
+    "spec.ai_step1_h":        "Step 1 — SAP Standard Coverage Check",
+    "spec.checking":          "Checking SAP standard functionality…",
+    "spec.continue_step2":    "Continue to Proposal Validation →",
+    "spec.ai_step2_h":        "Step 2 — Proposal Validation",
+    "spec.validate_proposal": "Validate Proposal",
+    "spec.validating":        "Validating proposal…",
+    "spec.generate_spec":     "Generate Functional Specification →",
+    "spec.awaiting":          "Submitted — awaiting approval",
+    "spec.pdf_saved3":        "3 PDFs saved",
+    "spec.save_all3":         "Save All 3 PDFs",
   },
   es: {
     // Navigation
@@ -1394,7 +1452,9 @@ const TRANSLATIONS = {
     "action.remove":         "Eliminar",
     "action.apply":          "Postular",
     "action.approve":        "Aprobar",
+    "action.accept":         "Aceptar",
     "action.reject":         "Rechazar",
+    "action.review":         "Revisar",
     "action.sign_out":       "Cerrar Sesión",
     "action.sign_in":        "Iniciar Sesión",
     "action.create_account": "Crear Cuenta",
@@ -1410,7 +1470,19 @@ const TRANSLATIONS = {
     "consultant.search_ph":  "Buscar por nombre o habilidad…",
     "consultant.none_found": "No se encontraron consultores",
     "consultant.try_search": "Intenta una búsqueda diferente",
-    "label.rate":            "Tarifa:",
+    // ApplicantRankingSection
+    "rank.no_apps":        "Aún no hay solicitudes.",
+    "rank.recommended":    "Consultor Recomendado",
+    "rank.recalculating":  "Recalculando…",
+    "rank.recalculate":    "Recalcular Disponibilidad",
+    "rank.assigning":      "Asignando…",
+    "rank.auto_assign":    "Asignación Automática",
+    "rank.pts":            "/ 100 pts",
+    "rank.accept_top":     "Aceptar este Consultor",
+    "rank.all_ranked":     "Todos los Solicitantes — Clasificados",
+    "rank.overcommitted":  "Sobrecomprometido",
+    "rank.avail_now":      "Disponibilidad actual:",
+    "label.rate":          "Tarifa:",
     "label.experience":      "Experiencia:",
     "label.avail":           "Disponibilidad:",
     "label.level":           "Nivel:",
@@ -1750,6 +1822,50 @@ const TRANSLATIONS = {
     "cs.step_review":         "Revisión",
     "case.create_confirmed":  "Crear Confirmado",
     "case.create_case":       "Crear Caso",
+    // SpecificationTab
+    "spec.rejected_title":    "Especificación Rechazada",
+    "spec.rejected_hint":     "Elige un modo abajo para crear una nueva versión.",
+    "spec.draft_exists":      "Existe un borrador. Selecciona su modo abajo para continuar editando o empieza con otro modo.",
+    "spec.choose_mode":       "¿Cómo deseas crear la especificación funcional?",
+    "spec.save_draft":        "Guardar Borrador",
+    "spec.saving_draft":      "Guardando…",
+    "spec.validate_gen":      "Validar y Generar Spec Formal →",
+    "spec.attach_docs":       "Adjuntar Documentos",
+    "spec.scope_notes":       "Alcance / Notas",
+    "spec.manual_title":      "Especificación Manual",
+    "spec.wiz_step1":         "Asistente — Paso 1: Objetos ABAP",
+    "spec.wiz_docs_lbl":      "Documentos que Claude leerá:",
+    "spec.wiz_analyze":       "Analizar caso y sugerir objetos ABAP →",
+    "spec.wiz_start_intv":    "Iniciar Entrevista →",
+    "spec.wiz_interview":     "Entrevista",
+    "spec.wiz_compile":       "Compilar Especificación →",
+    "spec.wiz_next_obj":      "Siguiente Objeto →",
+    "spec.wiz_compiled":      "Especificación Compilada",
+    "spec.save_to_docs":      "Guardar en Documentos",
+    "spec.ai_check_btn":      "Verificar Cobertura SAP Estándar",
+    "spec.approve_btn":       "Aprobar",
+    "spec.reject_btn":        "Rechazar",
+    "spec.confirm_reject":    "Confirmar Rechazo",
+    "spec.reject_reason":     "Motivo de rechazo",
+    "spec.submit_btn":        "Enviar para Aprobación",
+    "spec.submitting":        "Enviando…",
+    "spec.submitted_label":   "Enviado para aprobación",
+    "spec.approved_title":    "Especificación Aprobada",
+    "spec.wiz_prev":          "← Anterior",
+    "spec.compiling":         "Compilando especificación…",
+    "spec.ai_step1_lbl":      "Verificación SAP",
+    "spec.ai_step2_lbl":      "Validación de Propuesta",
+    "spec.ai_step3_lbl":      "Generar Especificación",
+    "spec.ai_step1_h":        "Paso 1 — Verificación de Cobertura SAP Estándar",
+    "spec.checking":          "Verificando funcionalidad SAP estándar…",
+    "spec.continue_step2":    "Continuar a Validación de Propuesta →",
+    "spec.ai_step2_h":        "Paso 2 — Validación de Propuesta",
+    "spec.validate_proposal": "Validar Propuesta",
+    "spec.validating":        "Validando propuesta…",
+    "spec.generate_spec":     "Generar Especificación Funcional →",
+    "spec.awaiting":          "Enviado — en espera de aprobación",
+    "spec.pdf_saved3":        "3 PDFs guardados",
+    "spec.save_all3":         "Guardar los 3 PDFs",
     // Auth
     "auth.tagline":          "Plataforma de gestión de casos de consultoría",
     "auth.welcome":          "Bienvenido de nuevo",
@@ -3697,6 +3813,7 @@ function CaseFeedbackModal({ caseData, onClose }) {
 const RANKING_CRITERIA = ["skills", "rating", "clientFamiliarity", "clientRating", "experience", "rate", "commitment"];
 
 function ApplicantRankingSection({ caseData, auth, applications, reviewApplication }) {
+  const { t } = useT();
   const { ranking, loading, clientSettings } = useApplicantRanking(caseData, applications);
   const overcommitTolerance = clientSettings?.max_overcommitment_tolerance ?? 0;
   const [liveAvailability, setLiveAvailability] = useState({});
@@ -3785,7 +3902,7 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
     && (auth.isAdmin || auth.isManager)
     && (!windowClosed || pendingCount < minApplicants);
 
-  if (!applications.length) return <p className="text-sm text-gray-400 py-4">No applications yet.</p>;
+  if (!applications.length) return <p className="text-sm text-gray-400 py-4">{t("rank.no_apps")}</p>;
   if (loading) return <Spinner />;
   const best = displayRanking[0];
 
@@ -3802,21 +3919,21 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
       {best && (
         <div>
           <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Recommended Consultant</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t("rank.recommended")}</p>
             <div className="flex items-center gap-2 flex-wrap">
               {lastRecalculated && (
-                <span className="text-[10px] text-gray-400">Updated {fmtTime(lastRecalculated)}</span>
+                <span className="text-[10px] text-gray-400">{fmtTime(lastRecalculated)}</span>
               )}
               <button onClick={recalculate} disabled={recalculating}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 hover:border-gray-300 disabled:opacity-50 transition-colors shadow-sm">
                 <RotateCcw className={`w-3 h-3 ${recalculating ? "animate-spin" : ""}`} />
-                {recalculating ? "Recalculating…" : "Recalculate Availability"}
+                {recalculating ? t("rank.recalculating") : t("rank.recalculate")}
               </button>
               {canAutoAssign && (
                 <button onClick={runAutoAssign} disabled={autoAssigning}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-xl disabled:opacity-50 transition-colors shadow-sm">
                   <Wand2 className="w-3 h-3" />
-                  {autoAssigning ? "Assigning…" : "Auto-Assign Top Pick"}
+                  {autoAssigning ? t("rank.assigning") : t("rank.auto_assign")}
                 </button>
               )}
               {autoAssignBlocked && (
@@ -3843,7 +3960,7 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
               </div>
               <div className="text-right flex-shrink-0">
                 <div className="text-2xl font-black text-blue-700">{best.totalScore}</div>
-                <div className="text-xs text-gray-400">/ 100 pts</div>
+                <div className="text-xs text-gray-400">{t("rank.pts")}</div>
               </div>
             </div>
             {/* Live availability row for best */}
@@ -3880,7 +3997,7 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
             {(auth.isAdmin || auth.isManager) && best.status === "pending" && (
               <button onClick={() => reviewApplication(best.id, "accepted")}
                 className="w-full py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">
-                Accept this Consultant
+                {t("rank.accept_top")}
               </button>
             )}
           </div>
@@ -3889,7 +4006,7 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
 
       {/* All applicants ranked */}
       <div>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">All Applicants — Ranked</p>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("rank.all_ranked")}</p>
         <div className="space-y-3">
           {displayRanking.map((app, i) => {
             const profile = Array.isArray(app.consultant?.consultant_profiles)
@@ -3909,7 +4026,7 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-sm text-gray-900">{app.consultant?.full_name}</span>
                       {conflict && (
-                        <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded"><AlertTriangle size={9} className="inline mr-0.5" />Overcommitted</span>
+                        <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded"><AlertTriangle size={9} className="inline mr-0.5" />{t("rank.overcommitted")}</span>
                       )}
                     </div>
                     <div className="text-xs text-gray-400">{profile?.headline ?? (profile?.years_experience ? `${profile.years_experience}y exp` : "")}</div>
@@ -3922,7 +4039,7 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                 {/* Live availability bar */}
                 {hasLive && (
                   <div className="flex items-center gap-2 mb-3 text-xs">
-                    <span className="text-gray-400 flex-shrink-0">Availability now:</span>
+                    <span className="text-gray-400 flex-shrink-0">{t("rank.avail_now")}</span>
                     <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                       <div className="h-full rounded-full transition-all"
                         style={{ width: `${app.liveAvailability}%`, backgroundColor: app.liveAvailability === 0 ? "#ef4444" : app.liveAvailability < (app.time_commitment ?? 0) ? "#f59e0b" : "#22c55e" }} />
@@ -3950,9 +4067,9 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                 {app.cover_letter && <p className="text-xs text-gray-500 mb-2 line-clamp-1 italic">"{app.cover_letter}"</p>}
                 {(auth.isAdmin || auth.isManager) && app.status === "pending" && (
                   <div className="flex gap-2">
-                    <button onClick={() => reviewApplication(app.id, "accepted")} className="px-3 py-1 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">Accept</button>
-                    <button onClick={() => reviewApplication(app.id, "rejected")} className="px-3 py-1 bg-red-100 text-red-700 text-xs rounded-lg hover:bg-red-200">Reject</button>
-                    <button onClick={() => reviewApplication(app.id, "under_review")} className="px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-lg hover:bg-blue-200">Review</button>
+                    <button onClick={() => reviewApplication(app.id, "accepted")} className="px-3 py-1 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">{t("action.accept")}</button>
+                    <button onClick={() => reviewApplication(app.id, "rejected")} className="px-3 py-1 bg-red-100 text-red-700 text-xs rounded-lg hover:bg-red-200">{t("action.reject")}</button>
+                    <button onClick={() => reviewApplication(app.id, "under_review")} className="px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-lg hover:bg-blue-200">{t("action.review")}</button>
                   </div>
                 )}
               </div>
@@ -10123,6 +10240,7 @@ function renderMarkdown(md) {
 }
 
 function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocuments, onUpdate }) {
+  const { t } = useT();
   const { spec, loading: specLoading, saveSpec, refetch } = useCaseSpecification(caseData.id, auth.user?.id);
 
   // Mode selection
@@ -11473,7 +11591,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
           <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
             <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
             <div>
-              <p className="font-semibold text-green-800 text-sm">Specification Approved</p>
+              <p className="font-semibold text-green-800 text-sm">{t("spec.approved_title")}</p>
               {spec.approved_at && <p className="text-xs text-green-600 mt-0.5">Approved on {fmtDate(spec.approved_at)}</p>}
             </div>
           </div>
@@ -11481,7 +11599,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
         {spec.status === 'submitted' && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
             <Clock className="w-5 h-5 text-amber-600 flex-shrink-0" />
-            <p className="text-sm text-amber-800 font-medium">Submitted — awaiting approval</p>
+            <p className="text-sm text-amber-800 font-medium">{t("spec.awaiting")}</p>
           </div>
         )}
 
@@ -11505,11 +11623,11 @@ Respond with ONLY a valid JSON object, no markdown fences:
               <Fragment>
                 <button onClick={handleApprove} disabled={approving}
                   className="px-3 py-1.5 text-xs font-semibold bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
-                  {approving ? 'Saving…' : 'Approve'}
+                  {approving ? t("state.saving") : t("spec.approve_btn")}
                 </button>
                 <button onClick={() => setShowRejectInput(p => !p)}
                   className="px-3 py-1.5 text-xs font-semibold border border-red-200 text-red-600 rounded-lg hover:bg-red-50">
-                  Reject
+                  {t("spec.reject_btn")}
                 </button>
               </Fragment>
             )}
@@ -11518,7 +11636,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
         {showRejectInput && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-2">
-            <label className="block text-xs font-semibold text-red-700">Rejection reason</label>
+            <label className="block text-xs font-semibold text-red-700">{t("spec.reject_reason")}</label>
             <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)}
               className="w-full border border-red-200 rounded-lg p-2 text-sm resize-none" rows={3}
               placeholder="Explain why the spec is being rejected…" />
@@ -11526,7 +11644,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
               <button onClick={() => setShowRejectInput(false)} className="px-3 py-1.5 text-xs text-gray-500">Cancel</button>
               <button onClick={handleReject} disabled={!rejectReason.trim() || approving}
                 className="px-3 py-1.5 text-xs font-semibold bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50">
-                Confirm Rejection
+                {t("spec.confirm_reject")}
               </button>
             </div>
           </div>
@@ -11576,18 +11694,18 @@ Respond with ONLY a valid JSON object, no markdown fences:
       <div className="space-y-4">
         {spec && spec.status === 'rejected' && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-            <p className="text-sm font-semibold text-red-800">Specification Rejected</p>
+            <p className="text-sm font-semibold text-red-800">{t("spec.rejected_title")}</p>
             {spec.rejected_reason && <p className="text-xs text-red-600 mt-1">{spec.rejected_reason}</p>}
-            <p className="text-xs text-gray-500 mt-2">Choose a mode below to create a new version.</p>
+            <p className="text-xs text-gray-500 mt-2">{t("spec.rejected_hint")}</p>
           </div>
         )}
         {spec && spec.status === 'draft' && (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center gap-2">
             <FileText className="w-4 h-4 text-blue-500 flex-shrink-0" />
-            <p className="text-xs text-blue-700">A draft spec exists. Select its mode below to continue editing, or start fresh with another mode.</p>
+            <p className="text-xs text-blue-700">{t("spec.draft_exists")}</p>
           </div>
         )}
-        <p className="text-sm font-semibold text-gray-700">How would you like to create the functional specification?</p>
+        <p className="text-sm font-semibold text-gray-700">{t("spec.choose_mode")}</p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
             { key: 'manual', Icon: Paperclip, title: 'Manual', desc: 'Attach documents and write the scope manually.' },
@@ -11613,13 +11731,13 @@ Respond with ONLY a valid JSON object, no markdown fences:
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <button onClick={() => setMode(null)} className="text-xs text-gray-400 hover:text-gray-600">← Back</button>
-          <span className="text-sm font-semibold text-gray-700">Manual Specification</span>
+          <button onClick={() => setMode(null)} className="text-xs text-gray-400 hover:text-gray-600">← {t("action.back")}</button>
+          <span className="text-sm font-semibold text-gray-700">{t("spec.manual_title")}</span>
         </div>
 
         {documents.length > 0 && (
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Attach Documents</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t("spec.attach_docs")}</p>
             <div className="space-y-2">
               {documents.map(doc => (
                 <label key={doc.id} className="flex items-center gap-3 p-3 border border-gray-200 rounded-xl hover:bg-gray-50 cursor-pointer">
@@ -11635,7 +11753,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
         )}
 
         <div>
-          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Scope / Notes</label>
+          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t("spec.scope_notes")}</label>
           <textarea value={manualNotes} onChange={e => setManualNotes(e.target.value)} rows={8}
             placeholder="Describe the scope, requirements, and any important notes for this functional specification…"
             className="w-full border border-gray-200 rounded-xl p-3 text-sm resize-y focus:outline-none focus:border-blue-400" />
@@ -11650,7 +11768,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
             } catch (e) { alert(e.message); }
             setManualSaving(false);
           }} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-50">
-            {manualSaving ? 'Saving…' : 'Save Draft'}
+            {manualSaving ? t("spec.saving_draft") : t("spec.save_draft")}
           </button>
           <button disabled={!manualNotes.trim()} onClick={() => {
             setAnalysisCustomerContent(manualNotes);
@@ -11658,7 +11776,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
             setSapCheck(null); setProposalCheck(null); setAiSpecA(''); setAiSpecB(''); setAiSpecC(''); setSelectedSpec(null); setAiStep(1);
             setMode('ai');
           }} className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-40">
-            Validate &amp; Generate Formal Spec →
+            {t("spec.validate_gen")}
           </button>
         </div>
       </div>
@@ -11672,13 +11790,13 @@ Respond with ONLY a valid JSON object, no markdown fences:
       return (
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <button onClick={() => setMode(null)} className="text-xs text-gray-400 hover:text-gray-600">← Back</button>
-            <span className="text-sm font-semibold text-gray-700">Wizard — Step 1: ABAP Objects</span>
+            <button onClick={() => setMode(null)} className="text-xs text-gray-400 hover:text-gray-600">← {t("action.back")}</button>
+            <span className="text-sm font-semibold text-gray-700">{t("spec.wiz_step1")}</span>
           </div>
 
           {(documents ?? []).length > 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
-              <p className="text-xs font-semibold text-blue-700 mb-2">Documents Claude will read:</p>
+              <p className="text-xs font-semibold text-blue-700 mb-2">{t("spec.wiz_docs_lbl")}</p>
               <div className="flex flex-col gap-1">
                 {documents.map(doc => (
                   <a key={doc.id} href={doc.file_url} target="_blank" rel="noopener noreferrer"
@@ -11700,7 +11818,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
           {wizardObjects.length === 0 && !wizardLoading && (
             <button onClick={suggestObjects}
               className="w-full py-10 border-2 border-dashed border-blue-200 rounded-2xl text-blue-600 hover:bg-blue-50 text-sm font-semibold transition-all">
-              Analyze case and suggest ABAP objects →
+              {t("spec.wiz_analyze")}
             </button>
           )}
 
@@ -11753,7 +11871,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
               <div className="flex justify-end pt-2 border-t border-gray-100">
                 <button onClick={handleStartInterview} disabled={wizardObjects.length === 0 || wizardLoading}
                   className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
-                  Start Interview →
+                  {t("spec.wiz_start_intv")}
                 </button>
               </div>
             </Fragment>
@@ -11771,8 +11889,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <button onClick={() => setWizardStage('objects')} className="text-xs text-gray-400 hover:text-gray-600">← Objects</button>
-              <span className="text-sm font-semibold text-gray-700">Interview</span>
+              <button onClick={() => setWizardStage('objects')} className="text-xs text-gray-400 hover:text-gray-600">← {t("action.back")}</button>
+              <span className="text-sm font-semibold text-gray-700">{t("spec.wiz_interview")}</span>
             </div>
             <span className="text-xs text-gray-400">Object {currentObjIdx + 1} of {wizardObjects.length}</span>
           </div>
@@ -11828,11 +11946,11 @@ Respond with ONLY a valid JSON object, no markdown fences:
               <div className="flex justify-between items-center pt-3 border-t border-gray-100">
                 <button onClick={() => { setCurrentObjIdx(p => Math.max(0, p - 1)); }} disabled={currentObjIdx === 0}
                   className="px-3 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-30">
-                  ← Prev
+                  {t("spec.wiz_prev")}
                 </button>
                 <button onClick={handleNextObject} disabled={!allCurrentAnswered || wizardLoading}
                   className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
-                  {currentObjIdx === wizardObjects.length - 1 ? 'Compile Specification →' : 'Next Object →'}
+                  {currentObjIdx === wizardObjects.length - 1 ? t("spec.wiz_compile") : t("spec.wiz_next_obj")}
                 </button>
               </div>
             </div>
@@ -11847,8 +11965,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
         <div className="space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <button onClick={() => setWizardStage('interview')} className="text-xs text-gray-400 hover:text-gray-600">← Interview</button>
-              <span className="text-sm font-semibold text-gray-700">Compiled Specification</span>
+              <button onClick={() => setWizardStage('interview')} className="text-xs text-gray-400 hover:text-gray-600">← {t("spec.wiz_interview")}</button>
+              <span className="text-sm font-semibold text-gray-700">{t("spec.wiz_compiled")}</span>
             </div>
             {compiledSpec && (
               <button onClick={() => {
@@ -11858,7 +11976,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 setSapCheck(null); setProposalCheck(null); setAiSpecA(''); setAiSpecB(''); setAiSpecC(''); setSelectedSpec(null); setAiStep(1);
                 setMode('ai');
               }} className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900">
-                Validate &amp; Generate Formal Spec →
+                {t("spec.validate_gen")}
               </button>
             )}
           </div>
@@ -11866,7 +11984,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
           {wizardLoading && (
             <div className="flex items-center justify-center py-12 gap-3 text-gray-400">
               <Spinner />
-              <span className="text-sm">Compiling specification…</span>
+              <span className="text-sm">{t("spec.compiling")}</span>
             </div>
           )}
 
@@ -11887,11 +12005,11 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   await refetch();
                 } catch (e) { alert(e.message); }
               }} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50">
-                Save Draft
+                {t("spec.save_draft")}
               </button>
               <button onClick={() => saveSpecAsDocument(compiledSpec)} disabled={savingDoc}
                 className="flex items-center px-4 py-2 text-sm bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 disabled:opacity-50">
-                {savingDoc ? 'Saving…' : <><Paperclip className="w-4 h-4 mr-1.5" />Save to Documents</>}
+                {savingDoc ? t("spec.saving_draft") : <><Paperclip className="w-4 h-4 mr-1.5" />{t("spec.save_to_docs")}</>}
               </button>
               <button onClick={() => {
                 const qaSummary = wizardObjects.map(o => `${o.name} (${o.type}): ${(o.questions ?? []).map(q => `${q.question} → ${q.a}`).join('; ')}`).join('\n');
@@ -11900,7 +12018,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 setSapCheck(null); setProposalCheck(null); setAiSpecA(''); setAiSpecB(''); setAiSpecC(''); setSelectedSpec(null); setAiStep(1);
                 setMode('ai');
               }} className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900">
-                Validate &amp; Generate Formal Spec →
+                {t("spec.validate_gen")}
               </button>
             </div>
           )}
@@ -11912,9 +12030,9 @@ Respond with ONLY a valid JSON object, no markdown fences:
   // ── AI Generate mode ─────────────────────────────────────────
   if (mode === 'ai') {
     const STEPS = [
-      { n: 1, label: 'SAP Standard Check' },
-      { n: 2, label: 'Proposal Validation' },
-      { n: 3, label: 'Generate Spec' },
+      { n: 1, label: t("spec.ai_step1_lbl") },
+      { n: 2, label: t("spec.ai_step2_lbl") },
+      { n: 3, label: t("spec.ai_step3_lbl") },
     ];
     const coverageColor = { full: ['bg-green-50','border-green-200','text-green-700','text-green-800'], partial: ['bg-amber-50','border-amber-200','text-amber-700','text-amber-800'], none: ['bg-red-50','border-red-200','text-red-700','text-red-800'] };
     const riskColor = { low: 'text-green-700 bg-green-50', medium: 'text-amber-700 bg-amber-50', high: 'text-red-700 bg-red-50' };
@@ -11929,7 +12047,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
             setMode(dest);
             setAiStep(1); setSapCheck(null); setProposalCheck(null); setAiContent('');
             if (!dest) { setPrevMode(null); setAnalysisCustomerContent(''); }
-          }} className="text-xs text-gray-400 hover:text-gray-600">← Back</button>
+          }} className="text-xs text-gray-400 hover:text-gray-600">← {t("action.back")}</button>
           <span className="text-sm font-semibold text-gray-700">
             {prevMode === 'manual' ? 'AI Analysis — Manual Mode' : prevMode === 'wizard' ? 'AI Analysis — Wizard Mode' : 'AI Generate'}
           </span>
@@ -11990,7 +12108,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
         {aiStep === 1 && (
           <div className="space-y-4">
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-              <h3 className="text-sm font-semibold text-gray-800 mb-1">Step 1 — SAP Standard Coverage Check</h3>
+              <h3 className="text-sm font-semibold text-gray-800 mb-1">{t("spec.ai_step1_h")}</h3>
               <p className="text-xs text-gray-500">Claude will analyze whether standard SAP configuration and transactions can cover this requirement before recommending custom development.</p>
             </div>
 
@@ -11998,14 +12116,14 @@ Respond with ONLY a valid JSON object, no markdown fences:
               <div className="text-center py-4">
                 <button onClick={handleSapCheck}
                   className="px-6 py-2.5 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
-                  Check SAP Standard Coverage
+                  {t("spec.ai_check_btn")}
                 </button>
               </div>
             )}
 
             {stepLoading && (
               <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
-                <Spinner /><span className="text-sm">Checking SAP standard functionality…</span>
+                <Spinner /><span className="text-sm">{t("spec.checking")}</span>
               </div>
             )}
 
@@ -12047,7 +12165,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   <button onClick={handleSapCheck} className={`text-xs underline ${cc[2]}`}>Re-run check</button>
                   <button onClick={() => setAiStep(2)}
                     className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
-                    Continue to Proposal Validation →
+                    {t("spec.continue_step2")}
                   </button>
                 </div>
               </div>
@@ -12068,7 +12186,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
             )}
 
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-              <h3 className="text-sm font-semibold text-gray-800 mb-1">Step 2 — Proposal Validation</h3>
+              <h3 className="text-sm font-semibold text-gray-800 mb-1">{t("spec.ai_step2_h")}</h3>
               <p className="text-xs text-gray-500">Claude will validate whether the custom development proposal is technically justified, correctly scoped, and low-risk before writing the spec.</p>
             </div>
 
@@ -12076,14 +12194,14 @@ Respond with ONLY a valid JSON object, no markdown fences:
               <div className="text-center py-4">
                 <button onClick={handleProposalValidation}
                   className="px-6 py-2.5 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
-                  Validate Proposal
+                  {t("spec.validate_proposal")}
                 </button>
               </div>
             )}
 
             {stepLoading && (
               <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
-                <Spinner /><span className="text-sm">Validating proposal…</span>
+                <Spinner /><span className="text-sm">{t("spec.validating")}</span>
               </div>
             )}
 
@@ -12132,7 +12250,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     className={`text-xs underline ${proposalCheck.valid ? 'text-green-700' : 'text-amber-700'}`}>Re-validate</button>
                   <button onClick={() => setAiStep(3)}
                     className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
-                    Generate Functional Specification →
+                    {t("spec.generate_spec")}
                   </button>
                 </div>
               </div>
@@ -12159,7 +12277,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     {sapCheck && (
                       <div className={`border rounded-xl p-3 space-y-2 ${cc[0]} ${cc[1]}`}>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-gray-500 uppercase">Step 1 — SAP Standard Coverage</span>
+                          <span className="text-xs font-bold text-gray-500 uppercase">{t("spec.ai_step1_h")}</span>
                           <span className={`text-xs font-bold px-2 py-0.5 rounded-full border uppercase ${cc[1]} ${cc[2]}`}>{sapCheck.coverage}</span>
                         </div>
                         <p className={`text-xs ${cc[2]}`}>{sapCheck.summary}</p>
@@ -12183,7 +12301,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     {proposalCheck && (
                       <div className={`border rounded-xl p-3 space-y-2 ${proposalCheck.valid ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-bold text-gray-500 uppercase">Step 2 — Proposal Validation</span>
+                          <span className="text-xs font-bold text-gray-500 uppercase">{t("spec.ai_step2_h")}</span>
                           <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${proposalCheck.valid ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
                             {proposalCheck.valid ? 'Valid' : 'Concerns'}
                           </span>
@@ -12323,7 +12441,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA;
                         try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent }), title: caseData.title + ' — Functional Spec' }); await refetch(); } catch (e) { alert(e.message); }
                       }} disabled={!selectedSpec} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-40">
-                        Save Draft
+                        {t("spec.save_draft")}
                       </button>
                       {(() => {
                         const allSaved = savedSpecUrls.a && savedSpecUrls.b && savedSpecUrls.c;
@@ -12331,14 +12449,14 @@ Respond with ONLY a valid JSON object, no markdown fences:
                           <button onClick={() => saveAllSpecsAsDocuments(aiSpecA, aiSpecB, aiSpecC, sapCheck, proposalCheck)}
                             disabled={savingDoc || allSaved || (!aiSpecA && !aiSpecB && !aiSpecC)}
                             className={`flex items-center px-4 py-2 text-sm font-semibold rounded-xl disabled:opacity-40 ${allSaved ? 'bg-gray-100 text-gray-500 border border-gray-200 cursor-default' : 'bg-green-600 text-white hover:bg-green-700'}`}>
-                            {savingDoc ? 'Saving…' : allSaved ? <><Check size={13} className="mr-1.5 inline" />3 PDFs saved</> : <><Paperclip className="w-4 h-4 mr-1.5" />Save All 3 PDFs</>}
+                            {savingDoc ? t("state.saving") : allSaved ? <><Check size={13} className="mr-1.5 inline" />{t("spec.pdf_saved3")}</> : <><Paperclip className="w-4 h-4 mr-1.5" />{t("spec.save_all3")}</>}
                           </button>
                         );
                       })()}
                       {canSubmit && (
                         <button onClick={() => handleSubmit(selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA, 'ai', [])} disabled={!selectedSpec}
                           className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-40">
-                          Submit for Approval
+                          {t("spec.submit_btn")}
                         </button>
                       )}
                     </div>
