@@ -677,6 +677,94 @@ const TRANSLATIONS = {
     "case.approve_modal_title":  "Approve Case & Generate Closure Report",
     "case.approve_modal_body":   "This will generate a 7-section PDF Closure Report and mark the case as Approved.",
     "case.closure_includes":     "Closure Report will include:",
+    // Onboarding — step roadmap labels
+    "ob.step_basics":            "Basic Info",
+    "ob.step_basics_desc":       "Headline, bio & rates",
+    "ob.hourly_rate_label":      "Hourly Rate ($)",
+    "ob.years_exp_label":        "Years of Experience",
+    "ob.avail_type_label":       "Availability Type",
+    "ob.travel_avail_label":     "Available for travel",
+    "ob.step_workauth":          "Work Authorization",
+    "ob.step_workauth_desc":     "Countries you can work in",
+    "ob.workauth_subtitle":      "Add the countries where you're legally authorized to work.",
+    "ob.step_customers":         "Past Customers",
+    "ob.step_customers_desc":    "Employer & client history",
+    "ob.step_projects":          "Projects",
+    "ob.step_projects_desc":     "Portfolio & past work",
+    "ob.step_skills":            "Skills",
+    "ob.step_skills_desc":       "Technical expertise",
+    "ob.client_step_company":    "Company Info",
+    "ob.client_step_company_desc":"Basic company details",
+    "ob.client_step_contact":    "Primary Contact",
+    "ob.client_step_contact_desc":"Who we'll work with",
+    "ob.client_step_prefs":      "Preferences",
+    "ob.client_step_prefs_desc": "Consulting needs & budget",
+    // Onboarding — roadmap shared
+    "ob.step_of":                "Step {n} of {m}",
+    // Onboarding — ConsultantOnboardingView
+    "ob.complete_profile_title": "Complete Your Profile",
+    "ob.complete_profile_desc":  "Help clients find and evaluate you — takes about 5 minutes.",
+    "ob.basics_title":           "Basic Information",
+    "ob.basics_subtitle":        "This is the first thing clients see about you.",
+    "ob.headline_label":         "Professional Headline *",
+    "ob.expertise_label":        "Expertise Level",
+    "ob.ext_occ_label":          "External Occupancy:",
+    "ob.add_country":            "Add a Country",
+    "ob.country_name_label":     "Country Name",
+    "ob.country_code_label":     "Code",
+    "ob.auth_type_label":        "Auth Type",
+    "ob.auth_citizen":           "Citizen",
+    "ob.auth_perm_resident":     "Perm. Resident",
+    "ob.auth_work_visa":         "Work Visa",
+    "ob.auth_other":             "Other",
+    "ob.add_country_btn":        "+ Add Country",
+    "ob.customers_title":        "Past Customers",
+    "ob.customers_subtitle":     "Add companies or clients you've worked with.",
+    "ob.add_customer":           "Add a Customer",
+    "ob.company_name_label":     "Company Name",
+    "ob.role_held_label":        "Role Held",
+    "ob.add_customer_btn":       "+ Add Customer",
+    "ob.projects_title":         "Projects",
+    "ob.projects_subtitle":      "Showcase portfolio projects and past deliverables.",
+    "ob.add_project":            "Add a Project",
+    "ob.title_label":            "Title",
+    "ob.client_name_label":      "Client Name",
+    "ob.url_label":              "URL",
+    "ob.tech_stack_label":       "Tech Stack (comma-separated)",
+    "ob.add_project_btn":        "+ Add Project",
+    "ob.skills_title":           "Skills",
+    "ob.skills_subtitle":        "Add your technical skills and areas of expertise.",
+    "ob.skill_ph":               "e.g. SAP S/4HANA, React, Python…",
+    "ob.add_skill_btn":          "+ Add",
+    "ob.nav_back":               "← Back",
+    "ob.nav_skip":               "Skip",
+    "ob.nav_complete_consultant":"Complete Profile →",
+    "ob.nav_save_continue":      "Save & Continue →",
+    "ob.nav_continue":           "Continue →",
+    "ob.skip_all_consultant":    "Skip all and go to profile",
+    // Onboarding — ClientOnboardingView
+    "ob.client_title":           "Set Up Your Company Profile",
+    "ob.client_desc":            "Help consultants understand your needs — takes 3 minutes.",
+    "ob.company_info_title":     "Company Information",
+    "ob.company_info_subtitle":  "Tell consultants about your organization.",
+    "ob.company_name_req":       "Company Name *",
+    "ob.company_size_label":     "Company Size",
+    "ob.founded_year_label":     "Founded Year",
+    "ob.hq_location_label":      "HQ Location",
+    "ob.website_label":          "Website",
+    "ob.primary_contact_title":  "Primary Contact",
+    "ob.primary_contact_subtitle":"Who should consultants contact for this account?",
+    "ob.contact_name_label":     "Full Name",
+    "ob.contact_title_label":    "Title / Role",
+    "ob.contact_email_label":    "Email",
+    "ob.contact_phone_label":    "Phone",
+    "ob.prefs_title":            "Consulting Preferences",
+    "ob.prefs_subtitle":         "Help us match you with the right consultants.",
+    "ob.budget_label":           "Annual Consulting Budget",
+    "ob.areas_label":            "Areas of Interest (comma-separated)",
+    "ob.notes_label":            "Additional Notes",
+    "ob.nav_complete_client":    "Complete Setup →",
+    "ob.skip_all_client":        "Skip all and go to dashboard",
   },
   es: {
     // Navigation
@@ -737,6 +825,91 @@ const TRANSLATIONS = {
     "label.avail":           "Disponibilidad:",
     "label.level":           "Nivel:",
     "label.comment":         "Comentario",
+    // Onboarding
+    "ob.step_basics":            "Información Básica",
+    "ob.step_basics_desc":       "Título, bio y tarifas",
+    "ob.hourly_rate_label":      "Tarifa por Hora ($)",
+    "ob.years_exp_label":        "Años de Experiencia",
+    "ob.avail_type_label":       "Tipo de Disponibilidad",
+    "ob.travel_avail_label":     "Disponible para viajes",
+    "ob.step_workauth":          "Autorización Laboral",
+    "ob.step_workauth_desc":     "Países donde puedes trabajar",
+    "ob.workauth_subtitle":      "Agrega los países donde tienes autorización legal para trabajar.",
+    "ob.step_customers":         "Clientes Anteriores",
+    "ob.step_customers_desc":    "Historial de empleadores y clientes",
+    "ob.step_projects":          "Proyectos",
+    "ob.step_projects_desc":     "Portafolio y trabajos previos",
+    "ob.step_skills":            "Habilidades",
+    "ob.step_skills_desc":       "Conocimientos técnicos",
+    "ob.client_step_company":    "Info de Empresa",
+    "ob.client_step_company_desc":"Datos básicos de la empresa",
+    "ob.client_step_contact":    "Contacto Principal",
+    "ob.client_step_contact_desc":"Con quién trabajaremos",
+    "ob.client_step_prefs":      "Preferencias",
+    "ob.client_step_prefs_desc": "Necesidades de consultoría y presupuesto",
+    "ob.step_of":                "Paso {n} de {m}",
+    "ob.complete_profile_title": "Completa tu Perfil",
+    "ob.complete_profile_desc":  "Ayuda a los clientes a encontrarte — toma unos 5 minutos.",
+    "ob.basics_title":           "Información Básica",
+    "ob.basics_subtitle":        "Esto es lo primero que los clientes ven de ti.",
+    "ob.headline_label":         "Titular Profesional *",
+    "ob.expertise_label":        "Nivel de Experiencia",
+    "ob.ext_occ_label":          "Ocupación Externa:",
+    "ob.add_country":            "Agregar un País",
+    "ob.country_name_label":     "Nombre del País",
+    "ob.country_code_label":     "Código",
+    "ob.auth_type_label":        "Tipo de Autorización",
+    "ob.auth_citizen":           "Ciudadano",
+    "ob.auth_perm_resident":     "Resid. Permanente",
+    "ob.auth_work_visa":         "Visa de Trabajo",
+    "ob.auth_other":             "Otro",
+    "ob.add_country_btn":        "+ Agregar País",
+    "ob.customers_title":        "Clientes Anteriores",
+    "ob.customers_subtitle":     "Agrega empresas o clientes con los que hayas trabajado.",
+    "ob.add_customer":           "Agregar un Cliente",
+    "ob.company_name_label":     "Nombre de la Empresa",
+    "ob.role_held_label":        "Rol Desempeñado",
+    "ob.add_customer_btn":       "+ Agregar Cliente",
+    "ob.projects_title":         "Proyectos",
+    "ob.projects_subtitle":      "Muestra proyectos de portafolio y entregables previos.",
+    "ob.add_project":            "Agregar un Proyecto",
+    "ob.title_label":            "Título",
+    "ob.client_name_label":      "Nombre del Cliente",
+    "ob.url_label":              "URL",
+    "ob.tech_stack_label":       "Stack Tecnológico (separado por comas)",
+    "ob.add_project_btn":        "+ Agregar Proyecto",
+    "ob.skills_title":           "Habilidades",
+    "ob.skills_subtitle":        "Agrega tus habilidades técnicas y áreas de expertise.",
+    "ob.skill_ph":               "p.ej. SAP S/4HANA, React, Python…",
+    "ob.add_skill_btn":          "+ Agregar",
+    "ob.nav_back":               "← Atrás",
+    "ob.nav_skip":               "Omitir",
+    "ob.nav_complete_consultant":"Completar Perfil →",
+    "ob.nav_save_continue":      "Guardar y Continuar →",
+    "ob.nav_continue":           "Continuar →",
+    "ob.skip_all_consultant":    "Omitir todo e ir al perfil",
+    "ob.client_title":           "Configura tu Perfil de Empresa",
+    "ob.client_desc":            "Ayuda a los consultores a entender tus necesidades — toma 3 minutos.",
+    "ob.company_info_title":     "Información de la Empresa",
+    "ob.company_info_subtitle":  "Cuéntales a los consultores sobre tu organización.",
+    "ob.company_name_req":       "Nombre de la Empresa *",
+    "ob.company_size_label":     "Tamaño de la Empresa",
+    "ob.founded_year_label":     "Año de Fundación",
+    "ob.hq_location_label":      "Sede Principal",
+    "ob.website_label":          "Sitio Web",
+    "ob.primary_contact_title":  "Contacto Principal",
+    "ob.primary_contact_subtitle":"¿Con quién deben contactar los consultores?",
+    "ob.contact_name_label":     "Nombre Completo",
+    "ob.contact_title_label":    "Título / Rol",
+    "ob.contact_email_label":    "Correo",
+    "ob.contact_phone_label":    "Teléfono",
+    "ob.prefs_title":            "Preferencias de Consultoría",
+    "ob.prefs_subtitle":         "Ayúdanos a encontrar los consultores adecuados para ti.",
+    "ob.budget_label":           "Presupuesto Anual de Consultoría",
+    "ob.areas_label":            "Áreas de Interés (separadas por comas)",
+    "ob.notes_label":            "Notas Adicionales",
+    "ob.nav_complete_client":    "Completar Configuración →",
+    "ob.skip_all_client":        "Omitir todo e ir al panel",
     // Auth
     "auth.tagline":          "Plataforma de gestión de casos de consultoría",
     "auth.welcome":          "Bienvenido de nuevo",
@@ -20020,14 +20193,15 @@ function TimeEntriesView({ auth }) {
 // ============================================================
 
 const ONBOARDING_STEPS = [
-  { id: "basics",    label: "Basic Info",          Icon: User,      desc: "Headline, bio & rates" },
-  { id: "workauth",  label: "Work Authorization",  Icon: Globe,     desc: "Countries you can work in" },
-  { id: "customers", label: "Past Customers",      Icon: Briefcase, desc: "Employer & client history" },
-  { id: "projects",  label: "Projects",            Icon: Rocket,    desc: "Portfolio & past work" },
-  { id: "skills",    label: "Skills",              Icon: Zap,       desc: "Technical expertise" },
+  { id: "basics",    labelKey: "ob.step_basics",    Icon: User,      descKey: "ob.step_basics_desc" },
+  { id: "workauth",  labelKey: "ob.step_workauth",  Icon: Globe,     descKey: "ob.step_workauth_desc" },
+  { id: "customers", labelKey: "ob.step_customers", Icon: Briefcase, descKey: "ob.step_customers_desc" },
+  { id: "projects",  labelKey: "ob.step_projects",  Icon: Rocket,    descKey: "ob.step_projects_desc" },
+  { id: "skills",    labelKey: "ob.step_skills",    Icon: Zap,       descKey: "ob.step_skills_desc" },
 ];
 
 function OnboardingRoadmap({ steps, current }) {
+  const { t } = useT();
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-8">
       <div className="relative flex items-start justify-between">
@@ -20047,9 +20221,9 @@ function OnboardingRoadmap({ steps, current }) {
               <div className="text-center px-1">
                 <div className={`text-xs font-semibold leading-tight ${
                   active ? "text-blue-600" : done ? "text-emerald-600" : "text-gray-400"}`}>
-                  {s.label}
+                  {t(s.labelKey)}
                 </div>
-                <div className="text-xs text-gray-400 mt-0.5 hidden sm:block">{s.desc}</div>
+                <div className="text-xs text-gray-400 mt-0.5 hidden sm:block">{t(s.descKey)}</div>
               </div>
             </div>
           );
@@ -20061,13 +20235,14 @@ function OnboardingRoadmap({ steps, current }) {
           style={{ width: `${(current / (steps.length - 1)) * 100}%` }} />
       </div>
       <p className="text-xs text-gray-400 text-right mt-1">
-        Step {current + 1} of {steps.length}
+        {t("ob.step_of").replace("{n}", current + 1).replace("{m}", steps.length)}
       </p>
     </div>
   );
 }
 
 function ConsultantOnboardingView({ auth, onComplete }) {
+  const { t } = useT();
   const { profile, loading, updateProfile, addCustomer, addProject, addWorkAuth } =
     useConsultantProfile(auth.user?.id);
 
@@ -20176,8 +20351,8 @@ function ConsultantOnboardingView({ auth, onComplete }) {
         <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-600 rounded-2xl mb-4 shadow-lg">
           <span className="text-white text-xl font-bold">TC</span>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900">Complete Your Profile</h1>
-        <p className="text-gray-500 mt-1 text-sm">Help clients find and evaluate you — takes about 5 minutes.</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t("ob.complete_profile_title")}</h1>
+        <p className="text-gray-500 mt-1 text-sm">{t("ob.complete_profile_desc")}</p>
       </div>
 
       <OnboardingRoadmap steps={ONBOARDING_STEPS} current={step} />
@@ -20187,22 +20362,22 @@ function ConsultantOnboardingView({ auth, onComplete }) {
         {/* ── Step 0: Basic Info ── */}
         {step === 0 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Basic Information</h2>
-            <p className="text-sm text-gray-500 mb-5">This is the first thing clients see about you.</p>
-            <Input label="Professional Headline *" value={basicsForm.headline}
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("ob.basics_title")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("ob.basics_subtitle")}</p>
+            <Input label={t("ob.headline_label")} value={basicsForm.headline}
               onChange={e => setBasicsForm(p => ({ ...p, headline: e.target.value }))}
               placeholder="Senior SAP Consultant & Solution Architect" />
-            <Textarea label="Bio" value={basicsForm.bio}
+            <Textarea label={t("label.bio")} value={basicsForm.bio}
               onChange={e => setBasicsForm(p => ({ ...p, bio: e.target.value }))}
               placeholder="Tell clients about your background and expertise…" />
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Hourly Rate ($)" type="number" value={basicsForm.hourly_rate}
+              <Input label={t("ob.hourly_rate_label")} type="number" value={basicsForm.hourly_rate}
                 onChange={e => setBasicsForm(p => ({ ...p, hourly_rate: e.target.value }))} />
-              <Input label="Years of Experience" type="number" value={basicsForm.years_experience}
+              <Input label={t("ob.years_exp_label")} type="number" value={basicsForm.years_experience}
                 onChange={e => setBasicsForm(p => ({ ...p, years_experience: e.target.value }))} />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Select label="Expertise Level" value={basicsForm.expertise_level}
+              <Select label={t("ob.expertise_label")} value={basicsForm.expertise_level}
                 onChange={e => setBasicsForm(p => ({ ...p, expertise_level: e.target.value }))}
                 options={[
                   { value: "junior", label: "Junior" },
@@ -20210,7 +20385,7 @@ function ConsultantOnboardingView({ auth, onComplete }) {
                   { value: "senior", label: "Senior" },
                   { value: "lead",   label: "Lead / Principal" },
                 ]} />
-              <Select label="Availability Type" value={basicsForm.availability_type}
+              <Select label={t("ob.avail_type_label")} value={basicsForm.availability_type}
                 onChange={e => setBasicsForm(p => ({ ...p, availability_type: e.target.value }))}
                 options={[
                   { value: "full_time",     label: "Full-Time" },
@@ -20219,12 +20394,12 @@ function ConsultantOnboardingView({ auth, onComplete }) {
                   { value: "project_based", label: "Project-Based" },
                 ]} />
             </div>
-            <Input label="LinkedIn URL" value={basicsForm.linkedin_url}
+            <Input label={t("label.linkedin")} value={basicsForm.linkedin_url}
               onChange={e => setBasicsForm(p => ({ ...p, linkedin_url: e.target.value }))}
               placeholder="https://linkedin.com/in/yourprofile" />
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                External Occupancy: {basicsForm.external_occupancy_pct}%
+                {t("ob.ext_occ_label")} {basicsForm.external_occupancy_pct}%
               </label>
               <input type="range" min="0" max="100" value={basicsForm.external_occupancy_pct}
                 onChange={e => setBasicsForm(p => ({ ...p, external_occupancy_pct: Number(e.target.value) }))}
@@ -20234,7 +20409,7 @@ function ConsultantOnboardingView({ auth, onComplete }) {
               <input type="checkbox" checked={basicsForm.travel_available}
                 onChange={e => setBasicsForm(p => ({ ...p, travel_available: e.target.checked }))}
                 className="rounded accent-blue-600" />
-              Available for travel
+              {t("ob.travel_avail_label")}
             </label>
           </>
         )}
@@ -20242,8 +20417,8 @@ function ConsultantOnboardingView({ auth, onComplete }) {
         {/* ── Step 1: Work Authorization ── */}
         {step === 1 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Work Authorization</h2>
-            <p className="text-sm text-gray-500 mb-5">Add the countries where you're legally authorized to work.</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("ob.step_workauth")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("ob.workauth_subtitle")}</p>
             {(profile?.work_authorizations?.length ?? 0) > 0 && (
               <div className="grid grid-cols-2 gap-3 mb-5">
                 {profile.work_authorizations.map(w => (
@@ -20258,26 +20433,26 @@ function ConsultantOnboardingView({ auth, onComplete }) {
               </div>
             )}
             <div className={`${(profile?.work_authorizations?.length ?? 0) > 0 ? "border-t border-gray-100 pt-5" : ""}`}>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Add a Country</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("ob.add_country")}</p>
               <div className="grid grid-cols-3 gap-3">
-                <Input label="Country Name" value={authForm.country_name}
+                <Input label={t("ob.country_name_label")} value={authForm.country_name}
                   onChange={e => setAuthForm(p => ({ ...p, country_name: e.target.value }))}
                   placeholder="United States" />
-                <Input label="Code" value={authForm.country_code}
+                <Input label={t("ob.country_code_label")} value={authForm.country_code}
                   onChange={e => setAuthForm(p => ({ ...p, country_code: e.target.value.toUpperCase() }))}
                   placeholder="US" />
-                <Select label="Auth Type" value={authForm.auth_type}
+                <Select label={t("ob.auth_type_label")} value={authForm.auth_type}
                   onChange={e => setAuthForm(p => ({ ...p, auth_type: e.target.value }))}
                   options={[
-                    { value: "citizen",            label: "Citizen" },
-                    { value: "permanent_resident", label: "Perm. Resident" },
-                    { value: "work_visa",          label: "Work Visa" },
-                    { value: "other",              label: "Other" },
+                    { value: "citizen",            label: t("ob.auth_citizen") },
+                    { value: "permanent_resident", label: t("ob.auth_perm_resident") },
+                    { value: "work_visa",          label: t("ob.auth_work_visa") },
+                    { value: "other",              label: t("ob.auth_other") },
                   ]} />
               </div>
               <button onClick={handleAddWorkAuth} disabled={saving || !authForm.country_name}
                 className="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
-                {saving ? "Saving…" : "+ Add Country"}
+                {saving ? t("state.saving") : t("ob.add_country_btn")}
               </button>
             </div>
           </>
@@ -20286,8 +20461,8 @@ function ConsultantOnboardingView({ auth, onComplete }) {
         {/* ── Step 2: Past Customers ── */}
         {step === 2 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Past Customers</h2>
-            <p className="text-sm text-gray-500 mb-5">Add companies or clients you've worked with.</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("ob.customers_title")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("ob.customers_subtitle")}</p>
             {(profile?.consultant_customers?.length ?? 0) > 0 && (
               <div className="space-y-3 mb-5">
                 {profile.consultant_customers.map(c => (
@@ -20304,22 +20479,22 @@ function ConsultantOnboardingView({ auth, onComplete }) {
               </div>
             )}
             <div className={`${(profile?.consultant_customers?.length ?? 0) > 0 ? "border-t border-gray-100 pt-5" : ""}`}>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Add a Customer</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("ob.add_customer")}</p>
               <div className="grid grid-cols-2 gap-3">
-                <Input label="Company Name" value={custForm.company_name}
+                <Input label={t("ob.company_name_label")} value={custForm.company_name}
                   onChange={e => setCustForm(p => ({ ...p, company_name: e.target.value }))} />
-                <Input label="Role Held" value={custForm.role_held}
+                <Input label={t("ob.role_held_label")} value={custForm.role_held}
                   onChange={e => setCustForm(p => ({ ...p, role_held: e.target.value }))} />
-                <Input label="Start Date" type="date" value={custForm.start_date}
+                <Input label={t("label.start_date")} type="date" value={custForm.start_date}
                   onChange={e => setCustForm(p => ({ ...p, start_date: e.target.value }))} />
-                <Input label="End Date" type="date" value={custForm.end_date}
+                <Input label={t("label.end_date")} type="date" value={custForm.end_date}
                   onChange={e => setCustForm(p => ({ ...p, end_date: e.target.value }))}/>
               </div>
-              <Textarea label="Description" value={custForm.description}
+              <Textarea label={t("label.description")} value={custForm.description}
                 onChange={e => setCustForm(p => ({ ...p, description: e.target.value }))} />
               <button onClick={handleAddCustomer} disabled={saving || !custForm.company_name}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
-                {saving ? "Saving…" : "+ Add Customer"}
+                {saving ? t("state.saving") : t("ob.add_customer_btn")}
               </button>
             </div>
           </>
@@ -20328,8 +20503,8 @@ function ConsultantOnboardingView({ auth, onComplete }) {
         {/* ── Step 3: Projects ── */}
         {step === 3 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Projects</h2>
-            <p className="text-sm text-gray-500 mb-5">Showcase portfolio projects and past deliverables.</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("ob.projects_title")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("ob.projects_subtitle")}</p>
             {(profile?.consultant_projects?.length ?? 0) > 0 && (
               <div className="space-y-3 mb-5">
                 {profile.consultant_projects.map(p => (
@@ -20351,22 +20526,22 @@ function ConsultantOnboardingView({ auth, onComplete }) {
               </div>
             )}
             <div className={`${(profile?.consultant_projects?.length ?? 0) > 0 ? "border-t border-gray-100 pt-5" : ""}`}>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Add a Project</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("ob.add_project")}</p>
               <div className="grid grid-cols-2 gap-3">
-                <Input label="Title" value={projForm.title}
+                <Input label={t("ob.title_label")} value={projForm.title}
                   onChange={e => setProjForm(p => ({ ...p, title: e.target.value }))} />
-                <Input label="Client Name" value={projForm.client_name}
+                <Input label={t("ob.client_name_label")} value={projForm.client_name}
                   onChange={e => setProjForm(p => ({ ...p, client_name: e.target.value }))} />
-                <Input label="URL" value={projForm.url}
+                <Input label={t("ob.url_label")} value={projForm.url}
                   onChange={e => setProjForm(p => ({ ...p, url: e.target.value }))} />
-                <Input label="Tech Stack (comma-separated)" value={projForm._tech}
+                <Input label={t("ob.tech_stack_label")} value={projForm._tech}
                   onChange={e => setProjForm(p => ({ ...p, _tech: e.target.value }))} />
               </div>
-              <Textarea label="Description" value={projForm.description}
+              <Textarea label={t("label.description")} value={projForm.description}
                 onChange={e => setProjForm(p => ({ ...p, description: e.target.value }))} />
               <button onClick={handleAddProject} disabled={saving || !projForm.title}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
-                {saving ? "Saving…" : "+ Add Project"}
+                {saving ? t("state.saving") : t("ob.add_project_btn")}
               </button>
             </div>
           </>
@@ -20375,8 +20550,8 @@ function ConsultantOnboardingView({ auth, onComplete }) {
         {/* ── Step 4: Skills ── */}
         {step === 4 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Skills</h2>
-            <p className="text-sm text-gray-500 mb-5">Add your technical skills and areas of expertise.</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("ob.skills_title")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("ob.skills_subtitle")}</p>
             {(profile?.skills?.length ?? 0) > 0 && (
               <div className="flex flex-wrap gap-2 mb-5">
                 {profile.skills.map(s => (
@@ -20387,11 +20562,11 @@ function ConsultantOnboardingView({ auth, onComplete }) {
             <div className="flex gap-2">
               <input value={skillInput} onChange={e => setSkillInput(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAddSkill(); } }}
-                placeholder="e.g. SAP S/4HANA, React, Python…"
+                placeholder={t("ob.skill_ph")}
                 className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500" />
               <button onClick={handleAddSkill} disabled={saving || !skillInput.trim()}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
-                {saving ? "…" : "+ Add"}
+                {saving ? "…" : t("ob.add_skill_btn")}
               </button>
             </div>
           </>
@@ -20403,25 +20578,25 @@ function ConsultantOnboardingView({ auth, onComplete }) {
         <button onClick={() => step > 0 ? setSt(s => s - 1) : null}
           className={`px-4 py-2 text-sm border border-gray-200 rounded-xl transition-colors ${
             step > 0 ? "text-gray-600 hover:bg-gray-50 hover:text-gray-900" : "invisible"}`}>
-          ← Back
+          {t("ob.nav_back")}
         </button>
         <div className="flex items-center gap-3">
           {step > 0 && (
             <button onClick={skip} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-600">
-              Skip
+              {t("ob.nav_skip")}
             </button>
           )}
           <button onClick={handleNext}
             disabled={saving || (step === 0 && !basicsForm.headline.trim())}
             className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors">
-            {saving ? "Saving…" : isLast ? "Complete Profile →" : step === 0 ? "Save & Continue →" : "Continue →"}
+            {saving ? t("state.saving") : isLast ? t("ob.nav_complete_consultant") : step === 0 ? t("ob.nav_save_continue") : t("ob.nav_continue")}
           </button>
         </div>
       </div>
 
       <p className="text-center text-xs text-gray-400 mt-4">
         <button onClick={onComplete} className="hover:text-gray-600 underline underline-offset-2">
-          Skip all and go to profile
+          {t("ob.skip_all_consultant")}
         </button>
       </p>
     </div>
@@ -20433,12 +20608,13 @@ function ConsultantOnboardingView({ auth, onComplete }) {
 // ============================================================
 
 const ONBOARDING_STEPS_CLIENT = [
-  { id: "company", label: "Company Info",    Icon: Building2,         desc: "Basic company details" },
-  { id: "contact", label: "Primary Contact", Icon: Phone,             desc: "Who we'll work with" },
-  { id: "prefs",   label: "Preferences",     Icon: SlidersHorizontal, desc: "Consulting needs & budget" },
+  { id: "company", labelKey: "ob.client_step_company", Icon: Building2,         descKey: "ob.client_step_company_desc" },
+  { id: "contact", labelKey: "ob.client_step_contact", Icon: Phone,             descKey: "ob.client_step_contact_desc" },
+  { id: "prefs",   labelKey: "ob.client_step_prefs",   Icon: SlidersHorizontal, descKey: "ob.client_step_prefs_desc" },
 ];
 
 function ClientOnboardingView({ auth, onComplete }) {
+  const { t } = useT();
   const { profile, loading, updateProfile } = useClientProfile(auth.user?.id);
   const [step, setSt]   = useState(0);
   const [saving, setSaving] = useState(false);
@@ -20515,8 +20691,8 @@ function ClientOnboardingView({ auth, onComplete }) {
         <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-600 rounded-2xl mb-4 shadow-lg">
           <span className="text-white text-xl font-bold">TC</span>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900">Set Up Your Company Profile</h1>
-        <p className="text-gray-500 mt-1 text-sm">Help consultants understand your needs — takes 3 minutes.</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t("ob.client_title")}</h1>
+        <p className="text-gray-500 mt-1 text-sm">{t("ob.client_desc")}</p>
       </div>
 
       <OnboardingRoadmap steps={ONBOARDING_STEPS_CLIENT} current={step} />
@@ -20526,28 +20702,28 @@ function ClientOnboardingView({ auth, onComplete }) {
         {/* ── Step 0: Company Info ── */}
         {step === 0 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Company Information</h2>
-            <p className="text-sm text-gray-500 mb-5">Tell consultants about your organization.</p>
-            <Input label="Company Name *" value={companyForm.company_name}
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("ob.company_info_title")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("ob.company_info_subtitle")}</p>
+            <Input label={t("ob.company_name_req")} value={companyForm.company_name}
               onChange={e => setCompanyForm(p => ({ ...p, company_name: e.target.value }))}
               placeholder="Acme Corporation" />
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Industry" value={companyForm.industry}
+              <Input label={t("label.industry")} value={companyForm.industry}
                 onChange={e => setCompanyForm(p => ({ ...p, industry: e.target.value }))}
                 placeholder="e.g. Financial Services" />
-              <Input label="Company Size" value={companyForm.company_size}
+              <Input label={t("ob.company_size_label")} value={companyForm.company_size}
                 onChange={e => setCompanyForm(p => ({ ...p, company_size: e.target.value }))}
                 placeholder="e.g. 500–1,000 employees" />
-              <Input label="Founded Year" type="number" value={companyForm.founded_year}
+              <Input label={t("ob.founded_year_label")} type="number" value={companyForm.founded_year}
                 onChange={e => setCompanyForm(p => ({ ...p, founded_year: e.target.value }))} />
-              <Input label="HQ Location" value={companyForm.hq_location}
+              <Input label={t("ob.hq_location_label")} value={companyForm.hq_location}
                 onChange={e => setCompanyForm(p => ({ ...p, hq_location: e.target.value }))}
                 placeholder="City, Country" />
             </div>
-            <Input label="Website" value={companyForm.website}
+            <Input label={t("ob.website_label")} value={companyForm.website}
               onChange={e => setCompanyForm(p => ({ ...p, website: e.target.value }))}
               placeholder="https://yourcompany.com" />
-            <Textarea label="Description" value={companyForm.description}
+            <Textarea label={t("label.description")} value={companyForm.description}
               onChange={e => setCompanyForm(p => ({ ...p, description: e.target.value }))}
               placeholder="What does your company do?" />
           </>
@@ -20556,19 +20732,19 @@ function ClientOnboardingView({ auth, onComplete }) {
         {/* ── Step 1: Primary Contact ── */}
         {step === 1 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Primary Contact</h2>
-            <p className="text-sm text-gray-500 mb-5">Who should consultants contact for this account?</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("ob.primary_contact_title")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("ob.primary_contact_subtitle")}</p>
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Full Name" value={contactForm.contact_name}
+              <Input label={t("ob.contact_name_label")} value={contactForm.contact_name}
                 onChange={e => setContactForm(p => ({ ...p, contact_name: e.target.value }))}
                 placeholder="Jane Smith" />
-              <Input label="Title / Role" value={contactForm.contact_title}
+              <Input label={t("ob.contact_title_label")} value={contactForm.contact_title}
                 onChange={e => setContactForm(p => ({ ...p, contact_title: e.target.value }))}
                 placeholder="VP of Technology" />
-              <Input label="Email" type="email" value={contactForm.contact_email}
+              <Input label={t("ob.contact_email_label")} type="email" value={contactForm.contact_email}
                 onChange={e => setContactForm(p => ({ ...p, contact_email: e.target.value }))}
                 placeholder="jane@company.com" />
-              <Input label="Phone" value={contactForm.contact_phone}
+              <Input label={t("ob.contact_phone_label")} value={contactForm.contact_phone}
                 onChange={e => setContactForm(p => ({ ...p, contact_phone: e.target.value }))}
                 placeholder="+1 555 000 0000" />
             </div>
@@ -20578,15 +20754,15 @@ function ClientOnboardingView({ auth, onComplete }) {
         {/* ── Step 2: Consulting Preferences ── */}
         {step === 2 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Consulting Preferences</h2>
-            <p className="text-sm text-gray-500 mb-5">Help us match you with the right consultants.</p>
-            <Input label="Annual Consulting Budget" value={prefsForm.budget}
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("ob.prefs_title")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("ob.prefs_subtitle")}</p>
+            <Input label={t("ob.budget_label")} value={prefsForm.budget}
               onChange={e => setPrefsForm(p => ({ ...p, budget: e.target.value }))}
               placeholder="e.g. $500K annual consulting" />
-            <Input label="Areas of Interest (comma-separated)" value={prefsForm._categories}
+            <Input label={t("ob.areas_label")} value={prefsForm._categories}
               onChange={e => setPrefsForm(p => ({ ...p, _categories: e.target.value }))}
               placeholder="Cloud, AI, ERP, Cybersecurity" />
-            <Textarea label="Additional Notes" value={prefsForm.notes}
+            <Textarea label={t("ob.notes_label")} value={prefsForm.notes}
               onChange={e => setPrefsForm(p => ({ ...p, notes: e.target.value }))}
               placeholder="Special requirements, compliance needs, vetting criteria…" />
           </>
@@ -20598,25 +20774,25 @@ function ClientOnboardingView({ auth, onComplete }) {
         <button onClick={() => step > 0 ? setSt(s => s - 1) : null}
           className={`px-4 py-2 text-sm border border-gray-200 rounded-xl transition-colors ${
             step > 0 ? "text-gray-600 hover:bg-gray-50" : "invisible"}`}>
-          ← Back
+          {t("ob.nav_back")}
         </button>
         <div className="flex items-center gap-3">
           {step > 0 && (
             <button onClick={skip} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-600">
-              Skip
+              {t("ob.nav_skip")}
             </button>
           )}
           <button onClick={handleNext}
             disabled={saving || (step === 0 && !companyForm.company_name.trim())}
             className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors">
-            {saving ? "Saving…" : isLast ? "Complete Setup →" : "Save & Continue →"}
+            {saving ? t("state.saving") : isLast ? t("ob.nav_complete_client") : t("ob.nav_save_continue")}
           </button>
         </div>
       </div>
 
       <p className="text-center text-xs text-gray-400 mt-4">
         <button onClick={onComplete} className="hover:text-gray-600 underline underline-offset-2">
-          Skip all and go to dashboard
+          {t("ob.skip_all_client")}
         </button>
       </p>
     </div>
