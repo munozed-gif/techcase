@@ -489,6 +489,183 @@ const TRANSLATIONS = {
     "lang.en":     "English",
     "lang.es":     "Spanish",
     "lang.choose": "Language",
+    // ProjectDetail tabs
+    "project.tab_overview":      "Overview",
+    "project.tab_objectives":    "Objectives",
+    "project.tab_team":          "Team",
+    "project.tab_consultants":   "Consultants",
+    "project.tab_requirements":  "Requirements",
+    "project.tab_cases":         "Cases",
+    "project.tab_connections":   "Connections",
+    "project.tab_lifecycle":     "Lifecycle",
+    // ProjectDetail labels & headings
+    "project.sap_area":          "SAP Area",
+    "project.work_mode":         "Work Mode",
+    "project.consultants_needed":"Consultants needed",
+    "project.goals":             "Goals",
+    "project.deliverables":      "Deliverables",
+    "project.success_criteria":  "Success Criteria",
+    "project.out_of_scope":      "Out of Scope",
+    "project.key_stakeholder":   "Key Stakeholder",
+    "project.billing_contact":   "Billing Contact",
+    "project.compliance":        "Compliance / Regulatory",
+    "project.lifecycle_source":  "Lifecycle source:",
+    "project.flow_preview":      "Flow Preview",
+    "project.next_steps":        "Next Steps",
+    "project.progress":          "Project progress",
+    "project.cases_done":        "cases done",
+    "project.assigned_consultants": "Assigned Consultants",
+    "project.manager":           "Manager",
+    "project.override_locked":   "Override locked by company settings",
+    "project.company_inherited": "Company profile (inherited)",
+    "project.this_project":      "This project",
+    "project.contacts":          "Contacts",
+    "project.managers":          "Manager(s)",
+    // ProjectDetail buttons
+    "project.back":              "← Projects",
+    "project.assign_existing":   "+ Assign existing",
+    "project.open_case":         "Open case →",
+    "project.open":              "Open →",
+    "project.save_lifecycle":    "Save Lifecycle",
+    // ProjectDetail empty states
+    "project.no_overview":       "No overview data yet. Edit the project to add details.",
+    "project.no_objectives":     "No objectives defined yet. Edit the project to add them.",
+    "project.no_requirements":   "No requirements defined yet. Edit the project to add them.",
+    "project.no_team":           "No team members yet. Cases with assignments will appear here automatically.",
+    "project.no_proj_cases":     "No cases yet",
+    "project.no_proj_cases_hint":"Create a new case or assign an existing one using the buttons above.",
+    "project.no_consultants":    "No consultants yet",
+    "project.no_consultants_hint":"Consultants are added automatically when they are assigned to cases in this project.",
+    "project.no_unassigned":     "No unassigned cases available.",
+    "project.no_case_consultants":"No consultants assigned to this case.",
+    "project.assign_modal_title":"Assign case to project",
+    "project.lifecycle_lock_msg":"The company profile does not allow projects to choose a different lifecycle template. Contact your company admin to enable this.",
+    // CaseDetail tabs
+    "case.tab_details":    "Details",
+    "case.tab_activities": "Activities",
+    "case.tab_milestones": "Milestones",
+    "case.tab_comments":   "Comments",
+    "case.tab_subcases":   "Sub-cases",
+    "case.tab_docs":       "Docs",
+    "case.tab_time":       "Time",
+    "case.tab_applicants": "Applicants",
+    "case.tab_lifecycle":  "Lifecycle",
+    "case.tab_spec":       "Spec",
+    // CaseDetail headings
+    "case.plan_progress":    "Plan Progress",
+    "case.overall_progress": "Overall Progress",
+    "case.milestones_progress": "Milestones:",
+    "case.next_steps":       "Next Steps",
+    "case.work_arrangement": "Work Arrangement",
+    "case.roles_contacts":   "Roles & Contacts",
+    "case.key_users":        "Key Users",
+    "case.key_user_invited": "Key User (invited)",
+    "case.head_hunter":      "Head Hunter",
+    "case.requirements":     "Requirements",
+    "case.interview":        "Interview",
+    "case.lc_this_case":     "This case",
+    "case.lc_parent":        "Parent case",
+    "case.lc_project":       "Project",
+    "case.lc_company":       "Company profile",
+    "case.lc_default":       "Default (Standard)",
+    "case.override_locked":  "Override locked",
+    "case.lifecycle_source": "Lifecycle source:",
+    "case.manager":          "Manager:",
+    "case.sap_area":         "SAP Area:",
+    // CaseDetail buttons
+    "case.back":             "← Cases",
+    "case.apply":            "Apply to This Case →",
+    "case.your_application": "Your application:",
+    "case.post_comment":     "Post Comment",
+    "case.posting":          "Posting…",
+    "case.new_subcase":      "+ New Sub-case",
+    "case.create_subcase":   "Create Sub-case",
+    "case.creating_subcase": "Creating…",
+    "case.add_activity":     "Add Activity",
+    "case.import_from_doc":  "Import from Document",
+    "case.save_lifecycle":   "Save Lifecycle",
+    "case.regenerate_plan":  "Regenerate plan",
+    "case.extract_ai":       "Extract Activities with AI",
+    "case.gen_test_plan":    "Generate Test Plan",
+    "case.gen_dev_plan":     "Generate Design & Development Plan",
+    "case.generating":       "Generating…",
+    "case.test_plan_saved":  "Test Plan saved to Docs",
+    "case.approve_report":   "Approve & Generate Report",
+    "case.generating_report":"Generating Report…",
+    "case.try_again":        "Try again",
+    "case.import_more":      "Import more",
+    // CaseDetail form labels
+    "case.comment_label":    "Comment / Update",
+    "case.comment_ph":       "Add a note, progress update, or comment…",
+    "case.update_progress":  "Update Progress % (optional)",
+    "case.internal_note":    "Internal note (not visible to clients)",
+    "case.activity_label":   "Activity (optional)",
+    "case.activity_ph":      "— General / no specific activity —",
+    "case.file_label":       "File",
+    "case.notes_optional":   "Notes (optional)",
+    "case.notes_doc_ph":     "Description of this document…",
+    "case.phase_label":      "Phase",
+    "case.no_phase":         "— No phase —",
+    "case.predecessors":     "Predecessors (must finish first)",
+    "case.milestone_title":  "Title *",
+    "case.milestone_hours":  "Estimated Hours",
+    "case.milestone_start":  "Planned Start",
+    "case.milestone_end":    "Planned End",
+    "case.milestone_criteria":"Detail / Acceptance Criteria",
+    "case.search_cases":     "Search Cases",
+    "case.search_cases_ph":  "Type to search cases for this client…",
+    "case.subcase_title":    "Sub-case Title *",
+    "case.bypass_reason":    "Bypass reason *",
+    "case.bypass_ph":        "e.g. Remaining tasks are minor cosmetic items, client signed off…",
+    // CaseDetail empty states / status
+    "case.no_activity":      "No activity yet.",
+    "case.no_milestones":    "No milestones yet. Add one below.",
+    "case.no_docs":          "No documents uploaded yet.",
+    "case.no_time":          "No time entries logged yet.",
+    "case.no_subcases":      "No sub-cases yet.",
+    "case.total_hours":      "Total:",
+    "case.billable_hours":   "Billable:",
+    // CaseDetail badges
+    "case.lifecycle_lock_msg":"The company profile does not allow cases to choose a different lifecycle template.",
+    "case.badge_subcase":    "Sub-case",
+    "case.badge_private":    "Private",
+    "case.badge_nda":        "NDA required",
+    "case.travel_required":  "Travel required",
+    "case.security_clearance":"Security clearance required",
+    "case.technical_assessment":"Technical assessment",
+    "case.badge_internal":   "Internal",
+    // Activity status labels
+    "act.in_progress": "In Progress",
+    "act.completed":   "Completed",
+    "act.blocked":     "Blocked",
+    "act.pending":     "Pending",
+    "act.on_track":    "On Track",
+    "act.at_risk":     "At Risk",
+    "act.behind":      "Behind",
+    "act.overdue":     "Overdue",
+    "act.complete":    "Complete",
+    "act.view_list":   "List",
+    "act.view_flow":   "Flow",
+    "act.task":        "Task",
+    "act.subcase":     "Sub-case",
+    "act.new_task":    "New Task",
+    "act.new_subcase_activity": "New Sub-case Activity",
+    "act.create_subcase": "Create new sub-case",
+    "act.link_case":   "Link existing case",
+    // Import document panel
+    "case.import_title":     "Import Activities from Document",
+    "case.select_doc":       "Select attached document",
+    "case.upload_new":       "or upload a new file",
+    "case.upload_types":     "Upload file (PDF, TXT, CSV, MD)",
+    "case.extracting":       "Extracting activities from document…",
+    "case.adding_activities":"Adding activities to case…",
+    "case.import_failed":    "Import failed",
+    "case.import_all":       "All",
+    "case.import_none":      "None",
+    // Approval modal
+    "case.approve_modal_title":  "Approve Case & Generate Closure Report",
+    "case.approve_modal_body":   "This will generate a 7-section PDF Closure Report and mark the case as Approved.",
+    "case.closure_includes":     "Closure Report will include:",
   },
   es: {
     // Navigation
@@ -929,6 +1106,183 @@ const TRANSLATIONS = {
     "lang.en":     "Inglés",
     "lang.es":     "Español",
     "lang.choose": "Idioma",
+    // ProjectDetail tabs
+    "project.tab_overview":      "Resumen",
+    "project.tab_objectives":    "Objetivos",
+    "project.tab_team":          "Equipo",
+    "project.tab_consultants":   "Consultores",
+    "project.tab_requirements":  "Requisitos",
+    "project.tab_cases":         "Casos",
+    "project.tab_connections":   "Conexiones",
+    "project.tab_lifecycle":     "Ciclo de Vida",
+    // ProjectDetail labels & headings
+    "project.sap_area":          "Área SAP",
+    "project.work_mode":         "Modalidad de Trabajo",
+    "project.consultants_needed":"Consultores requeridos",
+    "project.goals":             "Objetivos",
+    "project.deliverables":      "Entregables",
+    "project.success_criteria":  "Criterios de Éxito",
+    "project.out_of_scope":      "Fuera de alcance",
+    "project.key_stakeholder":   "Responsable Principal",
+    "project.billing_contact":   "Contacto de Facturación",
+    "project.compliance":        "Cumplimiento / Regulatorio",
+    "project.lifecycle_source":  "Fuente de ciclo de vida:",
+    "project.flow_preview":      "Vista previa del flujo",
+    "project.next_steps":        "Próximos pasos",
+    "project.progress":          "Progreso del proyecto",
+    "project.cases_done":        "casos completados",
+    "project.assigned_consultants": "Consultores asignados",
+    "project.manager":           "Gerente",
+    "project.override_locked":   "Sobreescritura bloqueada por la empresa",
+    "project.company_inherited": "Perfil de empresa (heredado)",
+    "project.this_project":      "Este proyecto",
+    "project.contacts":          "Contactos",
+    "project.managers":          "Gerente(s)",
+    // ProjectDetail buttons
+    "project.back":              "← Proyectos",
+    "project.assign_existing":   "+ Asignar existente",
+    "project.open_case":         "Abrir caso →",
+    "project.open":              "Abrir →",
+    "project.save_lifecycle":    "Guardar Ciclo de Vida",
+    // ProjectDetail empty states
+    "project.no_overview":       "Sin datos de resumen. Edita el proyecto para agregar detalles.",
+    "project.no_objectives":     "Sin objetivos definidos. Edita el proyecto para agregarlos.",
+    "project.no_requirements":   "Sin requisitos definidos. Edita el proyecto para agregarlos.",
+    "project.no_team":           "Sin miembros de equipo aún. Los casos con asignaciones aparecerán aquí automáticamente.",
+    "project.no_proj_cases":     "Sin casos aún",
+    "project.no_proj_cases_hint":"Crea un nuevo caso o asigna uno existente usando los botones de arriba.",
+    "project.no_consultants":    "Sin consultores aún",
+    "project.no_consultants_hint":"Los consultores se agregan automáticamente al asignarse a casos en este proyecto.",
+    "project.no_unassigned":     "No hay casos sin asignar disponibles.",
+    "project.no_case_consultants":"No hay consultores asignados a este caso.",
+    "project.assign_modal_title":"Asignar caso al proyecto",
+    "project.lifecycle_lock_msg":"El perfil de empresa no permite que los proyectos elijan una plantilla de ciclo de vida diferente. Contacta al administrador de tu empresa para habilitar esto.",
+    // CaseDetail tabs
+    "case.tab_details":    "Detalles",
+    "case.tab_activities": "Actividades",
+    "case.tab_milestones": "Hitos",
+    "case.tab_comments":   "Comentarios",
+    "case.tab_subcases":   "Sub-casos",
+    "case.tab_docs":       "Docs",
+    "case.tab_time":       "Tiempo",
+    "case.tab_applicants": "Aplicantes",
+    "case.tab_lifecycle":  "Ciclo de Vida",
+    "case.tab_spec":       "Spec",
+    // CaseDetail headings
+    "case.plan_progress":    "Progreso del plan",
+    "case.overall_progress": "Progreso general",
+    "case.milestones_progress": "Hitos:",
+    "case.next_steps":       "Próximos pasos",
+    "case.work_arrangement": "Modalidad de trabajo",
+    "case.roles_contacts":   "Roles y Contactos",
+    "case.key_users":        "Usuarios Clave",
+    "case.key_user_invited": "Usuario Clave (invitado)",
+    "case.head_hunter":      "Head Hunter",
+    "case.requirements":     "Requisitos",
+    "case.interview":        "Entrevista",
+    "case.lc_this_case":     "Este caso",
+    "case.lc_parent":        "Caso padre",
+    "case.lc_project":       "Proyecto",
+    "case.lc_company":       "Perfil de empresa",
+    "case.lc_default":       "Por defecto (Estándar)",
+    "case.override_locked":  "Sobreescritura bloqueada",
+    "case.lifecycle_source": "Fuente de ciclo de vida:",
+    "case.manager":          "Gerente:",
+    "case.sap_area":         "Área SAP:",
+    // CaseDetail buttons
+    "case.back":             "← Casos",
+    "case.apply":            "Aplicar a este caso →",
+    "case.your_application": "Tu aplicación:",
+    "case.post_comment":     "Publicar comentario",
+    "case.posting":          "Publicando…",
+    "case.new_subcase":      "+ Nuevo Sub-caso",
+    "case.create_subcase":   "Crear Sub-caso",
+    "case.creating_subcase": "Creando…",
+    "case.add_activity":     "Agregar Actividad",
+    "case.import_from_doc":  "Importar desde Documento",
+    "case.save_lifecycle":   "Guardar Ciclo de Vida",
+    "case.regenerate_plan":  "Regenerar plan",
+    "case.extract_ai":       "Extraer Actividades con IA",
+    "case.gen_test_plan":    "Generar Plan de Pruebas",
+    "case.gen_dev_plan":     "Generar Plan de Diseño y Desarrollo",
+    "case.generating":       "Generando…",
+    "case.test_plan_saved":  "Plan de pruebas guardado en Docs",
+    "case.approve_report":   "Aprobar y Generar Reporte",
+    "case.generating_report":"Generando Reporte…",
+    "case.try_again":        "Reintentar",
+    "case.import_more":      "Importar más",
+    // CaseDetail form labels
+    "case.comment_label":    "Comentario / Actualización",
+    "case.comment_ph":       "Agrega una nota, actualización de progreso o comentario…",
+    "case.update_progress":  "Actualizar Progreso % (opcional)",
+    "case.internal_note":    "Nota interna (no visible para clientes)",
+    "case.activity_label":   "Actividad (opcional)",
+    "case.activity_ph":      "— General / sin actividad específica —",
+    "case.file_label":       "Archivo",
+    "case.notes_optional":   "Notas (opcional)",
+    "case.notes_doc_ph":     "Descripción de este documento…",
+    "case.phase_label":      "Fase",
+    "case.no_phase":         "— Sin fase —",
+    "case.predecessors":     "Predecesoras (deben terminar primero)",
+    "case.milestone_title":  "Título *",
+    "case.milestone_hours":  "Horas estimadas",
+    "case.milestone_start":  "Inicio planificado",
+    "case.milestone_end":    "Fin planificado",
+    "case.milestone_criteria":"Detalle / Criterios de aceptación",
+    "case.search_cases":     "Buscar Casos",
+    "case.search_cases_ph":  "Escribe para buscar casos de este cliente…",
+    "case.subcase_title":    "Título del Sub-caso *",
+    "case.bypass_reason":    "Motivo de omisión *",
+    "case.bypass_ph":        "ej. Las tareas restantes son elementos cosméticos menores, el cliente aprobó…",
+    // CaseDetail empty states / status
+    "case.no_activity":      "Sin actividad aún.",
+    "case.no_milestones":    "Sin hitos aún. Agrega uno abajo.",
+    "case.no_docs":          "Sin documentos subidos aún.",
+    "case.no_time":          "Sin registros de tiempo aún.",
+    "case.no_subcases":      "Sin sub-casos aún.",
+    "case.total_hours":      "Total:",
+    "case.billable_hours":   "Facturable:",
+    // CaseDetail badges
+    "case.lifecycle_lock_msg":"El perfil de la empresa no permite que los casos elijan una plantilla de ciclo de vida diferente.",
+    "case.badge_subcase":    "Sub-caso",
+    "case.badge_private":    "Privado",
+    "case.badge_nda":        "Requiere NDA",
+    "case.travel_required":  "Requiere viaje",
+    "case.security_clearance":"Requiere habilitación de seguridad",
+    "case.technical_assessment":"Evaluación técnica",
+    "case.badge_internal":   "Interno",
+    // Activity status labels
+    "act.in_progress": "En progreso",
+    "act.completed":   "Completado",
+    "act.blocked":     "Bloqueado",
+    "act.pending":     "Pendiente",
+    "act.on_track":    "En tiempo",
+    "act.at_risk":     "En riesgo",
+    "act.behind":      "Atrasado",
+    "act.overdue":     "Vencido",
+    "act.complete":    "Completo",
+    "act.view_list":   "Lista",
+    "act.view_flow":   "Flujo",
+    "act.task":        "Tarea",
+    "act.subcase":     "Sub-caso",
+    "act.new_task":    "Nueva Tarea",
+    "act.new_subcase_activity": "Nueva Actividad de Sub-caso",
+    "act.create_subcase": "Crear nuevo sub-caso",
+    "act.link_case":   "Vincular caso existente",
+    // Import document panel
+    "case.import_title":     "Importar Actividades desde Documento",
+    "case.select_doc":       "Selecciona un documento adjunto",
+    "case.upload_new":       "o sube un archivo nuevo",
+    "case.upload_types":     "Subir archivo (PDF, TXT, CSV, MD)",
+    "case.extracting":       "Extrayendo actividades del documento…",
+    "case.adding_activities":"Agregando actividades al caso…",
+    "case.import_failed":    "Error al importar",
+    "case.import_all":       "Todos",
+    "case.import_none":      "Ninguno",
+    // Approval modal
+    "case.approve_modal_title":  "Aprobar Caso y Generar Reporte de Cierre",
+    "case.approve_modal_body":   "Esto generará un Reporte de Cierre de 7 secciones y marcará el caso como Aprobado.",
+    "case.closure_includes":     "El Reporte de Cierre incluirá:",
   },
 };
 
@@ -6793,6 +7147,7 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
 }
 
 function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] }) {
+  const { t } = useT();
   const { createCase, updateCase, deleteCase } = useCases({});
   const [projCases, setProjCases] = useState([]);
   const [showCreateCase, setShowCreateCase] = useState(false);
@@ -6891,14 +7246,14 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
   }
 
   const projectTabs = [
-    { id: "overview",     label: "Overview",      icon: BarChart2,         count: null },
-    { id: "objectives",   label: "Objectives",    icon: Target,            count: null },
-    { id: "team",         label: "Team",          icon: Users,             count: null },
-    { id: "consultants",  label: "Consultants",   icon: UserCheck,         count: consultants.length },
-    { id: "requirements", label: "Requirements",  icon: SlidersHorizontal, count: null },
-    { id: "cases",        label: "Cases",         icon: FolderOpen,        count: projCases.length },
-    { id: "connections",  label: "Connections",   icon: Database,          count: null },
-    ...(canEdit ? [{ id: "lifecycle", label: "Lifecycle", icon: TrendingUp, count: null }] : []),
+    { id: "overview",     label: t("project.tab_overview"),      icon: BarChart2,         count: null },
+    { id: "objectives",   label: t("project.tab_objectives"),    icon: Target,            count: null },
+    { id: "team",         label: t("project.tab_team"),          icon: Users,             count: null },
+    { id: "consultants",  label: t("project.tab_consultants"),   icon: UserCheck,         count: consultants.length },
+    { id: "requirements", label: t("project.tab_requirements"),  icon: SlidersHorizontal, count: null },
+    { id: "cases",        label: t("project.tab_cases"),         icon: FolderOpen,        count: projCases.length },
+    { id: "connections",  label: t("project.tab_connections"),   icon: Database,          count: null },
+    ...(canEdit ? [{ id: "lifecycle", label: t("project.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
   ];
 
   if (projSelectedCase) {
@@ -6920,7 +7275,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <button onClick={onBack}
           className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-4">
-          ← Projects
+          {t("project.back")}
         </button>
         <div className="flex items-start justify-between gap-4 mb-3">
           <div className="flex items-center gap-3 min-w-0">
@@ -6953,8 +7308,8 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
         {projCases.length > 0 && (
           <div className="mb-3">
             <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-              <span>Project progress</span>
-              <span className="font-semibold text-gray-700">{projProgress}% · {projCases.filter(c => TERMINAL.includes(c.status)).length}/{projCases.length} cases done</span>
+              <span>{t("project.progress")}</span>
+              <span className="font-semibold text-gray-700">{projProgress}% · {projCases.filter(c => TERMINAL.includes(c.status)).length}/{projCases.length} {t("project.cases_done")}</span>
             </div>
             <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
               <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${projProgress}%` }} />
@@ -6969,7 +7324,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
           const validNext = PROJECT_LIFECYCLE_STAGES.filter(s => s.key !== project.status);
           return (
             <div className="mt-4 pt-4 border-t border-gray-100">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Next Steps</p>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("project.next_steps")}</p>
               <div className={`grid gap-3 ${validNext.length === 1 ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"}`}>
                 {validNext.map(s => {
                   const { Icon, desc } = PROJECT_NEXT_META[s.key] ?? { Icon: Zap, desc: "Move to this stage" };
@@ -7001,11 +7356,11 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
 
       {/* Icon Tiles */}
       <div className="flex flex-wrap gap-2">
-        {projectTabs.map(t => {
-          const Icon = t.icon;
-          const isActive = activeTab === t.id;
+        {projectTabs.map(tab => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
           return (
-            <button key={t.id} onClick={() => setActiveTab(t.id)}
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl border transition-all min-w-[80px] ${
                 isActive
                   ? "bg-[#1A4B8C] border-[#1A4B8C] text-white shadow-md"
@@ -7014,11 +7369,11 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
                 isActive ? "bg-white/20" : "bg-gray-100"}`}>
                 <Icon size={14} className={isActive ? "text-white" : "text-gray-500"} />
               </div>
-              <span className="text-xs font-medium">{t.label}</span>
-              {t.count !== null && (
+              <span className="text-xs font-medium">{tab.label}</span>
+              {tab.count !== null && (
                 <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
                   isActive ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"}`}>
-                  {t.count}
+                  {tab.count}
                 </span>
               )}
             </button>
@@ -7034,54 +7389,54 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 text-sm">
             {project.priority && (
               <div>
-                <span className="text-gray-400 block text-xs mb-1">Priority</span>
+                <span className="text-gray-400 block text-xs mb-1">{t("label.priority")}</span>
                 <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${PRIORITY_COLORS[project.priority] ?? "bg-gray-100 text-gray-600"}`}>{cap(project.priority)}</span>
               </div>
             )}
             {project.work_mode && (
               <div>
-                <span className="text-gray-400 block text-xs mb-1">Work Mode</span>
+                <span className="text-gray-400 block text-xs mb-1">{t("project.work_mode")}</span>
                 <span className="px-2 py-0.5 text-xs font-semibold rounded-lg bg-sky-50 text-sky-700">{cap(project.work_mode)}</span>
               </div>
             )}
             {project.expected_consultants && (
               <div>
-                <span className="text-gray-400 block text-xs mb-1">Consultants needed</span>
+                <span className="text-gray-400 block text-xs mb-1">{t("project.consultants_needed")}</span>
                 <span className="font-medium text-gray-900">{project.expected_consultants}</span>
               </div>
             )}
             {project.total_budget && (
               <div>
-                <span className="text-gray-400 block text-xs mb-1">Budget</span>
+                <span className="text-gray-400 block text-xs mb-1">{t("label.budget")}</span>
                 <span className="font-medium text-gray-900">${Number(project.total_budget).toLocaleString()}</span>
               </div>
             )}
             {project.start_date && (
               <div>
-                <span className="text-gray-400 block text-xs mb-1">Start</span>
+                <span className="text-gray-400 block text-xs mb-1">{t("label.start_date")}</span>
                 <span className="font-medium text-gray-900">{fmtDate(project.start_date)}</span>
               </div>
             )}
             {project.end_date && (
               <div>
-                <span className="text-gray-400 block text-xs mb-1">End</span>
+                <span className="text-gray-400 block text-xs mb-1">{t("label.end_date")}</span>
                 <span className="font-medium text-gray-900">{fmtDate(project.end_date)}</span>
               </div>
             )}
             {project.area_sap && (
               <div>
-                <span className="text-gray-400 block text-xs mb-1">SAP Area</span>
+                <span className="text-gray-400 block text-xs mb-1">{t("project.sap_area")}</span>
                 <span className="font-medium text-gray-900">{project.area_sap}</span>
               </div>
             )}
             {project.industry && (
               <div>
-                <span className="text-gray-400 block text-xs mb-1">Industry</span>
+                <span className="text-gray-400 block text-xs mb-1">{t("label.industry")}</span>
                 <span className="font-medium text-gray-900">{project.industry}</span>
               </div>
             )}
             {!project.total_budget && !project.start_date && !project.end_date && !project.area_sap && !project.industry && !project.priority && !project.work_mode && !project.expected_consultants && (
-              <p className="text-sm text-gray-400 col-span-3">No overview data yet. Edit the project to add details.</p>
+              <p className="text-sm text-gray-400 col-span-3">{t("project.no_overview")}</p>
             )}
           </div>
         )}
@@ -7091,13 +7446,13 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
           <div className="space-y-4">
             {project.objectives && (
               <div>
-                <p className="text-xs text-gray-400 mb-1">Goals</p>
+                <p className="text-xs text-gray-400 mb-1">{t("project.goals")}</p>
                 <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{project.objectives}</p>
               </div>
             )}
             {project.deliverables?.length > 0 && (
               <div>
-                <p className="text-xs text-gray-400 mb-2">Deliverables</p>
+                <p className="text-xs text-gray-400 mb-2">{t("project.deliverables")}</p>
                 <div className="flex flex-wrap gap-2">
                   {project.deliverables.map((d, i) => (
                     <span key={i} className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg">{d}</span>
@@ -7107,18 +7462,18 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
             )}
             {project.success_criteria && (
               <div>
-                <p className="text-xs text-gray-400 mb-1">Success Criteria</p>
+                <p className="text-xs text-gray-400 mb-1">{t("project.success_criteria")}</p>
                 <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{project.success_criteria}</p>
               </div>
             )}
             {project.out_of_scope && (
               <div>
-                <p className="text-xs text-gray-400 mb-1">Out of Scope</p>
+                <p className="text-xs text-gray-400 mb-1">{t("project.out_of_scope")}</p>
                 <p className="text-sm text-gray-500 leading-relaxed whitespace-pre-wrap italic">{project.out_of_scope}</p>
               </div>
             )}
             {!project.objectives && !project.deliverables?.length && !project.success_criteria && !project.out_of_scope && (
-              <p className="text-sm text-gray-400">No objectives defined yet. Edit the project to add them.</p>
+              <p className="text-sm text-gray-400">{t("project.no_objectives")}</p>
             )}
           </div>
         )}
@@ -7132,7 +7487,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
               {/* Client */}
               {project.client && (
                 <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Client</p>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("label.client")}</p>
                   <div className="flex items-center gap-3 border border-gray-100 rounded-xl px-4 py-3">
                     <UserAvatar name={clientName} size={40} />
                     <div>
@@ -7148,7 +7503,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
               {/* Managers */}
               {uniqueManagers.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Manager{uniqueManagers.length > 1 ? 's' : ''}</p>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("project.managers")}</p>
                   <div className="space-y-2">
                     {uniqueManagers.map(m => (
                       <div key={m.id} className="flex items-center gap-3 border border-gray-100 rounded-xl px-4 py-3">
@@ -7166,7 +7521,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
               {/* Consultants */}
               {consultants.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Consultants ({consultants.length})</p>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("project.tab_consultants")} ({consultants.length})</p>
                   <div className="flex flex-wrap gap-2">
                     {consultants.map(con => (
                       <div key={con.id} className="flex items-center gap-2 border border-gray-100 rounded-xl px-3 py-2 bg-gray-50">
@@ -7182,13 +7537,13 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
               {/* Contacts */}
               {(project.stakeholder_name || project.stakeholder_email || project.billing_contact_name || project.billing_contact_email) && (
                 <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Contacts</p>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("project.contacts")}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {(project.stakeholder_name || project.stakeholder_email) && (
                       <div className="flex items-center gap-3 border border-gray-100 rounded-xl px-4 py-3">
                         <UserAvatar name={project.stakeholder_name ?? 'S'} size={36} />
                         <div>
-                          <p className="text-[10px] text-gray-400 mb-0.5">Key Stakeholder</p>
+                          <p className="text-[10px] text-gray-400 mb-0.5">{t("project.key_stakeholder")}</p>
                           {project.stakeholder_name && <p className="font-medium text-gray-900">{project.stakeholder_name}</p>}
                           {project.stakeholder_email && <p className="text-xs text-gray-500 mt-0.5">{project.stakeholder_email}</p>}
                         </div>
@@ -7198,7 +7553,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
                       <div className="flex items-center gap-3 border border-gray-100 rounded-xl px-4 py-3">
                         <UserAvatar name={project.billing_contact_name ?? 'B'} size={36} />
                         <div>
-                          <p className="text-[10px] text-gray-400 mb-0.5">Billing Contact</p>
+                          <p className="text-[10px] text-gray-400 mb-0.5">{t("project.billing_contact")}</p>
                           {project.billing_contact_name && <p className="font-medium text-gray-900">{project.billing_contact_name}</p>}
                           {project.billing_contact_email && <p className="text-xs text-gray-500 mt-0.5">{project.billing_contact_email}</p>}
                         </div>
@@ -7210,7 +7565,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
 
               {!project.client && uniqueManagers.length === 0 && consultants.length === 0 &&
                !project.stakeholder_name && !project.billing_contact_name && (
-                <p className="text-sm text-gray-400">No team members yet. Cases with assignments will appear here automatically.</p>
+                <p className="text-sm text-gray-400">{t("project.no_team")}</p>
               )}
             </div>
           );
@@ -7221,7 +7576,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
           <div className="space-y-4">
             {project.skills_required?.length > 0 && (
               <div>
-                <p className="text-xs text-gray-400 mb-2">Skills Required</p>
+                <p className="text-xs text-gray-400 mb-2">{t("label.skills")}</p>
                 <div className="flex flex-wrap gap-2">
                   {project.skills_required.map((s, i) => (
                     <span key={i} className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded-lg">{s}</span>
@@ -7231,12 +7586,12 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
             )}
             {project.compliance_notes && (
               <div>
-                <p className="text-xs text-gray-400 mb-1">Compliance / Regulatory</p>
+                <p className="text-xs text-gray-400 mb-1">{t("project.compliance")}</p>
                 <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{project.compliance_notes}</p>
               </div>
             )}
             {!project.skills_required?.length && !project.compliance_notes && (
-              <p className="text-sm text-gray-400">No requirements defined yet. Edit the project to add them.</p>
+              <p className="text-sm text-gray-400">{t("project.no_requirements")}</p>
             )}
           </div>
         )}
@@ -7252,7 +7607,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
                 <div className="flex items-center gap-2">
                   <button onClick={openAssignModal}
                     className="text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-4 py-2">
-                    + Assign existing
+                    {t("project.assign_existing")}
                   </button>
                   <button onClick={() => setShowCreateCase(true)}
                     className="text-sm bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl px-4 py-2">
@@ -7262,7 +7617,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
               )}
             </div>
             {projCases.length === 0 ? (
-              <EmptyState Icon={FolderOpen} title="No cases yet" subtitle="Create a new case or assign an existing one using the buttons above." />
+              <EmptyState Icon={FolderOpen} title={t("project.no_proj_cases")} subtitle={t("project.no_proj_cases_hint")} />
             ) : (
               <div className="space-y-2">
                 {projCases.map(c => {
@@ -7324,10 +7679,10 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
                       {isExpanded && (
                         <div className="px-4 pb-4 pt-1 border-t border-gray-100 bg-gray-50/50 space-y-3">
                           {assignees.length === 0 ? (
-                            <p className="text-xs text-gray-400">No consultants assigned to this case.</p>
+                            <p className="text-xs text-gray-400">{t("project.no_case_consultants")}</p>
                           ) : (
                             <div>
-                              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Assigned Consultants</p>
+                              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">{t("project.assigned_consultants")}</p>
                               <div className="space-y-1.5">
                                 {assignees.map(a => (
                                   <div key={a.consultant_id} className="flex items-center gap-2.5">
@@ -7343,19 +7698,19 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
                           )}
                           {c.manager && (
                             <div className="flex items-center gap-2.5">
-                              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-16 flex-shrink-0">Manager</p>
+                              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-16 flex-shrink-0">{t("project.manager")}</p>
                               <UserAvatar name={c.manager.full_name} size={24} />
                               <span className="text-xs text-gray-700">{c.manager.full_name}</span>
                             </div>
                           )}
                           <div className="flex items-center justify-between pt-1">
                             <div className="text-xs text-gray-400">
-                              Progress: <span className="font-semibold text-gray-700">{progress}%</span>
+                              {t("label.progress")}: <span className="font-semibold text-gray-700">{progress}%</span>
                             </div>
                             <button
                               onClick={() => setProjSelectedCase(c)}
                               className="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1">
-                              Open case →
+                              {t("project.open_case")}
                             </button>
                           </div>
                         </div>
@@ -7377,7 +7732,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
               </span>
             </div>
             {consultants.length === 0 ? (
-              <EmptyState Icon={UserCheck} title="No consultants yet" subtitle="Consultants are added automatically when they are assigned to cases in this project." />
+              <EmptyState Icon={UserCheck} title={t("project.no_consultants")} subtitle={t("project.no_consultants_hint")} />
             ) : (
               <div className="space-y-3">
                 {consultants.map(con => {
@@ -7428,7 +7783,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
                                 <button
                                   onClick={() => setProjSelectedCase(c)}
                                   className="text-[10px] font-semibold text-blue-600 hover:text-blue-800">
-                                  Open →
+                                  {t("project.open")}
                                 </button>
                               </div>
                             </div>
@@ -7458,20 +7813,20 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
           return (
             <div className="space-y-5">
               <div className="flex items-center gap-2 flex-wrap text-xs text-gray-500">
-                <span className="font-semibold text-gray-700">Lifecycle source:</span>
+                <span className="font-semibold text-gray-700">{t("project.lifecycle_source")}</span>
                 {project.case_lifecycle
-                  ? <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">This project</span>
-                  : <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-semibold">Company profile (inherited)</span>}
+                  ? <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">{t("project.this_project")}</span>
+                  : <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-semibold">{t("project.company_inherited")}</span>}
                 {!projOverrideAllowed && (
                   <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold flex items-center gap-1">
-                    <Lock size={13} className="inline mr-1" />Override locked by company settings
+                    <Lock size={13} className="inline mr-1" />{t("project.override_locked")}
                   </span>
                 )}
               </div>
 
               {!projOverrideAllowed ? (
                 <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-sm text-amber-700">
-                  The company profile does not allow projects to choose a different lifecycle template. Contact your company admin to enable this.
+                  {t("project.lifecycle_lock_msg")}
                 </div>
               ) : (
                 <>
@@ -7502,7 +7857,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
                   </div>
 
                   <div className="bg-gray-50 rounded-xl p-4">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Flow Preview</p>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("project.flow_preview")}</p>
                     <div className="flex items-center flex-wrap gap-2">
                       {previewActive.map((s, i) => (
                         <span key={s.key} className="flex items-center gap-2">
@@ -7526,7 +7881,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
                   <div className="flex justify-end pt-2 border-t border-gray-100">
                     <button onClick={handleSaveProjLc} disabled={savingProjLc}
                       className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
-                      {savingProjLc ? "Saving…" : "Save Lifecycle"}
+                      {savingProjLc ? t("state.saving") : t("project.save_lifecycle")}
                     </button>
                   </div>
                 </>
@@ -7579,12 +7934,12 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-900">Assign case to project</h2>
+              <h2 className="text-lg font-bold text-gray-900">{t("project.assign_modal_title")}</h2>
               <button onClick={() => setShowAssign(false)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
             </div>
             <div className="p-4 space-y-2">
               {unassignedCases.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-6">No unassigned cases available.</p>
+                <p className="text-sm text-gray-400 text-center py-6">{t("project.no_unassigned")}</p>
               ) : unassignedCases.map(c => (
                 <button key={c.id} onClick={() => handleAssignCase(c.id)}
                   className="w-full text-left border border-gray-100 rounded-xl px-4 py-3 hover:bg-blue-50 hover:border-blue-200 transition-colors">
@@ -10614,6 +10969,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
 }
 
 function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdate, onBack }) {
+  const { t } = useT();
   const { applications, apply, reviewApplication } = useApplications(caseData.id);
   const { milestones, toggleMilestone, addMilestone } = useMilestones(caseData.id);
   const { comments, addComment } = useCaseComments(caseData.id);
@@ -12159,16 +12515,16 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
   }, [allActivitiesDone]);
 
   const allTabs = [
-    { id: "detail",     label: "Details",      icon: ClipboardList, count: null },
-    { id: "activities", label: "Activities",   icon: ListChecks,    count: activities.length || null },
-    { id: "milestones", label: "Milestones",   icon: Flag,          count: `${doneMilestones}/${milestones.length}` },
-    { id: "comments",   label: "Comments",     icon: MessageSquare, count: comments.length },
-    { id: "subcases",   label: "Sub-cases",    icon: Layers,        count: subCases.length },
-    { id: "documents",  label: "Docs",         icon: Paperclip,     count: documents.length },
-    { id: "time",       label: "Time",         icon: Clock,         count: `${totalTimeHours.toFixed(1)}h` },
-    ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "applications", label: "Applicants", icon: Users, count: applications.length }] : []),
-    ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "lifecycle", label: "Lifecycle", icon: TrendingUp, count: null }] : []),
-    { id: "spec", label: "Spec", icon: FileText, count: null },
+    { id: "detail",     label: t("case.tab_details"),    icon: ClipboardList, count: null },
+    { id: "activities", label: t("case.tab_activities"), icon: ListChecks,    count: activities.length || null },
+    { id: "milestones", label: t("case.tab_milestones"), icon: Flag,          count: `${doneMilestones}/${milestones.length}` },
+    { id: "comments",   label: t("case.tab_comments"),   icon: MessageSquare, count: comments.length },
+    { id: "subcases",   label: t("case.tab_subcases"),   icon: Layers,        count: subCases.length },
+    { id: "documents",  label: t("case.tab_docs"),       icon: Paperclip,     count: documents.length },
+    { id: "time",       label: t("case.tab_time"),       icon: Clock,         count: `${totalTimeHours.toFixed(1)}h` },
+    ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "applications", label: t("case.tab_applicants"), icon: Users, count: applications.length }] : []),
+    ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "lifecycle", label: t("case.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
+    { id: "spec", label: t("case.tab_spec"), icon: FileText, count: null },
   ];
   const tabs = stageRules.visible_tabs
     ? allTabs.filter(t => stageRules.visible_tabs.includes(t.id))
@@ -12190,7 +12546,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <button onClick={onBack}
             className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-4">
-            ← Cases
+            {t("case.back")}
           </button>
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -12203,8 +12559,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                     : <Badge className={STATUS_COLORS[caseData.status] ?? "bg-gray-100 text-gray-600"}>{cap(fmt(caseData.status))}</Badge>;
                 })()}
                 <Badge className={PRIORITY_COLORS[caseData.priority]}>{cap(caseData.priority)}</Badge>
-                {caseData.is_confidential && <span className="px-2 py-0.5 bg-gray-800 text-white rounded-lg text-xs font-semibold">Private</span>}
-                {caseData.nda_required && <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">NDA</span>}
+                {caseData.is_confidential && <span className="px-2 py-0.5 bg-gray-800 text-white rounded-lg text-xs font-semibold">{t("case.badge_private")}</span>}
+                {caseData.nda_required && <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">{t("case.badge_nda")}</span>}
                 {caseData.status === "standby" && caseData.standby_reason && (
                   <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-lg text-xs font-semibold flex items-center gap-1">
                     ⏸ {caseData.standby_reason}
@@ -12233,7 +12589,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
       {/* Progress Bar */}
       <div>
         <div className="flex justify-between text-xs text-gray-500 mb-1">
-          <span>Overall Progress</span>
+          <span>{t("case.overall_progress")}</span>
           <span className="font-semibold text-gray-800">{caseProgress}%</span>
         </div>
         <div className="h-2.5 bg-blue-200 rounded-full overflow-hidden">
@@ -12241,7 +12597,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             style={{ width: `${caseProgress}%` }} />
         </div>
         {milestones.length > 0 && (
-          <div className="text-xs text-gray-400 mt-1">Milestones: {milestonePct}% complete</div>
+          <div className="text-xs text-gray-400 mt-1">{t("case.milestones_progress")} {milestonePct}% complete</div>
         )}
       </div>
 
@@ -12375,7 +12731,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             onClick={() => generateTestPlan(caseData.status)}
             disabled={generatingTestPlan || testPlanSaved}
             className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors">
-            {generatingTestPlan ? <><Spinner size={12} /> Generating…</> : testPlanSaved ? <><Check size={12} className="mr-1 inline" />Test Plan saved to Docs</> : <><Sparkles size={12} /> Generate Test Plan</>}
+            {generatingTestPlan ? <><Spinner size={12} /> {t("case.generating")}</> : testPlanSaved ? <><Check size={12} className="mr-1 inline" />{t("case.test_plan_saved")}</> : <><Sparkles size={12} /> {t("case.gen_test_plan")}</>}
           </button>
         </div>
       )}
@@ -12492,19 +12848,19 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           <div className="border border-gray-100 rounded-xl p-4">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Overview</p>
             <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
-              {caseData.budget && <div><span className="text-gray-400">Budget: </span><span className="font-medium">${Number(caseData.budget).toLocaleString()}</span></div>}
-              {caseData.due_date && <div><span className="text-gray-400">Due: </span><span className="font-medium">{fmtDate(caseData.due_date)}</span></div>}
-              {caseData.start_date && <div><span className="text-gray-400">Starts: </span><span className="font-medium">{fmtDate(caseData.start_date)}</span></div>}
-              {caseData.client?.full_name && <div><span className="text-gray-400">Client: </span><span className="font-medium">{caseData.client.full_name}</span></div>}
-              {caseData.manager?.full_name && <div><span className="text-gray-400">Manager: </span><span className="font-medium">{caseData.manager.full_name}</span></div>}
-              {caseData.area_sap && <div><span className="text-gray-400">SAP Area: </span><span className="font-medium">{caseData.area_sap}</span></div>}
-              {caseData.area_industry && <div><span className="text-gray-400">Industry: </span><span className="font-medium">{caseData.area_industry}</span></div>}
+              {caseData.budget && <div><span className="text-gray-400">{t("label.budget")}: </span><span className="font-medium">${Number(caseData.budget).toLocaleString()}</span></div>}
+              {caseData.due_date && <div><span className="text-gray-400">{t("label.due")}</span><span className="font-medium">{fmtDate(caseData.due_date)}</span></div>}
+              {caseData.start_date && <div><span className="text-gray-400">{t("label.starts")}</span><span className="font-medium">{fmtDate(caseData.start_date)}</span></div>}
+              {caseData.client?.full_name && <div><span className="text-gray-400">{t("label.client")}: </span><span className="font-medium">{caseData.client.full_name}</span></div>}
+              {caseData.manager?.full_name && <div><span className="text-gray-400">{t("case.manager")}</span><span className="font-medium">{caseData.manager.full_name}</span></div>}
+              {caseData.area_sap && <div><span className="text-gray-400">{t("case.sap_area")}</span><span className="font-medium">{caseData.area_sap}</span></div>}
+              {caseData.area_industry && <div><span className="text-gray-400">{t("label.industry")}: </span><span className="font-medium">{caseData.area_industry}</span></div>}
             </div>
             {activities.length > 0 && (
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
-                    <ListChecks size={12} className="text-blue-400" /> Plan Progress
+                    <ListChecks size={12} className="text-blue-400" /> {t("case.plan_progress")}
                   </span>
                   <span className="text-sm font-bold text-blue-700">{caseProgress}%</span>
                 </div>
@@ -12526,7 +12882,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           {/* Skills */}
           {caseData.skills_required?.length > 0 && (
             <div>
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Skills Required</div>
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t("label.skills")}</div>
               <div className="flex flex-wrap gap-2">
                 {caseData.skills_required.map(s => (
                   <span key={s} className="px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs">{s}</span>
@@ -12538,12 +12894,12 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           {/* Work Arrangement card */}
           {caseData.work_mode && (
             <div className="border border-gray-100 rounded-xl p-4">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Work Arrangement</p>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("case.work_arrangement")}</p>
               <div className="flex flex-wrap gap-2 items-center">
                 <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg text-xs font-semibold capitalize">{caseData.work_mode}</span>
                 {caseData.work_location && <span className="text-sm text-gray-600">{caseData.work_location}</span>}
                 {caseData.travel_required && (
-                  <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-lg text-xs font-semibold">Travel required</span>
+                  <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-lg text-xs font-semibold">{t("case.travel_required")}</span>
                 )}
               </div>
             </div>
@@ -12552,11 +12908,11 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           {/* Roles & Contacts card */}
           {((caseData.case_key_users?.length > 0) || caseData.key_user_email || caseData.is_head_hunter) && (
             <div className="border border-gray-100 rounded-xl p-4">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Roles &amp; Contacts</p>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("case.roles_contacts")}</p>
               <div className="space-y-3 text-sm">
                 {caseData.case_key_users?.length > 0 && (
                   <div>
-                    <div className="text-xs text-gray-400 mb-1.5">Key Users</div>
+                    <div className="text-xs text-gray-400 mb-1.5">{t("case.key_users")}</div>
                     <div className="space-y-1.5">
                       {caseData.case_key_users.map(ku => (
                         <div key={ku.user_id} className="flex items-center gap-2 bg-violet-50 border border-violet-100 rounded-lg px-2.5 py-1.5">
@@ -12575,13 +12931,13 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 )}
                 {caseData.key_user_email && !caseData.case_key_users?.length && (
                   <div>
-                    <div className="text-xs text-gray-400 mb-0.5">Key User (invited)</div>
+                    <div className="text-xs text-gray-400 mb-0.5">{t("case.key_user_invited")}</div>
                     <div className="text-xs text-gray-500">{caseData.key_user_email}</div>
                   </div>
                 )}
                 {caseData.is_head_hunter && (
                   <div>
-                    <div className="text-xs text-gray-400 mb-0.5">Head Hunter</div>
+                    <div className="text-xs text-gray-400 mb-0.5">{t("case.head_hunter")}</div>
                     <div className="font-medium">{caseData.head_hunter_name || "Yes"}</div>
                   </div>
                 )}
@@ -12593,13 +12949,13 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           {(caseData.certifications_required?.length > 0 || caseData.languages_required?.length > 0 ||
             caseData.min_years_experience || caseData.security_clearance) && (
             <div className="border border-gray-100 rounded-xl p-4">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Requirements</p>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("case.requirements")}</p>
               <div className="space-y-2 text-sm">
                 {caseData.min_years_experience && (
                   <div className="text-gray-700">{caseData.min_years_experience} years minimum experience</div>
                 )}
                 {caseData.security_clearance && (
-                  <span className="inline-block px-2 py-0.5 bg-red-50 text-red-700 rounded-lg text-xs font-semibold">Security clearance required</span>
+                  <span className="inline-block px-2 py-0.5 bg-red-50 text-red-700 rounded-lg text-xs font-semibold">{t("case.security_clearance")}</span>
                 )}
                 {caseData.certifications_required?.length > 0 && (
                   <div className="flex flex-wrap gap-1">
@@ -12622,14 +12978,14 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           {/* Interview card */}
           {caseData.interview_required && (
             <div className="border border-gray-100 rounded-xl p-4">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Interview</p>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("case.interview")}</p>
               <div className="flex flex-wrap gap-2 items-center text-sm">
                 <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg text-xs font-semibold capitalize">
                   {caseData.interview_format?.replace("_", " ")}
                 </span>
                 <span className="text-gray-600">{caseData.interview_rounds} round{caseData.interview_rounds > 1 ? "s" : ""}</span>
                 {caseData.technical_assessment && (
-                  <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-semibold">Technical assessment</span>
+                  <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-semibold">{t("case.technical_assessment")}</span>
                 )}
               </div>
             </div>
@@ -12640,13 +12996,13 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             <div className="border-t border-gray-100 pt-4">
               {myApp ? (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Your application: </span>
+                  <span className="text-sm text-gray-600">{t("case.your_application")}</span>
                   <Badge className={APP_STATUS_COLORS[myApp.status]}>{cap(myApp.status)}</Badge>
                 </div>
               ) : onApply ? (
                 <button onClick={onApply}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors shadow-sm">
-                  Apply to This Case →
+                  {t("case.apply")}
                 </button>
               ) : null}
             </div>
@@ -12720,7 +13076,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             </div>
           ))}
           {milestones.length === 0 && (
-            <p className="text-sm text-gray-400 text-center py-4">No milestones yet. Add one below.</p>
+            <p className="text-sm text-gray-400 text-center py-4">{t("case.no_milestones")}</p>
           )}
           {(auth.isAdmin || auth.isManager || auth.isConsultant) && stageRules.editable && (
             <div className="flex gap-2 mt-4">
@@ -12749,7 +13105,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       {c.author?.full_name?.[0] ?? "?"}
                     </div>
                     <span className="font-medium text-gray-900">{c.author?.full_name ?? "Unknown"}</span>
-                    {c.is_internal && <Badge className="bg-amber-200 text-amber-800">Internal</Badge>}
+                    {c.is_internal && <Badge className="bg-amber-200 text-amber-800">{t("case.badge_internal")}</Badge>}
                   </div>
                   <span className="text-xs text-gray-400">{fmtDate(c.created_at)}</span>
                 </div>
@@ -12761,7 +13117,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               </div>
             ))}
             {comments.length === 0 && (
-              <p className="text-sm text-gray-400 text-center py-4">No activity yet.</p>
+              <p className="text-sm text-gray-400 text-center py-4">{t("case.no_activity")}</p>
             )}
           </div>
 
@@ -12772,18 +13128,18 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             </div>
           )}
           {stageRules.can_comment && <div className="border border-gray-200 rounded-xl p-4 space-y-3">
-            <Textarea label="Comment / Update" value={commentForm.body}
+            <Textarea label={t("case.comment_label")} value={commentForm.body}
               onChange={e => setCommentForm(p => ({ ...p, body: e.target.value }))}
-              placeholder="Add a note, progress update, or comment…" />
+              placeholder={t("case.comment_ph")} />
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Hours Logged</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">{t("label.hours")}</label>
                 <input type="number" min="0" value={commentForm.hoursLogged}
                   onChange={e => setCommentForm(p => ({ ...p, hoursLogged: e.target.value }))}
                   className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Update Progress % (optional)</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">{t("case.update_progress")}</label>
                 <input type="number" min="0" max="100" value={commentForm.progressUpdate}
                   onChange={e => setCommentForm(p => ({ ...p, progressUpdate: e.target.value }))}
                   placeholder="e.g. 75"
@@ -12795,12 +13151,12 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 <input type="checkbox" checked={commentForm.isInternal}
                   onChange={e => setCommentForm(p => ({ ...p, isInternal: e.target.checked }))}
                   className="rounded accent-blue-600" />
-                Internal note (not visible to clients)
+                {t("case.internal_note")}
               </label>
             )}
             <button onClick={handleComment} disabled={sendingComment}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2 rounded-xl disabled:opacity-50">
-              {sendingComment ? "Posting…" : "Post Comment"}
+              {sendingComment ? t("case.posting") : t("case.post_comment")}
             </button>
           </div>}
         </div>
@@ -12813,13 +13169,13 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-500">
               {subCases.length === 0
-                ? "No sub-cases yet."
+                ? t("case.no_subcases")
                 : `${subCases.length} sub-case${subCases.length !== 1 ? "s" : ""}`}
             </p>
             {canAddSubCase && !showSubCaseForm && (
               <button onClick={() => setShowSubCaseForm(true)}
                 className="px-4 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">
-                + New Sub-case
+                {t("case.new_subcase")}
               </button>
             )}
           </div>
@@ -12827,27 +13183,27 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           {/* Create sub-case form */}
           {showSubCaseForm && (
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
-              <h4 className="font-semibold text-gray-900 text-sm">New Sub-case</h4>
-              <Input label="Title" value={subCaseForm.title}
+              <h4 className="font-semibold text-gray-900 text-sm">{t("case.new_subcase")}</h4>
+              <Input label={t("label.title")} value={subCaseForm.title}
                 onChange={e => setSubCaseForm(p => ({ ...p, title: e.target.value }))}
                 placeholder="Sub-case title…" />
-              <Textarea label="Description" value={subCaseForm.description}
+              <Textarea label={t("label.description")} value={subCaseForm.description}
                 onChange={e => setSubCaseForm(p => ({ ...p, description: e.target.value }))}
                 placeholder="What needs to be done in this sub-case?" />
               <div className="grid grid-cols-2 gap-3">
-                <Select label="Priority" value={subCaseForm.priority}
+                <Select label={t("label.priority")} value={subCaseForm.priority}
                   onChange={e => setSubCaseForm(p => ({ ...p, priority: e.target.value }))}
                   options={["low","medium","high","critical"].map(s => ({ value: s, label: cap(s) }))} />
-                <Select label="Initial Status" value={subCaseForm.status}
+                <Select label={t("label.status")} value={subCaseForm.status}
                   onChange={e => setSubCaseForm(p => ({ ...p, status: e.target.value }))}
                   options={["open","in_progress"].map(s => ({ value: s, label: cap(fmt(s)) }))} />
               </div>
               <div className="flex justify-end gap-3">
                 <button onClick={() => setShowSubCaseForm(false)}
-                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
+                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">{t("action.cancel")}</button>
                 <button onClick={handleCreateSubCase} disabled={savingSubCase}
                   className="px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
-                  {savingSubCase ? "Creating…" : "Create Sub-case"}
+                  {savingSubCase ? t("case.creating_subcase") : t("case.create_subcase")}
                 </button>
               </div>
             </div>
@@ -12941,19 +13297,19 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           {showDocForm && (
             <div className="bg-gray-50 rounded-xl p-4 space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">File</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("case.file_label")}</label>
                 <input ref={docFileRef} type="file"
                   onChange={e => setPendingDocFile(e.target.files?.[0] ?? null)}
                   className="block w-full text-sm text-gray-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
               </div>
-              <Textarea label="Notes (optional)" value={docNotes}
-                onChange={e => setDocNotes(e.target.value)} placeholder="Description of this document…" />
+              <Textarea label={t("case.notes_optional")} value={docNotes}
+                onChange={e => setDocNotes(e.target.value)} placeholder={t("case.notes_doc_ph")} />
               <div className="flex gap-2 justify-end">
                 <button onClick={() => { setShowDocForm(false); setPendingDocFile(null); setDocNotes(""); }}
                   className="px-3 py-1.5 text-sm text-gray-500">Cancel</button>
                 <button onClick={handleDocUpload} disabled={!pendingDocFile || uploadingDoc}
                   className="px-4 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                  {uploadingDoc ? "Uploading…" : "Upload"}
+                  {uploadingDoc ? t("state.saving") : t("action.upload")}
                 </button>
               </div>
             </div>
@@ -12984,7 +13340,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             {documents.length === 0 && (
               <div className="text-center py-8 text-gray-400">
                 <div className="mb-2 flex justify-center"><Paperclip className="w-8 h-8 text-gray-300" /></div>
-                <p className="text-sm">No documents uploaded yet.</p>
+                <p className="text-sm">{t("case.no_docs")}</p>
               </div>
             )}
           </div>
@@ -13003,16 +13359,16 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             : "bg-gray-100 text-gray-500";
         }
         function statusLabel(s) {
-          return s === "in_progress" ? "In Progress" : s === "completed" ? "Completed"
-            : s === "blocked" ? "Blocked" : "Pending";
+          return s === "in_progress" ? t("act.in_progress") : s === "completed" ? t("act.completed")
+            : s === "blocked" ? t("act.blocked") : t("act.pending");
         }
 
         const ADHERENCE = {
-          complete:  { label: "Complete",  cls: "bg-emerald-100 text-emerald-700" },
-          on_track:  { label: "On Track",  cls: "bg-blue-100 text-blue-700" },
-          at_risk:   { label: "At Risk",   cls: "bg-amber-100 text-amber-700" },
-          behind:    { label: "Behind",    cls: "bg-orange-100 text-orange-700" },
-          overdue:   { label: "Overdue",   cls: "bg-red-100 text-red-700" },
+          complete:  { label: t("act.complete"),  cls: "bg-emerald-100 text-emerald-700" },
+          on_track:  { label: t("act.on_track"),  cls: "bg-blue-100 text-blue-700" },
+          at_risk:   { label: t("act.at_risk"),   cls: "bg-amber-100 text-amber-700" },
+          behind:    { label: t("act.behind"),    cls: "bg-orange-100 text-orange-700" },
+          overdue:   { label: t("act.overdue"),   cls: "bg-red-100 text-red-700" },
         };
 
         async function searchCasesToLink(q) {
@@ -13146,7 +13502,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                         disabled={generatingDevPlan}
                         className="flex items-center gap-1 text-[10px] font-semibold text-blue-500 hover:text-blue-700 disabled:opacity-50 transition-colors"
                         title="Re-generate Design & Development plan from updated spec">
-                        {generatingDevPlan ? <><Spinner size={9} /> Generating…</> : <><RotateCcw size={10} /> Regenerate plan</>}
+                        {generatingDevPlan ? <><Spinner size={9} /> {t("case.generating")}</> : <><RotateCcw size={10} /> {t("case.regenerate_plan")}</>}
                       </button>
                     )}
                     <span className="text-lg font-bold text-blue-700">{caseProgress}%</span>
@@ -13219,8 +13575,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       disabled={generatingDevPlan}
                       className="mt-2.5 flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
                       {generatingDevPlan
-                        ? <><Spinner size={12} /> Generating Design & Development Plan…</>
-                        : <><Sparkles size={12} /> Generate Design & Development Plan</>}
+                        ? <><Spinner size={12} /> {t("case.generating")}</>
+                        : <><Sparkles size={12} /> {t("case.gen_dev_plan")}</>}
                     </button>
                   </div>
                 </div>
@@ -13337,7 +13693,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-400">{activities.length} activit{activities.length !== 1 ? "ies" : "y"}</span>
                 <div className="flex items-center gap-1 p-0.5 bg-gray-100 rounded-xl">
-                  {[["list", "List"], ["flow", "Flow"]].map(([v, l]) => (
+                  {[["list", t("act.view_list")], ["flow", t("act.view_flow")]].map(([v, l]) => (
                     <button key={v} onClick={() => setActView(v)}
                       className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${actView === v ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
                       {l}
@@ -13355,48 +13711,48 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                   <div className="flex items-center gap-1 p-0.5 bg-white border border-blue-200 rounded-xl w-fit">
                     <button onClick={() => setActType("task")}
                       className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${actType === "task" ? "bg-blue-600 text-white" : "text-gray-500 hover:text-gray-700"}`}>
-                      Task
+                      {t("act.task")}
                     </button>
                     <button onClick={() => setActType("sub_case")}
                       className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 ${actType === "sub_case" ? "bg-violet-600 text-white" : "text-gray-500 hover:text-gray-700"}`}>
-                      <Link2 size={11} /> Sub-case
+                      <Link2 size={11} /> {t("act.subcase")}
                     </button>
                   </div>
                 )}
 
                 {actType === "task" ? (
                   <>
-                    <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">New Task</p>
+                    <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">{t("act.new_task")}</p>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="col-span-2">
-                        <Input label="Title *" value={actForm.title}
+                        <Input label={t("case.milestone_title")} value={actForm.title}
                           onChange={e => setActForm(p => ({ ...p, title: e.target.value }))}
                           placeholder="e.g. Configure Material Ledger" />
                       </div>
-                      <Input label="Estimated Hours" type="number" min="0" step="0.5" value={actForm.est_hours}
+                      <Input label={t("case.milestone_hours")} type="number" min="0" step="0.5" value={actForm.est_hours}
                         onChange={e => setActForm(p => ({ ...p, est_hours: e.target.value }))} />
                       <div />
-                      <Input label="Planned Start" type="date" value={actForm.start_date_plan}
+                      <Input label={t("case.milestone_start")} type="date" value={actForm.start_date_plan}
                         onChange={e => setActForm(p => ({ ...p, start_date_plan: e.target.value }))} />
-                      <Input label="Planned End" type="date" value={actForm.end_date_plan}
+                      <Input label={t("case.milestone_end")} type="date" value={actForm.end_date_plan}
                         onChange={e => setActForm(p => ({ ...p, end_date_plan: e.target.value }))} />
                       <div className="col-span-2">
-                        <Textarea label="Description" value={actForm.description}
+                        <Textarea label={t("label.description")} value={actForm.description}
                           onChange={e => setActForm(p => ({ ...p, description: e.target.value }))}
                           placeholder="Brief summary of the task" />
                       </div>
                       <div className="col-span-2">
-                        <Textarea label="Detail / Acceptance Criteria" value={actForm.detail}
+                        <Textarea label={t("case.milestone_criteria")} value={actForm.detail}
                           onChange={e => setActForm(p => ({ ...p, detail: e.target.value }))}
                           placeholder="Detailed steps, deliverables, or acceptance criteria" />
                       </div>
                       {/* Phase */}
                       <div>
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Phase</label>
+                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("case.phase_label")}</label>
                         <select value={actForm.phase}
                           onChange={e => setActForm(p => ({ ...p, phase: e.target.value }))}
                           className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                          <option value="">— No phase —</option>
+                          <option value="">{t("case.no_phase")}</option>
                           {resolvedPhases.map(ph => (
                             <option key={ph.key} value={ph.key}>{ph.label}{ph.required_status ? ` (needs ${ph.required_status.replace(/_/g, " ")})` : ""}</option>
                           ))}
@@ -13405,7 +13761,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       {/* Predecessors */}
                       {activities.length > 0 && (
                         <div>
-                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Predecessors (must finish first)</label>
+                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("case.predecessors")}</label>
                           <div className="space-y-1 max-h-28 overflow-y-auto border border-gray-200 rounded-xl p-2 bg-white">
                             {activities.filter(a => a.activity_type !== "sub_case").map(a => (
                               <label key={a.id} className="flex items-center gap-2 cursor-pointer text-xs">
@@ -13429,35 +13785,35 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                   </>
                 ) : (
                   <>
-                    <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide">New Sub-case Activity</p>
+                    <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide">{t("act.new_subcase_activity")}</p>
                     {/* Create / Link toggle */}
                     <div className="flex gap-2">
                       <button onClick={() => { setSubCaseMode("create"); setSelectedLinkedCase(null); setCaseSearchQuery(""); setCaseSearchResults([]); }}
                         className={`px-3 py-1 text-xs rounded-lg border ${subCaseMode === "create" ? "border-violet-500 bg-violet-50 text-violet-700 font-semibold" : "border-gray-200 text-gray-500"}`}>
-                        Create new sub-case
+                        {t("act.create_subcase")}
                       </button>
                       <button onClick={() => setSubCaseMode("link")}
                         className={`px-3 py-1 text-xs rounded-lg border ${subCaseMode === "link" ? "border-violet-500 bg-violet-50 text-violet-700 font-semibold" : "border-gray-200 text-gray-500"}`}>
-                        Link existing case
+                        {t("act.link_case")}
                       </button>
                     </div>
 
                     {subCaseMode === "create" ? (
                       <div className="grid grid-cols-2 gap-3">
                         <div className="col-span-2">
-                          <Input label="Sub-case Title *" value={actForm.title}
+                          <Input label={t("case.subcase_title")} value={actForm.title}
                             onChange={e => setActForm(p => ({ ...p, title: e.target.value }))}
                             placeholder="e.g. Phase 2 — Integration Testing" />
                         </div>
-                        <Input label="Estimated Hours" type="number" min="0" step="0.5" value={actForm.est_hours}
+                        <Input label={t("case.milestone_hours")} type="number" min="0" step="0.5" value={actForm.est_hours}
                           onChange={e => setActForm(p => ({ ...p, est_hours: e.target.value }))} />
                         <div />
-                        <Input label="Planned Start" type="date" value={actForm.start_date_plan}
+                        <Input label={t("case.milestone_start")} type="date" value={actForm.start_date_plan}
                           onChange={e => setActForm(p => ({ ...p, start_date_plan: e.target.value }))} />
-                        <Input label="Planned End" type="date" value={actForm.end_date_plan}
+                        <Input label={t("case.milestone_end")} type="date" value={actForm.end_date_plan}
                           onChange={e => setActForm(p => ({ ...p, end_date_plan: e.target.value }))} />
                         <div className="col-span-2">
-                          <Textarea label="Description" value={actForm.description}
+                          <Textarea label={t("label.description")} value={actForm.description}
                             onChange={e => setActForm(p => ({ ...p, description: e.target.value }))}
                             placeholder="What needs to be done in this sub-case?" />
                         </div>
@@ -13466,11 +13822,11 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       <div className="space-y-3">
                         {/* Search */}
                         <div className="relative">
-                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Search Cases</label>
+                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("case.search_cases")}</label>
                           <input
                             value={caseSearchQuery}
                             onChange={e => { setCaseSearchQuery(e.target.value); searchCasesToLink(e.target.value); }}
-                            placeholder="Type to search cases for this client…"
+                            placeholder={t("case.search_cases_ph")}
                             className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
                           {searchingCases && <span className="absolute right-3 top-8 text-xs text-gray-400">Searching…</span>}
                           {caseSearchResults.length > 0 && !selectedLinkedCase && (
@@ -13496,12 +13852,12 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                           </div>
                         )}
                         <div className="grid grid-cols-2 gap-3">
-                          <Input label="Estimated Hours" type="number" min="0" step="0.5" value={actForm.est_hours}
+                          <Input label={t("case.milestone_hours")} type="number" min="0" step="0.5" value={actForm.est_hours}
                             onChange={e => setActForm(p => ({ ...p, est_hours: e.target.value }))} />
                           <div />
-                          <Input label="Planned Start" type="date" value={actForm.start_date_plan}
+                          <Input label={t("case.milestone_start")} type="date" value={actForm.start_date_plan}
                             onChange={e => setActForm(p => ({ ...p, start_date_plan: e.target.value }))} />
-                          <Input label="Planned End" type="date" value={actForm.end_date_plan}
+                          <Input label={t("case.milestone_end")} type="date" value={actForm.end_date_plan}
                             onChange={e => setActForm(p => ({ ...p, end_date_plan: e.target.value }))} />
                         </div>
                       </div>
@@ -13510,7 +13866,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 )}
 
                 <div className="flex justify-end gap-2 pt-1 border-t border-blue-100">
-                  <button onClick={resetActForm} className="text-sm text-gray-500 px-3 py-1.5">Cancel</button>
+                  <button onClick={resetActForm} className="text-sm text-gray-500 px-3 py-1.5">{t("action.cancel")}</button>
                   <button onClick={handleAddActivity} disabled={
                     savingAct ||
                     (actType === "task" && !actForm.title.trim()) ||
@@ -13518,7 +13874,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                     (actType === "sub_case" && subCaseMode === "link" && !selectedLinkedCase)
                   }
                     className={`px-4 py-1.5 text-white text-sm font-semibold rounded-xl disabled:opacity-50 ${actType === "sub_case" ? "bg-violet-600 hover:bg-violet-700" : "bg-[#1A4B8C] hover:bg-blue-900"}`}>
-                    {savingAct ? "Adding…" : actType === "sub_case" ? (subCaseMode === "create" ? "Create Sub-case" : "Link Sub-case") : "Add Task"}
+                    {savingAct ? t("state.saving") : actType === "sub_case" ? (subCaseMode === "create" ? t("case.create_subcase") : t("act.link_case")) : t("case.add_activity")}
                   </button>
                 </div>
               </div>
@@ -13698,54 +14054,54 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       <div className="grid grid-cols-2 gap-3">
                         {act.activity_type !== "sub_case" && (
                           <div className="col-span-2">
-                            <Input label="Title" value={editActForm.title ?? ""}
+                            <Input label={t("case.milestone_title")} value={editActForm.title ?? ""}
                               onChange={e => setEditActForm(p => ({ ...p, title: e.target.value }))} />
                           </div>
                         )}
-                        <Input label="Estimated Hours" type="number" min="0" step="0.5"
+                        <Input label={t("case.milestone_hours")} type="number" min="0" step="0.5"
                           value={editActForm.est_hours ?? ""}
                           onChange={e => setEditActForm(p => ({ ...p, est_hours: e.target.value }))} />
                         {act.activity_type !== "sub_case" && (
                           <div>
-                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Status</label>
+                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("label.status")}</label>
                             <select value={editActForm.status ?? "pending"}
                               onChange={e => setEditActForm(p => ({ ...p, status: e.target.value }))}
                               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                              <option value="pending">Pending</option>
-                              <option value="in_progress">In Progress</option>
-                              <option value="completed">Completed</option>
-                              <option value="blocked">Blocked</option>
+                              <option value="pending">{t("act.pending")}</option>
+                              <option value="in_progress">{t("act.in_progress")}</option>
+                              <option value="completed">{t("act.completed")}</option>
+                              <option value="blocked">{t("act.blocked")}</option>
                             </select>
                           </div>
                         )}
-                        <Input label="Planned Start" type="date" value={editActForm.start_date_plan ?? ""}
+                        <Input label={t("case.milestone_start")} type="date" value={editActForm.start_date_plan ?? ""}
                           onChange={e => setEditActForm(p => ({ ...p, start_date_plan: e.target.value }))} />
-                        <Input label="Planned End" type="date" value={editActForm.end_date_plan ?? ""}
+                        <Input label={t("case.milestone_end")} type="date" value={editActForm.end_date_plan ?? ""}
                           onChange={e => setEditActForm(p => ({ ...p, end_date_plan: e.target.value }))} />
                         {act.activity_type !== "sub_case" && (
                           <>
                             <div className="col-span-2">
-                              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Progress — {editActForm.progress_pct ?? 0}%</label>
+                              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("label.progress")} — {editActForm.progress_pct ?? 0}%</label>
                               <input type="range" min="0" max="100" step="5"
                                 value={editActForm.progress_pct ?? 0}
                                 onChange={e => setEditActForm(p => ({ ...p, progress_pct: Number(e.target.value) }))}
                                 className="w-full accent-blue-600" />
                             </div>
                             <div className="col-span-2">
-                              <Textarea label="Description" value={editActForm.description ?? ""}
+                              <Textarea label={t("label.description")} value={editActForm.description ?? ""}
                                 onChange={e => setEditActForm(p => ({ ...p, description: e.target.value }))} />
                             </div>
                             <div className="col-span-2">
-                              <Textarea label="Detail / Acceptance Criteria" value={editActForm.detail ?? ""}
+                              <Textarea label={t("case.milestone_criteria")} value={editActForm.detail ?? ""}
                                 onChange={e => setEditActForm(p => ({ ...p, detail: e.target.value }))} />
                             </div>
                             {/* Phase */}
                             <div>
-                              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Phase</label>
+                              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("case.phase_label")}</label>
                               <select value={editActForm.phase ?? ""}
                                 onChange={e => setEditActForm(p => ({ ...p, phase: e.target.value || null }))}
                                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">— No phase —</option>
+                                <option value="">{t("case.no_phase")}</option>
                                 {resolvedPhases.map(ph => (
                                   <option key={ph.key} value={ph.key}>{ph.label}{ph.required_status ? ` (needs ${ph.required_status.replace(/_/g, " ")})` : ""}</option>
                                 ))}
@@ -13754,7 +14110,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                             {/* Predecessors */}
                             {activities.filter(a => a.id !== act.id && a.activity_type !== "sub_case").length > 0 && (
                               <div>
-                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Predecessors</label>
+                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("case.predecessors")}</label>
                                 <div className="space-y-1 max-h-28 overflow-y-auto border border-gray-200 rounded-xl p-2 bg-white">
                                   {activities.filter(a => a.id !== act.id && a.activity_type !== "sub_case").map(a => (
                                     <label key={a.id} className="flex items-center gap-2 cursor-pointer text-xs">
@@ -13829,10 +14185,10 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                           {act.activity_type === "sub_case" ? "Remove link" : "Delete"}
                         </button>
                         <div className="flex gap-2">
-                          <button onClick={() => setEditingActId(null)} className="text-sm text-gray-500 px-3 py-1.5">Cancel</button>
+                          <button onClick={() => setEditingActId(null)} className="text-sm text-gray-500 px-3 py-1.5">{t("action.cancel")}</button>
                           <button onClick={() => handleSaveEdit(act.id)} disabled={savingAct}
                             className={`px-4 py-1.5 text-white text-sm font-semibold rounded-xl disabled:opacity-50 ${act.activity_type === "sub_case" ? "bg-violet-600 hover:bg-violet-700" : "bg-[#1A4B8C] hover:bg-blue-900"}`}>
-                            {savingAct ? "Saving…" : "Save"}
+                            {savingAct ? t("state.saving") : t("action.save")}
                           </button>
                         </div>
                       </div>
@@ -14149,11 +14505,11 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               <div className="flex gap-2">
                 <button onClick={() => setShowActForm(true)}
                   className="flex-1 py-3 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-400 hover:border-blue-300 hover:text-blue-600 transition-colors flex items-center justify-center gap-2">
-                  <ListChecks size={14} /> Add Activity
+                  <ListChecks size={14} /> {t("case.add_activity")}
                 </button>
                 <button onClick={() => { setShowImportAct(true); setExtractedActs([]); setImportDocId(null); setImportDocFile(null); }}
                   className="flex-1 py-3 border-2 border-dashed border-violet-200 rounded-xl text-sm text-violet-400 hover:border-violet-400 hover:text-violet-600 transition-colors flex items-center justify-center gap-2">
-                  <Upload size={14} /> Import from Document
+                  <Upload size={14} /> {t("case.import_from_doc")}
                 </button>
               </div>
             )}
@@ -14164,7 +14520,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               return (
                 <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 space-y-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide">Import Activities from Document</p>
+                    <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide">{t("case.import_title")}</p>
                     <button onClick={resetImport} className="text-gray-400 hover:text-gray-600"><X size={13} /></button>
                   </div>
 
@@ -14173,7 +14529,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                     <div className="space-y-3">
                       {documents.length > 0 && (
                         <div>
-                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Select attached document</label>
+                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">{t("case.select_doc")}</label>
                           <div className="space-y-1 max-h-40 overflow-y-auto">
                             {documents.map(doc => (
                               <label key={doc.id} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer border transition-colors ${importDocId === doc.id ? 'border-violet-400 bg-violet-100' : 'border-gray-200 bg-white hover:border-violet-200'}`}>
@@ -14190,14 +14546,14 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       )}
                       {documents.length > 0 && (
                         <div className="flex items-center gap-2 text-xs text-gray-400">
-                          <div className="flex-1 border-t border-gray-200" />or upload a new file<div className="flex-1 border-t border-gray-200" />
+                          <div className="flex-1 border-t border-gray-200" />{t("case.upload_new")}<div className="flex-1 border-t border-gray-200" />
                         </div>
                       )}
                       <div>
                         {!importDocFile ? (
                           <button onClick={() => importActFileRef.current?.click()}
                             className="w-full py-3 border-2 border-dashed border-violet-200 rounded-xl text-sm text-violet-500 hover:border-violet-400 hover:bg-violet-50 transition-colors flex items-center justify-center gap-2">
-                            <Upload size={14} /> Upload file (PDF, TXT, CSV, MD)
+                            <Upload size={14} /> {t("case.upload_types")}
                           </button>
                         ) : (
                           <div className="flex items-center gap-2 px-3 py-2 bg-white border border-violet-300 rounded-xl">
@@ -14213,7 +14569,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       <button onClick={extractActivitiesFromDoc}
                         disabled={!importDocId && !importDocFile}
                         className="w-full py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 disabled:opacity-40 flex items-center justify-center gap-2">
-                        <Sparkles size={14} /> Extract Activities with AI
+                        <Sparkles size={14} /> {t("case.extract_ai")}
                       </button>
                     </div>
                   )}
@@ -14221,7 +14577,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                   {/* Step: extracting */}
                   {extractingActs && (
                     <div className="flex items-center justify-center py-8 gap-2 text-violet-500">
-                      <Spinner /><span className="text-sm">Extracting activities from document…</span>
+                      <Spinner /><span className="text-sm">{t("case.extracting")}</span>
                     </div>
                   )}
 
@@ -14233,8 +14589,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                           Found {extractedActs.length} {extractedActs.length === 1 ? 'activity' : 'activities'} — {extractedActs.filter(a => a._selected).length} selected
                         </p>
                         <div className="flex gap-2">
-                          <button onClick={() => setExtractedActs(p => p.map(a => ({ ...a, _selected: true })))} className="text-xs text-violet-600 underline">All</button>
-                          <button onClick={() => setExtractedActs(p => p.map(a => ({ ...a, _selected: false })))} className="text-xs text-gray-400 underline">None</button>
+                          <button onClick={() => setExtractedActs(p => p.map(a => ({ ...a, _selected: true })))} className="text-xs text-violet-600 underline">{t("case.import_all")}</button>
+                          <button onClick={() => setExtractedActs(p => p.map(a => ({ ...a, _selected: false })))} className="text-xs text-gray-400 underline">{t("case.import_none")}</button>
                         </div>
                       </div>
                       <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
@@ -14272,7 +14628,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                   {/* Importing spinner */}
                   {importingActs && (
                     <div className="flex items-center justify-center py-8 gap-2 text-violet-500">
-                      <Spinner /><span className="text-sm">Adding activities to case…</span>
+                      <Spinner /><span className="text-sm">{t("case.adding_activities")}</span>
                     </div>
                   )}
 
@@ -14281,7 +14637,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                     <div className="space-y-3">
                       {importResult.error ? (
                         <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                          <p className="text-sm font-semibold text-red-700 mb-1">Import failed</p>
+                          <p className="text-sm font-semibold text-red-700 mb-1">{t("case.import_failed")}</p>
                           <p className="text-xs text-red-600 font-mono break-all">{importResult.error}</p>
                         </div>
                       ) : (
@@ -14296,17 +14652,17 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                         {importResult?.error && (
                           <button onClick={() => { setImportResult(null); setImportStep('preview'); }}
                             className="flex-1 py-2 text-sm border border-violet-200 text-violet-600 rounded-xl hover:bg-violet-50">
-                            Try again
+                            {t("case.try_again")}
                           </button>
                         )}
                         <button onClick={resetImport}
                           className="flex-1 py-2 text-sm bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200">
-                          {importResult?.error ? 'Cancel' : 'Close'}
+                          {importResult?.error ? t("action.cancel") : t("action.close")}
                         </button>
                         {!importResult?.error && (
                           <button onClick={() => { setImportResult(null); setExtractedActs([]); setImportStep('select'); setImportDocId(null); setImportDocFile(null); }}
                             className="flex-1 py-2 text-sm bg-violet-600 text-white font-semibold rounded-xl hover:bg-violet-700">
-                            Import more
+                            {t("case.import_more")}
                           </button>
                         )}
                       </div>
@@ -14324,51 +14680,51 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold text-gray-700">
-              Total: <span className="text-blue-600">{totalTimeHours.toFixed(1)}h</span>
-              {" · "}Billable: <span className="text-green-600">{timeEntries.filter(e => e.is_billable).reduce((s, e) => s + e.hours, 0).toFixed(1)}h</span>
+              {t("case.total_hours")} <span className="text-blue-600">{totalTimeHours.toFixed(1)}h</span>
+              {" · "}{t("case.billable_hours")} <span className="text-green-600">{timeEntries.filter(e => e.is_billable).reduce((s, e) => s + e.hours, 0).toFixed(1)}h</span>
             </div>
             {auth.isConsultant && stageRules.can_log_time && (
               <button onClick={() => setShowTimeForm(p => !p)}
                 className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700">
-                + Log Time
+                {t("time.log")}
               </button>
             )}
           </div>
           {showTimeForm && (
             <div className="bg-gray-50 rounded-xl p-4 space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <Input label="Date" type="date" value={timeForm.date}
+                <Input label={t("label.date")} type="date" value={timeForm.date}
                   onChange={e => setTimeForm(p => ({ ...p, date: e.target.value }))} />
-                <Input label="Hours" type="number" min="0.25" step="0.25" value={timeForm.hours}
+                <Input label={t("label.hours")} type="number" min="0.25" step="0.25" value={timeForm.hours}
                   onChange={e => setTimeForm(p => ({ ...p, hours: e.target.value }))} />
               </div>
               {activities.length > 0 && (
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Activity (optional)</label>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("case.activity_label")}</label>
                   <select value={timeForm.activity_id}
                     onChange={e => setTimeForm(p => ({ ...p, activity_id: e.target.value }))}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                    <option value="">— General / no specific activity —</option>
+                    <option value="">{t("case.activity_ph")}</option>
                     {activities.filter(a => a.status !== "completed").map(a => (
                       <option key={a.id} value={a.id}>#{a.task_no} {a.title}</option>
                     ))}
                   </select>
                 </div>
               )}
-              <Textarea label="Description" value={timeForm.description}
+              <Textarea label={t("label.description")} value={timeForm.description}
                 onChange={e => setTimeForm(p => ({ ...p, description: e.target.value }))}
                 placeholder="What did you work on?" />
               <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                 <input type="checkbox" checked={timeForm.is_billable}
                   onChange={e => setTimeForm(p => ({ ...p, is_billable: e.target.checked }))}
                   className="rounded accent-blue-600" />
-                Billable
+                {t("label.billable")}
               </label>
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setShowTimeForm(false)} className="px-3 py-1.5 text-sm text-gray-500">Cancel</button>
+                <button onClick={() => setShowTimeForm(false)} className="px-3 py-1.5 text-sm text-gray-500">{t("action.cancel")}</button>
                 <button onClick={handleTimeLog} disabled={savingTime}
                   className="px-4 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                  {savingTime ? "Saving…" : "Log Time"}
+                  {savingTime ? t("time.saving") : t("time.log")}
                 </button>
               </div>
             </div>
@@ -14377,13 +14733,13 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left">
-                  <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">Date</th>
-                  <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">Consultant</th>
-                  <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">Hours</th>
-                  {activities.length > 0 && <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">Activity</th>}
-                  <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">Description</th>
-                  <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">Billable</th>
-                  <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">Status</th>
+                  <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">{t("time.col_date")}</th>
+                  <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">{t("time.col_consultant")}</th>
+                  <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">{t("time.col_hours")}</th>
+                  {activities.length > 0 && <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">{t("act.task")}</th>}
+                  <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">{t("time.col_desc")}</th>
+                  <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">{t("time.col_billable")}</th>
+                  <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">{t("label.status")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -14404,18 +14760,18 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                     <td className="py-2 text-gray-500 max-w-xs truncate">{e.description}</td>
                     <td className="py-2">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${e.is_billable ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                        {e.is_billable ? "Yes" : "No"}
+                        {e.is_billable ? t("label.yes") : t("label.no")}
                       </span>
                     </td>
                     <td className="py-2">
                       {e.is_approved
-                        ? <span className="flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full"><Check className="w-3 h-3" /> Approved</span>
+                        ? <span className="flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full"><Check className="w-3 h-3" /> {t("time.approved")}</span>
                         : (auth.isAdmin || auth.isManager)
                           ? <button onClick={() => approveEntry(e.id, true)}
                               className="text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 px-2 py-0.5 rounded-full hover:bg-yellow-100">
-                              Approve
+                              {t("time.approve")}
                             </button>
-                          : <span className="text-xs text-gray-400">Pending</span>
+                          : <span className="text-xs text-gray-400">{t("time.pending")}</span>
                       }
                     </td>
                   </tr>
@@ -14426,7 +14782,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             {timeEntries.length === 0 && (
               <div className="text-center py-8 text-gray-400">
                 <div className="mb-2 flex justify-center"><Clock className="w-8 h-8 text-gray-300" /></div>
-                <p className="text-sm">No time entries logged yet.</p>
+                <p className="text-sm">{t("case.no_time")}</p>
               </div>
             )}
           </div>
@@ -14451,24 +14807,24 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         return (
           <div className="space-y-5">
             <div className="flex items-center flex-wrap gap-2 text-xs text-gray-500">
-              <span className="font-semibold text-gray-700">Lifecycle source:</span>
+              <span className="font-semibold text-gray-700">{t("case.lifecycle_source")}</span>
               {caseData.case_lifecycle
-                ? <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">This case</span>
+                ? <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">{t("case.lc_this_case")}</span>
                 : parentCaseLifecycle
-                ? <span className="px-2 py-0.5 bg-sky-100 text-sky-700 rounded-full font-semibold">Parent case</span>
+                ? <span className="px-2 py-0.5 bg-sky-100 text-sky-700 rounded-full font-semibold">{t("case.lc_parent")}</span>
                 : projectLifecycle
-                ? <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full font-semibold">Project</span>
+                ? <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full font-semibold">{t("case.lc_project")}</span>
                 : clientLifecycle
-                ? <span className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full font-semibold">Company profile</span>
-                : <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-semibold">Default (Standard)</span>}
+                ? <span className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full font-semibold">{t("case.lc_company")}</span>
+                : <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-semibold">{t("case.lc_default")}</span>}
               {!caseOverrideAllowed && (
-                <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold"><Lock size={10} className="mr-0.5 inline" />Override locked</span>
+                <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold"><Lock size={10} className="mr-0.5 inline" />{t("case.override_locked")}</span>
               )}
             </div>
 
             {!caseOverrideAllowed ? (
               <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-sm text-amber-700">
-                The company profile does not allow cases to choose a different lifecycle template.
+                {t("case.lifecycle_lock_msg")}
               </div>
             ) : (
               <>
@@ -14505,7 +14861,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 <div className="flex justify-end pt-2 border-t border-gray-100">
                   <button onClick={handleSaveCaseLc} disabled={savingLc}
                     className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
-                    {savingLc ? "Saving…" : "Save Lifecycle"}
+                    {savingLc ? t("state.saving") : t("case.save_lifecycle")}
                   </button>
                 </div>
               </>
@@ -15539,9 +15895,9 @@ function ConsultantDetailModal({ consultantId, auth }) {
               <BadgeCheck size={20} className="text-green-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-gray-900 text-base">Approve Case & Generate Closure Report</h3>
+              <h3 className="font-bold text-gray-900 text-base">{t("case.approve_modal_title")}</h3>
               <p className="text-sm text-gray-500 mt-0.5">
-                This will generate a 7-section PDF Closure Report and mark the case as Approved.
+                {t("case.approve_modal_body")}
               </p>
             </div>
             {!generatingClosure && (
@@ -15597,10 +15953,10 @@ function ConsultantDetailModal({ consultantId, auth }) {
                       {canBypass && (
                         <div className="space-y-1.5">
                           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block">
-                            Bypass reason <span className="text-red-400">*</span>
+                            {t("case.bypass_reason")}
                           </label>
                           <textarea value={approvalBypass} onChange={e => setApprovalBypass(e.target.value)}
-                            rows={2} placeholder="e.g. Remaining tasks are minor cosmetic items, client signed off…"
+                            rows={2} placeholder={t("case.bypass_ph")}
                             className="w-full text-sm border border-amber-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-100 resize-none" />
                         </div>
                       )}
@@ -15612,7 +15968,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
 
                   {/* Report sections preview */}
                   <div className="bg-gray-50 rounded-xl p-3 space-y-1.5">
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Closure Report will include:</p>
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">{t("case.closure_includes")}</p>
                     {['1. Initial Request','2. Functional Specification','3. Development Scope',
                       '4. Quality Assurance — Test Results','5. Adjustments Made',
                       '6. Final Delivered Scope','7. User Manual (AI-generated)'].map(s => (
@@ -15626,7 +15982,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
                   <div className="flex justify-between gap-3 border-t border-gray-100 pt-4">
                     <button onClick={() => setApprovalModal(false)} disabled={generatingClosure}
                       className="px-4 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40">
-                      Cancel
+                      {t("action.cancel")}
                     </button>
                     <button
                       onClick={() => {
@@ -15637,8 +15993,8 @@ function ConsultantDetailModal({ consultantId, auth }) {
                       disabled={generatingClosure || (!allDone && !(auth.isAdmin || auth.isManager)) || (!allDone && (auth.isAdmin || auth.isManager) && !approvalBypass.trim())}
                       className="flex items-center gap-2 px-6 py-2 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 rounded-xl disabled:opacity-40 transition-colors">
                       {generatingClosure
-                        ? <><Spinner size={13} /> Generating Report…</>
-                        : <><BadgeCheck size={14} /> Approve & Generate Report</>}
+                        ? <><Spinner size={13} /> {t("case.generating_report")}</>
+                        : <><BadgeCheck size={14} /> {t("case.approve_report")}</>}
                     </button>
                   </div>
                 </>
