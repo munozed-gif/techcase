@@ -19,7 +19,7 @@
 //                   file_type, file_size_kb, notes, created_at)
 // ============================================================
 
-import { useState, useEffect, useCallback, useRef, Fragment } from "react";
+import { useState, useEffect, useCallback, useRef, Fragment, createContext, useContext } from "react";
 import { createClient } from "@supabase/supabase-js";
 import {
   LayoutDashboard, FolderOpen, LayoutGrid, Target, Receipt, Clock,
@@ -45,6 +45,373 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL || "",
   import.meta.env.VITE_SUPABASE_ANON_KEY || ""
 );
+
+// ============================================================
+// INTERNATIONALIZATION (EN / ES)
+// ============================================================
+const TRANSLATIONS = {
+  en: {
+    // Navigation
+    "nav.dashboard":      "Dashboard",
+    "nav.projects":       "Projects",
+    "nav.cases":          "Cases",
+    "nav.my_cases":       "My Cases",
+    "nav.kanban":         "Kanban",
+    "nav.arena":          "Arena",
+    "nav.invoices":       "Invoices",
+    "nav.time":           "Time Entries",
+    "nav.db_connections": "DB Connections",
+    "nav.team_members":   "Client Teams",
+    "nav.reports":        "Reports",
+    "nav.settings":       "Settings",
+    "nav.consultants":    "Consultants",
+    "nav.profile":        "My Profile",
+    "nav.company_profile":"Company Profile",
+    "nav.notifications":  "Notifications",
+    "nav.my_cases_short": "My Cases",
+    // Common actions
+    "action.save":        "Save",
+    "action.cancel":      "Cancel",
+    "action.delete":      "Delete",
+    "action.edit":        "Edit",
+    "action.add":         "Add",
+    "action.close":       "Close",
+    "action.confirm":     "Confirm",
+    "action.search":      "Search",
+    "action.filter":      "Filter",
+    "action.export":      "Export",
+    "action.create":      "Create",
+    "action.submit":      "Submit",
+    "action.upload":      "Upload",
+    "action.download":    "Download",
+    "action.remove":      "Remove",
+    "action.apply":       "Apply",
+    "action.approve":     "Approve",
+    "action.reject":      "Reject",
+    "action.sign_out":    "Sign Out",
+    "action.sign_in":     "Sign In",
+    "action.create_account": "Create Account",
+    // Auth
+    "auth.welcome":       "Welcome back",
+    "auth.sign_in_title": "Sign in to TechCase",
+    "auth.email":         "Email address",
+    "auth.password":      "Password",
+    "auth.forgot":        "Forgot password?",
+    "auth.no_account":    "Don't have an account?",
+    "auth.have_account":  "Already have an account?",
+    "auth.signing_in":    "Signing in…",
+    "auth.creating":      "Creating account…",
+    // Common labels
+    "label.status":       "Status",
+    "label.client":       "Client",
+    "label.consultant":   "Consultant",
+    "label.date":         "Date",
+    "label.name":         "Name",
+    "label.email":        "Email",
+    "label.role":         "Role",
+    "label.notes":        "Notes",
+    "label.total":        "Total",
+    "label.active":       "Active",
+    "label.inactive":     "Inactive",
+    "label.loading":      "Loading…",
+    "label.none":         "None",
+    "label.all":          "All",
+    "label.yes":          "Yes",
+    "label.no":           "No",
+    "label.language":     "Language",
+    "label.hours":        "Hours",
+    "label.amount":       "Amount",
+    "label.description":  "Description",
+    "label.title":        "Title",
+    "label.type":         "Type",
+    "label.priority":     "Priority",
+    "label.project":      "Project",
+    "label.company":      "Company",
+    "label.phone":        "Phone",
+    "label.industry":     "Industry",
+    "label.start_date":   "Start Date",
+    "label.end_date":     "End Date",
+    "label.created_at":   "Created",
+    "label.updated_at":   "Updated",
+    // States
+    "state.empty":        "No results found",
+    "state.loading":      "Loading…",
+    "state.error":        "Something went wrong",
+    "state.saved":        "Saved",
+    "state.saving":       "Saving…",
+    "state.deleting":     "Deleting…",
+    // Dashboard
+    "dashboard.title":          "Dashboard",
+    "dashboard.active_cases":   "Active Cases",
+    "dashboard.my_cases":       "My Cases",
+    "dashboard.open_cases":     "Open Cases",
+    "dashboard.revenue":        "Revenue",
+    "dashboard.hours_logged":   "Hours Logged",
+    "dashboard.activity_feed":  "Activity Feed",
+    "dashboard.available_cases":"Available Cases",
+    "dashboard.recent_cases":   "Recent Cases",
+    "dashboard.total_cases":    "Total Cases",
+    "dashboard.completed":      "Completed",
+    "dashboard.in_progress":    "In Progress",
+    "dashboard.pending":        "Pending",
+    // Cases
+    "cases.title":              "Cases",
+    "cases.new":                "New Case",
+    "cases.all":                "All Cases",
+    "cases.active":             "Active",
+    "cases.past":               "Past",
+    "cases.no_cases":           "No cases yet",
+    // Projects
+    "projects.title":           "Projects",
+    "projects.new":             "New Project",
+    "projects.no_projects":     "No projects yet",
+    // Settings
+    "settings.title":           "Settings",
+    "settings.users":           "Users",
+    "settings.lifecycle":       "Lifecycle",
+    "settings.activity_phases": "Activity Phases",
+    "settings.catalog":         "Catalog Values",
+    "settings.sla":             "SLA Config",
+    "settings.platform":        "Platform & AI",
+    // Profile
+    "profile.title":            "My Profile",
+    "profile.full_name":        "Full Name",
+    "profile.bio":              "Bio",
+    "profile.edit":             "Edit Profile",
+    "profile.save":             "Save Profile",
+    "profile.company_empty":    "Your company profile is empty",
+    "profile.company_empty_hint":"Click Edit Profile above to fill in your company details.",
+    // Notifications
+    "notif.title":              "Notifications",
+    "notif.mark_read":          "Mark all read",
+    "notif.none":               "No notifications",
+    // Reports
+    "reports.title":            "Reports",
+    // Invoices
+    "invoices.title":           "Invoices",
+    "invoices.new":             "New Invoice",
+    // Time entries
+    "time.title":               "Time Entries",
+    "time.log":                 "Log Time",
+    // Arena
+    "arena.title":              "Arena",
+    // DB Connections
+    "db.title":                 "DB Connections",
+    "db.add":                   "Add Connection",
+    // Kanban
+    "kanban.title":             "Kanban Board",
+    // SLA
+    "sla.title":                "SLA Configuration",
+    // Language picker
+    "lang.en":                  "English",
+    "lang.es":                  "Spanish",
+    "lang.choose":              "Language",
+  },
+  es: {
+    // Navigation
+    "nav.dashboard":      "Panel",
+    "nav.projects":       "Proyectos",
+    "nav.cases":          "Casos",
+    "nav.my_cases":       "Mis Casos",
+    "nav.kanban":         "Tablero",
+    "nav.arena":          "Arena",
+    "nav.invoices":       "Facturas",
+    "nav.time":           "Registro de Horas",
+    "nav.db_connections": "Conexiones BD",
+    "nav.team_members":   "Equipos de Cliente",
+    "nav.reports":        "Reportes",
+    "nav.settings":       "Configuración",
+    "nav.consultants":    "Consultores",
+    "nav.profile":        "Mi Perfil",
+    "nav.company_profile":"Perfil de Empresa",
+    "nav.notifications":  "Notificaciones",
+    "nav.my_cases_short": "Mis Casos",
+    // Common actions
+    "action.save":        "Guardar",
+    "action.cancel":      "Cancelar",
+    "action.delete":      "Eliminar",
+    "action.edit":        "Editar",
+    "action.add":         "Agregar",
+    "action.close":       "Cerrar",
+    "action.confirm":     "Confirmar",
+    "action.search":      "Buscar",
+    "action.filter":      "Filtrar",
+    "action.export":      "Exportar",
+    "action.create":      "Crear",
+    "action.submit":      "Enviar",
+    "action.upload":      "Subir",
+    "action.download":    "Descargar",
+    "action.remove":      "Eliminar",
+    "action.apply":       "Postular",
+    "action.approve":     "Aprobar",
+    "action.reject":      "Rechazar",
+    "action.sign_out":    "Cerrar Sesión",
+    "action.sign_in":     "Iniciar Sesión",
+    "action.create_account": "Crear Cuenta",
+    // Auth
+    "auth.welcome":       "Bienvenido de nuevo",
+    "auth.sign_in_title": "Inicia sesión en TechCase",
+    "auth.email":         "Correo electrónico",
+    "auth.password":      "Contraseña",
+    "auth.forgot":        "¿Olvidaste tu contraseña?",
+    "auth.no_account":    "¿No tienes cuenta?",
+    "auth.have_account":  "¿Ya tienes cuenta?",
+    "auth.signing_in":    "Iniciando sesión…",
+    "auth.creating":      "Creando cuenta…",
+    // Common labels
+    "label.status":       "Estado",
+    "label.client":       "Cliente",
+    "label.consultant":   "Consultor",
+    "label.date":         "Fecha",
+    "label.name":         "Nombre",
+    "label.email":        "Correo",
+    "label.role":         "Rol",
+    "label.notes":        "Notas",
+    "label.total":        "Total",
+    "label.active":       "Activo",
+    "label.inactive":     "Inactivo",
+    "label.loading":      "Cargando…",
+    "label.none":         "Ninguno",
+    "label.all":          "Todos",
+    "label.yes":          "Sí",
+    "label.no":           "No",
+    "label.language":     "Idioma",
+    "label.hours":        "Horas",
+    "label.amount":       "Monto",
+    "label.description":  "Descripción",
+    "label.title":        "Título",
+    "label.type":         "Tipo",
+    "label.priority":     "Prioridad",
+    "label.project":      "Proyecto",
+    "label.company":      "Empresa",
+    "label.phone":        "Teléfono",
+    "label.industry":     "Industria",
+    "label.start_date":   "Fecha de inicio",
+    "label.end_date":     "Fecha de fin",
+    "label.created_at":   "Creado",
+    "label.updated_at":   "Actualizado",
+    // States
+    "state.empty":        "Sin resultados",
+    "state.loading":      "Cargando…",
+    "state.error":        "Algo salió mal",
+    "state.saved":        "Guardado",
+    "state.saving":       "Guardando…",
+    "state.deleting":     "Eliminando…",
+    // Dashboard
+    "dashboard.title":          "Panel",
+    "dashboard.active_cases":   "Casos Activos",
+    "dashboard.my_cases":       "Mis Casos",
+    "dashboard.open_cases":     "Casos Abiertos",
+    "dashboard.revenue":        "Ingresos",
+    "dashboard.hours_logged":   "Horas Registradas",
+    "dashboard.activity_feed":  "Actividad Reciente",
+    "dashboard.available_cases":"Casos Disponibles",
+    "dashboard.recent_cases":   "Casos Recientes",
+    "dashboard.total_cases":    "Total de Casos",
+    "dashboard.completed":      "Completados",
+    "dashboard.in_progress":    "En Progreso",
+    "dashboard.pending":        "Pendientes",
+    // Cases
+    "cases.title":              "Casos",
+    "cases.new":                "Nuevo Caso",
+    "cases.all":                "Todos los Casos",
+    "cases.active":             "Activos",
+    "cases.past":               "Anteriores",
+    "cases.no_cases":           "Sin casos aún",
+    // Projects
+    "projects.title":           "Proyectos",
+    "projects.new":             "Nuevo Proyecto",
+    "projects.no_projects":     "Sin proyectos aún",
+    // Settings
+    "settings.title":           "Configuración",
+    "settings.users":           "Usuarios",
+    "settings.lifecycle":       "Ciclo de Vida",
+    "settings.activity_phases": "Fases de Actividad",
+    "settings.catalog":         "Valores de Catálogo",
+    "settings.sla":             "Config. SLA",
+    "settings.platform":        "Plataforma e IA",
+    // Profile
+    "profile.title":            "Mi Perfil",
+    "profile.full_name":        "Nombre completo",
+    "profile.bio":              "Biografía",
+    "profile.edit":             "Editar perfil",
+    "profile.save":             "Guardar perfil",
+    "profile.company_empty":    "El perfil de tu empresa está vacío",
+    "profile.company_empty_hint":"Haz clic en Editar perfil para completar los datos de tu empresa.",
+    // Notifications
+    "notif.title":              "Notificaciones",
+    "notif.mark_read":          "Marcar todo como leído",
+    "notif.none":               "Sin notificaciones",
+    // Reports
+    "reports.title":            "Reportes",
+    // Invoices
+    "invoices.title":           "Facturas",
+    "invoices.new":             "Nueva Factura",
+    // Time entries
+    "time.title":               "Registro de Horas",
+    "time.log":                 "Registrar Horas",
+    // Arena
+    "arena.title":              "Arena",
+    // DB Connections
+    "db.title":                 "Conexiones BD",
+    "db.add":                   "Agregar Conexión",
+    // Kanban
+    "kanban.title":             "Tablero Kanban",
+    // SLA
+    "sla.title":                "Configuración SLA",
+    // Language picker
+    "lang.en":                  "Inglés",
+    "lang.es":                  "Español",
+    "lang.choose":              "Idioma",
+  },
+};
+
+const LanguageContext = createContext({ lang: "en", setLang: () => {}, t: k => k });
+
+function LanguageProvider({ children, userId }) {
+  const [lang, setLangState] = useState(() => {
+    try {
+      const saved = localStorage.getItem("tc_lang");
+      return saved && TRANSLATIONS[saved] ? saved : "en";
+    } catch { return "en"; }
+  });
+
+  // Sync language preference from DB when user is known
+  useEffect(() => {
+    if (!userId) return;
+    supabase.from("users").select("language_pref").eq("id", userId).maybeSingle()
+      .then(({ data }) => {
+        if (data?.language_pref && TRANSLATIONS[data.language_pref]) {
+          setLangState(data.language_pref);
+          try { localStorage.setItem("tc_lang", data.language_pref); } catch {}
+        }
+      });
+  }, [userId]);
+
+  function setLang(newLang) {
+    if (!TRANSLATIONS[newLang]) return;
+    setLangState(newLang);
+    try { localStorage.setItem("tc_lang", newLang); } catch {}
+    // Persist to DB — graceful if column doesn't exist yet
+    if (userId) {
+      supabase.from("users").update({ language_pref: newLang }).eq("id", userId).then(() => {});
+    }
+  }
+
+  function t(key) {
+    return TRANSLATIONS[lang]?.[key] ?? TRANSLATIONS.en?.[key] ?? key;
+  }
+
+  return (
+    <LanguageContext.Provider value={{ lang, setLang, t }}>
+      {children}
+    </LanguageContext.Provider>
+  );
+}
+
+function useT() {
+  return useContext(LanguageContext);
+}
 
 // ============================================================
 // HOOKS
@@ -2901,54 +3268,56 @@ function AuthScreen({ onAuth }) {
 // SIDEBAR NAV
 // ============================================================
 function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
+  const { t, lang, setLang } = useT();
+
   const navItems = {
     admin: [
-      { id: "dashboard",       Icon: LayoutDashboard,   label: "Dashboard" },
-      { id: "projects",        Icon: Layers,            label: "Projects" },
-      { id: "cases",           Icon: FolderOpen,        label: "Cases" },
-      { id: "kanban",          Icon: LayoutGrid,        label: "Kanban" },
-      { id: "arena",           Icon: Target,            label: "Arena" },
-      { id: "invoices",        Icon: Receipt,           label: "Invoices" },
-      { id: "time",            Icon: Clock,             label: "Time Entries" },
-      { id: "db-connections",  Icon: Database,          label: "DB Connections" },
-      { id: "team-members",    Icon: Handshake,         label: "Client Teams" },
-      { id: "reports",         Icon: BarChart2,         label: "Reports" },
-      { id: "settings",        Icon: SlidersHorizontal, label: "Settings" },
+      { id: "dashboard",       Icon: LayoutDashboard,   labelKey: "nav.dashboard" },
+      { id: "projects",        Icon: Layers,            labelKey: "nav.projects" },
+      { id: "cases",           Icon: FolderOpen,        labelKey: "nav.cases" },
+      { id: "kanban",          Icon: LayoutGrid,        labelKey: "nav.kanban" },
+      { id: "arena",           Icon: Target,            labelKey: "nav.arena" },
+      { id: "invoices",        Icon: Receipt,           labelKey: "nav.invoices" },
+      { id: "time",            Icon: Clock,             labelKey: "nav.time" },
+      { id: "db-connections",  Icon: Database,          labelKey: "nav.db_connections" },
+      { id: "team-members",    Icon: Handshake,         labelKey: "nav.team_members" },
+      { id: "reports",         Icon: BarChart2,         labelKey: "nav.reports" },
+      { id: "settings",        Icon: SlidersHorizontal, labelKey: "nav.settings" },
     ],
     manager: [
-      { id: "dashboard",       Icon: LayoutDashboard,   label: "Dashboard" },
-      { id: "projects",        Icon: Layers,            label: "Projects" },
-      { id: "cases",           Icon: FolderOpen,        label: "Cases" },
-      { id: "kanban",          Icon: LayoutGrid,        label: "Kanban" },
-      { id: "arena",           Icon: Target,            label: "Arena" },
-      { id: "invoices",        Icon: Receipt,           label: "Invoices" },
-      { id: "time",            Icon: Clock,             label: "Time Entries" },
-      { id: "consultants",     Icon: UserCheck,         label: "Consultants" },
-      { id: "db-connections",  Icon: Database,          label: "DB Connections" },
-      { id: "team-members",    Icon: Handshake,         label: "Client Teams" },
-      { id: "settings",        Icon: SlidersHorizontal, label: "Settings" },
+      { id: "dashboard",       Icon: LayoutDashboard,   labelKey: "nav.dashboard" },
+      { id: "projects",        Icon: Layers,            labelKey: "nav.projects" },
+      { id: "cases",           Icon: FolderOpen,        labelKey: "nav.cases" },
+      { id: "kanban",          Icon: LayoutGrid,        labelKey: "nav.kanban" },
+      { id: "arena",           Icon: Target,            labelKey: "nav.arena" },
+      { id: "invoices",        Icon: Receipt,           labelKey: "nav.invoices" },
+      { id: "time",            Icon: Clock,             labelKey: "nav.time" },
+      { id: "consultants",     Icon: UserCheck,         labelKey: "nav.consultants" },
+      { id: "db-connections",  Icon: Database,          labelKey: "nav.db_connections" },
+      { id: "team-members",    Icon: Handshake,         labelKey: "nav.team_members" },
+      { id: "settings",        Icon: SlidersHorizontal, labelKey: "nav.settings" },
     ],
     consultant: [
-      { id: "dashboard", Icon: LayoutDashboard, label: "Dashboard" },
-      { id: "arena",     Icon: Target,          label: "Arena" },
-      { id: "kanban",    Icon: LayoutGrid,      label: "Kanban" },
-      { id: "my-cases",  Icon: FolderOpen,      label: "My Cases" },
-      { id: "time",      Icon: Clock,           label: "Time Entries" },
-      { id: "profile",   Icon: User,            label: "My Profile" },
+      { id: "dashboard", Icon: LayoutDashboard, labelKey: "nav.dashboard" },
+      { id: "arena",     Icon: Target,          labelKey: "nav.arena" },
+      { id: "kanban",    Icon: LayoutGrid,      labelKey: "nav.kanban" },
+      { id: "my-cases",  Icon: FolderOpen,      labelKey: "nav.my_cases" },
+      { id: "time",      Icon: Clock,           labelKey: "nav.time" },
+      { id: "profile",   Icon: User,            labelKey: "nav.profile" },
     ],
     client: [
-      { id: "dashboard",      Icon: LayoutDashboard, label: "Dashboard" },
-      { id: "projects",       Icon: Layers,          label: "Projects" },
-      { id: "cases",          Icon: FolderOpen,      label: "My Cases" },
-      { id: "kanban",         Icon: LayoutGrid,      label: "Kanban" },
-      { id: "invoices",       Icon: Receipt,         label: "Invoices" },
-      { id: "consultants",    Icon: UserCheck,       label: "Consultants" },
-      { id: "client-profile", Icon: Building2,       label: "Company Profile" },
+      { id: "dashboard",      Icon: LayoutDashboard, labelKey: "nav.dashboard" },
+      { id: "projects",       Icon: Layers,          labelKey: "nav.projects" },
+      { id: "cases",          Icon: FolderOpen,      labelKey: "nav.my_cases" },
+      { id: "kanban",         Icon: LayoutGrid,      labelKey: "nav.kanban" },
+      { id: "invoices",       Icon: Receipt,         labelKey: "nav.invoices" },
+      { id: "consultants",    Icon: UserCheck,       labelKey: "nav.consultants" },
+      { id: "client-profile", Icon: Building2,       labelKey: "nav.company_profile" },
     ],
     key_user: [
-      { id: "dashboard", Icon: LayoutDashboard, label: "Dashboard" },
-      { id: "my-cases",  Icon: FolderOpen,      label: "My Cases" },
-      { id: "kanban",    Icon: LayoutGrid,      label: "Kanban" },
+      { id: "dashboard", Icon: LayoutDashboard, labelKey: "nav.dashboard" },
+      { id: "my-cases",  Icon: FolderOpen,      labelKey: "nav.my_cases" },
+      { id: "kanban",    Icon: LayoutGrid,      labelKey: "nav.kanban" },
     ],
   };
 
@@ -2976,7 +3345,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
                 ? "bg-blue-600 text-white shadow-md"
                 : "text-blue-200 hover:bg-blue-900 hover:text-white"}`}>
             <item.Icon className="w-[18px] h-[18px] flex-shrink-0" />
-            {item.label}
+            {t(item.labelKey)}
           </button>
         ))}
 
@@ -2987,7 +3356,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
               ? "bg-blue-600 text-white shadow-md"
               : "text-blue-200 hover:bg-blue-900 hover:text-white"}`}>
           <Bell className="w-[18px] h-[18px] flex-shrink-0" />
-          Notifications
+          {t("nav.notifications")}
           {unreadCount > 0 && (
             <span className="ml-auto bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
               {unreadCount > 9 ? "9+" : unreadCount}
@@ -2998,6 +3367,18 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
 
       {/* User footer */}
       <div className="p-4 border-t border-blue-900">
+        {/* Language picker */}
+        <div className="flex items-center gap-2 mb-3">
+          <Globe className="w-4 h-4 text-blue-400 flex-shrink-0" />
+          <select
+            value={lang}
+            onChange={e => setLang(e.target.value)}
+            className="flex-1 bg-blue-900/60 text-blue-200 text-xs rounded-lg px-2 py-1 border border-blue-800 hover:border-blue-600 focus:outline-none focus:border-blue-500 cursor-pointer">
+            <option value="en">{t("lang.en")}</option>
+            <option value="es">{t("lang.es")}</option>
+          </select>
+        </div>
+
         <div className="flex items-center gap-3 mb-3">
           <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold">
             {profile?.full_name?.[0] ?? "?"}
@@ -3009,7 +3390,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
         </div>
         <button onClick={onSignOut}
           className="w-full text-sm text-blue-300 hover:text-white py-1.5 px-3 rounded-lg hover:bg-blue-900 transition-colors text-left">
-          Sign Out
+          {t("action.sign_out")}
         </button>
       </div>
     </aside>
@@ -20198,7 +20579,7 @@ export default function App() {
   }
 
   return (
-    <>
+    <LanguageProvider userId={auth.user?.id}>
       <StartDateMonitor auth={auth} />
       <div className="min-h-screen bg-[#EAF4FD]">
         <Sidebar
@@ -20215,7 +20596,7 @@ export default function App() {
           </div>
         </main>
       </div>
-    </>
+    </LanguageProvider>
   );
 }
 
