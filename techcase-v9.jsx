@@ -565,6 +565,85 @@ const TRANSLATIONS = {
     "lifecycle.allow_case":   "Allow cases to change template",
     "lifecycle.allow_case_desc":"Individual cases can pick a different lifecycle template",
     "lifecycle.save":         "Save Lifecycle",
+    // Lifecycle track/diagram components
+    "lifecycle.terminal":        "Terminal",
+    "lifecycle.progress":        "Lifecycle Progress",
+    "lifecycle.now":             "Now",
+    // Feedback modal
+    "feedback.title":            "Rate the Consultants",
+    "feedback.subtitle":         "How did they perform on \"{title}\"?",
+    "feedback.comment_ph":       "Optional comment…",
+    "feedback.skip":             "Skip",
+    "feedback.submit":           "Submit Ratings",
+    // Feed card inline text
+    "feed.commented_on":         " commented on ",
+    "feed.updated":              " updated ",
+    "feed.to":                   " to ",
+    "feed.joined_case":          " joined ",
+    "feed.status_changed_on":    "Status changed on ",
+    "feed.open_case":            "Open case →",
+    // Feed preferences modal
+    "feed.prefs_title":          "Feed Preferences",
+    "feed.show_in_feed":         "Show in my feed",
+    "feed.pref_comments":        "Comments on cases",
+    "feed.pref_progress":        "Progress updates",
+    "feed.pref_status":          "Status changes",
+    "feed.pref_assignments":     "Consultant assignments",
+    "feed.pref_documents":       "Document uploads",
+    "feed.pref_alerts":          "Due date & milestone alerts",
+    "feed.pref_docs_short":      "Documents",
+    "feed.case_scope":           "Case scope",
+    "feed.scope_my":             "My cases only",
+    "feed.scope_all":            "All platform activity",
+    "feed.client_vis_title":     "What your team can see about your cases",
+    "feed.client_vis_desc":      "Controls what events are visible to consultants and managers working on your cases.",
+    "feed.vis_comments":         "Comments — visible to team",
+    "feed.vis_progress":         "Progress updates — visible to team",
+    "feed.vis_status":           "Status changes — visible to team",
+    "feed.vis_assignments":      "Consultant assignments — visible to team",
+    "feed.save_prefs":           "Save preferences",
+    // ProjectFieldEditor
+    "project.standalone":        "Standalone",
+    "project.change":            "change",
+    "project.standalone_opt":    "Standalone (no project)",
+    "project.no_projects":       "No projects available",
+    // SlaView / SlaClientDetail
+    "sla.page_subtitle":         "Service Level Agreement settings per client",
+    "sla.no_clients":            "No clients found",
+    "sla.select_client":         "Select a client to view or edit their SLA configuration",
+    "sla.no_sla_client":         "No SLA configured for this client.",
+    "sla.legend_response":       "Initial Response",
+    // DbConnectionsView
+    "conn.page_subtitle":        "Manage client database connection details",
+    "conn.select_client":        "Select a client to view their database connections",
+    // SAP profile fields
+    "sap.profile_title":         "SAP System Profile",
+    "sap.product_label":         "SAP Product",
+    "sap.release_label":         "Release / SP Level",
+    "sap.basis_label":           "Basis Release",
+    "sap.role_label":            "System Role",
+    "sap.language_label":        "Logon Language",
+    "sap.transport_label":       "Transport Route",
+    "sap.components_label":      "Installed Components",
+    "sap.logon_group_label":     "Logon Group",
+    "sap.message_server_label":  "Message Server",
+    "sap.rfc_dest_label":        "RFC Destination",
+    // ClientTeamView / ClientTeamList
+    "team.page_title":           "Client Team Members",
+    "team.page_subtitle":        "Stakeholders and points of contact per client",
+    "team.no_clients":           "No clients",
+    "team.select_client":        "Select a client to view their team members",
+    "team.count_one":            "1 team member",
+    "team.count_many":           "{n} team members",
+    // UsersView
+    "users.total":               "{n} total users",
+    "users.add_btn":             "+ Add User",
+    "users.col_user":            "User",
+    "users.col_joined":          "Joined",
+    // Extra label/action keys
+    "label.clients":             "Clients",
+    "action.deactivate":         "Deactivate",
+    "action.activate":           "Activate",
     // Phases (ClientProfileView)
     "phases.title":           "Activity Phases",
     "phases.subtitle":        "Configure the phases your team uses to organize case activities. Test phases can only accept progress when the case reaches that status.",
@@ -1627,6 +1706,85 @@ const TRANSLATIONS = {
     "lifecycle.allow_case":   "Permitir que los casos cambien la plantilla",
     "lifecycle.allow_case_desc":"Los casos individuales pueden elegir una plantilla de ciclo de vida diferente",
     "lifecycle.save":         "Guardar Ciclo de Vida",
+    // Lifecycle track/diagram components
+    "lifecycle.terminal":        "Terminal",
+    "lifecycle.progress":        "Progreso del Ciclo de Vida",
+    "lifecycle.now":             "Ahora",
+    // Feedback modal
+    "feedback.title":            "Calificar los Consultores",
+    "feedback.subtitle":         "¿Cómo se desempeñaron en \"{title}\"?",
+    "feedback.comment_ph":       "Comentario opcional…",
+    "feedback.skip":             "Omitir",
+    "feedback.submit":           "Enviar Calificaciones",
+    // Feed card inline text
+    "feed.commented_on":         " comentó en ",
+    "feed.updated":              " actualizó ",
+    "feed.to":                   " a ",
+    "feed.joined_case":          " se unió a ",
+    "feed.status_changed_on":    "Estado cambiado en ",
+    "feed.open_case":            "Abrir caso →",
+    // Feed preferences modal
+    "feed.prefs_title":          "Preferencias del Feed",
+    "feed.show_in_feed":         "Mostrar en mi feed",
+    "feed.pref_comments":        "Comentarios en casos",
+    "feed.pref_progress":        "Actualizaciones de progreso",
+    "feed.pref_status":          "Cambios de estado",
+    "feed.pref_assignments":     "Asignaciones de consultores",
+    "feed.pref_documents":       "Cargas de documentos",
+    "feed.pref_alerts":          "Alertas de vencimiento e hitos",
+    "feed.pref_docs_short":      "Documentos",
+    "feed.case_scope":           "Ámbito de casos",
+    "feed.scope_my":             "Solo mis casos",
+    "feed.scope_all":            "Toda la actividad de la plataforma",
+    "feed.client_vis_title":     "Lo que tu equipo puede ver sobre tus casos",
+    "feed.client_vis_desc":      "Controla qué eventos son visibles para consultores y managers que trabajan en tus casos.",
+    "feed.vis_comments":         "Comentarios — visibles al equipo",
+    "feed.vis_progress":         "Actualizaciones de progreso — visibles al equipo",
+    "feed.vis_status":           "Cambios de estado — visibles al equipo",
+    "feed.vis_assignments":      "Asignaciones de consultores — visibles al equipo",
+    "feed.save_prefs":           "Guardar preferencias",
+    // ProjectFieldEditor
+    "project.standalone":        "Sin proyecto",
+    "project.change":            "cambiar",
+    "project.standalone_opt":    "Sin proyecto (independiente)",
+    "project.no_projects":       "Sin proyectos disponibles",
+    // SlaView / SlaClientDetail
+    "sla.page_subtitle":         "Configuración de SLA por cliente",
+    "sla.no_clients":            "Sin clientes encontrados",
+    "sla.select_client":         "Selecciona un cliente para ver o editar su configuración de SLA",
+    "sla.no_sla_client":         "Sin SLA configurado para este cliente.",
+    "sla.legend_response":       "Respuesta Inicial",
+    // DbConnectionsView
+    "conn.page_subtitle":        "Administrar detalles de conexión de base de datos por cliente",
+    "conn.select_client":        "Selecciona un cliente para ver sus conexiones de base de datos",
+    // SAP profile fields
+    "sap.profile_title":         "Perfil del Sistema SAP",
+    "sap.product_label":         "Producto SAP",
+    "sap.release_label":         "Release / Nivel SP",
+    "sap.basis_label":           "Release Basis",
+    "sap.role_label":            "Rol del Sistema",
+    "sap.language_label":        "Idioma de Inicio de Sesión",
+    "sap.transport_label":       "Ruta de Transporte",
+    "sap.components_label":      "Componentes Instalados",
+    "sap.logon_group_label":     "Grupo de Inicio de Sesión",
+    "sap.message_server_label":  "Servidor de Mensajes",
+    "sap.rfc_dest_label":        "Destino RFC",
+    // ClientTeamView / ClientTeamList
+    "team.page_title":           "Miembros del Equipo del Cliente",
+    "team.page_subtitle":        "Partes interesadas y puntos de contacto por cliente",
+    "team.no_clients":           "Sin clientes",
+    "team.select_client":        "Selecciona un cliente para ver los miembros de su equipo",
+    "team.count_one":            "1 miembro del equipo",
+    "team.count_many":           "{n} miembros del equipo",
+    // UsersView
+    "users.total":               "{n} usuarios en total",
+    "users.add_btn":             "+ Agregar Usuario",
+    "users.col_user":            "Usuario",
+    "users.col_joined":          "Registrado",
+    // Extra label/action keys
+    "label.clients":             "Clientes",
+    "action.deactivate":         "Desactivar",
+    "action.activate":           "Activar",
     // Phases (ClientProfileView)
     "phases.title":           "Fases de Actividad",
     "phases.subtitle":        "Configura las fases que usa tu equipo para organizar las actividades de los casos. Las fases de prueba solo aceptan progreso cuando el caso alcanza ese estado.",
@@ -2968,6 +3126,7 @@ function useApplicantRanking(caseData, applications) {
 }
 
 function CaseFeedbackModal({ caseData, onClose }) {
+  const { t } = useT();
   const consultants = caseData.case_assignments ?? [];
   const [ratings, setRatings] = useState(
     Object.fromEntries(consultants.map(a => [a.consultant_id, { score: 0, comment: "" }]))
@@ -2999,8 +3158,8 @@ function CaseFeedbackModal({ caseData, onClose }) {
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
         <div>
-          <h2 className="font-bold text-lg text-gray-900">Rate the Consultants</h2>
-          <p className="text-sm text-gray-400 mt-0.5">How did they perform on "{caseData.title}"?</p>
+          <h2 className="font-bold text-lg text-gray-900">{t("feedback.title")}</h2>
+          <p className="text-sm text-gray-400 mt-0.5">{t("feedback.subtitle").replace("{title}", caseData.title)}</p>
         </div>
         {consultants.map(a => {
           const r = ratings[a.consultant_id] ?? { score: 0, comment: "" };
@@ -3017,17 +3176,17 @@ function CaseFeedbackModal({ caseData, onClose }) {
               {r.score > 0 && (
                 <textarea value={r.comment}
                   onChange={e => setRatings(p => ({ ...p, [a.consultant_id]: { ...p[a.consultant_id], comment: e.target.value } }))}
-                  placeholder="Optional comment…" rows={2}
+                  placeholder={t("feedback.comment_ph")} rows={2}
                   className="w-full text-sm border border-gray-200 rounded-lg p-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" />
               )}
             </div>
           );
         })}
         <div className="flex gap-2 pt-2">
-          <button onClick={onClose} className="flex-1 py-2 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50">Skip</button>
+          <button onClick={onClose} className="flex-1 py-2 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50">{t("feedback.skip")}</button>
           <button onClick={handleSubmit} disabled={saving || !hasAnyRating}
             className="flex-1 py-2 text-sm font-semibold bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50">
-            {saving ? "Saving…" : "Submit Ratings"}
+            {saving ? t("state.saving") : t("feedback.submit")}
           </button>
         </div>
       </div>
@@ -4163,6 +4322,7 @@ const FEED_TYPE_STYLES = {
 };
 
 function FeedCard({ item, caseData, onOpenCase, onMarkRead }) {
+  const { t } = useT();
   const caseTitle = caseData?.title ?? item.title ?? 'Unknown case';
   const style = FEED_TYPE_STYLES[item._type] ?? FEED_TYPE_STYLES.alert;
   const actorInitials = item.actor_name
@@ -4196,10 +4356,10 @@ function FeedCard({ item, caseData, onOpenCase, onMarkRead }) {
           {/* Header */}
           <div className="flex items-start justify-between gap-2 mb-1">
             <p className="text-sm text-gray-900 leading-snug">
-              {item._type === 'comment' && <><span className="font-semibold">{item.actor_name}</span>{' commented on '}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span></>}
-              {item._type === 'progress' && <><span className="font-semibold">{item.actor_name}</span>{' updated '}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span>{' to '}<span className="font-semibold text-green-600">{item.progress_update}%</span></>}
-              {item._type === 'assignment' && <><span className="font-semibold">{item.actor_name}</span>{' joined '}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span>{item.time_commitment ? <span className="text-gray-500"> · {item.time_commitment}% commitment</span> : null}</>}
-              {item._type === 'status_change' && <>{'Status changed on '}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span>{': '}<span className="font-semibold text-indigo-600">{(item.title ?? '').replace('Status → ', '')}</span></>}
+              {item._type === 'comment' && <><span className="font-semibold">{item.actor_name}</span>{t("feed.commented_on")}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span></>}
+              {item._type === 'progress' && <><span className="font-semibold">{item.actor_name}</span>{t("feed.updated")}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span>{t("feed.to")}<span className="font-semibold text-green-600">{item.progress_update}%</span></>}
+              {item._type === 'assignment' && <><span className="font-semibold">{item.actor_name}</span>{t("feed.joined_case")}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span>{item.time_commitment ? <span className="text-gray-500"> · {item.time_commitment}% commitment</span> : null}</>}
+              {item._type === 'status_change' && <>{t("feed.status_changed_on")}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span>{': '}<span className="font-semibold text-indigo-600">{(item.title ?? '').replace('Status → ', '')}</span></>}
               {item._type === 'milestone' && <span className="font-semibold text-gray-900">{item.title}</span>}
               {item._type === 'document' && <span className="font-semibold text-gray-900">{item.title}</span>}
               {item._type === 'alert' && <span className="font-semibold text-amber-800">{item.title}</span>}
@@ -4232,7 +4392,7 @@ function FeedCard({ item, caseData, onOpenCase, onMarkRead }) {
               <Badge className={STATUS_COLORS[caseData.status] ?? 'bg-gray-100 text-gray-600'}>{cap(fmt(caseData.status))}</Badge>
               {caseData.area_sap && <span className="text-xs text-gray-400">{caseData.area_sap}</span>}
               {caseData.progress_pct != null && <span className="text-xs text-gray-400">{caseData.progress_pct}%</span>}
-              <span className="ml-auto text-xs text-[#1A4B8C] font-semibold hover:underline">Open case →</span>
+              <span className="ml-auto text-xs text-[#1A4B8C] font-semibold hover:underline">{t("feed.open_case")}</span>
             </div>
           )}
         </div>
@@ -4242,6 +4402,7 @@ function FeedCard({ item, caseData, onOpenCase, onMarkRead }) {
 }
 
 function FeedPreferencesModal({ open, onClose, auth, prefs, savePrefs }) {
+  const { t } = useT();
   if (!open) return null;
   const isClient = auth.isClient;
   const isConsultant = auth.isConsultant;
@@ -4252,7 +4413,7 @@ function FeedPreferencesModal({ open, onClose, auth, prefs, savePrefs }) {
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <SlidersHorizontal className="w-4 h-4 text-gray-500" />
-            <h2 className="font-bold text-gray-900">Feed Preferences</h2>
+            <h2 className="font-bold text-gray-900">{t("feed.prefs_title")}</h2>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
         </div>
@@ -4260,15 +4421,15 @@ function FeedPreferencesModal({ open, onClose, auth, prefs, savePrefs }) {
           {isConsultant && (
             <>
               <div>
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Show in my feed</p>
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">{t("feed.show_in_feed")}</p>
                 <div className="space-y-2">
                   {[
-                    { key: 'show_comments',    label: 'Comments on cases' },
-                    { key: 'show_progress',    label: 'Progress updates' },
-                    { key: 'show_status',      label: 'Status changes' },
-                    { key: 'show_assignments', label: 'Consultant assignments' },
-                    { key: 'show_documents',   label: 'Document uploads' },
-                    { key: 'show_alerts',      label: 'Due date & milestone alerts' },
+                    { key: 'show_comments',    label: t("feed.pref_comments") },
+                    { key: 'show_progress',    label: t("feed.pref_progress") },
+                    { key: 'show_status',      label: t("feed.pref_status") },
+                    { key: 'show_assignments', label: t("feed.pref_assignments") },
+                    { key: 'show_documents',   label: t("feed.pref_documents") },
+                    { key: 'show_alerts',      label: t("feed.pref_alerts") },
                   ].map(({ key, label }) => (
                     <label key={key} className="flex items-center justify-between gap-3 cursor-pointer">
                       <span className="text-sm text-gray-700">{label}</span>
@@ -4283,9 +4444,9 @@ function FeedPreferencesModal({ open, onClose, auth, prefs, savePrefs }) {
                 </div>
               </div>
               <div>
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Case scope</p>
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">{t("feed.case_scope")}</p>
                 <div className="flex gap-2">
-                  {[['my_cases','My cases only'],['all','All platform activity']].map(([v, l]) => (
+                  {[[`my_cases`, t("feed.scope_my")],[`all`, t("feed.scope_all")]].map(([v, l]) => (
                     <button key={v} onClick={() => savePrefs({ scope: v })}
                       className={`flex-1 py-2 text-sm font-medium rounded-xl border transition-colors ${prefs.scope === v ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'}`}>
                       {l}
@@ -4297,14 +4458,14 @@ function FeedPreferencesModal({ open, onClose, auth, prefs, savePrefs }) {
           )}
           {isClient && (
             <div>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">What your team can see about your cases</p>
-              <p className="text-xs text-gray-400 mb-3">Controls what events are visible to consultants and managers working on your cases.</p>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">{t("feed.client_vis_title")}</p>
+              <p className="text-xs text-gray-400 mb-3">{t("feed.client_vis_desc")}</p>
               <div className="space-y-2">
                 {[
-                  { key: 'visible_comments',    label: 'Comments — visible to team' },
-                  { key: 'visible_progress',    label: 'Progress updates — visible to team' },
-                  { key: 'visible_status',      label: 'Status changes — visible to team' },
-                  { key: 'visible_assignments', label: 'Consultant assignments — visible to team' },
+                  { key: 'visible_comments',    label: t("feed.vis_comments") },
+                  { key: 'visible_progress',    label: t("feed.vis_progress") },
+                  { key: 'visible_status',      label: t("feed.vis_status") },
+                  { key: 'visible_assignments', label: t("feed.vis_assignments") },
                 ].map(({ key, label }) => (
                   <label key={key} className="flex items-center justify-between gap-3 cursor-pointer">
                     <span className="text-sm text-gray-700">{label}</span>
@@ -4321,15 +4482,15 @@ function FeedPreferencesModal({ open, onClose, auth, prefs, savePrefs }) {
           )}
           {!isClient && !isConsultant && (
             <div>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Show in my feed</p>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">{t("feed.show_in_feed")}</p>
               <div className="space-y-2">
                 {[
-                  { key: 'show_comments',    label: 'Comments' },
-                  { key: 'show_progress',    label: 'Progress updates' },
-                  { key: 'show_status',      label: 'Status changes' },
-                  { key: 'show_assignments', label: 'Assignments' },
-                  { key: 'show_documents',   label: 'Documents' },
-                  { key: 'show_alerts',      label: 'Alerts' },
+                  { key: 'show_comments',    label: t("feed.comments") },
+                  { key: 'show_progress',    label: t("feed.pref_progress") },
+                  { key: 'show_status',      label: t("feed.pref_status") },
+                  { key: 'show_assignments', label: t("feed.assignments") },
+                  { key: 'show_documents',   label: t("feed.pref_docs_short") },
+                  { key: 'show_alerts',      label: t("feed.alerts") },
                 ].map(({ key, label }) => (
                   <label key={key} className="flex items-center justify-between gap-3 cursor-pointer">
                     <span className="text-sm text-gray-700">{label}</span>
@@ -4346,7 +4507,7 @@ function FeedPreferencesModal({ open, onClose, auth, prefs, savePrefs }) {
         </div>
         <div className="px-5 pb-5">
           <button onClick={onClose} className="w-full py-2.5 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 text-sm">
-            Save preferences
+            {t("feed.save_prefs")}
           </button>
         </div>
       </div>
@@ -9043,6 +9204,7 @@ function CasesView({ auth }) {
 }
 
 function ProjectFieldEditor({ caseData, auth }) {
+  const { t } = useT();
   const [projectName, setProjectName] = useState(null);
   const [projectId, setProjectId]     = useState(caseData.project_id ?? null);
   const [open, setOpen]               = useState(false);
@@ -9078,22 +9240,22 @@ function ProjectFieldEditor({ caseData, auth }) {
 
   return (
     <div className="flex items-center gap-2 text-sm relative">
-      <span className="text-gray-500 w-24 flex-shrink-0">Project</span>
+      <span className="text-gray-500 w-24 flex-shrink-0">{t("label.project")}</span>
       {projectName ? (
         <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold">{projectName}</span>
       ) : (
-        <span className="text-gray-400 italic text-xs">Standalone</span>
+        <span className="text-gray-400 italic text-xs">{t("project.standalone")}</span>
       )}
       {canEdit && (
         <button onClick={openDropdown} className="text-xs text-gray-400 hover:text-blue-600 underline ml-1">
-          change
+          {t("project.change")}
         </button>
       )}
       {open && (
         <div className="absolute left-24 top-6 z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-48 max-h-60 overflow-y-auto">
           <button onClick={() => select(null)}
             className="w-full text-left px-4 py-2 text-sm text-gray-500 hover:bg-gray-50 italic">
-            Standalone (no project)
+            {t("project.standalone_opt")}
           </button>
           {options.map(o => (
             <button key={o.id} onClick={() => select(o.id)}
@@ -9102,7 +9264,7 @@ function ProjectFieldEditor({ caseData, auth }) {
             </button>
           ))}
           {options.length === 0 && (
-            <div className="px-4 py-2 text-xs text-gray-400">No projects available</div>
+            <div className="px-4 py-2 text-xs text-gray-400">{t("project.no_projects")}</div>
           )}
         </div>
       )}
@@ -9122,6 +9284,7 @@ const STAGE_ICON_MAP = {
 function getStageIcon(key) { return STAGE_ICON_MAP[key] ?? Flag; }
 
 function CaseLifecycleTrack({ stages, currentStatus }) {
+  const { t } = useT();
   const flow      = stages.filter(s => !s.is_terminal);
   const terminals = stages.filter(s => s.is_terminal);
   const curIdx    = flow.findIndex(s => s.key === currentStatus);
@@ -9172,7 +9335,7 @@ function CaseLifecycleTrack({ stages, currentStatus }) {
       </div>
       {terminals.length > 0 && (
         <div className="flex items-center gap-2 pt-3 mt-2 border-t border-gray-100 flex-wrap">
-          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide flex-shrink-0">Terminal</span>
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide flex-shrink-0">{t("lifecycle.terminal")}</span>
           {terminals.map(s => {
             const isCurr = s.key === currentStatus;
             return (
@@ -9193,6 +9356,7 @@ function CaseLifecycleTrack({ stages, currentStatus }) {
 }
 
 function LifecycleFlowDiagram({ stages, currentStatus }) {
+  const { t } = useT();
   const activeStages = stages.filter(s => !s.is_terminal);
   const terminalStages = stages.filter(s => s.is_terminal);
   const currentIdx = activeStages.findIndex(s => s.key === currentStatus);
@@ -9215,7 +9379,7 @@ function LifecycleFlowDiagram({ stages, currentStatus }) {
 
   return (
     <div className="rounded-xl border border-gray-100 bg-white p-3">
-      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2.5">Lifecycle Progress</p>
+      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2.5">{t("lifecycle.progress")}</p>
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${NCOLS}, 1fr)`, columnGap: 20 }}>
         {cols.map(({ items, offset }, ci) => (
           <div key={ci}>
@@ -9279,7 +9443,7 @@ function LifecycleFlowDiagram({ stages, currentStatus }) {
                         padding: '1px 6px', borderRadius: 20, background: stage.color, color: '#fff',
                         whiteSpace: 'nowrap', flexShrink: 0,
                       }}>
-                        Now
+                        {t("lifecycle.now")}
                       </span>
                     )}
                   </div>
@@ -9291,7 +9455,7 @@ function LifecycleFlowDiagram({ stages, currentStatus }) {
       </div>
       {terminalStages.length > 0 && (
         <div className="flex items-center gap-2 pt-2 mt-2 border-t border-dashed border-gray-100 flex-wrap">
-          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide flex-shrink-0">Terminal</span>
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide flex-shrink-0">{t("lifecycle.terminal")}</span>
           {terminalStages.map(s => {
             const isCurr = s.key === currentStatus;
             return (
@@ -17166,6 +17330,7 @@ function NotificationsView() {
 // USERS ADMIN VIEW
 // ============================================================
 function UsersView() {
+  const { t } = useT();
   const [users, setUsers]     = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -17190,7 +17355,7 @@ function UsersView() {
   async function handleCreateUser() {
     setAddError("");
     if (!addForm.full_name || !addForm.email || !addForm.password) {
-      setAddError("Name, email and password are required."); return;
+      setAddError(t("sys.create_user_required")); return;
     }
     setAdding(true);
     try {
@@ -17222,12 +17387,12 @@ function UsersView() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Users</h1>
-          <p className="text-gray-500 text-sm mt-1">{users.length} total users</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t("settings.users")}</h1>
+          <p className="text-gray-500 text-sm mt-1">{t("users.total").replace("{n}", users.length)}</p>
         </div>
         <button onClick={() => { setShowAdd(true); setAddError(""); }}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors">
-          + Add User
+          {t("users.add_btn")}
         </button>
       </div>
 
@@ -17236,19 +17401,19 @@ function UsersView() {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-semibold text-gray-900">Create User Account</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t("sys.create_user_title")}</h2>
               <button onClick={() => setShowAdd(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
             </div>
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-xs text-amber-800">
-              This form creates Manager and Admin accounts. Consultant and Client users self-register.
+              {t("sys.create_user_notice")}
             </div>
-            <Input label="Full Name" value={addForm.full_name}
+            <Input label={t("label.full_name")} value={addForm.full_name}
               onChange={e => setAddForm(p => ({ ...p, full_name: e.target.value }))}
               placeholder="Jane Smith" />
-            <Input label="Email" type="email" value={addForm.email}
+            <Input label={t("label.email")} type="email" value={addForm.email}
               onChange={e => setAddForm(p => ({ ...p, email: e.target.value }))}
               placeholder="jane@company.com" />
-            <Select label="Role" value={addForm.role}
+            <Select label={t("label.role")} value={addForm.role}
               onChange={e => setAddForm(p => ({ ...p, role: e.target.value }))}
               options={[
                 { value: "manager",    label: "Manager" },
@@ -17256,19 +17421,19 @@ function UsersView() {
                 { value: "consultant", label: "Consultant" },
                 { value: "client",     label: "Client" },
               ]} />
-            <Input label="Temporary Password" type="password" value={addForm.password}
+            <Input label={t("sys.temp_pwd")} type="password" value={addForm.password}
               onChange={e => setAddForm(p => ({ ...p, password: e.target.value }))}
-              placeholder="Min. 6 characters" />
+              placeholder={t("sys.temp_pwd_ph")} />
             {addError && (
               <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{addError}</div>
             )}
             <div className="flex justify-end gap-3 mt-2">
               <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">
-                Cancel
+                {t("action.cancel")}
               </button>
               <button onClick={handleCreateUser} disabled={adding}
                 className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
-                {adding ? "Creating…" : "Create Account"}
+                {adding ? t("state.creating") : t("action.create_account")}
               </button>
             </div>
           </div>
@@ -17279,10 +17444,10 @@ function UsersView() {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">User</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Role</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Joined</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("users.col_user")}</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("label.role")}</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("users.col_joined")}</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("label.status")}</th>
               <th className="px-5 py-3" />
             </tr>
           </thead>
@@ -17309,13 +17474,13 @@ function UsersView() {
                   <td className="px-5 py-4">
                     <span className={`inline-flex items-center gap-1 text-xs font-medium ${u.is_active ? "text-green-700" : "text-gray-400"}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${u.is_active ? "bg-green-500" : "bg-gray-300"}`} />
-                      {u.is_active ? "Active" : "Inactive"}
+                      {u.is_active ? t("label.active") : t("label.inactive")}
                     </span>
                   </td>
                   <td className="px-5 py-4 text-right">
                     <button onClick={() => toggleActive(u.id, u.is_active)}
                       className="text-xs text-gray-400 hover:text-gray-700 border border-gray-200 px-3 py-1 rounded-lg hover:bg-gray-50">
-                      {u.is_active ? "Deactivate" : "Activate"}
+                      {u.is_active ? t("action.deactivate") : t("action.activate")}
                     </button>
                   </td>
                 </tr>
@@ -17576,6 +17741,7 @@ function ReportsView() {
 // SLA CONFIG VIEW (Admin / Manager)
 // ============================================================
 function SlaView({ auth }) {
+  const { t } = useT();
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -17597,14 +17763,14 @@ function SlaView({ auth }) {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">SLA Configuration</h1>
-        <p className="text-gray-500 text-sm mt-1">Service Level Agreement settings per client</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t("sla.title")}</h1>
+        <p className="text-gray-500 text-sm mt-1">{t("sla.page_subtitle")}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Client list */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Clients</div>
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("label.clients")}</div>
           <div className="space-y-1">
             {clients.map(c => (
               <button key={c.id} onClick={() => setSelectedClient(c)}
@@ -17614,7 +17780,7 @@ function SlaView({ auth }) {
                 <div className="text-xs text-gray-400">{c.email}</div>
               </button>
             ))}
-            {clients.length === 0 && <p className="text-sm text-gray-400 text-center py-4">No clients found</p>}
+            {clients.length === 0 && <p className="text-sm text-gray-400 text-center py-4">{t("sla.no_clients")}</p>}
           </div>
         </div>
 
@@ -17624,7 +17790,7 @@ function SlaView({ auth }) {
             ? <SlaClientDetail client={selectedClient} auth={auth} />
             : <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center text-gray-400">
                 <div className="mb-3 flex justify-center"><FileText className="w-8 h-8 text-gray-300" /></div>
-                <p>Select a client to view or edit their SLA configuration</p>
+                <p>{t("sla.select_client")}</p>
               </div>
           }
         </div>
@@ -17634,6 +17800,7 @@ function SlaView({ auth }) {
 }
 
 function SlaClientDetail({ client, auth }) {
+  const { t } = useT();
   const { sla, loading, updateSla } = useSlaConfig(client.id);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving]   = useState(false);
@@ -17678,7 +17845,7 @@ function SlaClientDetail({ client, auth }) {
         {(auth.isAdmin || auth.isManager) && (
           <button onClick={() => setEditing(p => !p)}
             className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-xl hover:bg-gray-50">
-            {editing ? "Cancel" : "Edit SLA"}
+            {editing ? t("action.cancel") : t("sla.edit")}
           </button>
         )}
       </div>
@@ -17687,14 +17854,14 @@ function SlaClientDetail({ client, auth }) {
       {editing ? (
         <div className="space-y-4 mb-5 pb-5 border-b border-gray-100">
           <div className="grid grid-cols-2 gap-3">
-            <Select label="SLA Tier" value={form.tier}
+            <Select label={t("sla.tier")} value={form.tier}
               onChange={e => setForm(p => ({ ...p, tier: e.target.value }))}
               options={[{ value:"standard", label:"Standard" },{ value:"premium", label:"Premium" },{ value:"enterprise", label:"Enterprise" }]} />
-            <Input label="Uptime Guarantee (%)" type="number" value={form.uptime_guarantee_pct}
+            <Input label={t("sla.uptime")} type="number" value={form.uptime_guarantee_pct}
               onChange={e => setForm(p => ({ ...p, uptime_guarantee_pct: Number(e.target.value) }))} />
           </div>
           <div className="flex gap-6">
-            {[["dedicated_consultant","Dedicated Consultant"],["priority_support","Priority Support"]].map(([k,lbl]) => (
+            {[["dedicated_consultant", t("sla.dedicated")],["priority_support", t("sla.priority_support")]].map(([k,lbl]) => (
               <label key={k} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                 <input type="checkbox" checked={form[k]} onChange={e => setForm(p => ({ ...p, [k]: e.target.checked }))} className="rounded accent-blue-600" />
                 {lbl}
@@ -17704,10 +17871,10 @@ function SlaClientDetail({ client, auth }) {
         </div>
       ) : sla ? (
         <div className="flex flex-wrap items-center gap-2 mb-5">
-          <Badge className={tierColors[sla.tier] ?? tierColors.standard}>{cap(sla.tier)} Tier</Badge>
-          {sla.uptime_guarantee_pct && <Badge className="bg-gray-100 text-gray-700">{sla.uptime_guarantee_pct}% Uptime</Badge>}
-          {sla.priority_support    && <Badge className="bg-orange-100 text-orange-700">Priority Support</Badge>}
-          {sla.dedicated_consultant && <Badge className="bg-green-100 text-green-700">Dedicated Consultant</Badge>}
+          <Badge className={tierColors[sla.tier] ?? tierColors.standard}>{cap(sla.tier)} {t("sla.tier_suffix")}</Badge>
+          {sla.uptime_guarantee_pct && <Badge className="bg-gray-100 text-gray-700">{sla.uptime_guarantee_pct}{t("sla.uptime_badge")}</Badge>}
+          {sla.priority_support    && <Badge className="bg-orange-100 text-orange-700">{t("sla.priority_support")}</Badge>}
+          {sla.dedicated_consultant && <Badge className="bg-green-100 text-green-700">{t("sla.dedicated")}</Badge>}
           <span className="text-xs text-gray-400 ml-auto">Updated {fmtDate(sla.updated_at ?? sla.created_at)}</span>
         </div>
       ) : null}
@@ -17715,8 +17882,8 @@ function SlaClientDetail({ client, auth }) {
       {/* Legend */}
       {!editing && sla && (
         <div className="flex items-center gap-4 text-xs text-gray-400 mb-3">
-          <span><span className="text-blue-400 mr-1">↩</span>Initial Response</span>
-          <span><Check size={13} className="text-green-500 mr-1 inline" />Resolution</span>
+          <span><span className="text-blue-400 mr-1">↩</span>{t("sla.legend_response")}</span>
+          <span><Check size={13} className="text-green-500 mr-1 inline" />{t("sla.resolution")}</span>
         </div>
       )}
 
@@ -17727,11 +17894,11 @@ function SlaClientDetail({ client, auth }) {
       ) : (
         <div className="text-center py-8 text-gray-400">
           <div className="mb-2 flex justify-center"><FileText className="w-8 h-8 text-gray-300" /></div>
-          <p className="text-sm">No SLA configured for this client.</p>
+          <p className="text-sm">{t("sla.no_sla_client")}</p>
           {(auth.isAdmin || auth.isManager) && (
             <button onClick={() => setEditing(true)}
               className="mt-4 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">
-              Configure SLA
+              {t("sla.configure")}
             </button>
           )}
         </div>
@@ -17740,19 +17907,19 @@ function SlaClientDetail({ client, auth }) {
       {/* Notes + actions */}
       {editing ? (
         <div className="mt-5 space-y-4">
-          <Textarea label="Notes" value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-            placeholder="Additional SLA terms or notes…" />
+          <Textarea label={t("sla.notes")} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+            placeholder={t("sla.extra_terms")} />
           <div className="flex justify-end gap-3">
-            <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+            <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
             <button onClick={handleSave} disabled={saving}
               className="px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
-              {saving ? "Saving…" : "Save SLA"}
+              {saving ? t("state.saving") : t("sla.save")}
             </button>
           </div>
         </div>
       ) : sla?.notes ? (
         <div className="mt-4 bg-yellow-50 border border-yellow-100 rounded-xl p-4 text-sm text-gray-700">
-          <div className="font-medium text-yellow-800 mb-1">Notes</div>
+          <div className="font-medium text-yellow-800 mb-1">{t("sla.notes")}</div>
           {sla.notes}
         </div>
       ) : null}
@@ -17764,6 +17931,7 @@ function SlaClientDetail({ client, auth }) {
 // DB CONNECTIONS VIEW (Admin / Manager / Client)
 // ============================================================
 function DbConnectionsView({ auth }) {
+  const { t } = useT();
   const [clients, setClients]         = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
   const [loadingClients, setLoadingClients] = useState(true);
@@ -17791,14 +17959,14 @@ function DbConnectionsView({ auth }) {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Database Connections</h1>
-        <p className="text-gray-500 text-sm mt-1">Manage client database connection details</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t("conn.title")}</h1>
+        <p className="text-gray-500 text-sm mt-1">{t("conn.page_subtitle")}</p>
       </div>
 
       <div className={`grid gap-6 ${auth.isClient ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-3"}`}>
         {!auth.isClient && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Clients</div>
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("label.clients")}</div>
             <div className="space-y-1">
               {clients.map(c => (
                 <button key={c.id} onClick={() => setSelectedClient(c)}
@@ -17808,7 +17976,7 @@ function DbConnectionsView({ auth }) {
                   <div className="text-xs text-gray-400">{c.email}</div>
                 </button>
               ))}
-              {clients.length === 0 && <p className="text-sm text-gray-400 text-center py-4">No clients found</p>}
+              {clients.length === 0 && <p className="text-sm text-gray-400 text-center py-4">{t("sla.no_clients")}</p>}
             </div>
           </div>
         )}
@@ -17818,7 +17986,7 @@ function DbConnectionsView({ auth }) {
             ? <DbConnectionsList client={selectedClient} auth={auth} />
             : <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center text-gray-400">
                 <div className="mb-3 flex justify-center"><Database className="w-8 h-8 text-gray-300" /></div>
-                <p>Select a client to view their database connections</p>
+                <p>{t("conn.select_client")}</p>
               </div>
           }
         </div>
@@ -17828,6 +17996,7 @@ function DbConnectionsView({ auth }) {
 }
 
 function SapProfileFields({ meta = {}, onChange, dbType }) {
+  const { t } = useT();
   const SAP_COMPONENTS = ["FI","CO","MM","SD","PP","PM","QM","WM","EWM","HCM","PS","RE","FI-AA","TR","GRC","BW","PI/PO","ABAP","BC","SRM","CRM","IS-Retail","IS-Utilities","IS-Oil","LE","CS"];
   const set = (key, val) => onChange({ ...meta, [key]: val });
   const toggleComp = (comp) => {
@@ -17836,40 +18005,40 @@ function SapProfileFields({ meta = {}, onChange, dbType }) {
   };
   return (
     <div className="border border-indigo-100 bg-indigo-50/30 rounded-xl p-4 space-y-3">
-      <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide">SAP System Profile</p>
+      <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide">{t("sap.profile_title")}</p>
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">SAP Product</label>
+          <label className="block text-xs font-medium text-gray-600 mb-1">{t("sap.product_label")}</label>
           <select value={meta.sap_product ?? "S/4HANA"} onChange={e => set("sap_product", e.target.value)}
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
             {["S/4HANA","ECC 6.0","BW/4HANA","SAP BW","SAP CRM","SAP SRM","SAP GRC","SAP HCM","SAP HANA","SAP PI/PO","Other"].map(v => <option key={v}>{v}</option>)}
           </select>
         </div>
-        <Input label="Release / SP Level" value={meta.sap_release ?? ""}
+        <Input label={t("sap.release_label")} value={meta.sap_release ?? ""}
           onChange={e => set("sap_release", e.target.value)} placeholder="2023 / FPS01" />
-        <Input label="Basis Release" value={meta.basis_release ?? ""}
+        <Input label={t("sap.basis_label")} value={meta.basis_release ?? ""}
           onChange={e => set("basis_release", e.target.value)} placeholder="7.58" />
       </div>
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">System Role</label>
+          <label className="block text-xs font-medium text-gray-600 mb-1">{t("sap.role_label")}</label>
           <select value={meta.system_role ?? "DEV"} onChange={e => set("system_role", e.target.value)}
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
             {[["DEV","Development"],["QAS","Quality / Test"],["PRD","Production"],["SBX","Sandbox"],["TRN","Training"]].map(([v,l]) => <option key={v} value={v}>{l} ({v})</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Logon Language</label>
+          <label className="block text-xs font-medium text-gray-600 mb-1">{t("sap.language_label")}</label>
           <select value={meta.language ?? "EN"} onChange={e => set("language", e.target.value)}
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
             {[["EN","English"],["ES","Spanish"],["DE","German"],["FR","French"],["PT","Portuguese"],["IT","Italian"],["NL","Dutch"],["PL","Polish"],["ZH","Chinese"],["JA","Japanese"],["AR","Arabic"]].map(([v,l]) => <option key={v} value={v}>{l} ({v})</option>)}
           </select>
         </div>
-        <Input label="Transport Route" value={meta.transport_route ?? ""}
+        <Input label={t("sap.transport_label")} value={meta.transport_route ?? ""}
           onChange={e => set("transport_route", e.target.value)} placeholder="DEV → QAS → PRD" />
       </div>
       <div>
-        <label className="block text-xs font-medium text-gray-600 mb-2">Installed Components</label>
+        <label className="block text-xs font-medium text-gray-600 mb-2">{t("sap.components_label")}</label>
         <div className="flex flex-wrap gap-1.5">
           {SAP_COMPONENTS.map(comp => {
             const active = (meta.components ?? []).includes(comp);
@@ -17884,14 +18053,14 @@ function SapProfileFields({ meta = {}, onChange, dbType }) {
       </div>
       {(dbType === "sap_gui" || dbType === "sap_rfc") && (
         <div className="grid grid-cols-2 gap-3">
-          <Input label="Logon Group" value={meta.logon_group ?? ""}
+          <Input label={t("sap.logon_group_label")} value={meta.logon_group ?? ""}
             onChange={e => set("logon_group", e.target.value)} placeholder="PUBLIC" />
-          <Input label="Message Server" value={meta.message_server ?? ""}
+          <Input label={t("sap.message_server_label")} value={meta.message_server ?? ""}
             onChange={e => set("message_server", e.target.value)} placeholder="sap-ms.example.com" />
         </div>
       )}
       {dbType === "sap_rfc" && (
-        <Input label="RFC Destination" value={meta.rfc_destination ?? ""}
+        <Input label={t("sap.rfc_dest_label")} value={meta.rfc_destination ?? ""}
           onChange={e => set("rfc_destination", e.target.value)} placeholder="TECHCASE_RFC" />
       )}
     </div>
@@ -18117,6 +18286,7 @@ function DbConnectionsList({ client, auth }) {
 // CLIENT TEAM MEMBERS VIEW
 // ============================================================
 function ClientTeamView({ auth }) {
+  const { t } = useT();
   const [clients, setClients]           = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
   const [loadingClients, setLoadingClients] = useState(true);
@@ -18143,14 +18313,14 @@ function ClientTeamView({ auth }) {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Client Team Members</h1>
-        <p className="text-gray-500 text-sm mt-1">Stakeholders and points of contact per client</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t("team.page_title")}</h1>
+        <p className="text-gray-500 text-sm mt-1">{t("team.page_subtitle")}</p>
       </div>
 
       <div className={`grid gap-6 ${auth.isClient ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-3"}`}>
         {!auth.isClient && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Clients</div>
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("label.clients")}</div>
             <div className="space-y-1">
               {clients.map(c => (
                 <button key={c.id} onClick={() => setSelectedClient(c)}
@@ -18160,7 +18330,7 @@ function ClientTeamView({ auth }) {
                   <div className="text-xs text-gray-400">{c.email}</div>
                 </button>
               ))}
-              {clients.length === 0 && <p className="text-sm text-gray-400 text-center py-4">No clients</p>}
+              {clients.length === 0 && <p className="text-sm text-gray-400 text-center py-4">{t("team.no_clients")}</p>}
             </div>
           </div>
         )}
@@ -18170,7 +18340,7 @@ function ClientTeamView({ auth }) {
             ? <ClientTeamList client={selectedClient} auth={auth} />
             : <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center text-gray-400">
                 <div className="mb-3 flex justify-center"><Users className="w-8 h-8 text-gray-300" /></div>
-                <p>Select a client to view their team members</p>
+                <p>{t("team.select_client")}</p>
               </div>
           }
         </div>
@@ -18180,6 +18350,7 @@ function ClientTeamView({ auth }) {
 }
 
 function ClientTeamList({ client, auth }) {
+  const { t } = useT();
   const { members, addMember } = useClientTeamMembers(client.id);
   const [showAdd, setShowAdd]  = useState(false);
   const [form, setForm]        = useState({ full_name: "", email: "", role_title: "", phone: "", is_primary: false });
@@ -18201,12 +18372,12 @@ function ClientTeamList({ client, auth }) {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h2 className="font-bold text-gray-900">{client.client_profiles?.company_name ?? client.full_name}</h2>
-          <p className="text-sm text-gray-400">{members.length} team member{members.length !== 1 ? "s" : ""}</p>
+          <p className="text-sm text-gray-400">{members.length === 1 ? t("team.count_one") : t("team.count_many").replace("{n}", members.length)}</p>
         </div>
         {(auth.isAdmin || auth.isManager || auth.isClient) && (
           <button onClick={() => setShowAdd(p => !p)}
             className="px-4 py-2 text-sm bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700">
-            + Add Member
+            {t("team.add_btn")}
           </button>
         )}
       </div>
@@ -18214,28 +18385,28 @@ function ClientTeamList({ client, auth }) {
       {showAdd && (
         <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Full Name" value={form.full_name}
+            <Input label={t("team.name_label")} value={form.full_name}
               onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Jane Smith" />
-            <Input label="Email" type="email" value={form.email}
+            <Input label={t("team.email_label")} type="email" value={form.email}
               onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="jane@company.com" />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Role / Title" value={form.role_title}
+            <Input label={t("team.role_label")} value={form.role_title}
               onChange={e => setForm(p => ({ ...p, role_title: e.target.value }))} placeholder="IT Manager" />
-            <Input label="Phone" value={form.phone}
+            <Input label={t("team.phone_label")} value={form.phone}
               onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="+1 555 000 0000" />
           </div>
           <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
             <input type="checkbox" checked={form.is_primary}
               onChange={e => setForm(p => ({ ...p, is_primary: e.target.checked }))}
               className="rounded accent-blue-600" />
-            Primary contact
+            {t("team.primary_label")}
           </label>
           <div className="flex justify-end gap-3">
-            <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+            <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
             <button onClick={handleAdd} disabled={saving}
               className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
-              {saving ? "Adding…" : "Add Member"}
+              {saving ? t("team.adding") : t("team.add_action")}
             </button>
           </div>
         </div>
@@ -18265,7 +18436,7 @@ function ClientTeamList({ client, auth }) {
         {members.length === 0 && (
           <div className="col-span-full text-center py-8 text-gray-400">
             <div className="mb-2 flex justify-center"><Users className="w-8 h-8 text-gray-300" /></div>
-            <p className="text-sm">No team members added yet.</p>
+            <p className="text-sm">{t("team.empty")}</p>
           </div>
         )}
       </div>
