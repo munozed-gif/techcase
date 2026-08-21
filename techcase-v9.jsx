@@ -1413,6 +1413,113 @@ const TRANSLATIONS = {
     "spec.awaiting":          "Submitted — awaiting approval",
     "spec.pdf_saved3":        "3 PDFs saved",
     "spec.save_all3":         "Save All 3 PDFs",
+    // CaseDetail — cancel reasons
+    "cd.cancel_reason_withdrew":    "Client withdrew the request",
+    "cd.cancel_reason_budget":      "Budget constraints",
+    "cd.cancel_reason_timeline":    "Timeline not feasible",
+    "cd.cancel_reason_requirements":"Requirements changed",
+    "cd.cancel_reason_duplicate":   "Duplicate case",
+    "cd.cancel_reason_no_candidate":"No suitable candidate found",
+    "cd.cancel_reason_proj_changed":"Project completed differently",
+    "cd.cancel_reason_other":       "Other",
+    // CaseDetail — standby reasons
+    "cd.standby_reason_client":     "Awaiting client decision",
+    "cd.standby_reason_budget":     "Waiting for budget approval",
+    "cd.standby_reason_resources":  "Pending resource availability",
+    "cd.standby_reason_external":   "Blocked by external dependency",
+    "cd.standby_reason_pause":      "Client requested pause",
+    "cd.standby_reason_deliverable":"Awaiting deliverable from client",
+    // CaseDetail — phase labels (test triggers)
+    "cd.phase_technical_test":      "Technical Test",
+    "cd.phase_functional_test":     "Functional Test",
+    "cd.phase_user_test":           "User Test",
+    // CaseDetail — phase labels (adjustment triggers)
+    "cd.phase_technical_adj":       "Technical Adjustment",
+    "cd.phase_functional_adj":      "Functional Adjustment",
+    "cd.phase_user_adj":            "User Adjustment",
+    // CaseDetail — Next Steps button descriptions
+    "cd.next_desc_open":            "Re-open this case for further action",
+    "cd.next_desc_estimated":       "Functional spec approved — move to estimation",
+    "cd.next_desc_evaluation":      "Move into the evaluation phase",
+    "cd.next_desc_confirmed":       "Confirm and move this case forward",
+    "cd.next_desc_planning":        "Begin planning the work",
+    "cd.next_desc_in_progress":     "Start active work on this case",
+    "cd.next_desc_on_hold":         "Pause work on this case temporarily",
+    "cd.next_desc_review":          "Send for review before closing",
+    "cd.next_desc_completed":       "Mark as successfully completed",
+    "cd.next_desc_cancelled":       "Stop work and close this case",
+    "cd.next_desc_new":             "Mark as a new incoming request",
+    "cd.next_desc_screening":       "Begin the screening process",
+    "cd.next_desc_shortlisted":     "Add to shortlist for further review",
+    "cd.next_desc_assigned":        "Assign a consultant to this case",
+    "cd.next_desc_standby":         "Place on standby for now",
+    "cd.next_desc_tech_test":       "Verify code correctness, no dumps, edge cases handled",
+    "cd.next_desc_func_test":       "Validate solution against the functional specification",
+    "cd.next_desc_user_test":       "User acceptance testing — business sign-off",
+    "cd.next_desc_adjustments":     "Apply adjustments before closing",
+    "cd.next_desc_approved":        "Mark as approved",
+    "cd.next_desc_returned":        "Return for rework or additional input",
+    "cd.next_desc_resolved":        "Mark this case as fully resolved",
+    "cd.next_desc_terminated":      "Terminate this case",
+    "cd.next_desc_sourcing":        "Begin sourcing for this case",
+    "cd.next_desc_default":         "Move to this stage",
+    // CaseDetail — visible text strings
+    "cd.ready_for_testing":         "All activities complete — ready for testing",
+    "cd.ready_for_testing_sub":     "100% of the planned work is done. Use the Next Steps below to move into the test phase.",
+    "cd.tap_confirm":               "Tap again to confirm",
+    "cd.test_plan_desc":            "Generate an AI test plan based on this case's activities and scope. It will be saved as a PDF in the Docs tab.",
+    "cd.overview":                  "Overview",
+    "cd.no_description":            "No description provided.",
+    "cd.delete_case":               "Delete Case",
+    "cd.delete_note":               "Only available while the case is Open and has no applications, time entries, documents, or sub-cases.",
+    "cd.no_activities":             "No activities yet",
+    "cd.no_activities_sub":         "Add tasks to track plan progress and charge time per activity",
+    "cd.all_acts_complete":         "All activities complete",
+    "cd.all_acts_complete_sub":     "Consider advancing the case to the next lifecycle stage.",
+    "cd.spec_approved_banner":      "Functional spec approved — generate your project plan",
+    "cd.spec_approved_desc":        "Use the approved specification to auto-generate Design and Development phase activities with sequential dependencies and save a project plan PDF to Docs.",
+    "cd.flow_hint":                 "Click any activity to jump to its detail in list view",
+    "cd.test_result":               "Test Result",
+    "cd.outcome":                   "Outcome",
+    "cd.passed":                    "Passed",
+    "cd.needs_adjustment":          "Needs Adjustment",
+    "cd.needs_adj_short":           "Needs Adj.",
+    "cd.issue_label":               "Issue / What needs fixing",
+    "cd.req_coverage":              "Requirement Coverage",
+    "cd.not_covered":               "0% — Not covered",
+    "cd.fully_covered":             "100% — Fully covered",
+    "cd.no_act_time":               "No time charged to this activity yet.",
+    "cd.stage_restricted":          "stage — restricted:",
+    "cd.stage_restricted_msg":      "not available. Contact your manager to change the stage.",
+    "cd.lock_editing":              "Editing",
+    "cd.lock_time":                 "Time logging",
+    "cd.lock_doc_uploads":          "Document uploads",
+    "cd.lock_activities":           "Activities",
+    "cd.lock_comments":             "Comments",
+    "cd.test_passed":               "Test passed",
+    "cd.needs_adj":                 "Needs adjustment",
+    "cd.remove_link":               "Remove link",
+    "cd.delete_act":                "Delete",
+    "cd.pred_waiting":              "Waiting",
+    "cd.pred_ready":                "Ready",
+    "cd.subcase_readonly":          "Progress and time are read from the linked sub-case. Open the sub-case to log time or update progress.",
+    // Standby modal
+    "cd.standby_title":             "Why is this case going on standby?",
+    "cd.standby_subtitle":          "Select a reason — this will be posted as a comment and notified to participants.",
+    "cd.standby_detail_label":      "Additional detail",
+    "cd.standby_confirm":           "Confirm Standby",
+    // Cancel modal
+    "cd.cancel_title":              "Why is this case being cancelled?",
+    "cd.cancel_subtitle":           "Select a reason — this helps track patterns across cases.",
+    "cd.cancel_explanation_label":  "Explanation",
+    "cd.cancel_keep":               "Keep Case",
+    "cd.cancel_confirm":            "Confirm Cancellation",
+    // Approval modal
+    "cd.approve_all_done":          "All {n} activities at 100%",
+    "cd.approve_ready":             "Ready to approve and generate the closure report.",
+    "cd.approve_bypass_can":        "You can bypass this as a manager/admin — provide a reason below.",
+    "cd.approve_must_complete":     "All activities must be complete before approval.",
+    "cd.approve_contact_mgr":       "Contact a manager or admin to bypass this check.",
   },
   es: {
     // Navigation
@@ -1866,6 +1973,113 @@ const TRANSLATIONS = {
     "spec.awaiting":          "Enviado — en espera de aprobación",
     "spec.pdf_saved3":        "3 PDFs guardados",
     "spec.save_all3":         "Guardar los 3 PDFs",
+    // CaseDetail — cancel reasons
+    "cd.cancel_reason_withdrew":    "El cliente retiró la solicitud",
+    "cd.cancel_reason_budget":      "Restricciones de presupuesto",
+    "cd.cancel_reason_timeline":    "Plazo no factible",
+    "cd.cancel_reason_requirements":"Los requisitos cambiaron",
+    "cd.cancel_reason_duplicate":   "Caso duplicado",
+    "cd.cancel_reason_no_candidate":"No se encontró candidato adecuado",
+    "cd.cancel_reason_proj_changed":"El proyecto se completó de otra manera",
+    "cd.cancel_reason_other":       "Otro",
+    // CaseDetail — standby reasons
+    "cd.standby_reason_client":     "A la espera de decisión del cliente",
+    "cd.standby_reason_budget":     "Esperando aprobación de presupuesto",
+    "cd.standby_reason_resources":  "Pendiente de disponibilidad de recursos",
+    "cd.standby_reason_external":   "Bloqueado por dependencia externa",
+    "cd.standby_reason_pause":      "El cliente solicitó una pausa",
+    "cd.standby_reason_deliverable":"Esperando entregable del cliente",
+    // CaseDetail — phase labels (test triggers)
+    "cd.phase_technical_test":      "Prueba Técnica",
+    "cd.phase_functional_test":     "Prueba Funcional",
+    "cd.phase_user_test":           "Prueba de Usuario",
+    // CaseDetail — phase labels (adjustment triggers)
+    "cd.phase_technical_adj":       "Ajuste Técnico",
+    "cd.phase_functional_adj":      "Ajuste Funcional",
+    "cd.phase_user_adj":            "Ajuste de Usuario",
+    // CaseDetail — Next Steps button descriptions
+    "cd.next_desc_open":            "Reabrir este caso para acción adicional",
+    "cd.next_desc_estimated":       "Especificación funcional aprobada — pasar a estimación",
+    "cd.next_desc_evaluation":      "Pasar a la fase de evaluación",
+    "cd.next_desc_confirmed":       "Confirmar y avanzar este caso",
+    "cd.next_desc_planning":        "Comenzar a planificar el trabajo",
+    "cd.next_desc_in_progress":     "Comenzar el trabajo activo en este caso",
+    "cd.next_desc_on_hold":         "Pausar el trabajo en este caso temporalmente",
+    "cd.next_desc_review":          "Enviar para revisión antes de cerrar",
+    "cd.next_desc_completed":       "Marcar como completado exitosamente",
+    "cd.next_desc_cancelled":       "Detener el trabajo y cerrar este caso",
+    "cd.next_desc_new":             "Marcar como nueva solicitud entrante",
+    "cd.next_desc_screening":       "Iniciar el proceso de selección",
+    "cd.next_desc_shortlisted":     "Agregar a la lista corta para revisión",
+    "cd.next_desc_assigned":        "Asignar un consultor a este caso",
+    "cd.next_desc_standby":         "Poner en espera por ahora",
+    "cd.next_desc_tech_test":       "Verificar la corrección del código, sin dumps, casos extremos manejados",
+    "cd.next_desc_func_test":       "Validar la solución contra la especificación funcional",
+    "cd.next_desc_user_test":       "Pruebas de aceptación del usuario — aprobación del negocio",
+    "cd.next_desc_adjustments":     "Aplicar ajustes antes de cerrar",
+    "cd.next_desc_approved":        "Marcar como aprobado",
+    "cd.next_desc_returned":        "Devolver para reprocesamiento o aporte adicional",
+    "cd.next_desc_resolved":        "Marcar este caso como totalmente resuelto",
+    "cd.next_desc_terminated":      "Terminar este caso",
+    "cd.next_desc_sourcing":        "Iniciar búsqueda para este caso",
+    "cd.next_desc_default":         "Pasar a esta etapa",
+    // CaseDetail — visible text strings
+    "cd.ready_for_testing":         "Todas las actividades completas — listo para pruebas",
+    "cd.ready_for_testing_sub":     "El 100% del trabajo planificado está hecho. Use los Próximos pasos para pasar a la fase de pruebas.",
+    "cd.tap_confirm":               "Toque de nuevo para confirmar",
+    "cd.test_plan_desc":            "Genere un plan de pruebas con IA basado en las actividades y el alcance de este caso. Se guardará como PDF en la pestaña Docs.",
+    "cd.overview":                  "Resumen",
+    "cd.no_description":            "Sin descripción.",
+    "cd.delete_case":               "Eliminar caso",
+    "cd.delete_note":               "Solo disponible cuando el caso está Abierto y no tiene aplicaciones, registros de tiempo, documentos ni subcasos.",
+    "cd.no_activities":             "Sin actividades aún",
+    "cd.no_activities_sub":         "Agregue tareas para rastrear el avance del plan y registrar tiempo por actividad",
+    "cd.all_acts_complete":         "Todas las actividades completas",
+    "cd.all_acts_complete_sub":     "Considere avanzar el caso a la siguiente etapa del ciclo de vida.",
+    "cd.spec_approved_banner":      "Especificación funcional aprobada — genere su plan de proyecto",
+    "cd.spec_approved_desc":        "Use la especificación aprobada para generar automáticamente actividades de las fases de Diseño y Desarrollo con dependencias secuenciales y guardar un PDF del plan de proyecto en Docs.",
+    "cd.flow_hint":                 "Haga clic en cualquier actividad para ir a su detalle en la vista de lista",
+    "cd.test_result":               "Resultado de prueba",
+    "cd.outcome":                   "Resultado",
+    "cd.passed":                    "Aprobado",
+    "cd.needs_adjustment":          "Necesita ajuste",
+    "cd.needs_adj_short":           "Nec. ajuste",
+    "cd.issue_label":               "Problema / Qué necesita corrección",
+    "cd.req_coverage":              "Cobertura de requisitos",
+    "cd.not_covered":               "0% — No cubierto",
+    "cd.fully_covered":             "100% — Totalmente cubierto",
+    "cd.no_act_time":               "Sin tiempo registrado en esta actividad.",
+    "cd.stage_restricted":          "etapa — restringido:",
+    "cd.stage_restricted_msg":      "no disponible. Contacte a su gerente para cambiar la etapa.",
+    "cd.lock_editing":              "Edición",
+    "cd.lock_time":                 "Registro de tiempo",
+    "cd.lock_doc_uploads":          "Carga de documentos",
+    "cd.lock_activities":           "Actividades",
+    "cd.lock_comments":             "Comentarios",
+    "cd.test_passed":               "Prueba aprobada",
+    "cd.needs_adj":                 "Necesita ajuste",
+    "cd.remove_link":               "Quitar vínculo",
+    "cd.delete_act":                "Eliminar",
+    "cd.pred_waiting":              "Esperando",
+    "cd.pred_ready":                "Listo",
+    "cd.subcase_readonly":          "El progreso y el tiempo se leen del subcaso vinculado. Abra el subcaso para registrar tiempo o actualizar el progreso.",
+    // Standby modal
+    "cd.standby_title":             "¿Por qué este caso pasa a standby?",
+    "cd.standby_subtitle":          "Seleccione un motivo — se publicará como comentario y se notificará a los participantes.",
+    "cd.standby_detail_label":      "Detalle adicional",
+    "cd.standby_confirm":           "Confirmar Standby",
+    // Cancel modal
+    "cd.cancel_title":              "¿Por qué se cancela este caso?",
+    "cd.cancel_subtitle":           "Seleccione un motivo — esto ayuda a identificar patrones entre casos.",
+    "cd.cancel_explanation_label":  "Explicación",
+    "cd.cancel_keep":               "Mantener Caso",
+    "cd.cancel_confirm":            "Confirmar Cancelación",
+    // Approval modal
+    "cd.approve_all_done":          "Las {n} actividades al 100%",
+    "cd.approve_ready":             "Listo para aprobar y generar el informe de cierre.",
+    "cd.approve_bypass_can":        "Puede omitir esto como gerente/admin — indique el motivo a continuación.",
+    "cd.approve_must_complete":     "Todas las actividades deben estar completas antes de la aprobación.",
+    "cd.approve_contact_mgr":       "Contacte a un gerente o admin para omitir esta verificación.",
     // Auth
     "auth.tagline":          "Plataforma de gestión de casos de consultoría",
     "auth.welcome":          "Bienvenido de nuevo",
@@ -12646,24 +12860,24 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   }
 
   const CANCEL_REASONS = [
-    "Client withdrew the request",
-    "Budget constraints",
-    "Timeline not feasible",
-    "Requirements changed",
-    "Duplicate case",
-    "No suitable candidate found",
-    "Project completed differently",
-    "Other",
+    t("cd.cancel_reason_withdrew"),
+    t("cd.cancel_reason_budget"),
+    t("cd.cancel_reason_timeline"),
+    t("cd.cancel_reason_requirements"),
+    t("cd.cancel_reason_duplicate"),
+    t("cd.cancel_reason_no_candidate"),
+    t("cd.cancel_reason_proj_changed"),
+    t("cd.cancel_reason_other"),
   ];
 
   const STANDBY_REASONS = [
-    "Awaiting client decision",
-    "Waiting for budget approval",
-    "Pending resource availability",
-    "Blocked by external dependency",
-    "Client requested pause",
-    "Awaiting deliverable from client",
-    "Other",
+    t("cd.standby_reason_client"),
+    t("cd.standby_reason_budget"),
+    t("cd.standby_reason_resources"),
+    t("cd.standby_reason_external"),
+    t("cd.standby_reason_pause"),
+    t("cd.standby_reason_deliverable"),
+    t("cd.cancel_reason_other"),
   ];
 
   function initCancelModal(caseId, isSubCase = false) {
@@ -12927,17 +13141,17 @@ Extract every discrete task, activity, deliverable, or work item. If you find no
 
   // Phase-to-next-test-phase mapping
   const PHASE_TEST_TRIGGERS = [
-    { fromPhase: "development",           toPhase: "technical_test",  label: "Technical Test" },
-    { fromPhase: "technical_test",        toPhase: "functional_test", label: "Functional Test" },
-    { fromPhase: "technical_adjustment",  toPhase: "functional_test", label: "Functional Test" },
-    { fromPhase: "functional_test",       toPhase: "user_test",       label: "User Test" },
-    { fromPhase: "functional_adjustment", toPhase: "user_test",       label: "User Test" },
+    { fromPhase: "development",           toPhase: "technical_test",  label: t("cd.phase_technical_test") },
+    { fromPhase: "technical_test",        toPhase: "functional_test", label: t("cd.phase_functional_test") },
+    { fromPhase: "technical_adjustment",  toPhase: "functional_test", label: t("cd.phase_functional_test") },
+    { fromPhase: "functional_test",       toPhase: "user_test",       label: t("cd.phase_user_test") },
+    { fromPhase: "functional_adjustment", toPhase: "user_test",       label: t("cd.phase_user_test") },
   ];
 
   const PHASE_ADJ_TRIGGERS = [
-    { testPhase: "technical_test",  adjPhase: "technical_adjustment",  adjLabel: "Technical Adjustment" },
-    { testPhase: "functional_test", adjPhase: "functional_adjustment", adjLabel: "Functional Adjustment" },
-    { testPhase: "user_test",       adjPhase: "user_adjustment",       adjLabel: "User Adjustment" },
+    { testPhase: "technical_test",  adjPhase: "technical_adjustment",  adjLabel: t("cd.phase_technical_adj") },
+    { testPhase: "functional_test", adjPhase: "functional_adjustment", adjLabel: t("cd.phase_functional_adj") },
+    { testPhase: "user_test",       adjPhase: "user_adjustment",       adjLabel: t("cd.phase_user_adj") },
   ];
 
   async function generateTestPlan(toPhaseKey, fromPhaseActivities) {
@@ -14077,7 +14291,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               {canEditCase && (
                 <button onClick={() => setShowEditWizard(true)}
                   className="text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-3 py-1.5">
-                  Edit
+                  {t("action.edit")}
                 </button>
               )}
             </div>
@@ -14111,8 +14325,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         <div className="flex items-start gap-3 bg-emerald-50 border border-emerald-200 rounded-xl p-4">
           <CheckCircle2 size={18} className="text-emerald-500 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-semibold text-emerald-800">All activities complete — ready for testing</p>
-            <p className="text-xs text-emerald-600 mt-0.5">100% of the planned work is done. Use the Next Steps below to move into the test phase.</p>
+            <p className="text-sm font-semibold text-emerald-800">{t("cd.ready_for_testing")}</p>
+            <p className="text-xs text-emerald-600 mt-0.5">{t("cd.ready_for_testing_sub")}</p>
           </div>
         </div>
       )}
@@ -14134,31 +14348,31 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         if (!validNext.length) return null;
 
         const NEXT_META = {
-          open:            { Icon: FolderOpen,   desc: "Re-open this case for further action" },
-          estimated:       { Icon: BarChart2,    desc: "Functional spec approved — move to estimation" },
-          evaluation:      { Icon: Search,       desc: "Move into the evaluation phase" },
-          confirmed:       { Icon: CheckCircle2, desc: "Confirm and move this case forward" },
-          planning:        { Icon: Target,       desc: "Begin planning the work" },
-          in_progress:     { Icon: Play,         desc: "Start active work on this case" },
-          on_hold:         { Icon: PauseCircle,  desc: "Pause work on this case temporarily" },
-          review:          { Icon: Activity,     desc: "Send for review before closing" },
-          completed:       { Icon: Archive,      desc: "Mark as successfully completed" },
-          closed:          { Icon: Archive,      desc: "Mark as successfully completed" },
-          cancelled:       { Icon: X,            desc: "Stop work and close this case" },
-          new:             { Icon: Inbox,        desc: "Mark as a new incoming request" },
-          screening:       { Icon: Search,       desc: "Begin the screening process" },
-          shortlisted:     { Icon: Star,         desc: "Add to shortlist for further review" },
-          assigned:        { Icon: UserCheck,    desc: "Assign a consultant to this case" },
-          standby:         { Icon: Clock,        desc: "Place on standby for now" },
-          technical_test:  { Icon: Code2,        desc: "Verify code correctness, no dumps, edge cases handled" },
-          functional_test: { Icon: Target,       desc: "Validate solution against the functional specification" },
-          user_test:       { Icon: Users,        desc: "User acceptance testing — business sign-off" },
-          adjustments:     { Icon: SlidersHorizontal, desc: "Apply adjustments before closing" },
-          approved:        { Icon: BadgeCheck,   desc: "Mark as approved" },
-          returned:        { Icon: RotateCcw,    desc: "Return for rework or additional input" },
-          resolved:        { Icon: CheckCircle2, desc: "Mark this case as fully resolved" },
-          terminated:      { Icon: XCircle,      desc: "Terminate this case" },
-          sourcing:        { Icon: Globe,        desc: "Begin sourcing for this case" },
+          open:            { Icon: FolderOpen,   desc: t("cd.next_desc_open") },
+          estimated:       { Icon: BarChart2,    desc: t("cd.next_desc_estimated") },
+          evaluation:      { Icon: Search,       desc: t("cd.next_desc_evaluation") },
+          confirmed:       { Icon: CheckCircle2, desc: t("cd.next_desc_confirmed") },
+          planning:        { Icon: Target,       desc: t("cd.next_desc_planning") },
+          in_progress:     { Icon: Play,         desc: t("cd.next_desc_in_progress") },
+          on_hold:         { Icon: PauseCircle,  desc: t("cd.next_desc_on_hold") },
+          review:          { Icon: Activity,     desc: t("cd.next_desc_review") },
+          completed:       { Icon: Archive,      desc: t("cd.next_desc_completed") },
+          closed:          { Icon: Archive,      desc: t("cd.next_desc_completed") },
+          cancelled:       { Icon: X,            desc: t("cd.next_desc_cancelled") },
+          new:             { Icon: Inbox,        desc: t("cd.next_desc_new") },
+          screening:       { Icon: Search,       desc: t("cd.next_desc_screening") },
+          shortlisted:     { Icon: Star,         desc: t("cd.next_desc_shortlisted") },
+          assigned:        { Icon: UserCheck,    desc: t("cd.next_desc_assigned") },
+          standby:         { Icon: Clock,        desc: t("cd.next_desc_standby") },
+          technical_test:  { Icon: Code2,        desc: t("cd.next_desc_tech_test") },
+          functional_test: { Icon: Target,       desc: t("cd.next_desc_func_test") },
+          user_test:       { Icon: Users,        desc: t("cd.next_desc_user_test") },
+          adjustments:     { Icon: SlidersHorizontal, desc: t("cd.next_desc_adjustments") },
+          approved:        { Icon: BadgeCheck,   desc: t("cd.next_desc_approved") },
+          returned:        { Icon: RotateCcw,    desc: t("cd.next_desc_returned") },
+          resolved:        { Icon: CheckCircle2, desc: t("cd.next_desc_resolved") },
+          terminated:      { Icon: XCircle,      desc: t("cd.next_desc_terminated") },
+          sourcing:        { Icon: Globe,        desc: t("cd.next_desc_sourcing") },
         };
 
         const TEST_STAGES = ['technical_test', 'functional_test', 'user_test'];
@@ -14166,10 +14380,10 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
 
         return (
           <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Next Steps</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("case.next_steps")}</p>
             <div className={`grid gap-3 ${validNext.length === 1 ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"}`}>
               {validNext.map(s => {
-                const { Icon, desc } = NEXT_META[s.key] ?? { Icon: Zap, desc: "Move to this stage" };
+                const { Icon, desc } = NEXT_META[s.key] ?? { Icon: Zap, desc: t("cd.next_desc_default") };
                 const isCancelled = s.key === "cancelled";
                 const isTestStage = TEST_STAGES.includes(s.key);
                 const needsConfirm = isTestStage && caseProgress < 100 && activities.length > 0;
@@ -14202,9 +14416,9 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                             Only {caseProgress}% complete ({doneCount}/{activities.length} activities). Confirm move?
                           </p>
                           <div className="flex gap-2">
-                            <span className="px-2.5 py-1 text-xs bg-amber-500 text-white font-semibold rounded-lg">Tap again to confirm</span>
+                            <span className="px-2.5 py-1 text-xs bg-amber-500 text-white font-semibold rounded-lg">{t("cd.tap_confirm")}</span>
                             <span onClick={e => { e.stopPropagation(); setPendingStageKey(null); }}
-                              className="px-2.5 py-1 text-xs border border-gray-200 text-gray-500 rounded-lg">Cancel</span>
+                              className="px-2.5 py-1 text-xs border border-gray-200 text-gray-500 rounded-lg">{t("action.cancel")}</span>
                           </div>
                         </div>
                       ) : (
@@ -14230,7 +14444,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             </p>
           </div>
           <p className="text-xs text-indigo-600">
-            Generate an AI test plan based on this case's activities and scope. It will be saved as a PDF in the Docs tab.
+            {t("cd.test_plan_desc")}
           </p>
           <button
             onClick={() => generateTestPlan(caseData.status)}
@@ -14244,11 +14458,11 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
       {/* Icon Tiles */}
       <div>
         <div className="flex flex-wrap gap-2 mb-4">
-          {tabs.map(t => {
-            const Icon = t.icon;
-            const isActive = activeTab === t.id;
+          {tabs.map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
             return (
-              <button key={t.id} onClick={() => setActiveTab(t.id)}
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                 className={`flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl border transition-all min-w-[80px] ${
                   isActive
                     ? "bg-[#1A4B8C] border-[#1A4B8C] text-white shadow-md"
@@ -14257,11 +14471,11 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                   isActive ? "bg-white/20" : "bg-gray-100"}`}>
                   <Icon size={14} className={isActive ? "text-white" : "text-gray-500"} />
                 </div>
-                <span className="text-xs font-medium">{t.label}</span>
-                {t.count !== null && (
+                <span className="text-xs font-medium">{tab.label}</span>
+                {tab.count !== null && (
                   <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
                     isActive ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"}`}>
-                    {t.count}
+                    {tab.count}
                   </span>
                 )}
               </button>
@@ -14273,19 +14487,19 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
       {/* Stage lock banner — shown when the current stage restricts any action */}
       {currentStage?.rules && (() => {
         const locked = [
-          !stageRules.editable && "Editing",
-          !stageRules.can_log_time && "Time logging",
-          !stageRules.can_add_activities && "Activities",
-          !stageRules.can_comment && "Comments",
-          !stageRules.can_upload_docs && "Document uploads",
+          !stageRules.editable && t("cd.lock_editing"),
+          !stageRules.can_log_time && t("cd.lock_time"),
+          !stageRules.can_add_activities && t("cd.lock_activities"),
+          !stageRules.can_comment && t("cd.lock_comments"),
+          !stageRules.can_upload_docs && t("cd.lock_doc_uploads"),
         ].filter(Boolean);
         if (!locked.length) return null;
         return (
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-start gap-2.5">
             <AlertTriangle size={14} className="text-amber-500 flex-shrink-0 mt-0.5" />
             <p className="text-xs text-amber-800">
-              <span className="font-semibold">{currentStage.label} stage — restricted: </span>
-              {locked.join(", ")} not available. Contact your manager to change the stage.
+              <span className="font-semibold">{currentStage.label} {t("cd.stage_restricted")} </span>
+              {locked.join(", ")} {t("cd.stage_restricted_msg")}
             </p>
           </div>
         );
@@ -14328,30 +14542,30 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               })()}
               {showEditWizard && <Badge className={PRIORITY_COLORS[caseData.priority]}>{cap(caseData.priority)}</Badge>}
               {caseData.parent_case_id && (
-                <Badge className="bg-violet-100 text-blue-700">Sub-case</Badge>
+                <Badge className="bg-violet-100 text-blue-700">{t("case.badge_subcase")}</Badge>
               )}
               {caseData.is_confidential && (
-                <span className="px-2 py-0.5 bg-gray-800 text-white rounded-lg text-xs font-semibold">Private case</span>
+                <span className="px-2 py-0.5 bg-gray-800 text-white rounded-lg text-xs font-semibold">{t("case.badge_private")}</span>
               )}
               {caseData.nda_required && (
-                <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">NDA required</span>
+                <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">{t("case.badge_nda")}</span>
               )}
             </div>
             {canEditCase && (
               <button onClick={() => setShowEditWizard(true)}
                 className="text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-3 py-1.5 flex-shrink-0">
-                Edit
+                {t("action.edit")}
               </button>
             )}
           </div>
 
           {showEditWizard && (
-            <p className="text-gray-700 text-sm leading-relaxed">{caseData.description || "No description provided."}</p>
+            <p className="text-gray-700 text-sm leading-relaxed">{caseData.description || t("cd.no_description")}</p>
           )}
 
           {/* Overview card */}
           <div className="border border-gray-100 rounded-xl p-4">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Overview</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("cd.overview")}</p>
             <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
               {caseData.budget && <div><span className="text-gray-400">{t("label.budget")}: </span><span className="font-medium">${Number(caseData.budget).toLocaleString()}</span></div>}
               {caseData.due_date && <div><span className="text-gray-400">{t("label.due")}</span><span className="font-medium">{fmtDate(caseData.due_date)}</span></div>}
@@ -14547,10 +14761,10 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             <div className="border-t border-red-50 pt-4 mt-2">
               <button onClick={handleDelete}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-xl hover:bg-red-50 transition-colors">
-                <Trash2 className="w-4 h-4 mr-1" /> Delete Case
+                <Trash2 className="w-4 h-4 mr-1" /> {t("cd.delete_case")}
               </button>
               <p className="text-xs text-gray-400 mt-1.5">
-                Only available while the case is <strong>Open</strong> and has no applications, time entries, documents, or sub-cases.
+                {t("cd.delete_note")}
               </p>
             </div>
           )}
@@ -14591,7 +14805,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               <button onClick={handleAddMilestone}
                 className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">
-                Add
+                {t("action.add")}
               </button>
             </div>
           )}
@@ -14731,8 +14945,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       <p className="text-xs text-gray-500 mt-1 line-clamp-1">{sc.description}</p>
                     )}
                     <div className="flex gap-3 mt-1.5 text-xs text-gray-400">
-                      {sc.due_date && <span>Due: {fmtDate(sc.due_date)}</span>}
-                      {sc.progress_pct > 0 && <span>Progress: {sc.progress_pct}%</span>}
+                      {sc.due_date && <span>{t("label.due_date")}: {fmtDate(sc.due_date)}</span>}
+                      {sc.progress_pct > 0 && <span>{t("label.progress")}: {sc.progress_pct}%</span>}
                     </div>
                   </div>
                   <span className="text-gray-300 text-sm flex-shrink-0">›</span>
@@ -14795,7 +15009,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             {stageRules.can_upload_docs && (
               <button onClick={() => setShowDocForm(p => !p)}
                 className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700">
-                + Upload
+                + {t("action.upload")}
               </button>
             )}
           </div>
@@ -14811,7 +15025,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 onChange={e => setDocNotes(e.target.value)} placeholder={t("case.notes_doc_ph")} />
               <div className="flex gap-2 justify-end">
                 <button onClick={() => { setShowDocForm(false); setPendingDocFile(null); setDocNotes(""); }}
-                  className="px-3 py-1.5 text-sm text-gray-500">Cancel</button>
+                  className="px-3 py-1.5 text-sm text-gray-500">{t("action.cancel")}</button>
                 <button onClick={handleDocUpload} disabled={!pendingDocFile || uploadingDoc}
                   className="px-4 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50">
                   {uploadingDoc ? t("state.saving") : t("action.upload")}
@@ -14837,7 +15051,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 {(auth.isAdmin || auth.isManager) && (
                   <button onClick={() => deleteDocument(doc.id, doc.file_url)}
                     className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded border border-red-100 hover:bg-red-50 flex-shrink-0">
-                    Remove
+                    {t("action.remove")}
                   </button>
                 )}
               </div>
@@ -14998,7 +15212,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               {/* Overall */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-sm font-semibold text-gray-700">Overall Progress</span>
+                  <span className="text-sm font-semibold text-gray-700">{t("case.overall_progress")}</span>
                   <div className="flex items-center gap-3">
                     {canManage && caseSpec?.status === 'approved' &&
                       activities.some(a => a.phase === 'design' || a.phase === 'development') && (
@@ -15054,8 +15268,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-semibold text-emerald-800">All activities complete</p>
-                  <p className="text-xs text-emerald-600">Consider advancing the case to the next lifecycle stage.</p>
+                  <p className="text-sm font-semibold text-emerald-800">{t("cd.all_acts_complete")}</p>
+                  <p className="text-xs text-emerald-600">{t("cd.all_acts_complete_sub")}</p>
                 </div>
               </div>
             )}
@@ -15071,9 +15285,9 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                     <Sparkles size={16} className="text-blue-600" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-blue-900">Functional spec approved — generate your project plan</p>
+                    <p className="text-sm font-semibold text-blue-900">{t("cd.spec_approved_banner")}</p>
                     <p className="text-xs text-blue-600 mt-0.5">
-                      Use the approved specification to auto-generate Design and Development phase activities with sequential dependencies and save a project plan PDF to Docs.
+                      {t("cd.spec_approved_desc")}
                     </p>
                     <button
                       onClick={generateDevelopmentPlan}
@@ -15496,7 +15710,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       );
                     })}
                   </svg>
-                  <p className="text-[10px] text-gray-400 text-center pb-2">Click any activity to jump to its detail in list view</p>
+                  <p className="text-[10px] text-gray-400 text-center pb-2">{t("cd.flow_hint")}</p>
                 </div>
               );
             })()}
@@ -15508,8 +15722,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             {activities.length === 0 ? (
               <div className="text-center py-12 text-gray-400">
                 <ListChecks className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-                <p className="text-sm font-medium">No activities yet</p>
-                <p className="text-xs mt-1">Add tasks to track plan progress and charge time per activity</p>
+                <p className="text-sm font-medium">{t("cd.no_activities")}</p>
+                <p className="text-xs mt-1">{t("cd.no_activities_sub")}</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -15638,14 +15852,14 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                             {/* Test Result — only for test-phase activities */}
                             {['technical_test','functional_test','user_test'].includes(editActForm.phase) && (
                               <div className="col-span-2 bg-amber-50 border border-amber-100 rounded-xl p-3 space-y-3">
-                                <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Test Result</p>
+                                <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">{t("cd.test_result")}</p>
                                 <div>
-                                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Outcome</label>
+                                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">{t("cd.outcome")}</label>
                                   <div className="flex gap-2">
                                     {[
-                                      { value: null,                label: "Pending",          cls: "border-gray-200 text-gray-500" },
-                                      { value: "passed",            label: <><Check size={11} className="mr-1 inline" />Passed</>,         cls: "border-emerald-300 text-emerald-700 bg-emerald-50" },
-                                      { value: "needs_adjustment",  label: <><AlertTriangle size={11} className="mr-1 inline" />Needs Adjustment</>, cls: "border-amber-300 text-amber-700 bg-amber-50" },
+                                      { value: null,                label: t("act.pending"),          cls: "border-gray-200 text-gray-500" },
+                                      { value: "passed",            label: <><Check size={11} className="mr-1 inline" />{t("cd.passed")}</>,         cls: "border-emerald-300 text-emerald-700 bg-emerald-50" },
+                                      { value: "needs_adjustment",  label: <><AlertTriangle size={11} className="mr-1 inline" />{t("cd.needs_adjustment")}</>, cls: "border-amber-300 text-amber-700 bg-amber-50" },
                                     ].map(opt => (
                                       <button key={String(opt.value)} type="button"
                                         onClick={() => setEditActForm(p => ({ ...p, test_outcome: opt.value, adjustment_notes: opt.value !== 'needs_adjustment' ? '' : p.adjustment_notes }))}
@@ -15659,7 +15873,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                                 </div>
                                 {editActForm.test_outcome === 'needs_adjustment' && (
                                   <div>
-                                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Issue / What needs fixing <span className="text-red-400">*</span></label>
+                                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("cd.issue_label")} <span className="text-red-400">*</span></label>
                                     <textarea value={editActForm.adjustment_notes ?? ''} rows={3}
                                       onChange={e => setEditActForm(p => ({ ...p, adjustment_notes: e.target.value }))}
                                       placeholder="Describe what failed and what needs to be corrected…"
@@ -15668,15 +15882,15 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                                 )}
                                 <div>
                                   <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">
-                                    Requirement Coverage — {editActForm.coverage_pct ?? 100}%
+                                    {t("cd.req_coverage")} — {editActForm.coverage_pct ?? 100}%
                                   </label>
                                   <input type="range" min="0" max="100" step="5"
                                     value={editActForm.coverage_pct ?? 100}
                                     onChange={e => setEditActForm(p => ({ ...p, coverage_pct: Number(e.target.value) }))}
                                     className="w-full accent-blue-600" />
                                   <div className="flex justify-between text-[9px] text-gray-400 mt-0.5">
-                                    <span>0% — Not covered</span>
-                                    <span>100% — Fully covered</span>
+                                    <span>{t("cd.not_covered")}</span>
+                                    <span>{t("cd.fully_covered")}</span>
                                   </div>
                                 </div>
                               </div>
@@ -15687,7 +15901,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       <div className="flex items-center justify-between pt-1 border-t border-blue-100">
                         <button onClick={() => { if(window.confirm(act.activity_type === "sub_case" ? "Remove this sub-case link? The sub-case will NOT be deleted." : "Delete this activity?")) deleteActivity(act.id); }}
                           className="text-xs text-red-400 hover:text-red-600">
-                          {act.activity_type === "sub_case" ? "Remove link" : "Delete"}
+                          {act.activity_type === "sub_case" ? t("cd.remove_link") : t("cd.delete_act")}
                         </button>
                         <div className="flex gap-2">
                           <button onClick={() => setEditingActId(null)} className="text-sm text-gray-500 px-3 py-1.5">{t("action.cancel")}</button>
@@ -15711,7 +15925,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                         <div className="flex items-center gap-3 px-4 py-3 bg-white hover:bg-violet-50">
                           <span className="text-xs font-bold text-gray-400 w-6 flex-shrink-0 text-center">#{act.task_no}</span>
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 bg-violet-100 text-violet-700 flex items-center gap-1">
-                            <Link2 size={9} /> Sub-case
+                            <Link2 size={9} /> {t("case.badge_subcase")}
                           </span>
                           {/* Title — click to open sub-case */}
                           <div className="flex-1 min-w-0 cursor-pointer"
@@ -15773,13 +15987,13 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                               )}
                             </div>
                             <p className="text-[10px] text-violet-600">
-                              Progress and time are read from the linked sub-case. Open the sub-case to log time or update progress.
+                              {t("cd.subcase_readonly")}
                             </p>
                             {canManage && (
                               <button
                                 onClick={() => { if(window.confirm("Remove this sub-case link? The sub-case itself will NOT be deleted.")) deleteActivity(act.id); }}
                                 className="text-xs text-red-400 hover:text-red-600 mt-1">
-                                Remove link
+                                {t("cd.remove_link")}
                               </button>
                             )}
                           </div>
@@ -15807,9 +16021,9 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                             {(act.predecessor_ids ?? []).length > 0 && (() => {
                               const blocked = (act.predecessor_ids ?? []).some(pid => actEffectivePct(actById.get(pid) ?? {}) < 100);
                               return blocked ? (
-                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 flex-shrink-0">⏳ Waiting</span>
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 flex-shrink-0">⏳ {t("cd.pred_waiting")}</span>
                               ) : (
-                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 flex-shrink-0"><Check size={9} className="mr-0.5 inline" />Ready</span>
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 flex-shrink-0"><Check size={9} className="mr-0.5 inline" />{t("cd.pred_ready")}</span>
                               );
                             })()}
                             {/* Phase lock */}
@@ -15821,10 +16035,10 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                             })()}
                             {/* Test outcome badge */}
                             {act.test_outcome === 'passed' && (
-                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 flex-shrink-0"><Check size={9} className="mr-0.5 inline" />Passed</span>
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 flex-shrink-0"><Check size={9} className="mr-0.5 inline" />{t("cd.passed")}</span>
                             )}
                             {act.test_outcome === 'needs_adjustment' && (
-                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 flex-shrink-0"><AlertTriangle size={9} className="mr-0.5 inline" />Needs Adj.</span>
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 flex-shrink-0"><AlertTriangle size={9} className="mr-0.5 inline" />{t("cd.needs_adj_short")}</span>
                             )}
                           </div>
                           {act.description && <p className="text-xs text-gray-400 truncate mt-0.5">{act.description}</p>}
@@ -15891,11 +16105,11 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                           {act.test_outcome && (
                             <div className={`rounded-xl p-3 space-y-1.5 text-xs ${act.test_outcome === 'passed' ? 'bg-emerald-50 border border-emerald-100' : 'bg-amber-50 border border-amber-100'}`}>
                               <p className={`font-semibold ${act.test_outcome === 'passed' ? 'text-emerald-700' : 'text-amber-700'}`}>
-                                {act.test_outcome === 'passed' ? <><Check size={11} className="inline mr-1" />Test passed</> : <><AlertTriangle size={11} className="inline mr-1" />Needs adjustment</>}
+                                {act.test_outcome === 'passed' ? <><Check size={11} className="inline mr-1" />{t("cd.test_passed")}</> : <><AlertTriangle size={11} className="inline mr-1" />{t("cd.needs_adj")}</>}
                               </p>
                               {act.adjustment_notes && <p className="text-amber-800">{act.adjustment_notes}</p>}
                               {act.coverage_pct != null && (
-                                <p className="text-gray-500">Requirement coverage: <span className="font-semibold text-gray-700">{act.coverage_pct}%</span></p>
+                                <p className="text-gray-500">{t("cd.req_coverage")}: <span className="font-semibold text-gray-700">{act.coverage_pct}%</span></p>
                               )}
                             </div>
                           )}
@@ -15915,7 +16129,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                                   <button
                                     onClick={() => { setLogTimeActId(act.id); setTimeForm({ date: new Date().toISOString().slice(0,10), hours: 1, description: '', is_billable: true, activity_id: act.id }); }}
                                     className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50">
-                                    <Clock size={10} /> Log Time
+                                    <Clock size={10} /> {t("time.log")}
                                   </button>
                                 );
                               })()}
@@ -15926,20 +16140,20 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                               <div className="bg-white border border-blue-200 rounded-xl p-3 space-y-2 mb-2">
                                 <div className="flex gap-2">
                                   <div className="flex-1">
-                                    <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide block mb-1">Date</label>
+                                    <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("label.date")}</label>
                                     <input type="date" value={timeForm.date}
                                       onChange={e => setTimeForm(p => ({ ...p, date: e.target.value }))}
                                       className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
                                   </div>
                                   <div className="w-20">
-                                    <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide block mb-1">Hours</label>
+                                    <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("label.hours")}</label>
                                     <input type="number" min="0.25" step="0.25" value={timeForm.hours}
                                       onChange={e => setTimeForm(p => ({ ...p, hours: e.target.value }))}
                                       className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
                                   </div>
                                 </div>
                                 <div>
-                                  <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide block mb-1">Description *</label>
+                                  <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("label.description")} *</label>
                                   <input type="text" value={timeForm.description} placeholder="What did you work on?"
                                     onChange={e => setTimeForm(p => ({ ...p, description: e.target.value }))}
                                     className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
@@ -15949,12 +16163,12 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                                     <input type="checkbox" checked={timeForm.is_billable}
                                       onChange={e => setTimeForm(p => ({ ...p, is_billable: e.target.checked }))}
                                       className="accent-blue-600" />
-                                    Billable
+                                    {t("label.billable")}
                                   </label>
                                   <div className="flex gap-2">
                                     <button onClick={() => setLogTimeActId(null)}
                                       className="px-2.5 py-1 text-xs border border-gray-200 text-gray-500 rounded-lg hover:bg-gray-50">
-                                      Cancel
+                                      {t("action.cancel")}
                                     </button>
                                     <button
                                       disabled={savingTime || !timeForm.hours || !timeForm.description.trim()}
@@ -15968,7 +16182,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                                         setSavingTime(false);
                                       }}
                                       className="px-2.5 py-1 text-xs bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-40">
-                                      {savingTime ? 'Saving…' : 'Save'}
+                                      {savingTime ? t("state.saving") : t("action.save")}
                                     </button>
                                   </div>
                                 </div>
@@ -15976,7 +16190,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                             )}
 
                             {actEntries.length === 0 ? (
-                              <p className="text-xs text-gray-400 italic">No time charged to this activity yet.</p>
+                              <p className="text-xs text-gray-400 italic">{t("cd.no_act_time")}</p>
                             ) : (
                               <div className="space-y-1">
                                 {actEntries.map(e => (
@@ -15984,7 +16198,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                                     <span className="text-gray-400 w-20 flex-shrink-0">{fmtDate(e.date)}</span>
                                     <span className="font-medium text-gray-700">{e.consultant?.full_name ?? "—"}</span>
                                     <span className="text-blue-700 font-semibold">{e.hours}h</span>
-                                    {e.is_billable && <span className="text-green-600 text-[10px] font-bold">Billable</span>}
+                                    {e.is_billable && <span className="text-green-600 text-[10px] font-bold">{t("label.billable")}</span>}
                                     <span className="text-gray-500 truncate flex-1">{e.description}</span>
                                   </div>
                                 ))}
@@ -16119,7 +16333,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       <div className="flex gap-2 pt-1">
                         <button onClick={() => { setExtractedActs([]); setImportStep('select'); }}
                           className="px-4 py-2 text-sm border border-gray-200 text-gray-500 rounded-xl hover:bg-gray-50">
-                          Back
+                          {t("action.back")}
                         </button>
                         <button onClick={importSelectedActivities}
                           disabled={extractedActs.filter(a => a._selected).length === 0}
@@ -17426,8 +17640,8 @@ function ConsultantDetailModal({ consultantId, auth }) {
                     <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl p-4">
                       <CheckCircle2 size={18} className="text-emerald-600 flex-shrink-0" />
                       <div>
-                        <p className="text-sm font-semibold text-emerald-800">All {activities.length} activities at 100%</p>
-                        <p className="text-xs text-emerald-600">Ready to approve and generate the closure report.</p>
+                        <p className="text-sm font-semibold text-emerald-800">{t("cd.approve_all_done").replace("{n}", activities.length)}</p>
+                        <p className="text-xs text-emerald-600">{t("cd.approve_ready")}</p>
                       </div>
                     </div>
                   ) : (
@@ -17437,7 +17651,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
                         <div>
                           <p className="text-sm font-semibold text-amber-800">{incomplete.length} activit{incomplete.length !== 1 ? 'ies' : 'y'} not at 100%</p>
                           <p className="text-xs text-amber-600">
-                            {canBypass ? 'You can bypass this as a manager/admin — provide a reason below.' : 'All activities must be complete before approval.'}
+                            {canBypass ? t("cd.approve_bypass_can") : t("cd.approve_must_complete")}
                           </p>
                         </div>
                       </div>
@@ -17468,7 +17682,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
                         </div>
                       )}
                       {!canBypass && (
-                        <p className="text-xs text-gray-500 text-center">Contact a manager or admin to bypass this check.</p>
+                        <p className="text-xs text-gray-500 text-center">{t("cd.approve_contact_mgr")}</p>
                       )}
                     </div>
                   )}
@@ -17804,8 +18018,8 @@ function ConsultantDetailModal({ consultantId, auth }) {
               <span className="text-yellow-600 font-bold text-lg leading-none">⏸</span>
             </div>
             <div>
-              <h3 className="font-bold text-gray-900 text-base">Why is this case going on standby?</h3>
-              <p className="text-sm text-gray-500 mt-0.5">Select a reason — this will be posted as a comment and notified to participants.</p>
+              <h3 className="font-bold text-gray-900 text-base">{t("cd.standby_title")}</h3>
+              <p className="text-sm text-gray-500 mt-0.5">{t("cd.standby_subtitle")}</p>
             </div>
           </div>
 
@@ -17826,7 +18040,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
 
           <div className="space-y-1.5">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-              Additional detail {standbyReason === "Other" && <span className="text-red-400">*</span>}
+              {t("cd.standby_detail_label")} {standbyReason === t("cd.cancel_reason_other") && <span className="text-red-400">*</span>}
             </p>
             <textarea value={standbyNotes} onChange={e => setStandbyNotes(e.target.value)}
               rows={3} placeholder="e.g. waiting on board approval expected next Monday…"
@@ -17836,12 +18050,12 @@ function ConsultantDetailModal({ consultantId, auth }) {
           <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
             <button onClick={() => setStandbyModal(false)}
               className="px-4 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50">
-              Cancel
+              {t("action.cancel")}
             </button>
             <button onClick={confirmStandby}
-              disabled={!standbyReason || (standbyReason === "Other" && !standbyNotes.trim())}
+              disabled={!standbyReason || (standbyReason === t("cd.cancel_reason_other") && !standbyNotes.trim())}
               className="px-5 py-2 text-sm font-semibold text-white bg-yellow-500 hover:bg-yellow-600 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-              Confirm Standby
+              {t("cd.standby_confirm")}
             </button>
           </div>
         </div>
@@ -17857,8 +18071,8 @@ function ConsultantDetailModal({ consultantId, auth }) {
               <X size={16} className="text-red-500" />
             </div>
             <div>
-              <h3 className="font-bold text-gray-900 text-base">Why is this case being cancelled?</h3>
-              <p className="text-sm text-gray-500 mt-0.5">Select a reason — this helps track patterns across cases.</p>
+              <h3 className="font-bold text-gray-900 text-base">{t("cd.cancel_title")}</h3>
+              <p className="text-sm text-gray-500 mt-0.5">{t("cd.cancel_subtitle")}</p>
             </div>
           </div>
 
@@ -17879,7 +18093,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
 
           <div className="space-y-1.5">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-              Explanation <span className="text-red-400">*</span>
+              {t("cd.cancel_explanation_label")} <span className="text-red-400">*</span>
             </p>
             <textarea value={cancelNotes} onChange={e => setCancelNotes(e.target.value)}
               rows={3} placeholder="Explain why this case is being cancelled…"
@@ -17889,11 +18103,11 @@ function ConsultantDetailModal({ consultantId, auth }) {
           <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
             <button onClick={() => setCancelModal(null)}
               className="px-4 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50">
-              Keep Case
+              {t("cd.cancel_keep")}
             </button>
             <button onClick={confirmCancellation} disabled={!cancelReason || !cancelNotes.trim()}
               className="px-5 py-2 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-              Confirm Cancellation
+              {t("cd.cancel_confirm")}
             </button>
           </div>
         </div>
