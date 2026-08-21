@@ -70,43 +70,71 @@ const TRANSLATIONS = {
     "nav.notifications":  "Notifications",
     "nav.my_cases_short": "My Cases",
     // Common actions
-    "action.save":        "Save",
-    "action.cancel":      "Cancel",
-    "action.delete":      "Delete",
-    "action.edit":        "Edit",
-    "action.add":         "Add",
-    "action.close":       "Close",
-    "action.confirm":     "Confirm",
-    "action.search":      "Search",
-    "action.filter":      "Filter",
-    "action.export":      "Export",
-    "action.create":      "Create",
-    "action.submit":      "Submit",
-    "action.upload":      "Upload",
-    "action.download":    "Download",
-    "action.remove":      "Remove",
-    "action.apply":       "Apply",
-    "action.approve":     "Approve",
-    "action.reject":      "Reject",
-    "action.sign_out":    "Sign Out",
-    "action.sign_in":     "Sign In",
+    "action.save":           "Save",
+    "action.cancel":         "Cancel",
+    "action.delete":         "Delete",
+    "action.edit":           "Edit",
+    "action.add":            "Add",
+    "action.close":          "Close",
+    "action.confirm":        "Confirm",
+    "action.search":         "Search",
+    "action.filter":         "Filter",
+    "action.export":         "Export",
+    "action.export_csv":     "Export CSV",
+    "action.create":         "Create",
+    "action.submit":         "Submit",
+    "action.upload":         "Upload",
+    "action.download":       "Download",
+    "action.remove":         "Remove",
+    "action.apply":          "Apply",
+    "action.approve":        "Approve",
+    "action.reject":         "Reject",
+    "action.sign_out":       "Sign Out",
+    "action.sign_in":        "Sign In",
     "action.create_account": "Create Account",
+    "action.clear":          "Clear",
+    "action.resend":         "Resend",
+    "action.send":           "Send",
+    "action.back":           "← Back",
+    "action.mark_paid":      "Mark Paid",
+    "action.log_time":       "Log Time",
     // Auth
-    "auth.welcome":       "Welcome back",
-    "auth.sign_in_title": "Sign in to TechCase",
-    "auth.email":         "Email address",
-    "auth.password":      "Password",
-    "auth.forgot":        "Forgot password?",
-    "auth.no_account":    "Don't have an account?",
-    "auth.have_account":  "Already have an account?",
-    "auth.signing_in":    "Signing in…",
-    "auth.creating":      "Creating account…",
+    "auth.tagline":          "Consultant case management platform",
+    "auth.welcome":          "Welcome back",
+    "auth.sign_in_title":    "Sign in to TechCase",
+    "auth.email":            "Email address",
+    "auth.password":         "Password",
+    "auth.confirm_password": "Confirm Password",
+    "auth.forgot":           "Forgot password?",
+    "auth.no_account":       "Don't have an account?",
+    "auth.have_account":     "Already have an account?",
+    "auth.signing_in":       "Signing in…",
+    "auth.creating":         "Creating account…",
+    "auth.sending":          "Sending…",
+    "auth.verifying":        "Verifying…",
+    "auth.step_verify":      "Verify",
+    "auth.step_role":        "Role",
+    "auth.step_profile":     "Profile",
+    "auth.verify_heading":   "Verify your email",
+    "auth.verify_subtitle":  "We'll send a verification code to confirm it's you.",
+    "auth.send_code":        "Send Verification Code →",
+    "auth.verify_btn":       "Verify →",
+    "auth.code_label":       "Verification Code",
+    "auth.code_placeholder": "Enter code from email",
+    "auth.what_brings":      "What brings you here?",
+    "auth.choose_type":      "Choose your account type to get the right experience.",
+    "auth.build_consultant": "Build your consultant profile",
+    "auth.build_key_user":   "Complete your Key User account",
+    "auth.build_client":     "Set up your company profile",
+    "auth.help_clients":     "Help clients find you with the right details.",
+    "auth.tell_consultants": "Tell consultants about your company.",
     // Common labels
     "label.status":       "Status",
     "label.client":       "Client",
     "label.consultant":   "Consultant",
     "label.date":         "Date",
     "label.name":         "Name",
+    "label.full_name":    "Full Name",
     "label.email":        "Email",
     "label.role":         "Role",
     "label.notes":        "Notes",
@@ -133,6 +161,43 @@ const TRANSLATIONS = {
     "label.end_date":     "End Date",
     "label.created_at":   "Created",
     "label.updated_at":   "Updated",
+    "label.skills":       "Skills",
+    "label.budget":       "Budget",
+    "label.headline":     "Professional Headline",
+    "label.bio":          "Bio",
+    "label.hourly_rate":  "Hourly Rate ($)",
+    "label.years_exp":    "Years of Experience",
+    "label.expertise":    "Expertise Level",
+    "label.availability": "Availability Type",
+    "label.linkedin":     "LinkedIn URL",
+    "label.billable":     "Billable",
+    "label.approved":     "Approved",
+    "label.pending":      "Pending",
+    "label.rank":         "Rank",
+    "label.avg_rating":   "Avg Rating",
+    "label.cases_won":    "Cases Won",
+    "label.applications": "Applications",
+    "label.starts":       "Starts:",
+    "label.due":          "Due:",
+    "label.invoice_num":  "Invoice #",
+    "label.due_date":     "Due Date",
+    "label.case":         "Case",
+    "label.to":           "to",
+    "label.progress":     "Progress",
+    "label.experience":   "Experience",
+    "label.about":        "About",
+    "label.present":      "Present",
+    "label.travel":       "Available for travel",
+    // Expertise levels
+    "level.junior":       "Junior",
+    "level.mid":          "Mid-Level",
+    "level.senior":       "Senior",
+    "level.expert":       "Expert / Principal",
+    // Availability types
+    "avail.full_time":    "Full-Time",
+    "avail.part_time":    "Part-Time",
+    "avail.contract":     "Contract",
+    "avail.project":      "Project-Based",
     // States
     "state.empty":        "No results found",
     "state.loading":      "Loading…",
@@ -141,71 +206,289 @@ const TRANSLATIONS = {
     "state.saving":       "Saving…",
     "state.deleting":     "Deleting…",
     // Dashboard
-    "dashboard.title":          "Dashboard",
-    "dashboard.active_cases":   "Active Cases",
-    "dashboard.my_cases":       "My Cases",
-    "dashboard.open_cases":     "Open Cases",
-    "dashboard.revenue":        "Revenue",
-    "dashboard.hours_logged":   "Hours Logged",
-    "dashboard.activity_feed":  "Activity Feed",
-    "dashboard.available_cases":"Available Cases",
-    "dashboard.recent_cases":   "Recent Cases",
-    "dashboard.total_cases":    "Total Cases",
-    "dashboard.completed":      "Completed",
-    "dashboard.in_progress":    "In Progress",
-    "dashboard.pending":        "Pending",
+    "dashboard.title":           "Dashboard",
+    "dashboard.subtitle":        "Here's what's happening on the platform today.",
+    "dashboard.clients":         "Clients",
+    "dashboard.working_now":     "Working now",
+    "dashboard.following":       "Following",
+    "dashboard.active_cases":    "Active cases",
+    "dashboard.past_clients":    "Past clients",
+    "dashboard.active":          "Active",
+    "dashboard.past":            "Past",
+    "dashboard.no_cases_client": "No cases found for this client.",
+    "dashboard.total_cases":     "Total Cases",
+    "dashboard.open_cases":      "Open Cases",
+    "dashboard.in_progress":     "In Progress",
+    "dashboard.my_cases":        "My Cases",
+    "dashboard.pending_reviews": "Pending Reviews",
+    "dashboard.my_applications": "My Applications",
+    "dashboard.accepted":        "Accepted",
+    "dashboard.completed":       "Completed",
+    "dashboard.nothing_yet":     "Nothing here yet.",
+    "dashboard.available_cases": "Available Cases",
+    "dashboard.avail_subtitle":  "Open cases you can apply to",
+    "dashboard.all_sap":         "All SAP Areas",
+    "dashboard.all_industries":  "All Industries",
+    "dashboard.all_cases":       "All Cases",
+    "dashboard.following_tab":   "⭐ Following",
+    "dashboard.no_open_cases":   "No open cases available right now.",
+    "dashboard.no_following":    "No cases from companies you follow yet.",
+    "dashboard.assigned_cases":  "My Assigned Cases",
+    "dashboard.recent_cases":    "Recent Cases",
+    "dashboard.starting_soon":   "Starting Soon",
+    "dashboard.today":           "Today",
+    "dashboard.tomorrow":        "Tomorrow",
+    "dashboard.activity_feed":   "Activity Feed",
+    "dashboard.preferences":     "Preferences",
+    "dashboard.loading_feed":    "Loading feed…",
+    "dashboard.no_activity":     "No activity yet",
+    "dashboard.activity_hint":   "Events from your cases will appear here.",
+    "dashboard.revenue":         "Revenue",
+    "dashboard.hours_logged":    "Hours Logged",
+    // Feed filter tabs
+    "feed.all":          "All",
+    "feed.comments":     "Comments",
+    "feed.progress":     "Progress",
+    "feed.status":       "Status",
+    "feed.assignments":  "Assignments",
+    "feed.alerts":       "Alerts",
     // Cases
-    "cases.title":              "Cases",
-    "cases.new":                "New Case",
-    "cases.all":                "All Cases",
-    "cases.active":             "Active",
-    "cases.past":               "Past",
-    "cases.no_cases":           "No cases yet",
+    "cases.title":          "Cases",
+    "cases.new":            "+ New Case",
+    "cases.search":         "Search cases…",
+    "cases.all_statuses":   "All Statuses",
+    "cases.all_projects":   "All Projects",
+    "cases.saved":          "Saved",
+    "cases.no_cases":       "No cases found",
+    "cases.no_cases_hint":  "Adjust your filters or create a new case",
+    "cases.active":         "Active",
+    "cases.past":           "Past",
     // Projects
-    "projects.title":           "Projects",
-    "projects.new":             "New Project",
-    "projects.no_projects":     "No projects yet",
+    "projects.title":        "Projects",
+    "projects.new":          "+ New Project",
+    "projects.no_projects":  "No projects yet",
+    "projects.no_proj_hint": "Group related cases into a project to track them together.",
+    "projects.create_first": "+ Create your first project",
+    "projects.all":          "All",
+    "projects.draft":        "Draft",
+    "projects.on_hold":      "On Hold",
+    "projects.cancelled":    "Cancelled",
+    // Notifications
+    "notif.title":     "Notifications",
+    "notif.mark_read": "Mark all read",
+    "notif.none":      "All caught up!",
+    "notif.none_hint": "Notifications will appear here when cases are updated, applications change status, or you receive messages.",
+    // Reports
+    "reports.title":           "Reports",
+    "reports.subtitle":        "Platform analytics",
+    "reports.from":            "From",
+    "reports.to":              "To",
+    "reports.total_cases":     "Total Cases",
+    "reports.conversion":      "Conversion Rate",
+    "reports.hours_logged":    "Hours Logged",
+    "reports.revenue_paid":    "Revenue (Paid)",
+    "reports.cases_by_status": "Cases by Status",
+    "reports.apps_by_status":  "Applications by Status",
+    "reports.revenue_overview":"Revenue Overview",
+    "reports.time_tracking":   "Time Tracking",
+    "reports.total_invoiced":  "Total Invoiced",
+    "reports.paid":            "Paid",
+    "reports.outstanding":     "Outstanding",
+    "reports.total_logged":    "Total Logged",
+    "reports.billable":        "Billable",
+    "reports.approved_entries":"Approved entries",
+    "reports.hours_by_consultant": "Hours by Consultant",
+    // Invoices
+    "invoices.title":         "Invoices",
+    "invoices.new":           "+ New Invoice",
+    "invoices.total_billed":  "Total Billed",
+    "invoices.paid":          "Paid",
+    "invoices.outstanding":   "Outstanding",
+    "invoices.all_statuses":  "All Statuses",
+    "invoices.col_num":       "Invoice #",
+    "invoices.col_client":    "Client",
+    "invoices.col_case":      "Case",
+    "invoices.col_amount":    "Amount",
+    "invoices.col_status":    "Status",
+    "invoices.col_due":       "Due Date",
+    "invoices.none":          "No invoices found",
+    "invoices.new_title":     "New Invoice",
+    "invoices.number":        "Invoice Number",
+    "invoices.case_opt":      "— Select case (optional) —",
+    "invoices.creating":      "Creating…",
+    "invoices.overdue":       "Overdue",
+    // Time entries
+    "time.title":         "Time Entries",
+    "time.log":           "+ Log Time",
+    "time.clear":         "Clear",
+    "time.form_title":    "Log Time Entry",
+    "time.select_case":   "— Select case —",
+    "time.worked_on":     "Describe what you worked on…",
+    "time.saving":        "Saving…",
+    "time.none":          "No time entries",
+    "time.log_first":     "Log your first entry above",
+    "time.none_yet":      "No entries logged yet",
+    "time.col_date":      "Date",
+    "time.col_consultant":"Consultant",
+    "time.col_case":      "Case",
+    "time.col_hours":     "Hours",
+    "time.col_desc":      "Description",
+    "time.col_billable":  "Billable",
+    "time.col_approved":  "Approved",
+    "time.billable":      "Billable",
+    "time.non_billable":  "Non-billable",
+    "time.approved":      "Approved",
+    "time.pending":       "Pending",
+    "time.approve":       "Approve",
+    // Arena
+    "arena.title":            "Arena",
+    "arena.subtitle":         "Open cases & consultant rankings",
+    "arena.open_cases":       "Open Cases",
+    "arena.leaderboard":      "Leaderboard",
+    "arena.cards":            "Cards",
+    "arena.compare":          "Compare",
+    "arena.no_cases":         "No estimated cases available right now.",
+    "arena.applied":          "Applied",
+    "arena.apply":            "Apply →",
+    "arena.col_rank":         "Rank",
+    "arena.col_consultant":   "Consultant",
+    "arena.col_rating":       "Avg Rating",
+    "arena.col_won":          "Cases Won",
+    "arena.col_apps":         "Applications",
+    "arena.no_consultants":   "No consultants yet",
+    "arena.stat_won":         "won",
+    "arena.stat_apps":        "apps",
+    "arena.stat_ratings":     "ratings",
+    "arena.compare_rating":   "Avg Rating",
+    "arena.compare_win_rate": "Win Rate",
+    "arena.compare_won":      "Cases Won",
+    "arena.compare_exp":      "Experience",
+    "arena.compare_need":     "Need at least 3 consultants to compare",
+    "arena.private":          "Private",
+    "arena.nda":              "NDA",
+    "arena.applicant_ranking":"Applicant Ranking",
+    // Profile (consultant)
+    "profile.title":          "My Profile",
+    "profile.edit":           "Edit Profile",
+    "profile.cancel":         "Cancel",
+    "profile.availability":   "Availability",
+    "profile.free_pct":       "% free",
+    "profile.tab_overview":   "Overview",
+    "profile.tab_experience": "Experience",
+    "profile.tab_skills":     "Skills",
+    "profile.tab_ratings":    "Ratings",
+    "profile.no_bio":         "No bio yet. Edit your profile to add one.",
+    "profile.linkedin":       "LinkedIn Profile",
+    "profile.active_cases":   "Active Cases",
+    "profile.past_customers": "Past Customers",
+    "profile.no_customers":   "No customers added yet.",
+    "profile.add_customer":   "Add Customer",
+    "profile.company_name":   "Company Name",
+    "profile.role_held":      "Role Held",
+    "profile.blank_if_curr":  "Leave blank if current",
+    "profile.add_customer_btn":"+ Add Customer",
+    "profile.projects":       "Projects",
+    "profile.no_projects":    "No projects added yet.",
+    "profile.add_project":    "Add Project",
+    "profile.client_name":    "Client Name",
+    "profile.url":            "URL",
+    "profile.tech_stack":     "Tech Stack (comma-separated)",
+    "profile.add_project_btn":"+ Add Project",
+    "profile.no_skills":      "No skills added yet.",
+    "profile.skill_ph":       "Add a skill…",
+    "profile.add_skill":      "+ Add",
+    "profile.work_auth":      "Work Authorization",
+    "profile.no_auth":        "No work authorizations added.",
+    "profile.add_auth":       "Add Authorization",
+    "profile.country":        "Country Name",
+    "profile.country_code":   "Country Code",
+    "profile.auth_type":      "Auth Type",
+    "profile.no_ratings":     "No ratings yet.",
+    "profile.save_changes":   "Save Changes",
+    "profile.saving":         "Saving…",
+    "profile.ext_occupancy":  "External Occupancy:",
+    "profile.full_name":      "Full Name",
+    "profile.bio_label":      "Bio",
+    "profile.skills_label":   "Skills (comma-separated)",
+    // Company profile (client)
+    "company.title":          "My Company",
+    "company.empty":          "Your company profile is empty",
+    "company.empty_hint":     "Click Edit Profile above to fill in your company details.",
+    "company.edit":           "Edit Profile",
+    "company.cancel":         "Cancel",
+    "company.edit_title":     "Edit Company Profile",
+    "company.name":           "Company Name",
+    "company.industry":       "Industry",
+    "company.size":           "Company Size",
+    "company.founded":        "Founded Year",
+    "company.hq":             "Headquarters",
+    "company.website":        "Website",
+    "company.linkedin":       "LinkedIn",
+    "company.description":    "Description",
+    "company.primary_contact":"Primary Contact",
+    "company.contact_name":   "Contact Name",
+    "company.contact_title":  "Contact Title",
+    "company.contact_email":  "Contact Email",
+    "company.contact_phone":  "Contact Phone",
+    "company.prefs":          "Consulting Preferences",
+    "company.annual_budget":  "Annual Budget",
+    "company.pref_cats":      "Preferred Categories (comma-separated)",
+    "company.internal_notes": "Internal Notes",
+    "company.saving":         "Saving…",
+    "company.save":           "Save Profile",
+    "company.about":          "About",
+    "company.preferred_areas":"Preferred Consulting Areas",
+    "company.no_contact":     "No contact set. Edit profile to add one.",
+    "company.notes":          "Notes",
+    "company.est":            "Est.",
+    // Client profile tabs
+    "client_tab.overview":    "Overview",
+    "client_tab.sla":         "SLA Config",
+    "client_tab.connections": "Connections",
+    "client_tab.team":        "Team",
+    "client_tab.lifecycle":   "Lifecycle",
+    "client_tab.phases":      "Phases",
+    "client_tab.defaults":    "Defaults",
+    "client_tab.assignment":  "Assignment",
+    // SLA
+    "sla.title":              "SLA Configuration",
+    "sla.subtitle":           "Service level targets by priority and case type",
+    "sla.edit":               "Edit SLA",
+    "sla.cancel":             "Cancel",
+    "sla.tier":               "SLA Tier",
+    "sla.uptime":             "Uptime Guarantee (%)",
+    "sla.dedicated":          "Dedicated Consultant",
+    "sla.priority_support":   "Priority Support",
+    "sla.initial_response":   "↩ Initial Response",
+    "sla.resolution":         "Resolution",
+    "sla.none":               "No SLA configured yet.",
+    "sla.configure":          "Configure SLA",
+    "sla.extra_terms":        "Additional SLA terms…",
+    "sla.saving":             "Saving…",
+    "sla.save":               "Save SLA",
+    "sla.notes":              "Notes",
+    // DB connections
+    "db.title":               "DB Connections",
+    "db.add":                 "Add Connection",
+    "db.count":               "connection(s) configured",
     // Settings
-    "settings.title":           "Settings",
+    "settings.title":           "System Settings",
+    "settings.subtitle":        "Platform configuration — admin & manager only",
     "settings.users":           "Users",
     "settings.lifecycle":       "Lifecycle",
     "settings.activity_phases": "Activity Phases",
     "settings.catalog":         "Catalog Values",
     "settings.sla":             "SLA Config",
     "settings.platform":        "Platform & AI",
-    // Profile
-    "profile.title":            "My Profile",
-    "profile.full_name":        "Full Name",
-    "profile.bio":              "Bio",
-    "profile.edit":             "Edit Profile",
-    "profile.save":             "Save Profile",
-    "profile.company_empty":    "Your company profile is empty",
-    "profile.company_empty_hint":"Click Edit Profile above to fill in your company details.",
-    // Notifications
-    "notif.title":              "Notifications",
-    "notif.mark_read":          "Mark all read",
-    "notif.none":               "No notifications",
-    // Reports
-    "reports.title":            "Reports",
-    // Invoices
-    "invoices.title":           "Invoices",
-    "invoices.new":             "New Invoice",
-    // Time entries
-    "time.title":               "Time Entries",
-    "time.log":                 "Log Time",
-    // Arena
-    "arena.title":              "Arena",
-    // DB Connections
-    "db.title":                 "DB Connections",
-    "db.add":                   "Add Connection",
     // Kanban
-    "kanban.title":             "Kanban Board",
-    // SLA
-    "sla.title":                "SLA Configuration",
+    "kanban.title":     "Kanban Board",
+    "kanban.subtitle":  "Visual case pipeline",
+    "kanban.no_cases":  "No cases to show.",
+    "kanban.empty_col": "Empty",
     // Language picker
-    "lang.en":                  "English",
-    "lang.es":                  "Spanish",
-    "lang.choose":              "Language",
+    "lang.en":     "English",
+    "lang.es":     "Spanish",
+    "lang.choose": "Language",
   },
   es: {
     // Navigation
@@ -227,43 +510,71 @@ const TRANSLATIONS = {
     "nav.notifications":  "Notificaciones",
     "nav.my_cases_short": "Mis Casos",
     // Common actions
-    "action.save":        "Guardar",
-    "action.cancel":      "Cancelar",
-    "action.delete":      "Eliminar",
-    "action.edit":        "Editar",
-    "action.add":         "Agregar",
-    "action.close":       "Cerrar",
-    "action.confirm":     "Confirmar",
-    "action.search":      "Buscar",
-    "action.filter":      "Filtrar",
-    "action.export":      "Exportar",
-    "action.create":      "Crear",
-    "action.submit":      "Enviar",
-    "action.upload":      "Subir",
-    "action.download":    "Descargar",
-    "action.remove":      "Eliminar",
-    "action.apply":       "Postular",
-    "action.approve":     "Aprobar",
-    "action.reject":      "Rechazar",
-    "action.sign_out":    "Cerrar Sesión",
-    "action.sign_in":     "Iniciar Sesión",
+    "action.save":           "Guardar",
+    "action.cancel":         "Cancelar",
+    "action.delete":         "Eliminar",
+    "action.edit":           "Editar",
+    "action.add":            "Agregar",
+    "action.close":          "Cerrar",
+    "action.confirm":        "Confirmar",
+    "action.search":         "Buscar",
+    "action.filter":         "Filtrar",
+    "action.export":         "Exportar",
+    "action.export_csv":     "Exportar CSV",
+    "action.create":         "Crear",
+    "action.submit":         "Enviar",
+    "action.upload":         "Subir",
+    "action.download":       "Descargar",
+    "action.remove":         "Eliminar",
+    "action.apply":          "Postular",
+    "action.approve":        "Aprobar",
+    "action.reject":         "Rechazar",
+    "action.sign_out":       "Cerrar Sesión",
+    "action.sign_in":        "Iniciar Sesión",
     "action.create_account": "Crear Cuenta",
+    "action.clear":          "Limpiar",
+    "action.resend":         "Reenviar",
+    "action.send":           "Enviar",
+    "action.back":           "← Volver",
+    "action.mark_paid":      "Marcar Pagado",
+    "action.log_time":       "Registrar",
     // Auth
-    "auth.welcome":       "Bienvenido de nuevo",
-    "auth.sign_in_title": "Inicia sesión en TechCase",
-    "auth.email":         "Correo electrónico",
-    "auth.password":      "Contraseña",
-    "auth.forgot":        "¿Olvidaste tu contraseña?",
-    "auth.no_account":    "¿No tienes cuenta?",
-    "auth.have_account":  "¿Ya tienes cuenta?",
-    "auth.signing_in":    "Iniciando sesión…",
-    "auth.creating":      "Creando cuenta…",
+    "auth.tagline":          "Plataforma de gestión de casos de consultoría",
+    "auth.welcome":          "Bienvenido de nuevo",
+    "auth.sign_in_title":    "Inicia sesión en TechCase",
+    "auth.email":            "Correo electrónico",
+    "auth.password":         "Contraseña",
+    "auth.confirm_password": "Confirmar contraseña",
+    "auth.forgot":           "¿Olvidaste tu contraseña?",
+    "auth.no_account":       "¿No tienes cuenta?",
+    "auth.have_account":     "¿Ya tienes cuenta?",
+    "auth.signing_in":       "Iniciando sesión…",
+    "auth.creating":         "Creando cuenta…",
+    "auth.sending":          "Enviando…",
+    "auth.verifying":        "Verificando…",
+    "auth.step_verify":      "Verificar",
+    "auth.step_role":        "Rol",
+    "auth.step_profile":     "Perfil",
+    "auth.verify_heading":   "Verifica tu correo",
+    "auth.verify_subtitle":  "Enviaremos un código de verificación para confirmarlo.",
+    "auth.send_code":        "Enviar código →",
+    "auth.verify_btn":       "Verificar →",
+    "auth.code_label":       "Código de verificación",
+    "auth.code_placeholder": "Ingresa el código del correo",
+    "auth.what_brings":      "¿Qué te trae por aquí?",
+    "auth.choose_type":      "Elige el tipo de cuenta para obtener la experiencia correcta.",
+    "auth.build_consultant": "Crea tu perfil de consultor",
+    "auth.build_key_user":   "Completa tu cuenta de Usuario Clave",
+    "auth.build_client":     "Configura el perfil de tu empresa",
+    "auth.help_clients":     "Ayuda a los clientes a encontrarte con los detalles correctos.",
+    "auth.tell_consultants": "Cuéntales a los consultores sobre tu empresa.",
     // Common labels
     "label.status":       "Estado",
     "label.client":       "Cliente",
     "label.consultant":   "Consultor",
     "label.date":         "Fecha",
     "label.name":         "Nombre",
+    "label.full_name":    "Nombre completo",
     "label.email":        "Correo",
     "label.role":         "Rol",
     "label.notes":        "Notas",
@@ -290,6 +601,43 @@ const TRANSLATIONS = {
     "label.end_date":     "Fecha de fin",
     "label.created_at":   "Creado",
     "label.updated_at":   "Actualizado",
+    "label.skills":       "Habilidades",
+    "label.budget":       "Presupuesto",
+    "label.headline":     "Título profesional",
+    "label.bio":          "Biografía",
+    "label.hourly_rate":  "Tarifa por hora ($)",
+    "label.years_exp":    "Años de experiencia",
+    "label.expertise":    "Nivel de experiencia",
+    "label.availability": "Tipo de disponibilidad",
+    "label.linkedin":     "URL de LinkedIn",
+    "label.billable":     "Facturable",
+    "label.approved":     "Aprobado",
+    "label.pending":      "Pendiente",
+    "label.rank":         "Rango",
+    "label.avg_rating":   "Calificación promedio",
+    "label.cases_won":    "Casos ganados",
+    "label.applications": "Postulaciones",
+    "label.starts":       "Inicio:",
+    "label.due":          "Vence:",
+    "label.invoice_num":  "Factura #",
+    "label.due_date":     "Fecha de vencimiento",
+    "label.case":         "Caso",
+    "label.to":           "hasta",
+    "label.progress":     "Progreso",
+    "label.experience":   "Experiencia",
+    "label.about":        "Acerca de",
+    "label.present":      "Presente",
+    "label.travel":       "Disponible para viajes",
+    // Expertise levels
+    "level.junior":       "Junior",
+    "level.mid":          "Nivel Medio",
+    "level.senior":       "Senior",
+    "level.expert":       "Experto / Principal",
+    // Availability types
+    "avail.full_time":    "Tiempo Completo",
+    "avail.part_time":    "Medio Tiempo",
+    "avail.contract":     "Contrato",
+    "avail.project":      "Por Proyecto",
     // States
     "state.empty":        "Sin resultados",
     "state.loading":      "Cargando…",
@@ -298,71 +646,289 @@ const TRANSLATIONS = {
     "state.saving":       "Guardando…",
     "state.deleting":     "Eliminando…",
     // Dashboard
-    "dashboard.title":          "Panel",
-    "dashboard.active_cases":   "Casos Activos",
-    "dashboard.my_cases":       "Mis Casos",
-    "dashboard.open_cases":     "Casos Abiertos",
-    "dashboard.revenue":        "Ingresos",
-    "dashboard.hours_logged":   "Horas Registradas",
-    "dashboard.activity_feed":  "Actividad Reciente",
-    "dashboard.available_cases":"Casos Disponibles",
-    "dashboard.recent_cases":   "Casos Recientes",
-    "dashboard.total_cases":    "Total de Casos",
-    "dashboard.completed":      "Completados",
-    "dashboard.in_progress":    "En Progreso",
-    "dashboard.pending":        "Pendientes",
+    "dashboard.title":           "Panel",
+    "dashboard.subtitle":        "Esto es lo que está pasando en la plataforma hoy.",
+    "dashboard.clients":         "Clientes",
+    "dashboard.working_now":     "Activos ahora",
+    "dashboard.following":       "Siguiendo",
+    "dashboard.active_cases":    "Casos activos",
+    "dashboard.past_clients":    "Clientes anteriores",
+    "dashboard.active":          "Activo",
+    "dashboard.past":            "Anterior",
+    "dashboard.no_cases_client": "Sin casos para este cliente.",
+    "dashboard.total_cases":     "Total de Casos",
+    "dashboard.open_cases":      "Casos Abiertos",
+    "dashboard.in_progress":     "En Progreso",
+    "dashboard.my_cases":        "Mis Casos",
+    "dashboard.pending_reviews": "Revisiones Pendientes",
+    "dashboard.my_applications": "Mis Postulaciones",
+    "dashboard.accepted":        "Aceptados",
+    "dashboard.completed":       "Completados",
+    "dashboard.nothing_yet":     "Nada por aquí aún.",
+    "dashboard.available_cases": "Casos Disponibles",
+    "dashboard.avail_subtitle":  "Casos abiertos a los que puedes postularte",
+    "dashboard.all_sap":         "Todas las Áreas SAP",
+    "dashboard.all_industries":  "Todas las Industrias",
+    "dashboard.all_cases":       "Todos los Casos",
+    "dashboard.following_tab":   "⭐ Siguiendo",
+    "dashboard.no_open_cases":   "No hay casos abiertos disponibles ahora.",
+    "dashboard.no_following":    "Aún no hay casos de empresas que sigues.",
+    "dashboard.assigned_cases":  "Mis Casos Asignados",
+    "dashboard.recent_cases":    "Casos Recientes",
+    "dashboard.starting_soon":   "Comenzando Pronto",
+    "dashboard.today":           "Hoy",
+    "dashboard.tomorrow":        "Mañana",
+    "dashboard.activity_feed":   "Actividad Reciente",
+    "dashboard.preferences":     "Preferencias",
+    "dashboard.loading_feed":    "Cargando actividad…",
+    "dashboard.no_activity":     "Sin actividad aún",
+    "dashboard.activity_hint":   "Los eventos de tus casos aparecerán aquí.",
+    "dashboard.revenue":         "Ingresos",
+    "dashboard.hours_logged":    "Horas Registradas",
+    // Feed filter tabs
+    "feed.all":          "Todos",
+    "feed.comments":     "Comentarios",
+    "feed.progress":     "Progreso",
+    "feed.status":       "Estado",
+    "feed.assignments":  "Asignaciones",
+    "feed.alerts":       "Alertas",
     // Cases
-    "cases.title":              "Casos",
-    "cases.new":                "Nuevo Caso",
-    "cases.all":                "Todos los Casos",
-    "cases.active":             "Activos",
-    "cases.past":               "Anteriores",
-    "cases.no_cases":           "Sin casos aún",
+    "cases.title":          "Casos",
+    "cases.new":            "+ Nuevo Caso",
+    "cases.search":         "Buscar casos…",
+    "cases.all_statuses":   "Todos los estados",
+    "cases.all_projects":   "Todos los proyectos",
+    "cases.saved":          "Guardados",
+    "cases.no_cases":       "Sin casos encontrados",
+    "cases.no_cases_hint":  "Ajusta los filtros o crea un nuevo caso",
+    "cases.active":         "Activos",
+    "cases.past":           "Anteriores",
     // Projects
-    "projects.title":           "Proyectos",
-    "projects.new":             "Nuevo Proyecto",
-    "projects.no_projects":     "Sin proyectos aún",
+    "projects.title":        "Proyectos",
+    "projects.new":          "+ Nuevo Proyecto",
+    "projects.no_projects":  "Sin proyectos aún",
+    "projects.no_proj_hint": "Agrupa casos relacionados en un proyecto para hacerles seguimiento.",
+    "projects.create_first": "+ Crear tu primer proyecto",
+    "projects.all":          "Todos",
+    "projects.draft":        "Borrador",
+    "projects.on_hold":      "En Pausa",
+    "projects.cancelled":    "Cancelados",
+    // Notifications
+    "notif.title":     "Notificaciones",
+    "notif.mark_read": "Marcar todo como leído",
+    "notif.none":      "¡Todo al día!",
+    "notif.none_hint": "Las notificaciones aparecerán aquí cuando los casos se actualicen, cambien las postulaciones o recibas mensajes.",
+    // Reports
+    "reports.title":           "Reportes",
+    "reports.subtitle":        "Analítica de la plataforma",
+    "reports.from":            "Desde",
+    "reports.to":              "Hasta",
+    "reports.total_cases":     "Total de Casos",
+    "reports.conversion":      "Tasa de Conversión",
+    "reports.hours_logged":    "Horas Registradas",
+    "reports.revenue_paid":    "Ingresos (Pagados)",
+    "reports.cases_by_status": "Casos por Estado",
+    "reports.apps_by_status":  "Postulaciones por Estado",
+    "reports.revenue_overview":"Resumen de Ingresos",
+    "reports.time_tracking":   "Control de Tiempo",
+    "reports.total_invoiced":  "Total Facturado",
+    "reports.paid":            "Pagado",
+    "reports.outstanding":     "Pendiente",
+    "reports.total_logged":    "Total Registrado",
+    "reports.billable":        "Facturable",
+    "reports.approved_entries":"Entradas aprobadas",
+    "reports.hours_by_consultant": "Horas por Consultor",
+    // Invoices
+    "invoices.title":         "Facturas",
+    "invoices.new":           "+ Nueva Factura",
+    "invoices.total_billed":  "Total Facturado",
+    "invoices.paid":          "Pagado",
+    "invoices.outstanding":   "Pendiente",
+    "invoices.all_statuses":  "Todos los estados",
+    "invoices.col_num":       "Factura #",
+    "invoices.col_client":    "Cliente",
+    "invoices.col_case":      "Caso",
+    "invoices.col_amount":    "Monto",
+    "invoices.col_status":    "Estado",
+    "invoices.col_due":       "Vencimiento",
+    "invoices.none":          "Sin facturas encontradas",
+    "invoices.new_title":     "Nueva Factura",
+    "invoices.number":        "Número de Factura",
+    "invoices.case_opt":      "— Seleccionar caso (opcional) —",
+    "invoices.creating":      "Creando…",
+    "invoices.overdue":       "Vencida",
+    // Time entries
+    "time.title":         "Registro de Horas",
+    "time.log":           "+ Registrar Horas",
+    "time.clear":         "Limpiar",
+    "time.form_title":    "Registrar Entrada de Tiempo",
+    "time.select_case":   "— Seleccionar caso —",
+    "time.worked_on":     "Describe en qué trabajaste…",
+    "time.saving":        "Guardando…",
+    "time.none":          "Sin registros de tiempo",
+    "time.log_first":     "Registra tu primera entrada arriba",
+    "time.none_yet":      "Aún no hay entradas registradas",
+    "time.col_date":      "Fecha",
+    "time.col_consultant":"Consultor",
+    "time.col_case":      "Caso",
+    "time.col_hours":     "Horas",
+    "time.col_desc":      "Descripción",
+    "time.col_billable":  "Facturable",
+    "time.col_approved":  "Aprobado",
+    "time.billable":      "Facturable",
+    "time.non_billable":  "No facturable",
+    "time.approved":      "Aprobado",
+    "time.pending":       "Pendiente",
+    "time.approve":       "Aprobar",
+    // Arena
+    "arena.title":            "Arena",
+    "arena.subtitle":         "Casos abiertos y rankings de consultores",
+    "arena.open_cases":       "Casos Abiertos",
+    "arena.leaderboard":      "Clasificación",
+    "arena.cards":            "Tarjetas",
+    "arena.compare":          "Comparar",
+    "arena.no_cases":         "No hay casos estimados disponibles ahora.",
+    "arena.applied":          "Postulado",
+    "arena.apply":            "Postular →",
+    "arena.col_rank":         "Rango",
+    "arena.col_consultant":   "Consultor",
+    "arena.col_rating":       "Calificación Prom.",
+    "arena.col_won":          "Casos Ganados",
+    "arena.col_apps":         "Postulaciones",
+    "arena.no_consultants":   "Sin consultores aún",
+    "arena.stat_won":         "ganados",
+    "arena.stat_apps":        "postulaciones",
+    "arena.stat_ratings":     "calificaciones",
+    "arena.compare_rating":   "Calificación Prom.",
+    "arena.compare_win_rate": "Tasa de éxito",
+    "arena.compare_won":      "Casos Ganados",
+    "arena.compare_exp":      "Experiencia",
+    "arena.compare_need":     "Se necesitan al menos 3 consultores para comparar",
+    "arena.private":          "Privado",
+    "arena.nda":              "NDA",
+    "arena.applicant_ranking":"Ranking de Postulantes",
+    // Profile (consultant)
+    "profile.title":          "Mi Perfil",
+    "profile.edit":           "Editar Perfil",
+    "profile.cancel":         "Cancelar",
+    "profile.availability":   "Disponibilidad",
+    "profile.free_pct":       "% libre",
+    "profile.tab_overview":   "Resumen",
+    "profile.tab_experience": "Experiencia",
+    "profile.tab_skills":     "Habilidades",
+    "profile.tab_ratings":    "Calificaciones",
+    "profile.no_bio":         "Sin biografía aún. Edita tu perfil para agregar una.",
+    "profile.linkedin":       "Perfil de LinkedIn",
+    "profile.active_cases":   "Casos Activos",
+    "profile.past_customers": "Clientes Anteriores",
+    "profile.no_customers":   "Sin clientes agregados aún.",
+    "profile.add_customer":   "Agregar Cliente",
+    "profile.company_name":   "Nombre de Empresa",
+    "profile.role_held":      "Rol desempeñado",
+    "profile.blank_if_curr":  "Dejar en blanco si es actual",
+    "profile.add_customer_btn":"+ Agregar Cliente",
+    "profile.projects":       "Proyectos",
+    "profile.no_projects":    "Sin proyectos agregados aún.",
+    "profile.add_project":    "Agregar Proyecto",
+    "profile.client_name":    "Nombre del Cliente",
+    "profile.url":            "URL",
+    "profile.tech_stack":     "Stack tecnológico (separado por comas)",
+    "profile.add_project_btn":"+ Agregar Proyecto",
+    "profile.no_skills":      "Sin habilidades agregadas aún.",
+    "profile.skill_ph":       "Agregar una habilidad…",
+    "profile.add_skill":      "+ Agregar",
+    "profile.work_auth":      "Autorización de Trabajo",
+    "profile.no_auth":        "Sin autorizaciones de trabajo agregadas.",
+    "profile.add_auth":       "Agregar Autorización",
+    "profile.country":        "Nombre del País",
+    "profile.country_code":   "Código de País",
+    "profile.auth_type":      "Tipo de Autorización",
+    "profile.no_ratings":     "Sin calificaciones aún.",
+    "profile.save_changes":   "Guardar Cambios",
+    "profile.saving":         "Guardando…",
+    "profile.ext_occupancy":  "Ocupación externa:",
+    "profile.full_name":      "Nombre completo",
+    "profile.bio_label":      "Biografía",
+    "profile.skills_label":   "Habilidades (separadas por comas)",
+    // Company profile (client)
+    "company.title":          "Mi Empresa",
+    "company.empty":          "El perfil de tu empresa está vacío",
+    "company.empty_hint":     "Haz clic en Editar perfil para completar los datos de tu empresa.",
+    "company.edit":           "Editar Perfil",
+    "company.cancel":         "Cancelar",
+    "company.edit_title":     "Editar Perfil de Empresa",
+    "company.name":           "Nombre de Empresa",
+    "company.industry":       "Industria",
+    "company.size":           "Tamaño de Empresa",
+    "company.founded":        "Año de Fundación",
+    "company.hq":             "Sede Principal",
+    "company.website":        "Sitio Web",
+    "company.linkedin":       "LinkedIn",
+    "company.description":    "Descripción",
+    "company.primary_contact":"Contacto Principal",
+    "company.contact_name":   "Nombre del Contacto",
+    "company.contact_title":  "Cargo del Contacto",
+    "company.contact_email":  "Correo del Contacto",
+    "company.contact_phone":  "Teléfono del Contacto",
+    "company.prefs":          "Preferencias de Consultoría",
+    "company.annual_budget":  "Presupuesto Anual",
+    "company.pref_cats":      "Categorías Preferidas (separadas por comas)",
+    "company.internal_notes": "Notas Internas",
+    "company.saving":         "Guardando…",
+    "company.save":           "Guardar Perfil",
+    "company.about":          "Acerca de",
+    "company.preferred_areas":"Áreas de Consultoría Preferidas",
+    "company.no_contact":     "Sin contacto configurado. Edita el perfil para agregar uno.",
+    "company.notes":          "Notas",
+    "company.est":            "Fund.",
+    // Client profile tabs
+    "client_tab.overview":    "Resumen",
+    "client_tab.sla":         "Config. SLA",
+    "client_tab.connections": "Conexiones",
+    "client_tab.team":        "Equipo",
+    "client_tab.lifecycle":   "Ciclo de Vida",
+    "client_tab.phases":      "Fases",
+    "client_tab.defaults":    "Valores por Defecto",
+    "client_tab.assignment":  "Asignación",
+    // SLA
+    "sla.title":              "Configuración SLA",
+    "sla.subtitle":           "Objetivos de nivel de servicio por prioridad y tipo de caso",
+    "sla.edit":               "Editar SLA",
+    "sla.cancel":             "Cancelar",
+    "sla.tier":               "Nivel SLA",
+    "sla.uptime":             "Garantía de disponibilidad (%)",
+    "sla.dedicated":          "Consultor Dedicado",
+    "sla.priority_support":   "Soporte Prioritario",
+    "sla.initial_response":   "↩ Respuesta Inicial",
+    "sla.resolution":         "Resolución",
+    "sla.none":               "Sin SLA configurado aún.",
+    "sla.configure":          "Configurar SLA",
+    "sla.extra_terms":        "Términos adicionales del SLA…",
+    "sla.saving":             "Guardando…",
+    "sla.save":               "Guardar SLA",
+    "sla.notes":              "Notas",
+    // DB connections
+    "db.title":               "Conexiones BD",
+    "db.add":                 "Agregar Conexión",
+    "db.count":               "conexión(es) configurada(s)",
     // Settings
-    "settings.title":           "Configuración",
+    "settings.title":           "Configuración del Sistema",
+    "settings.subtitle":        "Configuración de plataforma — solo admin y manager",
     "settings.users":           "Usuarios",
     "settings.lifecycle":       "Ciclo de Vida",
     "settings.activity_phases": "Fases de Actividad",
     "settings.catalog":         "Valores de Catálogo",
     "settings.sla":             "Config. SLA",
     "settings.platform":        "Plataforma e IA",
-    // Profile
-    "profile.title":            "Mi Perfil",
-    "profile.full_name":        "Nombre completo",
-    "profile.bio":              "Biografía",
-    "profile.edit":             "Editar perfil",
-    "profile.save":             "Guardar perfil",
-    "profile.company_empty":    "El perfil de tu empresa está vacío",
-    "profile.company_empty_hint":"Haz clic en Editar perfil para completar los datos de tu empresa.",
-    // Notifications
-    "notif.title":              "Notificaciones",
-    "notif.mark_read":          "Marcar todo como leído",
-    "notif.none":               "Sin notificaciones",
-    // Reports
-    "reports.title":            "Reportes",
-    // Invoices
-    "invoices.title":           "Facturas",
-    "invoices.new":             "Nueva Factura",
-    // Time entries
-    "time.title":               "Registro de Horas",
-    "time.log":                 "Registrar Horas",
-    // Arena
-    "arena.title":              "Arena",
-    // DB Connections
-    "db.title":                 "Conexiones BD",
-    "db.add":                   "Agregar Conexión",
     // Kanban
-    "kanban.title":             "Tablero Kanban",
-    // SLA
-    "sla.title":                "Configuración SLA",
+    "kanban.title":     "Tablero Kanban",
+    "kanban.subtitle":  "Pipeline visual de casos",
+    "kanban.no_cases":  "Sin casos para mostrar.",
+    "kanban.empty_col": "Vacío",
     // Language picker
-    "lang.en":                  "Inglés",
-    "lang.es":                  "Español",
-    "lang.choose":              "Idioma",
+    "lang.en":     "Inglés",
+    "lang.es":     "Español",
+    "lang.choose": "Idioma",
   },
 };
 
@@ -2844,6 +3410,7 @@ function Select({ label, options, ...props }) {
 // AUTH SCREEN
 // ============================================================
 function AuthScreen({ onAuth }) {
+  const { t } = useT();
   const [mode, setMode]         = useState("signin");
   // Sign-in fields
   const [siEmail, setSiEmail]   = useState("");
@@ -2874,9 +3441,9 @@ function AuthScreen({ onAuth }) {
   const auth = useAuth();
 
   const SIGNUP_STEPS = [
-    { id: "verify",  label: "Verify",  Icon: Mail },
-    { id: "role",    label: "Role",    Icon: User },
-    { id: "profile", label: "Profile", Icon: FileText },
+    { id: "verify",  label: t("auth.step_verify"),  Icon: Mail },
+    { id: "role",    label: t("auth.step_role"),    Icon: User },
+    { id: "profile", label: t("auth.step_profile"), Icon: FileText },
   ];
 
   function switchMode(m) { setMode(m); setError(""); setStep(0); setCodeSent(false); setCode(""); }
@@ -3027,13 +3594,13 @@ function AuthScreen({ onAuth }) {
         <img src={TECHCASE_LOGO_URI} width="256" height="256" alt="TechCase" style={{objectFit:"contain"}}/>
       </div>
       <h1 className="text-3xl font-bold text-[#1C3557]">TechCase</h1>
-      <p className="text-blue-500 mt-1">Consultant case management platform</p>
+      <p className="text-blue-500 mt-1">{t("auth.tagline")}</p>
     </div>
   );
 
   const tabs = (
     <div className="flex rounded-xl bg-gray-100 p-1 mb-6">
-      {[["signin", "Sign In"], ["signup", "Create Account"]].map(([m, label]) => (
+      {[["signin", t("auth.sign_in_title")], ["signup", t("action.create_account")]].map(([m, label]) => (
         <button key={m} onClick={() => switchMode(m)}
           className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
             mode === m ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
@@ -3056,14 +3623,14 @@ function AuthScreen({ onAuth }) {
         {mode === "signin" && (
           <div className="bg-white rounded-2xl shadow-xl p-8">
             {tabs}
-            <Input label="Email" type="email" value={siEmail}
+            <Input label={t("auth.email")} type="email" value={siEmail}
               onChange={e => setSiEmail(e.target.value)} placeholder="you@company.com" />
-            <Input label="Password" type="password" value={siPass}
+            <Input label={t("auth.password")} type="password" value={siPass}
               onChange={e => setSiPass(e.target.value)} placeholder="••••••••" />
             {errorBox}
             <button onClick={handleSignIn} disabled={loading}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 mt-2">
-              {loading ? "Signing in…" : "Sign In"}
+              {loading ? t("auth.signing_in") : t("action.sign_in")}
             </button>
           </div>
         )}
@@ -3094,31 +3661,31 @@ function AuthScreen({ onAuth }) {
             {/* Step 0 — Email verification */}
             {step === 0 && (
               <div>
-                <h2 className="text-lg font-bold text-gray-900 mb-1">Verify your email</h2>
-                <p className="text-sm text-gray-500 mb-5">We'll send a verification code to confirm it's you.</p>
-                <Input label="Email" type="email" value={email}
+                <h2 className="text-lg font-bold text-gray-900 mb-1">{t("auth.verify_heading")}</h2>
+                <p className="text-sm text-gray-500 mb-5">{t("auth.verify_subtitle")}</p>
+                <Input label={t("auth.email")} type="email" value={email}
                   onChange={e => setEmail(e.target.value)} placeholder="you@company.com" />
                 {!codeSent ? (
                   <button onClick={sendCode} disabled={loading}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50">
-                    {loading ? "Sending…" : "Send Verification Code →"}
+                    {loading ? t("auth.sending") : t("auth.send_code")}
                   </button>
                 ) : (
                   <>
                     <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-xl text-sm text-blue-700">
                       <Mail className="w-4 h-4 inline-block mr-1" />Code sent to <strong>{email}</strong> — check your inbox.
                     </div>
-                    <Input label="Verification Code" value={code}
+                    <Input label={t("auth.code_label")} value={code}
                       onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                      placeholder="Enter code from email" />
+                      placeholder={t("auth.code_placeholder")} />
                     <div className="flex gap-2 mt-2">
                       <button onClick={sendCode} disabled={loading}
                         className="flex-1 border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium py-2.5 rounded-xl text-sm transition-colors">
-                        Resend
+                        {t("action.resend")}
                       </button>
                       <button onClick={verifyCode} disabled={loading || code.length < 4}
                         className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors disabled:opacity-50">
-                        {loading ? "Verifying…" : "Verify →"}
+                        {loading ? t("auth.verifying") : t("auth.verify_btn")}
                       </button>
                     </div>
                   </>
@@ -3129,12 +3696,12 @@ function AuthScreen({ onAuth }) {
             {/* Step 1 — Role selection */}
             {step === 1 && (
               <div>
-                <h2 className="text-lg font-bold text-gray-900 mb-1">What brings you here?</h2>
-                <p className="text-sm text-gray-500 mb-5">Choose your account type to get the right experience.</p>
+                <h2 className="text-lg font-bold text-gray-900 mb-1">{t("auth.what_brings")}</h2>
+                <p className="text-sm text-gray-500 mb-5">{t("auth.choose_type")}</p>
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { role: "consultant", Icon: Briefcase, label: "Consultant",       desc: "I offer expertise and work on cases" },
-                    { role: "client",     Icon: Building2, label: "Company / Client", desc: "I post cases and hire consultants" },
+                    { role: "consultant", Icon: Briefcase, label: t("auth.build_consultant"), desc: t("auth.help_clients") },
+                    { role: "client",     Icon: Building2, label: t("auth.build_client"),     desc: t("auth.tell_consultants") },
                   ].map(opt => (
                     <button key={opt.role} onClick={() => selectRole(opt.role)}
                       className="flex flex-col items-center gap-2 p-5 border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 rounded-2xl transition-all text-center group">
@@ -3169,16 +3736,16 @@ function AuthScreen({ onAuth }) {
             {step === 2 && (
               <div>
                 <h2 className="text-lg font-bold text-gray-900 mb-1">
-                  {role === "consultant" ? "Build your consultant profile"
-                    : role === "key_user" ? "Complete your Key User account"
-                    : "Set up your company profile"}
+                  {role === "consultant" ? t("auth.build_consultant")
+                    : role === "key_user" ? t("auth.build_key_user")
+                    : t("auth.build_client")}
                 </h2>
                 <p className="text-sm text-gray-500 mb-5">
                   {role === "consultant"
-                    ? "Help clients find you with the right details."
+                    ? t("auth.help_clients")
                     : role === "key_user"
                     ? `You'll have access to cases from ${keyUserCompany ?? "your company"}.`
-                    : "Tell consultants about your company."}
+                    : t("auth.tell_consultants")}
                 </p>
                 {role === "key_user" && keyUserCompany && (
                   <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 mb-4">
@@ -3188,36 +3755,36 @@ function AuthScreen({ onAuth }) {
                 )}
 
                 {/* ── Common fields ── */}
-                <Input label="Full Name" value={name}
+                <Input label={t("label.full_name")} value={name}
                   onChange={e => setName(e.target.value)} placeholder="Jane Smith" />
-                <Input label="Password" type="password" value={password}
+                <Input label={t("auth.password")} type="password" value={password}
                   onChange={e => setPass(e.target.value)} placeholder="At least 6 characters" />
-                <Input label="Confirm Password" type="password" value={confirmPass}
+                <Input label={t("auth.confirm_password")} type="password" value={confirmPass}
                   onChange={e => setConf(e.target.value)} placeholder="••••••••" />
 
                 {/* ── Consultant fields ── */}
                 {role === "consultant" && (<>
                   <div className="border-t border-gray-100 my-4" />
-                  <Input label="Professional Headline" value={headline}
+                  <Input label={t("label.headline")} value={headline}
                     onChange={e => setHeadline(e.target.value)}
                     placeholder="e.g. SAP FICO Consultant · 8 yrs" />
-                  <Input label="Skills (comma-separated)" value={skills}
+                  <Input label={t("profile.skills_label")} value={skills}
                     onChange={e => setSkills(e.target.value)}
                     placeholder="e.g. SAP, FICO, Finance, ERP" />
                   <div className="grid grid-cols-2 gap-3">
-                    <Input label="Years of Experience" type="number" value={yearsExp}
+                    <Input label={t("label.years_exp")} type="number" value={yearsExp}
                       onChange={e => setYearsExp(e.target.value)} placeholder="8" />
-                    <Input label="Hourly Rate (USD)" type="number" value={hourlyRate}
+                    <Input label={t("label.hourly_rate")} type="number" value={hourlyRate}
                       onChange={e => setHourly(e.target.value)} placeholder="150" />
                   </div>
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Expertise Level</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.expertise")}</label>
                     <select value={expertiseLevel} onChange={e => setExpertise(e.target.value)}
                       className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
-                      <option value="junior">Junior</option>
-                      <option value="mid">Mid-Level</option>
-                      <option value="senior">Senior</option>
-                      <option value="expert">Expert / Principal</option>
+                      <option value="junior">{t("level.junior")}</option>
+                      <option value="mid">{t("level.mid")}</option>
+                      <option value="senior">{t("level.senior")}</option>
+                      <option value="expert">{t("level.expert")}</option>
                     </select>
                   </div>
                 </>)}
@@ -3225,10 +3792,10 @@ function AuthScreen({ onAuth }) {
                 {/* ── Client fields ── */}
                 {role === "client" && (<>
                   <div className="border-t border-gray-100 my-4" />
-                  <Input label="Company Name" value={companyName}
+                  <Input label={t("company.name")} value={companyName}
                     onChange={e => setCompany(e.target.value)} placeholder="Acme Corp" />
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t("company.industry")}</label>
                     <select value={industry} onChange={e => setIndustry(e.target.value)}
                       className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
                       <option value="">Select industry…</option>
@@ -3247,11 +3814,11 @@ function AuthScreen({ onAuth }) {
 
                 <button onClick={createAccount} disabled={loading}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 mt-2">
-                  {loading ? "Creating account…" : "Create Account →"}
+                  {loading ? t("auth.creating") : t("action.create_account")}
                 </button>
                 <button onClick={() => setStep(1)}
                   className="w-full mt-3 text-sm text-gray-400 hover:text-gray-600 transition-colors">
-                  ← Back
+                  {t("action.back")}
                 </button>
               </div>
             )}
@@ -3401,6 +3968,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
 // DASHBOARD
 // ============================================================
 function Dashboard({ auth }) {
+  const { t } = useT();
   const { cases, loading: casesLoading, updateCase, deleteCase } = useCases();
   const { applications } = useApplications();
   const [applyingToCase, setApplying]   = useState(null);
@@ -3520,32 +4088,32 @@ function Dashboard({ auth }) {
   // Stat tiles — each carries its pre-filtered items and type for the list panel
   const statDefs = {
     admin: [
-      { id: "total",    label: "Total Cases",  Icon: FolderOpen,    color: "blue",   type: "cases",        items: cases },
-      { id: "open",     label: "Open Cases",   Icon: Inbox,         color: "green",  type: "cases",        items: cases.filter(c => c.status === "open") },
-      { id: "progress", label: "In Progress",  Icon: Activity,      color: "blue",   type: "cases",        items: cases.filter(c => c.status === "in_progress") },
-      { id: "apps",     label: "Applications", Icon: ClipboardList, color: "purple", type: "applications", items: applications },
+      { id: "total",    label: t("dashboard.total_cases"),     Icon: FolderOpen,    color: "blue",   type: "cases",        items: cases },
+      { id: "open",     label: t("dashboard.open_cases"),      Icon: Inbox,         color: "green",  type: "cases",        items: cases.filter(c => c.status === "open") },
+      { id: "progress", label: t("dashboard.in_progress"),     Icon: Activity,      color: "blue",   type: "cases",        items: cases.filter(c => c.status === "in_progress") },
+      { id: "apps",     label: t("label.applications"),        Icon: ClipboardList, color: "purple", type: "applications", items: applications },
     ],
     manager: [
-      { id: "mycases",  label: "My Cases",       Icon: FolderOpen,    color: "blue",   type: "cases",        items: managedCases },
-      { id: "open",     label: "Open Cases",      Icon: Inbox,         color: "green",  type: "cases",        items: cases.filter(c => c.status === "open") },
-      { id: "pending",  label: "Pending Reviews", Icon: Clock,         color: "yellow", type: "applications", items: applications.filter(a => a.status === "pending") },
+      { id: "mycases",  label: t("dashboard.my_cases"),        Icon: FolderOpen,    color: "blue",   type: "cases",        items: managedCases },
+      { id: "open",     label: t("dashboard.open_cases"),      Icon: Inbox,         color: "green",  type: "cases",        items: cases.filter(c => c.status === "open") },
+      { id: "pending",  label: t("dashboard.pending_reviews"), Icon: Clock,         color: "yellow", type: "applications", items: applications.filter(a => a.status === "pending") },
     ],
     consultant: [
-      { id: "myapps",   label: "My Applications", Icon: ClipboardList, color: "blue",  type: "applications", items: myApplications },
-      { id: "accepted", label: "Accepted",         Icon: CheckCircle2,  color: "green", type: "applications", items: myApplications.filter(a => a.status === "accepted") },
-      { id: "open",     label: "Open Cases",       Icon: Inbox,         color: "blue",  type: "cases",        items: availableCases },
+      { id: "myapps",   label: t("dashboard.my_applications"), Icon: ClipboardList, color: "blue",  type: "applications", items: myApplications },
+      { id: "accepted", label: t("dashboard.accepted"),        Icon: CheckCircle2,  color: "green", type: "applications", items: myApplications.filter(a => a.status === "accepted") },
+      { id: "open",     label: t("dashboard.open_cases"),      Icon: Inbox,         color: "blue",  type: "cases",        items: availableCases },
     ],
     client: [
-      { id: "mycases",   label: "My Cases",  Icon: FolderOpen,   color: "blue",  type: "cases", items: myCases },
-      { id: "active",    label: "Active",    Icon: Activity,     color: "blue",  type: "cases", items: myCases.filter(c => c.status === "in_progress") },
-      { id: "completed", label: "Completed", Icon: CheckCircle2, color: "green", type: "cases", items: myCases.filter(c => c.status === "completed") },
+      { id: "mycases",   label: t("dashboard.my_cases"),   Icon: FolderOpen,   color: "blue",  type: "cases", items: myCases },
+      { id: "active",    label: t("label.active"),          Icon: Activity,     color: "blue",  type: "cases", items: myCases.filter(c => c.status === "in_progress") },
+      { id: "completed", label: t("dashboard.completed"),   Icon: CheckCircle2, color: "green", type: "cases", items: myCases.filter(c => c.status === "completed") },
     ],
     key_user: (() => {
       const kuCases = cases.filter(c => c.case_key_users?.some(ku => ku.user_id === auth.user?.id));
       return [
-        { id: "mycases",   label: "My Cases",  Icon: FolderOpen,   color: "blue",  type: "cases", items: kuCases },
-        { id: "active",    label: "Active",    Icon: Activity,     color: "blue",  type: "cases", items: kuCases.filter(c => c.status === "in_progress") },
-        { id: "completed", label: "Completed", Icon: CheckCircle2, color: "green", type: "cases", items: kuCases.filter(c => c.status === "completed") },
+        { id: "mycases",   label: t("dashboard.my_cases"),   Icon: FolderOpen,   color: "blue",  type: "cases", items: kuCases },
+        { id: "active",    label: t("label.active"),          Icon: Activity,     color: "blue",  type: "cases", items: kuCases.filter(c => c.status === "in_progress") },
+        { id: "completed", label: t("dashboard.completed"),   Icon: CheckCircle2, color: "green", type: "cases", items: kuCases.filter(c => c.status === "completed") },
       ];
     })(),
   };
@@ -3592,12 +4160,12 @@ function Dashboard({ auth }) {
   }
 
   const FEED_TABS = [
-    { id: 'all',           label: 'All' },
-    { id: 'comment',       label: 'Comments' },
-    { id: 'progress',      label: 'Progress' },
-    { id: 'status_change', label: 'Status' },
-    { id: 'assignment',    label: 'Assignments' },
-    { id: 'alert',         label: 'Alerts' },
+    { id: 'all',           label: t('feed.all') },
+    { id: 'comment',       label: t('feed.comments') },
+    { id: 'progress',      label: t('feed.progress') },
+    { id: 'status_change', label: t('feed.status') },
+    { id: 'assignment',    label: t('feed.assignments') },
+    { id: 'alert',         label: t('feed.alerts') },
   ];
 
   return (
@@ -3606,9 +4174,9 @@ function Dashboard({ auth }) {
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            Welcome back, {auth.profile?.full_name?.split(" ")[0] ?? "there"}
+            {t("auth.welcome")}, {auth.profile?.full_name?.split(" ")[0] ?? "there"}
           </h1>
-          <p className="text-gray-500 mt-1">Here's what's happening on the platform today.</p>
+          <p className="text-gray-500 mt-1">{t("dashboard.subtitle")}</p>
         </div>
       </div>
 
@@ -3622,7 +4190,7 @@ function Dashboard({ auth }) {
 
           <div className="flex items-center gap-2 mb-4">
             <Users className="w-3.5 h-3.5 text-gray-400" />
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Clients</span>
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">{t("dashboard.clients")}</span>
           </div>
 
           <div style={{ display:'flex', alignItems:'flex-start', gap:0, overflowX:'auto', paddingBottom:2, scrollbarWidth:'none' }}>
@@ -3630,7 +4198,7 @@ function Dashboard({ auth }) {
             {/* Working now */}
             {activeClients.length > 0 && (
               <div style={{ flexShrink:0 }}>
-                <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.07em', textTransform:'uppercase', color:'#8fa8c2', marginBottom:10 }}>Working now</div>
+                <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.07em', textTransform:'uppercase', color:'#8fa8c2', marginBottom:10 }}>{t("dashboard.working_now")}</div>
                 <div style={{ display:'flex', gap:18 }}>
                   {activeClients.map(cl => (
                     <div key={cl.id} onClick={() => setClientFilter(clientFilter?.id === cl.id ? null : { id: cl.id, name: cl.name })}
@@ -3661,7 +4229,7 @@ function Dashboard({ auth }) {
             {/* Following (liked but no active/past cases) */}
             {followedClients.length > 0 && (
               <div style={{ flexShrink:0 }}>
-                <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.07em', textTransform:'uppercase', color:'#8fa8c2', marginBottom:10 }}>Following</div>
+                <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.07em', textTransform:'uppercase', color:'#8fa8c2', marginBottom:10 }}>{t("dashboard.following")}</div>
                 <div style={{ display:'flex', gap:18 }}>
                   {followedClients.map(cl => (
                     <div key={cl.id} onClick={() => setClientFilter(clientFilter?.id === cl.id ? null : { id: cl.id, name: cl.name })}
@@ -3675,7 +4243,7 @@ function Dashboard({ auth }) {
                         </div>
                       </div>
                       <div style={{ fontSize:10.5, fontWeight:600, color:'#5b7a9b', maxWidth:66, textAlign:'center', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{cl.name}</div>
-                      <div style={{ fontSize:9, fontWeight:700, color:'#5B9BD5', textAlign:'center', marginTop:-4 }}>Following</div>
+                      <div style={{ fontSize:9, fontWeight:700, color:'#5B9BD5', textAlign:'center', marginTop:-4 }}>{t("dashboard.following")}</div>
                     </div>
                   ))}
                 </div>
@@ -3690,7 +4258,7 @@ function Dashboard({ auth }) {
             {/* All clients with active cases on platform (not assigned, not followed) */}
             {platformClients.length > 0 && (
               <div style={{ flexShrink:0 }}>
-                <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.07em', textTransform:'uppercase', color:'#8fa8c2', marginBottom:10 }}>Active cases</div>
+                <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.07em', textTransform:'uppercase', color:'#8fa8c2', marginBottom:10 }}>{t("dashboard.active_cases")}</div>
                 <div style={{ display:'flex', gap:18 }}>
                   {platformClients.map(cl => (
                     <div key={cl.id} onClick={() => setClientFilter(clientFilter?.id === cl.id ? null : { id: cl.id, name: cl.name })}
@@ -3703,7 +4271,7 @@ function Dashboard({ auth }) {
                         </div>
                       </div>
                       <div style={{ fontSize:10.5, fontWeight:600, color:'#5b7a9b', maxWidth:66, textAlign:'center', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{cl.name}</div>
-                      <div style={{ fontSize:9, fontWeight:700, color:'#94a3b8', textAlign:'center', marginTop:-4 }}>Active</div>
+                      <div style={{ fontSize:9, fontWeight:700, color:'#94a3b8', textAlign:'center', marginTop:-4 }}>{t("dashboard.active")}</div>
                     </div>
                   ))}
                 </div>
@@ -3718,7 +4286,7 @@ function Dashboard({ auth }) {
             {/* Past clients */}
             {pastClients.length > 0 && (
               <div style={{ flexShrink:0 }}>
-                <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.07em', textTransform:'uppercase', color:'#8fa8c2', marginBottom:10 }}>Past clients</div>
+                <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.07em', textTransform:'uppercase', color:'#8fa8c2', marginBottom:10 }}>{t("dashboard.past_clients")}</div>
                 <div style={{ display:'flex', gap:18 }}>
                   {pastClients.map(cl => (
                     <div key={cl.id} onClick={() => setClientFilter(clientFilter?.id === cl.id ? null : { id: cl.id, name: cl.name })}
@@ -3784,18 +4352,18 @@ function Dashboard({ auth }) {
             </div>
 
             {clientCases.length === 0 ? (
-              <p className="px-5 py-6 text-sm text-gray-400 text-center">No cases found for this client.</p>
+              <p className="px-5 py-6 text-sm text-gray-400 text-center">{t("dashboard.no_cases_client")}</p>
             ) : (
               <>
                 {activeCsCases.length > 0 && (
                   <div>
-                    <div className="px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-gray-400 bg-gray-50 border-b border-gray-100">Active</div>
+                    <div className="px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-gray-400 bg-gray-50 border-b border-gray-100">{t("dashboard.active")}</div>
                     {activeCsCases.map(c => <CaseRow key={c.id} c={c} />)}
                   </div>
                 )}
                 {pastCsCases.length > 0 && (
                   <div>
-                    <div className="px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-gray-400 bg-gray-50 border-b border-gray-100">Past</div>
+                    <div className="px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-gray-400 bg-gray-50 border-b border-gray-100">{t("dashboard.past")}</div>
                     {pastCsCases.map(c => <CaseRow key={c.id} c={c} />)}
                   </div>
                 )}
@@ -3837,11 +4405,11 @@ function Dashboard({ auth }) {
               <h2 className="text-base font-bold text-gray-900">{activeStat.label}</h2>
               <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs font-semibold rounded-lg">{activeStat.items.length}</span>
             </div>
-            <button onClick={() => setActiveTab(null)} className="text-gray-400 hover:text-gray-600 text-sm"><X size={13} className="mr-1 inline" />Close</button>
+            <button onClick={() => setActiveTab(null)} className="text-gray-400 hover:text-gray-600 text-sm"><X size={13} className="mr-1 inline" />{t("action.close")}</button>
           </div>
           <div className="divide-y divide-gray-50 max-h-96 overflow-y-auto">
             {activeStat.items.length === 0 && (
-              <div className="p-8 text-center text-gray-400 text-sm">Nothing here yet.</div>
+              <div className="p-8 text-center text-gray-400 text-sm">{t("dashboard.nothing_yet")}</div>
             )}
 
             {/* Case rows */}
@@ -3907,8 +4475,8 @@ function Dashboard({ auth }) {
               {/* Header */}
               <div className="p-5 border-b border-gray-100 flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">Available Cases</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">Open cases you can apply to</p>
+                  <h2 className="text-lg font-bold text-gray-900">{t("dashboard.available_cases")}</h2>
+                  <p className="text-xs text-gray-400 mt-0.5">{t("dashboard.avail_subtitle")}</p>
                 </div>
                 <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-lg">
                   {filteredAvailable.length} open
@@ -3919,12 +4487,12 @@ function Dashboard({ auth }) {
               <div className="px-5 py-3 border-b border-gray-100 flex flex-wrap gap-2 bg-gray-50/50">
                 <select value={filterSap} onChange={e => setFilterSap(e.target.value)}
                   className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">All SAP Areas</option>
+                  <option value="">{t("dashboard.all_sap")}</option>
                   {SAP_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
                 <select value={filterIndustry} onChange={e => setFilterInd(e.target.value)}
                   className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">All Industries</option>
+                  <option value="">{t("dashboard.all_industries")}</option>
                   {INDUSTRY_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
                 <input type="date" value={filterStartFrom} onChange={e => setStartFrom(e.target.value)}
@@ -3939,17 +4507,17 @@ function Dashboard({ auth }) {
               {/* Tabs */}
               <div className="flex border-b border-gray-100">
                 {[
-                  { id: "all",       label: "All Cases",    count: filteredAvailable.length },
-                  { id: "following", label: "⭐ Following",  count: followingCases.length },
-                ].map(t => (
-                  <button key={t.id} onClick={() => setAvailTab(t.id)}
+                  { id: "all",       label: t("dashboard.all_cases"),    count: filteredAvailable.length },
+                  { id: "following", label: t("dashboard.following_tab"), count: followingCases.length },
+                ].map(tab => (
+                  <button key={tab.id} onClick={() => setAvailTab(tab.id)}
                     className={`px-5 py-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-1.5 ${
-                      availTab === t.id
+                      availTab === tab.id
                         ? "border-blue-600 text-blue-600"
                         : "border-transparent text-gray-500 hover:text-gray-700"
                     }`}>
-                    {t.label}
-                    <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{t.count}</span>
+                    {tab.label}
+                    <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{tab.count}</span>
                   </button>
                 ))}
               </div>
@@ -3962,8 +4530,8 @@ function Dashboard({ auth }) {
                     return (
                       <div className="p-8 text-center text-gray-400 text-sm">
                         {availTab === "following"
-                          ? <>No cases from companies you follow yet. Click <Heart size={11} className="inline text-gray-400" /> on any case card to follow that company.</>
-                          : "No open cases available right now."}
+                          ? <>{t("dashboard.no_following")} <Heart size={11} className="inline text-gray-400" /></>
+                          : t("dashboard.no_open_cases")}
                       </div>
                     );
                   }
@@ -3994,11 +4562,11 @@ function Dashboard({ auth }) {
                             )}
                             {c.description && <p className="text-xs text-gray-500 line-clamp-2 mb-2">{c.description}</p>}
                             <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400">
-                              {c.start_date && <span>Starts: {fmtDate(c.start_date)}</span>}
-                              {c.due_date   && <span>Due: {fmtDate(c.due_date)}</span>}
-                              {c.budget     && <span>Budget: ${Number(c.budget).toLocaleString()}</span>}
+                              {c.start_date && <span>{t("label.starts")} {fmtDate(c.start_date)}</span>}
+                              {c.due_date   && <span>{t("label.due")} {fmtDate(c.due_date)}</span>}
+                              {c.budget     && <span>{t("label.budget")}: ${Number(c.budget).toLocaleString()}</span>}
                               {c.skills_required?.length > 0 && (
-                                <span>Skills: {c.skills_required.slice(0, 3).join(", ")}{c.skills_required.length > 3 ? "…" : ""}</span>
+                                <span>{t("label.skills")}: {c.skills_required.slice(0, 3).join(", ")}{c.skills_required.length > 3 ? "…" : ""}</span>
                               )}
                             </div>
                           </div>
@@ -4019,7 +4587,7 @@ function Dashboard({ auth }) {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
             <div className="p-5 border-b border-gray-100">
               <h2 className="text-base font-bold text-gray-900">
-                {auth.isConsultant ? "My Assigned Cases" : "Recent Cases"}
+                {auth.isConsultant ? t("dashboard.assigned_cases") : t("dashboard.recent_cases")}
               </h2>
             </div>
             <div className="divide-y divide-gray-50">
@@ -4039,7 +4607,7 @@ function Dashboard({ auth }) {
                   </div>
                 </div>
               ))}
-              {cases.length === 0 && <div className="p-8 text-center text-gray-400 text-sm">No cases yet</div>}
+              {cases.length === 0 && <div className="p-8 text-center text-gray-400 text-sm">{t("cases.no_cases")}</div>}
             </div>
           </div>
 
@@ -4055,7 +4623,7 @@ function Dashboard({ auth }) {
               <div className="bg-white rounded-2xl shadow-sm border border-amber-100 mt-6">
                 <div className="p-5 border-b border-amber-100 flex items-center gap-2">
                   <Clock className="w-4 h-4 text-amber-500" />
-                  <h2 className="text-base font-bold text-gray-900">Starting Soon</h2>
+                  <h2 className="text-base font-bold text-gray-900">{t("dashboard.starting_soon")}</h2>
                   <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-lg">{startingSoon.length}</span>
                 </div>
                 <div className="divide-y divide-gray-50">
@@ -4076,7 +4644,7 @@ function Dashboard({ auth }) {
                         </div>
                         <div className="flex items-center gap-2 ml-3 flex-shrink-0">
                           <span className={`px-2 py-0.5 rounded-lg text-xs font-semibold ${late ? "bg-red-100 text-red-700" : d <= 1 ? "bg-orange-100 text-orange-700" : "bg-amber-100 text-amber-700"}`}>
-                            {late ? `${Math.abs(d)}d late` : d === 0 ? "Today" : d === 1 ? "Tomorrow" : `In ${d}d`}
+                            {late ? `${Math.abs(d)}d late` : d === 0 ? t("dashboard.today") : d === 1 ? t("dashboard.tomorrow") : `In ${d}d`}
                           </span>
                           <span className="text-xs text-gray-400">{c.start_date}</span>
                         </div>
@@ -4097,7 +4665,7 @@ function Dashboard({ auth }) {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Activity className="w-4 h-4 text-gray-400" />
-              <span className="font-bold text-gray-900">Activity Feed</span>
+              <span className="font-bold text-gray-900">{t("dashboard.activity_feed")}</span>
               {unreadFeedCount > 0 && (
                 <span className="px-2 py-0.5 bg-blue-600 text-white text-xs font-bold rounded-full">{unreadFeedCount}</span>
               )}
@@ -4105,7 +4673,7 @@ function Dashboard({ auth }) {
             <button onClick={() => setShowFeedPrefs(true)}
               className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
               <SlidersHorizontal className="w-3.5 h-3.5" />
-              Preferences
+              {t("dashboard.preferences")}
             </button>
           </div>
           {/* Filter tabs */}
@@ -4132,14 +4700,14 @@ function Dashboard({ auth }) {
           {feedLoading && (
             <div className="flex items-center justify-center py-10 gap-2 text-gray-400">
               <div className="w-5 h-5 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-              <span className="text-sm">Loading feed…</span>
+              <span className="text-sm">{t("dashboard.loading_feed")}</span>
             </div>
           )}
           {!feedLoading && filteredFeed.length === 0 && (
             <div className="py-12 text-center text-gray-400">
               <Activity className="w-8 h-8 mx-auto mb-3 text-gray-200" />
-              <p className="text-sm font-medium">No activity yet</p>
-              <p className="text-xs mt-1">Events from your cases will appear here.</p>
+              <p className="text-sm font-medium">{t("dashboard.no_activity")}</p>
+              <p className="text-xs mt-1">{t("dashboard.activity_hint")}</p>
             </div>
           )}
           {!feedLoading && filteredFeed.map(item => (
@@ -7035,6 +7603,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
 }
 
 function ProjectsView({ auth }) {
+  const { t } = useT();
   const clientFilter = auth.isClient ? { client_id: auth.user?.id } : {};
   const { projects, loading, createProject, updateProject, closeProject } = useProjects(clientFilter);
   const [statusFilter, setStatusFilter] = useState("");
@@ -7096,20 +7665,20 @@ function ProjectsView({ auth }) {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Projects</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t("projects.title")}</h1>
           <p className="text-gray-500 text-sm mt-1">{displayed.length} project{displayed.length !== 1 ? "s" : ""}</p>
         </div>
         {(auth.isAdmin || auth.isManager || auth.isClient) && (
           <button onClick={() => setShowCreate(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl px-5 py-2.5 text-sm transition-colors">
-            + New Project
+            {t("projects.new")}
           </button>
         )}
       </div>
 
       {/* Status filter tabs */}
       <div className="flex gap-2 mb-6 flex-wrap">
-        {[["", "All"], ["draft", "Draft"], ["active", "Active"], ["on_hold", "On Hold"], ["completed", "Completed"], ["cancelled", "Cancelled"]].map(([val, label]) => (
+        {[["", t("projects.all")], ["draft", t("projects.draft")], ["active", t("label.active")], ["on_hold", t("projects.on_hold")], ["completed", t("dashboard.completed")], ["cancelled", t("projects.cancelled")]].map(([val, label]) => (
           <button key={val} onClick={() => setStatusFilter(val)}
             className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
               statusFilter === val
@@ -7125,13 +7694,13 @@ function ProjectsView({ auth }) {
       {displayed.length === 0 ? (
         <EmptyState
           Icon={Layers}
-          title="No projects yet"
-          subtitle="Group related cases into a project to track them together."
+          title={t("projects.no_projects")}
+          subtitle={t("projects.no_proj_hint")}
           action={
             (auth.isAdmin || auth.isManager || auth.isClient) && (
               <button onClick={() => setShowCreate(true)}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl px-5 py-2.5 text-sm mt-2">
-                + Create your first project
+                {t("projects.create_first")}
               </button>
             )
           }
@@ -7221,6 +7790,7 @@ function ProjectsView({ auth }) {
 // CASES VIEW
 // ============================================================
 function CasesView({ auth }) {
+  const { t } = useT();
   const [search, setSearch]           = useState("");
   const [statusFilter, setStatus]     = useState("");
   const [projectFilter, setProjectFilter] = useState("");
@@ -7308,13 +7878,13 @@ function CasesView({ auth }) {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Cases</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t("cases.title")}</h1>
           <p className="text-gray-500 text-sm mt-1">{displayed.length} case{displayed.length !== 1 ? "s" : ""}</p>
         </div>
         {(auth.isAdmin || auth.isManager || auth.isClient || auth.isKeyUser) && (
           <button onClick={() => setShowCreate(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
-            + New Case
+            {t("cases.new")}
           </button>
         )}
       </div>
@@ -7322,11 +7892,11 @@ function CasesView({ auth }) {
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-6">
         <input value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Search cases…"
+          placeholder={t("cases.search")}
           className="border border-gray-200 rounded-xl px-4 py-2 text-sm flex-1 min-w-48 focus:outline-none focus:ring-2 focus:ring-blue-500" />
         <select value={statusFilter} onChange={e => setStatus(e.target.value)}
           className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <option value="">All Statuses</option>
+          <option value="">{t("cases.all_statuses")}</option>
           {["open","in_progress","on_hold","completed","cancelled"].map(s => (
             <option key={s} value={s}>{cap(fmt(s))}</option>
           ))}
@@ -7334,7 +7904,7 @@ function CasesView({ auth }) {
         {filterProjects.length > 0 && (
           <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)}
             className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">All Projects</option>
+            <option value="">{t("cases.all_projects")}</option>
             {filterProjects.map(p => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
@@ -7345,14 +7915,14 @@ function CasesView({ auth }) {
             className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
               showFavOnly ? "bg-yellow-50 border-yellow-300 text-yellow-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"
             }`}>
-            <Star className={`w-3.5 h-3.5 ${showFavOnly ? "fill-yellow-400 text-yellow-400" : "text-gray-400"}`} /> Saved
+            <Star className={`w-3.5 h-3.5 ${showFavOnly ? "fill-yellow-400 text-yellow-400" : "text-gray-400"}`} /> {t("cases.saved")}
           </button>
         )}
       </div>
 
       {/* Cases Grid */}
       {displayed.length === 0 ? (
-        <EmptyState Icon={FolderOpen} title="No cases found" subtitle="Adjust your filters or create a new case" />
+        <EmptyState Icon={FolderOpen} title={t("cases.no_cases")} subtitle={t("cases.no_cases_hint")} />
       ) : (
         <div className="grid gap-4">
           {displayed.map(c => (
@@ -7369,10 +7939,10 @@ function CasesView({ auth }) {
                   <p className="text-sm text-gray-500 line-clamp-2">{c.description}</p>
                   <div className="flex items-center gap-4 mt-3 text-xs text-gray-400 flex-wrap">
                     {c.skills_required?.length > 0 && (
-                      <span>Skills: {c.skills_required.slice(0, 3).join(", ")}{c.skills_required.length > 3 ? "…" : ""}</span>
+                      <span>{t("label.skills")}: {c.skills_required.slice(0, 3).join(", ")}{c.skills_required.length > 3 ? "…" : ""}</span>
                     )}
-                    {c.due_date && <span>Due: {fmtDate(c.due_date)}</span>}
-                    {c.budget && <span>Budget: ${Number(c.budget).toLocaleString()}</span>}
+                    {c.due_date && <span>{t("label.due")} {fmtDate(c.due_date)}</span>}
+                    {c.budget && <span>{t("label.budget")}: ${Number(c.budget).toLocaleString()}</span>}
                     <span>{c.applications?.[0]?.count ?? 0} applicant{c.applications?.[0]?.count !== 1 ? "s" : ""}</span>
                     {c.status === "assigned" && c.start_date && (() => {
                       const d = Math.ceil((new Date(c.start_date + "T00:00:00") - Date.now()) / 86400000);
@@ -13966,6 +14536,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
 // ARENA (COMPETITIVE BIDDING)
 // ============================================================
 function ArenaView({ auth }) {
+  const { t } = useT();
   const [arenaTab, setArenaTab]             = useState("cases");
   const [applyingToCase, setApplying]       = useState(null);
   const [arenaSelectedCase, setArenaSelected] = useState(null);
@@ -14293,8 +14864,8 @@ function ArenaView({ auth }) {
     <div>
       <div className="mb-6 flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Arena</h1>
-          <p className="text-gray-500 text-sm mt-1">Open cases & consultant rankings</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t("arena.title")}</h1>
+          <p className="text-gray-500 text-sm mt-1">{t("arena.subtitle")}</p>
         </div>
         {openCases.length > 0 && (
           <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-semibold rounded-xl">
@@ -14306,15 +14877,15 @@ function ArenaView({ auth }) {
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 w-fit">
         {[
-          { id: "cases",       label: "Open Cases" },
-          { id: "leaderboard", label: "Leaderboard" },
-          { id: "cards",       label: "Cards" },
-          { id: "compare",     label: "Compare" },
-        ].map(t => (
-          <button key={t.id} onClick={() => setArenaTab(t.id)}
+          { id: "cases",       label: t("arena.open_cases") },
+          { id: "leaderboard", label: t("arena.leaderboard") },
+          { id: "cards",       label: t("arena.cards") },
+          { id: "compare",     label: t("arena.compare") },
+        ].map(tab => (
+          <button key={tab.id} onClick={() => setArenaTab(tab.id)}
             className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-              arenaTab === t.id ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
-            {t.label}
+              arenaTab === tab.id ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
+            {tab.label}
           </button>
         ))}
       </div>
@@ -14331,6 +14902,7 @@ function ArenaView({ auth }) {
 // CONSULTANT PROFILE VIEW
 // ============================================================
 function ProfileView({ auth }) {
+  const { t } = useT();
   // Extract the real consultant_profiles id from auth (useAuth already fetched it via FK join)
   const cpRaw = auth.profile?.consultant_profiles;
   const realProfileId = Array.isArray(cpRaw) ? cpRaw[0]?.id : cpRaw?.id;
@@ -14395,10 +14967,10 @@ function ProfileView({ auth }) {
   const freeAvail = Math.max(0, 100 - totalUsed);
 
   const tabs = [
-    { id: "overview",   label: "Overview",   icon: User },
-    { id: "experience", label: "Experience", icon: Briefcase },
-    { id: "skills",     label: "Skills",     icon: GraduationCap },
-    { id: "ratings",    label: "Ratings",    icon: Star },
+    { id: "overview",   label: t("profile.tab_overview"),   icon: User },
+    { id: "experience", label: t("profile.tab_experience"), icon: Briefcase },
+    { id: "skills",     label: t("profile.tab_skills"),     icon: GraduationCap },
+    { id: "ratings",    label: t("profile.tab_ratings"),    icon: Star },
   ];
 
   async function handleAddCustomer() {
@@ -14464,15 +15036,15 @@ function ProfileView({ auth }) {
           </div>
           <button onClick={() => setEditing(p => !p)}
             className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-xl hover:bg-gray-50">
-            {editing ? "Cancel" : "Edit Profile"}
+            {editing ? t("profile.cancel") : t("profile.edit")}
           </button>
         </div>
 
         {/* Availability bar */}
         <div className="mt-5">
           <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-            <span>Availability</span>
-            <span className="font-semibold text-gray-800">{freeAvail}% free</span>
+            <span>{t("profile.availability")}</span>
+            <span className="font-semibold text-gray-800">{freeAvail}{t("profile.free_pct")}</span>
           </div>
           <div className="h-3 bg-gray-100 rounded-full overflow-hidden flex">
             {activeCaseCommitment > 0 && (
@@ -14497,44 +15069,44 @@ function ProfileView({ auth }) {
       {/* Edit form */}
       {editing && (
         <div className="bg-white rounded-2xl border border-blue-200 shadow-sm p-6 mb-6">
-          <h3 className="font-semibold text-gray-900 mb-4">Edit Profile</h3>
-          <Input label="Headline" value={form.headline} onChange={e => setForm(p => ({ ...p, headline: e.target.value }))}
+          <h3 className="font-semibold text-gray-900 mb-4">{t("profile.edit")}</h3>
+          <Input label={t("label.headline")} value={form.headline} onChange={e => setForm(p => ({ ...p, headline: e.target.value }))}
             placeholder="Senior Full-Stack Consultant" />
-          <Textarea label="Bio" value={form.bio} onChange={e => setForm(p => ({ ...p, bio: e.target.value }))}
+          <Textarea label={t("profile.bio_label")} value={form.bio} onChange={e => setForm(p => ({ ...p, bio: e.target.value }))}
             placeholder="Tell clients about your background and expertise…" />
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Hourly Rate ($)" type="number" value={form.hourly_rate}
+            <Input label={t("label.hourly_rate")} type="number" value={form.hourly_rate}
               onChange={e => setForm(p => ({ ...p, hourly_rate: e.target.value }))} />
-            <Input label="Years Experience" type="number" value={form.years_experience}
+            <Input label={t("label.years_exp")} type="number" value={form.years_experience}
               onChange={e => setForm(p => ({ ...p, years_experience: e.target.value }))} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Select label="Expertise Level" value={form.expertise_level ?? "mid"}
+            <Select label={t("label.expertise")} value={form.expertise_level ?? "mid"}
               onChange={e => setForm(p => ({ ...p, expertise_level: e.target.value }))}
               options={[
-                { value: "junior",  label: "Junior" },
-                { value: "mid",     label: "Mid-Level" },
-                { value: "senior",  label: "Senior" },
-                { value: "expert",  label: "Expert / Principal" },
+                { value: "junior",  label: t("level.junior") },
+                { value: "mid",     label: t("level.mid") },
+                { value: "senior",  label: t("level.senior") },
+                { value: "expert",  label: t("level.expert") },
               ]} />
-            <Select label="Availability Type" value={form.availability_type ?? "project_based"}
+            <Select label={t("label.availability")} value={form.availability_type ?? "project_based"}
               onChange={e => setForm(p => ({ ...p, availability_type: e.target.value }))}
               options={[
-                { value: "full_time",     label: "Full-Time" },
-                { value: "part_time",     label: "Part-Time" },
-                { value: "contract",      label: "Contract" },
-                { value: "project_based", label: "Project-Based" },
+                { value: "full_time",     label: t("avail.full_time") },
+                { value: "part_time",     label: t("avail.part_time") },
+                { value: "contract",      label: t("avail.contract") },
+                { value: "project_based", label: t("avail.project") },
               ]} />
           </div>
-          <Input label="LinkedIn URL" value={form.linkedin_url}
+          <Input label={t("label.linkedin")} value={form.linkedin_url}
             onChange={e => setForm(p => ({ ...p, linkedin_url: e.target.value }))}
             placeholder="https://linkedin.com/in/yourprofile" />
-          <Input label="Skills (comma-separated)" value={form._skills}
+          <Input label={t("profile.skills_label")} value={form._skills}
             onChange={e => setForm(p => ({ ...p, _skills: e.target.value }))}
             placeholder="React, Node.js, AWS, PostgreSQL" />
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              External Occupancy: {form.external_occupancy_pct}%
+              {t("profile.ext_occupancy")} {form.external_occupancy_pct}%
             </label>
             <input type="range" min="0" max="100" value={form.external_occupancy_pct}
               onChange={e => setForm(p => ({ ...p, external_occupancy_pct: Number(e.target.value) }))}
@@ -14544,13 +15116,13 @@ function ProfileView({ auth }) {
             <input type="checkbox" checked={form.travel_available}
               onChange={e => setForm(p => ({ ...p, travel_available: e.target.checked }))}
               className="rounded accent-blue-600" />
-            Available for travel
+            {t("label.travel")}
           </label>
           <div className="flex justify-end gap-3">
-            <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+            <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
             <button onClick={handleSave} disabled={saving}
               className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
-              {saving ? "Saving…" : "Save Changes"}
+              {saving ? t("profile.saving") : t("profile.save_changes")}
             </button>
           </div>
         </div>
@@ -14558,11 +15130,11 @@ function ProfileView({ auth }) {
 
       {/* Icon Tiles */}
       <div className="flex flex-wrap gap-2 mb-6">
-        {tabs.map(t => {
-          const Icon = t.icon;
-          const isActive = profileTab === t.id;
+        {tabs.map(tab => {
+          const Icon = tab.icon;
+          const isActive = profileTab === tab.id;
           return (
-            <button key={t.id} onClick={() => setProfileTab(t.id)}
+            <button key={tab.id} onClick={() => setProfileTab(tab.id)}
               className={`flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl border transition-all min-w-[80px] ${
                 isActive
                   ? "bg-[#1A4B8C] border-[#1A4B8C] text-white shadow-md"
@@ -14571,7 +15143,7 @@ function ProfileView({ auth }) {
                 isActive ? "bg-white/20" : "bg-gray-100"}`}>
                 <Icon size={14} className={isActive ? "text-white" : "text-gray-500"} />
               </div>
-              <span className="text-xs font-medium">{t.label}</span>
+              <span className="text-xs font-medium">{tab.label}</span>
             </button>
           );
         })}
@@ -14580,18 +15152,18 @@ function ProfileView({ auth }) {
       {/* Tab Content */}
       {profileTab === "overview" && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <h3 className="font-semibold text-gray-900 mb-3">About</h3>
-          <p className="text-gray-600 text-sm leading-relaxed">{profile?.bio || "No bio yet. Edit your profile to add one."}</p>
+          <h3 className="font-semibold text-gray-900 mb-3">{t("label.about")}</h3>
+          <p className="text-gray-600 text-sm leading-relaxed">{profile?.bio || t("profile.no_bio")}</p>
           {profile?.linkedin_url && (
             <a href={profile.linkedin_url} target="_blank" rel="noreferrer"
               className="inline-flex items-center gap-2 mt-4 text-sm text-blue-600 hover:underline">
-              <Link className="w-3.5 h-3.5 mr-1" /> LinkedIn Profile
+              <Link className="w-3.5 h-3.5 mr-1" /> {t("profile.linkedin")}
             </a>
           )}
           {/* Active cases */}
           {profile?.case_assignments?.length > 0 && (
             <div className="mt-5">
-              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Active Cases</h4>
+              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("profile.active_cases")}</h4>
               <div className="space-y-2">
                 {profile.case_assignments
                   .filter(a => ["open","in_progress"].includes(a.case?.status))
@@ -14614,9 +15186,9 @@ function ProfileView({ auth }) {
         <div className="space-y-6">
           {/* Past Customers */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">Past Customers</h3>
+            <h3 className="font-semibold text-gray-900 mb-4">{t("profile.past_customers")}</h3>
             {(profile?.consultant_customers?.length ?? 0) === 0
-              ? <p className="text-sm text-gray-400 mb-4">No customers added yet.</p>
+              ? <p className="text-sm text-gray-400 mb-4">{t("profile.no_customers")}</p>
               : <div className="space-y-3 mb-4">
                   {profile.consultant_customers.map(c => (
                     <div key={c.id} className="border border-gray-100 rounded-xl p-4">
@@ -14624,7 +15196,7 @@ function ProfileView({ auth }) {
                       {c.role_held && <div className="text-sm text-gray-500">{c.role_held}</div>}
                       {(c.start_date || c.end_date) && (
                         <div className="text-xs text-gray-400 mt-1">
-                          {fmtDate(c.start_date)} – {c.end_date ? fmtDate(c.end_date) : "Present"}
+                          {fmtDate(c.start_date)} – {c.end_date ? fmtDate(c.end_date) : t("label.present")}
                         </div>
                       )}
                       {c.description && <p className="text-sm text-gray-600 mt-2">{c.description}</p>}
@@ -14632,26 +15204,26 @@ function ProfileView({ auth }) {
                   ))}
                 </div>}
             <div className="border-t border-gray-100 pt-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Add Customer</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("profile.add_customer")}</p>
               <div className="grid grid-cols-2 gap-3">
-                <Input label="Company Name" value={custForm.company_name} onChange={e => setCustForm(p => ({ ...p, company_name: e.target.value }))} />
-                <Input label="Role Held" value={custForm.role_held} onChange={e => setCustForm(p => ({ ...p, role_held: e.target.value }))} />
-                <Input label="Start Date" type="date" value={custForm.start_date} onChange={e => setCustForm(p => ({ ...p, start_date: e.target.value }))} />
-                <Input label="End Date" type="date" value={custForm.end_date} onChange={e => setCustForm(p => ({ ...p, end_date: e.target.value }))} placeholder="Leave blank if current" />
+                <Input label={t("profile.company_name")} value={custForm.company_name} onChange={e => setCustForm(p => ({ ...p, company_name: e.target.value }))} />
+                <Input label={t("profile.role_held")} value={custForm.role_held} onChange={e => setCustForm(p => ({ ...p, role_held: e.target.value }))} />
+                <Input label={t("label.start_date")} type="date" value={custForm.start_date} onChange={e => setCustForm(p => ({ ...p, start_date: e.target.value }))} />
+                <Input label={t("label.end_date")} type="date" value={custForm.end_date} onChange={e => setCustForm(p => ({ ...p, end_date: e.target.value }))} placeholder={t("profile.blank_if_curr")} />
               </div>
-              <Textarea label="Description" value={custForm.description} onChange={e => setCustForm(p => ({ ...p, description: e.target.value }))} />
+              <Textarea label={t("label.description")} value={custForm.description} onChange={e => setCustForm(p => ({ ...p, description: e.target.value }))} />
               <button onClick={handleAddCustomer} disabled={savingExp || !custForm.company_name}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
-                {savingExp ? "Saving…" : "+ Add Customer"}
+                {savingExp ? t("profile.saving") : t("profile.add_customer_btn")}
               </button>
             </div>
           </div>
 
           {/* Projects */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">Projects</h3>
+            <h3 className="font-semibold text-gray-900 mb-4">{t("profile.projects")}</h3>
             {(profile?.consultant_projects?.length ?? 0) === 0
-              ? <p className="text-sm text-gray-400 mb-4">No projects added yet.</p>
+              ? <p className="text-sm text-gray-400 mb-4">{t("profile.no_projects")}</p>
               : <div className="space-y-3 mb-4">
                   {profile.consultant_projects.map(p => (
                     <div key={p.id} className="border border-gray-100 rounded-xl p-4">
@@ -14672,17 +15244,17 @@ function ProfileView({ auth }) {
                   ))}
                 </div>}
             <div className="border-t border-gray-100 pt-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Add Project</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("profile.add_project")}</p>
               <div className="grid grid-cols-2 gap-3">
-                <Input label="Title" value={projForm.title} onChange={e => setProjForm(p => ({ ...p, title: e.target.value }))} />
-                <Input label="Client Name" value={projForm.client_name} onChange={e => setProjForm(p => ({ ...p, client_name: e.target.value }))} />
-                <Input label="URL" value={projForm.url} onChange={e => setProjForm(p => ({ ...p, url: e.target.value }))} />
-                <Input label="Tech Stack (comma-separated)" value={projForm._tech} onChange={e => setProjForm(p => ({ ...p, _tech: e.target.value }))} />
+                <Input label={t("label.title")} value={projForm.title} onChange={e => setProjForm(p => ({ ...p, title: e.target.value }))} />
+                <Input label={t("profile.client_name")} value={projForm.client_name} onChange={e => setProjForm(p => ({ ...p, client_name: e.target.value }))} />
+                <Input label={t("profile.url")} value={projForm.url} onChange={e => setProjForm(p => ({ ...p, url: e.target.value }))} />
+                <Input label={t("profile.tech_stack")} value={projForm._tech} onChange={e => setProjForm(p => ({ ...p, _tech: e.target.value }))} />
               </div>
-              <Textarea label="Description" value={projForm.description} onChange={e => setProjForm(p => ({ ...p, description: e.target.value }))} />
+              <Textarea label={t("label.description")} value={projForm.description} onChange={e => setProjForm(p => ({ ...p, description: e.target.value }))} />
               <button onClick={handleAddProject} disabled={savingExp || !projForm.title}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
-                {savingExp ? "Saving…" : "+ Add Project"}
+                {savingExp ? t("profile.saving") : t("profile.add_project_btn")}
               </button>
             </div>
           </div>
@@ -14692,14 +15264,14 @@ function ProfileView({ auth }) {
       {profileTab === "skills" && (
         <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">Skills</h3>
+            <h3 className="font-semibold text-gray-900 mb-4">{t("label.skills")}</h3>
             {(profile?.skills?.length ?? 0) === 0
-              ? <p className="text-sm text-gray-400 mb-4">No skills added yet.</p>
+              ? <p className="text-sm text-gray-400 mb-4">{t("profile.no_skills")}</p>
               : <div className="flex flex-wrap gap-2 mb-4">{profile.skills.map(s => (
                   <span key={s} className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-xl text-sm font-medium">{s}</span>
                 ))}</div>}
             <div className="flex gap-2 mt-2">
-              <input id="new-skill-input" placeholder="Add a skill…"
+              <input id="new-skill-input" placeholder={t("profile.skill_ph")}
                 className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500" />
               <button disabled={savingExp} onClick={async () => {
                 const input = document.getElementById("new-skill-input");
@@ -14713,15 +15285,15 @@ function ProfileView({ auth }) {
                 } catch (e) { alert(e.message); }
                 setSavingExp(false);
               }} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
-                {savingExp ? "…" : "+ Add"}
+                {savingExp ? "…" : t("profile.add_skill")}
               </button>
             </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">Work Authorization</h3>
+            <h3 className="font-semibold text-gray-900 mb-4">{t("profile.work_auth")}</h3>
             {(profile?.work_authorizations?.length ?? 0) === 0
-              ? <p className="text-sm text-gray-400 mb-4">No work authorizations added.</p>
+              ? <p className="text-sm text-gray-400 mb-4">{t("profile.no_auth")}</p>
               : <div className="grid grid-cols-2 gap-3 mb-4">
                   {profile.work_authorizations.map(w => (
                     <div key={w.id} className="border border-gray-100 rounded-xl p-3 flex items-center gap-3">
@@ -14734,16 +15306,16 @@ function ProfileView({ auth }) {
                   ))}
                 </div>}
             <div className="border-t border-gray-100 pt-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Add Authorization</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("profile.add_auth")}</p>
               <div className="grid grid-cols-3 gap-3">
-                <Input label="Country Name" value={authForm.country_name} onChange={e => setAuthForm(p => ({ ...p, country_name: e.target.value }))} />
-                <Input label="Country Code" value={authForm.country_code} onChange={e => setAuthForm(p => ({ ...p, country_code: e.target.value.toUpperCase() }))} placeholder="US" />
-                <Select label="Auth Type" value={authForm.auth_type} onChange={e => setAuthForm(p => ({ ...p, auth_type: e.target.value }))}
+                <Input label={t("profile.country")} value={authForm.country_name} onChange={e => setAuthForm(p => ({ ...p, country_name: e.target.value }))} />
+                <Input label={t("profile.country_code")} value={authForm.country_code} onChange={e => setAuthForm(p => ({ ...p, country_code: e.target.value.toUpperCase() }))} placeholder="US" />
+                <Select label={t("profile.auth_type")} value={authForm.auth_type} onChange={e => setAuthForm(p => ({ ...p, auth_type: e.target.value }))}
                   options={[{ value: "citizen", label: "Citizen" }, { value: "permanent_resident", label: "Permanent Resident" }, { value: "work_visa", label: "Work Visa" }, { value: "other", label: "Other" }]} />
               </div>
               <button onClick={handleAddWorkAuth} disabled={savingExp || !authForm.country_name}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
-                {savingExp ? "Saving…" : "+ Add Authorization"}
+                {savingExp ? t("profile.saving") : t("profile.add_auth")}
               </button>
             </div>
           </div>
@@ -14762,7 +15334,7 @@ function ProfileView({ auth }) {
             </div>
           )}
           {ratings.length === 0 ? (
-            <p className="text-sm text-gray-400">No ratings yet.</p>
+            <p className="text-sm text-gray-400">{t("profile.no_ratings")}</p>
           ) : (
             <div className="space-y-4">
               {ratings.map(r => (
@@ -15472,19 +16044,20 @@ function ConsultantDetailModal({ consultantId, auth }) {
 // NOTIFICATIONS VIEW
 // ============================================================
 function NotificationsView() {
+  const { t } = useT();
   const { notifications, unreadCount, loading, markRead, markAllRead } = useNotifications();
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t("notif.title")}</h1>
           {unreadCount > 0 && <p className="text-sm text-gray-500 mt-1">{unreadCount} unread</p>}
         </div>
         {unreadCount > 0 && (
           <button onClick={markAllRead}
             className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-            Mark all read
+            {t("notif.mark_read")}
           </button>
         )}
       </div>
@@ -15492,7 +16065,7 @@ function NotificationsView() {
       {loading ? (
         <Spinner />
       ) : notifications.length === 0 ? (
-        <EmptyState Icon={Bell} title="All caught up!" subtitle="Notifications will appear here when cases are updated, applications change status, or you receive messages." />
+        <EmptyState Icon={Bell} title={t("notif.none")} subtitle={t("notif.none_hint")} />
       ) : (
         <div className="space-y-2">
           {notifications.map(n => (
@@ -15683,6 +16256,7 @@ function UsersView() {
 // REPORTS VIEW (Admin)
 // ============================================================
 function ReportsView() {
+  const { t } = useT();
   const { cases } = useCases();
   const { applications } = useApplications();
   const { invoices } = useInvoices();
@@ -15749,20 +16323,20 @@ function ReportsView() {
     <div>
       <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
-          <p className="text-gray-500 text-sm mt-1">Platform analytics{isFiltered ? " (filtered)" : " — all time"}</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t("reports.title")}</h1>
+          <p className="text-gray-500 text-sm mt-1">{t("reports.subtitle")}{isFiltered ? " (filtered)" : " — all time"}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-medium text-gray-500">From</span>
+          <span className="text-xs font-medium text-gray-500">{t("reports.from")}</span>
           <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
             className="border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <span className="text-xs font-medium text-gray-500">To</span>
+          <span className="text-xs font-medium text-gray-500">{t("reports.to")}</span>
           <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
             className="border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           {isFiltered && (
             <button onClick={() => { setDateFrom(""); setDateTo(""); }}
               className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5 border border-gray-200 rounded-xl hover:bg-gray-50">
-              Clear
+              {t("action.clear")}
             </button>
           )}
           <button
@@ -15784,7 +16358,7 @@ function ReportsView() {
               a.click();
             }}
             className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-900 px-3 py-1.5 border border-gray-200 rounded-xl hover:bg-gray-50 font-medium">
-            <Download className="w-3.5 h-3.5" /> Export CSV
+            <Download className="w-3.5 h-3.5" /> {t("action.export_csv")}
           </button>
         </div>
       </div>
@@ -15792,10 +16366,10 @@ function ReportsView() {
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
-          { label: "Total Cases",     value: filtCases.length,                     Icon: FolderOpen },
-          { label: "Conversion Rate", value: `${conversionRate}%`,                 Icon: Target },
-          { label: "Hours Logged",    value: `${totalHours.toFixed(0)}h`,           Icon: Clock },
-          { label: "Revenue (Paid)",  value: `$${totalPaid.toLocaleString()}`,      Icon: DollarSign },
+          { label: t("reports.total_cases"),  value: filtCases.length,               Icon: FolderOpen },
+          { label: t("reports.conversion"),   value: `${conversionRate}%`,          Icon: Target },
+          { label: t("reports.hours_logged"), value: `${totalHours.toFixed(0)}h`,   Icon: Clock },
+          { label: t("reports.revenue_paid"), value: `$${totalPaid.toLocaleString()}`, Icon: DollarSign },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
             <div className="mb-2"><s.Icon className="w-5 h-5 text-gray-400" /></div>
@@ -15808,7 +16382,7 @@ function ReportsView() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Cases by status */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <h2 className="font-bold text-gray-900 mb-5">Cases by Status</h2>
+          <h2 className="font-bold text-gray-900 mb-5">{t("reports.cases_by_status")}</h2>
           <div className="space-y-3">
             {byStatus.map(s => (
               <div key={s.label}>
@@ -15827,7 +16401,7 @@ function ReportsView() {
 
         {/* Applications by status */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <h2 className="font-bold text-gray-900 mb-5">Applications by Status</h2>
+          <h2 className="font-bold text-gray-900 mb-5">{t("reports.apps_by_status")}</h2>
           <div className="space-y-3">
             {byAppStatus.map(s => (
               <div key={s.label}>
@@ -15846,12 +16420,12 @@ function ReportsView() {
 
         {/* Revenue overview */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <h2 className="font-bold text-gray-900 mb-5">Revenue Overview</h2>
+          <h2 className="font-bold text-gray-900 mb-5">{t("reports.revenue_overview")}</h2>
           <div className="space-y-4">
             {[
-              { label: "Total Invoiced",  value: totalInvoiced,    color: "bg-blue-400" },
-              { label: "Paid",            value: totalPaid,         color: "bg-green-400" },
-              { label: "Outstanding",     value: totalOutstanding,  color: "bg-orange-400" },
+              { label: t("reports.total_invoiced"), value: totalInvoiced,    color: "bg-blue-400" },
+              { label: t("reports.paid"),            value: totalPaid,        color: "bg-green-400" },
+              { label: t("reports.outstanding"),     value: totalOutstanding, color: "bg-orange-400" },
             ].map(s => (
               <div key={s.label}>
                 <div className="flex justify-between text-sm mb-1">
@@ -15873,20 +16447,20 @@ function ReportsView() {
 
         {/* Time tracking */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <h2 className="font-bold text-gray-900 mb-5">Time Tracking</h2>
+          <h2 className="font-bold text-gray-900 mb-5">{t("reports.time_tracking")}</h2>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div className="bg-blue-50 rounded-xl p-4 text-center">
               <div className="text-2xl font-bold text-blue-700">{totalHours.toFixed(1)}h</div>
-              <div className="text-xs text-blue-500 mt-1">Total Logged</div>
+              <div className="text-xs text-blue-500 mt-1">{t("reports.total_logged")}</div>
             </div>
             <div className="bg-green-50 rounded-xl p-4 text-center">
               <div className="text-2xl font-bold text-green-700">{billableHours.toFixed(1)}h</div>
-              <div className="text-xs text-green-500 mt-1">Billable</div>
+              <div className="text-xs text-green-500 mt-1">{t("reports.billable")}</div>
             </div>
           </div>
           <div className="text-sm text-gray-500 mb-4">
             <div className="flex justify-between mb-1">
-              <span>Approved entries</span>
+              <span>{t("reports.approved_entries")}</span>
               <span className="font-medium">{filtEntries.filter(e => e.is_approved).length} / {filtEntries.length}</span>
             </div>
             <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -15896,7 +16470,7 @@ function ReportsView() {
           </div>
           {consultantHours.length > 0 && (
             <div className="border-t border-gray-100 pt-4">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Hours by Consultant</p>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("reports.hours_by_consultant")}</p>
               <div className="space-y-2">
                 {consultantHours.map(c => (
                   <div key={c.name}>
@@ -17654,6 +18228,7 @@ function useClientProfile(userId) {
 }
 
 function ClientProfileView({ auth }) {
+  const { t } = useT();
   const { profile, loading, updateProfile } = useClientProfile(auth.user?.id);
   const { sla, updateSla }                  = useSlaConfig(auth.user?.id);
   const { connections, addConnection, deleteConnection } = useDbConnections(auth.user?.id);
@@ -17839,14 +18414,14 @@ function ClientProfileView({ auth }) {
   };
 
   const tabs = [
-    { id: "overview",     label: "Overview",     icon: Building2,         count: null },
-    { id: "sla",          label: "SLA Config",   icon: SlidersHorizontal, count: null },
-    { id: "connections",  label: "Connections",  icon: Database,          count: connections.length },
-    { id: "team",         label: "Team",         icon: Users,             count: members.length },
-    { id: "lifecycle",    label: "Lifecycle",    icon: TrendingUp,        count: null },
-    { id: "phases",       label: "Phases",       icon: Layers,            count: null },
-    { id: "defaults",     label: "Defaults",     icon: ClipboardList,     count: null },
-    { id: "assignment",   label: "Assignment",   icon: UserCheck,         count: null },
+    { id: "overview",     label: t("client_tab.overview"),    icon: Building2,         count: null },
+    { id: "sla",          label: t("client_tab.sla"),         icon: SlidersHorizontal, count: null },
+    { id: "connections",  label: t("client_tab.connections"), icon: Database,          count: connections.length },
+    { id: "team",         label: t("client_tab.team"),        icon: Users,             count: members.length },
+    { id: "lifecycle",    label: t("client_tab.lifecycle"),   icon: TrendingUp,        count: null },
+    { id: "phases",       label: t("client_tab.phases"),      icon: Layers,            count: null },
+    { id: "defaults",     label: t("client_tab.defaults"),    icon: ClipboardList,     count: null },
+    { id: "assignment",   label: t("client_tab.assignment"),  icon: UserCheck,         count: null },
   ];
 
   return (
@@ -17872,7 +18447,7 @@ function ClientProfileView({ auth }) {
           </div>
           <button onClick={() => setEditing(p => !p)}
             className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-xl hover:bg-gray-50 flex-shrink-0">
-            {editing ? "Cancel" : "Edit Profile"}
+            {editing ? t("company.cancel") : t("company.edit")}
           </button>
         </div>
       </div>
@@ -17880,69 +18455,69 @@ function ClientProfileView({ auth }) {
       {/* Edit form */}
       {editing && (
         <div className="bg-white rounded-2xl border border-blue-200 shadow-sm p-6 mb-6">
-          <h3 className="font-semibold text-gray-900 mb-5">Edit Company Profile</h3>
+          <h3 className="font-semibold text-gray-900 mb-5">{t("company.edit_title")}</h3>
 
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Company Name" value={form.company_name}
+            <Input label={t("company.name")} value={form.company_name}
               onChange={e => setForm(p => ({ ...p, company_name: e.target.value }))} />
-            <Input label="Industry" value={form.industry}
+            <Input label={t("company.industry")} value={form.industry}
               onChange={e => setForm(p => ({ ...p, industry: e.target.value }))}
               placeholder="e.g. Financial Services" />
           </div>
           <div className="grid grid-cols-3 gap-3">
-            <Input label="Company Size" value={form.company_size}
+            <Input label={t("company.size")} value={form.company_size}
               onChange={e => setForm(p => ({ ...p, company_size: e.target.value }))}
               placeholder="e.g. 500–1,000 employees" />
-            <Input label="Founded Year" type="number" value={form.founded_year}
+            <Input label={t("company.founded")} type="number" value={form.founded_year}
               onChange={e => setForm(p => ({ ...p, founded_year: e.target.value }))} />
-            <Input label="Headquarters" value={form.hq_location}
+            <Input label={t("company.hq")} value={form.hq_location}
               onChange={e => setForm(p => ({ ...p, hq_location: e.target.value }))}
               placeholder="City, Country" />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Website" value={form.website}
+            <Input label={t("company.website")} value={form.website}
               onChange={e => setForm(p => ({ ...p, website: e.target.value }))}
               placeholder="https://yourcompany.com" />
-            <Input label="LinkedIn" value={form.linkedin_url}
+            <Input label={t("company.linkedin")} value={form.linkedin_url}
               onChange={e => setForm(p => ({ ...p, linkedin_url: e.target.value }))}
               placeholder="https://linkedin.com/company/..." />
           </div>
-          <Textarea label="Description" value={form.description}
+          <Textarea label={t("company.description")} value={form.description}
             onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
             placeholder="What does your company do?" />
 
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3 mt-1">Primary Contact</div>
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3 mt-1">{t("company.primary_contact")}</div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Contact Name" value={form.contact_name}
+            <Input label={t("company.contact_name")} value={form.contact_name}
               onChange={e => setForm(p => ({ ...p, contact_name: e.target.value }))} />
-            <Input label="Contact Title" value={form.contact_title}
+            <Input label={t("company.contact_title")} value={form.contact_title}
               onChange={e => setForm(p => ({ ...p, contact_title: e.target.value }))} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Contact Email" type="email" value={form.contact_email}
+            <Input label={t("company.contact_email")} type="email" value={form.contact_email}
               onChange={e => setForm(p => ({ ...p, contact_email: e.target.value }))} />
-            <Input label="Contact Phone" value={form.contact_phone}
+            <Input label={t("company.contact_phone")} value={form.contact_phone}
               onChange={e => setForm(p => ({ ...p, contact_phone: e.target.value }))} />
           </div>
 
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3 mt-1">Consulting Preferences</div>
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3 mt-1">{t("company.prefs")}</div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Annual Budget" value={form.budget}
+            <Input label={t("company.annual_budget")} value={form.budget}
               onChange={e => setForm(p => ({ ...p, budget: e.target.value }))}
               placeholder="e.g. $500K annual consulting" />
-            <Input label="Preferred Categories (comma-separated)" value={form._categories}
+            <Input label={t("company.pref_cats")} value={form._categories}
               onChange={e => setForm(p => ({ ...p, _categories: e.target.value }))}
               placeholder="Cloud, AI, ERP" />
           </div>
-          <Textarea label="Internal Notes" value={form.notes}
+          <Textarea label={t("company.internal_notes")} value={form.notes}
             onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
             placeholder="Special requirements, vetting notes…" />
 
           <div className="flex justify-end gap-3 mt-2">
-            <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+            <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
             <button onClick={handleSave} disabled={saving}
               className="px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
-              {saving ? "Saving…" : "Save Profile"}
+              {saving ? t("company.saving") : t("company.save")}
             </button>
           </div>
         </div>
@@ -17950,11 +18525,11 @@ function ClientProfileView({ auth }) {
 
       {/* Icon Tiles */}
       <div className="flex flex-wrap gap-2 mb-6">
-        {tabs.map(t => {
-          const Icon = t.icon;
-          const isActive = tab === t.id;
+        {tabs.map(tabItem => {
+          const Icon = tabItem.icon;
+          const isActive = tab === tabItem.id;
           return (
-            <button key={t.id} onClick={() => setTab(t.id)}
+            <button key={tabItem.id} onClick={() => setTab(tabItem.id)}
               className={`flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl border transition-all min-w-[80px] ${
                 isActive
                   ? "bg-[#1A4B8C] border-[#1A4B8C] text-white shadow-md"
@@ -17963,11 +18538,11 @@ function ClientProfileView({ auth }) {
                 isActive ? "bg-white/20" : "bg-gray-100"}`}>
                 <Icon size={14} className={isActive ? "text-white" : "text-gray-500"} />
               </div>
-              <span className="text-xs font-medium">{t.label}</span>
-              {t.count !== null && (
+              <span className="text-xs font-medium">{tabItem.label}</span>
+              {tabItem.count !== null && (
                 <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
                   isActive ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"}`}>
-                  {t.count}
+                  {tabItem.count}
                 </span>
               )}
             </button>
@@ -17983,43 +18558,43 @@ function ClientProfileView({ auth }) {
               <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mb-4">
                 <Building2 size={26} className="text-blue-300" />
               </div>
-              <p className="text-gray-700 font-medium">Your company profile is empty</p>
-              <p className="text-gray-400 text-sm mt-1">Click <strong>Edit Profile</strong> above to fill in your company details.</p>
+              <p className="text-gray-700 font-medium">{t("company.empty")}</p>
+              <p className="text-gray-400 text-sm mt-1">{t("company.empty_hint")}</p>
             </div>
           )}
           {profile?.description && (
             <div>
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">About</div>
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t("company.about")}</div>
               <p className="text-gray-700 text-sm leading-relaxed">{profile.description}</p>
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-            {profile?.industry     && <div><span className="text-gray-400">Industry: </span><strong>{profile.industry}</strong></div>}
-            {profile?.company_size && <div><span className="text-gray-400">Size: </span><strong>{profile.company_size}</strong></div>}
-            {profile?.founded_year && <div><span className="text-gray-400">Founded: </span><strong>{profile.founded_year}</strong></div>}
-            {profile?.hq_location  && <div><span className="text-gray-400">HQ: </span><strong>{profile.hq_location}</strong></div>}
-            {profile?.budget       && <div><span className="text-gray-400">Budget: </span><strong>{profile.budget}</strong></div>}
+            {profile?.industry     && <div><span className="text-gray-400">{t("company.industry")}: </span><strong>{profile.industry}</strong></div>}
+            {profile?.company_size && <div><span className="text-gray-400">{t("company.size")}: </span><strong>{profile.company_size}</strong></div>}
+            {profile?.founded_year && <div><span className="text-gray-400">{t("company.est")} </span><strong>{profile.founded_year}</strong></div>}
+            {profile?.hq_location  && <div><span className="text-gray-400">{t("company.hq")}: </span><strong>{profile.hq_location}</strong></div>}
+            {profile?.budget       && <div><span className="text-gray-400">{t("label.budget")}: </span><strong>{profile.budget}</strong></div>}
           </div>
 
           <div className="flex gap-3 flex-wrap">
             {profile?.website && (
               <a href={profile.website} target="_blank" rel="noreferrer"
                 className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline">
-                <Globe className="w-3.5 h-3.5 mr-1" /> Website
+                <Globe className="w-3.5 h-3.5 mr-1" /> {t("company.website")}
               </a>
             )}
             {profile?.linkedin_url && (
               <a href={profile.linkedin_url} target="_blank" rel="noreferrer"
                 className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline">
-                <Link className="w-3.5 h-3.5 mr-1" /> LinkedIn
+                <Link className="w-3.5 h-3.5 mr-1" /> {t("company.linkedin")}
               </a>
             )}
           </div>
 
           {profile?.preferred_categories?.length > 0 && (
             <div>
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Preferred Consulting Areas</div>
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t("company.preferred_areas")}</div>
               <div className="flex flex-wrap gap-2">
                 {profile.preferred_categories.map(c => (
                   <span key={c} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-xl text-xs font-medium">{c}</span>
@@ -18029,7 +18604,7 @@ function ClientProfileView({ auth }) {
           )}
 
           <div className="border-t border-gray-100 pt-4">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Primary Contact</div>
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("company.primary_contact")}</div>
             {profile?.contact_name ? (
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
@@ -18045,13 +18620,13 @@ function ClientProfileView({ auth }) {
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-gray-400">No contact set. Edit profile to add one.</p>
+              <p className="text-sm text-gray-400">{t("company.no_contact")}</p>
             )}
           </div>
 
           {profile?.notes && (
             <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-sm">
-              <div className="font-medium text-amber-800 mb-1">Notes</div>
+              <div className="font-medium text-amber-800 mb-1">{t("company.notes")}</div>
               <p className="text-gray-700">{profile.notes}</p>
             </div>
           )}
@@ -18560,6 +19135,7 @@ function ClientProfileView({ auth }) {
 // V9: INVOICES VIEW
 // ============================================================
 function InvoicesView({ auth }) {
+  const { t } = useT();
   const clientFilter = auth.isClient ? { client_id: auth.user?.id } : {};
   const { invoices, loading, createInvoice, updateInvoice, deleteInvoice } = useInvoices(clientFilter);
   const [statusFilter, setStatusFilter] = useState("");
@@ -18603,13 +19179,13 @@ function InvoicesView({ auth }) {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Invoices</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t("invoices.title")}</h1>
           <p className="text-gray-500 text-sm mt-1">{invoices.length} invoice{invoices.length !== 1 ? "s" : ""}</p>
         </div>
         {(auth.isAdmin || auth.isManager) && (
           <button onClick={() => setShowCreate(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl text-sm">
-            + New Invoice
+            {t("invoices.new")}
           </button>
         )}
       </div>
@@ -18617,9 +19193,9 @@ function InvoicesView({ auth }) {
       {/* Summary */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         {[
-          { label: "Total Billed",  value: `$${totalBilled.toLocaleString()}`,      color: "bg-blue-50 text-blue-700" },
-          { label: "Paid",          value: `$${totalPaid.toLocaleString()}`,         color: "bg-green-50 text-green-700" },
-          { label: "Outstanding",   value: `$${totalOutstanding.toLocaleString()}`,  color: "bg-orange-50 text-orange-700" },
+          { label: t("invoices.total_billed"), value: `$${totalBilled.toLocaleString()}`,      color: "bg-blue-50 text-blue-700" },
+          { label: t("invoices.paid"),          value: `$${totalPaid.toLocaleString()}`,        color: "bg-green-50 text-green-700" },
+          { label: t("invoices.outstanding"),   value: `$${totalOutstanding.toLocaleString()}`, color: "bg-orange-50 text-orange-700" },
         ].map(s => (
           <div key={s.label} className={`rounded-2xl p-5 ${s.color}`}>
             <div className="text-xl font-bold">{s.value}</div>
@@ -18632,7 +19208,7 @@ function InvoicesView({ auth }) {
       <div className="mb-4">
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
           className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <option value="">All Statuses</option>
+          <option value="">{t("invoices.all_statuses")}</option>
           {["draft","sent","paid","overdue"].map(s => <option key={s} value={s}>{cap(s)}</option>)}
         </select>
       </div>
@@ -18642,12 +19218,12 @@ function InvoicesView({ auth }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Invoice #</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Client</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Case</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Amount</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Due Date</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">{t("invoices.col_num")}</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">{t("invoices.col_client")}</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">{t("invoices.col_case")}</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">{t("invoices.col_amount")}</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">{t("invoices.col_status")}</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">{t("invoices.col_due")}</th>
               {(auth.isAdmin || auth.isManager) && <th className="px-5 py-3" />}
             </tr>
           </thead>
@@ -18742,6 +19318,7 @@ function InvoicesView({ auth }) {
 // V9: KANBAN VIEW
 // ============================================================
 function KanbanView({ auth }) {
+  const { t } = useT();
   const { cases, loading, updateCase } = useCases();
   const { templates: lcTemplates } = useLifecycleTemplates();
   const [selectedCase, setSelectedCase] = useState(null);
@@ -18759,8 +19336,8 @@ function KanbanView({ auth }) {
   Object.values(LIFECYCLE_PRESETS).forEach(preset =>
     preset.stages.forEach(s => { stageCatalog[s.key] = s; })
   );
-  lcTemplates.forEach(t =>
-    (t.stages ?? []).forEach(s => { stageCatalog[s.key] = s; })
+  lcTemplates.forEach(tpl =>
+    (tpl.stages ?? []).forEach(s => { stageCatalog[s.key] = s; })
   );
 
   // Derive columns from statuses actually present in visible cases
@@ -18801,13 +19378,13 @@ function KanbanView({ auth }) {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Kanban Board</h1>
-        <p className="text-gray-500 text-sm mt-1">Visual case pipeline · {filteredCases.length} cases</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t("kanban.title")}</h1>
+        <p className="text-gray-500 text-sm mt-1">{t("kanban.subtitle")} · {filteredCases.length} cases</p>
       </div>
 
       {kanbanCols.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center text-gray-400 text-sm">
-          No cases to show.
+          {t("kanban.no_cases")}
         </div>
       ) : (
       <div className={`grid gap-4 items-start grid-cols-1 ${kanbanCols.length <= 2 ? "md:grid-cols-2" : kanbanCols.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2 xl:grid-cols-4"}`}>
@@ -18874,6 +19451,7 @@ function KanbanView({ auth }) {
 // V9: TIME ENTRIES VIEW
 // ============================================================
 function TimeEntriesView({ auth }) {
+  const { t } = useT();
   const { entries, loading, addTimeEntry, approveEntry, deleteEntry } = useTimeEntries();
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo]     = useState("");
@@ -18923,7 +19501,7 @@ function TimeEntriesView({ auth }) {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Time Entries</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t("time.title")}</h1>
           <p className="text-gray-500 text-sm mt-1">
             {filtered.length} entries · {totalH.toFixed(1)}h total · {billableH.toFixed(1)}h billable
           </p>
@@ -18931,7 +19509,7 @@ function TimeEntriesView({ auth }) {
         {auth.isConsultant && (
           <button onClick={() => setShowForm(p => !p)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl text-sm">
-            + Log Time
+            {t("time.log")}
           </button>
         )}
       </div>
@@ -18940,13 +19518,13 @@ function TimeEntriesView({ auth }) {
       <div className="flex flex-wrap gap-3 mb-6">
         <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
           className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-        <span className="self-center text-gray-400 text-sm">to</span>
+        <span className="self-center text-gray-400 text-sm">{t("label.to")}</span>
         <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
           className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         {(dateFrom || dateTo) && (
           <button onClick={() => { setDateFrom(""); setDateTo(""); }}
             className="px-3 py-2 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50">
-            Clear
+            {t("time.clear")}
           </button>
         )}
       </div>
@@ -18954,12 +19532,12 @@ function TimeEntriesView({ auth }) {
       {/* Add form */}
       {showForm && (
         <div className="bg-white rounded-2xl border border-blue-200 shadow-sm p-6 mb-6">
-          <h3 className="font-semibold text-gray-900 mb-4">Log Time Entry</h3>
+          <h3 className="font-semibold text-gray-900 mb-4">{t("time.form_title")}</h3>
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Case</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.case")}</label>
             <select value={form.case_id} onChange={e => setForm(p => ({ ...p, case_id: e.target.value }))}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-              <option value="">— Select case —</option>
+              <option value="">{t("time.select_case")}</option>
               {cases.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
             </select>
           </div>
@@ -18971,18 +19549,18 @@ function TimeEntriesView({ auth }) {
           </div>
           <Textarea label="Description" value={form.description}
             onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-            placeholder="Describe what you worked on…" />
+            placeholder={t("time.worked_on")} />
           <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer mb-4">
             <input type="checkbox" checked={form.is_billable}
               onChange={e => setForm(p => ({ ...p, is_billable: e.target.checked }))}
               className="rounded accent-blue-600" />
-            Billable
+            {t("time.billable")}
           </label>
           <div className="flex justify-end gap-3">
-            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
             <button onClick={handleAdd} disabled={saving}
               className="px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
-              {saving ? "Saving…" : "Log Time"}
+              {saving ? t("time.saving") : t("action.log_time")}
             </button>
           </div>
         </div>
@@ -18990,19 +19568,19 @@ function TimeEntriesView({ auth }) {
 
       {/* Table */}
       {filtered.length === 0 ? (
-        <EmptyState Icon={Clock} title="No time entries" subtitle={auth.isConsultant ? "Log your first entry above" : "No entries logged yet"} />
+        <EmptyState Icon={Clock} title={t("time.none")} subtitle={auth.isConsultant ? t("time.log_first") : t("time.none_yet")} />
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
-                {!auth.isConsultant && <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Consultant</th>}
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Case</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Hours</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Description</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Billable</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Approved</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">{t("time.col_date")}</th>
+                {!auth.isConsultant && <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">{t("time.col_consultant")}</th>}
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">{t("time.col_case")}</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">{t("time.col_hours")}</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">{t("time.col_desc")}</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">{t("time.col_billable")}</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">{t("time.col_approved")}</th>
                 {(auth.isAdmin || auth.isManager) && <th className="px-5 py-3" />}
               </tr>
             </thead>
@@ -19025,18 +19603,18 @@ function TimeEntriesView({ auth }) {
                   <td className="px-5 py-3 text-gray-500 max-w-xs truncate">{e.description}</td>
                   <td className="px-5 py-3">
                     <span className={`text-xs px-2 py-0.5 rounded-full ${e.is_billable ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                      {e.is_billable ? "Billable" : "Non-billable"}
+                      {e.is_billable ? t("time.billable") : t("time.non_billable")}
                     </span>
                   </td>
                   <td className="px-5 py-3">
                     {e.is_approved
-                      ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full"><Check size={10} className="mr-0.5 inline" />Approved</span>
+                      ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full"><Check size={10} className="mr-0.5 inline" />{t("time.approved")}</span>
                       : (auth.isAdmin || auth.isManager)
                         ? <button onClick={() => approveEntry(e.id, true)}
                             className="text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 px-2 py-0.5 rounded-full hover:bg-yellow-100">
-                            Approve
+                            {t("time.approve")}
                           </button>
-                        : <span className="text-xs text-gray-400">Pending</span>
+                        : <span className="text-xs text-gray-400">{t("time.pending")}</span>
                     }
                   </td>
                   {(auth.isAdmin || auth.isManager) && (
@@ -19338,7 +19916,7 @@ function ConsultantOnboardingView({ auth, onComplete }) {
                     {c.role_held && <div className="text-sm text-gray-500">{c.role_held}</div>}
                     {(c.start_date || c.end_date) && (
                       <div className="text-xs text-gray-400 mt-1">
-                        {fmtDate(c.start_date)} – {c.end_date ? fmtDate(c.end_date) : "Present"}
+                        {fmtDate(c.start_date)} – {c.end_date ? fmtDate(c.end_date) : t("label.present")}
                       </div>
                     )}
                   </div>
@@ -20433,23 +21011,24 @@ function SettingsPlatformTab({ ssCtx }) {
 }
 
 function SystemSettingsView({ auth }) {
+  const { t } = useT();
   const [activeTab, setActiveTab] = useState("users");
   const ssCtx = useSystemSettings();
 
   const tabs = [
-    { id: "users",     label: "Users",           Icon: Users },
-    { id: "lifecycle", label: "Lifecycle",        Icon: TrendingUp },
-    { id: "phases",    label: "Activity Phases",  Icon: ListChecks },
-    { id: "catalog",   label: "Catalog Values",   Icon: Tag },
-    { id: "sla",       label: "SLA Config",       Icon: Shield },
-    { id: "platform",  label: "Platform & AI",    Icon: Sparkles },
+    { id: "users",     label: t("settings.users"),           Icon: Users },
+    { id: "lifecycle", label: t("settings.lifecycle"),       Icon: TrendingUp },
+    { id: "phases",    label: t("settings.activity_phases"), Icon: ListChecks },
+    { id: "catalog",   label: t("settings.catalog"),         Icon: Tag },
+    { id: "sla",       label: t("settings.sla"),             Icon: Shield },
+    { id: "platform",  label: t("settings.platform"),        Icon: Sparkles },
   ];
 
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">System Settings</h1>
-        <p className="text-gray-500 text-sm mt-1">Platform configuration — admin & manager only</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t("settings.title")}</h1>
+        <p className="text-gray-500 text-sm mt-1">{t("settings.subtitle")}</p>
       </div>
 
       <div className="flex border-b border-gray-200 mb-6 overflow-x-auto">
@@ -20510,10 +21089,14 @@ export default function App() {
   }
 
   if (!authed || !auth.user) {
-    return <AuthScreen onAuth={(newRole = null) => {
-      setAuthed(true);
-      if (newRole) setOnboarding(newRole);
-    }} />;
+    return (
+      <LanguageProvider userId={null}>
+        <AuthScreen onAuth={(newRole = null) => {
+          setAuthed(true);
+          if (newRole) setOnboarding(newRole);
+        }} />
+      </LanguageProvider>
+    );
   }
 
   function completeOnboarding(view = "dashboard") {
