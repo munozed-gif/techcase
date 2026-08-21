@@ -478,7 +478,71 @@ const TRANSLATIONS = {
     "sla.saving":             "Saving…",
     "sla.save":               "Save SLA",
     "sla.notes":              "Notes",
-    // DB connections
+    "sla.tier_suffix":        "Tier",
+    "sla.uptime_badge":       "% Uptime",
+    // DB connections (ClientProfileView)
+    "conn.title":             "Database Connections",
+    "conn.subtitle_one":      "1 connection configured",
+    "conn.subtitle_many":     "{n} connections configured",
+    "conn.add_btn":           "+ Add Connection",
+    "conn.type_label":        "Connection Type",
+    "conn.group_db":          "Databases",
+    "conn.group_sap":         "SAP",
+    "conn.group_net":         "Network",
+    "conn.host_sap":          "Application Server",
+    "conn.host_vpn":          "VPN Host",
+    "conn.host_db":           "Host / Server",
+    "conn.port":              "Port",
+    "conn.db_name":           "Database Name",
+    "conn.username":          "Username",
+    "conn.sys_num":           "System Number",
+    "conn.sys_id":            "System ID (SID)",
+    "conn.sap_client_lbl":    "SAP Client",
+    "conn.db_schema":         "Database / Schema",
+    "conn.svc_path":          "Service Path",
+    "conn.user_oauth":        "Username / OAuth Client",
+    "conn.vpn_protocol":      "VPN Protocol",
+    "conn.vpn_profile":       "Profile / Label",
+    "conn.notes":             "Notes",
+    "conn.adding":            "Adding…",
+    "conn.add_action":        "Add Connection",
+    "conn.empty":             "No connections configured yet. Add one above.",
+    // Team (ClientProfileView)
+    "team.title":             "Team Members",
+    "team.subtitle":          "Stakeholders and points of contact",
+    "team.add_btn":           "+ Add Member",
+    "team.name_label":        "Full Name",
+    "team.email_label":       "Email",
+    "team.role_label":        "Role / Title",
+    "team.phone_label":       "Phone",
+    "team.primary_label":     "Primary contact",
+    "team.adding":            "Adding…",
+    "team.add_action":        "Add Member",
+    "team.primary_badge":     "Primary",
+    "team.empty":             "No team members added yet.",
+    // Lifecycle (ClientProfileView)
+    "lifecycle.title":        "Case Lifecycle",
+    "lifecycle.subtitle":     "Choose the lifecycle template for cases under your account. Stage sequences are managed by your TechCase administrator.",
+    "lifecycle.flow_preview": "Flow Preview",
+    "lifecycle.override_title":"Override Permissions",
+    "lifecycle.allow_proj":   "Allow projects to change template",
+    "lifecycle.allow_proj_desc":"Projects under your account can pick a different lifecycle template",
+    "lifecycle.allow_case":   "Allow cases to change template",
+    "lifecycle.allow_case_desc":"Individual cases can pick a different lifecycle template",
+    "lifecycle.save":         "Save Lifecycle",
+    // Phases (ClientProfileView)
+    "phases.title":           "Activity Phases",
+    "phases.subtitle":        "Configure the phases your team uses to organize case activities. Test phases can only accept progress when the case reaches that status.",
+    "phases.edit":            "Edit Phases",
+    "phases.save":            "Save Phases",
+    "phases.req_status":      "Required case status",
+    "phases.status_none":     "None (always open)",
+    "phases.active_label":    "Active",
+    "phases.requires":        "Requires: {status}",
+    "phases.active":          "Active",
+    "phases.disabled":        "Disabled",
+    "phases.reset":           "Reset to defaults",
+    // DB connections (legacy stub)
     "db.title":               "DB Connections",
     "db.add":                 "Add Connection",
     "db.count":               "connection(s) configured",
@@ -1279,7 +1343,71 @@ const TRANSLATIONS = {
     "sla.saving":             "Guardando…",
     "sla.save":               "Guardar SLA",
     "sla.notes":              "Notas",
-    // DB connections
+    "sla.tier_suffix":        "Nivel",
+    "sla.uptime_badge":       "% Disponibilidad",
+    // DB connections (ClientProfileView)
+    "conn.title":             "Conexiones de Base de Datos",
+    "conn.subtitle_one":      "1 conexión configurada",
+    "conn.subtitle_many":     "{n} conexiones configuradas",
+    "conn.add_btn":           "+ Agregar Conexión",
+    "conn.type_label":        "Tipo de Conexión",
+    "conn.group_db":          "Bases de Datos",
+    "conn.group_sap":         "SAP",
+    "conn.group_net":         "Red",
+    "conn.host_sap":          "Servidor de Aplicaciones",
+    "conn.host_vpn":          "Host VPN",
+    "conn.host_db":           "Host / Servidor",
+    "conn.port":              "Puerto",
+    "conn.db_name":           "Nombre de la Base de Datos",
+    "conn.username":          "Usuario",
+    "conn.sys_num":           "Número de Sistema",
+    "conn.sys_id":            "ID del Sistema (SID)",
+    "conn.sap_client_lbl":    "Cliente SAP",
+    "conn.db_schema":         "Base de Datos / Esquema",
+    "conn.svc_path":          "Ruta del Servicio",
+    "conn.user_oauth":        "Usuario / Cliente OAuth",
+    "conn.vpn_protocol":      "Protocolo VPN",
+    "conn.vpn_profile":       "Perfil / Etiqueta",
+    "conn.notes":             "Notas",
+    "conn.adding":            "Agregando…",
+    "conn.add_action":        "Agregar Conexión",
+    "conn.empty":             "No hay conexiones configuradas aún. Agrega una arriba.",
+    // Team (ClientProfileView)
+    "team.title":             "Miembros del Equipo",
+    "team.subtitle":          "Partes interesadas y puntos de contacto",
+    "team.add_btn":           "+ Agregar Miembro",
+    "team.name_label":        "Nombre Completo",
+    "team.email_label":       "Correo",
+    "team.role_label":        "Rol / Título",
+    "team.phone_label":       "Teléfono",
+    "team.primary_label":     "Contacto principal",
+    "team.adding":            "Agregando…",
+    "team.add_action":        "Agregar Miembro",
+    "team.primary_badge":     "Principal",
+    "team.empty":             "No hay miembros del equipo aún.",
+    // Lifecycle (ClientProfileView)
+    "lifecycle.title":        "Ciclo de Vida de Casos",
+    "lifecycle.subtitle":     "Elige la plantilla de ciclo de vida para los casos de tu cuenta. Las secuencias de etapas son administradas por tu administrador de TechCase.",
+    "lifecycle.flow_preview": "Vista Previa del Flujo",
+    "lifecycle.override_title":"Permisos de Anulación",
+    "lifecycle.allow_proj":   "Permitir que los proyectos cambien la plantilla",
+    "lifecycle.allow_proj_desc":"Los proyectos de tu cuenta pueden elegir una plantilla de ciclo de vida diferente",
+    "lifecycle.allow_case":   "Permitir que los casos cambien la plantilla",
+    "lifecycle.allow_case_desc":"Los casos individuales pueden elegir una plantilla de ciclo de vida diferente",
+    "lifecycle.save":         "Guardar Ciclo de Vida",
+    // Phases (ClientProfileView)
+    "phases.title":           "Fases de Actividad",
+    "phases.subtitle":        "Configura las fases que usa tu equipo para organizar las actividades de los casos. Las fases de prueba solo aceptan progreso cuando el caso alcanza ese estado.",
+    "phases.edit":            "Editar Fases",
+    "phases.save":            "Guardar Fases",
+    "phases.req_status":      "Estado de caso requerido",
+    "phases.status_none":     "Ninguno (siempre abierto)",
+    "phases.active_label":    "Activo",
+    "phases.requires":        "Requiere: {status}",
+    "phases.active":          "Activo",
+    "phases.disabled":        "Desactivado",
+    "phases.reset":           "Restablecer valores predeterminados",
+    // DB connections (legacy stub)
     "db.title":               "Conexiones BD",
     "db.add":                 "Agregar Conexión",
     "db.count":               "conexión(es) configurada(s)",
@@ -19191,12 +19319,12 @@ function ClientProfileView({ auth }) {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h2 className="font-bold text-gray-900">SLA Configuration</h2>
-              <p className="text-sm text-gray-400 mt-0.5">Service level targets by priority and case type</p>
+              <h2 className="font-bold text-gray-900">{t("sla.title")}</h2>
+              <p className="text-sm text-gray-400 mt-0.5">{t("sla.subtitle")}</p>
             </div>
             <button onClick={() => setSlaEditing(p => !p)}
               className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-xl hover:bg-gray-50">
-              {slaEditing ? "Cancel" : "Edit SLA"}
+              {slaEditing ? t("sla.cancel") : t("sla.edit")}
             </button>
           </div>
 
@@ -19204,14 +19332,14 @@ function ClientProfileView({ auth }) {
           {slaEditing ? (
             <div className="space-y-4 mb-5 pb-5 border-b border-gray-100">
               <div className="grid grid-cols-2 gap-3">
-                <Select label="SLA Tier" value={slaForm.tier}
+                <Select label={t("sla.tier")} value={slaForm.tier}
                   onChange={e => setSlaForm(p => ({ ...p, tier: e.target.value }))}
                   options={[{ value:"standard", label:"Standard" },{ value:"premium", label:"Premium" },{ value:"enterprise", label:"Enterprise" }]} />
-                <Input label="Uptime Guarantee (%)" type="number" value={slaForm.uptime_guarantee_pct}
+                <Input label={t("sla.uptime")} type="number" value={slaForm.uptime_guarantee_pct}
                   onChange={e => setSlaForm(p => ({ ...p, uptime_guarantee_pct: Number(e.target.value) }))} />
               </div>
               <div className="flex gap-6">
-                {[["dedicated_consultant","Dedicated Consultant"],["priority_support","Priority Support"]].map(([k,lbl]) => (
+                {[["dedicated_consultant", t("sla.dedicated")],["priority_support", t("sla.priority_support")]].map(([k,lbl]) => (
                   <label key={k} className="flex items-center gap-2 text-sm cursor-pointer">
                     <input type="checkbox" checked={slaForm[k]} onChange={e => setSlaForm(p => ({ ...p, [k]: e.target.checked }))} className="rounded accent-blue-600" />
                     {lbl}
@@ -19221,18 +19349,18 @@ function ClientProfileView({ auth }) {
             </div>
           ) : sla ? (
             <div className="flex flex-wrap items-center gap-2 mb-5">
-              <Badge className={tierColors[sla.tier] ?? tierColors.standard}>{cap(sla.tier)} Tier</Badge>
-              {sla.uptime_guarantee_pct && <Badge className="bg-gray-100 text-gray-700">{sla.uptime_guarantee_pct}% Uptime</Badge>}
-              {sla.priority_support    && <Badge className="bg-orange-100 text-orange-700">Priority Support</Badge>}
-              {sla.dedicated_consultant && <Badge className="bg-green-100 text-green-700">Dedicated Consultant</Badge>}
+              <Badge className={tierColors[sla.tier] ?? tierColors.standard}>{cap(sla.tier)} {t("sla.tier_suffix")}</Badge>
+              {sla.uptime_guarantee_pct && <Badge className="bg-gray-100 text-gray-700">{sla.uptime_guarantee_pct}{t("sla.uptime_badge")}</Badge>}
+              {sla.priority_support    && <Badge className="bg-orange-100 text-orange-700">{t("sla.priority_support")}</Badge>}
+              {sla.dedicated_consultant && <Badge className="bg-green-100 text-green-700">{t("sla.dedicated")}</Badge>}
             </div>
           ) : null}
 
           {/* Legend */}
           {!slaEditing && sla && (
             <div className="flex items-center gap-4 text-xs text-gray-400 mb-3">
-              <span><span className="text-blue-400 mr-1">↩</span>Initial Response</span>
-              <span><Check size={13} className="text-green-500 mr-1 inline" />Resolution</span>
+              <span><span className="text-blue-400 mr-1">↩</span>{t("sla.initial_response")}</span>
+              <span><Check size={13} className="text-green-500 mr-1 inline" />{t("sla.resolution")}</span>
             </div>
           )}
 
@@ -19243,10 +19371,10 @@ function ClientProfileView({ auth }) {
           ) : (
             <div className="text-center py-8 text-gray-400">
               <div className="mb-2 flex justify-center"><FileText className="w-8 h-8 text-gray-300" /></div>
-              <p className="text-sm mb-4">No SLA configured yet.</p>
+              <p className="text-sm mb-4">{t("sla.none")}</p>
               <button onClick={() => setSlaEditing(true)}
                 className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">
-                Configure SLA
+                {t("sla.configure")}
               </button>
             </div>
           )}
@@ -19254,19 +19382,19 @@ function ClientProfileView({ auth }) {
           {/* Notes + actions */}
           {slaEditing ? (
             <div className="mt-5 space-y-4">
-              <Textarea label="Notes" value={slaForm.notes} onChange={e => setSlaForm(p => ({ ...p, notes: e.target.value }))}
-                placeholder="Additional SLA terms…" />
+              <Textarea label={t("sla.notes")} value={slaForm.notes} onChange={e => setSlaForm(p => ({ ...p, notes: e.target.value }))}
+                placeholder={t("sla.extra_terms")} />
               <div className="flex justify-end gap-3">
-                <button onClick={() => setSlaEditing(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+                <button onClick={() => setSlaEditing(false)} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
                 <button onClick={handleSaveSla} disabled={savingSla}
                   className="px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
-                  {savingSla ? "Saving…" : "Save SLA"}
+                  {savingSla ? t("sla.saving") : t("sla.save")}
                 </button>
               </div>
             </div>
           ) : sla?.notes ? (
             <div className="mt-4 bg-yellow-50 border border-yellow-100 rounded-xl p-4 text-sm text-gray-700">
-              <div className="font-medium text-yellow-800 mb-1">Notes</div>
+              <div className="font-medium text-yellow-800 mb-1">{t("sla.notes")}</div>
               {sla.notes}
             </div>
           ) : null}
@@ -19278,12 +19406,14 @@ function ClientProfileView({ auth }) {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h2 className="font-bold text-gray-900">Database Connections</h2>
-              <p className="text-sm text-gray-400 mt-0.5">{connections.length} connection{connections.length !== 1 ? "s" : ""} configured</p>
+              <h2 className="font-bold text-gray-900">{t("conn.title")}</h2>
+              <p className="text-sm text-gray-400 mt-0.5">
+                {connections.length === 1 ? t("conn.subtitle_one") : t("conn.subtitle_many").replace("{n}", connections.length)}
+              </p>
             </div>
             <button onClick={() => setShowAddConn(p => !p)}
               className="px-4 py-2 text-sm bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700">
-              + Add Connection
+              {t("conn.add_btn")}
             </button>
           </div>
 
@@ -19291,55 +19421,55 @@ function ClientProfileView({ auth }) {
             <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Connection Type</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{t("conn.type_label")}</label>
                   <select value={connForm.db_type} onChange={e => handleConnTypeChange(e.target.value)}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <optgroup label="Databases">
-                      {["postgresql","mysql","mssql","oracle","mongodb","other"].map(t => (
-                        <option key={t} value={t}>{connTypeLabels[t]}</option>
+                    <optgroup label={t("conn.group_db")}>
+                      {["postgresql","mysql","mssql","oracle","mongodb","other"].map(ty => (
+                        <option key={ty} value={ty}>{connTypeLabels[ty]}</option>
                       ))}
                     </optgroup>
-                    <optgroup label="SAP">
-                      {["sap_gui","sap_hana","sap_rfc","sap_odata"].map(t => (
-                        <option key={t} value={t}>{connTypeLabels[t]}</option>
+                    <optgroup label={t("conn.group_sap")}>
+                      {["sap_gui","sap_hana","sap_rfc","sap_odata"].map(ty => (
+                        <option key={ty} value={ty}>{connTypeLabels[ty]}</option>
                       ))}
                     </optgroup>
-                    <optgroup label="Network">
+                    <optgroup label={t("conn.group_net")}>
                       <option value="vpn">VPN</option>
                     </optgroup>
                   </select>
                 </div>
-                <Input label={isSapConnType(connForm.db_type) ? "Application Server" : isVpnConnType(connForm.db_type) ? "VPN Host" : "Host / Server"}
+                <Input label={isSapConnType(connForm.db_type) ? t("conn.host_sap") : isVpnConnType(connForm.db_type) ? t("conn.host_vpn") : t("conn.host_db")}
                   value={connForm.host} onChange={e => setConnForm(p => ({ ...p, host: e.target.value }))}
                   placeholder={isSapConnType(connForm.db_type) ? "saphost.example.com" : "host.example.com"} />
               </div>
               {!isSapConnType(connForm.db_type) && !isVpnConnType(connForm.db_type) && (
                 <div className="grid grid-cols-3 gap-3">
-                  <Input label="Port" type="number" value={connForm.port} onChange={e => setConnForm(p => ({ ...p, port: Number(e.target.value) }))} />
-                  <Input label="Database Name" value={connForm.db_name} onChange={e => setConnForm(p => ({ ...p, db_name: e.target.value }))} />
-                  <Input label="Username" value={connForm.username} onChange={e => setConnForm(p => ({ ...p, username: e.target.value }))} />
+                  <Input label={t("conn.port")} type="number" value={connForm.port} onChange={e => setConnForm(p => ({ ...p, port: Number(e.target.value) }))} />
+                  <Input label={t("conn.db_name")} value={connForm.db_name} onChange={e => setConnForm(p => ({ ...p, db_name: e.target.value }))} />
+                  <Input label={t("conn.username")} value={connForm.username} onChange={e => setConnForm(p => ({ ...p, username: e.target.value }))} />
                 </div>
               )}
               {(connForm.db_type === "sap_gui" || connForm.db_type === "sap_rfc") && (
                 <div className="grid grid-cols-4 gap-3">
-                  <Input label="System Number" type="number" value={connForm.port} onChange={e => setConnForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="00" />
-                  <Input label="System ID (SID)" value={connForm.db_name} onChange={e => setConnForm(p => ({ ...p, db_name: e.target.value }))} placeholder="PRD" />
-                  <Input label="SAP Client" value={connForm.meta?.sap_client ?? ""} onChange={e => setConnForm(p => ({ ...p, meta: { ...p.meta, sap_client: e.target.value } }))} placeholder="100" />
-                  <Input label="Username" value={connForm.username} onChange={e => setConnForm(p => ({ ...p, username: e.target.value }))} />
+                  <Input label={t("conn.sys_num")} type="number" value={connForm.port} onChange={e => setConnForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="00" />
+                  <Input label={t("conn.sys_id")} value={connForm.db_name} onChange={e => setConnForm(p => ({ ...p, db_name: e.target.value }))} placeholder="PRD" />
+                  <Input label={t("conn.sap_client_lbl")} value={connForm.meta?.sap_client ?? ""} onChange={e => setConnForm(p => ({ ...p, meta: { ...p.meta, sap_client: e.target.value } }))} placeholder="100" />
+                  <Input label={t("conn.username")} value={connForm.username} onChange={e => setConnForm(p => ({ ...p, username: e.target.value }))} />
                 </div>
               )}
               {connForm.db_type === "sap_hana" && (
                 <div className="grid grid-cols-3 gap-3">
-                  <Input label="Port" type="number" value={connForm.port} onChange={e => setConnForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="39015" />
-                  <Input label="Database / Schema" value={connForm.db_name} onChange={e => setConnForm(p => ({ ...p, db_name: e.target.value }))} />
-                  <Input label="Username" value={connForm.username} onChange={e => setConnForm(p => ({ ...p, username: e.target.value }))} />
+                  <Input label={t("conn.port")} type="number" value={connForm.port} onChange={e => setConnForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="39015" />
+                  <Input label={t("conn.db_schema")} value={connForm.db_name} onChange={e => setConnForm(p => ({ ...p, db_name: e.target.value }))} />
+                  <Input label={t("conn.username")} value={connForm.username} onChange={e => setConnForm(p => ({ ...p, username: e.target.value }))} />
                 </div>
               )}
               {connForm.db_type === "sap_odata" && (
                 <div className="grid grid-cols-3 gap-3">
-                  <Input label="Port" type="number" value={connForm.port} onChange={e => setConnForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="443" />
-                  <Input label="Service Path" value={connForm.db_name} onChange={e => setConnForm(p => ({ ...p, db_name: e.target.value }))} placeholder="/sap/opu/odata/sap/..." />
-                  <Input label="Username / OAuth Client" value={connForm.username} onChange={e => setConnForm(p => ({ ...p, username: e.target.value }))} />
+                  <Input label={t("conn.port")} type="number" value={connForm.port} onChange={e => setConnForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="443" />
+                  <Input label={t("conn.svc_path")} value={connForm.db_name} onChange={e => setConnForm(p => ({ ...p, db_name: e.target.value }))} placeholder="/sap/opu/odata/sap/..." />
+                  <Input label={t("conn.user_oauth")} value={connForm.username} onChange={e => setConnForm(p => ({ ...p, username: e.target.value }))} />
                 </div>
               )}
               {isSapConnType(connForm.db_type) && (
@@ -19348,25 +19478,25 @@ function ClientProfileView({ auth }) {
               {isVpnConnType(connForm.db_type) && (
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">VPN Protocol</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">{t("conn.vpn_protocol")}</label>
                     <select value={connForm.meta?.vpn_protocol ?? "OpenVPN"}
                       onChange={e => setConnForm(p => ({ ...p, meta: { ...p.meta, vpn_protocol: e.target.value } }))}
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                       {["OpenVPN","IPSec/IKEv2","WireGuard","SSL/TLS","PPTP","L2TP"].map(v => <option key={v}>{v}</option>)}
                     </select>
                   </div>
-                  <Input label="Port" type="number" value={connForm.port} onChange={e => setConnForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="1194" />
-                  <Input label="Profile / Label" value={connForm.db_name} onChange={e => setConnForm(p => ({ ...p, db_name: e.target.value }))} placeholder="Corporate VPN" />
+                  <Input label={t("conn.port")} type="number" value={connForm.port} onChange={e => setConnForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="1194" />
+                  <Input label={t("conn.vpn_profile")} value={connForm.db_name} onChange={e => setConnForm(p => ({ ...p, db_name: e.target.value }))} placeholder="Corporate VPN" />
                 </div>
               )}
-              <Textarea label="Notes" value={connForm.notes}
+              <Textarea label={t("conn.notes")} value={connForm.notes}
                 onChange={e => setConnForm(p => ({ ...p, notes: e.target.value }))}
                 placeholder={isSapConnType(connForm.db_type) ? "Additional access instructions, firewall rules…" : isVpnConnType(connForm.db_type) ? "Config file location, certificate path, access instructions…" : "Access instructions, connection details…"} />
               <div className="flex justify-end gap-3">
-                <button onClick={() => setShowAddConn(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+                <button onClick={() => setShowAddConn(false)} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
                 <button onClick={handleAddConn} disabled={savingConn}
                   className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
-                  {savingConn ? "Adding…" : "Add Connection"}
+                  {savingConn ? t("conn.adding") : t("conn.add_action")}
                 </button>
               </div>
             </div>
@@ -19386,7 +19516,7 @@ function ClientProfileView({ auth }) {
                   </div>
                   <button onClick={() => deleteConnection(conn.id)}
                     className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded border border-red-100 hover:bg-red-50">
-                    Remove
+                    {t("action.remove")}
                   </button>
                 </div>
                 <div className="text-xs text-gray-500 font-mono">
@@ -19400,7 +19530,7 @@ function ClientProfileView({ auth }) {
             {connections.length === 0 && (
               <div className="text-center py-8 text-gray-400">
                 <div className="mb-2 flex justify-center"><Database className="w-8 h-8 text-gray-300" /></div>
-                <p className="text-sm">No connections configured yet. Add one above.</p>
+                <p className="text-sm">{t("conn.empty")}</p>
               </div>
             )}
           </div>
@@ -19412,40 +19542,40 @@ function ClientProfileView({ auth }) {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h2 className="font-bold text-gray-900">Team Members</h2>
-              <p className="text-sm text-gray-400 mt-0.5">Stakeholders and points of contact</p>
+              <h2 className="font-bold text-gray-900">{t("team.title")}</h2>
+              <p className="text-sm text-gray-400 mt-0.5">{t("team.subtitle")}</p>
             </div>
             <button onClick={() => setShowAddMember(p => !p)}
               className="px-4 py-2 text-sm bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700">
-              + Add Member
+              {t("team.add_btn")}
             </button>
           </div>
 
           {showAddMember && (
             <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <Input label="Full Name" value={memberForm.full_name}
+                <Input label={t("team.name_label")} value={memberForm.full_name}
                   onChange={e => setMemberForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Jane Smith" />
-                <Input label="Email" type="email" value={memberForm.email}
+                <Input label={t("team.email_label")} type="email" value={memberForm.email}
                   onChange={e => setMemberForm(p => ({ ...p, email: e.target.value }))} placeholder="jane@company.com" />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <Input label="Role / Title" value={memberForm.role_title}
+                <Input label={t("team.role_label")} value={memberForm.role_title}
                   onChange={e => setMemberForm(p => ({ ...p, role_title: e.target.value }))} placeholder="IT Manager" />
-                <Input label="Phone" value={memberForm.phone}
+                <Input label={t("team.phone_label")} value={memberForm.phone}
                   onChange={e => setMemberForm(p => ({ ...p, phone: e.target.value }))} placeholder="+1 555 000 0000" />
               </div>
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <input type="checkbox" checked={memberForm.is_primary}
                   onChange={e => setMemberForm(p => ({ ...p, is_primary: e.target.checked }))}
                   className="rounded accent-blue-600" />
-                Primary contact
+                {t("team.primary_label")}
               </label>
               <div className="flex justify-end gap-3">
-                <button onClick={() => setShowAddMember(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+                <button onClick={() => setShowAddMember(false)} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
                 <button onClick={handleAddMember} disabled={savingMember}
                   className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
-                  {savingMember ? "Adding…" : "Add Member"}
+                  {savingMember ? t("team.adding") : t("team.add_action")}
                 </button>
               </div>
             </div>
@@ -19461,7 +19591,7 @@ function ClientProfileView({ auth }) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-gray-900 truncate">{m.full_name}</span>
-                      {m.is_primary && <Badge className="bg-blue-100 text-blue-700">Primary</Badge>}
+                      {m.is_primary && <Badge className="bg-blue-100 text-blue-700">{t("team.primary_badge")}</Badge>}
                     </div>
                     {m.role_title && <div className="text-xs text-gray-500">{m.role_title}</div>}
                   </div>
@@ -19475,7 +19605,7 @@ function ClientProfileView({ auth }) {
             {members.length === 0 && (
               <div className="col-span-full text-center py-8 text-gray-400">
                 <div className="mb-2 flex justify-center"><Users className="w-8 h-8 text-gray-300" /></div>
-                <p className="text-sm">No team members added yet.</p>
+                <p className="text-sm">{t("team.empty")}</p>
               </div>
             )}
           </div>
@@ -19486,10 +19616,8 @@ function ClientProfileView({ auth }) {
       {tab === "lifecycle" && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
           <div>
-            <h3 className="font-semibold text-gray-900 mb-1">Case Lifecycle</h3>
-            <p className="text-sm text-gray-500 leading-relaxed">
-              Choose the lifecycle template for cases under your account. Stage sequences are managed by your TechCase administrator.
-            </p>
+            <h3 className="font-semibold text-gray-900 mb-1">{t("lifecycle.title")}</h3>
+            <p className="text-sm text-gray-500 leading-relaxed">{t("lifecycle.subtitle")}</p>
           </div>
 
           {/* Template preset cards */}
@@ -19527,7 +19655,7 @@ function ClientProfileView({ auth }) {
             const terminal = stages.filter(s => s.is_terminal);
             return (
               <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Flow Preview</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("lifecycle.flow_preview")}</p>
                 <div className="flex items-center flex-wrap gap-2">
                   {active.map((s, i) => (
                     <span key={s.key} className="flex items-center gap-2">
@@ -19552,11 +19680,11 @@ function ClientProfileView({ auth }) {
 
           {/* Override toggles */}
           <div className="space-y-3 border-t border-gray-100 pt-4">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Override Permissions</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t("lifecycle.override_title")}</p>
             <label className="flex items-center justify-between cursor-pointer select-none">
               <div>
-                <p className="text-sm font-medium text-gray-700">Allow projects to change template</p>
-                <p className="text-xs text-gray-400">Projects under your account can pick a different lifecycle template</p>
+                <p className="text-sm font-medium text-gray-700">{t("lifecycle.allow_proj")}</p>
+                <p className="text-xs text-gray-400">{t("lifecycle.allow_proj_desc")}</p>
               </div>
               <div className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ml-4 ${allowProjOverride ? "bg-[#1A4B8C]" : "bg-gray-200"}`}
                 onClick={() => setAllowProjOverride(p => !p)}>
@@ -19565,8 +19693,8 @@ function ClientProfileView({ auth }) {
             </label>
             <label className="flex items-center justify-between cursor-pointer select-none">
               <div>
-                <p className="text-sm font-medium text-gray-700">Allow cases to change template</p>
-                <p className="text-xs text-gray-400">Individual cases can pick a different lifecycle template</p>
+                <p className="text-sm font-medium text-gray-700">{t("lifecycle.allow_case")}</p>
+                <p className="text-xs text-gray-400">{t("lifecycle.allow_case_desc")}</p>
               </div>
               <div className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ml-4 ${allowCaseOverride ? "bg-[#1A4B8C]" : "bg-gray-200"}`}
                 onClick={() => setAllowCaseOverride(p => !p)}>
@@ -19578,7 +19706,7 @@ function ClientProfileView({ auth }) {
           <div className="flex justify-end pt-2 border-t border-gray-100">
             <button onClick={handleSaveLifecycle} disabled={savingLifecycle}
               className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
-              {savingLifecycle ? "Saving…" : "Save Lifecycle"}
+              {savingLifecycle ? t("state.saving") : t("lifecycle.save")}
             </button>
           </div>
         </div>
@@ -19589,21 +19717,21 @@ function ClientProfileView({ auth }) {
         <div className="space-y-5">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold text-gray-900">Activity Phases</h2>
-              <p className="text-sm text-gray-500 mt-0.5">Configure the phases your team uses to organize case activities. Test phases can only accept progress when the case reaches that status.</p>
+              <h2 className="text-base font-bold text-gray-900">{t("phases.title")}</h2>
+              <p className="text-sm text-gray-500 mt-0.5">{t("phases.subtitle")}</p>
             </div>
             {!editingPhases ? (
               <button onClick={() => setEditingPhases(true)}
                 className="text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-4 py-2">
-                Edit Phases
+                {t("phases.edit")}
               </button>
             ) : (
               <div className="flex gap-2">
                 <button onClick={() => { setEditingPhases(false); setPhasesForm(profile?.activity_phases ?? DEFAULT_ACTIVITY_PHASES.map(p => ({ ...p, enabled: true }))); }}
-                  className="text-sm text-gray-500 px-3 py-1.5">Cancel</button>
+                  className="text-sm text-gray-500 px-3 py-1.5">{t("action.cancel")}</button>
                 <button onClick={handleSavePhases} disabled={savingPhases}
                   className="text-sm bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl px-4 py-2 disabled:opacity-50">
-                  {savingPhases ? "Saving…" : "Save Phases"}
+                  {savingPhases ? t("state.saving") : t("phases.save")}
                 </button>
               </div>
             )}
@@ -19624,11 +19752,11 @@ function ClientProfileView({ auth }) {
                         onChange={e => setPhasesForm(prev => prev.map((p, i) => i === idx ? { ...p, color: e.target.value } : p))}
                         className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent" title="Phase color" />
                       <div className="flex-shrink-0">
-                        <label className="text-xs font-semibold text-gray-500 block mb-1">Required case status</label>
+                        <label className="text-xs font-semibold text-gray-500 block mb-1">{t("phases.req_status")}</label>
                         <select value={phase.required_status ?? ""}
                           onChange={e => setPhasesForm(prev => prev.map((p, i) => i === idx ? { ...p, required_status: e.target.value || null } : p))}
                           className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400">
-                          <option value="">None (always open)</option>
+                          <option value="">{t("phases.status_none")}</option>
                           <option value="in_progress">In Progress</option>
                           <option value="technical_test">Technical Test</option>
                           <option value="functional_test">Functional Test</option>
@@ -19639,7 +19767,7 @@ function ClientProfileView({ auth }) {
                         <input type="checkbox" checked={phase.enabled ?? true}
                           onChange={e => setPhasesForm(prev => prev.map((p, i) => i === idx ? { ...p, enabled: e.target.checked } : p))}
                           className="accent-blue-600" />
-                        Active
+                        {t("phases.active_label")}
                       </label>
                     </>
                   ) : (
@@ -19648,12 +19776,12 @@ function ClientProfileView({ auth }) {
                         <span className="font-semibold text-gray-900 text-sm">{phase.label}</span>
                         {phase.required_status && (
                           <span className="ml-2 text-[10px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-                            Requires: {phase.required_status.replace(/_/g, " ")}
+                            {t("phases.requires").replace("{status}", phase.required_status.replace(/_/g, " "))}
                           </span>
                         )}
                       </div>
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${(phase.enabled ?? true) ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                        {(phase.enabled ?? true) ? "Active" : "Disabled"}
+                        {(phase.enabled ?? true) ? t("phases.active") : t("phases.disabled")}
                       </span>
                     </>
                   )}
@@ -19666,7 +19794,7 @@ function ClientProfileView({ auth }) {
             <button
               onClick={() => setPhasesForm(DEFAULT_ACTIVITY_PHASES.map(p => ({ ...p, enabled: true })))}
               className="text-xs text-gray-400 hover:text-gray-600 underline">
-              Reset to defaults
+              {t("phases.reset")}
             </button>
           )}
 
