@@ -542,6 +542,110 @@ const TRANSLATIONS = {
     "phases.active":          "Active",
     "phases.disabled":        "Disabled",
     "phases.reset":           "Reset to defaults",
+    // Case Defaults panel
+    "cd.title":               "Case Defaults",
+    "cd.subtitle":            "These values pre-fill every field when a case is created in Express mode.",
+    "cd.section_info":        "Case Information",
+    "cd.default_priority":    "Default Priority",
+    "cd.default_sap_area":    "Default SAP Area",
+    "cd.none":                "— None —",
+    "cd.default_industry":    "Default Industry",
+    "cd.default_desc_tmpl":   "Default Description Template",
+    "cd.desc_tmpl_ph":        "Default description or template shown when a case is created…",
+    "cd.private_default":     "Private cases by default",
+    "cd.nda_default":         "NDA required by default",
+    "cd.section_scope":       "Scope",
+    "cd.default_sla":         "Default SLA",
+    "cd.default_budget":      "Default Budget ($)",
+    "cd.default_skills":      "Default Skills (comma-separated)",
+    "cd.section_work":        "Work Arrangement",
+    "cd.mode_remote":         "Remote",
+    "cd.mode_remote_desc":    "Fully remote",
+    "cd.mode_onsite":         "On-site",
+    "cd.mode_onsite_desc":    "At client location",
+    "cd.mode_hybrid":         "Hybrid",
+    "cd.mode_hybrid_desc":    "Mixed",
+    "cd.default_location":    "Default Location",
+    "cd.travel_default":      "Travel required by default",
+    "cd.section_qual":        "Qualifications",
+    "cd.min_years":           "Min Years of Experience",
+    "cd.default_langs":       "Default Languages",
+    "cd.lang_ph":             "Type a language and press Enter",
+    "cd.security_default":    "Security clearance required by default",
+    "cd.section_interview":   "Interview",
+    "cd.interview_default":   "Interview required by default",
+    "cd.default_format":      "Default Format",
+    "cd.fmt_phone":           "Phone",
+    "cd.fmt_video":           "Video",
+    "cd.fmt_in_person":       "In Person",
+    "cd.default_rounds":      "Default Rounds",
+    "cd.tech_assess_default": "Technical assessment required by default",
+    "cd.save":                "Save Defaults",
+    // Assignment Settings panel
+    "as.title":               "Assignment Settings",
+    "as.subtitle":            "Configure how consultants are selected and automatically assigned to your cases.",
+    "as.section_auto":        "Auto-assignment",
+    "as.auto_enabled":        "Enable Auto-assignment",
+    "as.auto_enabled_desc":   "Automatically assign the top-ranked consultant when the application window closes",
+    "as.app_window":          "Application Window (days)",
+    "as.app_window_desc":     "Days after case creation that applications are accepted. When the window closes, auto-assignment runs.",
+    "as.min_applicants":      "Minimum Applicants Required",
+    "as.min_applicants_desc": "Auto-assignment is skipped if fewer applicants are received — manager is notified instead.",
+    "as.mgr_approval":        "Require Manager Approval",
+    "as.mgr_approval_desc":   "Manager must confirm the auto-selection before the consultant is notified of their assignment",
+    "as.section_pref":        "Selection Preferences",
+    "as.prefer_known":        "Prefer Known Consultants",
+    "as.prefer_known_desc":   "Scoring bonus for consultants who have previously worked with your company",
+    "as.allow_new":           "Allow New Consultants",
+    "as.allow_new_desc":      "When off, only consultants with prior experience at your company are considered",
+    "as.max_rate":            "Max Hourly Rate ($)",
+    "as.no_cap":              "No cap",
+    "as.max_rate_desc":       "Applicants above this rate are excluded from auto-assignment",
+    "as.pref_expertise":      "Preferred Expertise Level",
+    "as.overcommit_label":    "Overcommitment Tolerance",
+    "as.strict":              "0% — strict",
+    "as.flexible":            "20% — flexible",
+    "as.overcommit_zero":     "Only consultants with full available capacity are considered.",
+    "as.overcommit_nonzero":  "Consultants up to {n}% over their free capacity may still be selected.",
+    "as.section_scoring":     "Scoring Priorities",
+    "as.scoring_desc":        "Adjust how much each criterion contributes to consultant ranking. Weights are normalized automatically — raise one to make it matter more.",
+    "as.scoring_total":       "Total: {n} pts",
+    "as.w_skills":            "Skill Match",
+    "as.w_skills_desc":       "Skills vs case requirements",
+    "as.w_rating":            "Overall Rating",
+    "as.w_rating_desc":       "Average rating across all past cases",
+    "as.w_client_fam":        "Client Exp.",
+    "as.w_client_fam_desc":   "Prior work with your company",
+    "as.w_client_rat":        "Your Rating",
+    "as.w_client_rat_desc":   "How your company rated them specifically",
+    "as.w_experience":        "Experience",
+    "as.w_experience_desc":   "Years of experience vs minimum required",
+    "as.w_rate":              "Rate Fit",
+    "as.w_rate_desc":         "How competitive their proposed rate is",
+    "as.w_commit":            "Availability",
+    "as.w_commit_desc":       "Proportion of free capacity they're offering",
+    "as.weight_dist":         "Weight distribution",
+    "as.reset":               "Reset to defaults",
+    "as.section_reminders":   "Start Date Reminders",
+    "as.reminders_enabled":   "Enable Start Date Reminders",
+    "as.reminders_enabled_desc":"Automatically notify consultants before their assigned case start date",
+    "as.reminder_1":          "First Reminder (days before)",
+    "as.reminder_1_desc":     "Days before start to send the first reminder",
+    "as.reminder_2":          "Second Reminder (days before)",
+    "as.reminder_2_desc":     "Days before start to send the final reminder",
+    "as.overdue_action":      "Action if Not Started",
+    "as.overdue_auto_start":  "Auto-start (move to In Progress)",
+    "as.overdue_notify_mgr":  "Notify Manager Only",
+    "as.overdue_unassign":    "Auto-unassign & Reopen",
+    "as.overdue_action_desc": "Triggered once the grace period expires",
+    "as.grace_period":        "Grace Period (hours)",
+    "as.grace_desc":          "Hours after start date before action triggers",
+    "as.section_notif":       "Notifications",
+    "as.notif_app":           "New Application Alert",
+    "as.notif_app_desc":      "Notify when a consultant applies to one of your cases",
+    "as.notif_auto":          "Auto-assignment Alert",
+    "as.notif_auto_desc":     "Notify when the auto-assignment process runs for one of your cases",
+    "as.save":                "Save Assignment Settings",
     // DB connections (legacy stub)
     "db.title":               "DB Connections",
     "db.add":                 "Add Connection",
@@ -1407,6 +1511,110 @@ const TRANSLATIONS = {
     "phases.active":          "Activo",
     "phases.disabled":        "Desactivado",
     "phases.reset":           "Restablecer valores predeterminados",
+    // Case Defaults panel
+    "cd.title":               "Valores por Defecto de Casos",
+    "cd.subtitle":            "Estos valores rellenan cada campo automáticamente al crear un caso en modo Express.",
+    "cd.section_info":        "Información del Caso",
+    "cd.default_priority":    "Prioridad por Defecto",
+    "cd.default_sap_area":    "Área SAP por Defecto",
+    "cd.none":                "— Ninguno —",
+    "cd.default_industry":    "Industria por Defecto",
+    "cd.default_desc_tmpl":   "Plantilla de Descripción por Defecto",
+    "cd.desc_tmpl_ph":        "Descripción o plantilla predeterminada al crear un caso…",
+    "cd.private_default":     "Casos privados por defecto",
+    "cd.nda_default":         "NDA requerido por defecto",
+    "cd.section_scope":       "Alcance",
+    "cd.default_sla":         "SLA por Defecto",
+    "cd.default_budget":      "Presupuesto por Defecto ($)",
+    "cd.default_skills":      "Habilidades por Defecto (separadas por comas)",
+    "cd.section_work":        "Modalidad de Trabajo",
+    "cd.mode_remote":         "Remoto",
+    "cd.mode_remote_desc":    "Totalmente remoto",
+    "cd.mode_onsite":         "Presencial",
+    "cd.mode_onsite_desc":    "En las instalaciones del cliente",
+    "cd.mode_hybrid":         "Híbrido",
+    "cd.mode_hybrid_desc":    "Mixto",
+    "cd.default_location":    "Ubicación por Defecto",
+    "cd.travel_default":      "Viajes requeridos por defecto",
+    "cd.section_qual":        "Calificaciones",
+    "cd.min_years":           "Años Mínimos de Experiencia",
+    "cd.default_langs":       "Idiomas por Defecto",
+    "cd.lang_ph":             "Escribe un idioma y presiona Enter",
+    "cd.security_default":    "Habilitación de seguridad requerida por defecto",
+    "cd.section_interview":   "Entrevista",
+    "cd.interview_default":   "Entrevista requerida por defecto",
+    "cd.default_format":      "Formato por Defecto",
+    "cd.fmt_phone":           "Teléfono",
+    "cd.fmt_video":           "Video",
+    "cd.fmt_in_person":       "En Persona",
+    "cd.default_rounds":      "Rondas por Defecto",
+    "cd.tech_assess_default": "Evaluación técnica requerida por defecto",
+    "cd.save":                "Guardar Valores por Defecto",
+    // Assignment Settings panel
+    "as.title":               "Configuración de Asignación",
+    "as.subtitle":            "Configura cómo se seleccionan y asignan automáticamente los consultores a tus casos.",
+    "as.section_auto":        "Auto-asignación",
+    "as.auto_enabled":        "Activar Auto-asignación",
+    "as.auto_enabled_desc":   "Asigna automáticamente al consultor mejor clasificado cuando cierra la ventana de solicitudes",
+    "as.app_window":          "Ventana de Solicitudes (días)",
+    "as.app_window_desc":     "Días después de crear el caso durante los que se aceptan solicitudes. Cuando cierra la ventana, se ejecuta la auto-asignación.",
+    "as.min_applicants":      "Mínimo de Solicitantes Requeridos",
+    "as.min_applicants_desc": "La auto-asignación se omite si se reciben menos solicitantes — se notifica al gerente en su lugar.",
+    "as.mgr_approval":        "Requerir Aprobación del Gerente",
+    "as.mgr_approval_desc":   "El gerente debe confirmar la selección automática antes de notificar al consultor de su asignación",
+    "as.section_pref":        "Preferencias de Selección",
+    "as.prefer_known":        "Preferir Consultores Conocidos",
+    "as.prefer_known_desc":   "Bonificación en puntuación para consultores que han trabajado previamente con tu empresa",
+    "as.allow_new":           "Permitir Nuevos Consultores",
+    "as.allow_new_desc":      "Cuando está desactivado, solo se consideran consultores con experiencia previa en tu empresa",
+    "as.max_rate":            "Tarifa Máxima por Hora ($)",
+    "as.no_cap":              "Sin límite",
+    "as.max_rate_desc":       "Los solicitantes por encima de esta tarifa quedan excluidos de la auto-asignación",
+    "as.pref_expertise":      "Nivel de Experiencia Preferido",
+    "as.overcommit_label":    "Tolerancia de Sobrecompromiso",
+    "as.strict":              "0% — estricto",
+    "as.flexible":            "20% — flexible",
+    "as.overcommit_zero":     "Solo se consideran consultores con capacidad total disponible.",
+    "as.overcommit_nonzero":  "Se pueden seleccionar consultores hasta un {n}% sobre su capacidad libre.",
+    "as.section_scoring":     "Prioridades de Puntuación",
+    "as.scoring_desc":        "Ajusta cuánto contribuye cada criterio a la clasificación del consultor. Los pesos se normalizan automáticamente — sube uno para que importe más.",
+    "as.scoring_total":       "Total: {n} pts",
+    "as.w_skills":            "Habilidades",
+    "as.w_skills_desc":       "Habilidades vs requisitos del caso",
+    "as.w_rating":            "Calificación General",
+    "as.w_rating_desc":       "Calificación promedio en todos los casos anteriores",
+    "as.w_client_fam":        "Exp. con Cliente",
+    "as.w_client_fam_desc":   "Trabajo previo con tu empresa",
+    "as.w_client_rat":        "Tu Calificación",
+    "as.w_client_rat_desc":   "Cómo calificó tu empresa a este consultor",
+    "as.w_experience":        "Experiencia",
+    "as.w_experience_desc":   "Años de experiencia vs mínimo requerido",
+    "as.w_rate":              "Tarifa",
+    "as.w_rate_desc":         "Qué tan competitiva es su tarifa propuesta",
+    "as.w_commit":            "Disponibilidad",
+    "as.w_commit_desc":       "Proporción de capacidad libre que ofrece",
+    "as.weight_dist":         "Distribución de pesos",
+    "as.reset":               "Restablecer valores predeterminados",
+    "as.section_reminders":   "Recordatorios de Fecha de Inicio",
+    "as.reminders_enabled":   "Activar Recordatorios de Fecha de Inicio",
+    "as.reminders_enabled_desc":"Notificar automáticamente a los consultores antes de la fecha de inicio de su caso asignado",
+    "as.reminder_1":          "Primer Recordatorio (días antes)",
+    "as.reminder_1_desc":     "Días antes del inicio para enviar el primer recordatorio",
+    "as.reminder_2":          "Segundo Recordatorio (días antes)",
+    "as.reminder_2_desc":     "Días antes del inicio para enviar el recordatorio final",
+    "as.overdue_action":      "Acción si No Inicia",
+    "as.overdue_auto_start":  "Inicio automático (mover a En Progreso)",
+    "as.overdue_notify_mgr":  "Solo Notificar al Gerente",
+    "as.overdue_unassign":    "Des-asignar automáticamente y Reabrir",
+    "as.overdue_action_desc": "Se activa una vez que vence el período de gracia",
+    "as.grace_period":        "Período de Gracia (horas)",
+    "as.grace_desc":          "Horas después de la fecha de inicio antes de que se active la acción",
+    "as.section_notif":       "Notificaciones",
+    "as.notif_app":           "Alerta de Nueva Solicitud",
+    "as.notif_app_desc":      "Notificar cuando un consultor aplique a uno de tus casos",
+    "as.notif_auto":          "Alerta de Auto-asignación",
+    "as.notif_auto_desc":     "Notificar cuando el proceso de auto-asignación se ejecute para uno de tus casos",
+    "as.save":                "Guardar Configuración de Asignación",
     // DB connections (legacy stub)
     "db.title":               "Conexiones BD",
     "db.add":                 "Agregar Conexión",
@@ -18392,6 +18600,7 @@ const CASE_DEFAULTS_EMPTY = {
 };
 
 function CaseDefaultsPanel({ profile, updateProfile }) {
+  const { t } = useT();
   const [form, setForm]   = useState(CASE_DEFAULTS_EMPTY);
   const [saving, setSaving] = useState(false);
   const [langInput, setLangInput] = useState("");
@@ -18442,42 +18651,40 @@ function CaseDefaultsPanel({ profile, updateProfile }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
       <div>
-        <h2 className="font-bold text-gray-900">Case Defaults</h2>
-        <p className="text-sm text-gray-400 mt-0.5">
-          These values pre-fill every field when a case is created in <span className="font-medium text-blue-600">Express mode</span>.
-        </p>
+        <h2 className="font-bold text-gray-900">{t("cd.title")}</h2>
+        <p className="text-sm text-gray-400 mt-0.5">{t("cd.subtitle")}</p>
       </div>
 
       {/* Case Info defaults */}
       <div>
-        {sectionHdr("Case Information")}
+        {sectionHdr(t("cd.section_info"))}
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <Select label="Default Priority" value={form.priority}
+            <Select label={t("cd.default_priority")} value={form.priority}
               onChange={e => setForm(p => ({ ...p, priority: e.target.value }))}
               options={["low","medium","high","critical"].map(v => ({ value: v, label: cap(v) }))} />
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Default SAP Area</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("cd.default_sap_area")}</label>
               <select value={form.area_sap} onChange={e => setForm(p => ({ ...p, area_sap: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">— None —</option>
+                <option value="">{t("cd.none")}</option>
                 {SAP_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Default Industry</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t("cd.default_industry")}</label>
             <select value={form.area_industry} onChange={e => setForm(p => ({ ...p, area_industry: e.target.value }))}
               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">— None —</option>
+              <option value="">{t("cd.none")}</option>
               {INDUSTRY_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
             </select>
           </div>
-          <Textarea label="Default Description Template" value={form.description}
+          <Textarea label={t("cd.default_desc_tmpl")} value={form.description}
             onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-            placeholder="Default description or template shown when a case is created…" />
+            placeholder={t("cd.desc_tmpl_ph")} />
           <div className="flex gap-6">
-            {[["is_confidential","Private cases by default"],["nda_required","NDA required by default"]].map(([k,lbl]) => (
+            {[["is_confidential", t("cd.private_default")],["nda_required", t("cd.nda_default")]].map(([k,lbl]) => (
               <label key={k} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                 <input type="checkbox" checked={form[k]} onChange={e => setForm(p => ({ ...p, [k]: e.target.checked }))} className="rounded accent-blue-600" />
                 {lbl}
@@ -18489,20 +18696,20 @@ function CaseDefaultsPanel({ profile, updateProfile }) {
 
       {/* Scope defaults */}
       <div className="border-t border-gray-100 pt-5">
-        {sectionHdr("Scope")}
+        {sectionHdr(t("cd.section_scope"))}
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Default SLA</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("cd.default_sla")}</label>
               <select value={form.sla} onChange={e => setForm(p => ({ ...p, sla: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                 {SLA_PRESETS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
-            <Input label="Default Budget ($)" type="number" value={form.budget}
+            <Input label={t("cd.default_budget")} type="number" value={form.budget}
               onChange={e => setForm(p => ({ ...p, budget: e.target.value }))} placeholder="e.g. 50000" />
           </div>
-          <Input label="Default Skills (comma-separated)" value={form.skills}
+          <Input label={t("cd.default_skills")} value={form.skills}
             onChange={e => setForm(p => ({ ...p, skills: e.target.value }))}
             placeholder="SAP S/4HANA, ABAP, Fiori" />
         </div>
@@ -18510,13 +18717,13 @@ function CaseDefaultsPanel({ profile, updateProfile }) {
 
       {/* Work arrangement defaults */}
       <div className="border-t border-gray-100 pt-5">
-        {sectionHdr("Work Arrangement")}
+        {sectionHdr(t("cd.section_work"))}
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-3">
             {[
-              { value: "remote", label: "Remote",  desc: "Fully remote" },
-              { value: "onsite", label: "On-site", desc: "At client location" },
-              { value: "hybrid", label: "Hybrid",  desc: "Mixed" },
+              { value: "remote", label: t("cd.mode_remote"),  desc: t("cd.mode_remote_desc") },
+              { value: "onsite", label: t("cd.mode_onsite"),  desc: t("cd.mode_onsite_desc") },
+              { value: "hybrid", label: t("cd.mode_hybrid"),  desc: t("cd.mode_hybrid_desc") },
             ].map(opt => (
               <button key={opt.value} type="button" onClick={() => setForm(p => ({ ...p, work_mode: opt.value }))}
                 className={`text-left p-3 border-2 rounded-xl transition-all ${form.work_mode === opt.value ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"}`}>
@@ -18526,24 +18733,24 @@ function CaseDefaultsPanel({ profile, updateProfile }) {
             ))}
           </div>
           {(form.work_mode === "onsite" || form.work_mode === "hybrid") && (
-            <Input label="Default Location" value={form.work_location}
+            <Input label={t("cd.default_location")} value={form.work_location}
               onChange={e => setForm(p => ({ ...p, work_location: e.target.value }))} placeholder="e.g. Toronto, Canada" />
           )}
           <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
             <input type="checkbox" checked={form.travel_required} onChange={e => setForm(p => ({ ...p, travel_required: e.target.checked }))} className="rounded accent-blue-600" />
-            Travel required by default
+            {t("cd.travel_default")}
           </label>
         </div>
       </div>
 
       {/* Qualifications defaults */}
       <div className="border-t border-gray-100 pt-5">
-        {sectionHdr("Qualifications")}
+        {sectionHdr(t("cd.section_qual"))}
         <div className="space-y-3">
-          <Input label="Min Years of Experience" type="number" value={form.min_years_experience}
+          <Input label={t("cd.min_years")} type="number" value={form.min_years_experience}
             onChange={e => setForm(p => ({ ...p, min_years_experience: e.target.value }))} placeholder="e.g. 3" />
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Default Languages</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t("cd.default_langs")}</label>
             <div className="flex flex-wrap gap-1.5 mb-2">
               {form.languages_required.map(l => (
                 <span key={l} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
@@ -18555,30 +18762,30 @@ function CaseDefaultsPanel({ profile, updateProfile }) {
             </div>
             <input value={langInput} onChange={e => setLangInput(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addLang(langInput); } }}
-              placeholder="Type a language and press Enter"
+              placeholder={t("cd.lang_ph")}
               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
             <input type="checkbox" checked={form.security_clearance} onChange={e => setForm(p => ({ ...p, security_clearance: e.target.checked }))} className="rounded accent-blue-600" />
-            Security clearance required by default
+            {t("cd.security_default")}
           </label>
         </div>
       </div>
 
       {/* Interview defaults */}
       <div className="border-t border-gray-100 pt-5">
-        {sectionHdr("Interview")}
+        {sectionHdr(t("cd.section_interview"))}
         <div className="space-y-3">
           <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
             <input type="checkbox" checked={form.interview_required} onChange={e => setForm(p => ({ ...p, interview_required: e.target.checked }))} className="rounded accent-blue-600" />
-            Interview required by default
+            {t("cd.interview_default")}
           </label>
           {form.interview_required && (
             <>
               <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">Default Format</p>
+                <p className="text-sm font-medium text-gray-700 mb-2">{t("cd.default_format")}</p>
                 <div className="grid grid-cols-3 gap-2">
-                  {[["phone","Phone"],["video","Video"],["in_person","In Person"]].map(([v,l]) => (
+                  {[["phone", t("cd.fmt_phone")],["video", t("cd.fmt_video")],["in_person", t("cd.fmt_in_person")]].map(([v,l]) => (
                     <button key={v} type="button" onClick={() => setForm(p => ({ ...p, interview_format: v }))}
                       className={`py-2 text-xs font-medium border-2 rounded-xl transition-all ${form.interview_format === v ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}>
                       {l}
@@ -18587,7 +18794,7 @@ function CaseDefaultsPanel({ profile, updateProfile }) {
                 </div>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">Default Rounds</p>
+                <p className="text-sm font-medium text-gray-700 mb-2">{t("cd.default_rounds")}</p>
                 <div className="flex gap-2">
                   {[1,2,3].map(n => (
                     <button key={n} type="button" onClick={() => setForm(p => ({ ...p, interview_rounds: n }))}
@@ -18599,7 +18806,7 @@ function CaseDefaultsPanel({ profile, updateProfile }) {
               </div>
               <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                 <input type="checkbox" checked={form.technical_assessment} onChange={e => setForm(p => ({ ...p, technical_assessment: e.target.checked }))} className="rounded accent-blue-600" />
-                Technical assessment required by default
+                {t("cd.tech_assess_default")}
               </label>
             </>
           )}
@@ -18609,7 +18816,7 @@ function CaseDefaultsPanel({ profile, updateProfile }) {
       <div className="flex justify-end pt-4 border-t border-gray-100">
         <button onClick={handleSave} disabled={saving}
           className="px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors">
-          {saving ? "Saving…" : "Save Defaults"}
+          {saving ? t("state.saving") : t("cd.save")}
         </button>
       </div>
     </div>
@@ -18628,6 +18835,7 @@ const AS_DEFAULTS = {
 };
 
 function AssignmentSettingsPanel({ profile, updateProfile }) {
+  const { t } = useT();
   const [form, setForm] = useState(AS_DEFAULTS);
   const [saving, setSaving] = useState(false);
 
@@ -18668,36 +18876,36 @@ function AssignmentSettingsPanel({ profile, updateProfile }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
       <div>
-        <h2 className="font-bold text-gray-900">Assignment Settings</h2>
-        <p className="text-sm text-gray-400 mt-0.5">Configure how consultants are selected and automatically assigned to your cases.</p>
+        <h2 className="font-bold text-gray-900">{t("as.title")}</h2>
+        <p className="text-sm text-gray-400 mt-0.5">{t("as.subtitle")}</p>
       </div>
 
       {/* Auto-assignment */}
       <div>
-        {sHdr("Auto-assignment")}
+        {sHdr(t("as.section_auto"))}
         <div className="space-y-3">
-          <Toggle field="auto_assign_enabled" label="Enable Auto-assignment"
-            desc="Automatically assign the top-ranked consultant when the application window closes" />
+          <Toggle field="auto_assign_enabled" label={t("as.auto_enabled")}
+            desc={t("as.auto_enabled_desc")} />
           {form.auto_assign_enabled && (
             <div className="pl-4 border-l-2 border-blue-100 space-y-3 mt-1">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Application Window (days)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t("as.app_window")}</label>
                   <input type="number" min="1" max="90" value={form.application_window_days}
                     onChange={e => setForm(p => ({ ...p, application_window_days: Number(e.target.value) }))}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  <p className="text-xs text-gray-400 mt-1">Days after case creation that applications are accepted. When the window closes, auto-assignment runs.</p>
+                  <p className="text-xs text-gray-400 mt-1">{t("as.app_window_desc")}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Applicants Required</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t("as.min_applicants")}</label>
                   <input type="number" min="1" max="20" value={form.min_applicants}
                     onChange={e => setForm(p => ({ ...p, min_applicants: Number(e.target.value) }))}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  <p className="text-xs text-gray-400 mt-1">Auto-assignment is skipped if fewer applicants are received — manager is notified instead.</p>
+                  <p className="text-xs text-gray-400 mt-1">{t("as.min_applicants_desc")}</p>
                 </div>
               </div>
-              <Toggle field="require_manager_approval" label="Require Manager Approval"
-                desc="Manager must confirm the auto-selection before the consultant is notified of their assignment" />
+              <Toggle field="require_manager_approval" label={t("as.mgr_approval")}
+                desc={t("as.mgr_approval_desc")} />
             </div>
           )}
         </div>
@@ -18705,23 +18913,23 @@ function AssignmentSettingsPanel({ profile, updateProfile }) {
 
       {/* Selection preferences */}
       <div className="border-t border-gray-100 pt-5">
-        {sHdr("Selection Preferences")}
+        {sHdr(t("as.section_pref"))}
         <div className="space-y-3">
-          <Toggle field="prefer_known_consultants" label="Prefer Known Consultants"
-            desc="Scoring bonus for consultants who have previously worked with your company" />
-          <Toggle field="allow_new_consultants" label="Allow New Consultants"
-            desc="When off, only consultants with prior experience at your company are considered" />
+          <Toggle field="prefer_known_consultants" label={t("as.prefer_known")}
+            desc={t("as.prefer_known_desc")} />
+          <Toggle field="allow_new_consultants" label={t("as.allow_new")}
+            desc={t("as.allow_new_desc")} />
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Max Hourly Rate ($)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("as.max_rate")}</label>
               <input type="number" min="0" value={form.max_hourly_rate}
                 onChange={e => setForm(p => ({ ...p, max_hourly_rate: e.target.value }))}
-                placeholder="No cap"
+                placeholder={t("as.no_cap")}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <p className="text-xs text-gray-400 mt-1">Applicants above this rate are excluded from auto-assignment</p>
+              <p className="text-xs text-gray-400 mt-1">{t("as.max_rate_desc")}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Expertise Level</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("as.pref_expertise")}</label>
               <select value={form.preferred_expertise_level}
                 onChange={e => setForm(p => ({ ...p, preferred_expertise_level: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -18733,18 +18941,18 @@ function AssignmentSettingsPanel({ profile, updateProfile }) {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Overcommitment Tolerance — <span className="text-blue-600 font-bold">{form.max_overcommitment_tolerance}%</span>
+              {t("as.overcommit_label")} — <span className="text-blue-600 font-bold">{form.max_overcommitment_tolerance}%</span>
             </label>
             <input type="range" min="0" max="20" step="5" value={form.max_overcommitment_tolerance}
               onChange={e => setForm(p => ({ ...p, max_overcommitment_tolerance: Number(e.target.value) }))}
               className="w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-blue-600" />
             <div className="flex justify-between text-xs text-gray-400 mt-1">
-              <span>0% — strict</span><span>10%</span><span>20% — flexible</span>
+              <span>{t("as.strict")}</span><span>10%</span><span>{t("as.flexible")}</span>
             </div>
             <p className="text-xs text-gray-400 mt-1.5">
               {form.max_overcommitment_tolerance === 0
-                ? "Only consultants with full available capacity are considered."
-                : `Consultants up to ${form.max_overcommitment_tolerance}% over their free capacity may still be selected.`}
+                ? t("as.overcommit_zero")
+                : t("as.overcommit_nonzero").replace("{n}", form.max_overcommitment_tolerance)}
             </p>
           </div>
         </div>
@@ -18752,21 +18960,20 @@ function AssignmentSettingsPanel({ profile, updateProfile }) {
 
       {/* Scoring weights */}
       <div className="border-t border-gray-100 pt-5">
-        {sHdr("Scoring Priorities")}
+        {sHdr(t("as.section_scoring"))}
         <p className="text-xs text-gray-400 mb-4">
-          Adjust how much each criterion contributes to consultant ranking.
-          Weights are normalized automatically — raise one to make it matter more.
-          Total: <span className={`font-bold ${totalWeight === 100 ? "text-green-600" : "text-blue-600"}`}>{totalWeight} pts</span>
+          {t("as.scoring_desc")}
+          {" "}<span className={`font-bold ${totalWeight === 100 ? "text-green-600" : "text-blue-600"}`}>{t("as.scoring_total").replace("{n}", totalWeight)}</span>
         </p>
         <div className="space-y-4">
           {[
-            ["weight_skills",             "Skill Match",      "Skills vs case requirements"],
-            ["weight_rating",             "Overall Rating",   "Average rating across all past cases"],
-            ["weight_client_familiarity", "Client Exp.",      "Prior work with your company"],
-            ["weight_client_rating",      "Your Rating",      "How your company rated them specifically"],
-            ["weight_experience",         "Experience",       "Years of experience vs minimum required"],
-            ["weight_rate",               "Rate Fit",         "How competitive their proposed rate is"],
-            ["weight_commitment",         "Availability",     "Proportion of free capacity they're offering"],
+            ["weight_skills",             t("as.w_skills"),      t("as.w_skills_desc")],
+            ["weight_rating",             t("as.w_rating"),      t("as.w_rating_desc")],
+            ["weight_client_familiarity", t("as.w_client_fam"),  t("as.w_client_fam_desc")],
+            ["weight_client_rating",      t("as.w_client_rat"),  t("as.w_client_rat_desc")],
+            ["weight_experience",         t("as.w_experience"),  t("as.w_experience_desc")],
+            ["weight_rate",               t("as.w_rate"),        t("as.w_rate_desc")],
+            ["weight_commitment",         t("as.w_commit"),      t("as.w_commit_desc")],
           ].map(([field, label, desc]) => (
             <div key={field}>
               <div className="flex items-center justify-between mb-1.5">
@@ -18784,7 +18991,7 @@ function AssignmentSettingsPanel({ profile, updateProfile }) {
         </div>
         <div className="mt-4 flex gap-3">
           <div className="flex-1 bg-gray-50 rounded-xl p-3">
-            <div className="text-xs text-gray-400 mb-2">Weight distribution</div>
+            <div className="text-xs text-gray-400 mb-2">{t("as.weight_dist")}</div>
             <div className="flex h-3 rounded-full overflow-hidden gap-0.5">
               {[
                 ["weight_skills","#3b82f6"],["weight_rating","#8b5cf6"],
@@ -18797,53 +19004,53 @@ function AssignmentSettingsPanel({ profile, updateProfile }) {
           </div>
           <button type="button" onClick={() => setForm(p => ({ ...p, ...AS_DEFAULTS }))}
             className="px-3 py-2 text-xs text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50">
-            Reset to defaults
+            {t("as.reset")}
           </button>
         </div>
       </div>
 
       {/* Start Date Reminders */}
       <div className="border-t border-gray-100 pt-5">
-        {sHdr("Start Date Reminders")}
+        {sHdr(t("as.section_reminders"))}
         <div className="space-y-3">
-          <Toggle field="start_reminders_enabled" label="Enable Start Date Reminders"
-            desc="Automatically notify consultants before their assigned case start date" />
+          <Toggle field="start_reminders_enabled" label={t("as.reminders_enabled")}
+            desc={t("as.reminders_enabled_desc")} />
           {form.start_reminders_enabled && (
             <div className="pl-4 border-l-2 border-amber-100 space-y-3 mt-1">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">First Reminder (days before)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t("as.reminder_1")}</label>
                   <input type="number" min="1" max="30" value={form.start_reminder_1_days}
                     onChange={e => setForm(p => ({ ...p, start_reminder_1_days: Number(e.target.value) }))}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  <p className="text-xs text-gray-400 mt-1">Days before start to send the first reminder</p>
+                  <p className="text-xs text-gray-400 mt-1">{t("as.reminder_1_desc")}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Second Reminder (days before)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t("as.reminder_2")}</label>
                   <input type="number" min="1" max="14" value={form.start_reminder_2_days}
                     onChange={e => setForm(p => ({ ...p, start_reminder_2_days: Number(e.target.value) }))}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  <p className="text-xs text-gray-400 mt-1">Days before start to send the final reminder</p>
+                  <p className="text-xs text-gray-400 mt-1">{t("as.reminder_2_desc")}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Action if Not Started</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t("as.overdue_action")}</label>
                   <select value={form.start_overdue_action}
                     onChange={e => setForm(p => ({ ...p, start_overdue_action: e.target.value }))}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="auto_start">Auto-start (move to In Progress)</option>
-                    <option value="notify_manager">Notify Manager Only</option>
-                    <option value="auto_unassign">Auto-unassign &amp; Reopen</option>
+                    <option value="auto_start">{t("as.overdue_auto_start")}</option>
+                    <option value="notify_manager">{t("as.overdue_notify_mgr")}</option>
+                    <option value="auto_unassign">{t("as.overdue_unassign")}</option>
                   </select>
-                  <p className="text-xs text-gray-400 mt-1">Triggered once the grace period expires</p>
+                  <p className="text-xs text-gray-400 mt-1">{t("as.overdue_action_desc")}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Grace Period (hours)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t("as.grace_period")}</label>
                   <input type="number" min="0" max="72" step="1" value={form.start_overdue_grace_hours}
                     onChange={e => setForm(p => ({ ...p, start_overdue_grace_hours: Number(e.target.value) }))}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  <p className="text-xs text-gray-400 mt-1">Hours after start date before action triggers</p>
+                  <p className="text-xs text-gray-400 mt-1">{t("as.grace_desc")}</p>
                 </div>
               </div>
             </div>
@@ -18853,19 +19060,19 @@ function AssignmentSettingsPanel({ profile, updateProfile }) {
 
       {/* Notifications */}
       <div className="border-t border-gray-100 pt-5">
-        {sHdr("Notifications")}
+        {sHdr(t("as.section_notif"))}
         <div className="space-y-3">
-          <Toggle field="notify_on_new_application" label="New Application Alert"
-            desc="Notify when a consultant applies to one of your cases" />
-          <Toggle field="notify_on_auto_assign" label="Auto-assignment Alert"
-            desc="Notify when the auto-assignment process runs for one of your cases" />
+          <Toggle field="notify_on_new_application" label={t("as.notif_app")}
+            desc={t("as.notif_app_desc")} />
+          <Toggle field="notify_on_auto_assign" label={t("as.notif_auto")}
+            desc={t("as.notif_auto_desc")} />
         </div>
       </div>
 
       <div className="flex justify-end pt-2 border-t border-gray-100">
         <button onClick={handleSave} disabled={saving}
           className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
-          {saving ? "Saving…" : "Save Assignment Settings"}
+          {saving ? t("state.saving") : t("as.save")}
         </button>
       </div>
     </div>
