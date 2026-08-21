@@ -1105,6 +1105,256 @@ const TRANSLATIONS = {
     "ob.notes_label":            "Additional Notes",
     "ob.nav_complete_client":    "Complete Setup →",
     "ob.skip_all_client":        "Skip all and go to dashboard",
+    // ApplyWizard
+    "apply.title":          "Apply to Case",
+    "apply.step0_label":    "Case Brief",
+    "apply.step0_desc":     "What you're applying for",
+    "apply.brief_desc":     "Review the case details before you apply.",
+    "label.due_date":       "Due Date",
+    "label.skills_req":     "Skills Required",
+    "apply.step1_label":    "Your Pitch",
+    "apply.step1_desc":     "Why you're the right fit",
+    "apply.pitch_desc":     "Tell the client why you're the right consultant for this case.",
+    "apply.cover_letter":   "Cover Letter",
+    "apply.pitch_tip":      "Tip: mention specific past projects, technologies you've mastered, and your approach to this type of work.",
+    "apply.step2_label":    "Terms",
+    "apply.step2_desc":     "Rate & availability",
+    "apply.terms_desc":     "Set your proposed rate and how much of your time you'd dedicate to this case.",
+    "apply.rate_label":     "Proposed Rate ($/hr)",
+    "apply.calc_avail":     "Calculating your availability…",
+    "apply.no_avail":       "No availability",
+    "apply.no_avail_desc":  "Your active cases fill 100% of your capacity. Complete or reduce existing commitments before applying.",
+    "apply.avail_title":    "Your current availability",
+    "apply.avail_note":     "This is the maximum you can commit — calculated from your active cases and external work.",
+    "apply.time_label":     "Time Commitment",
+    "apply.of_avail":       "of {n}% available",
+    "apply.commit_part":    "Part-time — a few hours per week alongside other engagements.",
+    "apply.commit_half":    "Half-time — significant focus on this case with room for others.",
+    "apply.commit_most":    "Mostly dedicated — this case would be your primary engagement.",
+    "apply.commit_full":    "Full capacity — you'd be committing all your available time to this case.",
+    "apply.step3_label":    "Review",
+    "apply.step3_desc":     "Confirm & submit",
+    "apply.review_h2":      "Review & Submit",
+    "apply.review_desc":    "Confirm your application before sending it.",
+    "apply.applying_to":    "Applying To",
+    "apply.no_cover":       "No cover letter — you can add one to strengthen your application.",
+    "apply.proposed_rate":  "Proposed Rate",
+    "apply.not_specified":  "Not specified",
+    "apply.avail_capacity": "Available Capacity",
+    "state.submitting":     "Submitting…",
+    "apply.submit":         "Submit Application",
+    // Connection keys
+    "conn.from_client":     "from client profile",
+    "conn.user_label":      "User: ",
+    "conn.project_desc":    "Connections specific to this project. Client-wide connections appear below as inherited.",
+    "conn.add_btn":         "+ Add Connection",
+    "conn.new_project":     "New project-level connection",
+    "conn.type_short":      "Type",
+    "conn.host_ip":         "Host / IP",
+    "conn.db_sid":          "Database / SID",
+    "conn.no_project":      "No project-specific connections yet.",
+    "conn.add_hint":        "Click \"Add Connection\" to create one for this project only.",
+    "conn.inherited":       "Inherited from client profile",
+    "conn.count_one":       "1 connection",
+    "conn.count_many":      "{n} connections",
+    "conn.type_label":      "Connection Type",
+    "conn.group_databases": "Databases",
+    "conn.group_network":   "Network",
+    "conn.app_server":      "Application Server",
+    "conn.vpn_host":        "VPN Host",
+    "conn.host_server":     "Host / Server",
+    "label.port":           "Port",
+    "conn.db_name_label":   "Database Name",
+    "label.username":       "Username",
+    "conn.sys_number":      "System Number",
+    "conn.sys_id":          "System ID (SID)",
+    "conn.sap_client":      "SAP Client",
+    "conn.db_schema":       "Database / Schema",
+    "conn.username_oauth":  "Username / OAuth Client",
+    "conn.vpn_protocol":    "VPN Protocol",
+    "conn.profile_label":   "Profile / Label",
+    "state.adding":         "Adding…",
+    "conn.add_action":      "Add Connection",
+    "conn.none":            "No connections configured.",
+    // Lifecycle Settings
+    "lc.title":             "Lifecycle Templates",
+    "lc.page_desc":         "Define stages, transitions, and which roles can move a case to each next stage. Admin always has full access.",
+    "lc.new_btn":           "+ New Template",
+    "lc.create_title":      "New Lifecycle Template",
+    "lc.create_hint":       "The template will be pre-populated with the Standard lifecycle stages. You can edit them after creation.",
+    "lc.create_btn":        "Create Template",
+    "lc.stages_title":      "Stages & Transitions",
+    "lc.add_stage":         "+ Add Stage",
+    "lc.initial":           "Initial",
+    "lc.terminal":          "Terminal",
+    "lc.stage_name_ph":     "Stage name",
+    "lc.stage_active":      "Active",
+    "lc.trigger_auto":      "Auto",
+    "lc.trigger_both":      "Manual+Auto",
+    "lc.trigger_manual":    "Manual",
+    "lc.any_role":          "no restriction — any role",
+    "lc.any_stage":         "no restriction — any stage",
+    "lc.access_rules":      "Access Rules",
+    "lc.allow":             "Allow",
+    "lc.tabs":              "Tabs",
+    "lc.all_visible":       "all visible",
+    "lc.bypass":            "Bypass",
+    "lc.bypass_hint":       "bypass all restrictions",
+    "lc.save_template":     "Save Template",
+    "lc.edit_stages":       "Edit Stages",
+    "lc.tab_detail":        "Details",
+    "lc.tab_activities":    "Activities",
+    "lc.tab_milestones":    "Milestones",
+    "lc.tab_comments":      "Comments",
+    "lc.tab_subcases":      "Sub-cases",
+    "lc.tab_docs":          "Docs",
+    "lc.tab_time":          "Time",
+    "lc.tab_applicants":    "Applicants",
+    "lc.tab_lifecycle":     "Lifecycle",
+    "lc.tab_spec":          "Spec",
+    "lc.rule_edit":         "Edit case",
+    "lc.rule_time":         "Log time",
+    "lc.rule_activities":   "Activities",
+    "lc.rule_comments":     "Comments",
+    "lc.rule_docs":         "Docs upload",
+    // CreateProjectWizard
+    "proj.edit_title":       "Edit Project",
+    "proj.new_title":        "New Project",
+    "proj.edit_subtitle":    "Update your project details across each section.",
+    "proj.new_subtitle":     "Walk through each step to set up your project.",
+    "proj.step0_h2":         "Project Basics",
+    "proj.step0_desc":       "Give your project a name and description.",
+    "proj.name_label":       "Project Name *",
+    "proj.step1_h2":         "Scope & Budget",
+    "proj.step1_desc":       "Define the budget, timeline, and domain.",
+    "proj.select_client":    "— Select client —",
+    "proj.budget_label":     "Budget ($)",
+    "label.start_date":      "Start Date",
+    "label.end_date":        "End Date",
+    "label.sap_area":        "SAP Area",
+    "proj.none_opt":         "— None —",
+    "label.industry":        "Industry",
+    "proj.select_industry":  "— Select industry —",
+    "proj.step2_h2":         "Objectives & Deliverables",
+    "proj.step2_desc":       "Define what this project aims to achieve.",
+    "proj.objectives_label": "Project Objectives",
+    "proj.deliverables":     "Deliverables",
+    "proj.deliverable_ph":   "e.g. Migration Report — press Enter to add",
+    "proj.success_label":    "Success Criteria",
+    "proj.out_of_scope":     "Out of Scope (optional)",
+    "proj.step3_h2":         "Team & Contacts",
+    "proj.step3_desc":       "Identify key stakeholders and billing contacts.",
+    "proj.stakeholder":      "Stakeholder",
+    "proj.stakeholder_name": "Stakeholder Name",
+    "proj.stakeholder_email":"Stakeholder Email",
+    "proj.billing_contact":  "Billing Contact",
+    "proj.billing_name":     "Billing Contact Name",
+    "proj.billing_email":    "Billing Contact Email",
+    "proj.consultants_label":"Expected Number of Consultants (optional)",
+    "proj.step4_h2":         "Requirements",
+    "proj.step4_desc":       "Specify skills, work mode, and compliance notes.",
+    "proj.skills_ph":        "e.g. SAP S/4HANA — press Enter to add",
+    "proj.work_mode":        "Work Mode",
+    "proj.compliance_label": "Compliance / Regulatory Notes (optional)",
+    "proj.step5_h2":         "Review & Create",
+    "proj.step5_desc":       "Confirm everything looks right before creating.",
+    "proj.rev_basics":       "Basics",
+    "proj.rev_scope":        "Scope",
+    "proj.rev_objectives":   "Objectives",
+    "proj.rev_team":         "Team",
+    "proj.rev_requirements": "Requirements",
+    "proj.no_scope":         "No scope details added.",
+    "action.skip":           "Skip",
+    "action.continue":       "Continue →",
+    "action.save_changes":   "Save Changes",
+    "proj.create":           "Create Project",
+    // CreateCaseWizard
+    "case.edit_title":        "Edit Case",
+    "case.new_title":         "New Case",
+    "case.choose_mode":       "How do you want to create this case?",
+    "case.edit_after":        "You can always edit all fields after creation.",
+    "case.mode_null_sub":     "Choose how to create this case.",
+    "case.mode_express_sub":  "Express — fill only the key fields.",
+    "case.mode_adv_sub":      "Advanced — full control over every setting.",
+    "case.step0_h2":          "Select a Project",
+    "case.step0_desc":        "Link this case to one of your active projects, or create it as a standalone case.",
+    "case.no_projects":       "No active projects — this case will be created as standalone.",
+    "case.standalone":        "Standalone (no project)",
+    "case.standalone_desc":   "Not linked to any project",
+    "case.step1_h2":          "Case Information",
+    "case.step1_desc":        "Describe what this case is about.",
+    "case.sap_area_none":     "— None / Not applicable —",
+    "case.express_note":      "Other fields (description, industry, visibility, interview, qualifications, milestones) will be filled from your company defaults. You can edit them in the case after creation.",
+    "case.visibility":        "Visibility",
+    "case.private":           "Private case",
+    "case.private_desc":      "— hidden from public arena; only invited consultants can see it",
+    "case.nda":               "NDA required",
+    "case.nda_desc":          "— consultants must sign an NDA before viewing full details",
+    "case.step2_h2":          "Scope & Budget",
+    "case.step2_desc_express": "Key scope fields — the rest come from your company defaults.",
+    "case.step2_desc_adv":    "Set the budget, timeline and required expertise.",
+    "case.express_scope_note": "Budget, SLA, start date, interview preferences and qualification requirements will be filled from your company defaults.",
+    "case.sla_label":         "SLA / Timeline",
+    "case.start_date_label":  "Expected Start Date",
+    "case.skills_label":      "Skills Required (comma-separated)",
+    "case.step3_h2":          "Work Arrangement",
+    "case.step3_desc":        "Tell consultants where and how this engagement is delivered.",
+    "case.work_mode_req":     "Work Mode *",
+    "case.location_label":    "Location (City, Country)",
+    "case.travel":            "Travel required",
+    "case.travel_desc":       "— consultant may need to travel during the engagement",
+    "case.step4_h2":          "Roles & People",
+    "case.step4_desc":        "Specify the key contacts and whether this case is managed through a Head Hunter.",
+    "case.key_users":         "Key Users",
+    "case.key_users_desc":    "Internal contacts at the client working directly with consultants. Select registered Key User accounts and assign their area.",
+    "case.ku_search_ph":      "Search registered Key Users by name or email…",
+    "case.invite_label":      "Invite by Email (optional)",
+    "case.head_hunter":       "Head Hunter",
+    "case.hh_managed":        "This case is managed through a Head Hunter",
+    "case.hh_name_label":     "Head Hunter Name / Agency",
+    "case.step5_h2":          "Requirements",
+    "case.step5_desc":        "Define the qualifications, certifications, and experience the consultant must have.",
+    "case.min_exp":           "Minimum Years of Experience",
+    "case.cert_label":        "Required Certifications",
+    "case.cert_ph":           "e.g. SAP Certified FICO — press Enter to add",
+    "case.lang_label":        "Required Languages",
+    "case.lang_ph":           "e.g. English, French — press Enter to add",
+    "case.security_clear":    "Security clearance required",
+    "case.step6_h2":          "Interview Preferences",
+    "case.step6_desc":        "Define how you'd like to evaluate consultants before selecting one.",
+    "case.intv_required":     "Interview required before selection",
+    "case.intv_format":       "Interview Format",
+    "case.intv_rounds":       "Number of Rounds",
+    "case.intv_tech":         "Technical assessment required",
+    "case.intv_tech_desc":    "— coding test, case study, or skills evaluation",
+    "case.step7_h2":          "Milestones",
+    "case.step7_desc":        "Define key deliverables. You can skip and add them later from the case detail.",
+    "case.add_another":       "Add Another",
+    "case.ms_title":          "Milestone Title",
+    "case.ms_notes":          "Notes (optional)",
+    "case.add_ms":            "+ Add Milestone",
+    "case.step8_h2":          "Review & Create",
+    "case.step8_desc":        "Confirm everything looks right.",
+    "case.rev_case_info":     "Case Info",
+    "case.rev_scope":         "Scope",
+    "case.no_scope_rev":      "No scope details added.",
+    "case.rev_milestones":    "Milestones",
+    "case.no_milestones":     "No milestones — can be added after creation.",
+    "case.rev_work_req":      "Work & Requirements",
+    "case.rev_interview":     "Interview",
+    "case.confirm_title":     "Create as Confirmed",
+    "case.confirm_desc":      "Skip the New stage — case starts directly in Confirmed status",
+    "cs.step_project":        "Project",
+    "cs.step_basics":         "Case Info",
+    "cs.step_scope":          "Scope",
+    "cs.step_work":           "Work",
+    "cs.step_roles":          "Roles",
+    "cs.step_reqs":           "Requirements",
+    "cs.step_interview":      "Interview",
+    "cs.step_milestones":     "Milestones",
+    "cs.step_review":         "Review",
+    "case.create_confirmed":  "Create Confirmed",
+    "case.create_case":       "Create Case",
   },
   es: {
     // Navigation
@@ -1250,6 +1500,256 @@ const TRANSLATIONS = {
     "ob.notes_label":            "Notas Adicionales",
     "ob.nav_complete_client":    "Completar Configuración →",
     "ob.skip_all_client":        "Omitir todo e ir al panel",
+    // ApplyWizard
+    "apply.title":          "Postularse al Caso",
+    "apply.step0_label":    "Resumen del Caso",
+    "apply.step0_desc":     "Para qué te postulas",
+    "apply.brief_desc":     "Revisa los detalles del caso antes de postularte.",
+    "label.due_date":       "Fecha Límite",
+    "label.skills_req":     "Habilidades Requeridas",
+    "apply.step1_label":    "Tu Propuesta",
+    "apply.step1_desc":     "Por qué eres el indicado",
+    "apply.pitch_desc":     "Dile al cliente por qué eres el consultor adecuado para este caso.",
+    "apply.cover_letter":   "Carta de Presentación",
+    "apply.pitch_tip":      "Tip: menciona proyectos pasados específicos, tecnologías dominadas y tu enfoque para este tipo de trabajo.",
+    "apply.step2_label":    "Condiciones",
+    "apply.step2_desc":     "Tarifa y disponibilidad",
+    "apply.terms_desc":     "Establece tu tarifa propuesta y cuánto tiempo dedicarías a este caso.",
+    "apply.rate_label":     "Tarifa Propuesta ($/hr)",
+    "apply.calc_avail":     "Calculando disponibilidad…",
+    "apply.no_avail":       "Sin disponibilidad",
+    "apply.no_avail_desc":  "Tus casos activos ocupan el 100% de tu capacidad. Completa o reduce compromisos antes de postularte.",
+    "apply.avail_title":    "Tu disponibilidad actual",
+    "apply.avail_note":     "Este es el máximo que puedes comprometer — calculado de tus casos activos y trabajo externo.",
+    "apply.time_label":     "Compromiso de Tiempo",
+    "apply.of_avail":       "de {n}% disponible",
+    "apply.commit_part":    "Medio tiempo — pocas horas semanales junto a otros compromisos.",
+    "apply.commit_half":    "Tiempo parcial — enfoque significativo con margen para otros.",
+    "apply.commit_most":    "Principalmente dedicado — este caso sería tu compromiso principal.",
+    "apply.commit_full":    "Capacidad total — comprometerías todo tu tiempo disponible a este caso.",
+    "apply.step3_label":    "Revisión",
+    "apply.step3_desc":     "Confirmar y enviar",
+    "apply.review_h2":      "Revisar y Enviar",
+    "apply.review_desc":    "Confirma tu postulación antes de enviarla.",
+    "apply.applying_to":    "Postulándose A",
+    "apply.no_cover":       "Sin carta de presentación — puedes agregar una para reforzar tu postulación.",
+    "apply.proposed_rate":  "Tarifa Propuesta",
+    "apply.not_specified":  "No especificado",
+    "apply.avail_capacity": "Capacidad Disponible",
+    "state.submitting":     "Enviando…",
+    "apply.submit":         "Enviar Postulación",
+    // Connection keys
+    "conn.from_client":     "del perfil del cliente",
+    "conn.user_label":      "Usuario: ",
+    "conn.project_desc":    "Conexiones específicas de este proyecto. Las conexiones del cliente aparecen abajo como heredadas.",
+    "conn.add_btn":         "+ Agregar Conexión",
+    "conn.new_project":     "Nueva conexión a nivel de proyecto",
+    "conn.type_short":      "Tipo",
+    "conn.host_ip":         "Host / IP",
+    "conn.db_sid":          "Base de datos / SID",
+    "conn.no_project":      "Sin conexiones específicas del proyecto aún.",
+    "conn.add_hint":        "Haz clic en \"Agregar Conexión\" para crear una exclusiva de este proyecto.",
+    "conn.inherited":       "Heredado del perfil del cliente",
+    "conn.count_one":       "1 conexión",
+    "conn.count_many":      "{n} conexiones",
+    "conn.type_label":      "Tipo de Conexión",
+    "conn.group_databases": "Bases de Datos",
+    "conn.group_network":   "Red",
+    "conn.app_server":      "Servidor de Aplicación",
+    "conn.vpn_host":        "Host VPN",
+    "conn.host_server":     "Host / Servidor",
+    "label.port":           "Puerto",
+    "conn.db_name_label":   "Nombre de Base de Datos",
+    "label.username":       "Usuario",
+    "conn.sys_number":      "Número de Sistema",
+    "conn.sys_id":          "ID del Sistema (SID)",
+    "conn.sap_client":      "Cliente SAP",
+    "conn.db_schema":       "Base de Datos / Esquema",
+    "conn.username_oauth":  "Usuario / Cliente OAuth",
+    "conn.vpn_protocol":    "Protocolo VPN",
+    "conn.profile_label":   "Perfil / Etiqueta",
+    "state.adding":         "Agregando…",
+    "conn.add_action":      "Agregar Conexión",
+    "conn.none":            "Sin conexiones configuradas.",
+    // Lifecycle Settings
+    "lc.title":             "Plantillas de Ciclo de Vida",
+    "lc.page_desc":         "Define etapas, transiciones y qué roles pueden mover un caso a cada siguiente etapa. El administrador siempre tiene acceso total.",
+    "lc.new_btn":           "+ Nueva Plantilla",
+    "lc.create_title":      "Nueva Plantilla de Ciclo de Vida",
+    "lc.create_hint":       "La plantilla se pre-poblará con las etapas del ciclo de vida estándar. Puedes editarlas después de la creación.",
+    "lc.create_btn":        "Crear Plantilla",
+    "lc.stages_title":      "Etapas y Transiciones",
+    "lc.add_stage":         "+ Agregar Etapa",
+    "lc.initial":           "Inicial",
+    "lc.terminal":          "Terminal",
+    "lc.stage_name_ph":     "Nombre de etapa",
+    "lc.stage_active":      "Activo",
+    "lc.trigger_auto":      "Auto",
+    "lc.trigger_both":      "Manual+Auto",
+    "lc.trigger_manual":    "Manual",
+    "lc.any_role":          "sin restricción — cualquier rol",
+    "lc.any_stage":         "sin restricción — cualquier etapa",
+    "lc.access_rules":      "Reglas de Acceso",
+    "lc.allow":             "Permitir",
+    "lc.tabs":              "Pestañas",
+    "lc.all_visible":       "todas visibles",
+    "lc.bypass":            "Omitir",
+    "lc.bypass_hint":       "omite todas las restricciones",
+    "lc.save_template":     "Guardar Plantilla",
+    "lc.edit_stages":       "Editar Etapas",
+    "lc.tab_detail":        "Detalles",
+    "lc.tab_activities":    "Actividades",
+    "lc.tab_milestones":    "Hitos",
+    "lc.tab_comments":      "Comentarios",
+    "lc.tab_subcases":      "Sub-casos",
+    "lc.tab_docs":          "Docs",
+    "lc.tab_time":          "Tiempo",
+    "lc.tab_applicants":    "Candidatos",
+    "lc.tab_lifecycle":     "Ciclo de Vida",
+    "lc.tab_spec":          "Spec",
+    "lc.rule_edit":         "Editar caso",
+    "lc.rule_time":         "Registrar tiempo",
+    "lc.rule_activities":   "Actividades",
+    "lc.rule_comments":     "Comentarios",
+    "lc.rule_docs":         "Subir docs",
+    // CreateProjectWizard
+    "proj.edit_title":       "Editar Proyecto",
+    "proj.new_title":        "Nuevo Proyecto",
+    "proj.edit_subtitle":    "Actualiza los detalles de tu proyecto en cada sección.",
+    "proj.new_subtitle":     "Sigue cada paso para configurar tu proyecto.",
+    "proj.step0_h2":         "Datos Básicos",
+    "proj.step0_desc":       "Dale un nombre y descripción a tu proyecto.",
+    "proj.name_label":       "Nombre del Proyecto *",
+    "proj.step1_h2":         "Alcance y Presupuesto",
+    "proj.step1_desc":       "Define el presupuesto, plazo y dominio.",
+    "proj.select_client":    "— Seleccionar cliente —",
+    "proj.budget_label":     "Presupuesto ($)",
+    "label.start_date":      "Fecha de Inicio",
+    "label.end_date":        "Fecha de Fin",
+    "label.sap_area":        "Área SAP",
+    "proj.none_opt":         "— Ninguno —",
+    "label.industry":        "Industria",
+    "proj.select_industry":  "— Seleccionar industria —",
+    "proj.step2_h2":         "Objetivos y Entregables",
+    "proj.step2_desc":       "Define lo que el proyecto busca lograr.",
+    "proj.objectives_label": "Objetivos del Proyecto",
+    "proj.deliverables":     "Entregables",
+    "proj.deliverable_ph":   "p. ej. Informe de Migración — Enter para agregar",
+    "proj.success_label":    "Criterios de Éxito",
+    "proj.out_of_scope":     "Fuera de Alcance (opcional)",
+    "proj.step3_h2":         "Equipo y Contactos",
+    "proj.step3_desc":       "Identifica stakeholders clave y contactos de facturación.",
+    "proj.stakeholder":      "Parte Interesada",
+    "proj.stakeholder_name": "Nombre del Stakeholder",
+    "proj.stakeholder_email":"Email del Stakeholder",
+    "proj.billing_contact":  "Contacto de Facturación",
+    "proj.billing_name":     "Nombre del Contacto de Facturación",
+    "proj.billing_email":    "Email del Contacto de Facturación",
+    "proj.consultants_label":"Número Esperado de Consultores (opcional)",
+    "proj.step4_h2":         "Requerimientos",
+    "proj.step4_desc":       "Especifica habilidades, modo de trabajo y notas de cumplimiento.",
+    "proj.skills_ph":        "p. ej. SAP S/4HANA — Enter para agregar",
+    "proj.work_mode":        "Modo de Trabajo",
+    "proj.compliance_label": "Notas de Cumplimiento / Regulación (opcional)",
+    "proj.step5_h2":         "Revisar y Crear",
+    "proj.step5_desc":       "Confirma que todo esté correcto antes de crear.",
+    "proj.rev_basics":       "Datos Básicos",
+    "proj.rev_scope":        "Alcance",
+    "proj.rev_objectives":   "Objetivos",
+    "proj.rev_team":         "Equipo",
+    "proj.rev_requirements": "Requerimientos",
+    "proj.no_scope":         "Sin detalles de alcance agregados.",
+    "action.skip":           "Omitir",
+    "action.continue":       "Continuar →",
+    "action.save_changes":   "Guardar Cambios",
+    "proj.create":           "Crear Proyecto",
+    // CreateCaseWizard
+    "case.edit_title":        "Editar Caso",
+    "case.new_title":         "Nuevo Caso",
+    "case.choose_mode":       "¿Cómo deseas crear este caso?",
+    "case.edit_after":        "Siempre podrás editar todos los campos después de la creación.",
+    "case.mode_null_sub":     "Elige cómo crear este caso.",
+    "case.mode_express_sub":  "Express — solo los campos clave.",
+    "case.mode_adv_sub":      "Avanzado — control total sobre cada campo.",
+    "case.step0_h2":          "Seleccionar Proyecto",
+    "case.step0_desc":        "Vincula este caso a uno de tus proyectos activos o créalo como caso independiente.",
+    "case.no_projects":       "Sin proyectos activos — este caso se creará como independiente.",
+    "case.standalone":        "Independiente (sin proyecto)",
+    "case.standalone_desc":   "No vinculado a ningún proyecto",
+    "case.step1_h2":          "Información del Caso",
+    "case.step1_desc":        "Describe de qué trata este caso.",
+    "case.sap_area_none":     "— Ninguna / No aplica —",
+    "case.express_note":      "Otros campos (descripción, industria, visibilidad, entrevista, calificaciones, hitos) se tomarán de los valores predeterminados de tu empresa. Podrás editarlos en el caso después de la creación.",
+    "case.visibility":        "Visibilidad",
+    "case.private":           "Caso privado",
+    "case.private_desc":      "— oculto de la arena pública; solo consultores invitados pueden verlo",
+    "case.nda":               "NDA requerido",
+    "case.nda_desc":          "— los consultores deben firmar un NDA antes de ver los detalles completos",
+    "case.step2_h2":          "Alcance y Presupuesto",
+    "case.step2_desc_express": "Campos clave de alcance — el resto vendrá de tus valores predeterminados.",
+    "case.step2_desc_adv":    "Define el presupuesto, plazos y la experiencia requerida.",
+    "case.express_scope_note": "El presupuesto, SLA, fecha de inicio, preferencias de entrevista y requisitos de calificación se tomarán de los valores predeterminados de tu empresa.",
+    "case.sla_label":         "SLA / Plazo",
+    "case.start_date_label":  "Fecha de Inicio Esperada",
+    "case.skills_label":      "Habilidades Requeridas (separadas por comas)",
+    "case.step3_h2":          "Modalidad de Trabajo",
+    "case.step3_desc":        "Informa a los consultores dónde y cómo se realizará este proyecto.",
+    "case.work_mode_req":     "Modalidad de Trabajo *",
+    "case.location_label":    "Ubicación (Ciudad, País)",
+    "case.travel":            "Viaje requerido",
+    "case.travel_desc":       "— el consultor puede necesitar viajar durante el proyecto",
+    "case.step4_h2":          "Roles y Personas",
+    "case.step4_desc":        "Especifica los contactos clave y si este caso se gestiona a través de un Head Hunter.",
+    "case.key_users":         "Usuarios Clave",
+    "case.key_users_desc":    "Contactos internos en el cliente que trabajan directamente con consultores. Selecciona cuentas de Usuario Clave registradas y asigna su área.",
+    "case.ku_search_ph":      "Buscar Usuarios Clave registrados por nombre o correo…",
+    "case.invite_label":      "Invitar por Correo (opcional)",
+    "case.head_hunter":       "Head Hunter",
+    "case.hh_managed":        "Este caso es gestionado por un Head Hunter",
+    "case.hh_name_label":     "Nombre / Agencia del Head Hunter",
+    "case.step5_h2":          "Requisitos",
+    "case.step5_desc":        "Define las calificaciones, certificaciones y experiencia que debe tener el consultor.",
+    "case.min_exp":           "Años Mínimos de Experiencia",
+    "case.cert_label":        "Certificaciones Requeridas",
+    "case.cert_ph":           "p.ej. SAP Certified FICO — presiona Enter para agregar",
+    "case.lang_label":        "Idiomas Requeridos",
+    "case.lang_ph":           "p.ej. Inglés, Español — presiona Enter para agregar",
+    "case.security_clear":    "Habilitación de seguridad requerida",
+    "case.step6_h2":          "Preferencias de Entrevista",
+    "case.step6_desc":        "Define cómo deseas evaluar a los consultores antes de seleccionar uno.",
+    "case.intv_required":     "Entrevista requerida antes de la selección",
+    "case.intv_format":       "Formato de Entrevista",
+    "case.intv_rounds":       "Número de Rondas",
+    "case.intv_tech":         "Evaluación técnica requerida",
+    "case.intv_tech_desc":    "— prueba de código, estudio de caso o evaluación de habilidades",
+    "case.step7_h2":          "Hitos",
+    "case.step7_desc":        "Define los entregables clave. Puedes omitir y agregarlos más tarde desde el detalle del caso.",
+    "case.add_another":       "Agregar Otro",
+    "case.ms_title":          "Título del Hito",
+    "case.ms_notes":          "Notas (opcional)",
+    "case.add_ms":            "+ Agregar Hito",
+    "case.step8_h2":          "Revisión y Creación",
+    "case.step8_desc":        "Confirma que todo esté correcto.",
+    "case.rev_case_info":     "Info del Caso",
+    "case.rev_scope":         "Alcance",
+    "case.no_scope_rev":      "Sin detalles de alcance.",
+    "case.rev_milestones":    "Hitos",
+    "case.no_milestones":     "Sin hitos — se pueden agregar después de la creación.",
+    "case.rev_work_req":      "Trabajo y Requisitos",
+    "case.rev_interview":     "Entrevista",
+    "case.confirm_title":     "Crear como Confirmado",
+    "case.confirm_desc":      "Omite la etapa Nueva — el caso comienza directamente en estado Confirmado",
+    "cs.step_project":        "Proyecto",
+    "cs.step_basics":         "Info del Caso",
+    "cs.step_scope":          "Alcance",
+    "cs.step_work":           "Trabajo",
+    "cs.step_roles":          "Roles",
+    "cs.step_reqs":           "Requisitos",
+    "cs.step_interview":      "Entrevista",
+    "cs.step_milestones":     "Hitos",
+    "cs.step_review":         "Revisión",
+    "case.create_confirmed":  "Crear Confirmado",
+    "case.create_case":       "Crear Caso",
     // Auth
     "auth.tagline":          "Plataforma de gestión de casos de consultoría",
     "auth.welcome":          "Bienvenido de nuevo",
@@ -6039,32 +6539,27 @@ const SLA_PRESETS = [
   { value: "custom",   label: "Custom date",         days: null },
 ];
 
-const CREATE_CASE_STEPS = [
-  { id: "project",        label: "Project",      Icon: Layers,         desc: "Link to a project" },
-  { id: "basics",         label: "Case Info",    Icon: FileText,       desc: "Title & description" },
-  { id: "scope",          label: "Scope",        Icon: DollarSign,     desc: "Budget, dates & skills" },
-  { id: "arrangement",    label: "Work",         Icon: MapPin,         desc: "Remote, on-site or hybrid" },
-  { id: "roles",          label: "Roles",        Icon: UsersRound,     desc: "Key user & head hunters" },
-  { id: "qualifications", label: "Requirements", Icon: GraduationCap,  desc: "Certifications & languages" },
-  { id: "interview",      label: "Interview",    Icon: MessageSquare,  desc: "Evaluation preferences" },
-  { id: "milestones",     label: "Milestones",   Icon: Flag,           desc: "Key deliverables" },
-  { id: "review",         label: "Review",       Icon: CheckCircle2,   desc: "Confirm & create" },
-];
+// CREATE_CASE_STEPS and EXPRESS_CASE_STEPS moved inside CreateCaseWizard to allow t() calls
 
-const PROJECT_STEPS = [
-  { id: "basics",       label: "Basics",       Icon: FileText,          desc: "Name & description" },
-  { id: "scope",        label: "Scope",        Icon: DollarSign,        desc: "Budget & timeline" },
-  { id: "objectives",   label: "Objectives",   Icon: Target,            desc: "Goals & deliverables" },
-  { id: "team",         label: "Team",         Icon: Users,             desc: "Contacts & headcount" },
-  { id: "requirements", label: "Requirements", Icon: SlidersHorizontal, desc: "Skills & preferences" },
-  { id: "review",       label: "Review",       Icon: CheckCircle2,      desc: "Confirm & create" },
-];
+// PROJECT_STEPS moved inside CreateProjectWizard to allow t() calls
 
 const EXPRESS_STEP_IDS = [0, 1, 2, 4, 8];
-const EXPRESS_CASE_STEPS = CREATE_CASE_STEPS.filter((_, i) => EXPRESS_STEP_IDS.includes(i));
 
 function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, initialData = null, initialProjectId = null }) {
+  const { t } = useT();
   const isEdit = !!initialData;
+  const CREATE_CASE_STEPS = [
+    { id: "project",        label: t("cs.step_project"),   Icon: Layers,         desc: "Link to a project" },
+    { id: "basics",         label: t("cs.step_basics"),    Icon: FileText,       desc: "Title & description" },
+    { id: "scope",          label: t("cs.step_scope"),     Icon: DollarSign,     desc: "Budget, dates & skills" },
+    { id: "arrangement",    label: t("cs.step_work"),      Icon: MapPin,         desc: "Remote, on-site or hybrid" },
+    { id: "roles",          label: t("cs.step_roles"),     Icon: UsersRound,     desc: "Key user & head hunters" },
+    { id: "qualifications", label: t("cs.step_reqs"),      Icon: GraduationCap,  desc: "Certifications & languages" },
+    { id: "interview",      label: t("cs.step_interview"), Icon: MessageSquare,  desc: "Evaluation preferences" },
+    { id: "milestones",     label: t("cs.step_milestones"),Icon: Flag,           desc: "Key deliverables" },
+    { id: "review",         label: t("cs.step_review"),    Icon: CheckCircle2,   desc: "Confirm & create" },
+  ];
+  const EXPRESS_CASE_STEPS = CREATE_CASE_STEPS.filter((_, i) => EXPRESS_STEP_IDS.includes(i));
   const [mode, setMode]     = useState(isEdit ? "advanced" : null);
   const [step, setSt]       = useState(initialProjectId ? 1 : 0);
   const [creating, setCreating] = useState(false);
@@ -6348,22 +6843,22 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
     <div className="max-w-2xl mx-auto py-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{isEdit ? "Edit Case" : "New Case"}</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{isEdit ? t("case.edit_title") : t("case.new_title")}</h1>
           <p className="text-gray-500 text-sm mt-0.5">
-            {mode === null ? "Choose how to create this case." : mode === "express" ? "Express — fill only the key fields." : "Advanced — full control over every setting."}
+            {mode === null ? t("case.mode_null_sub") : mode === "express" ? t("case.mode_express_sub") : t("case.mode_adv_sub")}
           </p>
         </div>
         <button onClick={onCancel}
           className="text-sm text-gray-600 hover:text-gray-800 bg-white border border-gray-300 px-3 py-1.5 rounded-xl hover:bg-gray-100">
-          <X size={13} className="mr-1 inline" />Cancel
+          <X size={13} className="mr-1 inline" />{t("action.cancel")}
         </button>
       </div>
 
       {/* ── Mode selection ── */}
       {mode === null && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-1 text-center">How do you want to create this case?</h2>
-          <p className="text-sm text-gray-400 text-center mb-8">You can always edit all fields after creation.</p>
+          <h2 className="text-lg font-semibold text-gray-900 mb-1 text-center">{t("case.choose_mode")}</h2>
+          <p className="text-sm text-gray-400 text-center mb-8">{t("case.edit_after")}</p>
           <div className="grid grid-cols-2 gap-5">
             <button onClick={() => selectMode("express")}
               className="group text-left border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 rounded-2xl p-6 transition-all">
@@ -6371,7 +6866,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                 <Zap className="w-6 h-6 text-blue-600" />
               </div>
               <div className="font-bold text-gray-900 text-base mb-1">Express</div>
-              <div className="text-sm text-gray-500 leading-relaxed">Fill only the key fields. Everything else is pre-filled from your company defaults. <span className="font-medium text-blue-600">3 steps.</span></div>
+              <div className="text-sm text-gray-500 leading-relaxed">{t("case.mode_express_sub")} <span className="font-medium text-blue-600">3 steps.</span></div>
             </button>
             <button onClick={() => selectMode("advanced")}
               className="group text-left border-2 border-gray-200 hover:border-[#1A4B8C] hover:bg-blue-50/50 rounded-2xl p-6 transition-all">
@@ -6379,7 +6874,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                 <Settings className="w-6 h-6 text-gray-600 group-hover:text-[#1A4B8C]" />
               </div>
               <div className="font-bold text-gray-900 text-base mb-1">Advanced</div>
-              <div className="text-sm text-gray-500 leading-relaxed">Full control over every field and setting. <span className="font-medium text-gray-700">9 steps.</span></div>
+              <div className="text-sm text-gray-500 leading-relaxed">{t("case.mode_adv_sub")} <span className="font-medium text-gray-700">9 steps.</span></div>
             </button>
           </div>
         </div>
@@ -6395,11 +6890,11 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         {/* ── Step 0: Project ── */}
         {step === 0 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Select a Project</h2>
-            <p className="text-sm text-gray-500 mb-5">Link this case to one of your active projects, or create it as a standalone case.</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("case.step0_h2")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("case.step0_desc")}</p>
             {wizardProjects.length === 0 ? (
               <div className="text-sm text-gray-400 italic bg-gray-50 rounded-xl p-4">
-                No active projects — this case will be created as standalone.
+                {t("case.no_projects")}
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
@@ -6424,8 +6919,8 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                       ? "border-gray-400 bg-gray-100"
                       : "border-gray-200 hover:border-gray-400 hover:bg-gray-50"
                   }`}>
-                  <div className="font-semibold text-gray-500 text-sm">Standalone (no project)</div>
-                  <div className="text-xs text-gray-400 mt-1">Not linked to any project</div>
+                  <div className="font-semibold text-gray-500 text-sm">{t("case.standalone")}</div>
+                  <div className="text-xs text-gray-400 mt-1">{t("case.standalone_desc")}</div>
                 </button>
               </div>
             )}
@@ -6435,82 +6930,82 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         {/* ── Step 1: Case Info ── */}
         {step === 1 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Case Information</h2>
-            <p className="text-sm text-gray-500 mb-5">Describe what this case is about.</p>
-            <Input label="Title *" value={basics.title}
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("case.step1_h2")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("case.step1_desc")}</p>
+            <Input label={`${t("label.title")} *`} value={basics.title}
               onChange={e => setBasics(p => ({ ...p, title: e.target.value }))}
               placeholder="e.g. SAP S/4HANA Migration" />
             {mode === "express" ? (
               <>
                 <div className="grid grid-cols-2 gap-3">
-                  <Select label="Priority" value={basics.priority}
+                  <Select label={t("label.priority")} value={basics.priority}
                     onChange={e => setBasics(p => ({ ...p, priority: e.target.value }))}
                     options={["low","medium","high","critical"].map(s => ({ value: s, label: cap(s) }))} />
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">SAP Area</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.sap_area")}</label>
                     <select value={basics.area_sap}
                       onChange={e => setBasics(p => ({ ...p, area_sap: e.target.value }))}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option value="">— None / Not applicable —</option>
+                      <option value="">{t("case.sap_area_none")}</option>
                       {SAP_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
                     </select>
                   </div>
                 </div>
                 <div className="mt-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-xs text-blue-700 flex items-start gap-2">
                   <Zap className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                  <span>Other fields (description, industry, visibility, interview, qualifications, milestones) will be filled from your <strong>company defaults</strong>. You can edit them in the case after creation.</span>
+                  <span>{t("case.express_note")}</span>
                 </div>
               </>
             ) : (
               <>
-                <Textarea label="Description" value={basics.description}
+                <Textarea label={t("label.description")} value={basics.description}
                   onChange={e => setBasics(p => ({ ...p, description: e.target.value }))}
                   placeholder="Describe the requirements, objectives and deliverables…" />
                 <div className="grid grid-cols-2 gap-3">
-                  <Select label="Priority" value={basics.priority}
+                  <Select label={t("label.priority")} value={basics.priority}
                     onChange={e => setBasics(p => ({ ...p, priority: e.target.value }))}
                     options={["low","medium","high","critical"].map(s => ({ value: s, label: cap(s) }))} />
                   <div className="flex items-end pb-1">
                     <span className="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 w-full">
-                      Status: <span className="font-semibold text-blue-600">Open</span> (set automatically)
+                      {t("label.status")}: <span className="font-semibold text-blue-600">Open</span> (set automatically)
                     </span>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">SAP Area</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.sap_area")}</label>
                     <select value={basics.area_sap}
                       onChange={e => setBasics(p => ({ ...p, area_sap: e.target.value }))}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option value="">— None / Not applicable —</option>
+                      <option value="">{t("case.sap_area_none")}</option>
                       {SAP_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.industry")}</label>
                     <select value={basics.area_industry}
                       onChange={e => setBasics(p => ({ ...p, area_industry: e.target.value }))}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option value="">— Select industry —</option>
+                      <option value="">{t("proj.select_industry")}</option>
                       {INDUSTRY_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
                     </select>
                   </div>
                 </div>
                 <div className="border-t border-gray-100 pt-4 mt-2">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Visibility</p>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("case.visibility")}</p>
                   <label className="flex items-center gap-3 cursor-pointer mb-3">
                     <input type="checkbox" checked={basics.is_confidential}
                       onChange={e => setBasics(p => ({ ...p, is_confidential: e.target.checked }))}
                       className="w-4 h-4 rounded accent-blue-600" />
-                    <span className="text-sm text-gray-700 font-medium">Private case</span>
-                    <span className="text-xs text-gray-400">— hidden from public arena; only invited consultants can see it</span>
+                    <span className="text-sm text-gray-700 font-medium">{t("case.private")}</span>
+                    <span className="text-xs text-gray-400">{t("case.private_desc")}</span>
                   </label>
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input type="checkbox" checked={basics.nda_required}
                       onChange={e => setBasics(p => ({ ...p, nda_required: e.target.checked }))}
                       className="w-4 h-4 rounded accent-blue-600" />
-                    <span className="text-sm text-gray-700 font-medium">NDA required</span>
-                    <span className="text-xs text-gray-400">— consultants must sign an NDA before viewing full details</span>
+                    <span className="text-sm text-gray-700 font-medium">{t("case.nda")}</span>
+                    <span className="text-xs text-gray-400">{t("case.nda_desc")}</span>
                   </label>
                 </div>
               </>
@@ -6521,13 +7016,13 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         {/* ── Step 2: Scope ── */}
         {step === 2 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Scope & Budget</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("case.step2_h2")}</h2>
             <p className="text-sm text-gray-500 mb-5">
-              {mode === "express" ? "Key scope fields — the rest come from your company defaults." : "Set the budget, timeline and required expertise."}
+              {mode === "express" ? t("case.step2_desc_express") : t("case.step2_desc_adv")}
             </p>
             {(auth.isAdmin || auth.isManager) && (
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.client")}</label>
                 <select value={scope.client_id}
                   onChange={e => setScope(p => ({ ...p, client_id: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -6542,11 +7037,11 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
             )}
             {mode === "express" ? (
               <>
-                <Input label="Skills Required (comma-separated)" value={scope._skills}
+                <Input label={t("case.skills_label")} value={scope._skills}
                   onChange={e => setScope(p => ({ ...p, _skills: e.target.value }))}
                   placeholder="SAP S/4HANA, ABAP, Fiori" />
                 <div className="mt-2 mb-1">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Work Mode</p>
+                  <p className="text-sm font-medium text-gray-700 mb-2">{t("proj.work_mode")}</p>
                   <div className="grid grid-cols-3 gap-3">
                     {[
                       { value: "remote", label: "Remote",  desc: "Fully remote" },
@@ -6564,23 +7059,23 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                   </div>
                 </div>
                 {(arrangement.work_mode === "onsite" || arrangement.work_mode === "hybrid") && (
-                  <Input label="Location (City, Country)" value={arrangement.work_location}
+                  <Input label={t("case.location_label")} value={arrangement.work_location}
                     onChange={e => setArr(p => ({ ...p, work_location: e.target.value }))}
                     placeholder="e.g. Toronto, Canada" />
                 )}
                 <div className="mt-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-xs text-blue-700 flex items-start gap-2">
                   <Zap className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                  <span>Budget, SLA, start date, interview preferences and qualification requirements will be filled from your <strong>company defaults</strong>.</span>
+                  <span>{t("case.express_scope_note")}</span>
                 </div>
               </>
             ) : (
               <>
                 <div className="grid grid-cols-2 gap-3">
-                  <Input label="Budget ($)" type="number" value={scope.budget}
+                  <Input label={t("proj.budget_label")} type="number" value={scope.budget}
                     onChange={e => setScope(p => ({ ...p, budget: e.target.value }))}
                     placeholder="e.g. 50000" />
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">SLA / Timeline</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t("case.sla_label")}</label>
                     <select value={scope.sla}
                       onChange={e => {
                         const preset = SLA_PRESETS.find(p => p.value === e.target.value);
@@ -6599,9 +7094,9 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                     Calculated due date: <span className="font-semibold text-gray-700">{fmtDate(scope.due_date)}</span>
                   </p>
                 )}
-                <Input label="Expected Start Date" type="date" value={scope.start_date}
+                <Input label={t("case.start_date_label")} type="date" value={scope.start_date}
                   onChange={e => setScope(p => ({ ...p, start_date: e.target.value }))} />
-                <Input label="Skills Required (comma-separated)" value={scope._skills}
+                <Input label={t("case.skills_label")} value={scope._skills}
                   onChange={e => setScope(p => ({ ...p, _skills: e.target.value }))}
                   placeholder="SAP S/4HANA, ABAP, Fiori" />
               </>
@@ -6612,12 +7107,12 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         {/* ── Step 3: Work Arrangement ── */}
         {step === 3 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Work Arrangement</h2>
-            <p className="text-sm text-gray-500 mb-5">Tell consultants where and how this engagement is delivered.</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("case.step3_h2")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("case.step3_desc")}</p>
 
             {/* Work mode — 3 option cards */}
             <div className="mb-5">
-              <p className="text-sm font-medium text-gray-700 mb-2">Work Mode *</p>
+              <p className="text-sm font-medium text-gray-700 mb-2">{t("case.work_mode_req")}</p>
               <div className="grid grid-cols-3 gap-3">
                 {[
                   { value: "remote",  label: "Remote",   desc: "Fully remote, any location" },
@@ -6639,7 +7134,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
 
             {/* Location — shown for onsite/hybrid */}
             {(arrangement.work_mode === "onsite" || arrangement.work_mode === "hybrid") && (
-              <Input label="Location (City, Country)" value={arrangement.work_location}
+              <Input label={t("case.location_label")} value={arrangement.work_location}
                 onChange={e => setArr(p => ({ ...p, work_location: e.target.value }))}
                 placeholder="e.g. Toronto, Canada" />
             )}
@@ -6649,8 +7144,8 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               <input type="checkbox" checked={arrangement.travel_required}
                 onChange={e => setArr(p => ({ ...p, travel_required: e.target.checked }))}
                 className="w-4 h-4 rounded accent-blue-600" />
-              <span className="text-sm text-gray-700 font-medium">Travel required</span>
-              <span className="text-xs text-gray-400">— consultant may need to travel during the engagement</span>
+              <span className="text-sm text-gray-700 font-medium">{t("case.travel")}</span>
+              <span className="text-xs text-gray-400">{t("case.travel_desc")}</span>
             </label>
           </>
         )}
@@ -6658,11 +7153,11 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         {/* ── Step 4: Roles & People ── */}
         {step === 4 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Roles &amp; People</h2>
-            <p className="text-sm text-gray-500 mb-5">Specify the key contacts and whether this case is managed through a Head Hunter.</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("case.step4_h2")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("case.step4_desc")}</p>
 
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Key Users</p>
-            <p className="text-xs text-gray-400 mb-3">Internal contacts at the client working directly with consultants. Select registered Key User accounts and assign their area.</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{t("case.key_users")}</p>
+            <p className="text-xs text-gray-400 mb-3">{t("case.key_users_desc")}</p>
 
             {/* Added key users */}
             {keyUsers.length > 0 && (
@@ -6695,7 +7190,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               <div className="flex items-center gap-2 bg-gray-100 rounded-xl px-3 py-2.5 shadow-sm">
                 <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
                 <input value={kuSearch} onChange={e => searchKeyUsers(e.target.value)}
-                  placeholder="Search registered Key Users by name or email…"
+                  placeholder={t("case.ku_search_ph")}
                   className="flex-1 bg-transparent text-sm text-gray-800 placeholder-gray-400 focus:outline-none min-w-0" />
                 {kuSearching && <div className="w-3.5 h-3.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />}
               </div>
@@ -6721,20 +7216,20 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
             </div>
 
             {/* Invitation email — pre-registers an email so they can sign up as key_user */}
-            <Input label="Invite by Email (optional)" value={roles.key_user_email}
+            <Input label={t("case.invite_label")} value={roles.key_user_email}
               onChange={e => setRoles(p => ({ ...p, key_user_email: e.target.value }))}
               placeholder="e.g. m.santos@company.com — lets them register as Key User" />
 
             <div className="border-t border-gray-100 pt-5">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Head Hunter</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("case.head_hunter")}</p>
               <label className="flex items-center gap-3 cursor-pointer mb-4">
                 <input type="checkbox" checked={roles.is_head_hunter}
                   onChange={e => setRoles(p => ({ ...p, is_head_hunter: e.target.checked }))}
                   className="w-4 h-4 rounded accent-blue-600" />
-                <span className="text-sm text-gray-700 font-medium">This case is managed through a Head Hunter</span>
+                <span className="text-sm text-gray-700 font-medium">{t("case.hh_managed")}</span>
               </label>
               {roles.is_head_hunter && (
-                <Input label="Head Hunter Name / Agency" value={roles.head_hunter_name}
+                <Input label={t("case.hh_name_label")} value={roles.head_hunter_name}
                   onChange={e => setRoles(p => ({ ...p, head_hunter_name: e.target.value }))}
                   placeholder="e.g. TechTalent Agency" />
               )}
@@ -6745,17 +7240,17 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         {/* ── Step 5: Qualifications / Requirements ── */}
         {step === 5 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Requirements</h2>
-            <p className="text-sm text-gray-500 mb-5">Define the qualifications, certifications, and experience the consultant must have.</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("case.step5_h2")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("case.step5_desc")}</p>
 
             {/* Min years experience */}
-            <Input label="Minimum Years of Experience" type="number" value={quals.min_years_experience}
+            <Input label={t("case.min_exp")} type="number" value={quals.min_years_experience}
               onChange={e => setQuals(p => ({ ...p, min_years_experience: e.target.value }))}
               placeholder="e.g. 5" />
 
             {/* Certifications */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Required Certifications</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("case.cert_label")}</label>
               <div className="flex gap-2">
                 <input value={certInput} onChange={e => setCertInput(e.target.value)}
                   onKeyDown={e => {
@@ -6765,7 +7260,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                       setCertInput("");
                     }
                   }}
-                  placeholder="e.g. SAP Certified FICO — press Enter to add"
+                  placeholder={t("case.cert_ph")}
                   className="flex-1 bg-gray-100 border-0 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm" />
                 <button type="button" onClick={() => {
                   if (certInput.trim()) {
@@ -6789,7 +7284,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
 
             {/* Languages */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Required Languages</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("case.lang_label")}</label>
               <div className="flex gap-2">
                 <input value={langInput} onChange={e => setLangInput(e.target.value)}
                   onKeyDown={e => {
@@ -6799,7 +7294,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                       setLangInput("");
                     }
                   }}
-                  placeholder="e.g. English, French — press Enter to add"
+                  placeholder={t("case.lang_ph")}
                   className="flex-1 bg-gray-100 border-0 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm" />
                 <button type="button" onClick={() => {
                   if (langInput.trim()) {
@@ -6826,7 +7321,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               <input type="checkbox" checked={quals.security_clearance}
                 onChange={e => setQuals(p => ({ ...p, security_clearance: e.target.checked }))}
                 className="w-4 h-4 rounded accent-blue-600" />
-              <span className="text-sm text-gray-700 font-medium">Security clearance required</span>
+              <span className="text-sm text-gray-700 font-medium">{t("case.security_clear")}</span>
             </label>
           </>
         )}
@@ -6834,21 +7329,21 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         {/* ── Step 6: Interview Preferences ── */}
         {step === 6 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Interview Preferences</h2>
-            <p className="text-sm text-gray-500 mb-5">Define how you&apos;d like to evaluate consultants before selecting one.</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("case.step6_h2")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("case.step6_desc")}</p>
 
             <label className="flex items-center gap-3 cursor-pointer mb-5">
               <input type="checkbox" checked={interview.interview_required}
                 onChange={e => setIntv(p => ({ ...p, interview_required: e.target.checked }))}
                 className="w-4 h-4 rounded accent-blue-600" />
-              <span className="text-sm text-gray-700 font-medium">Interview required before selection</span>
+              <span className="text-sm text-gray-700 font-medium">{t("case.intv_required")}</span>
             </label>
 
             {interview.interview_required && (
               <>
                 {/* Format */}
                 <div className="mb-5">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Interview Format</p>
+                  <p className="text-sm font-medium text-gray-700 mb-2">{t("case.intv_format")}</p>
                   <div className="grid grid-cols-3 gap-3">
                     {[
                       { value: "phone",     label: "Phone Call",  desc: "Audio call only" },
@@ -6870,7 +7365,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
 
                 {/* Rounds */}
                 <div className="mb-5">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Number of Rounds</p>
+                  <p className="text-sm font-medium text-gray-700 mb-2">{t("case.intv_rounds")}</p>
                   <div className="flex gap-3">
                     {[1, 2, 3].map(n => (
                       <button key={n} type="button"
@@ -6890,8 +7385,8 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                   <input type="checkbox" checked={interview.technical_assessment}
                     onChange={e => setIntv(p => ({ ...p, technical_assessment: e.target.checked }))}
                     className="w-4 h-4 rounded accent-blue-600" />
-                  <span className="text-sm text-gray-700 font-medium">Technical assessment required</span>
-                  <span className="text-xs text-gray-400">— coding test, case study, or skills evaluation</span>
+                  <span className="text-sm text-gray-700 font-medium">{t("case.intv_tech")}</span>
+                  <span className="text-xs text-gray-400">{t("case.intv_tech_desc")}</span>
                 </label>
               </>
             )}
@@ -6901,8 +7396,8 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         {/* ── Step 7: Milestones ── */}
         {step === 7 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Milestones</h2>
-            <p className="text-sm text-gray-500 mb-5">Define key deliverables. You can skip and add them later from the case detail.</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("case.step7_h2")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("case.step7_desc")}</p>
             {milestones.length > 0 && (
               <div className="space-y-2 mb-5">
                 {milestones.map((m, i) => (
@@ -6913,27 +7408,27 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                       {m.description && <div className="text-xs text-gray-400">{m.description}</div>}
                     </div>
                     <button onClick={() => setMs(p => p.filter((_, j) => j !== i))}
-                      className="text-xs text-red-400 hover:text-red-600 ml-4">Remove</button>
+                      className="text-xs text-red-400 hover:text-red-600 ml-4">{t("action.remove")}</button>
                   </div>
                 ))}
               </div>
             )}
             <div className={milestones.length > 0 ? "border-t border-gray-100 pt-5" : ""}>
               {milestones.length > 0 && (
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Add Another</p>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("case.add_another")}</p>
               )}
-              <Input label="Milestone Title" value={mlForm.title}
+              <Input label={t("case.ms_title")} value={mlForm.title}
                 onChange={e => setMlForm(p => ({ ...p, title: e.target.value }))}
                 placeholder="e.g. Discovery & Requirements" />
               <div className="grid grid-cols-2 gap-3">
-                <Input label="Due Date" type="date" value={mlForm.due_date}
+                <Input label={t("label.due_date")} type="date" value={mlForm.due_date}
                   onChange={e => setMlForm(p => ({ ...p, due_date: e.target.value }))} />
               </div>
-              <Textarea label="Notes (optional)" value={mlForm.description}
+              <Textarea label={t("case.ms_notes")} value={mlForm.description}
                 onChange={e => setMlForm(p => ({ ...p, description: e.target.value }))} />
               <button onClick={addMilestone} disabled={!mlForm.title.trim()}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
-                + Add Milestone
+                {t("case.add_ms")}
               </button>
             </div>
           </>
@@ -6942,11 +7437,11 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         {/* ── Step 8: Review ── */}
         {step === 8 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Review & Create</h2>
-            <p className="text-sm text-gray-500 mb-5">Confirm everything looks right.</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("case.step8_h2")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("case.step8_desc")}</p>
             <div className="space-y-4">
               <div className="border border-gray-100 rounded-xl p-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Case Info</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("case.rev_case_info")}</p>
                 <p className="font-semibold text-gray-900 text-base">{basics.title}</p>
                 {basics.description && <p className="text-sm text-gray-500 mt-1 leading-relaxed">{basics.description}</p>}
                 <div className="flex flex-wrap gap-2 mt-3">
@@ -6957,13 +7452,13 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                 </div>
               </div>
               <div className="border border-gray-100 rounded-xl p-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Scope</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("case.rev_scope")}</p>
                 <div className="grid grid-cols-2 gap-y-2 text-sm">
                   {scope.start_date && (
-                    <div><span className="text-gray-400">Starts:</span> <span className="font-medium ml-1">{fmtDate(scope.start_date)}</span></div>
+                    <div><span className="text-gray-400">{t("label.start_date")}:</span> <span className="font-medium ml-1">{fmtDate(scope.start_date)}</span></div>
                   )}
                   {scope.budget && (
-                    <div><span className="text-gray-400">Budget:</span> <span className="font-medium ml-1">${Number(scope.budget).toLocaleString()}</span></div>
+                    <div><span className="text-gray-400">{t("proj.budget_label")}:</span> <span className="font-medium ml-1">${Number(scope.budget).toLocaleString()}</span></div>
                   )}
                   {scope.due_date && (
                     <div>
@@ -6983,15 +7478,15 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                   </div>
                 )}
                 {!scope.budget && !scope.due_date && !scope._skills && (
-                  <p className="text-sm text-gray-400 italic">No scope details added.</p>
+                  <p className="text-sm text-gray-400 italic">{t("case.no_scope_rev")}</p>
                 )}
               </div>
               <div className="border border-gray-100 rounded-xl p-4">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-                  Milestones {milestones.length > 0 ? `(${milestones.length})` : ""}
+                  {t("case.rev_milestones")} {milestones.length > 0 ? `(${milestones.length})` : ""}
                 </p>
                 {milestones.length === 0
-                  ? <p className="text-sm text-gray-400 italic">No milestones — can be added after creation.</p>
+                  ? <p className="text-sm text-gray-400 italic">{t("case.no_milestones")}</p>
                   : <ul className="space-y-1.5">
                       {milestones.map((m, i) => (
                         <li key={i} className="flex items-center gap-2 text-sm text-gray-700">
@@ -7005,7 +7500,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
 
               {/* Work & Requirements summary */}
               <div className="border border-gray-100 rounded-xl p-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Work &amp; Requirements</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("case.rev_work_req")}</p>
                 <div className="grid grid-cols-2 gap-y-2 text-sm">
                   <div><span className="text-gray-400">Work mode:</span> <span className="font-medium ml-1 capitalize">{arrangement.work_mode}</span></div>
                   {arrangement.work_location && <div><span className="text-gray-400">Location:</span> <span className="font-medium ml-1">{arrangement.work_location}</span></div>}
@@ -7028,7 +7523,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               {/* Interview summary */}
               {interview.interview_required && (
                 <div className="border border-gray-100 rounded-xl p-4">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Interview</p>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t("case.rev_interview")}</p>
                   <div className="text-sm flex flex-wrap gap-3">
                     <span className="capitalize">{interview.interview_format?.replace("_", " ")}</span>
                     <span>· {interview.interview_rounds} round{interview.interview_rounds > 1 ? "s" : ""}</span>
@@ -7044,8 +7539,8 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                 <input type="checkbox" checked={startConfirmed} onChange={e => setStartConfirmed(e.target.checked)}
                   className="w-4 h-4 rounded accent-blue-600" />
                 <div>
-                  <span className="text-sm font-semibold text-blue-800">Create as Confirmed</span>
-                  <p className="text-xs text-blue-600 mt-0.5">Skip the New stage — case starts directly in Confirmed status</p>
+                  <span className="text-sm font-semibold text-blue-800">{t("case.confirm_title")}</span>
+                  <p className="text-xs text-blue-600 mt-0.5">{t("case.confirm_desc")}</p>
                 </div>
               </label>
             )}
@@ -7057,28 +7552,28 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
       <div className="sticky bottom-0 bg-white border-t-2 border-gray-100 shadow-xl rounded-2xl px-6 py-4 flex items-center justify-between mt-4">
         <button onClick={prevStep}
           className="px-5 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors font-medium">
-          {step === 0 ? <><X size={13} className="mr-1 inline" />Cancel</> : "← Back"}
+          {step === 0 ? <><X size={13} className="mr-1 inline" />{t("action.cancel")}</> : `← ${t("action.back")}`}
         </button>
         <div className="flex items-center gap-3">
           {step === 7 && mode !== "express" && (
             <button onClick={nextStep} className="px-4 py-2.5 text-sm text-gray-400 hover:text-gray-600 border border-gray-200 rounded-xl">
-              Skip
+              {t("action.skip")}
             </button>
           )}
           {!isLast ? (
             <button onClick={nextStep}
               disabled={step === 1 && !basics.title.trim()}
               className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
-              Continue →
+              {t("action.continue")}
             </button>
           ) : (
             <button onClick={handleCreate} disabled={creating}
               className={`px-7 py-2.5 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md ${startConfirmed ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}`}>
               {creating
-                ? (isEdit ? "Saving…" : "Creating…")
-                : isEdit ? <><Check size={13} className="mr-1 inline" />Save Changes</>
-                : startConfirmed ? <><Check size={13} className="mr-1 inline" />Create Confirmed</>
-                : <><Check size={13} className="mr-1 inline" />Create Case</>}
+                ? (isEdit ? t("state.saving") : t("state.creating"))
+                : isEdit ? <><Check size={13} className="mr-1 inline" />{t("action.save_changes")}</>
+                : startConfirmed ? <><Check size={13} className="mr-1 inline" />{t("case.create_confirmed")}</>
+                : <><Check size={13} className="mr-1 inline" />{t("case.create_case")}</>}
             </button>
           )}
         </div>
@@ -7092,14 +7587,14 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
 // APPLY WIZARD
 // ============================================================
 
-const APPLY_STEPS = [
-  { id: "brief",  label: "Case Brief",  Icon: FileText,  desc: "What you're applying for" },
-  { id: "pitch",  label: "Your Pitch",  Icon: PenLine,   desc: "Why you're the right fit" },
-  { id: "terms",  label: "Terms",       Icon: Briefcase, desc: "Rate & availability" },
-  { id: "review", label: "Review",      Icon: CheckCircle2, desc: "Confirm & submit" },
-];
-
 function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
+  const { t } = useT();
+  const APPLY_STEPS = [
+    { id: "brief",  label: t("apply.step0_label"), Icon: FileText,     desc: t("apply.step0_desc") },
+    { id: "pitch",  label: t("apply.step1_label"), Icon: PenLine,      desc: t("apply.step1_desc") },
+    { id: "terms",  label: t("apply.step2_label"), Icon: Briefcase,    desc: t("apply.step2_desc") },
+    { id: "review", label: t("apply.step3_label"), Icon: CheckCircle2, desc: t("apply.step3_desc") },
+  ];
   const [step, setSt]           = useState(0);
   const [submitting, setSubmit] = useState(false);
   const [pitch, setPitch]       = useState({ cover_letter: "" });
@@ -7159,12 +7654,12 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Apply to Case</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t("apply.title")}</h1>
           <p className="text-gray-500 text-sm mt-0.5 truncate max-w-sm">{caseData.title}</p>
         </div>
         <button onClick={onCancel}
           className="text-sm text-gray-600 hover:text-gray-800 bg-white border border-gray-300 px-3 py-1.5 rounded-xl hover:bg-gray-100">
-          <X size={13} className="mr-1 inline" />Cancel
+          <X size={13} className="mr-1 inline" />{t("action.cancel")}
         </button>
       </div>
 
@@ -7175,8 +7670,8 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
         {/* Step 0 — Case Brief */}
         {step === 0 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Case Brief</h2>
-            <p className="text-sm text-gray-500 mb-5">Review the case details before you apply.</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("apply.step0_label")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("apply.brief_desc")}</p>
             <div className="space-y-4">
               <div>
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -7190,26 +7685,26 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
               <div className="grid grid-cols-2 gap-3 text-sm">
                 {caseData.budget && (
                   <div className="bg-gray-50 rounded-xl p-3">
-                    <div className="text-xs text-gray-400 mb-0.5">Budget</div>
+                    <div className="text-xs text-gray-400 mb-0.5">{t("label.budget")}</div>
                     <div className="font-semibold text-gray-800">${Number(caseData.budget).toLocaleString()}</div>
                   </div>
                 )}
                 {caseData.due_date && (
                   <div className="bg-gray-50 rounded-xl p-3">
-                    <div className="text-xs text-gray-400 mb-0.5">Due Date</div>
+                    <div className="text-xs text-gray-400 mb-0.5">{t("label.due_date")}</div>
                     <div className="font-semibold text-gray-800">{fmtDate(caseData.due_date)}</div>
                   </div>
                 )}
                 {caseData.client?.client_profiles?.company_name && (
                   <div className="bg-gray-50 rounded-xl p-3">
-                    <div className="text-xs text-gray-400 mb-0.5">Client</div>
+                    <div className="text-xs text-gray-400 mb-0.5">{t("label.client")}</div>
                     <div className="font-semibold text-gray-800">{caseData.client.client_profiles.company_name}</div>
                   </div>
                 )}
               </div>
               {caseData.skills_required?.length > 0 && (
                 <div>
-                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Skills Required</div>
+                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t("label.skills_req")}</div>
                   <div className="flex flex-wrap gap-2">
                     {caseData.skills_required.map(s => (
                       <span key={s} className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{s}</span>
@@ -7224,52 +7719,52 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
         {/* Step 1 — Your Pitch */}
         {step === 1 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Your Pitch</h2>
-            <p className="text-sm text-gray-500 mb-5">Tell the client why you're the right consultant for this case.</p>
-            <Textarea label="Cover Letter" value={pitch.cover_letter}
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("apply.step1_label")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("apply.pitch_desc")}</p>
+            <Textarea label={t("apply.cover_letter")} value={pitch.cover_letter}
               onChange={e => setPitch(p => ({ ...p, cover_letter: e.target.value }))}
               placeholder={`Hi, I'm interested in "${caseData.title}".\n\nI have experience with ${(caseData.skills_required ?? []).slice(0, 2).join(" and ") || "the required technologies"} and believe I can deliver strong results because…`} />
-            <p className="text-xs text-gray-400 mt-1">Tip: mention specific past projects, technologies you've mastered, and your approach to this type of work.</p>
+            <p className="text-xs text-gray-400 mt-1">{t("apply.pitch_tip")}</p>
           </>
         )}
 
         {/* Step 2 — Terms */}
         {step === 2 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Your Terms</h2>
-            <p className="text-sm text-gray-500 mb-5">Set your proposed rate and how much of your time you'd dedicate to this case.</p>
-            <Input label="Proposed Rate ($/hr)" type="number" value={terms.proposed_rate}
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("apply.step2_label")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("apply.terms_desc")}</p>
+            <Input label={t("apply.rate_label")} type="number" value={terms.proposed_rate}
               onChange={e => setTerms(p => ({ ...p, proposed_rate: e.target.value }))}
               placeholder="e.g. 150" />
 
             {/* Availability cap indicator */}
             <div className={`mt-4 mb-4 rounded-xl p-4 ${maxAvailable === 0 ? "bg-red-50 border border-red-200" : "bg-blue-50 border border-blue-100"}`}>
               {availLoading ? (
-                <p className="text-sm text-gray-400">Calculating your availability…</p>
+                <p className="text-sm text-gray-400">{t("apply.calc_avail")}</p>
               ) : maxAvailable === 0 ? (
                 <div>
-                  <p className="text-sm font-semibold text-red-700">No availability</p>
-                  <p className="text-xs text-red-500 mt-0.5">Your active cases fill 100% of your capacity. Complete or reduce existing commitments before applying.</p>
+                  <p className="text-sm font-semibold text-red-700">{t("apply.no_avail")}</p>
+                  <p className="text-xs text-red-500 mt-0.5">{t("apply.no_avail_desc")}</p>
                 </div>
               ) : (
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-semibold text-blue-800">Your current availability</span>
+                    <span className="text-sm font-semibold text-blue-800">{t("apply.avail_title")}</span>
                     <span className="text-xl font-black text-blue-700">{maxAvailable}%</span>
                   </div>
                   <div className="h-2 bg-blue-100 rounded-full overflow-hidden">
                     <div className="h-full bg-blue-500 rounded-full transition-all"
                       style={{ width: `${maxAvailable}%` }} />
                   </div>
-                  <p className="text-xs text-blue-500 mt-1.5">This is the maximum you can commit — calculated from your active cases and external work.</p>
+                  <p className="text-xs text-blue-500 mt-1.5">{t("apply.avail_note")}</p>
                 </div>
               )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">
-                Time Commitment — <span className="text-blue-600 font-bold">{terms.time_commitment}%</span>
-                <span className="text-gray-400 font-normal"> of {maxAvailable}% available</span>
+                {t("apply.time_label")} — <span className="text-blue-600 font-bold">{terms.time_commitment}%</span>
+                <span className="text-gray-400 font-normal"> {t("apply.of_avail").replace("{n}", maxAvailable)}</span>
               </label>
               <input type="range" min="10" max={Math.max(10, maxAvailable)} step="10"
                 value={Math.min(terms.time_commitment, maxAvailable)}
@@ -7285,10 +7780,10 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
                 <span className="font-semibold text-blue-600">{maxAvailable}% max</span>
               </div>
               <p className="text-xs text-gray-400 mt-3">
-                {terms.time_commitment <= 25 && "Part-time — a few hours per week alongside other engagements."}
-                {terms.time_commitment > 25 && terms.time_commitment <= 60 && "Half-time — significant focus on this case with room for others."}
-                {terms.time_commitment > 60 && terms.time_commitment < maxAvailable && "Mostly dedicated — this case would be your primary engagement."}
-                {terms.time_commitment === maxAvailable && maxAvailable > 0 && "Full capacity — you'd be committing all your available time to this case."}
+                {terms.time_commitment <= 25 && t("apply.commit_part")}
+                {terms.time_commitment > 25 && terms.time_commitment <= 60 && t("apply.commit_half")}
+                {terms.time_commitment > 60 && terms.time_commitment < maxAvailable && t("apply.commit_most")}
+                {terms.time_commitment === maxAvailable && maxAvailable > 0 && t("apply.commit_full")}
               </p>
             </div>
           </>
@@ -7297,37 +7792,37 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
         {/* Step 3 — Review */}
         {step === 3 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Review & Submit</h2>
-            <p className="text-sm text-gray-500 mb-5">Confirm your application before sending it.</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("apply.review_h2")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("apply.review_desc")}</p>
             <div className="space-y-4">
               <div className="border border-gray-100 rounded-xl p-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Applying To</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t("apply.applying_to")}</p>
                 <p className="font-semibold text-gray-900">{caseData.title}</p>
                 {caseData.client?.client_profiles?.company_name && (
                   <p className="text-sm text-gray-500 mt-0.5">{caseData.client.client_profiles.company_name}</p>
                 )}
               </div>
               <div className="border border-gray-100 rounded-xl p-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Your Pitch</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t("apply.step1_label")}</p>
                 {pitch.cover_letter
                   ? <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{pitch.cover_letter}</p>
-                  : <p className="text-sm text-gray-400 italic">No cover letter — you can add one to strengthen your application.</p>}
+                  : <p className="text-sm text-gray-400 italic">{t("apply.no_cover")}</p>}
               </div>
               <div className="border border-gray-100 rounded-xl p-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Terms</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("apply.step2_label")}</p>
                 <div className="flex gap-6 text-sm">
                   <div>
-                    <div className="text-gray-400 text-xs mb-0.5">Proposed Rate</div>
+                    <div className="text-gray-400 text-xs mb-0.5">{t("apply.proposed_rate")}</div>
                     <div className="font-semibold text-gray-900">
-                      {terms.proposed_rate ? `$${Number(terms.proposed_rate).toLocaleString()}/hr` : <span className="text-gray-400 italic">Not specified</span>}
+                      {terms.proposed_rate ? `$${Number(terms.proposed_rate).toLocaleString()}/hr` : <span className="text-gray-400 italic">{t("apply.not_specified")}</span>}
                     </div>
                   </div>
                   <div>
-                    <div className="text-gray-400 text-xs mb-0.5">Time Commitment</div>
+                    <div className="text-gray-400 text-xs mb-0.5">{t("apply.time_label")}</div>
                     <div className="font-semibold text-gray-900">{terms.time_commitment}%</div>
                   </div>
                   <div>
-                    <div className="text-gray-400 text-xs mb-0.5">Available Capacity</div>
+                    <div className="text-gray-400 text-xs mb-0.5">{t("apply.avail_capacity")}</div>
                     <div className="font-semibold text-gray-900">{maxAvailable}%</div>
                   </div>
                 </div>
@@ -7341,18 +7836,18 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
       <div className="sticky bottom-0 bg-white border-t-2 border-gray-100 shadow-xl rounded-2xl px-6 py-4 flex items-center justify-between">
         <button onClick={() => step > 0 ? setSt(s => s - 1) : onCancel()}
           className="px-5 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors font-medium">
-          {step === 0 ? <><X size={13} className="mr-1 inline" />Cancel</> : "← Back"}
+          {step === 0 ? <><X size={13} className="mr-1 inline" />{t("action.cancel")}</> : t("action.back")}
         </button>
         {!isLast ? (
           <button onClick={() => setSt(s => s + 1)}
             disabled={step === 2 && maxAvailable === 0}
             className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-colors shadow-md disabled:opacity-40 disabled:cursor-not-allowed">
-            Continue →
+            {t("action.continue")}
           </button>
         ) : (
           <button onClick={handleSubmit} disabled={submitting}
             className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
-            {submitting ? "Submitting…" : <><Check size={13} className="mr-1 inline" />Submit Application</>}
+            {submitting ? t("state.submitting") : <><Check size={13} className="mr-1 inline" />{t("apply.submit")}</>}
           </button>
         )}
       </div>
@@ -7389,6 +7884,15 @@ const PROJECT_NEXT_META = {
 };
 
 function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel, clients = [], initialData = null }) {
+  const { t } = useT();
+  const PROJECT_STEPS = [
+    { id: "basics",       label: t("proj.rev_basics"),      Icon: FileText,          desc: "Name & description" },
+    { id: "scope",        label: t("proj.rev_scope"),        Icon: DollarSign,        desc: "Budget & timeline" },
+    { id: "objectives",   label: t("proj.rev_objectives"),   Icon: Target,            desc: "Goals & deliverables" },
+    { id: "team",         label: t("proj.rev_team"),         Icon: Users,             desc: "Contacts & headcount" },
+    { id: "requirements", label: t("proj.rev_requirements"), Icon: SlidersHorizontal, desc: "Skills & preferences" },
+    { id: "review",       label: t("apply.step3_label"),     Icon: CheckCircle2,      desc: "Confirm & create" },
+  ];
   const isEdit = !!initialData;
   const [step, setSt] = useState(0);
   const [creating, setCreating] = useState(false);
@@ -7457,12 +7961,12 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
     <div className="max-w-2xl mx-auto py-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{isEdit ? "Edit Project" : "New Project"}</h1>
-          <p className="text-gray-500 text-sm mt-0.5">{isEdit ? "Update your project details across each section." : "Walk through each step to set up your project."}</p>
+          <h1 className="text-2xl font-bold text-gray-900">{isEdit ? t("proj.edit_title") : t("proj.new_title")}</h1>
+          <p className="text-gray-500 text-sm mt-0.5">{isEdit ? t("proj.edit_subtitle") : t("proj.new_subtitle")}</p>
         </div>
         <button onClick={onCancel}
           className="text-sm text-gray-600 hover:text-gray-800 bg-white border border-gray-300 px-3 py-1.5 rounded-xl hover:bg-gray-100">
-          <X size={13} className="mr-1 inline" />Cancel
+          <X size={13} className="mr-1 inline" />{t("action.cancel")}
         </button>
       </div>
 
@@ -7473,18 +7977,18 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
         {/* ── Step 0: Basics ── */}
         {step === 0 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Project Basics</h2>
-            <p className="text-sm text-gray-500 mb-5">Give your project a name and description.</p>
-            <Input label="Project Name *" value={basics.name}
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("proj.step0_h2")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("proj.step0_desc")}</p>
+            <Input label={t("proj.name_label")} value={basics.name}
               onChange={e => setBasics(p => ({ ...p, name: e.target.value }))}
               placeholder="e.g. SAP S/4HANA Transformation" />
-            <Textarea label="Description" value={basics.description}
+            <Textarea label={t("label.description")} value={basics.description}
               onChange={e => setBasics(p => ({ ...p, description: e.target.value }))}
               placeholder="Project objectives and scope…" />
 
             {/* Status cards */}
             <div className="mb-5">
-              <p className="text-sm font-medium text-gray-700 mb-2">Status</p>
+              <p className="text-sm font-medium text-gray-700 mb-2">{t("label.status")}</p>
               <div className="grid grid-cols-2 gap-3">
                 {[
                   { value: "draft",  label: "Draft",  desc: "Not yet active" },
@@ -7505,7 +8009,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
 
             {/* Priority cards */}
             <div className="mb-2">
-              <p className="text-sm font-medium text-gray-700 mb-2">Priority</p>
+              <p className="text-sm font-medium text-gray-700 mb-2">{t("label.priority")}</p>
               <div className="grid grid-cols-4 gap-2">
                 {[
                   { value: "low",      label: "Low",      cls: "border-slate-300 bg-slate-50 text-slate-700",    sel: "border-slate-500 bg-slate-100 text-slate-800" },
@@ -7528,15 +8032,15 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
         {/* ── Step 1: Scope ── */}
         {step === 1 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Scope &amp; Budget</h2>
-            <p className="text-sm text-gray-500 mb-5">Define the budget, timeline, and domain.</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("proj.step1_h2")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("proj.step1_desc")}</p>
             {(auth.isAdmin || auth.isManager) && (
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.client")}</label>
                 <select value={scopeData.client_id}
                   onChange={e => setScopeData(p => ({ ...p, client_id: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">— Select client —</option>
+                  <option value="">{t("proj.select_client")}</option>
                   {clients.map(c => (
                     <option key={c.id} value={c.id}>
                       {c.client_profiles?.company_name || c.full_name}
@@ -7545,31 +8049,31 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
                 </select>
               </div>
             )}
-            <Input label="Budget ($)" type="number" value={scopeData.total_budget}
+            <Input label={t("proj.budget_label")} type="number" value={scopeData.total_budget}
               onChange={e => setScopeData(p => ({ ...p, total_budget: e.target.value }))}
               placeholder="e.g. 200000" />
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Start Date" type="date" value={scopeData.start_date}
+              <Input label={t("label.start_date")} type="date" value={scopeData.start_date}
                 onChange={e => setScopeData(p => ({ ...p, start_date: e.target.value }))} />
-              <Input label="End Date" type="date" value={scopeData.end_date}
+              <Input label={t("label.end_date")} type="date" value={scopeData.end_date}
                 onChange={e => setScopeData(p => ({ ...p, end_date: e.target.value }))} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">SAP Area</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.sap_area")}</label>
                 <select value={scopeData.area_sap}
                   onChange={e => setScopeData(p => ({ ...p, area_sap: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">— None —</option>
+                  <option value="">{t("proj.none_opt")}</option>
                   {SAP_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.industry")}</label>
                 <select value={scopeData.industry}
                   onChange={e => setScopeData(p => ({ ...p, industry: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">— Select industry —</option>
+                  <option value="">{t("proj.select_industry")}</option>
                   {INDUSTRY_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
               </div>
@@ -7580,15 +8084,15 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
         {/* ── Step 2: Objectives ── */}
         {step === 2 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Objectives &amp; Deliverables</h2>
-            <p className="text-sm text-gray-500 mb-5">Define what this project aims to achieve.</p>
-            <Textarea label="Project Objectives" value={objectives.objectives}
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("proj.step2_h2")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("proj.step2_desc")}</p>
+            <Textarea label={t("proj.objectives_label")} value={objectives.objectives}
               onChange={e => setObj(p => ({ ...p, objectives: e.target.value }))}
               placeholder="What is this project trying to achieve?" />
 
             {/* Deliverables tag input */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Deliverables</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("proj.deliverables")}</label>
               <div className="flex gap-2">
                 <input value={delivInput}
                   onChange={e => setDelivInput(e.target.value)}
@@ -7598,7 +8102,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
                       addDeliverable();
                     }
                   }}
-                  placeholder="e.g. Migration Report — press Enter to add"
+                  placeholder={t("proj.deliverable_ph")}
                   className="flex-1 bg-gray-100 border-0 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm" />
                 <button type="button" onClick={addDeliverable}
                   className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold">+ Add</button>
@@ -7617,10 +8121,10 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
               )}
             </div>
 
-            <Textarea label="Success Criteria" value={objectives.success_criteria}
+            <Textarea label={t("proj.success_label")} value={objectives.success_criteria}
               onChange={e => setObj(p => ({ ...p, success_criteria: e.target.value }))}
               placeholder="How will you measure success?" />
-            <Textarea label="Out of Scope (optional)" value={objectives.out_of_scope}
+            <Textarea label={t("proj.out_of_scope")} value={objectives.out_of_scope}
               onChange={e => setObj(p => ({ ...p, out_of_scope: e.target.value }))}
               placeholder="What is explicitly excluded from this project?" />
           </>
@@ -7629,30 +8133,30 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
         {/* ── Step 3: Team ── */}
         {step === 3 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Team &amp; Contacts</h2>
-            <p className="text-sm text-gray-500 mb-5">Identify key stakeholders and billing contacts.</p>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Stakeholder</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("proj.step3_h2")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("proj.step3_desc")}</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("proj.stakeholder")}</p>
             <div className="grid grid-cols-2 gap-3 mb-5">
-              <Input label="Stakeholder Name" value={team.stakeholder_name}
+              <Input label={t("proj.stakeholder_name")} value={team.stakeholder_name}
                 onChange={e => setTeam(p => ({ ...p, stakeholder_name: e.target.value }))}
                 placeholder="e.g. Anna Müller" />
-              <Input label="Stakeholder Email" value={team.stakeholder_email}
+              <Input label={t("proj.stakeholder_email")} value={team.stakeholder_email}
                 onChange={e => setTeam(p => ({ ...p, stakeholder_email: e.target.value }))}
                 placeholder="e.g. a.muller@company.com" />
             </div>
             <div className="border-t border-gray-100 pt-5 mb-5">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Billing Contact</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("proj.billing_contact")}</p>
               <div className="grid grid-cols-2 gap-3">
-                <Input label="Billing Contact Name" value={team.billing_contact_name}
+                <Input label={t("proj.billing_name")} value={team.billing_contact_name}
                   onChange={e => setTeam(p => ({ ...p, billing_contact_name: e.target.value }))}
                   placeholder="e.g. Carlos Reyes" />
-                <Input label="Billing Contact Email" value={team.billing_contact_email}
+                <Input label={t("proj.billing_email")} value={team.billing_contact_email}
                   onChange={e => setTeam(p => ({ ...p, billing_contact_email: e.target.value }))}
                   placeholder="e.g. c.reyes@company.com" />
               </div>
             </div>
             <div className="border-t border-gray-100 pt-5">
-              <Input label="Expected Number of Consultants (optional)" type="number" value={team.expected_consultants}
+              <Input label={t("proj.consultants_label")} type="number" value={team.expected_consultants}
                 onChange={e => setTeam(p => ({ ...p, expected_consultants: e.target.value }))}
                 placeholder="e.g. 3" />
             </div>
@@ -7662,12 +8166,12 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
         {/* ── Step 4: Requirements ── */}
         {step === 4 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Requirements</h2>
-            <p className="text-sm text-gray-500 mb-5">Specify skills, work mode, and compliance notes.</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("proj.step4_h2")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("proj.step4_desc")}</p>
 
             {/* Skills tag input */}
             <div className="mb-5">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Skills Required</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.skills")}</label>
               <div className="flex gap-2">
                 <input value={skillInput}
                   onChange={e => setSkillInput(e.target.value)}
@@ -7677,7 +8181,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
                       addSkill();
                     }
                   }}
-                  placeholder="e.g. SAP S/4HANA — press Enter to add"
+                  placeholder={t("proj.skills_ph")}
                   className="flex-1 bg-gray-100 border-0 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm" />
                 <button type="button" onClick={addSkill}
                   className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold">+ Add</button>
@@ -7698,7 +8202,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
 
             {/* Work Mode cards */}
             <div className="mb-5">
-              <p className="text-sm font-medium text-gray-700 mb-2">Work Mode</p>
+              <p className="text-sm font-medium text-gray-700 mb-2">{t("proj.work_mode")}</p>
               <div className="grid grid-cols-3 gap-3">
                 {[
                   { value: "remote",  label: "Remote",   desc: "Fully remote" },
@@ -7718,7 +8222,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
               </div>
             </div>
 
-            <Textarea label="Compliance / Regulatory Notes (optional)" value={reqs.compliance_notes}
+            <Textarea label={t("proj.compliance_label")} value={reqs.compliance_notes}
               onChange={e => setReqs(p => ({ ...p, compliance_notes: e.target.value }))}
               placeholder="GDPR, ISO, NDA requirements, etc." />
           </>
@@ -7727,12 +8231,12 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
         {/* ── Step 5: Review ── */}
         {step === 5 && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Review &amp; Create</h2>
-            <p className="text-sm text-gray-500 mb-5">Confirm everything looks right before creating.</p>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("proj.step5_h2")}</h2>
+            <p className="text-sm text-gray-500 mb-5">{t("proj.step5_desc")}</p>
             <div className="space-y-4">
               {/* Basics card */}
               <div className="border border-gray-100 rounded-xl p-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Basics</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("proj.rev_basics")}</p>
                 <p className="font-semibold text-gray-900 text-base">{basics.name || <span className="italic text-gray-400">Untitled</span>}</p>
                 {basics.description && <p className="text-sm text-gray-500 mt-1 leading-relaxed">{basics.description}</p>}
                 <div className="flex flex-wrap gap-2 mt-3">
@@ -7743,7 +8247,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
 
               {/* Scope card */}
               <div className="border border-gray-100 rounded-xl p-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Scope</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("proj.rev_scope")}</p>
                 <div className="grid grid-cols-2 gap-y-2 text-sm">
                   {scopeData.total_budget && (
                     <div><span className="text-gray-400">Budget:</span> <span className="font-medium ml-1">${Number(scopeData.total_budget).toLocaleString()}</span></div>
@@ -7762,14 +8266,14 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
                   )}
                 </div>
                 {!scopeData.total_budget && !scopeData.start_date && !scopeData.end_date && (
-                  <p className="text-sm text-gray-400 italic">No scope details added.</p>
+                  <p className="text-sm text-gray-400 italic">{t("proj.no_scope")}</p>
                 )}
               </div>
 
               {/* Objectives card — only if any filled */}
               {(objectives.objectives || objectives.deliverables.length > 0 || objectives.success_criteria) && (
                 <div className="border border-gray-100 rounded-xl p-4">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Objectives</p>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("proj.rev_objectives")}</p>
                   {objectives.objectives && <p className="text-sm text-gray-700 mb-3 leading-relaxed">{objectives.objectives}</p>}
                   {objectives.deliverables.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-2">
@@ -7785,7 +8289,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
               {/* Team card — only if any filled */}
               {(team.stakeholder_name || team.billing_contact_name || team.expected_consultants) && (
                 <div className="border border-gray-100 rounded-xl p-4">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Team</p>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("proj.rev_team")}</p>
                   <div className="grid grid-cols-2 gap-y-2 text-sm">
                     {team.stakeholder_name && (
                       <div><span className="text-gray-400">Stakeholder:</span> <span className="font-medium ml-1">{team.stakeholder_name}</span></div>
@@ -7806,9 +8310,9 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
               {/* Requirements card — only if any skills */}
               {(reqs.skills_required.length > 0 || reqs.compliance_notes) && (
                 <div className="border border-gray-100 rounded-xl p-4">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Requirements</p>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("proj.rev_requirements")}</p>
                   <div className="text-sm mb-2">
-                    <span className="text-gray-400">Work mode:</span> <span className="font-medium ml-1 capitalize">{reqs.work_mode}</span>
+                    <span className="text-gray-400">{t("proj.work_mode")}:</span> <span className="font-medium ml-1 capitalize">{reqs.work_mode}</span>
                   </div>
                   {reqs.skills_required.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-2">
@@ -7829,25 +8333,25 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
       <div className="sticky bottom-0 bg-white border-t-2 border-gray-100 shadow-xl rounded-2xl px-6 py-4 flex items-center justify-between mt-4">
         <button onClick={() => step > 0 ? setSt(s => s - 1) : onCancel()}
           className="px-5 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors font-medium">
-          {step === 0 ? <><X size={13} className="mr-1 inline" />Cancel</> : "← Back"}
+          {step === 0 ? <><X size={13} className="mr-1 inline" />{t("action.cancel")}</> : `← ${t("action.back")}`}
         </button>
         <div className="flex items-center gap-3">
           {(step === 2 || step === 3) && (
             <button onClick={() => setSt(s => s + 1)}
               className="px-4 py-2.5 text-sm text-gray-400 hover:text-gray-600 border border-gray-200 rounded-xl">
-              Skip
+              {t("action.skip")}
             </button>
           )}
           {!isLast ? (
             <button onClick={() => setSt(s => s + 1)}
               disabled={step === 0 && !basics.name.trim()}
               className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
-              Continue →
+              {t("action.continue")}
             </button>
           ) : (
             <button onClick={handleCreate} disabled={creating}
               className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
-              {creating ? (isEdit ? "Saving…" : "Creating…") : (isEdit ? <><Check size={13} className="mr-1 inline" />Save Changes</> : <><Check size={13} className="mr-1 inline" />Create Project</>)}
+              {creating ? (isEdit ? t("state.saving") : t("state.creating")) : (isEdit ? <><Check size={13} className="mr-1 inline" />{t("action.save_changes")}</> : <><Check size={13} className="mr-1 inline" />{t("proj.create")}</>)}
             </button>
           )}
         </div>
@@ -7874,14 +8378,15 @@ function UserAvatar({ name, size = 36, title: tooltipTitle }) {
 }
 
 function ProjectConnectionsTab({ projectId, clientId, auth }) {
+  const { t } = useT();
   const { projectConns, clientConns, addConnection, deleteConnection } = useProjectDbConnections(projectId, clientId);
   const [showAdd, setShowAdd] = useState(false);
   const defaultForm = { db_type: "postgresql", host: "", port: 5432, db_name: "", username: "", notes: "", meta: {} };
   const [form, setForm]       = useState(defaultForm);
   const [saving, setSaving]   = useState(false);
 
-  const isSapType = t => ["sap_gui","sap_hana","sap_rfc","sap_odata"].includes(t);
-  const isVpnType = t => t === "vpn";
+  const isSapType = ty => ["sap_gui","sap_hana","sap_rfc","sap_odata"].includes(ty);
+  const isVpnType = ty => ty === "vpn";
   const CONN_TYPE_LABELS = {
     postgresql:"PostgreSQL", mysql:"MySQL", mssql:"MSSQL", oracle:"Oracle",
     mongodb:"MongoDB", sap_gui:"SAP GUI", sap_hana:"SAP HANA",
@@ -7897,8 +8402,8 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
   };
   const DEFAULT_PORTS = { postgresql:5432, mysql:3306, mssql:1433, oracle:1521, mongodb:27017, sap_hana:39015, sap_gui:3200, sap_rfc:3300, sap_odata:443, vpn:1194 };
 
-  function handleTypeChange(t) {
-    setForm(p => ({ ...p, db_type: t, port: DEFAULT_PORTS[t] ?? p.port, meta: {} }));
+  function handleTypeChange(ty) {
+    setForm(p => ({ ...p, db_type: ty, port: DEFAULT_PORTS[ty] ?? p.port, meta: {} }));
   }
 
   async function handleAdd() {
@@ -7921,7 +8426,7 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
           <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${CONN_TYPE_COLORS[conn.db_type] ?? "bg-gray-100 text-gray-700"}`}>
             {CONN_TYPE_LABELS[conn.db_type] ?? conn.db_type}
           </span>
-          {readOnly && <span className="text-xs text-gray-400 italic">from client profile</span>}
+          {readOnly && <span className="text-xs text-gray-400 italic">{t("conn.from_client")}</span>}
         </div>
         {!readOnly && canEdit && (
           <button onClick={() => deleteConnection(conn.id)} className="text-gray-300 hover:text-red-500 transition-colors">
@@ -7933,7 +8438,7 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
         {conn.host}{conn.port ? `:${conn.port}` : ""}
         {conn.db_name ? <span className="text-gray-400"> / {conn.db_name}</span> : null}
       </div>
-      {conn.username && <div className="text-xs text-gray-400">User: {conn.username}</div>}
+      {conn.username && <div className="text-xs text-gray-400">{t("conn.user_label")}{conn.username}</div>}
       {isSapType(conn.db_type) && conn.meta && <SapProfileBadges meta={conn.meta} />}
       {conn.notes && <p className="text-xs text-gray-400 italic">{conn.notes}</p>}
     </div>
@@ -7943,42 +8448,42 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-gray-500">Connections specific to this project. Client-wide connections appear below as inherited.</p>
+          <p className="text-sm text-gray-500">{t("conn.project_desc")}</p>
         </div>
         {canEdit && (
           <button onClick={() => setShowAdd(p => !p)}
             className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors">
-            <Plus size={14} /> Add Connection
+            <Plus size={14} /> {t("conn.add_action")}
           </button>
         )}
       </div>
 
       {showAdd && (
         <div className="bg-blue-50/60 border border-blue-200 rounded-xl p-5 space-y-3">
-          <p className="text-sm font-semibold text-gray-800">New project-level connection</p>
+          <p className="text-sm font-semibold text-gray-800">{t("conn.new_project")}</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{t("conn.type_short")}</label>
               <select value={form.db_type} onChange={e => handleTypeChange(e.target.value)}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
-                {Object.entries(CONN_TYPE_LABELS).map(([t, l]) => <option key={t} value={t}>{l}</option>)}
+                {Object.entries(CONN_TYPE_LABELS).map(([ty, l]) => <option key={ty} value={ty}>{l}</option>)}
               </select>
             </div>
-            <Input label="Host / IP" value={form.host}
+            <Input label={t("conn.host_ip")} value={form.host}
               onChange={e => setForm(p => ({ ...p, host: e.target.value }))} placeholder="db.example.com" />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Port" type="number" value={form.port}
+            <Input label={t("label.port")} type="number" value={form.port}
               onChange={e => setForm(p => ({ ...p, port: +e.target.value }))} />
             {!isVpnType(form.db_type) && (
-              <Input label="Database / SID" value={form.db_name}
+              <Input label={t("conn.db_sid")} value={form.db_name}
                 onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} placeholder="my_database" />
             )}
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Username" value={form.username}
+            <Input label={t("label.username")} value={form.username}
               onChange={e => setForm(p => ({ ...p, username: e.target.value }))} placeholder="readonly_user" />
-            <Input label="Notes" value={form.notes}
+            <Input label={t("label.notes")} value={form.notes}
               onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="e.g. DEV system only" />
           </div>
           {isSapType(form.db_type) && (
@@ -7987,11 +8492,11 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
           )}
           <div className="flex justify-end gap-2 pt-1">
             <button onClick={() => { setShowAdd(false); setForm(defaultForm); }}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50">Cancel</button>
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50">{t("action.cancel")}</button>
             <button onClick={handleAdd}
               disabled={saving || !form.host || (!isVpnType(form.db_type) && !form.db_name)}
               className="px-4 py-1.5 text-sm bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
-              {saving ? "Adding…" : "Add Connection"}
+              {saving ? t("state.adding") : t("conn.add_action")}
             </button>
           </div>
         </div>
@@ -8000,8 +8505,8 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
       {projectConns.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-200 p-8 text-center bg-white">
           <Database size={24} className="text-gray-300 mx-auto mb-2" />
-          <p className="text-sm text-gray-400">No project-specific connections yet.</p>
-          {canEdit && <p className="text-xs text-gray-300 mt-1">Click "Add Connection" to create one for this project only.</p>}
+          <p className="text-sm text-gray-400">{t("conn.no_project")}</p>
+          {canEdit && <p className="text-xs text-gray-300 mt-1">{t("conn.add_hint")}</p>}
         </div>
       ) : (
         <div className="grid gap-3">
@@ -8013,7 +8518,7 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
         <div>
           <div className="flex items-center gap-3 my-4">
             <div className="h-px flex-1 bg-gray-100" />
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Inherited from client profile</span>
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t("conn.inherited")}</span>
             <div className="h-px flex-1 bg-gray-100" />
           </div>
           <div className="grid gap-3">
@@ -18093,18 +18598,19 @@ function SapProfileBadges({ meta = {} }) {
 }
 
 function DbConnectionsList({ client, auth }) {
+  const { t } = useT();
   const { connections, addConnection, deleteConnection } = useDbConnections(client.id);
   const [showAdd, setShowAdd] = useState(false);
   const defaultForm = { db_type: "postgresql", host: "", port: 5432, db_name: "", username: "", notes: "", meta: {} };
   const [form, setForm]       = useState(defaultForm);
   const [saving, setSaving]   = useState(false);
 
-  const isSapType = t => ["sap_gui","sap_hana","sap_rfc","sap_odata"].includes(t);
-  const isVpnType = t => t === "vpn";
+  const isSapType = ty => ["sap_gui","sap_hana","sap_rfc","sap_odata"].includes(ty);
+  const isVpnType = ty => ty === "vpn";
 
-  function handleTypeChange(t) {
+  function handleTypeChange(ty) {
     const defaultPorts = { postgresql: 5432, mysql: 3306, mssql: 1433, oracle: 1521, mongodb: 27017, sap_hana: 39015, sap_gui: 3200, sap_rfc: 3300, sap_odata: 443, vpn: 1194 };
-    setForm(p => ({ ...p, db_type: t, port: defaultPorts[t] ?? p.port, meta: {} }));
+    setForm(p => ({ ...p, db_type: ty, port: defaultPorts[ty] ?? p.port, meta: {} }));
   }
 
   async function handleAdd() {
@@ -18137,12 +18643,12 @@ function DbConnectionsList({ client, auth }) {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h2 className="font-bold text-gray-900">{client.client_profiles?.company_name ?? client.full_name}</h2>
-          <p className="text-sm text-gray-400">{connections.length} connection{connections.length !== 1 ? "s" : ""}</p>
+          <p className="text-sm text-gray-400">{connections.length === 1 ? t("conn.count_one") : t("conn.count_many").replace("{n}", connections.length)}</p>
         </div>
         {(auth.isAdmin || auth.isManager) && (
           <button onClick={() => setShowAdd(p => !p)}
             className="px-4 py-2 text-sm bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700">
-            + Add Connection
+            {t("conn.add_btn")}
           </button>
         )}
       </div>
@@ -18151,25 +18657,25 @@ function DbConnectionsList({ client, auth }) {
         <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Connection Type</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{t("conn.type_label")}</label>
               <select value={form.db_type} onChange={e => handleTypeChange(e.target.value)}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <optgroup label="Databases">
-                  {["postgresql","mysql","mssql","oracle","mongodb","other"].map(t => (
-                    <option key={t} value={t}>{CONN_LABELS[t]}</option>
+                <optgroup label={t("conn.group_databases")}>
+                  {["postgresql","mysql","mssql","oracle","mongodb","other"].map(ty => (
+                    <option key={ty} value={ty}>{CONN_LABELS[ty]}</option>
                   ))}
                 </optgroup>
                 <optgroup label="SAP">
-                  {["sap_gui","sap_hana","sap_rfc","sap_odata"].map(t => (
-                    <option key={t} value={t}>{CONN_LABELS[t]}</option>
+                  {["sap_gui","sap_hana","sap_rfc","sap_odata"].map(ty => (
+                    <option key={ty} value={ty}>{CONN_LABELS[ty]}</option>
                   ))}
                 </optgroup>
-                <optgroup label="Network">
+                <optgroup label={t("conn.group_network")}>
                   <option value="vpn">VPN</option>
                 </optgroup>
               </select>
             </div>
-            <Input label={isSapType(form.db_type) ? "Application Server" : isVpnType(form.db_type) ? "VPN Host" : "Host / Server"}
+            <Input label={isSapType(form.db_type) ? t("conn.app_server") : isVpnType(form.db_type) ? t("conn.vpn_host") : t("conn.host_server")}
               value={form.host} onChange={e => setForm(p => ({ ...p, host: e.target.value }))}
               placeholder={isSapType(form.db_type) ? "saphost.example.com" : "host.example.com"} />
           </div>
@@ -18177,37 +18683,37 @@ function DbConnectionsList({ client, auth }) {
           {/* Standard DB fields */}
           {!isSapType(form.db_type) && !isVpnType(form.db_type) && (
             <div className="grid grid-cols-3 gap-3">
-              <Input label="Port" type="number" value={form.port} onChange={e => setForm(p => ({ ...p, port: Number(e.target.value) }))} />
-              <Input label="Database Name" value={form.db_name} onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} />
-              <Input label="Username" value={form.username} onChange={e => setForm(p => ({ ...p, username: e.target.value }))} />
+              <Input label={t("label.port")} type="number" value={form.port} onChange={e => setForm(p => ({ ...p, port: Number(e.target.value) }))} />
+              <Input label={t("conn.db_name_label")} value={form.db_name} onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} />
+              <Input label={t("label.username")} value={form.username} onChange={e => setForm(p => ({ ...p, username: e.target.value }))} />
             </div>
           )}
 
           {/* SAP GUI / RFC fields */}
           {(form.db_type === "sap_gui" || form.db_type === "sap_rfc") && (
             <div className="grid grid-cols-4 gap-3">
-              <Input label="System Number" type="number" value={form.port} onChange={e => setForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="00" />
-              <Input label="System ID (SID)" value={form.db_name} onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} placeholder="PRD" />
-              <Input label="SAP Client" value={form.meta?.sap_client ?? ""} onChange={e => setForm(p => ({ ...p, meta: { ...p.meta, sap_client: e.target.value } }))} placeholder="100" />
-              <Input label="Username" value={form.username} onChange={e => setForm(p => ({ ...p, username: e.target.value }))} />
+              <Input label={t("conn.sys_number")} type="number" value={form.port} onChange={e => setForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="00" />
+              <Input label={t("conn.sys_id")} value={form.db_name} onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} placeholder="PRD" />
+              <Input label={t("conn.sap_client")} value={form.meta?.sap_client ?? ""} onChange={e => setForm(p => ({ ...p, meta: { ...p.meta, sap_client: e.target.value } }))} placeholder="100" />
+              <Input label={t("label.username")} value={form.username} onChange={e => setForm(p => ({ ...p, username: e.target.value }))} />
             </div>
           )}
 
           {/* SAP HANA fields */}
           {form.db_type === "sap_hana" && (
             <div className="grid grid-cols-3 gap-3">
-              <Input label="Port" type="number" value={form.port} onChange={e => setForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="39015" />
-              <Input label="Database / Schema" value={form.db_name} onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} />
-              <Input label="Username" value={form.username} onChange={e => setForm(p => ({ ...p, username: e.target.value }))} />
+              <Input label={t("label.port")} type="number" value={form.port} onChange={e => setForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="39015" />
+              <Input label={t("conn.db_schema")} value={form.db_name} onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} />
+              <Input label={t("label.username")} value={form.username} onChange={e => setForm(p => ({ ...p, username: e.target.value }))} />
             </div>
           )}
 
           {/* SAP OData fields */}
           {form.db_type === "sap_odata" && (
             <div className="grid grid-cols-3 gap-3">
-              <Input label="Port" type="number" value={form.port} onChange={e => setForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="443" />
+              <Input label={t("label.port")} type="number" value={form.port} onChange={e => setForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="443" />
               <Input label="Service Path" value={form.db_name} onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} placeholder="/sap/opu/odata/sap/..." />
-              <Input label="Username / OAuth Client" value={form.username} onChange={e => setForm(p => ({ ...p, username: e.target.value }))} />
+              <Input label={t("conn.username_oauth")} value={form.username} onChange={e => setForm(p => ({ ...p, username: e.target.value }))} />
             </div>
           )}
 
@@ -18220,25 +18726,25 @@ function DbConnectionsList({ client, auth }) {
           {isVpnType(form.db_type) && (
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">VPN Protocol</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">{t("conn.vpn_protocol")}</label>
                 <select value={form.meta?.vpn_protocol ?? "OpenVPN"}
                   onChange={e => setForm(p => ({ ...p, meta: { ...p.meta, vpn_protocol: e.target.value } }))}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                   {["OpenVPN","IPSec/IKEv2","WireGuard","SSL/TLS","PPTP","L2TP"].map(v => <option key={v}>{v}</option>)}
                 </select>
               </div>
-              <Input label="Port" type="number" value={form.port} onChange={e => setForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="1194" />
-              <Input label="Profile / Label" value={form.db_name} onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} placeholder="Corporate VPN" />
+              <Input label={t("label.port")} type="number" value={form.port} onChange={e => setForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="1194" />
+              <Input label={t("conn.profile_label")} value={form.db_name} onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} placeholder="Corporate VPN" />
             </div>
           )}
 
-          <Textarea label="Notes" value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+          <Textarea label={t("label.notes")} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
             placeholder={isSapType(form.db_type) ? "Additional access instructions, firewall rules…" : isVpnType(form.db_type) ? "Config file location, certificate path, access instructions…" : "Access instructions, connection details…"} />
           <div className="flex justify-end gap-3">
-            <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+            <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
             <button onClick={handleAdd} disabled={saving}
               className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
-              {saving ? "Adding…" : "Add Connection"}
+              {saving ? t("state.adding") : t("conn.add_action")}
             </button>
           </div>
         </div>
@@ -18259,7 +18765,7 @@ function DbConnectionsList({ client, auth }) {
               {(auth.isAdmin || auth.isManager) && (
                 <button onClick={() => deleteConnection(conn.id)}
                   className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded border border-red-100 hover:bg-red-50">
-                  Remove
+                  {t("action.remove")}
                 </button>
               )}
             </div>
@@ -18274,7 +18780,7 @@ function DbConnectionsList({ client, auth }) {
         {connections.length === 0 && (
           <div className="text-center py-8 text-gray-400">
             <div className="mb-2 flex justify-center"><Database className="w-8 h-8 text-gray-300" /></div>
-            <p className="text-sm">No connections configured.</p>
+            <p className="text-sm">{t("conn.none")}</p>
           </div>
         )}
       </div>
@@ -18449,6 +18955,7 @@ function ClientTeamList({ client, auth }) {
 // LIFECYCLE SETTINGS VIEW (admin/manager global page)
 // ============================================================
 function LifecycleSettingsView({ auth }) {
+  const { t } = useT();
   const { templates, loadingTmpl, fetchTemplates } = useLifecycleTemplates();
   const [selected, setSelected] = useState(null);
   const [editStages, setEditStages] = useState([]);
@@ -18565,67 +19072,65 @@ function LifecycleSettingsView({ auth }) {
   ];
 
   const ALL_TABS = [
-    { id: "detail",       label: "Details" },
-    { id: "activities",   label: "Activities" },
-    { id: "milestones",   label: "Milestones" },
-    { id: "comments",     label: "Comments" },
-    { id: "subcases",     label: "Sub-cases" },
-    { id: "documents",    label: "Docs" },
-    { id: "time",         label: "Time" },
-    { id: "applications", label: "Applicants" },
-    { id: "lifecycle",    label: "Lifecycle" },
-    { id: "spec",         label: "Spec" },
+    { id: "detail",       label: t("lc.tab_detail") },
+    { id: "activities",   label: t("lc.tab_activities") },
+    { id: "milestones",   label: t("lc.tab_milestones") },
+    { id: "comments",     label: t("lc.tab_comments") },
+    { id: "subcases",     label: t("lc.tab_subcases") },
+    { id: "documents",    label: t("lc.tab_docs") },
+    { id: "time",         label: t("lc.tab_time") },
+    { id: "applications", label: t("lc.tab_applicants") },
+    { id: "lifecycle",    label: t("lc.tab_lifecycle") },
+    { id: "spec",         label: t("lc.tab_spec") },
   ];
 
   const ACTION_RULES = [
-    { key: "editable",           label: "Edit case" },
-    { key: "can_log_time",       label: "Log time" },
-    { key: "can_add_activities", label: "Activities" },
-    { key: "can_comment",        label: "Comments" },
-    { key: "can_upload_docs",    label: "Docs upload" },
+    { key: "editable",           label: t("lc.rule_edit") },
+    { key: "can_log_time",       label: t("lc.rule_time") },
+    { key: "can_add_activities", label: t("lc.rule_activities") },
+    { key: "can_comment",        label: t("lc.rule_comments") },
+    { key: "can_upload_docs",    label: t("lc.rule_docs") },
   ];
 
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Lifecycle Templates</h2>
-          <p className="text-sm text-gray-500 mt-1">
-            Define stages, transitions, and which roles can move a case to each next stage. Admin always has full access.
-          </p>
+          <h2 className="text-2xl font-bold text-gray-900">{t("lc.title")}</h2>
+          <p className="text-sm text-gray-500 mt-1">{t("lc.page_desc")}</p>
         </div>
         {!selected && !creating && (
           <button onClick={() => setCreating(true)}
             className="flex-shrink-0 px-4 py-2 bg-[#1A4B8C] hover:bg-blue-900 text-white text-sm font-semibold rounded-xl">
-            + New Template
+            {t("lc.new_btn")}
           </button>
         )}
       </div>
 
       {creating && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-          <h3 className="font-semibold text-gray-900">New Lifecycle Template</h3>
+          <h3 className="font-semibold text-gray-900">{t("lc.create_title")}</h3>
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Name</label>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("label.name")}</label>
               <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
                 placeholder="e.g. Enterprise Lifecycle"
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Description</label>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("label.description")}</label>
               <input type="text" value={newDesc} onChange={e => setNewDesc(e.target.value)}
                 placeholder="Optional description"
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
           </div>
-          <p className="text-xs text-gray-400">The template will be pre-populated with the Standard lifecycle stages. You can edit them after creation.</p>
+          <p className="text-xs text-gray-400">{t("lc.create_hint")}</p>
           <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
             <button onClick={() => { setCreating(false); setNewName(""); setNewDesc(""); }}
-              className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
+              className="text-sm text-gray-400 hover:text-gray-600">{t("action.cancel")}</button>
             <button onClick={handleCreate} disabled={!newName.trim() || saving}
               className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
-              {saving ? "Creating…" : "Create Template"}
+              {saving ? t("state.creating") : t("lc.create_btn")}
             </button>
           </div>
         </div>
@@ -18638,15 +19143,15 @@ function LifecycleSettingsView({ auth }) {
               <h3 className="font-semibold text-gray-900">{selected.name}</h3>
               <p className="text-sm text-gray-500">{selected.description}</p>
             </div>
-            <button onClick={cancelEdit} className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
+            <button onClick={cancelEdit} className="text-sm text-gray-400 hover:text-gray-600">{t("action.cancel")}</button>
           </div>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Stages &amp; Transitions</p>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t("lc.stages_title")}</p>
               <button onClick={addStage}
                 className="text-xs font-semibold text-blue-600 hover:text-blue-700 border border-blue-200 rounded-lg px-2.5 py-1 hover:bg-blue-50">
-                + Add Stage
+                {t("lc.add_stage")}
               </button>
             </div>
 
@@ -18666,7 +19171,7 @@ function LifecycleSettingsView({ auth }) {
                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
                       activeStageIdx === i ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"
                     }`}>
-                      {s.is_initial ? "Initial" : "Terminal"}
+                      {s.is_initial ? t("lc.initial") : t("lc.terminal")}
                     </span>
                   )}
                 </button>
@@ -18687,12 +19192,12 @@ function LifecycleSettingsView({ auth }) {
                     <input type="text" value={stage.label}
                       onChange={e => updateStage(idx, { label: e.target.value })}
                       className="flex-1 text-sm font-semibold bg-white border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-0"
-                      placeholder="Stage name" />
+                      placeholder={t("lc.stage_name_ph")} />
                     <select value={stage.is_terminal ? "terminal" : "active"}
                       onChange={e => updateStage(idx, { is_terminal: e.target.value === "terminal", ...(e.target.value === "terminal" ? { allowed_next: [], allowed_roles: [], is_initial: false } : {}) })}
                       className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-600 focus:outline-none flex-shrink-0">
-                      <option value="active">Active</option>
-                      <option value="terminal">Terminal</option>
+                      <option value="active">{t("lc.stage_active")}</option>
+                      <option value="terminal">{t("lc.terminal")}</option>
                     </select>
                     {!stage.is_terminal && (
                       <>
@@ -18703,7 +19208,7 @@ function LifecycleSettingsView({ auth }) {
                               ? "bg-emerald-50 text-emerald-700 border-emerald-300"
                               : "bg-white text-gray-400 border-gray-200 hover:border-emerald-300 hover:text-emerald-600"
                           }`}>
-                          Initial
+                          {t("lc.initial")}
                         </button>
                         <button onClick={() => cycleTrigger(idx)}
                           title="How this stage is reached"
@@ -18714,7 +19219,7 @@ function LifecycleSettingsView({ auth }) {
                               ? "bg-indigo-50 text-indigo-700 border-indigo-300"
                               : "bg-white text-gray-400 border-gray-200 hover:border-gray-300"
                           }`}>
-                          {(stage.trigger ?? "manual") === "auto" ? "Auto" : (stage.trigger ?? "manual") === "both" ? "Manual+Auto" : "Manual"}
+                          {(stage.trigger ?? "manual") === "auto" ? t("lc.trigger_auto") : (stage.trigger ?? "manual") === "both" ? t("lc.trigger_both") : t("lc.trigger_manual")}
                         </button>
                       </>
                     )}
@@ -18745,7 +19250,7 @@ function LifecycleSettingsView({ auth }) {
                           );
                         })}
                         {!(stage.allowed_roles ?? []).length && (
-                          <span className="text-[10px] text-gray-400 italic">no restriction — any role</span>
+                          <span className="text-[10px] text-gray-400 italic">{t("lc.any_role")}</span>
                         )}
                       </div>
 
@@ -18766,18 +19271,18 @@ function LifecycleSettingsView({ auth }) {
                             );
                           })}
                           {!(stage.allowed_next ?? []).length && (
-                            <span className="text-[10px] text-gray-400 italic">no restriction — any stage</span>
+                            <span className="text-[10px] text-gray-400 italic">{t("lc.any_stage")}</span>
                           )}
                         </div>
                       </div>
 
                       {/* Access Rules */}
                       <div className="pt-3 border-t border-gray-200 space-y-2.5">
-                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 block">Access Rules</span>
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 block">{t("lc.access_rules")}</span>
 
                         {/* Action toggles */}
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-14 flex-shrink-0">Allow</span>
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-14 flex-shrink-0">{t("lc.allow")}</span>
                           {ACTION_RULES.map(({ key, label }) => {
                             const allowed = stage.rules?.[key] ?? true;
                             return (
@@ -18796,34 +19301,34 @@ function LifecycleSettingsView({ auth }) {
 
                         {/* Tab visibility */}
                         <div className="flex items-start gap-2 flex-wrap">
-                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-14 flex-shrink-0 pt-0.5">Tabs</span>
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-14 flex-shrink-0 pt-0.5">{t("lc.tabs")}</span>
                           <div className="flex flex-wrap gap-1">
-                            {ALL_TABS.map(t => {
+                            {ALL_TABS.map(tb => {
                               const visibleTabs = stage.rules?.visible_tabs ?? null;
-                              const isOn = !visibleTabs || visibleTabs.includes(t.id);
+                              const isOn = !visibleTabs || visibleTabs.includes(tb.id);
                               return (
-                                <button key={t.id}
+                                <button key={tb.id}
                                   onClick={() => {
                                     const cur = stage.rules?.visible_tabs ?? ALL_TABS.map(x => x.id);
-                                    const next = isOn ? cur.filter(id => id !== t.id) : [...cur, t.id];
+                                    const next = isOn ? cur.filter(id => id !== tb.id) : [...cur, tb.id];
                                     updateStage(idx, { rules: { ...(stage.rules ?? {}), visible_tabs: next.length === ALL_TABS.length ? null : next } });
                                   }}
                                   className={`text-[11px] px-2 py-0.5 rounded-full font-semibold border transition-colors ${
                                     isOn ? "bg-blue-50 text-blue-600 border-blue-200" : "bg-gray-100 text-gray-400 border-gray-200"
                                   }`}>
-                                  {t.label}
+                                  {tb.label}
                                 </button>
                               );
                             })}
                             {!stage.rules?.visible_tabs && (
-                              <span className="text-[10px] text-gray-400 italic">all visible</span>
+                              <span className="text-[10px] text-gray-400 italic">{t("lc.all_visible")}</span>
                             )}
                           </div>
                         </div>
 
                         {/* Bypass roles */}
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-14 flex-shrink-0">Bypass</span>
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-14 flex-shrink-0">{t("lc.bypass")}</span>
                           {["admin", "manager", "consultant", "client"].map(role => {
                             const bypass = stage.rules?.bypass_roles ?? ["admin", "manager"];
                             const on = bypass.includes(role);
@@ -18841,7 +19346,7 @@ function LifecycleSettingsView({ auth }) {
                               </button>
                             );
                           })}
-                          <span className="text-[10px] text-gray-400 italic">bypass all restrictions</span>
+                          <span className="text-[10px] text-gray-400 italic">{t("lc.bypass_hint")}</span>
                         </div>
                       </div>
                     </div>
@@ -18854,7 +19359,7 @@ function LifecycleSettingsView({ auth }) {
           <div className="flex justify-end pt-2 border-t border-gray-100">
             <button onClick={handleSave} disabled={saving}
               className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
-              {saving ? "Saving…" : "Save Template"}
+              {saving ? t("state.saving") : t("lc.save_template")}
             </button>
           </div>
         </div>
@@ -18894,11 +19399,11 @@ function LifecycleSettingsView({ auth }) {
                 <div className="flex items-center gap-2 flex-shrink-0 ml-4">
                   <button onClick={() => startEdit(viewTmpl)}
                     className="px-4 py-1.5 bg-[#1A4B8C] hover:bg-blue-900 text-white text-sm font-semibold rounded-xl">
-                    <Pencil size={13} className="mr-1 inline" />Edit Stages
+                    <Pencil size={13} className="mr-1 inline" />{t("lc.edit_stages")}
                   </button>
                   <button onClick={() => handleDelete(viewTmpl)}
                     className="px-3 py-1.5 border border-red-200 text-red-500 hover:bg-red-50 text-sm font-semibold rounded-xl">
-                    Delete
+                    {t("action.delete")}
                   </button>
                 </div>
               </div>
@@ -18917,12 +19422,12 @@ function LifecycleSettingsView({ auth }) {
                       <span className="font-semibold text-gray-900 text-sm flex-1">{s.label}</span>
                       {s.is_terminal ? (
                         <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200">
-                          Terminal
+                          {t("lc.terminal")}
                         </span>
                       ) : (
                         <div className="flex gap-1.5 flex-wrap justify-end">
                           {(s.allowed_roles ?? []).length === 0
-                            ? <span className="text-[10px] text-gray-400 italic">Any role</span>
+                            ? <span className="text-[10px] text-gray-400 italic">{t("lc.any_role")}</span>
                             : (s.allowed_roles ?? []).map(r => {
                                 const rm = ROLES.find(x => x.key === r);
                                 if (!rm) return null;
