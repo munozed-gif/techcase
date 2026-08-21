@@ -150,6 +150,39 @@ function useDbConnections(clientId) {
   return { connections, addConnection, deleteConnection, refetch: fetchConnections };
 }
 
+function useProjectDbConnections(projectId, clientId) {
+  const [projectConns, setProjectConns] = useState([]);
+  const [clientConns,  setClientConns]  = useState([]);
+
+  const fetchAll = useCallback(async () => {
+    if (!projectId) return;
+    const [{ data: p }, { data: c }] = await Promise.all([
+      supabase.from("db_connections").select("*").eq("project_id", projectId).order("created_at"),
+      clientId
+        ? supabase.from("db_connections").select("*").eq("client_id", clientId).is("project_id", null).order("created_at")
+        : Promise.resolve({ data: [] }),
+    ]);
+    setProjectConns(p ?? []);
+    setClientConns(c ?? []);
+  }, [projectId, clientId]);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  async function addConnection(conn) {
+    const { error } = await supabase.from("db_connections")
+      .insert({ ...conn, client_id: clientId, project_id: projectId });
+    if (error) throw error;
+    await fetchAll();
+  }
+
+  async function deleteConnection(id) {
+    await supabase.from("db_connections").delete().eq("id", id);
+    await fetchAll();
+  }
+
+  return { projectConns, clientConns, addConnection, deleteConnection, refetch: fetchAll };
+}
+
 function useSubCases(parentCaseId) {
   const [subCases, setSubCases] = useState([]);
   const [loading, setLoading]   = useState(true);
@@ -5658,6 +5691,158 @@ function UserAvatar({ name, size = 36, title: tooltipTitle }) {
   );
 }
 
+function ProjectConnectionsTab({ projectId, clientId, auth }) {
+  const { projectConns, clientConns, addConnection, deleteConnection } = useProjectDbConnections(projectId, clientId);
+  const [showAdd, setShowAdd] = useState(false);
+  const defaultForm = { db_type: "postgresql", host: "", port: 5432, db_name: "", username: "", notes: "", meta: {} };
+  const [form, setForm]       = useState(defaultForm);
+  const [saving, setSaving]   = useState(false);
+
+  const isSapType = t => ["sap_gui","sap_hana","sap_rfc","sap_odata"].includes(t);
+  const isVpnType = t => t === "vpn";
+  const CONN_TYPE_LABELS = {
+    postgresql:"PostgreSQL", mysql:"MySQL", mssql:"MSSQL", oracle:"Oracle",
+    mongodb:"MongoDB", sap_gui:"SAP GUI", sap_hana:"SAP HANA",
+    sap_rfc:"SAP RFC", sap_odata:"SAP OData", vpn:"VPN", other:"Other",
+  };
+  const CONN_TYPE_COLORS = {
+    postgresql:"bg-blue-100 text-blue-700", mysql:"bg-orange-100 text-orange-700",
+    mssql:"bg-red-100 text-red-700", oracle:"bg-red-100 text-red-700",
+    mongodb:"bg-green-100 text-green-700", sap_gui:"bg-indigo-100 text-indigo-700",
+    sap_hana:"bg-cyan-100 text-cyan-700", sap_rfc:"bg-purple-100 text-purple-700",
+    sap_odata:"bg-teal-100 text-teal-700", vpn:"bg-slate-100 text-slate-700",
+    other:"bg-gray-100 text-gray-700",
+  };
+  const DEFAULT_PORTS = { postgresql:5432, mysql:3306, mssql:1433, oracle:1521, mongodb:27017, sap_hana:39015, sap_gui:3200, sap_rfc:3300, sap_odata:443, vpn:1194 };
+
+  function handleTypeChange(t) {
+    setForm(p => ({ ...p, db_type: t, port: DEFAULT_PORTS[t] ?? p.port, meta: {} }));
+  }
+
+  async function handleAdd() {
+    if (!form.host || (!isVpnType(form.db_type) && !form.db_name)) return;
+    setSaving(true);
+    try {
+      await addConnection(form);
+      setForm(defaultForm);
+      setShowAdd(false);
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  const canEdit = auth.isAdmin || auth.isManager;
+
+  const ConnCard = ({ conn, readOnly }) => (
+    <div className={`bg-white rounded-xl border p-4 space-y-2 ${readOnly ? "opacity-60 border-dashed border-gray-200" : "border-gray-200 shadow-sm"}`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${CONN_TYPE_COLORS[conn.db_type] ?? "bg-gray-100 text-gray-700"}`}>
+            {CONN_TYPE_LABELS[conn.db_type] ?? conn.db_type}
+          </span>
+          {readOnly && <span className="text-xs text-gray-400 italic">from client profile</span>}
+        </div>
+        {!readOnly && canEdit && (
+          <button onClick={() => deleteConnection(conn.id)} className="text-gray-300 hover:text-red-500 transition-colors">
+            <Trash2 size={14} />
+          </button>
+        )}
+      </div>
+      <div className="text-sm font-medium text-gray-800">
+        {conn.host}{conn.port ? `:${conn.port}` : ""}
+        {conn.db_name ? <span className="text-gray-400"> / {conn.db_name}</span> : null}
+      </div>
+      {conn.username && <div className="text-xs text-gray-400">User: {conn.username}</div>}
+      {isSapType(conn.db_type) && conn.meta && <SapProfileBadges meta={conn.meta} />}
+      {conn.notes && <p className="text-xs text-gray-400 italic">{conn.notes}</p>}
+    </div>
+  );
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-gray-500">Connections specific to this project. Client-wide connections appear below as inherited.</p>
+        </div>
+        {canEdit && (
+          <button onClick={() => setShowAdd(p => !p)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors">
+            <Plus size={14} /> Add Connection
+          </button>
+        )}
+      </div>
+
+      {showAdd && (
+        <div className="bg-blue-50/60 border border-blue-200 rounded-xl p-5 space-y-3">
+          <p className="text-sm font-semibold text-gray-800">New project-level connection</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
+              <select value={form.db_type} onChange={e => handleTypeChange(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                {Object.entries(CONN_TYPE_LABELS).map(([t, l]) => <option key={t} value={t}>{l}</option>)}
+              </select>
+            </div>
+            <Input label="Host / IP" value={form.host}
+              onChange={e => setForm(p => ({ ...p, host: e.target.value }))} placeholder="db.example.com" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Port" type="number" value={form.port}
+              onChange={e => setForm(p => ({ ...p, port: +e.target.value }))} />
+            {!isVpnType(form.db_type) && (
+              <Input label="Database / SID" value={form.db_name}
+                onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} placeholder="my_database" />
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Username" value={form.username}
+              onChange={e => setForm(p => ({ ...p, username: e.target.value }))} placeholder="readonly_user" />
+            <Input label="Notes" value={form.notes}
+              onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="e.g. DEV system only" />
+          </div>
+          {isSapType(form.db_type) && (
+            <SapProfileFields meta={form.meta} dbType={form.db_type}
+              onChange={meta => setForm(p => ({ ...p, meta }))} />
+          )}
+          <div className="flex justify-end gap-2 pt-1">
+            <button onClick={() => { setShowAdd(false); setForm(defaultForm); }}
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50">Cancel</button>
+            <button onClick={handleAdd}
+              disabled={saving || !form.host || (!isVpnType(form.db_type) && !form.db_name)}
+              className="px-4 py-1.5 text-sm bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
+              {saving ? "Adding…" : "Add Connection"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {projectConns.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-gray-200 p-8 text-center bg-white">
+          <Database size={24} className="text-gray-300 mx-auto mb-2" />
+          <p className="text-sm text-gray-400">No project-specific connections yet.</p>
+          {canEdit && <p className="text-xs text-gray-300 mt-1">Click "Add Connection" to create one for this project only.</p>}
+        </div>
+      ) : (
+        <div className="grid gap-3">
+          {projectConns.map(c => <ConnCard key={c.id} conn={c} readOnly={false} />)}
+        </div>
+      )}
+
+      {clientConns.length > 0 && (
+        <div>
+          <div className="flex items-center gap-3 my-4">
+            <div className="h-px flex-1 bg-gray-100" />
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Inherited from client profile</span>
+            <div className="h-px flex-1 bg-gray-100" />
+          </div>
+          <div className="grid gap-3">
+            {clientConns.map(c => <ConnCard key={c.id} conn={c} readOnly={true} />)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] }) {
   const { createCase, updateCase, deleteCase } = useCases({});
   const [projCases, setProjCases] = useState([]);
@@ -5763,6 +5948,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
     { id: "consultants",  label: "Consultants",   icon: UserCheck,         count: consultants.length },
     { id: "requirements", label: "Requirements",  icon: SlidersHorizontal, count: null },
     { id: "cases",        label: "Cases",         icon: FolderOpen,        count: projCases.length },
+    { id: "connections",  label: "Connections",   icon: Database,          count: null },
     ...(canEdit ? [{ id: "lifecycle", label: "Lifecycle", icon: TrendingUp, count: null }] : []),
   ];
 
@@ -6306,6 +6492,11 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
               </div>
             )}
           </div>
+        )}
+
+        {/* Connections */}
+        {activeTab === "connections" && (
+          <ProjectConnectionsTab projectId={project.id} clientId={project.client_id} auth={auth} />
         )}
 
         {/* Lifecycle */}
