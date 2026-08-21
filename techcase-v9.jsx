@@ -3362,7 +3362,7 @@ function Dashboard({ auth }) {
 
       {/* ── Client drill-down panel ── */}
       {clientFilter && (() => {
-        const clientCases = cases.filter(c => c.client_id === clientFilter.id);
+        const clientCases = stripSource.filter(c => c.client_id === clientFilter.id);
         const activeCsCases = clientCases.filter(c => !["completed","cancelled"].includes(c.status));
         const pastCsCases   = clientCases.filter(c =>  ["completed","cancelled"].includes(c.status));
         const STATUS_COLORS = {
