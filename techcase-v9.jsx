@@ -216,6 +216,7 @@ const TRANSLATIONS = {
     "state.saved":        "Saved",
     "state.saving":       "Saving…",
     "state.deleting":     "Deleting…",
+    "state.creating":     "Creating…",
     // Dashboard
     "dashboard.title":           "Dashboard",
     "dashboard.subtitle":        "Here's what's happening on the platform today.",
@@ -309,6 +310,14 @@ const TRANSLATIONS = {
     "reports.billable":        "Billable",
     "reports.approved_entries":"Approved entries",
     "reports.hours_by_consultant": "Hours by Consultant",
+    "reports.unknown":        "Unknown",
+    "reports.filtered":       " (filtered)",
+    "reports.all_time":       " — all time",
+    "reports.inv_total":      "total",
+    "reports.overdue_label":  "overdue",
+    "reports.case_count_one": "1 case",
+    "reports.case_count_many":"{n} cases",
+    "reports.h_billable":     "({n}h billable)",
     // Invoices
     "invoices.title":         "Invoices",
     "invoices.new":           "+ New Invoice",
@@ -383,6 +392,23 @@ const TRANSLATIONS = {
     "arena.private":          "Private",
     "arena.nda":              "NDA",
     "arena.applicant_ranking":"Applicant Ranking",
+    "arena.label_starts":  "Starts: ",
+    "arena.label_due":     "Due: ",
+    "arena.label_budget":  "Budget: $",
+    "arena.applicant_one": "1 applicant",
+    "arena.applicant_many":"{n} applicants",
+    "arena.applicant_sg":  "applicant",
+    "arena.applicant_pl":  "applicants",
+    "arena.years_exp":     "{n}y experience",
+    "arena.default_headline":"Consultant",
+    "arena.back":          "← Arena",
+    "arena.label_start":   "Start:",
+    "arena.label_due_short":"Due:",
+    "arena.label_budget_short":"Budget:",
+    "arena.label_experience":"Experience:",
+    "arena.yrs_suffix":    "+ yrs",
+    "arena.open_count_one":"1 open case",
+    "arena.open_count_many":"{n} open cases",
     // Profile (consultant)
     "profile.title":          "My Profile",
     "profile.edit":           "Edit Profile",
@@ -685,11 +711,52 @@ const TRANSLATIONS = {
     "settings.catalog":         "Catalog Values",
     "settings.sla":             "SLA Config",
     "settings.platform":        "Platform & AI",
+    // System Settings inner tabs
+    "sys.search_users":         "Search users…",
+    "sys.add_user":             "Add User",
+    "sys.col_actions":          "Actions",
+    "sys.pwd_sent":             "Sent",
+    "sys.pwd_reset":            "Reset pwd",
+    "sys.no_users":             "No users found",
+    "sys.create_user_title":    "Create User Account",
+    "sys.create_user_notice":   "This form creates Manager and Admin accounts. Consultant and Client users self-register.",
+    "sys.temp_pwd":             "Temporary Password",
+    "sys.temp_pwd_ph":          "Min 6 characters",
+    "sys.create_user_btn":      "Create User",
+    "sys.create_user_required": "Name, email and password are required.",
+    "sys.phases_desc":          "System-wide activity phases. Clients can override these in their profile.",
+    "sys.reset_defaults":       "Reset defaults",
+    "sys.add_phase":            "Add Phase",
+    "sys.saved":                "Saved!",
+    "sys.col_color":            "Color",
+    "sys.col_key":              "Key",
+    "sys.col_label":            "Label",
+    "sys.col_req_status":       "Required Status",
+    "sys.none_status":          "— none —",
+    "sys.phase_modal_title":    "Add Activity Phase",
+    "sys.phase_key_label":      "Key (snake_case, unique)",
+    "sys.phase_req_status":     "Required Case Status",
+    "sys.reset_cat":            "Reset",
+    "sys.no_values":            "No values. Add one below.",
+    "sys.add_value_ph":         "Add new {cat} value…",
+    "sys.ai_config_title":      "AI Configuration",
+    "sys.model_label":          "Model for Plan Generation",
+    "sys.model_hint":           "Used for development plan generation and SAP coverage analysis.",
+    "sys.general_title":        "General",
+    "sys.currency_label":       "Default Currency",
+    "sys.invoice_due_label":    "Invoice Due (days)",
+    "sys.overdue_grace_label":  "Overdue Grace Period (days)",
+    "sys.max_apps_label":       "Max Applications per Case",
+    "sys.scoring_title":        "Candidate Scoring Weights",
+    "sys.scoring_hint":         "Must sum to 100. Current total:",
+    "sys.settings_saved":       "Settings saved!",
+    "sys.save":                 "Save Settings",
     // Kanban
     "kanban.title":     "Kanban Board",
     "kanban.subtitle":  "Visual case pipeline",
     "kanban.no_cases":  "No cases to show.",
     "kanban.empty_col": "Empty",
+    "kanban.case_count": "{n} cases",
     // Language picker
     "lang.en":     "English",
     "lang.es":     "Spanish",
@@ -1211,6 +1278,7 @@ const TRANSLATIONS = {
     "state.saved":        "Guardado",
     "state.saving":       "Guardando…",
     "state.deleting":     "Eliminando…",
+    "state.creating":     "Creando…",
     // Dashboard
     "dashboard.title":           "Panel",
     "dashboard.subtitle":        "Esto es lo que está pasando en la plataforma hoy.",
@@ -1304,6 +1372,14 @@ const TRANSLATIONS = {
     "reports.billable":        "Facturable",
     "reports.approved_entries":"Entradas aprobadas",
     "reports.hours_by_consultant": "Horas por Consultor",
+    "reports.unknown":        "Desconocido",
+    "reports.filtered":       " (filtrado)",
+    "reports.all_time":       " — todo el tiempo",
+    "reports.inv_total":      "en total",
+    "reports.overdue_label":  "vencidas",
+    "reports.case_count_one": "1 caso",
+    "reports.case_count_many":"{n} casos",
+    "reports.h_billable":     "({n}h facturable)",
     // Invoices
     "invoices.title":         "Facturas",
     "invoices.new":           "+ Nueva Factura",
@@ -1378,6 +1454,23 @@ const TRANSLATIONS = {
     "arena.private":          "Privado",
     "arena.nda":              "NDA",
     "arena.applicant_ranking":"Ranking de Postulantes",
+    "arena.label_starts":  "Inicio: ",
+    "arena.label_due":     "Vence: ",
+    "arena.label_budget":  "Presupuesto: $",
+    "arena.applicant_one": "1 postulante",
+    "arena.applicant_many":"{n} postulantes",
+    "arena.applicant_sg":  "postulante",
+    "arena.applicant_pl":  "postulantes",
+    "arena.years_exp":     "{n}a de experiencia",
+    "arena.default_headline":"Consultor",
+    "arena.back":          "← Arena",
+    "arena.label_start":   "Inicio:",
+    "arena.label_due_short":"Vence:",
+    "arena.label_budget_short":"Presupuesto:",
+    "arena.label_experience":"Experiencia:",
+    "arena.yrs_suffix":    "+ años",
+    "arena.open_count_one":"1 caso abierto",
+    "arena.open_count_many":"{n} casos abiertos",
     // Profile (consultant)
     "profile.title":          "Mi Perfil",
     "profile.edit":           "Editar Perfil",
@@ -1680,11 +1773,52 @@ const TRANSLATIONS = {
     "settings.catalog":         "Valores de Catálogo",
     "settings.sla":             "Config. SLA",
     "settings.platform":        "Plataforma e IA",
+    // System Settings inner tabs
+    "sys.search_users":         "Buscar usuarios…",
+    "sys.add_user":             "Agregar Usuario",
+    "sys.col_actions":          "Acciones",
+    "sys.pwd_sent":             "Enviado",
+    "sys.pwd_reset":            "Restablecer pwd",
+    "sys.no_users":             "Sin usuarios encontrados",
+    "sys.create_user_title":    "Crear Cuenta de Usuario",
+    "sys.create_user_notice":   "Este formulario crea cuentas de Manager y Admin. Los Consultores y Clientes se auto-registran.",
+    "sys.temp_pwd":             "Contraseña Temporal",
+    "sys.temp_pwd_ph":          "Mínimo 6 caracteres",
+    "sys.create_user_btn":      "Crear Usuario",
+    "sys.create_user_required": "Nombre, email y contraseña son obligatorios.",
+    "sys.phases_desc":          "Fases de actividad del sistema. Los clientes pueden sobreescribirlas en su perfil.",
+    "sys.reset_defaults":       "Restablecer valores predeterminados",
+    "sys.add_phase":            "Agregar Fase",
+    "sys.saved":                "¡Guardado!",
+    "sys.col_color":            "Color",
+    "sys.col_key":              "Clave",
+    "sys.col_label":            "Etiqueta",
+    "sys.col_req_status":       "Estado Requerido",
+    "sys.none_status":          "— ninguno —",
+    "sys.phase_modal_title":    "Agregar Fase de Actividad",
+    "sys.phase_key_label":      "Clave (snake_case, única)",
+    "sys.phase_req_status":     "Estado de Caso Requerido",
+    "sys.reset_cat":            "Restablecer",
+    "sys.no_values":            "Sin valores. Agrega uno abajo.",
+    "sys.add_value_ph":         "Agregar nuevo valor de {cat}…",
+    "sys.ai_config_title":      "Configuración de IA",
+    "sys.model_label":          "Modelo para Generación de Planes",
+    "sys.model_hint":           "Usado para generación de planes de desarrollo y análisis de cobertura SAP.",
+    "sys.general_title":        "General",
+    "sys.currency_label":       "Moneda Predeterminada",
+    "sys.invoice_due_label":    "Vencimiento de Factura (días)",
+    "sys.overdue_grace_label":  "Período de Gracia por Retraso (días)",
+    "sys.max_apps_label":       "Máximo de Postulaciones por Caso",
+    "sys.scoring_title":        "Pesos de Puntuación de Candidatos",
+    "sys.scoring_hint":         "Debe sumar 100. Total actual:",
+    "sys.settings_saved":       "¡Configuración guardada!",
+    "sys.save":                 "Guardar Configuración",
     // Kanban
     "kanban.title":     "Tablero Kanban",
     "kanban.subtitle":  "Pipeline visual de casos",
     "kanban.no_cases":  "Sin casos para mostrar.",
     "kanban.empty_col": "Vacío",
+    "kanban.case_count": "{n} casos",
     // Language picker
     "lang.en":     "Inglés",
     "lang.es":     "Español",
@@ -15516,7 +15650,7 @@ function ArenaView({ auth }) {
     if (casesLoading) return <Spinner />;
     if (openCases.length === 0) return (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center text-gray-400 text-sm">
-        No estimated cases available right now.
+        {t("arena.no_cases")}
       </div>
     );
     return (
@@ -15539,9 +15673,9 @@ function ArenaView({ auth }) {
               {companyName && <p className="text-xs text-blue-600 font-medium mb-1">{companyName}</p>}
               {c.description && <p className="text-xs text-gray-400 line-clamp-2 mb-3">{c.description}</p>}
               <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 mb-3">
-                {c.start_date && <span>Starts: {fmtDate(c.start_date)}</span>}
-                {c.due_date   && <span>Due: {fmtDate(c.due_date)}</span>}
-                {c.budget     && <span>Budget: ${Number(c.budget).toLocaleString()}</span>}
+                {c.start_date && <span>{t("arena.label_starts")}{fmtDate(c.start_date)}</span>}
+                {c.due_date   && <span>{t("arena.label_due")}{fmtDate(c.due_date)}</span>}
+                {c.budget     && <span>{t("arena.label_budget")}{Number(c.budget).toLocaleString()}</span>}
               </div>
               {c.skills_required?.length > 0 && (
                 <div className="flex flex-wrap gap-1 mb-3">
@@ -15551,13 +15685,13 @@ function ArenaView({ auth }) {
                 </div>
               )}
               <div className="flex items-center justify-between pt-1">
-                <span className="text-xs text-gray-400">{appCount} applicant{appCount !== 1 ? "s" : ""}</span>
+                <span className="text-xs text-gray-400">{appCount === 1 ? t("arena.applicant_one") : t("arena.applicant_many").replace("{n}", appCount)}</span>
                 {auth.isConsultant && (
                   alreadyApplied
-                    ? <span className="text-xs text-green-600 font-semibold"><><Check size={10} className="mr-0.5 inline" />Applied</></span>
+                    ? <span className="text-xs text-green-600 font-semibold"><><Check size={10} className="mr-0.5 inline" />{t("arena.applied")}</></span>
                     : <button onClick={() => setApplying(c)}
                         className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors">
-                        Apply →
+                        {t("arena.apply")}
                       </button>
                 )}
               </div>
@@ -15575,11 +15709,11 @@ function ArenaView({ auth }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
-              <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Rank</th>
-              <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Consultant</th>
-              <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Avg Rating</th>
-              <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Cases Won</th>
-              <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">Applications</th>
+              <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">{t("arena.col_rank")}</th>
+              <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">{t("arena.col_consultant")}</th>
+              <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">{t("arena.col_rating")}</th>
+              <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">{t("arena.col_won")}</th>
+              <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">{t("arena.col_apps")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -15598,7 +15732,7 @@ function ArenaView({ auth }) {
                     </div>
                     <div>
                       <div className="font-medium text-gray-900">{c.user?.full_name}</div>
-                      <div className="text-xs text-gray-400">{c.headline ?? `${c.years_experience ?? 0}y experience`}</div>
+                      <div className="text-xs text-gray-400">{c.headline ?? t("arena.years_exp").replace("{n}", c.years_experience ?? 0)}</div>
                     </div>
                   </div>
                 </td>
@@ -15618,7 +15752,7 @@ function ArenaView({ auth }) {
               </tr>
             ))}
             {leaderboard.length === 0 && (
-              <tr><td colSpan={5} className="px-5 py-12 text-center text-gray-400 text-sm">No consultants yet</td></tr>
+              <tr><td colSpan={5} className="px-5 py-12 text-center text-gray-400 text-sm">{t("arena.no_consultants")}</td></tr>
             )}
           </tbody>
         </table>
@@ -15636,7 +15770,7 @@ function ArenaView({ auth }) {
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-semibold text-gray-900 truncate">{c.user?.full_name}</div>
-              <div className="text-xs text-gray-400">{c.headline ?? "Consultant"}</div>
+              <div className="text-xs text-gray-400">{c.headline ?? t("arena.default_headline")}</div>
               {c.avgRating > 0 && (
                 <div className="flex items-center gap-1 mt-1">
                   {stars(c.avgRating)}
@@ -15650,9 +15784,9 @@ function ArenaView({ auth }) {
               : null}
           </div>
           <div className="flex gap-4 text-xs text-gray-500">
-            <span><strong className="text-gray-800">{c.acceptedCases}</strong> won</span>
-            <span><strong className="text-gray-800">{c.totalApps}</strong> apps</span>
-            <span><strong className="text-gray-800">{c.ratingCount}</strong> ratings</span>
+            <span><strong className="text-gray-800">{c.acceptedCases}</strong> {t("arena.stat_won")}</span>
+            <span><strong className="text-gray-800">{c.totalApps}</strong> {t("arena.stat_apps")}</span>
+            <span><strong className="text-gray-800">{c.ratingCount}</strong> {t("arena.stat_ratings")}</span>
           </div>
           {c.skills?.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-1">
@@ -15688,19 +15822,19 @@ function ArenaView({ auth }) {
               </div>
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Avg Rating</span>
+                  <span className="text-gray-500">{t("arena.compare_rating")}</span>
                   <span className="font-semibold">{c.avgRating || "—"} / 5</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Win Rate</span>
+                  <span className="text-gray-500">{t("arena.compare_win_rate")}</span>
                   <span className="font-semibold">{appRate}%</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Cases Won</span>
+                  <span className="text-gray-500">{t("arena.compare_won")}</span>
                   <span className="font-semibold">{c.acceptedCases}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Experience</span>
+                  <span className="text-gray-500">{t("arena.compare_exp")}</span>
                   <span className="font-semibold">{c.years_experience ?? 0}y</span>
                 </div>
                 {/* Bar: avg rating */}
@@ -15716,7 +15850,7 @@ function ArenaView({ auth }) {
         })}
         {top3.length < 3 && (
           <div className="col-span-full text-center text-gray-400 py-8 text-sm">
-            Need at least 3 consultants to compare
+            {t("arena.compare_need")}
           </div>
         )}
       </div>
@@ -15745,7 +15879,7 @@ function ArenaView({ auth }) {
       <div className="space-y-5">
         <button onClick={() => setArenaSelected(null)}
           className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700">
-          ← Arena
+          {t("arena.back")}
         </button>
 
         {/* Case overview */}
@@ -15757,13 +15891,13 @@ function ArenaView({ auth }) {
                 <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
                 {c.area_sap      && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{c.area_sap}</span>}
                 {c.area_industry && <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg text-xs font-medium">{c.area_industry}</span>}
-                {c.is_confidential && <span className="px-2 py-0.5 bg-gray-800 text-white rounded-lg text-xs font-semibold">Private</span>}
-                {c.nda_required  && <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">NDA</span>}
+                {c.is_confidential && <span className="px-2 py-0.5 bg-gray-800 text-white rounded-lg text-xs font-semibold">{t("arena.private")}</span>}
+                {c.nda_required  && <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">{t("arena.nda")}</span>}
               </div>
             </div>
             <div className="flex-shrink-0 text-right">
               <div className="text-2xl font-black text-gray-900">{appCount}</div>
-              <div className="text-xs text-gray-400">applicant{appCount !== 1 ? "s" : ""}</div>
+              <div className="text-xs text-gray-400">{appCount !== 1 ? t("arena.applicant_pl") : t("arena.applicant_sg")}</div>
             </div>
           </div>
 
@@ -15771,10 +15905,10 @@ function ArenaView({ auth }) {
           {c.description && <p className="text-sm text-gray-600 leading-relaxed mb-4">{c.description}</p>}
 
           <div className="flex flex-wrap gap-4 text-sm text-gray-500 mb-4">
-            {c.start_date && <span><span className="font-medium text-gray-700">Start:</span> {fmtDate(c.start_date)}</span>}
-            {c.due_date   && <span><span className="font-medium text-gray-700">Due:</span> {fmtDate(c.due_date)}</span>}
-            {c.budget     && <span><span className="font-medium text-gray-700">Budget:</span> ${Number(c.budget).toLocaleString()}</span>}
-            {c.min_years_experience > 0 && <span><span className="font-medium text-gray-700">Experience:</span> {c.min_years_experience}+ yrs</span>}
+            {c.start_date && <span><span className="font-medium text-gray-700">{t("arena.label_start")}</span> {fmtDate(c.start_date)}</span>}
+            {c.due_date   && <span><span className="font-medium text-gray-700">{t("arena.label_due_short")}</span> {fmtDate(c.due_date)}</span>}
+            {c.budget     && <span><span className="font-medium text-gray-700">{t("arena.label_budget_short")}</span> ${Number(c.budget).toLocaleString()}</span>}
+            {c.min_years_experience > 0 && <span><span className="font-medium text-gray-700">{t("arena.label_experience")}</span> {c.min_years_experience}{t("arena.yrs_suffix")}</span>}
           </div>
 
           {c.skills_required?.length > 0 && (
@@ -15788,7 +15922,7 @@ function ArenaView({ auth }) {
 
         {/* Ranked applicants */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Applicant Ranking</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">{t("arena.applicant_ranking")}</p>
           <ApplicantRankingSection
             caseData={c}
             auth={auth}
@@ -15809,7 +15943,7 @@ function ArenaView({ auth }) {
         </div>
         {openCases.length > 0 && (
           <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-semibold rounded-xl">
-            {openCases.length} open case{openCases.length !== 1 ? "s" : ""}
+            {openCases.length === 1 ? t("arena.open_count_one") : t("arena.open_count_many").replace("{n}", openCases.length)}
           </span>
         )}
       </div>
@@ -17246,7 +17380,7 @@ function ReportsView() {
   const consultantHours = Object.values(
     filtEntries.reduce((acc, e) => {
       const id = e.consultant_id;
-      const name = e.consultant?.full_name ?? "Unknown";
+      const name = e.consultant?.full_name ?? t("reports.unknown");
       if (!acc[id]) acc[id] = { id, name, total: 0, billable: 0 };
       acc[id].total += (e.hours ?? 0);
       acc[id].billable += e.is_billable ? (e.hours ?? 0) : 0;
@@ -17266,7 +17400,7 @@ function ReportsView() {
       <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t("reports.title")}</h1>
-          <p className="text-gray-500 text-sm mt-1">{t("reports.subtitle")}{isFiltered ? " (filtered)" : " — all time"}</p>
+          <p className="text-gray-500 text-sm mt-1">{t("reports.subtitle")}{isFiltered ? t("reports.filtered") : t("reports.all_time")}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs font-medium text-gray-500">{t("reports.from")}</span>
@@ -17381,8 +17515,8 @@ function ReportsView() {
               </div>
             ))}
             <div className="pt-2 border-t border-gray-100 text-sm text-gray-500">
-              {filtInvoices.length} invoice{filtInvoices.length !== 1 ? "s" : ""} total ·{" "}
-              {filtInvoices.filter(i => i.status === "overdue").length} overdue
+              {filtInvoices.length === 1 ? t("invoices.count_one") : t("invoices.count_many").replace("{n}", filtInvoices.length)}{" "}
+              {t("reports.inv_total")} · {filtInvoices.filter(i => i.status === "overdue").length} {t("reports.overdue_label")}
             </div>
           </div>
         </div>
@@ -17419,8 +17553,8 @@ function ReportsView() {
                     <div className="flex justify-between text-xs mb-1">
                       <span className="text-gray-700 font-medium truncate max-w-[50%]">{c.name}</span>
                       <span className="text-gray-500">
-                        <span className="text-indigo-600 mr-2">{c.caseCount} case{c.caseCount !== 1 ? "s" : ""}</span>
-                        {c.total.toFixed(1)}h <span className="text-green-600">({c.billable.toFixed(1)}h billable)</span>
+                        <span className="text-indigo-600 mr-2">{c.caseCount === 1 ? t("reports.case_count_one") : t("reports.case_count_many").replace("{n}", c.caseCount)}</span>
+                        {c.total.toFixed(1)}h <span className="text-green-600">{t("reports.h_billable").replace("{n}", c.billable.toFixed(1))}</span>
                       </span>
                     </div>
                     <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -20320,7 +20454,7 @@ function KanbanView({ auth }) {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">{t("kanban.title")}</h1>
-        <p className="text-gray-500 text-sm mt-1">{t("kanban.subtitle")} · {filteredCases.length} cases</p>
+        <p className="text-gray-500 text-sm mt-1">{t("kanban.subtitle")} · {t("kanban.case_count").replace("{n}", filteredCases.length)}</p>
       </div>
 
       {kanbanCols.length === 0 ? (
@@ -20375,7 +20509,7 @@ function KanbanView({ auth }) {
                   </div>
                 ))}
                 {colCases.length === 0 && (
-                  <div className="text-center py-6 text-gray-300 text-xs">Empty</div>
+                  <div className="text-center py-6 text-gray-300 text-xs">{t("kanban.empty_col")}</div>
                 )}
               </div>
             </div>
@@ -21273,6 +21407,7 @@ function useSystemSettings() {
 }
 
 function SettingsUsersTab() {
+  const { t } = useT();
   const [users, setUsers]       = useState([]);
   const [loading, setLoading]   = useState(true);
   const [showAdd, setShowAdd]   = useState(false);
@@ -21316,7 +21451,7 @@ function SettingsUsersTab() {
   async function handleCreateUser() {
     setAddError("");
     if (!addForm.full_name || !addForm.email || !addForm.password) {
-      setAddError("Name, email and password are required."); return;
+      setAddError(t("sys.create_user_required")); return;
     }
     setAdding(true);
     try {
@@ -21354,12 +21489,12 @@ function SettingsUsersTab() {
       <div className="flex items-center justify-between mb-4">
         <div className="relative flex-1 max-w-xs">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search users…"
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t("sys.search_users")}
             className="pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
         <button onClick={() => { setShowAdd(true); setAddError(""); }}
           className="ml-4 flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors">
-          <Plus size={14} /> Add User
+          <Plus size={14} /> {t("sys.add_user")}
         </button>
       </div>
 
@@ -21367,11 +21502,11 @@ function SettingsUsersTab() {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="px-4 py-3 text-left font-semibold text-gray-600">Name</th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-600">Email</th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-600">Role</th>
-              <th className="px-4 py-3 text-center font-semibold text-gray-600">Status</th>
-              <th className="px-4 py-3 text-center font-semibold text-gray-600">Actions</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600">{t("label.name")}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600">{t("label.email")}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600">{t("label.role")}</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-600">{t("label.status")}</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-600">{t("sys.col_actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -21415,7 +21550,7 @@ function SettingsUsersTab() {
                       ${u.is_active !== false
                         ? "bg-green-100 text-green-700 hover:bg-red-100 hover:text-red-700"
                         : "bg-red-100 text-red-700 hover:bg-green-100 hover:text-green-700"}`}>
-                    {u.is_active !== false ? "Active" : "Inactive"}
+                    {u.is_active !== false ? t("label.active") : t("label.inactive")}
                   </button>
                 </td>
                 <td className="px-4 py-3 text-center">
@@ -21425,13 +21560,13 @@ function SettingsUsersTab() {
                       ${resetSent[u.email]
                         ? "bg-green-100 text-green-700"
                         : "bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700"}`}>
-                    {resetSent[u.email] ? <><Check size={12} /> Sent</> : <><RefreshCw size={12} /> Reset pwd</>}
+                    {resetSent[u.email] ? <><Check size={12} /> {t("sys.pwd_sent")}</> : <><RefreshCw size={12} /> {t("sys.pwd_reset")}</>}
                   </button>
                 </td>
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">No users found</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">{t("sys.no_users")}</td></tr>
             )}
           </tbody>
         </table>
@@ -21441,32 +21576,32 @@ function SettingsUsersTab() {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-semibold text-gray-900">Create User Account</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t("sys.create_user_title")}</h2>
               <button onClick={() => setShowAdd(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
             </div>
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-xs text-amber-800">
-              This form creates Manager and Admin accounts. Consultant and Client users self-register.
+              {t("sys.create_user_notice")}
             </div>
-            <Input label="Full Name" value={addForm.full_name}
+            <Input label={t("label.full_name")} value={addForm.full_name}
               onChange={e => setAddForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Jane Smith" />
-            <Input label="Email" type="email" value={addForm.email}
+            <Input label={t("label.email")} type="email" value={addForm.email}
               onChange={e => setAddForm(p => ({ ...p, email: e.target.value }))} placeholder="jane@company.com" />
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.role")}</label>
               <select value={addForm.role} onChange={e => setAddForm(p => ({ ...p, role: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm">
                 {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
             </div>
-            <Input label="Temporary Password" type="password" value={addForm.password}
-              onChange={e => setAddForm(p => ({ ...p, password: e.target.value }))} placeholder="Min 6 characters" />
+            <Input label={t("sys.temp_pwd")} type="password" value={addForm.password}
+              onChange={e => setAddForm(p => ({ ...p, password: e.target.value }))} placeholder={t("sys.temp_pwd_ph")} />
             {addError && <p className="text-red-600 text-xs mt-2">{addError}</p>}
             <div className="flex gap-3 mt-5">
               <button onClick={() => setShowAdd(false)}
-                className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 text-sm rounded-xl hover:bg-gray-50">Cancel</button>
+                className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 text-sm rounded-xl hover:bg-gray-50">{t("action.cancel")}</button>
               <button onClick={handleCreateUser} disabled={adding}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
-                {adding ? "Creating…" : "Create User"}
+                {adding ? t("state.creating") : t("sys.create_user_btn")}
               </button>
             </div>
           </div>
@@ -21496,6 +21631,7 @@ function SettingsPhasesTab({ ssCtx }) {
   const [newPhase, setNewPhase] = useState({ key: "", label: "", color: "#6366f1", required_status: "" });
   const [saving, setSaving]   = useState(false);
   const [toast, setToast]     = useState(null);
+  const { t } = useT();
 
   useEffect(() => {
     if (!ssCtx.loading) {
@@ -21508,7 +21644,7 @@ function SettingsPhasesTab({ ssCtx }) {
     try {
       await ssCtx.setSetting("activity_phases", newPhases);
       setPhases(newPhases);
-      setToast("Saved!");
+      setToast(t("sys.saved"));
       setTimeout(() => setToast(null), 2500);
     } catch (e) {
       setToast("Error: " + e.message);
@@ -21537,15 +21673,15 @@ function SettingsPhasesTab({ ssCtx }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-gray-500">System-wide activity phases. Clients can override these in their profile.</p>
+        <p className="text-sm text-gray-500">{t("sys.phases_desc")}</p>
         <div className="flex gap-2">
           <button onClick={() => savePhasesData(DEFAULT_PHASES)}
             className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 flex items-center gap-1.5">
-            <RotateCcw size={13} /> Reset defaults
+            <RotateCcw size={13} /> {t("sys.reset_defaults")}
           </button>
           <button onClick={() => setShowAdd(true)}
             className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-1.5">
-            <Plus size={13} /> Add Phase
+            <Plus size={13} /> {t("sys.add_phase")}
           </button>
         </div>
       </div>
@@ -21560,11 +21696,11 @@ function SettingsPhasesTab({ ssCtx }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="px-4 py-3 text-left font-semibold text-gray-600 w-12">Color</th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-600">Key</th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-600">Label</th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-600">Required Status</th>
-              <th className="px-4 py-3 text-center font-semibold text-gray-600 w-24">Actions</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600 w-12">{t("sys.col_color")}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600">{t("sys.col_key")}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600">{t("sys.col_label")}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600">{t("sys.col_req_status")}</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-600 w-24">{t("sys.col_actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -21586,14 +21722,14 @@ function SettingsPhasesTab({ ssCtx }) {
                       <select value={editing.required_status ?? ""}
                         onChange={e => setEditing(p => ({ ...p, required_status: e.target.value || null }))}
                         className="border border-gray-200 rounded-lg px-2 py-1 text-sm">
-                        {ALL_STATUSES.map(s => <option key={s} value={s}>{s || "— none —"}</option>)}
+                        {ALL_STATUSES.map(s => <option key={s} value={s}>{s || t("sys.none_status")}</option>)}
                       </select>
                     </td>
                     <td className="px-4 py-2 text-center">
                       <div className="flex items-center gap-1 justify-center">
                         <button onClick={saveEdit} disabled={saving}
                           className="px-2 py-1 bg-green-600 text-white text-xs rounded-lg flex items-center gap-1">
-                          <Check size={11} /> Save
+                          <Check size={11} /> {t("action.save")}
                         </button>
                         <button onClick={() => setEditing(null)}
                           className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-lg"><X size={11} /></button>
@@ -21628,23 +21764,23 @@ function SettingsPhasesTab({ ssCtx }) {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-semibold text-gray-900">Add Activity Phase</h2>
+              <h2 className="text-lg font-semibold text-gray-900">{t("sys.phase_modal_title")}</h2>
               <button onClick={() => setShowAdd(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Key (snake_case, unique)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("sys.phase_key_label")}</label>
                 <input value={newPhase.key}
                   onChange={e => setNewPhase(p => ({ ...p, key: e.target.value.toLowerCase().replace(/\s+/g, "_") }))}
                   className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full" placeholder="e.g. integration_test" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Label</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("sys.col_label")}</label>
                 <input value={newPhase.label} onChange={e => setNewPhase(p => ({ ...p, label: e.target.value }))}
                   className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full" placeholder="e.g. Integration Test" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("sys.col_color")}</label>
                 <div className="flex items-center gap-3">
                   <input type="color" value={newPhase.color} onChange={e => setNewPhase(p => ({ ...p, color: e.target.value }))}
                     className="w-10 h-10 rounded-xl cursor-pointer border border-gray-200" />
@@ -21652,7 +21788,7 @@ function SettingsPhasesTab({ ssCtx }) {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Required Case Status</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("sys.phase_req_status")}</label>
                 <select value={newPhase.required_status}
                   onChange={e => setNewPhase(p => ({ ...p, required_status: e.target.value }))}
                   className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full">
@@ -21662,10 +21798,10 @@ function SettingsPhasesTab({ ssCtx }) {
             </div>
             <div className="flex gap-3 mt-5">
               <button onClick={() => setShowAdd(false)}
-                className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 text-sm rounded-xl hover:bg-gray-50">Cancel</button>
+                className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 text-sm rounded-xl hover:bg-gray-50">{t("action.cancel")}</button>
               <button onClick={addPhase} disabled={saving || !newPhase.key || !newPhase.label}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
-                Add Phase
+                {t("sys.add_phase")}
               </button>
             </div>
           </div>
@@ -21703,6 +21839,7 @@ function SettingsCatalogTab({ ssCtx }) {
   const [newValue, setNewValue]       = useState("");
   const [saving, setSaving]           = useState(false);
   const [toast, setToast]             = useState(null);
+  const { t } = useT();
 
   useEffect(() => {
     if (!ssCtx.loading) {
@@ -21719,7 +21856,7 @@ function SettingsCatalogTab({ ssCtx }) {
     try {
       await ssCtx.setSetting(`catalog_${cat}`, values);
       setCatalogData(p => ({ ...p, [cat]: values }));
-      setToast("Saved!");
+      setToast(t("sys.saved"));
       setTimeout(() => setToast(null), 2500);
     } catch (e) {
       setToast("Error: " + e.message);
@@ -21767,14 +21904,14 @@ function SettingsCatalogTab({ ssCtx }) {
             )}
             <button onClick={() => saveCat(selectedCat, CATALOG_DEFAULTS[selectedCat])}
               className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 flex items-center gap-1">
-              <RotateCcw size={12} /> Reset
+              <RotateCcw size={12} /> {t("sys.reset_cat")}
             </button>
           </div>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-3">
           {current.length === 0 ? (
-            <p className="px-4 py-6 text-center text-gray-400 text-sm">No values. Add one below.</p>
+            <p className="px-4 py-6 text-center text-gray-400 text-sm">{t("sys.no_values")}</p>
           ) : (
             <div className="divide-y divide-gray-100">
               {current.map((val, i) => (
@@ -21791,11 +21928,11 @@ function SettingsCatalogTab({ ssCtx }) {
         <div className="flex gap-2">
           <input value={newValue} onChange={e => setNewValue(e.target.value)}
             onKeyDown={e => e.key === "Enter" && addValue()}
-            placeholder={`Add new ${CATEGORY_LABELS[selectedCat].toLowerCase()} value…`}
+            placeholder={t("sys.add_value_ph").replace("{cat}", CATEGORY_LABELS[selectedCat].toLowerCase())}
             className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           <button onClick={addValue} disabled={saving || !newValue.trim()}
             className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
-            <Plus size={14} /> Add
+            <Plus size={14} /> {t("action.add")}
           </button>
         </div>
       </div>
@@ -21822,6 +21959,7 @@ function SettingsPlatformTab({ ssCtx }) {
   const [form, setForm]     = useState(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast]   = useState(null);
+  const { t } = useT();
 
   useEffect(() => {
     if (!ssCtx.loading) {
@@ -21847,7 +21985,7 @@ function SettingsPlatformTab({ ssCtx }) {
         ssCtx.setSetting("invoice_due_days",          form.invoice_due_days),
         ssCtx.setSetting("max_applications_per_case", form.max_applications_per_case),
       ]);
-      setToast("Settings saved!");
+      setToast(t("sys.settings_saved"));
       setTimeout(() => setToast(null), 3000);
     } catch (e) {
       setToast("Error: " + e.message);
@@ -21863,44 +22001,44 @@ function SettingsPlatformTab({ ssCtx }) {
     <div className="space-y-6 max-w-2xl">
       <div className="bg-white rounded-2xl border border-gray-200 p-5">
         <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Sparkles size={16} className="text-purple-600" /> AI Configuration
+          <Sparkles size={16} className="text-purple-600" /> {t("sys.ai_config_title")}
         </h3>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Model for Plan Generation</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t("sys.model_label")}</label>
           <select value={form.ai_model} onChange={e => setForm(p => ({ ...p, ai_model: e.target.value }))}
             className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm">
             {AI_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
-          <p className="text-xs text-gray-400 mt-1">Used for development plan generation and SAP coverage analysis.</p>
+          <p className="text-xs text-gray-400 mt-1">{t("sys.model_hint")}</p>
         </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-200 p-5">
         <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Settings size={16} className="text-gray-600" /> General
+          <Settings size={16} className="text-gray-600" /> {t("sys.general_title")}
         </h3>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Default Currency</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t("sys.currency_label")}</label>
             <input value={form.default_currency}
               onChange={e => setForm(p => ({ ...p, default_currency: e.target.value.toUpperCase() }))}
               maxLength={3} placeholder="USD"
               className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Due (days)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t("sys.invoice_due_label")}</label>
             <input type="number" min={1} value={form.invoice_due_days}
               onChange={e => setForm(p => ({ ...p, invoice_due_days: +e.target.value }))}
               className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Overdue Grace Period (days)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t("sys.overdue_grace_label")}</label>
             <input type="number" min={0} value={form.overdue_grace_days}
               onChange={e => setForm(p => ({ ...p, overdue_grace_days: +e.target.value }))}
               className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Max Applications per Case</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t("sys.max_apps_label")}</label>
             <input type="number" min={1} value={form.max_applications_per_case}
               onChange={e => setForm(p => ({ ...p, max_applications_per_case: +e.target.value }))}
               className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full" />
@@ -21910,10 +22048,10 @@ function SettingsPlatformTab({ ssCtx }) {
 
       <div className="bg-white rounded-2xl border border-gray-200 p-5">
         <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
-          <SlidersHorizontal size={16} className="text-blue-600" /> Candidate Scoring Weights
+          <SlidersHorizontal size={16} className="text-blue-600" /> {t("sys.scoring_title")}
         </h3>
         <p className="text-xs text-gray-500 mb-4">
-          Must sum to 100. Current total:{" "}
+          {t("sys.scoring_hint")}{" "}
           <span className={totalWeight === 100 ? "text-green-600 font-medium" : "text-red-600 font-medium"}>{totalWeight}</span>
         </p>
         <div className="grid grid-cols-2 gap-4">
@@ -21944,11 +22082,11 @@ function SettingsPlatformTab({ ssCtx }) {
             max_applications_per_case: DEFAULTS.max_applications_per_case,
           })}
           className="px-4 py-2 border border-gray-200 text-gray-700 text-sm rounded-xl hover:bg-gray-50 flex items-center gap-1.5">
-          <RotateCcw size={13} /> Reset defaults
+          <RotateCcw size={13} /> {t("sys.reset_defaults")}
         </button>
         <button onClick={handleSave} disabled={saving || totalWeight !== 100}
           className="px-6 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
-          {saving ? "Saving…" : <><Check size={14} /> Save Settings</>}
+          {saving ? t("state.saving") : <><Check size={14} /> {t("sys.save")}</>}
         </button>
       </div>
     </div>
