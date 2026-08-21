@@ -18161,17 +18161,6 @@ function ClientProfileView({ auth }) {
             </button>
           )}
 
-          {!editingPhases && (
-            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-700">
-              <strong>SQL migration required</strong> — run this in your Supabase SQL editor before using phases and predecessors:
-              <pre className="mt-2 text-[11px] bg-white rounded-lg p-3 border border-blue-100 overflow-x-auto">{`ALTER TABLE case_activities
-  ADD COLUMN IF NOT EXISTS phase TEXT DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS predecessor_ids UUID[] DEFAULT '{}';
-
-ALTER TABLE client_profiles
-  ADD COLUMN IF NOT EXISTS activity_phases JSONB DEFAULT NULL;`}</pre>
-            </div>
-          )}
         </div>
       )}
 
