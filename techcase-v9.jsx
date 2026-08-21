@@ -328,6 +328,11 @@ const TRANSLATIONS = {
     "invoices.case_opt":      "— Select case (optional) —",
     "invoices.creating":      "Creating…",
     "invoices.overdue":       "Overdue",
+    "invoices.count_one":     "1 invoice",
+    "invoices.count_many":    "{n} invoices",
+    "invoices.amount_label":  "Amount ($)",
+    "invoices.notes_ph":      "Payment terms, line items…",
+    "invoices.create":        "Create Invoice",
     // Time entries
     "time.title":         "Time Entries",
     "time.log":           "+ Log Time",
@@ -480,6 +485,10 @@ const TRANSLATIONS = {
     "sla.notes":              "Notes",
     "sla.tier_suffix":        "Tier",
     "sla.uptime_badge":       "% Uptime",
+    "sla.col_priority":       "Priority",
+    "sla.col_response":       "Response",
+    "sla.col_resolution":     "Resolution",
+    "sla.add_type":           "+ Add",
     // DB connections (ClientProfileView)
     "conn.title":             "Database Connections",
     "conn.subtitle_one":      "1 connection configured",
@@ -646,6 +655,23 @@ const TRANSLATIONS = {
     "as.notif_auto":          "Auto-assignment Alert",
     "as.notif_auto_desc":     "Notify when the auto-assignment process runs for one of your cases",
     "as.save":                "Save Assignment Settings",
+    // Manager / Admin welcome
+    "welcome.access_includes":"Your Access Includes",
+    "welcome.go_dashboard":   "Go to Dashboard →",
+    "welcome.mgr_title":      "Welcome, Manager!",
+    "welcome.mgr_desc":       "You have full access to manage cases, assign consultants, review the kanban board, configure SLAs, and run reports.",
+    "welcome.mgr_h1":         "Create & manage cases",
+    "welcome.mgr_h2":         "Assign consultants",
+    "welcome.mgr_h3":         "Track progress on Kanban",
+    "welcome.mgr_h4":         "Configure SLA rules",
+    "welcome.mgr_h5":         "Generate reports",
+    "welcome.adm_title":      "Welcome, Administrator!",
+    "welcome.adm_desc":       "You have complete platform access including user management, all cases, system configuration, and reporting.",
+    "welcome.adm_h1":         "Manage all users & roles",
+    "welcome.adm_h2":         "Full case oversight",
+    "welcome.adm_h3":         "Configure system settings",
+    "welcome.adm_h4":         "DB connections",
+    "welcome.adm_h5":         "Arena & leaderboard",
     // DB connections (legacy stub)
     "db.title":               "DB Connections",
     "db.add":                 "Add Connection",
@@ -1297,6 +1323,11 @@ const TRANSLATIONS = {
     "invoices.case_opt":      "— Seleccionar caso (opcional) —",
     "invoices.creating":      "Creando…",
     "invoices.overdue":       "Vencida",
+    "invoices.count_one":     "1 factura",
+    "invoices.count_many":    "{n} facturas",
+    "invoices.amount_label":  "Monto ($)",
+    "invoices.notes_ph":      "Términos de pago, líneas de detalle…",
+    "invoices.create":        "Crear Factura",
     // Time entries
     "time.title":         "Registro de Horas",
     "time.log":           "+ Registrar Horas",
@@ -1449,6 +1480,10 @@ const TRANSLATIONS = {
     "sla.notes":              "Notas",
     "sla.tier_suffix":        "Nivel",
     "sla.uptime_badge":       "% Disponibilidad",
+    "sla.col_priority":       "Prioridad",
+    "sla.col_response":       "Respuesta",
+    "sla.col_resolution":     "Resolución",
+    "sla.add_type":           "+ Agregar",
     // DB connections (ClientProfileView)
     "conn.title":             "Conexiones de Base de Datos",
     "conn.subtitle_one":      "1 conexión configurada",
@@ -1615,6 +1650,23 @@ const TRANSLATIONS = {
     "as.notif_auto":          "Alerta de Auto-asignación",
     "as.notif_auto_desc":     "Notificar cuando el proceso de auto-asignación se ejecute para uno de tus casos",
     "as.save":                "Guardar Configuración de Asignación",
+    // Manager / Admin welcome
+    "welcome.access_includes":"Tu Acceso Incluye",
+    "welcome.go_dashboard":   "Ir al Panel →",
+    "welcome.mgr_title":      "¡Bienvenido, Manager!",
+    "welcome.mgr_desc":       "Tienes acceso completo para gestionar casos, asignar consultores, revisar el tablero kanban, configurar SLAs y generar informes.",
+    "welcome.mgr_h1":         "Crear y gestionar casos",
+    "welcome.mgr_h2":         "Asignar consultores",
+    "welcome.mgr_h3":         "Seguir progreso en Kanban",
+    "welcome.mgr_h4":         "Configurar reglas SLA",
+    "welcome.mgr_h5":         "Generar informes",
+    "welcome.adm_title":      "¡Bienvenido, Administrador!",
+    "welcome.adm_desc":       "Tienes acceso completo a la plataforma, incluyendo gestión de usuarios, todos los casos, configuración del sistema e informes.",
+    "welcome.adm_h1":         "Gestionar todos los usuarios y roles",
+    "welcome.adm_h2":         "Supervisión total de casos",
+    "welcome.adm_h3":         "Configurar ajustes del sistema",
+    "welcome.adm_h4":         "Conexiones de BD",
+    "welcome.adm_h5":         "Arena y clasificación",
     // DB connections (legacy stub)
     "db.title":               "Conexiones BD",
     "db.add":                 "Agregar Conexión",
@@ -3754,6 +3806,7 @@ function makeDefaultMatrix(keys) {
 const SLA_UNIT_LABELS = { minutes: "min", hours: "h", days: "d", weeks: "wk" };
 
 function SlaMatrixEditor({ caseTypes, matrix, editing, onChangeCaseTypes, onChangeMatrix }) {
+  const { t } = useT();
   const UNITS = ["minutes", "hours", "days", "weeks"];
 
   function setCellField(ctKey, pKey, field, value) {
@@ -3783,7 +3836,7 @@ function SlaMatrixEditor({ caseTypes, matrix, editing, onChangeCaseTypes, onChan
         <thead>
           <tr>
             <th className="text-left px-4 py-3 font-semibold text-gray-500 bg-gray-50 w-28 border-b border-gray-100">
-              Priority
+              {t("sla.col_priority")}
             </th>
             {caseTypes.map(ct => (
               <th key={ct.key} className="px-4 py-3 bg-gray-50 border-b border-l border-gray-100 text-center">
@@ -3807,7 +3860,7 @@ function SlaMatrixEditor({ caseTypes, matrix, editing, onChangeCaseTypes, onChan
             ))}
             {editing && (
               <th className="px-4 py-3 bg-gray-50 border-b border-l border-gray-100">
-                <button onClick={addCaseType} className="text-xs text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap">+ Add</button>
+                <button onClick={addCaseType} className="text-xs text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap">{t("sla.add_type")}</button>
               </th>
             )}
           </tr>
@@ -3827,7 +3880,7 @@ function SlaMatrixEditor({ caseTypes, matrix, editing, onChangeCaseTypes, onChan
                   <td key={ct.key} className="px-4 py-3 border-b border-l border-gray-100">
                     {editing ? (
                       <div className="space-y-2">
-                        {[["response","Response"],["resolution","Resolution"]].map(([field, lbl]) => (
+                        {[["response", t("sla.col_response")],["resolution", t("sla.col_resolution")]].map(([field, lbl]) => (
                           <div key={field} className="flex items-center gap-1">
                             <span className="text-[10px] text-gray-400 w-16 shrink-0">{lbl}</span>
                             <input type="number" min="1"
@@ -20068,7 +20121,7 @@ function InvoicesView({ auth }) {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t("invoices.title")}</h1>
-          <p className="text-gray-500 text-sm mt-1">{invoices.length} invoice{invoices.length !== 1 ? "s" : ""}</p>
+          <p className="text-gray-500 text-sm mt-1">{invoices.length === 1 ? t("invoices.count_one") : t("invoices.count_many").replace("{n}", invoices.length)}</p>
         </div>
         {(auth.isAdmin || auth.isManager) && (
           <button onClick={() => setShowCreate(true)}
@@ -20134,24 +20187,24 @@ function InvoicesView({ auth }) {
                       {inv.status === "draft" && (
                         <button onClick={() => updateInvoice(inv.id, { status: "sent" })}
                           className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded border border-blue-100 hover:bg-blue-100">
-                          Send
+                          {t("action.send")}
                         </button>
                       )}
                       {inv.status === "sent" && (
                         <button onClick={() => updateInvoice(inv.id, { status: "paid" })}
                           className="text-xs px-2 py-1 bg-green-50 text-green-700 rounded border border-green-100 hover:bg-green-100">
-                          Mark Paid
+                          {t("action.mark_paid")}
                         </button>
                       )}
                       {(inv.status === "sent" || inv.status === "draft") && (
                         <button onClick={() => updateInvoice(inv.id, { status: "overdue" })}
                           className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded border border-red-100 hover:bg-red-100">
-                          Overdue
+                          {t("invoices.overdue")}
                         </button>
                       )}
                       <button onClick={() => deleteInvoice(inv.id)}
                         className="text-xs px-2 py-1 bg-gray-50 text-gray-500 rounded border border-gray-100 hover:bg-gray-100">
-                        Delete
+                        {t("action.delete")}
                       </button>
                     </div>
                   </td>
@@ -20159,42 +20212,42 @@ function InvoicesView({ auth }) {
               </tr>
             ))}
             {displayed.length === 0 && (
-              <tr><td colSpan={7} className="px-5 py-12 text-center text-gray-400 text-sm">No invoices found</td></tr>
+              <tr><td colSpan={7} className="px-5 py-12 text-center text-gray-400 text-sm">{t("invoices.none")}</td></tr>
             )}
           </tbody>
         </table>
       </div>
 
       {/* Create Invoice Modal */}
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="New Invoice">
-        <Input label="Invoice Number" value={form.invoice_number}
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title={t("invoices.new_title")}>
+        <Input label={t("invoices.number")} value={form.invoice_number}
           onChange={e => setForm(p => ({ ...p, invoice_number: e.target.value }))}
           placeholder="INV-2024-001" />
         <div className="grid grid-cols-2 gap-3">
-          <Input label="Amount ($)" type="number" value={form.amount}
+          <Input label={t("invoices.amount_label")} type="number" value={form.amount}
             onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} />
-          <Select label="Status" value={form.status}
+          <Select label={t("label.status")} value={form.status}
             onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
             options={["draft","sent","paid","overdue"].map(s => ({ value: s, label: cap(s) }))} />
         </div>
-        <Input label="Due Date" type="date" value={form.due_date}
+        <Input label={t("invoices.col_due")} type="date" value={form.due_date}
           onChange={e => setForm(p => ({ ...p, due_date: e.target.value }))} />
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Case</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t("invoices.col_case")}</label>
           <select value={form.case_id} onChange={e => setForm(p => ({ ...p, case_id: e.target.value }))}
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-            <option value="">— Select case (optional) —</option>
+            <option value="">{t("invoices.case_opt")}</option>
             {cases.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
           </select>
         </div>
-        <Textarea label="Notes" value={form.notes}
+        <Textarea label={t("label.notes")} value={form.notes}
           onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-          placeholder="Payment terms, line items…" />
+          placeholder={t("invoices.notes_ph")} />
         <div className="flex justify-end gap-3 mt-2">
-          <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-gray-600">Cancel</button>
+          <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
           <button onClick={handleCreate} disabled={saving}
             className="px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
-            {saving ? "Creating…" : "Create Invoice"}
+            {saving ? t("invoices.creating") : t("invoices.create")}
           </button>
         </div>
       </Modal>
@@ -21138,18 +21191,19 @@ function ClientOnboardingView({ auth, onComplete }) {
 // MANAGER / ADMIN WELCOME SCREEN
 // ============================================================
 function ManagerAdminWelcomeView({ auth, onComplete }) {
+  const { t } = useT();
   const roleInfo = {
     manager: {
       Icon: FileText,
-      title: "Welcome, Manager!",
-      desc: "You have full access to manage cases, assign consultants, review the kanban board, configure SLAs, and run reports.",
-      highlights: ["Create & manage cases", "Assign consultants", "Track progress on Kanban", "Configure SLA rules", "Generate reports"],
+      title: t("welcome.mgr_title"),
+      desc: t("welcome.mgr_desc"),
+      highlights: [t("welcome.mgr_h1"), t("welcome.mgr_h2"), t("welcome.mgr_h3"), t("welcome.mgr_h4"), t("welcome.mgr_h5")],
     },
     admin: {
       Icon: Settings,
-      title: "Welcome, Administrator!",
-      desc: "You have complete platform access including user management, all cases, system configuration, and reporting.",
-      highlights: ["Manage all users & roles", "Full case oversight", "Configure system settings", "DB connections", "Arena & leaderboard"],
+      title: t("welcome.adm_title"),
+      desc: t("welcome.adm_desc"),
+      highlights: [t("welcome.adm_h1"), t("welcome.adm_h2"), t("welcome.adm_h3"), t("welcome.adm_h4"), t("welcome.adm_h5")],
     },
   };
   const info = roleInfo[auth.role] ?? roleInfo.manager;
@@ -21163,10 +21217,10 @@ function ManagerAdminWelcomeView({ auth, onComplete }) {
       <p className="text-gray-500 text-sm mb-8">{info.desc}</p>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-8 text-left">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">Your Access Includes</p>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">{t("welcome.access_includes")}</p>
         <ul className="space-y-2">
-          {info.highlights.map(h => (
-            <li key={h} className="flex items-center gap-3 text-sm text-gray-700">
+          {info.highlights.map((h, i) => (
+            <li key={i} className="flex items-center gap-3 text-sm text-gray-700">
               <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-bold flex-shrink-0"><Check size={11} /></span>
               {h}
             </li>
@@ -21176,7 +21230,7 @@ function ManagerAdminWelcomeView({ auth, onComplete }) {
 
       <button onClick={onComplete}
         className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors shadow">
-        Go to Dashboard →
+        {t("welcome.go_dashboard")}
       </button>
     </div>
   );
