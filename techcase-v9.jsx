@@ -98,6 +98,17 @@ const TRANSLATIONS = {
     "action.back":           "← Back",
     "action.mark_paid":      "Mark Paid",
     "action.log_time":       "Log Time",
+    "action.rate":           "Rate",
+    "action.submit_rating":  "Submit Rating",
+    // Consultants view
+    "consultant.search_ph":  "Search by name or skill…",
+    "consultant.none_found": "No consultants found",
+    "consultant.try_search": "Try a different search",
+    "label.rate":            "Rate:",
+    "label.experience":      "Experience:",
+    "label.avail":           "Availability:",
+    "label.level":           "Level:",
+    "label.comment":         "Comment",
     // Auth
     "auth.tagline":          "Consultant case management platform",
     "auth.welcome":          "Welcome back",
@@ -715,6 +726,17 @@ const TRANSLATIONS = {
     "action.back":           "← Volver",
     "action.mark_paid":      "Marcar Pagado",
     "action.log_time":       "Registrar",
+    "action.rate":           "Calificar",
+    "action.submit_rating":  "Enviar Calificación",
+    // Consultants view
+    "consultant.search_ph":  "Buscar por nombre o habilidad…",
+    "consultant.none_found": "No se encontraron consultores",
+    "consultant.try_search": "Intenta una búsqueda diferente",
+    "label.rate":            "Tarifa:",
+    "label.experience":      "Experiencia:",
+    "label.avail":           "Disponibilidad:",
+    "label.level":           "Nivel:",
+    "label.comment":         "Comentario",
     // Auth
     "auth.tagline":          "Plataforma de gestión de casos de consultoría",
     "auth.welcome":          "Bienvenido de nuevo",
@@ -15721,6 +15743,7 @@ function ProfileView({ auth }) {
 // CONSULTANTS DIRECTORY (Manager / Client View)
 // ============================================================
 function ConsultantsView({ auth }) {
+  const { t } = useT();
   const [search, setSearch]   = useState("");
   const [selected, setSelected] = useState(null);
   const { leaderboard, loading } = useLeaderboard();
@@ -15735,10 +15758,10 @@ function ConsultantsView({ auth }) {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Consultants</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t("nav.consultants")}</h1>
       </div>
       <input value={search} onChange={e => setSearch(e.target.value)}
-        placeholder="Search by name or skill…"
+        placeholder={t("consultant.search_ph")}
         className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500" />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -15780,7 +15803,7 @@ function ConsultantsView({ auth }) {
         ))}
         {filtered.length === 0 && (
           <div className="col-span-full">
-            <EmptyState Icon={UserCheck} title="No consultants found" subtitle="Try a different search" />
+            <EmptyState Icon={UserCheck} title={t("consultant.none_found")} subtitle={t("consultant.try_search")} />
           </div>
         )}
       </div>
@@ -15794,6 +15817,7 @@ function ConsultantsView({ auth }) {
 }
 
 function ConsultantDetailModal({ consultantId, auth }) {
+  const { t } = useT();
   const { profile, availability, loading } = useConsultantProfile(consultantId);
   const { ratings, avgRating }             = useRatings(consultantId);
   const [ratingForm, setRatingForm]        = useState({ score: 5, comment: "" });
@@ -15827,7 +15851,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
         {(auth.isAdmin || auth.isManager || auth.isClient) && (
           <button onClick={() => setRatingModal(true)}
             className="ml-auto px-4 py-2 text-sm bg-yellow-50 border border-yellow-200 text-yellow-700 rounded-xl hover:bg-yellow-100">
-            <Star size={13} className="mr-1 inline" />Rate
+            <Star size={13} className="mr-1 inline" />{t("action.rate")}
           </button>
         )}
       </div>
@@ -15835,17 +15859,17 @@ function ConsultantDetailModal({ consultantId, auth }) {
       {profile?.bio && <p className="text-sm text-gray-600">{profile.bio}</p>}
 
       <div className="grid grid-cols-2 gap-3 text-sm">
-        {profile?.hourly_rate && <div><span className="text-gray-400">Rate: </span><strong>${profile.hourly_rate}/hr</strong></div>}
-        {profile?.years_experience && <div><span className="text-gray-400">Experience: </span><strong>{profile.years_experience}y</strong></div>}
-        <div><span className="text-gray-400">Availability: </span><strong className={availability > 30 ? "text-green-600" : "text-orange-500"}>{availability}% free</strong></div>
-        {profile?.travel_available && <div className="flex items-center gap-1"><Plane className="w-3 h-3 inline-block mr-0.5" /> Travel available</div>}
+        {profile?.hourly_rate && <div><span className="text-gray-400">{t("label.rate")} </span><strong>${profile.hourly_rate}/hr</strong></div>}
+        {profile?.years_experience && <div><span className="text-gray-400">{t("label.experience")} </span><strong>{profile.years_experience}y</strong></div>}
+        <div><span className="text-gray-400">{t("label.avail")} </span><strong className={availability > 30 ? "text-green-600" : "text-orange-500"}>{availability}{t("profile.free_pct")}</strong></div>
+        {profile?.travel_available && <div className="flex items-center gap-1"><Plane className="w-3 h-3 inline-block mr-0.5" /> {t("label.travel")}</div>}
         {profile?.expertise_level && (
-          <div><span className="text-gray-400">Level: </span>
+          <div><span className="text-gray-400">{t("label.level")} </span>
             <Badge className="bg-violet-100 text-violet-700 ml-1">{cap(profile.expertise_level)}</Badge>
           </div>
         )}
         {profile?.availability_type && (
-          <div><span className="text-gray-400">Type: </span>
+          <div><span className="text-gray-400">{t("label.type")}: </span>
             <Badge className="bg-teal-100 text-teal-700 ml-1">{cap(fmt(profile.availability_type))}</Badge>
           </div>
         )}
@@ -15861,23 +15885,23 @@ function ConsultantDetailModal({ consultantId, auth }) {
 
       {ratingModal && (
         <div className="border border-yellow-200 rounded-xl p-4 bg-yellow-50">
-          <h4 className="font-semibold text-gray-900 mb-3">Submit Rating</h4>
+          <h4 className="font-semibold text-gray-900 mb-3">{t("action.submit_rating")}</h4>
           <div className="flex gap-2 mb-3">
             {[1,2,3,4,5].map(n => (
               <button key={n} onClick={() => setRatingForm(p => ({ ...p, score: n }))}
                 className={`text-2xl ${n <= ratingForm.score ? "text-yellow-400" : "text-gray-300"}`}><Star size={22} fill={n <= ratingForm.score ? "currentColor" : "none"} /></button>
             ))}
           </div>
-          <Textarea label="Comment" value={ratingForm.comment}
+          <Textarea label={t("label.comment")} value={ratingForm.comment}
             onChange={e => setRatingForm(p => ({ ...p, comment: e.target.value }))}
             placeholder="Share your experience working with this consultant…" />
           <div className="flex gap-2">
             <button onClick={handleRate}
               className="px-4 py-2 bg-yellow-500 text-white text-sm font-semibold rounded-xl hover:bg-yellow-600">
-              Submit Rating
+              {t("action.submit_rating")}
             </button>
             <button onClick={() => setRatingModal(false)}
-              className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+              className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700">{t("action.cancel")}</button>
           </div>
         </div>
       )}
