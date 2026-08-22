@@ -5422,7 +5422,7 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                   </div>
                   <div className="text-right flex-shrink-0">
                     <div className="font-black text-gray-900 text-lg">{app.totalScore}<span className="text-xs font-normal text-gray-400">/100</span></div>
-                    <Badge className={APP_STATUS_COLORS[app.status]}>{cap(app.status)}</Badge>
+                    <Badge className={APP_STATUS_COLORS[app.status]}>{STATUS_LABEL_KEYS[app.status] ? t(STATUS_LABEL_KEYS[app.status]) : cap(app.status)}</Badge>
                   </div>
                 </div>
                 {/* Live availability bar */}
@@ -6235,7 +6235,11 @@ function cap(val) { return val ? val.charAt(0).toUpperCase() + val.slice(1) : ""
 const STATUS_LABEL_KEYS = { open:"status.open", estimated:"status.estimated", assigned:"status.assigned", in_progress:"status.in_progress", on_hold:"status.on_hold", completed:"status.completed", cancelled:"status.cancelled", draft:"status.draft", active:"status.active", pending:"status.pending", under_review:"status.under_review", accepted:"status.accepted", rejected:"status.rejected", withdrawn:"status.withdrawn" };
 const AVAIL_LABEL_KEYS  = { full_time:"avail.full_time", part_time:"avail.part_time", contract:"avail.contract", project_based:"avail.project" };
 const PRIORITY_LABEL_KEYS = { low:"priority.low", medium:"priority.medium", high:"priority.high", critical:"priority.critical" };
-const INV_STATUS_LABEL_KEYS = { draft:"status.draft", sent:"inv.status_sent", paid:"invoices.paid", overdue:"invoices.overdue" };
+const INV_STATUS_LABEL_KEYS  = { draft:"status.draft", sent:"inv.status_sent", paid:"invoices.paid", overdue:"invoices.overdue" };
+const WORK_MODE_LABEL_KEYS   = { remote:"cs.work_remote", on_site:"cs.work_onsite", onsite:"cs.work_onsite", hybrid:"cs.work_hybrid" };
+const EXPERTISE_LABEL_KEYS   = { junior:"level.junior", mid:"level.mid", senior:"level.senior", expert:"level.expert", lead:"level.expert" };
+const ROLE_LABEL_KEYS        = { admin:"auth.role_admin", manager:"auth.role_manager", consultant:"auth.role_consultant", client:"auth.role_client", key_user:"auth.role_key_user" };
+const SLA_TIER_LABEL_KEYS    = { standard:"sla.tier_standard", premium:"sla.tier_premium", enterprise:"sla.tier_enterprise" };
 function fmtDate(d) {
   if (!d) return "—";
   return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -7705,7 +7709,7 @@ function Dashboard({ auth }) {
                     </div>
                   </div>
                 </div>
-                <Badge className={APP_STATUS_COLORS[a.status]}>{cap(a.status)}</Badge>
+                <Badge className={APP_STATUS_COLORS[a.status]}>{STATUS_LABEL_KEYS[a.status] ? t(STATUS_LABEL_KEYS[a.status]) : cap(a.status)}</Badge>
               </div>
             ))}
           </div>
@@ -9754,7 +9758,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
                 {basics.description && <p className="text-sm text-gray-500 mt-1 leading-relaxed">{basics.description}</p>}
                 <div className="flex flex-wrap gap-2 mt-3">
                   <Badge className={PRIORITY_COLORS[reqs.priority]}>{PRIORITY_LABEL_KEYS[reqs.priority] ? t(PRIORITY_LABEL_KEYS[reqs.priority]) : cap(reqs.priority)}</Badge>
-                  <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${PROJECT_STATUS_COLORS[basics.status] ?? "bg-gray-100 text-gray-600"}`}>{cap(basics.status)}</span>
+                  <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${PROJECT_STATUS_COLORS[basics.status] ?? "bg-gray-100 text-gray-600"}`}>{STATUS_LABEL_KEYS[basics.status] ? t(STATUS_LABEL_KEYS[basics.status]) : cap(basics.status)}</span>
                 </div>
               </div>
 
@@ -10292,7 +10296,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
             {project.work_mode && (
               <div>
                 <span className="text-gray-400 block text-xs mb-1">{t("project.work_mode")}</span>
-                <span className="px-2 py-0.5 text-xs font-semibold rounded-lg bg-sky-50 text-sky-700">{cap(project.work_mode)}</span>
+                <span className="px-2 py-0.5 text-xs font-semibold rounded-lg bg-sky-50 text-sky-700">{WORK_MODE_LABEL_KEYS[project.work_mode] ? t(WORK_MODE_LABEL_KEYS[project.work_mode]) : cap(project.work_mode)}</span>
               </div>
             )}
             {project.expected_consultants && (
@@ -15898,7 +15902,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               {myApp ? (
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">{t("case.your_application")}</span>
-                  <Badge className={APP_STATUS_COLORS[myApp.status]}>{cap(myApp.status)}</Badge>
+                  <Badge className={APP_STATUS_COLORS[myApp.status]}>{STATUS_LABEL_KEYS[myApp.status] ? t(STATUS_LABEL_KEYS[myApp.status]) : cap(myApp.status)}</Badge>
                 </div>
               ) : onApply ? (
                 <button onClick={onApply}
@@ -18285,7 +18289,7 @@ function ProfileView({ auth }) {
               {profile?.hourly_rate && <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" />{t("profile.rate_hr").replace("{n}", profile.hourly_rate)}</span>}
               {profile?.travel_available && <span className="flex items-center gap-1"><Plane className="w-3 h-3" />{t("label.travel")}</span>}
               {profile?.expertise_level && (
-                <Badge className="bg-violet-100 text-violet-700">{cap(profile.expertise_level)}</Badge>
+                <Badge className="bg-violet-100 text-violet-700">{EXPERTISE_LABEL_KEYS[profile.expertise_level] ? t(EXPERTISE_LABEL_KEYS[profile.expertise_level]) : cap(profile.expertise_level)}</Badge>
               )}
               {profile?.availability_type && (
                 <Badge className="bg-teal-100 text-teal-700">{AVAIL_LABEL_KEYS[profile.availability_type] ? t(AVAIL_LABEL_KEYS[profile.availability_type]) : cap(fmt(profile.availability_type))}</Badge>
@@ -18666,7 +18670,7 @@ function ConsultantsView({ auth }) {
             )}
             <div className="flex flex-wrap gap-1 mb-2">
               {c.expertise_level && (
-                <Badge className="bg-violet-100 text-violet-700">{cap(c.expertise_level)}</Badge>
+                <Badge className="bg-violet-100 text-violet-700">{EXPERTISE_LABEL_KEYS[c.expertise_level] ? t(EXPERTISE_LABEL_KEYS[c.expertise_level]) : cap(c.expertise_level)}</Badge>
               )}
               {c.availability_type && (
                 <Badge className="bg-teal-100 text-teal-700">{AVAIL_LABEL_KEYS[c.availability_type] ? t(AVAIL_LABEL_KEYS[c.availability_type]) : cap(fmt(c.availability_type))}</Badge>
@@ -19488,7 +19492,7 @@ function UsersView() {
                     </div>
                   </td>
                   <td className="px-5 py-4">
-                    <Badge className={`${rc.bg} ${rc.text}`}>{cap(u.role)}</Badge>
+                    <Badge className={`${rc.bg} ${rc.text}`}>{ROLE_LABEL_KEYS[u.role] ? t(ROLE_LABEL_KEYS[u.role]) : cap(u.role)}</Badge>
                   </td>
                   <td className="px-5 py-4 text-gray-500">{fmtDate(u.created_at)}</td>
                   <td className="px-5 py-4">
@@ -19891,7 +19895,7 @@ function SlaClientDetail({ client, auth }) {
         </div>
       ) : sla ? (
         <div className="flex flex-wrap items-center gap-2 mb-5">
-          <Badge className={tierColors[sla.tier] ?? tierColors.standard}>{cap(sla.tier)} {t("sla.tier_suffix")}</Badge>
+          <Badge className={tierColors[sla.tier] ?? tierColors.standard}>{SLA_TIER_LABEL_KEYS[sla.tier] ? t(SLA_TIER_LABEL_KEYS[sla.tier]) : cap(sla.tier)} {t("sla.tier_suffix")}</Badge>
           {sla.uptime_guarantee_pct && <Badge className="bg-gray-100 text-gray-700">{sla.uptime_guarantee_pct}{t("sla.uptime_badge")}</Badge>}
           {sla.priority_support    && <Badge className="bg-orange-100 text-orange-700">{t("sla.priority_support")}</Badge>}
           {sla.dedicated_consultant && <Badge className="bg-green-100 text-green-700">{t("sla.dedicated")}</Badge>}
@@ -20858,7 +20862,7 @@ function LifecycleSettingsView({ auth }) {
                                 className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border transition-colors ${
                                   on ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-white text-gray-400 border-gray-200"
                                 }`}>
-                                {cap(role)}
+                                {ROLE_LABEL_KEYS[role] ? t(ROLE_LABEL_KEYS[role]) : cap(role)}
                               </button>
                             );
                           })}
@@ -21935,7 +21939,7 @@ function ClientProfileView({ auth }) {
             </div>
           ) : sla ? (
             <div className="flex flex-wrap items-center gap-2 mb-5">
-              <Badge className={tierColors[sla.tier] ?? tierColors.standard}>{cap(sla.tier)} {t("sla.tier_suffix")}</Badge>
+              <Badge className={tierColors[sla.tier] ?? tierColors.standard}>{SLA_TIER_LABEL_KEYS[sla.tier] ? t(SLA_TIER_LABEL_KEYS[sla.tier]) : cap(sla.tier)} {t("sla.tier_suffix")}</Badge>
               {sla.uptime_guarantee_pct && <Badge className="bg-gray-100 text-gray-700">{sla.uptime_guarantee_pct}{t("sla.uptime_badge")}</Badge>}
               {sla.priority_support    && <Badge className="bg-orange-100 text-orange-700">{t("sla.priority_support")}</Badge>}
               {sla.dedicated_consultant && <Badge className="bg-green-100 text-green-700">{t("sla.dedicated")}</Badge>}
