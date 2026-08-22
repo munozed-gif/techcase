@@ -2061,6 +2061,17 @@ const TRANSLATIONS = {
     // Lifecycle / system settings placeholders
     "sys.ph_stage_key_eg":          "e.g. integration_test",
     "sys.ph_stage_label_eg":        "e.g. Integration Test",
+    // Spec regenerate button
+    "spec.regen_btn":               "Re-generate",
+    // Plan preview modal
+    "cd.plan_review_suffix":        "Plan — Review Activities",
+    "cd.acts_n_of_m_seq":           "{n} of {total} activities selected · sequential predecessor dependencies will be set",
+    "cd.acts_n_of_m_seq_auto":      "{n} of {total} activities selected · sequential predecessor dependencies will be set automatically",
+    "cd.phase_adjustment":          "Adjustment",
+    // Error messages (thrown to user via alert)
+    "error.doc_not_found":          "Document not found",
+    "error.select_doc_or_file":     "Please select a document or upload a file",
+    "error.extract_acts_failed":    "Could not extract activities from AI response. Please try again.",
   },
   es: {
     // Navigation
@@ -4071,6 +4082,17 @@ const TRANSLATIONS = {
     // Lifecycle / system settings placeholders
     "sys.ph_stage_key_eg":          "p.ej. prueba_integracion",
     "sys.ph_stage_label_eg":        "p.ej. Prueba de Integración",
+    // Spec regenerate button
+    "spec.regen_btn":               "Regenerar",
+    // Plan preview modal
+    "cd.plan_review_suffix":        "Plan — Revisar Actividades",
+    "cd.acts_n_of_m_seq":           "{n} de {total} actividades seleccionadas · las dependencias de predecesor secuenciales serán establecidas",
+    "cd.acts_n_of_m_seq_auto":      "{n} de {total} actividades seleccionadas · las dependencias de predecesor secuenciales se establecerán automáticamente",
+    "cd.phase_adjustment":          "Ajuste",
+    // Error messages (thrown to user via alert)
+    "error.doc_not_found":          "Documento no encontrado",
+    "error.select_doc_or_file":     "Por favor selecciona un documento o sube un archivo",
+    "error.extract_acts_failed":    "No se pudieron extraer actividades de la respuesta de IA. Por favor intenta de nuevo.",
   },
 };
 
@@ -10094,7 +10116,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
             {canEdit && (
               <button onClick={() => setShowEditWizard(true)}
                 className="text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-3 py-1.5">
-                Edit
+                {t("action.edit")}
               </button>
             )}
           </div>
@@ -10458,7 +10480,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
                           {canEdit && (
                             <button onClick={e => { e.stopPropagation(); handleRemoveCase(c.id); }}
                               className="text-xs text-red-400 hover:text-red-600">
-                              Remove
+                              {t("action.remove")}
                             </button>
                           )}
                         </div>
@@ -12915,7 +12937,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
             {spec.mode === 'ai' && spec.status === 'approved' && (auth.isAdmin || auth.isManager) && (
               <button onClick={() => { setMode('ai'); setAiContent(spec.content ?? ''); setAiGenerating(false); }}
                 className="px-3 py-1.5 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
-                Re-generate
+                {t("spec.regen_btn")}
               </button>
             )}
             {spec.status === 'submitted' && canApprove && (
@@ -14126,7 +14148,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
         }
       } else if (importDocId) {
         const doc = documents.find(d => d.id === importDocId);
-        if (!doc) throw new Error('Document not found');
+        if (!doc) throw new Error(t("error.doc_not_found"));
         const resp = await fetch(doc.file_url);
         const isPdf = (doc.file_name ?? '').toLowerCase().endsWith('.pdf') || (doc.file_type ?? '').includes('pdf');
         if (isPdf) {
@@ -14143,7 +14165,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
           block = { type: 'text', text: `[Document: ${doc.file_name}]\n${text.slice(0, 12000)}` };
         }
       } else {
-        throw new Error('Please select a document or upload a file');
+        throw new Error(t("error.select_doc_or_file"));
       }
       const prompt = `Extract a list of activities, tasks, or work items from the document above.
 
@@ -14465,7 +14487,7 @@ Tester signature, Approver signature, Date.`;
 
   async function generateAdjustmentPlan(testPhaseKey, failedActivities) {
     const trigger = PHASE_ADJ_TRIGGERS.find(t => t.testPhase === testPhaseKey);
-    const adjLabel = trigger?.adjLabel ?? "Adjustment";
+    const adjLabel = trigger?.adjLabel ?? t("cd.phase_adjustment");
     const adjPhase = trigger?.adjPhase ?? "adjustment";
 
     // Build context from failed test activities with their feedback
@@ -14737,7 +14759,7 @@ Rules: phase must be exactly "design" or "development". Return ONLY the JSON, no
       console.log('[DevPlan] raw length:', jsonRaw.length, '| parsedActivities:', parsedActivities.length);
       if (!parsedActivities.length) {
         console.warn('[DevPlan] JSON raw (first 600):', jsonRaw.slice(0, 600));
-        throw new Error('Could not extract activities from AI response. Please try again.');
+        throw new Error(t("error.extract_acts_failed"));
       }
 
       // ── Call 2: Markdown narrative for PDF ────────────────────────
@@ -18822,7 +18844,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
               <Wand2 size={18} className="text-amber-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-gray-900 text-base">{adjustmentPreview.adjLabel} Plan — Review Activities</h3>
+              <h3 className="font-bold text-gray-900 text-base">{adjustmentPreview.adjLabel} {t("cd.plan_review_suffix")}</h3>
               <p className="text-sm text-gray-500 mt-0.5">
                 {t("cd.adj_plan_hint")}
               </p>
@@ -18867,7 +18889,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
               </label>
             ))}
             <p className="text-xs text-gray-400 text-center pt-2">
-              {adjustmentPreview.activities.filter(a => a._selected).length} of {adjustmentPreview.activities.length} activities selected · sequential predecessor dependencies will be set
+              {t("cd.acts_n_of_m_seq").replace("{n}", adjustmentPreview.activities.filter(a => a._selected).length).replace("{total}", adjustmentPreview.activities.length)}
             </p>
           </div>
           <div className="flex justify-between items-center gap-3 border-t border-gray-100 p-5 flex-shrink-0">
@@ -19020,7 +19042,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
               <Sparkles size={18} className="text-violet-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-gray-900 text-base">{testPlanPreview.targetLabel} Plan — Review Activities</h3>
+              <h3 className="font-bold text-gray-900 text-base">{testPlanPreview.targetLabel} {t("cd.plan_review_suffix")}</h3>
               <p className="text-sm text-gray-500 mt-0.5">
                 {t("cd.test_plan_hint")}
               </p>
@@ -19072,7 +19094,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
               </label>
             ))}
             <p className="text-xs text-gray-400 text-center pt-2">
-              {testPlanPreview.activities.filter(a => a._selected).length} of {testPlanPreview.activities.length} activities selected · sequential predecessor dependencies will be set automatically
+              {t("cd.acts_n_of_m_seq_auto").replace("{n}", testPlanPreview.activities.filter(a => a._selected).length).replace("{total}", testPlanPreview.activities.length)}
             </p>
           </div>
 
@@ -22792,7 +22814,7 @@ function TimeEntriesView({ auth }) {
                     <td className="px-5 py-3">
                       <button onClick={() => deleteEntry(e.id)}
                         className="text-xs text-red-400 hover:text-red-600 border border-red-100 px-2 py-0.5 rounded hover:bg-red-50">
-                        Delete
+                        {t("action.delete")}
                       </button>
                     </td>
                   )}
