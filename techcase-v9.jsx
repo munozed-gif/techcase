@@ -1738,6 +1738,61 @@ const TRANSLATIONS = {
     "spec.saving_pdfs":             "Saving PDFs…",
     "spec.submit_option":           "Submitting: Option {n} — {label}",
     "spec.click_tab_select":        "Click a tab above to select which spec to submit",
+    // Auth additional errors
+    "auth.error_verify_code":       "Enter the verification code from your email.",
+    "auth.error_invalid_code":      "Invalid or expired code — try resending.",
+    "auth.error_unexpected":        "Unexpected error — please try again.",
+    "auth.key_user_access":         "You'll have access to cases from {n}.",
+    // Count phrases
+    "count.case_one":               "{n} case",
+    "count.case_many":              "{n} cases",
+    "count.project_one":            "{n} project",
+    "count.project_many":           "{n} projects",
+    "count.consultant_one":         "{n} consultant",
+    "count.consultant_many":        "{n} consultants",
+    // Project detail counts
+    "proj.cases_in_one":            "{n} case in this project",
+    "proj.cases_in_many":           "{n} cases in this project",
+    "proj.consultants_on_one":      "{n} consultant on this project",
+    "proj.consultants_on_many":     "{n} consultants on this project",
+    // Activity import found
+    "case.found_act_one":           "Found {n} activity — {selected} selected",
+    "case.found_acts_many":         "Found {n} activities — {selected} selected",
+    // Test issues panel
+    "cd.test_issues_one":           "{label} — {n} issue found",
+    "cd.test_issues_many":          "{label} — {n} issues found",
+    "cd.test_adj_needed":           "{n} of {total} test activities need adjustment. Generate a corrective action plan based on the recorded issues.",
+    // Consultant profile
+    "profile.headline_ph":          "Add a headline…",
+    "profile.ratings_count":        "({n} ratings)",
+    "profile.rate_hr":              "${n}/hr",
+    // Catalog tab labels
+    "catalog.sap_areas":            "SAP Areas",
+    "catalog.industries":           "Industries",
+    "catalog.sap_components":       "SAP Components",
+    "catalog.work_modes":           "Work Modes",
+    "catalog.interview_formats":    "Interview Formats",
+    "catalog.expertise_levels":     "Expertise Levels",
+    "catalog.priorities":           "Priorities",
+    "catalog.connection_types":     "Connection Types",
+    // Expertise level options
+    "exp.any":                      "Any Level",
+    "exp.junior":                   "Junior",
+    "exp.mid":                      "Mid-level",
+    "exp.senior":                   "Senior",
+    "exp.expert":                   "Expert / Principal",
+    // SLA tier options
+    "sla.tier_standard":            "Standard",
+    "sla.tier_premium":             "Premium",
+    "sla.tier_enterprise":          "Enterprise",
+    // Admin role
+    "auth.role_admin":              "Admin",
+    // Case start date banners (CaseDetail)
+    "cd.banner_start_late_one":     "This case was scheduled to start {n} day ago ({date}). Action may be taken automatically soon.",
+    "cd.banner_start_late_many":    "This case was scheduled to start {n} days ago ({date}). Action may be taken automatically soon.",
+    "cd.banner_start_today":        "This case is scheduled to start today ({date}). Begin work to avoid automatic status change.",
+    "cd.banner_start_tomorrow":     "This case starts tomorrow ({date}). Prepare to begin on time.",
+    "cd.banner_starts_in":          "This case starts in {n} days ({date}).",
   },
   es: {
     // Navigation
@@ -3424,6 +3479,61 @@ const TRANSLATIONS = {
     "spec.saving_pdfs":             "Guardando PDFs…",
     "spec.submit_option":           "Enviando: Opción {n} — {label}",
     "spec.click_tab_select":        "Haz clic en una pestaña para seleccionar qué especificación enviar",
+    // Auth additional errors
+    "auth.error_verify_code":       "Ingresa el código de verificación de tu correo.",
+    "auth.error_invalid_code":      "Código inválido o expirado — intenta reenviarlo.",
+    "auth.error_unexpected":        "Error inesperado — intenta de nuevo.",
+    "auth.key_user_access":         "Tendrás acceso a casos de {n}.",
+    // Count phrases
+    "count.case_one":               "{n} caso",
+    "count.case_many":              "{n} casos",
+    "count.project_one":            "{n} proyecto",
+    "count.project_many":           "{n} proyectos",
+    "count.consultant_one":         "{n} consultor",
+    "count.consultant_many":        "{n} consultores",
+    // Project detail counts
+    "proj.cases_in_one":            "{n} caso en este proyecto",
+    "proj.cases_in_many":           "{n} casos en este proyecto",
+    "proj.consultants_on_one":      "{n} consultor en este proyecto",
+    "proj.consultants_on_many":     "{n} consultores en este proyecto",
+    // Activity import found
+    "case.found_act_one":           "Encontrada {n} actividad — {selected} seleccionada",
+    "case.found_acts_many":         "Encontradas {n} actividades — {selected} seleccionadas",
+    // Test issues panel
+    "cd.test_issues_one":           "{label} — {n} problema encontrado",
+    "cd.test_issues_many":          "{label} — {n} problemas encontrados",
+    "cd.test_adj_needed":           "{n} de {total} actividades de prueba necesitan ajuste. Genera un plan de acción correctiva basado en los problemas registrados.",
+    // Consultant profile
+    "profile.headline_ph":          "Agrega un titular…",
+    "profile.ratings_count":        "({n} calificaciones)",
+    "profile.rate_hr":              "${n}/hr",
+    // Catalog tab labels
+    "catalog.sap_areas":            "Áreas SAP",
+    "catalog.industries":           "Industrias",
+    "catalog.sap_components":       "Componentes SAP",
+    "catalog.work_modes":           "Modalidades de Trabajo",
+    "catalog.interview_formats":    "Formatos de Entrevista",
+    "catalog.expertise_levels":     "Niveles de Experiencia",
+    "catalog.priorities":           "Prioridades",
+    "catalog.connection_types":     "Tipos de Conexión",
+    // Expertise level options
+    "exp.any":                      "Cualquier Nivel",
+    "exp.junior":                   "Junior",
+    "exp.mid":                      "Nivel Medio",
+    "exp.senior":                   "Senior",
+    "exp.expert":                   "Experto / Principal",
+    // SLA tier options
+    "sla.tier_standard":            "Estándar",
+    "sla.tier_premium":             "Premium",
+    "sla.tier_enterprise":          "Empresarial",
+    // Admin role
+    "auth.role_admin":              "Admin",
+    // Case start date banners (CaseDetail)
+    "cd.banner_start_late_one":     "Este caso debía comenzar hace {n} día ({date}). Pronto se tomará acción automáticamente.",
+    "cd.banner_start_late_many":    "Este caso debía comenzar hace {n} días ({date}). Pronto se tomará acción automáticamente.",
+    "cd.banner_start_today":        "Este caso está programado para comenzar hoy ({date}). Comienza el trabajo para evitar un cambio de estado automático.",
+    "cd.banner_start_tomorrow":     "Este caso comienza mañana ({date}). Prepárate para comenzar a tiempo.",
+    "cd.banner_starts_in":          "Este caso comienza en {n} días ({date}).",
   },
 };
 
@@ -5995,21 +6105,21 @@ function AuthScreen({ onAuth }) {
       }
     } catch (e) {
       console.error("sendCode exception:", e);
-      setError(e?.message || e?.toString() || "Unexpected error — please try again.");
+      setError(e?.message || e?.toString() || t("auth.error_unexpected"));
     }
     setLoad(false);
   }
 
   // ── Step 0b: verify OTP ───────────────────────────────────────
   async function verifyCode() {
-    if (code.length < 4) { setError("Enter the verification code from your email."); return; }
+    if (code.length < 4) { setError(t("auth.error_verify_code")); return; }
     setError(""); setLoad(true);
     // type:'signup' matches the token sent by signUp
     const { data, error: err } = await supabase.auth.verifyOtp({
       email: email.trim(), token: code, type: "signup",
     });
     if (err) {
-      setError(err.message || "Invalid or expired code — try resending.");
+      setError(err.message || t("auth.error_invalid_code"));
       setLoad(false);
       return;
     }
@@ -6244,7 +6354,7 @@ function AuthScreen({ onAuth }) {
                   {role === "consultant"
                     ? t("auth.help_clients")
                     : role === "key_user"
-                    ? `You'll have access to cases from ${keyUserCompany ?? "your company"}.`
+                    ? t("auth.key_user_access").replace("{n}", keyUserCompany ?? "your company")
                     : t("auth.tell_consultants")}
                 </p>
                 {role === "key_user" && keyUserCompany && (
@@ -6714,7 +6824,7 @@ function Dashboard({ auth }) {
                         </div>
                       </div>
                       <div style={{ fontSize:10.5, fontWeight:600, color:'#5b7a9b', maxWidth:66, textAlign:'center', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{cl.name}</div>
-                      <div style={{ fontSize:9, fontWeight:700, color:'#8fa8c2', textAlign:'center', marginTop:-4 }}>{cl.activeCases} {cl.activeCases === 1 ? 'case' : 'cases'}</div>
+                      <div style={{ fontSize:9, fontWeight:700, color:'#8fa8c2', textAlign:'center', marginTop:-4 }}>{t(cl.activeCases === 1 ? "count.case_one" : "count.case_many").replace("{n}", cl.activeCases)}</div>
                     </div>
                   ))}
                 </div>
@@ -9676,7 +9786,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
                       <div key={con.id} className="flex items-center gap-2 border border-gray-100 rounded-xl px-3 py-2 bg-gray-50">
                         <UserAvatar name={con.name} size={28} />
                         <span className="font-medium text-gray-800 text-xs">{con.name}</span>
-                        <span className="text-[10px] text-gray-400">{con.cases.length} case{con.cases.length !== 1 ? 's' : ''}</span>
+                        <span className="text-[10px] text-gray-400">{t(con.cases.length !== 1 ? "count.case_many" : "count.case_one").replace("{n}", con.cases.length)}</span>
                       </div>
                     ))}
                   </div>
@@ -9750,7 +9860,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
           <div>
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-semibold text-gray-900">
-                {projCases.length} case{projCases.length !== 1 ? "s" : ""} in this project
+                {t(projCases.length !== 1 ? "proj.cases_in_many" : "proj.cases_in_one").replace("{n}", projCases.length)}
               </span>
               {canEdit && (
                 <div className="flex items-center gap-2">
@@ -9877,7 +9987,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
           <div>
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-semibold text-gray-900">
-                {consultants.length} consultant{consultants.length !== 1 ? "s" : ""} on this project
+                {t(consultants.length !== 1 ? "proj.consultants_on_many" : "proj.consultants_on_one").replace("{n}", consultants.length)}
               </span>
             </div>
             {consultants.length === 0 ? (
@@ -10170,7 +10280,7 @@ function ProjectsView({ auth }) {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t("projects.title")}</h1>
-          <p className="text-gray-500 text-sm mt-1">{displayed.length} project{displayed.length !== 1 ? "s" : ""}</p>
+          <p className="text-gray-500 text-sm mt-1">{t(displayed.length !== 1 ? "count.project_many" : "count.project_one").replace("{n}", displayed.length)}</p>
         </div>
         {(auth.isAdmin || auth.isManager || auth.isClient) && (
           <button onClick={() => setShowCreate(true)}
@@ -10383,7 +10493,7 @@ function CasesView({ auth }) {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t("cases.title")}</h1>
-          <p className="text-gray-500 text-sm mt-1">{displayed.length} case{displayed.length !== 1 ? "s" : ""}</p>
+          <p className="text-gray-500 text-sm mt-1">{t(displayed.length !== 1 ? "count.case_many" : "count.case_one").replace("{n}", displayed.length)}</p>
         </div>
         {(auth.isAdmin || auth.isManager || auth.isClient || auth.isKeyUser) && (
           <button onClick={() => setShowCreate(true)}
@@ -14953,10 +15063,10 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               : urgent ? "bg-orange-50 border-orange-200 text-orange-800"
               : "bg-amber-50 border-amber-200 text-amber-800";
             const msg = late
-              ? `This case was scheduled to start ${Math.abs(d)} day${Math.abs(d) !== 1 ? "s" : ""} ago (${caseData.start_date}). Action may be taken automatically soon.`
-              : d === 0 ? `This case is scheduled to start today (${caseData.start_date}). Begin work to avoid automatic status change.`
-              : d === 1 ? `This case starts tomorrow (${caseData.start_date}). Prepare to begin on time.`
-              : `This case starts in ${d} days (${caseData.start_date}).`;
+              ? t(Math.abs(d) === 1 ? "cd.banner_start_late_one" : "cd.banner_start_late_many").replace("{n}", Math.abs(d)).replace("{date}", caseData.start_date)
+              : d === 0 ? t("cd.banner_start_today").replace("{date}", caseData.start_date)
+              : d === 1 ? t("cd.banner_start_tomorrow").replace("{date}", caseData.start_date)
+              : t("cd.banner_starts_in").replace("{n}", d).replace("{date}", caseData.start_date);
             return (
               <div className={`flex items-start gap-3 p-3 rounded-xl border text-sm ${bannerCls}`}>
                 <Clock className="w-4 h-4 mt-0.5 flex-shrink-0" />
@@ -15760,10 +15870,10 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-amber-900">
-                          {testStat.label} — {failedActs.length} issue{failedActs.length !== 1 ? 's' : ''} found
+                          {t(failedActs.length !== 1 ? "cd.test_issues_many" : "cd.test_issues_one").replace("{label}", testStat.label).replace("{n}", failedActs.length)}
                         </p>
                         <p className="text-xs text-amber-700 mt-0.5">
-                          {failedActs.length} of {testStat.count} test activities need adjustment. Generate a corrective action plan based on the recorded issues.
+                          {t("cd.test_adj_needed").replace("{n}", failedActs.length).replace("{total}", testStat.count)}
                         </p>
                         <div className="mt-2 space-y-1">
                           {failedActs.slice(0, 3).map(a => (
@@ -16739,7 +16849,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <p className="text-sm font-semibold text-gray-700">
-                          Found {extractedActs.length} {extractedActs.length === 1 ? 'activity' : 'activities'} — {extractedActs.filter(a => a._selected).length} selected
+                          {t(extractedActs.length === 1 ? "case.found_act_one" : "case.found_acts_many").replace("{n}", extractedActs.length).replace("{selected}", extractedActs.filter(a => a._selected).length)}
                         </p>
                         <div className="flex gap-2">
                           <button onClick={() => setExtractedActs(p => p.map(a => ({ ...a, _selected: true })))} className="text-xs text-violet-600 underline">{t("case.import_all")}</button>
@@ -17525,15 +17635,15 @@ function ProfileView({ auth }) {
           </div>
           <div className="flex-1">
             <h1 className="text-xl font-bold text-gray-900">{auth.profile?.full_name}</h1>
-            <p className="text-gray-500 text-sm">{profile?.headline || "Add a headline…"}</p>
+            <p className="text-gray-500 text-sm">{profile?.headline || t("profile.headline_ph")}</p>
             <div className="flex items-center gap-3 mt-2 flex-wrap text-sm text-gray-500">
               {avgRating && (
                 <span className="flex items-center gap-1">
                   {stars(avgRating)} <strong className="text-gray-900">{avgRating}</strong>
-                  <span className="text-gray-400">({ratings.length} ratings)</span>
+                  <span className="text-gray-400">{t("profile.ratings_count").replace("{n}", ratings.length)}</span>
                 </span>
               )}
-              {profile?.hourly_rate && <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" />${profile.hourly_rate}/hr</span>}
+              {profile?.hourly_rate && <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" />{t("profile.rate_hr").replace("{n}", profile.hourly_rate)}</span>}
               {profile?.travel_available && <span className="flex items-center gap-1"><Plane className="w-3 h-3" />{t("label.travel")}</span>}
               {profile?.expertise_level && (
                 <Badge className="bg-violet-100 text-violet-700">{cap(profile.expertise_level)}</Badge>
@@ -18688,7 +18798,7 @@ function UsersView() {
               onChange={e => setAddForm(p => ({ ...p, role: e.target.value }))}
               options={[
                 { value: "manager",    label: t("auth.role_manager") },
-                { value: "admin",      label: "Admin" },
+                { value: "admin",      label: t("auth.role_admin") },
                 { value: "consultant", label: t("auth.role_consultant") },
                 { value: "client",     label: t("auth.role_client") },
               ]} />
@@ -19127,7 +19237,7 @@ function SlaClientDetail({ client, auth }) {
           <div className="grid grid-cols-2 gap-3">
             <Select label={t("sla.tier")} value={form.tier}
               onChange={e => setForm(p => ({ ...p, tier: e.target.value }))}
-              options={[{ value:"standard", label:"Standard" },{ value:"premium", label:"Premium" },{ value:"enterprise", label:"Enterprise" }]} />
+              options={[{ value:"standard", label:t("sla.tier_standard") },{ value:"premium", label:t("sla.tier_premium") },{ value:"enterprise", label:t("sla.tier_enterprise") }]} />
             <Input label={t("sla.uptime")} type="number" value={form.uptime_guarantee_pct}
               onChange={e => setForm(p => ({ ...p, uptime_guarantee_pct: Number(e.target.value) }))} />
           </div>
@@ -20562,8 +20672,8 @@ function AssignmentSettingsPanel({ profile, updateProfile }) {
               <select value={form.preferred_expertise_level}
                 onChange={e => setForm(p => ({ ...p, preferred_expertise_level: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                {[["any","Any Level"],["junior","Junior"],["mid","Mid-level"],["senior","Senior"],["expert","Expert / Principal"]].map(([v, l]) => (
-                  <option key={v} value={v}>{l}</option>
+                {[["any","exp.any"],["junior","exp.junior"],["mid","exp.mid"],["senior","exp.senior"],["expert","exp.expert"]].map(([v, k]) => (
+                  <option key={v} value={v}>{t(k)}</option>
                 ))}
               </select>
             </div>
@@ -21170,7 +21280,7 @@ function ClientProfileView({ auth }) {
               <div className="grid grid-cols-2 gap-3">
                 <Select label={t("sla.tier")} value={slaForm.tier}
                   onChange={e => setSlaForm(p => ({ ...p, tier: e.target.value }))}
-                  options={[{ value:"standard", label:"Standard" },{ value:"premium", label:"Premium" },{ value:"enterprise", label:"Enterprise" }]} />
+                  options={[{ value:"standard", label:t("sla.tier_standard") },{ value:"premium", label:t("sla.tier_premium") },{ value:"enterprise", label:t("sla.tier_enterprise") }]} />
                 <Input label={t("sla.uptime")} type="number" value={slaForm.uptime_guarantee_pct}
                   onChange={e => setSlaForm(p => ({ ...p, uptime_guarantee_pct: Number(e.target.value) }))} />
               </div>
@@ -23265,23 +23375,23 @@ function SettingsCatalogTab({ ssCtx }) {
     connection_types: ["sap_gui", "sap_hana", "sap_rfc", "sap_odata", "rest", "soap", "jdbc", "sftp", "smtp", "ldap"],
   };
 
-  const CATEGORY_LABELS = {
-    sap_areas:        "SAP Areas",
-    industries:       "Industries",
-    sap_components:   "SAP Components",
-    work_modes:       "Work Modes",
-    interview_formats:"Interview Formats",
-    expertise_levels: "Expertise Levels",
-    priorities:       "Priorities",
-    connection_types: "Connection Types",
-  };
-
   const [selectedCat, setSelectedCat] = useState("sap_areas");
   const [catalogData, setCatalogData] = useState({});
   const [newValue, setNewValue]       = useState("");
   const [saving, setSaving]           = useState(false);
   const [toast, setToast]             = useState(null);
   const { t } = useT();
+
+  const CATEGORY_LABELS = {
+    sap_areas:        t("catalog.sap_areas"),
+    industries:       t("catalog.industries"),
+    sap_components:   t("catalog.sap_components"),
+    work_modes:       t("catalog.work_modes"),
+    interview_formats:t("catalog.interview_formats"),
+    expertise_levels: t("catalog.expertise_levels"),
+    priorities:       t("catalog.priorities"),
+    connection_types: t("catalog.connection_types"),
+  };
 
   useEffect(() => {
     if (!ssCtx.loading) {
