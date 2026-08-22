@@ -1948,6 +1948,55 @@ const TRANSLATIONS = {
     "proj.ph_budget_eg":            "e.g. $500K annual consulting",
     // Error prefix
     "state.error_prefix":           "Error: ",
+    // Spec mode selection cards
+    "spec.mode_manual":             "Manual",
+    "spec.mode_manual_desc":        "Attach documents and write the scope manually.",
+    "spec.mode_wizard":             "Wizard",
+    "spec.mode_wizard_desc":        "AI-guided interview per ABAP object. Drill down into every field and parameter.",
+    "spec.mode_ai":                 "AI Generate",
+    "spec.mode_ai_desc":            "Claude reads your case and writes the full functional spec automatically.",
+    // SLA preset dropdown labels
+    "sla.preset_standard":          "Standard — 30 days",
+    "sla.preset_express":           "Express — 14 days",
+    "sla.preset_critical":          "Critical — 7 days",
+    "sla.preset_custom":            "Custom date",
+    // Welcome fallback name
+    "auth.name_fallback":           "there",
+    // Select client placeholder
+    "label.select_client":          "— Select client —",
+    // Import activities button (pluralised)
+    "action.import_one":            "Import {n} Activity",
+    "action.import_many":           "Import {n} Activities",
+    // Key-user area "All" button
+    "action.all":                   "All",
+    // Review-hint body text
+    "cd.adj_plan_hint":             "The PDF has been saved to Docs. Review the corrective activities below, deselect any that don't apply, then confirm to add them to the case.",
+    "cd.test_plan_hint":            "The PDF has been saved to Docs. Review the generated test activities below, deselect any you don't need, then confirm to add them with sequential dependencies.",
+    // AI model dropdown labels
+    "model.haiku_label":            "Claude Haiku 4.5  — Fast & cost-effective",
+    "model.sonnet_label":           "Claude Sonnet 5   — Balanced",
+    "model.opus_label":             "Claude Opus 5     — Most capable",
+    // Default new stage / case-type labels
+    "lc.new_stage_label":           "New Stage",
+    "sla.new_type_label":           "New Type",
+    // Alert error prefixes (PDF / AI generation)
+    "alert.pdf_gen_error":          "Could not generate PDF: ",
+    "alert.pdf_save_error":         "Could not save PDFs: ",
+    "alert.extract_failed":         "Extraction failed: ",
+    "alert.testplan_failed":        "Test plan generation failed: ",
+    "alert.create_acts_failed":     "Failed to create activities: ",
+    "alert.create_adj_acts_failed": "Failed to create adjustment activities: ",
+    "alert.adjplan_failed":         "Adjustment plan generation failed: ",
+    "alert.devplan_failed":         "Development plan generation failed: ",
+    "alert.closure_failed":         "Closure report generation failed: ",
+    // SAP system-role options
+    "sap.role_dev":                 "Development",
+    "sap.role_qas":                 "Quality / Test",
+    "sap.role_prd":                 "Production",
+    "sap.role_sbx":                 "Sandbox",
+    "sap.role_trn":                 "Training",
+    // SAP transport route placeholder
+    "sap.ph_transport":             "DEV → QAS → PRD",
   },
   es: {
     // Navigation
@@ -3845,6 +3894,55 @@ const TRANSLATIONS = {
     "proj.ph_budget_eg":            "p.ej. $500K de consultoría anual",
     // Error prefix
     "state.error_prefix":           "Error: ",
+    // Spec mode selection cards
+    "spec.mode_manual":             "Manual",
+    "spec.mode_manual_desc":        "Adjunta documentos y escribe el alcance manualmente.",
+    "spec.mode_wizard":             "Asistente",
+    "spec.mode_wizard_desc":        "Entrevista guiada por IA por objeto ABAP. Profundiza en cada campo y parámetro.",
+    "spec.mode_ai":                 "Generar con IA",
+    "spec.mode_ai_desc":            "Claude lee tu caso y escribe la especificación funcional completa automáticamente.",
+    // SLA preset dropdown labels
+    "sla.preset_standard":          "Estándar — 30 días",
+    "sla.preset_express":           "Exprés — 14 días",
+    "sla.preset_critical":          "Crítico — 7 días",
+    "sla.preset_custom":            "Fecha personalizada",
+    // Welcome fallback name
+    "auth.name_fallback":           "usuario",
+    // Select client placeholder
+    "label.select_client":          "— Seleccionar cliente —",
+    // Import activities button (pluralised)
+    "action.import_one":            "Importar {n} Actividad",
+    "action.import_many":           "Importar {n} Actividades",
+    // Key-user area "All" button
+    "action.all":                   "Todos",
+    // Review-hint body text
+    "cd.adj_plan_hint":             "El PDF ha sido guardado en Docs. Revisa las actividades correctivas a continuación, deselecciona las que no apliquen y confirma para agregarlas al caso.",
+    "cd.test_plan_hint":            "El PDF ha sido guardado en Docs. Revisa las actividades de prueba generadas, deselecciona las que no necesites y confirma para agregarlas con dependencias secuenciales.",
+    // AI model dropdown labels
+    "model.haiku_label":            "Claude Haiku 4.5  — Rápido y económico",
+    "model.sonnet_label":           "Claude Sonnet 5   — Equilibrado",
+    "model.opus_label":             "Claude Opus 5     — El más potente",
+    // Default new stage / case-type labels
+    "lc.new_stage_label":           "Nueva Etapa",
+    "sla.new_type_label":           "Nuevo Tipo",
+    // Alert error prefixes (PDF / AI generation)
+    "alert.pdf_gen_error":          "No se pudo generar el PDF: ",
+    "alert.pdf_save_error":         "No se pudieron guardar los PDFs: ",
+    "alert.extract_failed":         "Error en la extracción: ",
+    "alert.testplan_failed":        "Error al generar el plan de pruebas: ",
+    "alert.create_acts_failed":     "Error al crear actividades: ",
+    "alert.create_adj_acts_failed": "Error al crear actividades de ajuste: ",
+    "alert.adjplan_failed":         "Error al generar el plan de ajuste: ",
+    "alert.devplan_failed":         "Error al generar el plan de desarrollo: ",
+    "alert.closure_failed":         "Error al generar el informe de cierre: ",
+    // SAP system-role options
+    "sap.role_dev":                 "Desarrollo",
+    "sap.role_qas":                 "Calidad / Pruebas",
+    "sap.role_prd":                 "Producción",
+    "sap.role_sbx":                 "Sandbox",
+    "sap.role_trn":                 "Capacitación",
+    // SAP transport route placeholder
+    "sap.ph_transport":             "DEV → QAS → PRD",
   },
 };
 
@@ -5801,7 +5899,7 @@ function SlaMatrixEditor({ caseTypes, matrix, editing, onChangeCaseTypes, onChan
 
   function addCaseType() {
     const key = `type_${caseTypes.length + 1}`;
-    onChangeCaseTypes(prev => [...prev, { key, label: "New Type" }]);
+    onChangeCaseTypes(prev => [...prev, { key, label: t("sla.new_type_label") }]);
     onChangeMatrix(prev => ({
       ...prev,
       [key]: Object.fromEntries(SLA_PRIORITIES.map(p => [p.key, { response:4, response_unit:"hours", resolution:1, resolution_unit:"days" }]))
@@ -7097,7 +7195,7 @@ function Dashboard({ auth }) {
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            {t("auth.welcome")}, {auth.profile?.full_name?.split(" ")[0] ?? "there"}
+            {t("auth.welcome")}, {auth.profile?.full_name?.split(" ")[0] ?? t("auth.name_fallback")}
           </h1>
           <p className="text-gray-500 mt-1">{t("dashboard.subtitle")}</p>
         </div>
@@ -7723,10 +7821,10 @@ function daysFromNow(n) {
 }
 
 const SLA_PRESETS = [
-  { value: "standard", label: "Standard — 30 days", days: 30 },
-  { value: "express",  label: "Express — 14 days",  days: 14 },
-  { value: "critical", label: "Critical — 7 days",  days: 7 },
-  { value: "custom",   label: "Custom date",         days: null },
+  { value: "standard", labelKey: "sla.preset_standard", days: 30 },
+  { value: "express",  labelKey: "sla.preset_express",  days: 14 },
+  { value: "critical", labelKey: "sla.preset_critical", days: 7 },
+  { value: "custom",   labelKey: "sla.preset_custom",   days: null },
 ];
 
 // CREATE_CASE_STEPS and EXPRESS_CASE_STEPS moved inside CreateCaseWizard to allow t() calls
@@ -8216,7 +8314,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                 <select value={scope.client_id}
                   onChange={e => setScope(p => ({ ...p, client_id: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">— Select client —</option>
+                  <option value="">{t("label.select_client")}</option>
                   {clients.map(c => (
                     <option key={c.id} value={c.id}>
                       {c.client_profiles?.company_name || c.full_name}
@@ -8272,7 +8370,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                         setScope(p => ({ ...p, sla: e.target.value, due_date: preset?.days ? daysFromNow(preset.days) : p.due_date }));
                       }}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      {SLA_PRESETS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      {SLA_PRESETS.map(o => <option key={o.value} value={o.value}>{t(o.labelKey)}</option>)}
                     </select>
                   </div>
                 </div>
@@ -8365,7 +8463,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                         className="text-xs border border-violet-200 rounded-lg px-2 py-1 bg-white w-28 focus:outline-none focus:ring-1 focus:ring-violet-400" />
                       <button type="button" onClick={() => updateKuArea(ku.user_id, "All Areas")}
                         className={`text-[10px] px-1.5 py-0.5 rounded font-semibold border transition-colors flex-shrink-0 ${ku.area === "All Areas" ? "bg-violet-600 text-white border-violet-600" : "text-violet-500 border-violet-300 hover:bg-violet-50"}`}>
-                        All
+                        {t("action.all")}
                       </button>
                       <button type="button" onClick={() => removeKeyUser(ku.user_id)}
                         className="text-gray-300 hover:text-red-400 text-lg leading-none ml-1">×</button>
@@ -8655,7 +8753,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                       <span className="text-gray-400">{t("label.due_colon")}</span>
                       <span className="font-medium ml-1">{fmtDate(scope.due_date)}</span>
                       {scope.sla !== "custom" && (
-                        <span className="ml-1 text-xs text-blue-500">({SLA_PRESETS.find(p => p.value === scope.sla)?.label})</span>
+                        <span className="ml-1 text-xs text-blue-500">({t(SLA_PRESETS.find(p => p.value === scope.sla)?.labelKey ?? '')})</span>
                       )}
                     </div>
                   )}
@@ -11956,7 +12054,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
       setSavedSpecUrls(p => ({ ...p, a: fileName }));
       if (refetchDocuments) await refetchDocuments();
     } catch (e) {
-      alert('Could not generate PDF: ' + e.message);
+      alert(t("alert.pdf_gen_error") + e.message);
     }
     setSavingDoc(false);
   }
@@ -11983,7 +12081,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
       setSavedSpecUrls(newUrls);
       if (refetchDocuments) await refetchDocuments();
     } catch (e) {
-      alert('Could not save PDFs: ' + e.message);
+      alert(t("alert.pdf_save_error") + e.message);
     }
     setSavingDoc(false);
   }
@@ -12781,17 +12879,17 @@ Respond with ONLY a valid JSON object, no markdown fences:
         <p className="text-sm font-semibold text-gray-700">{t("spec.choose_mode")}</p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { key: 'manual', Icon: Paperclip, title: 'Manual', desc: 'Attach documents and write the scope manually.' },
-            { key: 'wizard', Icon: Wand2,     title: 'Wizard', desc: 'AI-guided interview per ABAP object. Drill down into every field and parameter.' },
-            { key: 'ai',     Icon: Sparkles,  title: 'AI Generate', desc: 'Claude reads your case and writes the full functional spec automatically.' },
+            { key: 'manual', Icon: Paperclip, titleKey: 'spec.mode_manual', descKey: 'spec.mode_manual_desc' },
+            { key: 'wizard', Icon: Wand2,     titleKey: 'spec.mode_wizard', descKey: 'spec.mode_wizard_desc' },
+            { key: 'ai',     Icon: Sparkles,  titleKey: 'spec.mode_ai',     descKey: 'spec.mode_ai_desc'     },
           ].map(card => (
             <button key={card.key} onClick={() => setMode(card.key)}
               className="text-left p-5 border-2 border-gray-200 rounded-2xl hover:border-blue-400 hover:bg-blue-50/40 transition-all group">
               <div className="w-10 h-10 rounded-xl bg-blue-50 group-hover:bg-blue-100 flex items-center justify-center mb-3 transition-colors">
                 <card.Icon className="w-5 h-5 text-blue-600" />
               </div>
-              <div className="font-bold text-gray-900 text-sm mb-1 group-hover:text-blue-700">{card.title}</div>
-              <p className="text-xs text-gray-500 leading-relaxed">{card.desc}</p>
+              <div className="font-bold text-gray-900 text-sm mb-1 group-hover:text-blue-700">{t(card.titleKey)}</div>
+              <p className="text-xs text-gray-500 leading-relaxed">{t(card.descKey)}</p>
             </button>
           ))}
         </div>
@@ -13948,7 +14046,7 @@ Extract every discrete task, activity, deliverable, or work item. If you find no
       setExtractedActs((parsed ?? []).map((a, i) => ({ ...a, _id: i, _selected: true })));
       setImportStep('preview');
     } catch (e) {
-      alert('Extraction failed: ' + e.message);
+      alert(t("alert.extract_failed") + e.message);
     }
     setExtractingActs(false);
   }
@@ -14182,7 +14280,7 @@ Tester signature, Approver signature, Date.`;
         setGeneratedPlanPhases(prev => [...prev, toPhaseKey]);
       }
     } catch (e) {
-      alert('Test plan generation failed: ' + e.message);
+      alert(t("alert.testplan_failed") + e.message);
     } finally {
       setGeneratingTestPlan(false);
       setTestPlanTarget(null);
@@ -14231,7 +14329,7 @@ Tester signature, Approver signature, Date.`;
         isInternal: true,
       });
     } catch (e) {
-      alert('Failed to create activities: ' + e.message);
+      alert(t("alert.create_acts_failed") + e.message);
     } finally {
       setConfirmingTestPlan(false);
     }
@@ -14399,7 +14497,7 @@ Approver signature, Date.`;
         setGeneratedAdjPhases(prev => [...prev, adjPhase]);
       }
     } catch (e) {
-      alert('Adjustment plan generation failed: ' + e.message);
+      alert(t("alert.adjplan_failed") + e.message);
     } finally {
       setGeneratingAdjustment(false);
       setAdjustmentTarget(null);
@@ -14445,7 +14543,7 @@ Approver signature, Date.`;
         isInternal: true,
       });
     } catch (e) {
-      alert('Failed to create adjustment activities: ' + e.message);
+      alert(t("alert.create_adj_acts_failed") + e.message);
     } finally {
       setConfirmingAdjustment(false);
     }
@@ -14618,7 +14716,7 @@ Keep each section concise.`,
 
       setDevPlanPreview({ activities: parsedActivities, markdown });
     } catch (e) {
-      alert('Development plan generation failed: ' + e.message);
+      alert(t("alert.devplan_failed") + e.message);
     } finally {
       setGeneratingDevPlan(false);
     }
@@ -14664,7 +14762,7 @@ Keep each section concise.`,
         isInternal: true,
       });
     } catch (e) {
-      alert('Failed to create activities: ' + e.message);
+      alert(t("alert.create_acts_failed") + e.message);
     } finally {
       setConfirmingDevPlan(false);
     }
@@ -15060,7 +15158,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
       });
       setApprovalModal(false);
     } catch (e) {
-      alert('Closure report generation failed: ' + e.message);
+      alert(t("alert.closure_failed") + e.message);
     } finally {
       setGeneratingClosure(false);
     }
@@ -17197,7 +17295,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                         <button onClick={importSelectedActivities}
                           disabled={extractedActs.filter(a => a._selected).length === 0}
                           className="flex-1 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 disabled:opacity-40 flex items-center justify-center gap-2">
-                          Import {extractedActs.filter(a => a._selected).length} {extractedActs.filter(a => a._selected).length === 1 ? 'Activity' : 'Activities'}
+                          {(n => t(n === 1 ? "action.import_one" : "action.import_many").replace("{n}", n))(extractedActs.filter(a => a._selected).length)}
                         </button>
                       </div>
                     </div>
@@ -18598,7 +18696,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
             <div className="flex-1 min-w-0">
               <h3 className="font-bold text-gray-900 text-base">{adjustmentPreview.adjLabel} Plan — Review Activities</h3>
               <p className="text-sm text-gray-500 mt-0.5">
-                The PDF has been saved to Docs. Review the corrective activities below, deselect any that don't apply, then confirm to add them to the case.
+                {t("cd.adj_plan_hint")}
               </p>
             </div>
             {!confirmingAdjustment && (
@@ -18796,7 +18894,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
             <div className="flex-1 min-w-0">
               <h3 className="font-bold text-gray-900 text-base">{testPlanPreview.targetLabel} Plan — Review Activities</h3>
               <p className="text-sm text-gray-500 mt-0.5">
-                The PDF has been saved to Docs. Review the generated test activities below, deselect any you don't need, then confirm to add them with sequential dependencies.
+                {t("cd.test_plan_hint")}
               </p>
             </div>
             {!confirmingTestPlan && (
@@ -19721,7 +19819,7 @@ function SapProfileFields({ meta = {}, onChange, dbType }) {
           <label className="block text-xs font-medium text-gray-600 mb-1">{t("sap.role_label")}</label>
           <select value={meta.system_role ?? "DEV"} onChange={e => set("system_role", e.target.value)}
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
-            {[["DEV","Development"],["QAS","Quality / Test"],["PRD","Production"],["SBX","Sandbox"],["TRN","Training"]].map(([v,l]) => <option key={v} value={v}>{l} ({v})</option>)}
+            {[["DEV","sap.role_dev"],["QAS","sap.role_qas"],["PRD","sap.role_prd"],["SBX","sap.role_sbx"],["TRN","sap.role_trn"]].map(([v,k]) => <option key={v} value={v}>{t(k)} ({v})</option>)}
           </select>
         </div>
         <div>
@@ -19732,7 +19830,7 @@ function SapProfileFields({ meta = {}, onChange, dbType }) {
           </select>
         </div>
         <Input label={t("sap.transport_label")} value={meta.transport_route ?? ""}
-          onChange={e => set("transport_route", e.target.value)} placeholder="DEV → QAS → PRD" />
+          onChange={e => set("transport_route", e.target.value)} placeholder={t("sap.ph_transport")} />
       </div>
       <div>
         <label className="block text-xs font-medium text-gray-600 mb-2">{t("sap.components_label")}</label>
@@ -20164,7 +20262,7 @@ function LifecycleSettingsView({ auth }) {
   function cancelEdit() { setSelected(null); setEditStages([]); }
   function addStage() {
     setEditStages(p => {
-      const next = [...p, { key: `s${Date.now()}`, label: "New Stage", color: "#6b7280", is_terminal: false, allowed_next: [], allowed_roles: [] }];
+      const next = [...p, { key: `s${Date.now()}`, label: t("lc.new_stage_label"), color: "#6b7280", is_terminal: false, allowed_next: [], allowed_roles: [] }];
       setActiveStageIdx(next.length - 1);
       return next;
     });
@@ -20759,7 +20857,7 @@ function CaseDefaultsPanel({ profile, updateProfile }) {
               <label className="block text-sm font-medium text-gray-700 mb-1">{t("cd.default_sla")}</label>
               <select value={form.sla} onChange={e => setForm(p => ({ ...p, sla: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                {SLA_PRESETS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                {SLA_PRESETS.map(o => <option key={o.value} value={o.value}>{t(o.labelKey)}</option>)}
               </select>
             </div>
             <Input label={t("cd.default_budget")} type="number" value={form.budget}
@@ -23821,9 +23919,9 @@ function SettingsPlatformTab({ ssCtx }) {
   };
 
   const AI_MODELS = [
-    { value: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5  — Fast & cost-effective" },
-    { value: "claude-sonnet-5-20251001",  label: "Claude Sonnet 5   — Balanced" },
-    { value: "claude-opus-5-20250101",    label: "Claude Opus 5     — Most capable" },
+    { value: "claude-haiku-4-5-20251001", labelKey: "model.haiku_label" },
+    { value: "claude-sonnet-5-20251001",  labelKey: "model.sonnet_label" },
+    { value: "claude-opus-5-20250101",    labelKey: "model.opus_label" },
   ];
 
   const [form, setForm]     = useState(null);
@@ -23877,7 +23975,7 @@ function SettingsPlatformTab({ ssCtx }) {
           <label className="block text-sm font-medium text-gray-700 mb-1">{t("sys.model_label")}</label>
           <select value={form.ai_model} onChange={e => setForm(p => ({ ...p, ai_model: e.target.value }))}
             className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm">
-            {AI_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+            {AI_MODELS.map(m => <option key={m.value} value={m.value}>{t(m.labelKey)}</option>)}
           </select>
           <p className="text-xs text-gray-400 mt-1">{t("sys.model_hint")}</p>
         </div>
