@@ -1905,6 +1905,49 @@ const TRANSLATIONS = {
     "company.ph_about":             "What does your company do?",
     "company.ph_tags":              "Cloud, AI, ERP",
     "company.ph_vetting":           "Special requirements, vetting notes…",
+    // Lifecycle preset cards
+    "lc.preset_short_name":         "Short",
+    "lc.preset_short_subtitle":     "8 stages",
+    "lc.preset_short_desc":         "Simple flow for straightforward consulting requests.",
+    "lc.preset_standard_name":      "Standard",
+    "lc.preset_standard_subtitle":  "10 stages",
+    "lc.preset_standard_desc":      "Default consulting flow with full test pipeline.",
+    "lc.preset_full_name":          "Full",
+    "lc.preset_full_subtitle":      "12 stages",
+    "lc.preset_full_desc":          "Full consulting pipeline with complete test phases.",
+    // Ranking breakdown labels
+    "rank.label_skills":            "Skill Match",
+    "rank.label_rating":            "Overall Rating",
+    "rank.label_client_exp":        "Client Exp.",
+    "rank.label_client_rating":     "Client Rating",
+    "rank.label_experience":        "Experience",
+    "rank.label_rate":              "Rate",
+    "rank.label_availability":      "Availability",
+    "rank.detail_no_req":           "No requirements",
+    "rank.detail_no_ratings":       "No ratings yet",
+    "rank.detail_first_time":       "First time",
+    "rank.detail_no_client_ratings":"No client ratings",
+    "rank.detail_not_specified":    "Not specified",
+    // Case deletion blocker
+    "cd.alert_cannot_delete":       "Cannot delete: this case has {blockers}.\n\nRemove them first, or change the status to \"Cancelled\" instead.",
+    // Follow/unfollow company
+    "action.follow_company":        "Follow this company",
+    "action.unfollow_company":      "Unfollow this company",
+    // Apply wizard cover letter placeholder
+    "apply.ph_cover_letter":        "Hi, I'm interested in this case. I have experience with the required technologies and believe I can deliver strong results because…",
+    // Example placeholders
+    "cd.ph_milestone_eg":           "e.g. Configure Material Ledger",
+    "spec.ph_obj_title_eg":         "e.g. Phase 2 — Integration Testing",
+    "case.ph_standby_eg":           "e.g. waiting on board approval expected next Monday…",
+    "auth.ph_key_user_email":       "e.g. m.santos@company.com — lets them register as Key User",
+    // DB connection access notes
+    "conn.ph_access_vpn":           "Additional access instructions, firewall rules…",
+    "conn.ph_access_pki":           "Config file location, certificate path, access instructions…",
+    "conn.ph_access_other":         "Access instructions, connection details…",
+    // Budget example
+    "proj.ph_budget_eg":            "e.g. $500K annual consulting",
+    // Error prefix
+    "state.error_prefix":           "Error: ",
   },
   es: {
     // Navigation
@@ -3759,6 +3802,49 @@ const TRANSLATIONS = {
     "company.ph_about":             "¿Qué hace tu empresa?",
     "company.ph_tags":              "Nube, IA, ERP",
     "company.ph_vetting":           "Requisitos especiales, notas de selección…",
+    // Lifecycle preset cards
+    "lc.preset_short_name":         "Corto",
+    "lc.preset_short_subtitle":     "8 etapas",
+    "lc.preset_short_desc":         "Flujo simple para solicitudes de consultoría directas.",
+    "lc.preset_standard_name":      "Estándar",
+    "lc.preset_standard_subtitle":  "10 etapas",
+    "lc.preset_standard_desc":      "Flujo de consultoría predeterminado con pipeline de pruebas completo.",
+    "lc.preset_full_name":          "Completo",
+    "lc.preset_full_subtitle":      "12 etapas",
+    "lc.preset_full_desc":          "Pipeline de consultoría completo con todas las fases de prueba.",
+    // Ranking breakdown labels
+    "rank.label_skills":            "Habilidades",
+    "rank.label_rating":            "Valoración general",
+    "rank.label_client_exp":        "Exp. Cliente",
+    "rank.label_client_rating":     "Val. Cliente",
+    "rank.label_experience":        "Experiencia",
+    "rank.label_rate":              "Tarifa",
+    "rank.label_availability":      "Disponibilidad",
+    "rank.detail_no_req":           "Sin requisitos",
+    "rank.detail_no_ratings":       "Sin valoraciones",
+    "rank.detail_first_time":       "Primera vez",
+    "rank.detail_no_client_ratings":"Sin valoraciones del cliente",
+    "rank.detail_not_specified":    "No especificado",
+    // Case deletion blocker
+    "cd.alert_cannot_delete":       "No se puede eliminar: este caso tiene {blockers}.\n\nElimine esos elementos primero o cambie el estado a \"Cancelado\".",
+    // Follow/unfollow company
+    "action.follow_company":        "Seguir esta empresa",
+    "action.unfollow_company":      "Dejar de seguir esta empresa",
+    // Apply wizard cover letter placeholder
+    "apply.ph_cover_letter":        "Hola, estoy interesado/a en este caso. Tengo experiencia con las tecnologías requeridas y creo que puedo entregar resultados sólidos porque…",
+    // Example placeholders
+    "cd.ph_milestone_eg":           "p.ej. Configurar Ledger de Materiales",
+    "spec.ph_obj_title_eg":         "p.ej. Fase 2 — Pruebas de integración",
+    "case.ph_standby_eg":           "p.ej. esperando aprobación del directorio prevista para el lunes…",
+    "auth.ph_key_user_email":       "p.ej. m.santos@empresa.com — permite que se registre como Usuario Clave",
+    // DB connection access notes
+    "conn.ph_access_vpn":           "Instrucciones de acceso adicionales, reglas de firewall…",
+    "conn.ph_access_pki":           "Ubicación del archivo de configuración, ruta del certificado, instrucciones…",
+    "conn.ph_access_other":         "Instrucciones de acceso, detalles de conexión…",
+    // Budget example
+    "proj.ph_budget_eg":            "p.ej. $500K de consultoría anual",
+    // Error prefix
+    "state.error_prefix":           "Error: ",
   },
 };
 
@@ -4673,13 +4759,13 @@ function computeApplicantScore(app, caseData, pastAssignments, allRatings, clien
     ...app,
     totalScore: total,
     breakdown: {
-      skills:            { pts: skillPts,        max: W.skills,            label: "Skill Match",     detail: required.length ? `${matched}/${required.length} matched` : "No requirements" },
-      rating:            { pts: ratingPts,        max: W.rating,            label: "Overall Rating",  detail: myRatings.length ? `${avgRating.toFixed(1)}★ (${myRatings.length})` : "No ratings yet" },
-      clientFamiliarity: { pts: familiarityPts,   max: W.clientFamiliarity, label: "Client Exp.",     detail: clientWork.length ? `${clientWork.length}× with client` : "First time" },
-      clientRating:      { pts: clientRatingPts,  max: W.clientRating,      label: "Client Rating",   detail: clientRatings.length ? `${clientAvg.toFixed(1)}★ from client` : "No client ratings" },
-      experience:        { pts: expPts,           max: W.experience,        label: "Experience",      detail: minExp ? `${theirExp}y / min ${minExp}y` : `${theirExp}y exp` },
-      rate:              { pts: ratePts,          max: W.rate,              label: "Rate",            detail: proposed ? `$${proposed}/hr` : "Not specified" },
-      commitment:        { pts: commitPts,        max: W.commitment,        label: "Availability",    detail: commitDetail },
+      skills:            { pts: skillPts,        max: W.skills,            labelKey: "rank.label_skills",        detail: required.length ? `${matched}/${required.length} matched` : null, detailKey: required.length ? null : "rank.detail_no_req" },
+      rating:            { pts: ratingPts,        max: W.rating,            labelKey: "rank.label_rating",        detail: myRatings.length ? `${avgRating.toFixed(1)}★ (${myRatings.length})` : null, detailKey: myRatings.length ? null : "rank.detail_no_ratings" },
+      clientFamiliarity: { pts: familiarityPts,   max: W.clientFamiliarity, labelKey: "rank.label_client_exp",   detail: clientWork.length ? `${clientWork.length}× with client` : null, detailKey: clientWork.length ? null : "rank.detail_first_time" },
+      clientRating:      { pts: clientRatingPts,  max: W.clientRating,      labelKey: "rank.label_client_rating", detail: clientRatings.length ? `${clientAvg.toFixed(1)}★ from client` : null, detailKey: clientRatings.length ? null : "rank.detail_no_client_ratings" },
+      experience:        { pts: expPts,           max: W.experience,        labelKey: "rank.label_experience",    detail: minExp ? `${theirExp}y / min ${minExp}y` : `${theirExp}y exp` },
+      rate:              { pts: ratePts,          max: W.rate,              labelKey: "rank.label_rate",          detail: proposed ? `$${proposed}/hr` : null, detailKey: proposed ? null : "rank.detail_not_specified" },
+      commitment:        { pts: commitPts,        max: W.commitment,        labelKey: "rank.label_availability",  detail: commitDetail },
     },
   };
 }
@@ -4968,13 +5054,13 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                 return (
                   <div key={key} className="bg-white/80 rounded-xl p-2.5">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide truncate">{c.label}</span>
+                      <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide truncate">{t(c.labelKey)}</span>
                       <span className="text-xs font-bold text-blue-700 ml-1 flex-shrink-0">{c.pts}/{c.max}</span>
                     </div>
                     <div className="h-1 bg-gray-100 rounded-full mb-1">
                       <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: pct >= 80 ? "#22c55e" : pct >= 50 ? "#3b82f6" : pct >= 25 ? "#f59e0b" : "#ef4444" }} />
                     </div>
-                    <div className="text-[10px] text-gray-400 truncate">{c.detail}</div>
+                    <div className="text-[10px] text-gray-400 truncate">{c.detailKey ? t(c.detailKey) : c.detail}</div>
                   </div>
                 );
               })}
@@ -5038,13 +5124,15 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                   {RANKING_CRITERIA.map(key => {
                     const c = app.breakdown[key];
                     const pct = Math.round((c.pts / c.max) * 100);
+                    const clabel = t(c.labelKey);
+                    const cdetail = c.detailKey ? t(c.detailKey) : c.detail;
                     return (
-                      <div key={key} className="flex-1" title={`${c.label}: ${c.pts}/${c.max} — ${c.detail}`}>
+                      <div key={key} className="flex-1" title={`${clabel}: ${c.pts}/${c.max} — ${cdetail}`}>
                         <div className="h-8 bg-gray-100 rounded relative overflow-hidden">
                           <div className="absolute bottom-0 w-full rounded transition-all"
                             style={{ height: `${pct}%`, backgroundColor: pct >= 80 ? "#22c55e" : pct >= 50 ? "#3b82f6" : pct >= 25 ? "#f59e0b" : "#ef4444" }} />
                         </div>
-                        <div className="text-[8px] text-gray-400 text-center mt-0.5 truncate">{c.label.split(" ")[0]}</div>
+                        <div className="text-[8px] text-gray-400 text-center mt-0.5 truncate">{clabel.split(" ")[0]}</div>
                       </div>
                     );
                   })}
@@ -7389,7 +7477,7 @@ function Dashboard({ auth }) {
                               <div className="flex items-center gap-1 mb-1.5">
                                 <span className="text-xs text-gray-500 font-medium">{companyName}</span>
                                 <button onClick={e => { e.stopPropagation(); toggleFollow(c.client_id); }}
-                                  title={following ? "Unfollow this company" : "Follow this company"}
+                                  title={following ? t("action.unfollow_company") : t("action.follow_company")}
                                   className={`text-base leading-none transition-colors ${following ? "text-rose-500 hover:text-rose-400" : "text-gray-300 hover:text-rose-400"}`}>
                                   <Heart className={`w-4 h-4 ${following ? "fill-red-500 text-red-500" : "text-gray-400"}`} />
                                 </button>
@@ -8320,7 +8408,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
             {/* Invitation email — pre-registers an email so they can sign up as key_user */}
             <Input label={t("case.invite_label")} value={roles.key_user_email}
               onChange={e => setRoles(p => ({ ...p, key_user_email: e.target.value }))}
-              placeholder="e.g. m.santos@company.com — lets them register as Key User" />
+              placeholder={t("auth.ph_key_user_email")} />
 
             <div className="border-t border-gray-100 pt-5">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("case.head_hunter")}</p>
@@ -8825,7 +8913,7 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
             <p className="text-sm text-gray-500 mb-5">{t("apply.pitch_desc")}</p>
             <Textarea label={t("apply.cover_letter")} value={pitch.cover_letter}
               onChange={e => setPitch(p => ({ ...p, cover_letter: e.target.value }))}
-              placeholder={`Hi, I'm interested in "${caseData.title}".\n\nI have experience with ${(caseData.skills_required ?? []).slice(0, 2).join(" and ") || "the required technologies"} and believe I can deliver strong results because…`} />
+              placeholder={t("apply.ph_cover_letter")} />
             <p className="text-xs text-gray-400 mt-1">{t("apply.pitch_tip")}</p>
           </>
         )}
@@ -10319,13 +10407,14 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
                     {tmplList.map(tmpl => {
                       const isSelected = projLcMode === tmpl.key;
                       const active = tmpl.stages.filter(s => !s.is_terminal);
+                      const isBuiltin = ["short","standard","full"].includes(tmpl.key);
                       return (
                         <button key={tmpl.key} onClick={() => setProjLcMode(tmpl.key)}
                           className={`text-left p-3 rounded-xl border-2 transition-all ${
                             isSelected ? "border-[#1A4B8C] bg-blue-50" : "border-gray-200 bg-white hover:border-blue-200"}`}>
                           <div className="flex items-center justify-between mb-1">
-                            <span className="font-semibold text-sm text-gray-900">{tmpl.name}</span>
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">{tmpl.subtitle}</span>
+                            <span className="font-semibold text-sm text-gray-900">{isBuiltin ? t(`lc.preset_${tmpl.key}_name`) : tmpl.name}</span>
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">{isBuiltin ? t(`lc.preset_${tmpl.key}_subtitle`) : (tmpl.subtitle ?? "")}</span>
                           </div>
                           <div className="flex flex-wrap gap-1 mt-2">
                             {active.map((s, i) => (
@@ -13782,7 +13871,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
     if (documents.length > 0)    blockers.push(`${documents.length} document(s)`);
     if (subCases.length > 0)     blockers.push(`${subCases.length} sub-case(s)`);
     if (blockers.length > 0) {
-      alert(`Cannot delete: this case has ${blockers.join(", ")}.\n\nRemove them first, or change the status to "Cancelled" instead.`);
+      alert(t("cd.alert_cannot_delete").replace("{blockers}", blockers.join(", ")));
       return;
     }
     if (!window.confirm(t("cd.confirm_delete_case").replace("{n}", caseData.title))) return;
@@ -16216,7 +16305,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       <div className="col-span-2">
                         <Input label={t("case.milestone_title")} value={actForm.title}
                           onChange={e => setActForm(p => ({ ...p, title: e.target.value }))}
-                          placeholder="e.g. Configure Material Ledger" />
+                          placeholder={t("cd.ph_milestone_eg")} />
                       </div>
                       <Input label={t("case.milestone_hours")} type="number" min="0" step="0.5" value={actForm.est_hours}
                         onChange={e => setActForm(p => ({ ...p, est_hours: e.target.value }))} />
@@ -16292,7 +16381,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                         <div className="col-span-2">
                           <Input label={t("case.subcase_title")} value={actForm.title}
                             onChange={e => setActForm(p => ({ ...p, title: e.target.value }))}
-                            placeholder="e.g. Phase 2 — Integration Testing" />
+                            placeholder={t("spec.ph_obj_title_eg")} />
                         </div>
                         <Input label={t("case.milestone_hours")} type="number" min="0" step="0.5" value={actForm.est_hours}
                           onChange={e => setActForm(p => ({ ...p, est_hours: e.target.value }))} />
@@ -17321,13 +17410,14 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                   {tmplList.map(tmpl => {
                     const isSelected = lcMode === tmpl.key;
                     const active = tmpl.stages.filter(s => !s.is_terminal);
+                    const isBuiltin = ["short","standard","full"].includes(tmpl.key);
                     return (
                       <button key={tmpl.key} onClick={() => setLcMode(tmpl.key)}
                         className={`text-left p-3 rounded-xl border-2 transition-all ${
                           isSelected ? "border-[#1A4B8C] bg-blue-50" : "border-gray-200 bg-white hover:border-blue-200"}`}>
                         <div className="flex items-center justify-between mb-1">
-                          <span className="font-semibold text-sm text-gray-900">{tmpl.name}</span>
-                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">{tmpl.subtitle}</span>
+                          <span className="font-semibold text-sm text-gray-900">{isBuiltin ? t(`lc.preset_${tmpl.key}_name`) : tmpl.name}</span>
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">{isBuiltin ? t(`lc.preset_${tmpl.key}_subtitle`) : (tmpl.subtitle ?? "")}</span>
                         </div>
                         <div className="flex flex-wrap gap-1 mt-2">
                           {active.map((s, i) => (
@@ -18813,7 +18903,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
               {t("cd.standby_detail_label")} {standbyReason === t("cd.cancel_reason_other") && <span className="text-red-400">*</span>}
             </p>
             <textarea value={standbyNotes} onChange={e => setStandbyNotes(e.target.value)}
-              rows={3} placeholder="e.g. waiting on board approval expected next Monday…"
+              rows={3} placeholder={t("case.ph_standby_eg")}
               className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-yellow-100 resize-none text-gray-800 placeholder:text-gray-400 bg-white" />
           </div>
 
@@ -19842,7 +19932,7 @@ function DbConnectionsList({ client, auth }) {
           )}
 
           <Textarea label={t("label.notes")} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-            placeholder={isSapType(form.db_type) ? "Additional access instructions, firewall rules…" : isVpnType(form.db_type) ? "Config file location, certificate path, access instructions…" : "Access instructions, connection details…"} />
+            placeholder={isSapType(form.db_type) ? t("conn.ph_access_vpn") : isVpnType(form.db_type) ? t("conn.ph_access_pki") : t("conn.ph_access_other")} />
           <div className="flex justify-end gap-3">
             <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
             <button onClick={handleAdd} disabled={saving}
@@ -21358,7 +21448,7 @@ function ClientProfileView({ auth }) {
           <div className="grid grid-cols-2 gap-3">
             <Input label={t("company.annual_budget")} value={form.budget}
               onChange={e => setForm(p => ({ ...p, budget: e.target.value }))}
-              placeholder="e.g. $500K annual consulting" />
+              placeholder={t("proj.ph_budget_eg")} />
             <Input label={t("company.pref_cats")} value={form._categories}
               onChange={e => setForm(p => ({ ...p, _categories: e.target.value }))}
               placeholder={t("company.ph_tags")} />
@@ -21664,7 +21754,7 @@ function ClientProfileView({ auth }) {
               )}
               <Textarea label={t("conn.notes")} value={connForm.notes}
                 onChange={e => setConnForm(p => ({ ...p, notes: e.target.value }))}
-                placeholder={isSapConnType(connForm.db_type) ? "Additional access instructions, firewall rules…" : isVpnConnType(connForm.db_type) ? "Config file location, certificate path, access instructions…" : "Access instructions, connection details…"} />
+                placeholder={isSapConnType(connForm.db_type) ? t("conn.ph_access_vpn") : isVpnConnType(connForm.db_type) ? t("conn.ph_access_pki") : t("conn.ph_access_other")} />
               <div className="flex justify-end gap-3">
                 <button onClick={() => setShowAddConn(false)} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
                 <button onClick={handleAddConn} disabled={savingConn}
@@ -21798,15 +21888,16 @@ function ClientProfileView({ auth }) {
             {(lcTemplates.length ? lcTemplates : Object.entries(LIFECYCLE_PRESETS).map(([k, v]) => ({ key: k, ...v }))).map(tmpl => {
               const isSelected = lifecycleMode === tmpl.key;
               const active = tmpl.stages.filter(s => !s.is_terminal);
+              const isBuiltin = ["short","standard","full"].includes(tmpl.key);
               return (
                 <button key={tmpl.key} onClick={() => setLifecycleMode(tmpl.key)}
                   className={`text-left p-4 rounded-xl border-2 transition-all ${
                     isSelected ? "border-[#1A4B8C] bg-blue-50" : "border-gray-200 bg-white hover:border-blue-200"}`}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold text-sm text-gray-900">{tmpl.name}</span>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{tmpl.subtitle}</span>
+                    <span className="font-semibold text-sm text-gray-900">{isBuiltin ? t(`lc.preset_${tmpl.key}_name`) : tmpl.name}</span>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{isBuiltin ? t(`lc.preset_${tmpl.key}_subtitle`) : (tmpl.subtitle ?? "")}</span>
                   </div>
-                  <p className="text-xs text-gray-500 mb-3">{tmpl.description}</p>
+                  <p className="text-xs text-gray-500 mb-3">{isBuiltin ? t(`lc.preset_${tmpl.key}_desc`) : (tmpl.description ?? "")}</p>
                   <div className="flex flex-wrap gap-1 items-center">
                     {active.map((s, i) => (
                       <span key={s.key} className="flex items-center gap-1">
@@ -23059,7 +23150,7 @@ function ClientOnboardingView({ auth, onComplete }) {
             <p className="text-sm text-gray-500 mb-5">{t("ob.prefs_subtitle")}</p>
             <Input label={t("ob.budget_label")} value={prefsForm.budget}
               onChange={e => setPrefsForm(p => ({ ...p, budget: e.target.value }))}
-              placeholder="e.g. $500K annual consulting" />
+              placeholder={t("proj.ph_budget_eg")} />
             <Input label={t("ob.areas_label")} value={prefsForm._categories}
               onChange={e => setPrefsForm(p => ({ ...p, _categories: e.target.value }))}
               placeholder="Cloud, AI, ERP, Cybersecurity" />
@@ -23426,7 +23517,7 @@ function SettingsPhasesTab({ ssCtx }) {
       setToast(t("sys.saved"));
       setTimeout(() => setToast(null), 2500);
     } catch (e) {
-      setToast("Error: " + e.message);
+      setToast(t("state.error_prefix") + e.message);
     }
     setSaving(false);
   }
@@ -23638,7 +23729,7 @@ function SettingsCatalogTab({ ssCtx }) {
       setToast(t("sys.saved"));
       setTimeout(() => setToast(null), 2500);
     } catch (e) {
-      setToast("Error: " + e.message);
+      setToast(t("state.error_prefix") + e.message);
     }
     setSaving(false);
   }
@@ -23767,7 +23858,7 @@ function SettingsPlatformTab({ ssCtx }) {
       setToast(t("sys.settings_saved"));
       setTimeout(() => setToast(null), 3000);
     } catch (e) {
-      setToast("Error: " + e.message);
+      setToast(t("state.error_prefix") + e.message);
     }
     setSaving(false);
   }
