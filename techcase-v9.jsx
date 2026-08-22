@@ -1824,6 +1824,87 @@ const TRANSLATIONS = {
     "cd.banner_start_today":        "This case is scheduled to start today ({date}). Begin work to avoid automatic status change.",
     "cd.banner_start_tomorrow":     "This case starts tomorrow ({date}). Prepare to begin on time.",
     "cd.banner_starts_in":          "This case starts in {n} days ({date}).",
+    // Assign / ranking
+    "assign.window_closes":         "Window closes in {n}d",
+    "assign.need_more_one":         "Need {n} more applicant",
+    "assign.need_more_many":        "Need {n} more applicants",
+    "assign.avail_conflict":        "Availability conflict: committed {pct}% but now only has {free}% free",
+    "assign.avail_current":         "Current availability: {free}% free — committed {pct}%",
+    "rank.score_tooltip":           "Skill | Rating | Client Exp | Client Rating | Experience | Rate | Availability",
+    // Count suffixes
+    "count.case_suffix_one":        "case",
+    "count.case_suffix_many":       "cases",
+    "label.n_active":               "· {n} active",
+    // Chart labels
+    "chart.cases_pct":              "Cases ({n}%)",
+    "chart.external_pct":           "External ({n}%)",
+    "chart.free_pct":               "Free ({n}%)",
+    "chart.case_commit_title":      "Case commitment: {n}%",
+    "chart.external_title":         "External: {n}%",
+    "chart.available_title":        "Available: {n}%",
+    // Review / profile
+    "review.on_case":               "On: {n}",
+    // SLA
+    "sla.updated_on":               "Updated {n}",
+    // SAP connection meta
+    "sap.basis_prefix":             "Basis {n}",
+    "sap.route_prefix":             "Route: {n}",
+    "sap.logon_group":              "Logon group: {n}",
+    "conn.sap_client_num":          "Client {n}",
+    // Lifecycle editor
+    "lc.next_arrow":                "Next →",
+    // Company
+    "company.est_year":             "Est. {n}",
+    // Actions
+    "action.view_arrow":            "View →",
+    // Fallbacks
+    "fallback.consultant":          "Consultant",
+    "fallback.user":                "User",
+    "fallback.unassigned":          "Unassigned",
+    "case.head_hunter_yes":         "Yes",
+    // Auth errors
+    "auth.error_status":            "Auth error {n} — check Supabase configuration.",
+    "auth.error_send_code":         "Could not send code — check your Supabase settings and try again.",
+    // Tooltips
+    "label.start_date_from":        "Start date from",
+    "spec.regen_tooltip":           "Re-generate Design & Development plan from updated spec",
+    "cd.edit_dates_tooltip":        "Edit dates / estimated hours",
+    "lc.initial_status_tooltip":    "Set as the starting status when a case is created",
+    "lc.entry_tooltip":             "How this stage is reached",
+    "label.delete_template":        "Delete template",
+    "phase.color_tooltip":          "Phase color",
+    "auth.reset_email_tooltip":     "Send password reset email",
+    // Placeholders
+    "auth.ph_password":             "At least 6 characters",
+    "case.ph_requirements":         "Describe the requirements, objectives and deliverables…",
+    "label.ph_skills":              "SAP S/4HANA, ABAP, Fiori",
+    "label.ph_area":                "Area…",
+    "proj.ph_objectives":           "Project objectives and scope…",
+    "proj.ph_goals":                "What is this project trying to achieve?",
+    "proj.ph_kpi":                  "How will you measure success?",
+    "proj.ph_exclusions":           "What is explicitly excluded from this project?",
+    "proj.ph_compliance":           "GDPR, ISO, NDA requirements, etc.",
+    "spec.ph_rejection":            "Explain why the spec is being rejected…",
+    "spec.ph_description":          "Describe the scope, requirements, and any important notes for this functional specification…",
+    "spec.ph_obj_name":             "Object name (e.g. ZMM_RPT_001)",
+    "spec.ph_obj_type":             "Type (e.g. Report)",
+    "spec.ph_detail":               "Describe in detail…",
+    "spec.ph_answer":               "Your answer…",
+    "cs.ph_milestone":              "Add milestone…",
+    "cs.ph_subcase_title":          "Sub-case title…",
+    "cs.ph_subcase_desc":           "What needs to be done in this sub-case?",
+    "cd.ph_task_summary":           "Brief summary of the task",
+    "cd.ph_task_detail":            "Detailed steps, deliverables, or acceptance criteria",
+    "cd.ph_correction":             "Describe what failed and what needs to be corrected…",
+    "cd.ph_work_done":              "What did you work on?",
+    "profile.ph_bio":               "Tell clients about your background and expertise…",
+    "feedback.ph_comment":          "Share your experience working with this consultant…",
+    "case.ph_cancel_reason":        "Explain why this case is being cancelled…",
+    "label.ph_optional_desc":       "Optional description",
+    "company.ph_location":          "City, Country",
+    "company.ph_about":             "What does your company do?",
+    "company.ph_tags":              "Cloud, AI, ERP",
+    "company.ph_vetting":           "Special requirements, vetting notes…",
   },
   es: {
     // Navigation
@@ -3597,6 +3678,87 @@ const TRANSLATIONS = {
     "cd.banner_start_today":        "Este caso está programado para comenzar hoy ({date}). Comienza el trabajo para evitar un cambio de estado automático.",
     "cd.banner_start_tomorrow":     "Este caso comienza mañana ({date}). Prepárate para comenzar a tiempo.",
     "cd.banner_starts_in":          "Este caso comienza en {n} días ({date}).",
+    // Assign / ranking
+    "assign.window_closes":         "Ventana cierra en {n}d",
+    "assign.need_more_one":         "Falta {n} postulante más",
+    "assign.need_more_many":        "Faltan {n} postulantes más",
+    "assign.avail_conflict":        "Conflicto de disponibilidad: comprometido {pct}% pero solo tiene {free}% libre",
+    "assign.avail_current":         "Disponibilidad actual: {free}% libre — comprometido {pct}%",
+    "rank.score_tooltip":           "Habilidad | Valoración | Exp. Cliente | Val. Cliente | Experiencia | Tarifa | Disponibilidad",
+    // Count suffixes
+    "count.case_suffix_one":        "caso",
+    "count.case_suffix_many":       "casos",
+    "label.n_active":               "· {n} activo(s)",
+    // Chart labels
+    "chart.cases_pct":              "Casos ({n}%)",
+    "chart.external_pct":           "Externo ({n}%)",
+    "chart.free_pct":               "Libre ({n}%)",
+    "chart.case_commit_title":      "Compromiso de casos: {n}%",
+    "chart.external_title":         "Externo: {n}%",
+    "chart.available_title":        "Disponible: {n}%",
+    // Review / profile
+    "review.on_case":               "En: {n}",
+    // SLA
+    "sla.updated_on":               "Actualizado {n}",
+    // SAP connection meta
+    "sap.basis_prefix":             "Basis {n}",
+    "sap.route_prefix":             "Ruta: {n}",
+    "sap.logon_group":              "Grupo de logon: {n}",
+    "conn.sap_client_num":          "Cliente {n}",
+    // Lifecycle editor
+    "lc.next_arrow":                "Siguiente →",
+    // Company
+    "company.est_year":             "Est. {n}",
+    // Actions
+    "action.view_arrow":            "Ver →",
+    // Fallbacks
+    "fallback.consultant":          "Consultor",
+    "fallback.user":                "Usuario",
+    "fallback.unassigned":          "Sin asignar",
+    "case.head_hunter_yes":         "Sí",
+    // Auth errors
+    "auth.error_status":            "Error de autenticación {n} — revise la configuración de Supabase.",
+    "auth.error_send_code":         "No se pudo enviar el código — verifique la configuración de Supabase e intente nuevamente.",
+    // Tooltips
+    "label.start_date_from":        "Fecha de inicio desde",
+    "spec.regen_tooltip":           "Regenerar plan de Diseño y Desarrollo desde la especificación actualizada",
+    "cd.edit_dates_tooltip":        "Editar fechas / horas estimadas",
+    "lc.initial_status_tooltip":    "Establecer como estado inicial al crear un caso",
+    "lc.entry_tooltip":             "Cómo se llega a esta etapa",
+    "label.delete_template":        "Eliminar plantilla",
+    "phase.color_tooltip":          "Color de fase",
+    "auth.reset_email_tooltip":     "Enviar correo de restablecimiento de contraseña",
+    // Placeholders
+    "auth.ph_password":             "Al menos 6 caracteres",
+    "case.ph_requirements":         "Describe los requisitos, objetivos y entregables…",
+    "label.ph_skills":              "SAP S/4HANA, ABAP, Fiori",
+    "label.ph_area":                "Área…",
+    "proj.ph_objectives":           "Objetivos y alcance del proyecto…",
+    "proj.ph_goals":                "¿Qué pretende lograr este proyecto?",
+    "proj.ph_kpi":                  "¿Cómo medirá el éxito?",
+    "proj.ph_exclusions":           "¿Qué está explícitamente excluido de este proyecto?",
+    "proj.ph_compliance":           "Requisitos GDPR, ISO, NDA, etc.",
+    "spec.ph_rejection":            "Explica por qué se rechaza la especificación…",
+    "spec.ph_description":          "Describe el alcance, los requisitos y cualquier nota importante para esta especificación funcional…",
+    "spec.ph_obj_name":             "Nombre del objeto (p.ej. ZMM_RPT_001)",
+    "spec.ph_obj_type":             "Tipo (p.ej. Informe)",
+    "spec.ph_detail":               "Describe en detalle…",
+    "spec.ph_answer":               "Tu respuesta…",
+    "cs.ph_milestone":              "Agregar hito…",
+    "cs.ph_subcase_title":          "Título del sub-caso…",
+    "cs.ph_subcase_desc":           "¿Qué debe hacerse en este sub-caso?",
+    "cd.ph_task_summary":           "Breve resumen de la tarea",
+    "cd.ph_task_detail":            "Pasos detallados, entregables o criterios de aceptación",
+    "cd.ph_correction":             "Describe qué falló y qué necesita corregirse…",
+    "cd.ph_work_done":              "¿En qué trabajaste?",
+    "profile.ph_bio":               "Cuéntales a los clientes sobre tu experiencia y conocimientos…",
+    "feedback.ph_comment":          "Comparte tu experiencia trabajando con este consultor…",
+    "case.ph_cancel_reason":        "Explica por qué se cancela este caso…",
+    "label.ph_optional_desc":       "Descripción opcional",
+    "company.ph_location":          "Ciudad, País",
+    "company.ph_about":             "¿Qué hace tu empresa?",
+    "company.ph_tags":              "Nube, IA, ERP",
+    "company.ph_vetting":           "Requisitos especiales, notas de selección…",
   },
 };
 
@@ -4602,7 +4764,7 @@ function CaseFeedbackModal({ caseData, onClose }) {
         </div>
         {consultants.map(a => {
           const r = ratings[a.consultant_id] ?? { score: 0, comment: "" };
-          const name = a.users?.full_name ?? "Consultant";
+          const name = a.users?.full_name ?? t("fallback.consultant");
           return (
             <div key={a.consultant_id} className="border border-gray-100 rounded-xl p-4 space-y-2">
               <div className="font-medium text-sm text-gray-900">{name}</div>
@@ -4762,8 +4924,8 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
               {autoAssignBlocked && (
                 <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg">
                   {!windowClosed
-                    ? `Window closes in ${Math.max(0, Math.ceil(windowDays - (Date.now() - new Date(caseData.created_at).getTime()) / 86400000))}d`
-                    : `Need ${minApplicants - pendingCount} more applicant${minApplicants - pendingCount !== 1 ? "s" : ""}`}
+                    ? t("assign.window_closes").replace("{n}", Math.max(0, Math.ceil(windowDays - (Date.now() - new Date(caseData.created_at).getTime()) / 86400000)))
+                    : (() => { const need = minApplicants - pendingCount; return t(need === 1 ? "assign.need_more_one" : "assign.need_more_many").replace("{n}", need); })()}
                 </span>
               )}
             </div>
@@ -4794,8 +4956,8 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                   : "bg-white/70 text-gray-600"
               }`}>
                 {best.overcommitted
-                  ? <><AlertTriangle size={13} className="inline mr-1 flex-shrink-0" /><span>Availability conflict: committed <strong>{best.time_commitment}%</strong> but now only has <strong>{best.liveAvailability}%</strong> free</span></>
-                  : <><Check size={13} className="inline mr-1 flex-shrink-0" /><span>Current availability: <strong>{best.liveAvailability}%</strong> free — committed <strong>{best.time_commitment}%</strong></span></>
+                  ? <><AlertTriangle size={13} className="inline mr-1 flex-shrink-0" /><span>{t("assign.avail_conflict").replace("{pct}", best.time_commitment).replace("{free}", best.liveAvailability)}</span></>
+                  : <><Check size={13} className="inline mr-1 flex-shrink-0" /><span>{t("assign.avail_current").replace("{free}", best.liveAvailability).replace("{pct}", best.time_commitment)}</span></>
                 }
               </div>
             )}
@@ -4872,7 +5034,7 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                   </div>
                 )}
                 {/* Score bars */}
-                <div className="flex gap-1 mb-3" title="Skill | Rating | Client Exp | Client Rating | Experience | Rate | Availability">
+                <div className="flex gap-1 mb-3" title={t("rank.score_tooltip")}>
                   {RANKING_CRITERIA.map(key => {
                     const c = app.breakdown[key];
                     const pct = Math.round((c.pts / c.max) * 100);
@@ -6147,7 +6309,7 @@ function AuthScreen({ onAuth }) {
         const raw = err.message || err.error_description || err.msg || "";
         const isUseless = !raw || raw === "{}" || raw === "[object Object]";
         const msg = isUseless
-          ? (err.status ? `Auth error ${err.status} — check Supabase configuration.` : "Could not send code — check your Supabase settings and try again.")
+          ? (err.status ? t("auth.error_status").replace("{n}", err.status) : t("auth.error_send_code"))
           : raw;
         if (msg.toLowerCase().includes("already registered") || msg.toLowerCase().includes("already exists"))
           setError(t("auth.error_email_taken"));
@@ -6431,7 +6593,7 @@ function AuthScreen({ onAuth }) {
                 <Input label={t("label.full_name")} value={name}
                   onChange={e => setName(e.target.value)} placeholder="Jane Smith" />
                 <Input label={t("auth.password")} type="password" value={password}
-                  onChange={e => setPass(e.target.value)} placeholder="At least 6 characters" />
+                  onChange={e => setPass(e.target.value)} placeholder={t("auth.ph_password")} />
                 <Input label={t("auth.confirm_password")} type="password" value={confirmPass}
                   onChange={e => setConf(e.target.value)} placeholder="••••••••" />
 
@@ -6624,7 +6786,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
             {profile?.full_name?.[0] ?? "?"}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-white truncate">{profile?.full_name ?? "User"}</div>
+            <div className="text-sm font-medium text-white truncate">{profile?.full_name ?? t("fallback.user")}</div>
             <div className="text-xs text-blue-300 truncate">{profile?.email}</div>
           </div>
         </div>
@@ -7106,7 +7268,7 @@ function Dashboard({ auth }) {
                   {activeStat.id === "open" && auth.isConsultant && !appliedCaseIds.has(c.id) && (
                     <button onClick={() => setApplying(c)}
                       className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors">
-                      Apply →
+                      {t("arena.apply")}
                     </button>
                   )}
                 </div>
@@ -7169,7 +7331,7 @@ function Dashboard({ auth }) {
                   {INDUSTRY_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
                 <input type="date" value={filterStartFrom} onChange={e => setStartFrom(e.target.value)}
-                  title="Start date from"
+                  title={t("label.start_date_from")}
                   className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 {(filterSap || filterIndustry || filterStartFrom) && (
                   <button onClick={() => { setFilterSap(""); setFilterInd(""); setStartFrom(""); }}
@@ -7245,7 +7407,7 @@ function Dashboard({ auth }) {
                           </div>
                           <button onClick={() => setApplying(c)}
                             className="flex-shrink-0 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm">
-                            Apply →
+                            {t("arena.apply")}
                           </button>
                         </div>
                       </div>
@@ -7303,7 +7465,7 @@ function Dashboard({ auth }) {
                   {startingSoon.map(c => {
                     const d = Math.ceil((new Date(c.start_date + "T00:00:00") - Date.now()) / 86400000);
                     const late = d < 0;
-                    const consultant = c.case_assignments?.[0]?.consultant?.full_name ?? "Unassigned";
+                    const consultant = c.case_assignments?.[0]?.consultant?.full_name ?? t("fallback.unassigned");
                     return (
                       <div key={c.id} className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50" onClick={() => setSelectedCase(c)}>
                         <div className="flex items-center gap-3 min-w-0">
@@ -7900,7 +8062,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               <>
                 <Textarea label={t("label.description")} value={basics.description}
                   onChange={e => setBasics(p => ({ ...p, description: e.target.value }))}
-                  placeholder="Describe the requirements, objectives and deliverables…" />
+                  placeholder={t("case.ph_requirements")} />
                 <div className="grid grid-cols-2 gap-3">
                   <Select label={t("label.priority")} value={basics.priority}
                     onChange={e => setBasics(p => ({ ...p, priority: e.target.value }))}
@@ -7979,7 +8141,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               <>
                 <Input label={t("case.skills_label")} value={scope._skills}
                   onChange={e => setScope(p => ({ ...p, _skills: e.target.value }))}
-                  placeholder="SAP S/4HANA, ABAP, Fiori" />
+                  placeholder={t("label.ph_skills")} />
                 <div className="mt-2 mb-1">
                   <p className="text-sm font-medium text-gray-700 mb-2">{t("proj.work_mode")}</p>
                   <div className="grid grid-cols-3 gap-3">
@@ -8038,7 +8200,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                   onChange={e => setScope(p => ({ ...p, start_date: e.target.value }))} />
                 <Input label={t("case.skills_label")} value={scope._skills}
                   onChange={e => setScope(p => ({ ...p, _skills: e.target.value }))}
-                  placeholder="SAP S/4HANA, ABAP, Fiori" />
+                  placeholder={t("label.ph_skills")} />
               </>
             )}
           </>
@@ -8111,7 +8273,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       <input value={ku.area} onChange={e => updateKuArea(ku.user_id, e.target.value)}
-                        placeholder="Area…"
+                        placeholder={t("label.ph_area")}
                         className="text-xs border border-violet-200 rounded-lg px-2 py-1 bg-white w-28 focus:outline-none focus:ring-1 focus:ring-violet-400" />
                       <button type="button" onClick={() => updateKuArea(ku.user_id, "All Areas")}
                         className={`text-[10px] px-1.5 py-0.5 rounded font-semibold border transition-colors flex-shrink-0 ${ku.area === "All Areas" ? "bg-violet-600 text-white border-violet-600" : "text-violet-500 border-violet-300 hover:bg-violet-50"}`}>
@@ -8924,7 +9086,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
               placeholder="e.g. SAP S/4HANA Transformation" />
             <Textarea label={t("label.description")} value={basics.description}
               onChange={e => setBasics(p => ({ ...p, description: e.target.value }))}
-              placeholder="Project objectives and scope…" />
+              placeholder={t("proj.ph_objectives")} />
 
             {/* Status cards */}
             <div className="mb-5">
@@ -9028,7 +9190,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
             <p className="text-sm text-gray-500 mb-5">{t("proj.step2_desc")}</p>
             <Textarea label={t("proj.objectives_label")} value={objectives.objectives}
               onChange={e => setObj(p => ({ ...p, objectives: e.target.value }))}
-              placeholder="What is this project trying to achieve?" />
+              placeholder={t("proj.ph_goals")} />
 
             {/* Deliverables tag input */}
             <div className="mb-4">
@@ -9063,10 +9225,10 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
 
             <Textarea label={t("proj.success_label")} value={objectives.success_criteria}
               onChange={e => setObj(p => ({ ...p, success_criteria: e.target.value }))}
-              placeholder="How will you measure success?" />
+              placeholder={t("proj.ph_kpi")} />
             <Textarea label={t("proj.out_of_scope")} value={objectives.out_of_scope}
               onChange={e => setObj(p => ({ ...p, out_of_scope: e.target.value }))}
-              placeholder="What is explicitly excluded from this project?" />
+              placeholder={t("proj.ph_exclusions")} />
           </>
         )}
 
@@ -9164,7 +9326,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
 
             <Textarea label={t("proj.compliance_label")} value={reqs.compliance_notes}
               onChange={e => setReqs(p => ({ ...p, compliance_notes: e.target.value }))}
-              placeholder="GDPR, ISO, NDA requirements, etc." />
+              placeholder={t("proj.ph_compliance")} />
           </>
         )}
 
@@ -10422,12 +10584,12 @@ function ProjectsView({ auth }) {
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-400 mb-3">
                       {totalCases > 0 && (
                         <span>
-                          <span className="font-semibold text-gray-700">{totalCases}</span> case{totalCases !== 1 ? "s" : ""}
-                          {activeCases > 0 && <span className="ml-1 text-blue-500 font-semibold">· {activeCases} active</span>}
+                          <span className="font-semibold text-gray-700">{totalCases}</span>{" "}{totalCases !== 1 ? t("count.case_suffix_many") : t("count.case_suffix_one")}
+                          {activeCases > 0 && <span className="ml-1 text-blue-500 font-semibold">{t("label.n_active").replace("{n}", activeCases)}</span>}
                         </span>
                       )}
                       {p.total_budget && (
-                        <span>Budget: <span className="font-semibold text-gray-700">${Number(p.total_budget).toLocaleString()}</span></span>
+                        <span>{t("label.budget")}: <span className="font-semibold text-gray-700">${Number(p.total_budget).toLocaleString()}</span></span>
                       )}
                       {p.area_sap && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg font-medium">{p.area_sap}</span>}
                       {p.industry && <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg font-medium">{p.industry}</span>}
@@ -12461,7 +12623,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
             <label className="block text-xs font-semibold text-red-700">{t("spec.reject_reason")}</label>
             <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)}
               className="w-full border border-red-200 rounded-lg p-2 text-sm resize-none" rows={3}
-              placeholder="Explain why the spec is being rejected…" />
+              placeholder={t("spec.ph_rejection")} />
             <div className="flex gap-2 justify-end">
               <button onClick={() => setShowRejectInput(false)} className="px-3 py-1.5 text-xs text-gray-500">{t("action.cancel")}</button>
               <button onClick={handleReject} disabled={!rejectReason.trim() || approving}
@@ -12577,7 +12739,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
         <div>
           <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t("spec.scope_notes")}</label>
           <textarea value={manualNotes} onChange={e => setManualNotes(e.target.value)} rows={8}
-            placeholder="Describe the scope, requirements, and any important notes for this functional specification…"
+            placeholder={t("spec.ph_description")}
             className="w-full border border-gray-200 rounded-xl p-3 text-sm resize-y focus:outline-none focus:border-blue-400" />
         </div>
 
@@ -12676,10 +12838,10 @@ Respond with ONLY a valid JSON object, no markdown fences:
               {/* Add object row */}
               <div className="flex items-center gap-2">
                 <input value={addObjName} onChange={e => setAddObjName(e.target.value)}
-                  placeholder="Object name (e.g. ZMM_RPT_001)"
+                  placeholder={t("spec.ph_obj_name")}
                   className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
                 <input value={addObjType} onChange={e => setAddObjType(e.target.value)}
-                  placeholder="Type (e.g. Report)"
+                  placeholder={t("spec.ph_obj_type")}
                   className="w-36 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
                 <button onClick={() => {
                   if (!addObjName.trim()) return;
@@ -12756,11 +12918,11 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   ) : q.type === 'multiline' ? (
                     <textarea value={q.a ?? ''} onChange={e => updateAnswer(currentObjIdx, q.id, e.target.value)}
                       rows={3} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-y focus:outline-none focus:border-blue-400"
-                      placeholder="Describe in detail…" />
+                      placeholder={t("spec.ph_detail")} />
                   ) : (
                     <input type="text" value={q.a ?? ''} onChange={e => updateAnswer(currentObjIdx, q.id, e.target.value)}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
-                      placeholder="Your answer…" />
+                      placeholder={t("spec.ph_answer")} />
                   )}
                 </div>
               ))}
@@ -15265,7 +15427,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 {caseData.is_head_hunter && (
                   <div>
                     <div className="text-xs text-gray-400 mb-0.5">{t("case.head_hunter")}</div>
-                    <div className="font-medium">{caseData.head_hunter_name || "Yes"}</div>
+                    <div className="font-medium">{caseData.head_hunter_name || t("case.head_hunter_yes")}</div>
                   </div>
                 )}
               </div>
@@ -15409,7 +15571,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             <div className="flex gap-2 mt-4">
               <input value={newMilestone} onChange={e => setNewMilestone(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleAddMilestone()}
-                placeholder="Add milestone…"
+                placeholder={t("cs.ph_milestone")}
                 className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               <button onClick={handleAddMilestone}
                 className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">
@@ -15513,10 +15675,10 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               <h4 className="font-semibold text-gray-900 text-sm">{t("case.new_subcase")}</h4>
               <Input label={t("label.title")} value={subCaseForm.title}
                 onChange={e => setSubCaseForm(p => ({ ...p, title: e.target.value }))}
-                placeholder="Sub-case title…" />
+                placeholder={t("cs.ph_subcase_title")} />
               <Textarea label={t("label.description")} value={subCaseForm.description}
                 onChange={e => setSubCaseForm(p => ({ ...p, description: e.target.value }))}
-                placeholder="What needs to be done in this sub-case?" />
+                placeholder={t("cs.ph_subcase_desc")} />
               <div className="grid grid-cols-2 gap-3">
                 <Select label={t("label.priority")} value={subCaseForm.priority}
                   onChange={e => setSubCaseForm(p => ({ ...p, priority: e.target.value }))}
@@ -15828,7 +15990,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                         onClick={generateDevelopmentPlan}
                         disabled={generatingDevPlan}
                         className="flex items-center gap-1 text-[10px] font-semibold text-blue-500 hover:text-blue-700 disabled:opacity-50 transition-colors"
-                        title="Re-generate Design & Development plan from updated spec">
+                        title={t("spec.regen_tooltip")}>
                         {generatingDevPlan ? <><Spinner size={9} /> {t("case.generating")}</> : <><RotateCcw size={10} /> {t("case.regenerate_plan")}</>}
                       </button>
                     )}
@@ -16066,12 +16228,12 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       <div className="col-span-2">
                         <Textarea label={t("label.description")} value={actForm.description}
                           onChange={e => setActForm(p => ({ ...p, description: e.target.value }))}
-                          placeholder="Brief summary of the task" />
+                          placeholder={t("cd.ph_task_summary")} />
                       </div>
                       <div className="col-span-2">
                         <Textarea label={t("case.milestone_criteria")} value={actForm.detail}
                           onChange={e => setActForm(p => ({ ...p, detail: e.target.value }))}
-                          placeholder="Detailed steps, deliverables, or acceptance criteria" />
+                          placeholder={t("cd.ph_task_detail")} />
                       </div>
                       {/* Phase */}
                       <div>
@@ -16142,7 +16304,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                         <div className="col-span-2">
                           <Textarea label={t("label.description")} value={actForm.description}
                             onChange={e => setActForm(p => ({ ...p, description: e.target.value }))}
-                            placeholder="What needs to be done in this sub-case?" />
+                            placeholder={t("cs.ph_subcase_desc")} />
                         </div>
                       </div>
                     ) : (
@@ -16484,7 +16646,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                                     <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("cd.issue_label")} <span className="text-red-400">*</span></label>
                                     <textarea value={editActForm.adjustment_notes ?? ''} rows={3}
                                       onChange={e => setEditActForm(p => ({ ...p, adjustment_notes: e.target.value }))}
-                                      placeholder="Describe what failed and what needs to be corrected…"
+                                      placeholder={t("cd.ph_correction")}
                                       className="w-full text-sm border border-amber-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-200 resize-none bg-white" />
                                   </div>
                                 )}
@@ -16574,7 +16736,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                               <button
                                 onClick={() => { setEditingActId(act.id); setEditActForm({ est_hours: act.est_hours, start_date_plan: act.start_date_plan ?? "", end_date_plan: act.end_date_plan ?? "" }); }}
                                 className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
-                                title="Edit dates / estimated hours">
+                                title={t("cd.edit_dates_tooltip")}>
                                 <Pencil size={13} />
                               </button>
                             )}
@@ -16762,7 +16924,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                                 </div>
                                 <div>
                                   <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("label.description")} *</label>
-                                  <input type="text" value={timeForm.description} placeholder="What did you work on?"
+                                  <input type="text" value={timeForm.description} placeholder={t("cd.ph_work_done")}
                                     onChange={e => setTimeForm(p => ({ ...p, description: e.target.value }))}
                                     className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400" />
                                 </div>
@@ -17040,7 +17202,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               )}
               <Textarea label={t("label.description")} value={timeForm.description}
                 onChange={e => setTimeForm(p => ({ ...p, description: e.target.value }))}
-                placeholder="What did you work on?" />
+                placeholder={t("cd.ph_work_done")} />
               <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                 <input type="checkbox" checked={timeForm.is_billable}
                   onChange={e => setTimeForm(p => ({ ...p, is_billable: e.target.checked }))}
@@ -17732,19 +17894,19 @@ function ProfileView({ auth }) {
           <div className="h-3 bg-gray-100 rounded-full overflow-hidden flex">
             {activeCaseCommitment > 0 && (
               <div className="h-full bg-blue-400 transition-all" style={{ width: `${activeCaseCommitment}%` }}
-                title={`Case commitment: ${activeCaseCommitment}%`} />
+                title={t("chart.case_commit_title").replace("{n}", activeCaseCommitment)} />
             )}
             {extOccupancy > 0 && (
               <div className="h-full bg-orange-300 transition-all" style={{ width: `${extOccupancy}%` }}
-                title={`External: ${extOccupancy}%`} />
+                title={t("chart.external_title").replace("{n}", extOccupancy)} />
             )}
             <div className="h-full bg-emerald-200 transition-all" style={{ width: `${freeAvail}%` }}
-              title={`Available: ${freeAvail}%`} />
+              title={t("chart.available_title").replace("{n}", freeAvail)} />
           </div>
           <div className="flex gap-3 mt-1.5 text-xs text-gray-400">
-            <span className="flex items-center gap-1"><span className="w-2 h-2 bg-blue-400 rounded-full inline-block"/>Cases ({activeCaseCommitment}%)</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 bg-orange-300 rounded-full inline-block"/>External ({extOccupancy}%)</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 bg-emerald-200 rounded-full inline-block"/>Free ({freeAvail}%)</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 bg-blue-400 rounded-full inline-block"/>{t("chart.cases_pct").replace("{n}", activeCaseCommitment)}</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 bg-orange-300 rounded-full inline-block"/>{t("chart.external_pct").replace("{n}", extOccupancy)}</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 bg-emerald-200 rounded-full inline-block"/>{t("chart.free_pct").replace("{n}", freeAvail)}</span>
           </div>
         </div>
       </div>
@@ -17756,7 +17918,7 @@ function ProfileView({ auth }) {
           <Input label={t("label.headline")} value={form.headline} onChange={e => setForm(p => ({ ...p, headline: e.target.value }))}
             placeholder="Senior Full-Stack Consultant" />
           <Textarea label={t("profile.bio_label")} value={form.bio} onChange={e => setForm(p => ({ ...p, bio: e.target.value }))}
-            placeholder="Tell clients about your background and expertise…" />
+            placeholder={t("profile.ph_bio")} />
           <div className="grid grid-cols-2 gap-3">
             <Input label={t("label.hourly_rate")} type="number" value={form.hourly_rate}
               onChange={e => setForm(p => ({ ...p, hourly_rate: e.target.value }))} />
@@ -17915,7 +18077,7 @@ function ProfileView({ auth }) {
                           <div className="font-medium text-gray-900">{p.title}</div>
                           {p.client_name && <div className="text-xs text-gray-400">{p.client_name}</div>}
                         </div>
-                        {p.url && <a href={p.url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">View →</a>}
+                        {p.url && <a href={p.url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">{t("action.view_arrow")}</a>}
                       </div>
                       {p.description && <p className="text-sm text-gray-600 mt-2">{p.description}</p>}
                       {p.tech_stack?.length > 0 && (
@@ -18032,7 +18194,7 @@ function ProfileView({ auth }) {
                     <div className="flex text-yellow-400">{stars(r.score)}</div>
                   </div>
                   {r.comment && <p className="text-sm text-gray-600">{r.comment}</p>}
-                  {r.case?.title && <div className="text-xs text-gray-400 mt-1">On: {r.case.title}</div>}
+                  {r.case?.title && <div className="text-xs text-gray-400 mt-1">{t("review.on_case").replace("{n}", r.case.title)}</div>}
                   <div className="text-xs text-gray-300 mt-1">{fmtDate(r.created_at)}</div>
                 </div>
               ))}
@@ -18199,7 +18361,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
           </div>
           <Textarea label={t("label.comment")} value={ratingForm.comment}
             onChange={e => setRatingForm(p => ({ ...p, comment: e.target.value }))}
-            placeholder="Share your experience working with this consultant…" />
+            placeholder={t("feedback.ph_comment")} />
           <div className="flex gap-2">
             <button onClick={handleRate}
               className="px-4 py-2 bg-yellow-500 text-white text-sm font-semibold rounded-xl hover:bg-yellow-600">
@@ -18704,7 +18866,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
               {t("cd.cancel_explanation_label")} <span className="text-red-400">*</span>
             </p>
             <textarea value={cancelNotes} onChange={e => setCancelNotes(e.target.value)}
-              rows={3} placeholder="Explain why this case is being cancelled…"
+              rows={3} placeholder={t("case.ph_cancel_reason")}
               className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-red-100 resize-none text-gray-800 placeholder:text-gray-400 bg-white" />
           </div>
 
@@ -19320,7 +19482,7 @@ function SlaClientDetail({ client, auth }) {
           {sla.uptime_guarantee_pct && <Badge className="bg-gray-100 text-gray-700">{sla.uptime_guarantee_pct}{t("sla.uptime_badge")}</Badge>}
           {sla.priority_support    && <Badge className="bg-orange-100 text-orange-700">{t("sla.priority_support")}</Badge>}
           {sla.dedicated_consultant && <Badge className="bg-green-100 text-green-700">{t("sla.dedicated")}</Badge>}
-          <span className="text-xs text-gray-400 ml-auto">Updated {fmtDate(sla.updated_at ?? sla.created_at)}</span>
+          <span className="text-xs text-gray-400 ml-auto">{t("sla.updated_on").replace("{n}", fmtDate(sla.updated_at ?? sla.created_at))}</span>
         </div>
       ) : null}
 
@@ -19513,6 +19675,7 @@ function SapProfileFields({ meta = {}, onChange, dbType }) {
 }
 
 function SapProfileBadges({ meta = {} }) {
+  const { t } = useT();
   if (!meta.system_role && !meta.sap_product && !meta.components?.length) return null;
   const roleColors = {
     DEV: "bg-blue-100 text-blue-700", QAS: "bg-amber-100 text-amber-700",
@@ -19523,7 +19686,7 @@ function SapProfileBadges({ meta = {} }) {
       <div className="flex flex-wrap gap-1.5 items-center">
         {meta.system_role && <span className={`text-xs px-2 py-0.5 rounded-md font-semibold ${roleColors[meta.system_role] ?? "bg-gray-100 text-gray-600"}`}>{meta.system_role}</span>}
         {meta.sap_product && <span className="text-xs text-gray-600">{meta.sap_product}{meta.sap_release ? ` ${meta.sap_release}` : ""}</span>}
-        {meta.basis_release && <span className="text-xs text-gray-400">Basis {meta.basis_release}</span>}
+        {meta.basis_release && <span className="text-xs text-gray-400">{t("sap.basis_prefix").replace("{n}", meta.basis_release)}</span>}
         {meta.language && meta.language !== "EN" && <span className="text-xs text-gray-400">{meta.language}</span>}
       </div>
       {meta.components?.length > 0 && (
@@ -19531,8 +19694,8 @@ function SapProfileBadges({ meta = {} }) {
           {meta.components.map(c => <span key={c} className="text-xs bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-mono">{c}</span>)}
         </div>
       )}
-      {meta.transport_route && <p className="text-xs text-gray-400 font-mono">Route: {meta.transport_route}</p>}
-      {meta.logon_group && <p className="text-xs text-gray-400">Logon group: {meta.logon_group}</p>}
+      {meta.transport_route && <p className="text-xs text-gray-400 font-mono">{t("sap.route_prefix").replace("{n}", meta.transport_route)}</p>}
+      {meta.logon_group && <p className="text-xs text-gray-400">{t("sap.logon_group").replace("{n}", meta.logon_group)}</p>}
     </div>
   );
 }
@@ -19699,7 +19862,7 @@ function DbConnectionsList({ client, auth }) {
                 <span className="font-mono text-sm text-gray-800">
                   {isSapType(conn.db_type) ? (conn.db_name || conn.host) : isVpnType(conn.db_type) ? (conn.db_name || conn.host) : conn.db_name}
                 </span>
-                {conn.meta?.sap_client && <span className="text-xs text-gray-500 font-mono">Client {conn.meta.sap_client}</span>}
+                {conn.meta?.sap_client && <span className="text-xs text-gray-500 font-mono">{t("conn.sap_client_num").replace("{n}", conn.meta.sap_client)}</span>}
                 {conn.meta?.vpn_protocol && <span className="text-xs text-indigo-500 font-mono">{conn.meta.vpn_protocol}</span>}
               </div>
               {(auth.isAdmin || auth.isManager) && (
@@ -20060,7 +20223,7 @@ function LifecycleSettingsView({ auth }) {
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("label.description")}</label>
               <input type="text" value={newDesc} onChange={e => setNewDesc(e.target.value)}
-                placeholder="Optional description"
+                placeholder={t("label.ph_optional_desc")}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
           </div>
@@ -20142,7 +20305,7 @@ function LifecycleSettingsView({ auth }) {
                     {!stage.is_terminal && (
                       <>
                         <button onClick={() => setInitialStage(idx)}
-                          title="Set as the starting status when a case is created"
+                          title={t("lc.initial_status_tooltip")}
                           className={`text-xs px-2 py-1.5 rounded-lg border font-semibold transition-colors flex-shrink-0 ${
                             stage.is_initial
                               ? "bg-emerald-50 text-emerald-700 border-emerald-300"
@@ -20151,7 +20314,7 @@ function LifecycleSettingsView({ auth }) {
                           {t("lc.initial")}
                         </button>
                         <button onClick={() => cycleTrigger(idx)}
-                          title="How this stage is reached"
+                          title={t("lc.entry_tooltip")}
                           className={`text-xs px-2 py-1.5 rounded-lg border font-semibold transition-colors flex-shrink-0 ${
                             (stage.trigger ?? "manual") === "auto"
                               ? "bg-purple-50 text-purple-700 border-purple-300"
@@ -20196,7 +20359,7 @@ function LifecycleSettingsView({ auth }) {
 
                       {/* Next → */}
                       <div className="flex items-start gap-2 flex-wrap">
-                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-16 flex-shrink-0 pt-0.5">Next →</span>
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-16 flex-shrink-0 pt-0.5">{t("lc.next_arrow")}</span>
                         <div className="flex flex-wrap gap-1">
                           {editStages.filter((_, j) => j !== idx).map(s => {
                             const on = (stage.allowed_next ?? []).includes(s.key);
@@ -20315,7 +20478,7 @@ function LifecycleSettingsView({ auth }) {
                   <div className="text-xs text-gray-400 mt-0.5 leading-tight">{tmpl.description}</div>
                 </button>
                 <button onClick={() => handleDelete(tmpl)}
-                  title="Delete template"
+                  title={t("label.delete_template")}
                   className="opacity-0 group-hover:opacity-100 mt-3 text-red-300 hover:text-red-500 text-base leading-none flex-shrink-0 px-1">
                   ×
                 </button>
@@ -20514,7 +20677,7 @@ function CaseDefaultsPanel({ profile, updateProfile }) {
           </div>
           <Input label={t("cd.default_skills")} value={form.skills}
             onChange={e => setForm(p => ({ ...p, skills: e.target.value }))}
-            placeholder="SAP S/4HANA, ABAP, Fiori" />
+            placeholder={t("label.ph_skills")} />
         </div>
       </div>
 
@@ -21132,7 +21295,7 @@ function ClientProfileView({ auth }) {
             </p>
             <div className="flex flex-wrap gap-2 mt-2">
               {profile?.company_size && <Badge className="bg-gray-100 text-gray-600">{profile.company_size}</Badge>}
-              {profile?.founded_year && <Badge className="bg-gray-100 text-gray-600">Est. {profile.founded_year}</Badge>}
+              {profile?.founded_year && <Badge className="bg-gray-100 text-gray-600">{t("company.est_year").replace("{n}", profile.founded_year)}</Badge>}
               {profile?.budget && <Badge className="bg-green-100 text-green-700"><DollarSign className="w-3 h-3 inline mr-0.5" />{profile.budget}</Badge>}
             </div>
           </div>
@@ -21163,7 +21326,7 @@ function ClientProfileView({ auth }) {
               onChange={e => setForm(p => ({ ...p, founded_year: e.target.value }))} />
             <Input label={t("company.hq")} value={form.hq_location}
               onChange={e => setForm(p => ({ ...p, hq_location: e.target.value }))}
-              placeholder="City, Country" />
+              placeholder={t("company.ph_location")} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Input label={t("company.website")} value={form.website}
@@ -21175,7 +21338,7 @@ function ClientProfileView({ auth }) {
           </div>
           <Textarea label={t("company.description")} value={form.description}
             onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-            placeholder="What does your company do?" />
+            placeholder={t("company.ph_about")} />
 
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3 mt-1">{t("company.primary_contact")}</div>
           <div className="grid grid-cols-2 gap-3">
@@ -21198,11 +21361,11 @@ function ClientProfileView({ auth }) {
               placeholder="e.g. $500K annual consulting" />
             <Input label={t("company.pref_cats")} value={form._categories}
               onChange={e => setForm(p => ({ ...p, _categories: e.target.value }))}
-              placeholder="Cloud, AI, ERP" />
+              placeholder={t("company.ph_tags")} />
           </div>
           <Textarea label={t("company.internal_notes")} value={form.notes}
             onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-            placeholder="Special requirements, vetting notes…" />
+            placeholder={t("company.ph_vetting")} />
 
           <div className="flex justify-end gap-3 mt-2">
             <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
@@ -21521,7 +21684,7 @@ function ClientProfileView({ auth }) {
                     <span className="font-mono text-sm font-semibold text-gray-800">
                       {isSapConnType(conn.db_type) ? (conn.db_name || conn.host) : isVpnConnType(conn.db_type) ? (conn.db_name || conn.host) : conn.db_name}
                     </span>
-                    {conn.meta?.sap_client && <span className="text-xs text-gray-500 font-mono">Client {conn.meta.sap_client}</span>}
+                    {conn.meta?.sap_client && <span className="text-xs text-gray-500 font-mono">{t("conn.sap_client_num").replace("{n}", conn.meta.sap_client)}</span>}
                     {conn.meta?.vpn_protocol && <span className="text-xs text-indigo-500 font-mono">{conn.meta.vpn_protocol}</span>}
                   </div>
                   <button onClick={() => deleteConnection(conn.id)}
@@ -21760,7 +21923,7 @@ function ClientProfileView({ auth }) {
                         className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400" />
                       <input type="color" value={phase.color}
                         onChange={e => setPhasesForm(prev => prev.map((p, i) => i === idx ? { ...p, color: e.target.value } : p))}
-                        className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent" title="Phase color" />
+                        className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent" title={t("phase.color_tooltip")} />
                       <div className="flex-shrink-0">
                         <label className="text-xs font-semibold text-gray-500 block mb-1">{t("phases.req_status")}</label>
                         <select value={phase.required_status ?? ""}
@@ -22507,7 +22670,7 @@ function ConsultantOnboardingView({ auth, onComplete }) {
               placeholder="Senior SAP Consultant & Solution Architect" />
             <Textarea label={t("label.bio")} value={basicsForm.bio}
               onChange={e => setBasicsForm(p => ({ ...p, bio: e.target.value }))}
-              placeholder="Tell clients about your background and expertise…" />
+              placeholder={t("profile.ph_bio")} />
             <div className="grid grid-cols-2 gap-3">
               <Input label={t("ob.hourly_rate_label")} type="number" value={basicsForm.hourly_rate}
                 onChange={e => setBasicsForm(p => ({ ...p, hourly_rate: e.target.value }))} />
@@ -22652,7 +22815,7 @@ function ConsultantOnboardingView({ auth, onComplete }) {
                         <div className="font-medium text-gray-900">{p.title}</div>
                         {p.client_name && <div className="text-xs text-gray-400">{p.client_name}</div>}
                       </div>
-                      {p.url && <a href={p.url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">View →</a>}
+                      {p.url && <a href={p.url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">{t("action.view_arrow")}</a>}
                     </div>
                     {p.tech_stack?.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2">
@@ -22856,14 +23019,14 @@ function ClientOnboardingView({ auth, onComplete }) {
                 onChange={e => setCompanyForm(p => ({ ...p, founded_year: e.target.value }))} />
               <Input label={t("ob.hq_location_label")} value={companyForm.hq_location}
                 onChange={e => setCompanyForm(p => ({ ...p, hq_location: e.target.value }))}
-                placeholder="City, Country" />
+                placeholder={t("company.ph_location")} />
             </div>
             <Input label={t("ob.website_label")} value={companyForm.website}
               onChange={e => setCompanyForm(p => ({ ...p, website: e.target.value }))}
               placeholder="https://yourcompany.com" />
             <Textarea label={t("label.description")} value={companyForm.description}
               onChange={e => setCompanyForm(p => ({ ...p, description: e.target.value }))}
-              placeholder="What does your company do?" />
+              placeholder={t("company.ph_about")} />
           </>
         )}
 
@@ -23171,7 +23334,7 @@ function SettingsUsersTab() {
                 </td>
                 <td className="px-4 py-3 text-center">
                   <button onClick={() => sendPasswordReset(u.email)}
-                    title="Send password reset email"
+                    title={t("auth.reset_email_tooltip")}
                     className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 mx-auto
                       ${resetSent[u.email]
                         ? "bg-green-100 text-green-700"
