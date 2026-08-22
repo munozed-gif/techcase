@@ -1787,6 +1787,37 @@ const TRANSLATIONS = {
     "sla.tier_enterprise":          "Enterprise",
     // Admin role
     "auth.role_admin":              "Admin",
+    // Dashboard start-date badge
+    "dashboard.days_late":          "{n}d late",
+    "dashboard.starts_in_d":        "In {n}d",
+    // Project wizard status cards
+    "proj.status_draft":            "Draft",
+    "proj.status_draft_desc":       "Not yet active",
+    "proj.status_active":           "Active",
+    "proj.status_active_desc":      "In progress now",
+    // Priority labels
+    "priority.low":                 "Low",
+    "priority.medium":              "Medium",
+    "priority.high":                "High",
+    "priority.critical":            "Critical",
+    // Project wizard step desc
+    "proj.step_basics_desc":        "Name & description",
+    "proj.step_scope_desc":         "Budget & timeline",
+    "proj.step_objectives_desc":    "Goals & deliverables",
+    "proj.step_team_desc":          "Contacts & headcount",
+    "proj.step_reqs_desc":          "Skills & preferences",
+    "proj.step_review_desc":        "Confirm & create",
+    // Project next-step meta descriptions
+    "proj.meta_draft":              "Move back to draft for rework",
+    "proj.meta_active":             "Activate and begin work on this project",
+    "proj.meta_on_hold":            "Pause the project temporarily",
+    "proj.meta_completed":          "Mark this project as successfully completed",
+    "proj.meta_cancelled":          "Cancel and close this project",
+    "proj.meta_default":            "Move to this stage",
+    // Unassigned phase / lifecycle fallbacks
+    "phase.unassigned":             "Unassigned",
+    "lifecycle.stage_lbl":          "Stage",
+    "proj.untitled":                "Untitled",
     // Case start date banners (CaseDetail)
     "cd.banner_start_late_one":     "This case was scheduled to start {n} day ago ({date}). Action may be taken automatically soon.",
     "cd.banner_start_late_many":    "This case was scheduled to start {n} days ago ({date}). Action may be taken automatically soon.",
@@ -3528,6 +3559,38 @@ const TRANSLATIONS = {
     "sla.tier_enterprise":          "Empresarial",
     // Admin role
     "auth.role_admin":              "Admin",
+    // Case start date banners (CaseDetail)
+    // Dashboard start-date badge
+    "dashboard.days_late":          "{n}d tarde",
+    "dashboard.starts_in_d":        "En {n}d",
+    // Project wizard status cards
+    "proj.status_draft":            "Borrador",
+    "proj.status_draft_desc":       "Aún no activo",
+    "proj.status_active":           "Activo",
+    "proj.status_active_desc":      "En progreso ahora",
+    // Priority labels
+    "priority.low":                 "Baja",
+    "priority.medium":              "Media",
+    "priority.high":                "Alta",
+    "priority.critical":            "Crítica",
+    // Project wizard step desc
+    "proj.step_basics_desc":        "Nombre y descripción",
+    "proj.step_scope_desc":         "Presupuesto y plazos",
+    "proj.step_objectives_desc":    "Objetivos y entregables",
+    "proj.step_team_desc":          "Contactos y equipo",
+    "proj.step_reqs_desc":          "Habilidades y preferencias",
+    "proj.step_review_desc":        "Confirmar y crear",
+    // Project next-step meta descriptions
+    "proj.meta_draft":              "Volver a borrador para revisión",
+    "proj.meta_active":             "Activar y comenzar el trabajo en este proyecto",
+    "proj.meta_on_hold":            "Pausar el proyecto temporalmente",
+    "proj.meta_completed":          "Marcar este proyecto como completado exitosamente",
+    "proj.meta_cancelled":          "Cancelar y cerrar este proyecto",
+    "proj.meta_default":            "Mover a esta etapa",
+    // Unassigned phase / lifecycle fallbacks
+    "phase.unassigned":             "Sin fase",
+    "lifecycle.stage_lbl":          "Etapa",
+    "proj.untitled":                "Sin título",
     // Case start date banners (CaseDetail)
     "cd.banner_start_late_one":     "Este caso debía comenzar hace {n} día ({date}). Pronto se tomará acción automáticamente.",
     "cd.banner_start_late_many":    "Este caso debía comenzar hace {n} días ({date}). Pronto se tomará acción automáticamente.",
@@ -5541,7 +5604,7 @@ function SlaMatrixEditor({ caseTypes, matrix, editing, onChangeCaseTypes, onChan
               <td className="px-4 py-3 border-b border-gray-100">
                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${p.badge}`}>
                   <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${p.dot}`} />
-                  {p.label}
+                  {t(`priority.${p.key}`)}
                 </span>
               </td>
               {caseTypes.map(ct => {
@@ -7254,7 +7317,7 @@ function Dashboard({ auth }) {
                         </div>
                         <div className="flex items-center gap-2 ml-3 flex-shrink-0">
                           <span className={`px-2 py-0.5 rounded-lg text-xs font-semibold ${late ? "bg-red-100 text-red-700" : d <= 1 ? "bg-orange-100 text-orange-700" : "bg-amber-100 text-amber-700"}`}>
-                            {late ? `${Math.abs(d)}d late` : d === 0 ? t("dashboard.today") : d === 1 ? t("dashboard.tomorrow") : `In ${d}d`}
+                            {late ? t("dashboard.days_late").replace("{n}", Math.abs(d)) : d === 0 ? t("dashboard.today") : d === 1 ? t("dashboard.tomorrow") : t("dashboard.starts_in_d").replace("{n}", d)}
                           </span>
                           <span className="text-xs text-gray-400">{c.start_date}</span>
                         </div>
@@ -8763,12 +8826,12 @@ const PROJECT_NEXT_META = {
 function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel, clients = [], initialData = null }) {
   const { t } = useT();
   const PROJECT_STEPS = [
-    { id: "basics",       label: t("proj.rev_basics"),      Icon: FileText,          desc: "Name & description" },
-    { id: "scope",        label: t("proj.rev_scope"),        Icon: DollarSign,        desc: "Budget & timeline" },
-    { id: "objectives",   label: t("proj.rev_objectives"),   Icon: Target,            desc: "Goals & deliverables" },
-    { id: "team",         label: t("proj.rev_team"),         Icon: Users,             desc: "Contacts & headcount" },
-    { id: "requirements", label: t("proj.rev_requirements"), Icon: SlidersHorizontal, desc: "Skills & preferences" },
-    { id: "review",       label: t("apply.step3_label"),     Icon: CheckCircle2,      desc: "Confirm & create" },
+    { id: "basics",       label: t("proj.rev_basics"),      Icon: FileText,          desc: t("proj.step_basics_desc") },
+    { id: "scope",        label: t("proj.rev_scope"),        Icon: DollarSign,        desc: t("proj.step_scope_desc") },
+    { id: "objectives",   label: t("proj.rev_objectives"),   Icon: Target,            desc: t("proj.step_objectives_desc") },
+    { id: "team",         label: t("proj.rev_team"),         Icon: Users,             desc: t("proj.step_team_desc") },
+    { id: "requirements", label: t("proj.rev_requirements"), Icon: SlidersHorizontal, desc: t("proj.step_reqs_desc") },
+    { id: "review",       label: t("apply.step3_label"),     Icon: CheckCircle2,      desc: t("proj.step_review_desc") },
   ];
   const isEdit = !!initialData;
   const [step, setSt] = useState(0);
@@ -8868,8 +8931,8 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
               <p className="text-sm font-medium text-gray-700 mb-2">{t("label.status")}</p>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { value: "draft",  label: "Draft",  desc: "Not yet active" },
-                  { value: "active", label: "Active", desc: "In progress now" },
+                  { value: "draft",  label: t("proj.status_draft"),  desc: t("proj.status_draft_desc") },
+                  { value: "active", label: t("proj.status_active"), desc: t("proj.status_active_desc") },
                 ].map(opt => (
                   <button key={opt.value} type="button"
                     onClick={() => setBasics(p => ({ ...p, status: opt.value }))}
@@ -8889,10 +8952,10 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
               <p className="text-sm font-medium text-gray-700 mb-2">{t("label.priority")}</p>
               <div className="grid grid-cols-4 gap-2">
                 {[
-                  { value: "low",      label: "Low",      cls: "border-slate-300 bg-slate-50 text-slate-700",    sel: "border-slate-500 bg-slate-100 text-slate-800" },
-                  { value: "medium",   label: "Medium",   cls: "border-yellow-300 bg-yellow-50 text-yellow-700", sel: "border-yellow-500 bg-yellow-100 text-yellow-800" },
-                  { value: "high",     label: "High",     cls: "border-orange-300 bg-orange-50 text-orange-700", sel: "border-orange-500 bg-orange-100 text-orange-800" },
-                  { value: "critical", label: "Critical", cls: "border-red-300 bg-red-50 text-red-700",          sel: "border-red-500 bg-red-100 text-red-800" },
+                  { value: "low",      label: t("priority.low"),      cls: "border-slate-300 bg-slate-50 text-slate-700",    sel: "border-slate-500 bg-slate-100 text-slate-800" },
+                  { value: "medium",   label: t("priority.medium"),   cls: "border-yellow-300 bg-yellow-50 text-yellow-700", sel: "border-yellow-500 bg-yellow-100 text-yellow-800" },
+                  { value: "high",     label: t("priority.high"),     cls: "border-orange-300 bg-orange-50 text-orange-700", sel: "border-orange-500 bg-orange-100 text-orange-800" },
+                  { value: "critical", label: t("priority.critical"), cls: "border-red-300 bg-red-50 text-red-700",          sel: "border-red-500 bg-red-100 text-red-800" },
                 ].map(opt => (
                   <button key={opt.value} type="button"
                     onClick={() => setReqs(p => ({ ...p, priority: opt.value }))}
@@ -9114,7 +9177,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
               {/* Basics card */}
               <div className="border border-gray-100 rounded-xl p-4">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("proj.rev_basics")}</p>
-                <p className="font-semibold text-gray-900 text-base">{basics.name || <span className="italic text-gray-400">Untitled</span>}</p>
+                <p className="font-semibold text-gray-900 text-base">{basics.name || <span className="italic text-gray-400">{t("proj.untitled")}</span>}</p>
                 {basics.description && <p className="text-sm text-gray-500 mt-1 leading-relaxed">{basics.description}</p>}
                 <div className="flex flex-wrap gap-2 mt-3">
                   <Badge className={PRIORITY_COLORS[reqs.priority]}>{cap(reqs.priority)}</Badge>
@@ -9586,7 +9649,8 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("project.next_steps")}</p>
               <div className={`grid gap-3 ${validNext.length === 1 ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"}`}>
                 {validNext.map(s => {
-                  const { Icon, desc } = PROJECT_NEXT_META[s.key] ?? { Icon: Zap, desc: "Move to this stage" };
+                  const { Icon } = PROJECT_NEXT_META[s.key] ?? { Icon: Zap };
+                  const desc = t({ draft: "proj.meta_draft", active: "proj.meta_active", on_hold: "proj.meta_on_hold", completed: "proj.meta_completed", cancelled: "proj.meta_cancelled" }[s.key] ?? "proj.meta_default");
                   const isCancelled = s.key === "cancelled";
                   return (
                     <button key={s.key}
@@ -15742,7 +15806,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           phase: p,
           acts: activities.filter(a => a.phase === p.key),
         })), {
-          phase: { key: "__none__", label: "Unassigned", color: "#9ca3af", required_status: null },
+          phase: { key: "__none__", label: t("phase.unassigned"), color: "#9ca3af", required_status: null },
           acts: activities.filter(a => !a.phase || !phaseKeys.includes(a.phase)),
         }].filter(g => g.acts.length > 0 || !hasPhaseActivities);
 
@@ -16187,7 +16251,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
 
                     {/* Phase column backgrounds + labels */}
                     {activePhaseKeys.map((pk, ci) => {
-                      const phaseDef = resolvedPhases.find(p => p.key === pk) ?? { label: "Unassigned", color: "#9ca3af" };
+                      const phaseDef = resolvedPhases.find(p => p.key === pk) ?? { label: t("phase.unassigned"), color: "#9ca3af" };
                       const x = LEFT_PAD + ci * (NODE_W + COL_GAP);
                       const colH = getPhaseActs(pk).length * (NODE_H + NODE_GAP) - NODE_GAP;
                       return (
@@ -19804,7 +19868,7 @@ function ClientTeamList({ client, auth }) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-gray-900 truncate">{m.full_name}</span>
-                  {m.is_primary && <Badge className="bg-blue-100 text-blue-700">Primary</Badge>}
+                  {m.is_primary && <Badge className="bg-blue-100 text-blue-700">{t("team.primary_badge")}</Badge>}
                 </div>
                 {m.role_title && <div className="text-xs text-gray-500">{m.role_title}</div>}
               </div>
@@ -20042,7 +20106,7 @@ function LifecycleSettingsView({ auth }) {
                   }`}>
                   <div className="w-3.5 h-3.5 rounded-full flex-shrink-0 ring-2 ring-white/40"
                     style={{ backgroundColor: s.color }} />
-                  <span className="text-xs font-medium text-center leading-tight">{s.label || "Stage"}</span>
+                  <span className="text-xs font-medium text-center leading-tight">{s.label || t("lifecycle.stage_lbl")}</span>
                   {(s.is_terminal || s.is_initial) && (
                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
                       activeStageIdx === i ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"
@@ -20112,7 +20176,7 @@ function LifecycleSettingsView({ auth }) {
                     <div className="space-y-3">
                       {/* Roles */}
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-16 flex-shrink-0">Roles</span>
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-16 flex-shrink-0">{t("cs.step_roles")}</span>
                         {ROLES.map(r => {
                           const on = (stage.allowed_roles ?? []).includes(r.key);
                           return (
@@ -21061,7 +21125,7 @@ function ClientProfileView({ auth }) {
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold text-gray-900">
-              {profile?.company_name || auth.profile?.full_name || "My Company"}
+              {profile?.company_name || auth.profile?.full_name || t("company.title")}
             </h1>
             <p className="text-gray-500 text-sm mt-0.5">
               {[profile?.industry, profile?.hq_location].filter(Boolean).join(" · ") || t("company.empty_hint")}
