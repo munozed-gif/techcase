@@ -2081,6 +2081,12 @@ const TRANSLATIONS = {
     "user.unknown":                 "Unknown",
     // Spec title fallback
     "spec.title_fallback":          "Functional Specification",
+    // Spec document title suffix and status labels
+    "spec.doc_title_suffix":        " — Functional Spec",
+    "spec.status_draft":            "Draft",
+    "spec.status_submitted":        "Submitted",
+    "spec.status_approved":         "Approved",
+    "spec.status_rejected":         "Rejected",
   },
   es: {
     // Navigation
@@ -4111,6 +4117,12 @@ const TRANSLATIONS = {
     "user.unknown":                 "Desconocido",
     // Spec title fallback
     "spec.title_fallback":          "Especificación Funcional",
+    // Spec document title suffix and status labels
+    "spec.doc_title_suffix":        " — Especificación Funcional",
+    "spec.status_draft":            "Borrador",
+    "spec.status_submitted":        "Enviado",
+    "spec.status_approved":         "Aprobado",
+    "spec.status_rejected":         "Rechazado",
   },
 };
 
@@ -12762,7 +12774,7 @@ Use realistic Z object names matching the customer's described solution for ${ca
       setAiContent(specA);
       setSavedSpecUrls({ a: null, b: null, c: null });
       try {
-        await saveSpec({ mode: 'ai', status: 'draft', content: specA, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, selectedSpec: 'a', prevMode, analysisCustomerContent: customerContent }), title: caseData.title + ' — Functional Spec' });
+        await saveSpec({ mode: 'ai', status: 'draft', content: specA, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, selectedSpec: 'a', prevMode, analysisCustomerContent: customerContent }), title: caseData.title + t("spec.doc_title_suffix") });
       } catch (_) {}
       // Auto-save all 3 as PDF documents (includes validation results)
       await saveAllSpecsAsDocuments(specA, specB, specC, sapCheck, proposalCheck);
@@ -12782,7 +12794,7 @@ Use realistic Z object names matching the customer's described solution for ${ca
         objects: specObjects ?? [],
         notes: specMode === 'manual' ? manualNotes : (specMode === 'ai' ? JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent }) : null),
         document_ids: specMode === 'manual' ? manualDocIds : [],
-        title: caseData.title + ' — Functional Spec',
+        title: caseData.title + t("spec.doc_title_suffix"),
       });
       await refetch();
     } catch (e) { alert(e.message); }
@@ -12828,7 +12840,7 @@ coverage meanings:
         parsed = m ? JSON.parse(m[0]) : { coverage: 'none', summary: raw, standard_transactions: [], gaps: [], recommendation: '' };
       }
       setSapCheck(parsed);
-      try { await saveSpec({ mode: 'ai', status: 'draft', content: null, objects: [], notes: JSON.stringify({ sapCheck: parsed }), title: caseData.title + ' — Functional Spec' }); } catch (_) {}
+      try { await saveSpec({ mode: 'ai', status: 'draft', content: null, objects: [], notes: JSON.stringify({ sapCheck: parsed }), title: caseData.title + t("spec.doc_title_suffix") }); } catch (_) {}
     } catch (e) { setAiError(e.message); }
     setStepLoading(false);
   }
@@ -12877,7 +12889,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
         parsed = m ? JSON.parse(m[0]) : { valid: true, score: 7, risk_level: 'medium', strengths: [], concerns: [], recommendation: raw };
       }
       setProposalCheck(parsed);
-      try { await saveSpec({ mode: 'ai', status: 'draft', content: null, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck: parsed }), title: caseData.title + ' — Functional Spec' }); } catch (_) {}
+      try { await saveSpec({ mode: 'ai', status: 'draft', content: null, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck: parsed }), title: caseData.title + t("spec.doc_title_suffix") }); } catch (_) {}
       setAiStep(3);
     } catch (e) { setAiError(e.message); }
     setStepLoading(false);
@@ -12949,7 +12961,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
             <FileText className="w-4 h-4 text-blue-600" />
             <span className="font-semibold text-gray-900 text-sm">{spec.title || t("spec.title_fallback")}</span>
             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusColors[spec.status]}`}>
-              {spec.status.charAt(0).toUpperCase() + spec.status.slice(1)}
+              {t("spec.status_" + spec.status) || cap(spec.status)}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -13103,7 +13115,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
           <button disabled={manualSaving} onClick={async () => {
             setManualSaving(true);
             try {
-              await saveSpec({ mode: 'manual', status: 'draft', notes: manualNotes, document_ids: manualDocIds, title: caseData.title + ' — Functional Spec' });
+              await saveSpec({ mode: 'manual', status: 'draft', notes: manualNotes, document_ids: manualDocIds, title: caseData.title + t("spec.doc_title_suffix") });
               await refetch();
             } catch (e) { alert(e.message); }
             setManualSaving(false);
@@ -13341,7 +13353,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
             <div className="flex gap-3 justify-end pt-2 border-t border-gray-100">
               <button onClick={async () => {
                 try {
-                  await saveSpec({ mode: 'wizard', status: 'draft', content: compiledSpec, objects: wizardObjects, title: caseData.title + ' — Functional Spec' });
+                  await saveSpec({ mode: 'wizard', status: 'draft', content: compiledSpec, objects: wizardObjects, title: caseData.title + t("spec.doc_title_suffix") });
                   await refetch();
                 } catch (e) { alert(e.message); }
               }} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50">
@@ -13779,7 +13791,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     <div className="flex gap-2">
                       <button onClick={async () => {
                         const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA;
-                        try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent }), title: caseData.title + ' — Functional Spec' }); await refetch(); } catch (e) { alert(e.message); }
+                        try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent }), title: caseData.title + t("spec.doc_title_suffix") }); await refetch(); } catch (e) { alert(e.message); }
                       }} disabled={!selectedSpec} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-40">
                         {t("spec.save_draft")}
                       </button>
