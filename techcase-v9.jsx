@@ -1649,6 +1649,8 @@ const TRANSLATIONS = {
     "cd.no_description":            "No description provided.",
     "cd.delete_case":               "Delete Case",
     "cd.delete_note":               "Only available while the case is Open and has no applications, time entries, documents, or sub-cases.",
+    "cd.progress_locked":           "Progress locked — case must be in \"{n}\" to report",
+    "cd.phase_locked":              "Locked — case must be in {n}",
     "cd.no_activities":             "No activities yet",
     "cd.no_activities_sub":         "Add tasks to track plan progress and charge time per activity",
     "cd.all_acts_complete":         "All activities complete",
@@ -2378,6 +2380,8 @@ const TRANSLATIONS = {
     "cd.no_description":            "Sin descripción.",
     "cd.delete_case":               "Eliminar caso",
     "cd.delete_note":               "Solo disponible cuando el caso está Abierto y no tiene aplicaciones, registros de tiempo, documentos ni subcasos.",
+    "cd.progress_locked":           "Progreso bloqueado — el caso debe estar en \"{n}\" para reportar",
+    "cd.phase_locked":              "Bloqueado — el caso debe estar en {n}",
     "cd.no_activities":             "Sin actividades aún",
     "cd.no_activities_sub":         "Agregue tareas para rastrear el avance del plan y registrar tiempo por actividad",
     "cd.all_acts_complete":         "Todas las actividades completas",
@@ -16094,7 +16098,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                           <span className="text-xs font-bold uppercase tracking-wide" style={{ color: phase.color }}>{phase.label}</span>
                           {isLockedPhase && (
                             <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-                              <Lock size={11} className="inline mr-1" />Progress locked — case must be in "{phase.required_status?.replace(/_/g, " ")}" to report
+                              <Lock size={11} className="inline mr-1" />{t("cd.progress_locked").replace("{n}", phase.required_status?.replace(/_/g, " ") ?? "")}
                             </span>
                           )}
                           <div className="flex-1 h-px bg-gray-200" />
@@ -16475,7 +16479,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                                 const phaseIsLocked = phaseDef?.required_status && caseData.status !== phaseDef.required_status;
                                 return phaseIsLocked ? (
                                   <span className="text-[9px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
-                                    <Lock size={11} className="inline mr-1" />Locked — case must be in {phaseDef.required_status.replace(/_/g, " ")}
+                                    <Lock size={11} className="inline mr-1" />{t("cd.phase_locked").replace("{n}", phaseDef.required_status.replace(/_/g, " "))}
                                   </span>
                                 ) : (
                                   <button
@@ -17452,7 +17456,7 @@ function ProfileView({ auth }) {
                 </span>
               )}
               {profile?.hourly_rate && <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" />${profile.hourly_rate}/hr</span>}
-              {profile?.travel_available && <span className="flex items-center gap-1"><Plane className="w-3 h-3" />Travel available</span>}
+              {profile?.travel_available && <span className="flex items-center gap-1"><Plane className="w-3 h-3" />{t("label.travel")}</span>}
               {profile?.expertise_level && (
                 <Badge className="bg-violet-100 text-violet-700">{cap(profile.expertise_level)}</Badge>
               )}
