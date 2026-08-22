@@ -1141,6 +1141,39 @@ const TRANSLATIONS = {
     // Phase labels (also used in SettingsPhasesTab)
     "cd.phase_design":           "Design",
     "cd.phase_development":      "Development",
+    // CreateCaseWizard — work mode cards
+    "cs.work_remote":            "Remote",
+    "cs.work_remote_desc":       "Fully remote, any location",
+    "cs.work_remote_desc_exp":   "Fully remote",
+    "cs.work_onsite":            "On-site",
+    "cs.work_onsite_desc":       "Required at client location",
+    "cs.work_hybrid":            "Hybrid",
+    "cs.work_hybrid_desc":       "Mix of remote and on-site",
+    "cs.work_hybrid_desc_exp":   "Mixed",
+    // CreateCaseWizard — interview format cards
+    "cs.intv_phone":             "Phone Call",
+    "cs.intv_phone_desc":        "Audio call only",
+    "cs.intv_video":             "Video Call",
+    "cs.intv_video_desc":        "Teams, Zoom or similar",
+    "cs.intv_inperson":          "In Person",
+    "cs.intv_inperson_desc":     "Face to face meeting",
+    // CreateCaseWizard — mode selector
+    "cs.mode_express":           "Express",
+    "cs.mode_advanced":          "Advanced",
+    // CreateCaseWizard — review step
+    "cs.rev_work_mode_lbl":      "Work mode:",
+    "cs.rev_location_lbl":       "Location:",
+    "cs.rev_travel":             "Travel required",
+    "cs.rev_min_exp_lbl":        "Min exp:",
+    "cs.rev_clearance":          "Security clearance required",
+    "cs.rev_tech_assess":        "Technical assessment",
+    "cs.rev_rounds":             "round",
+    "cs.rev_rounds_pl":          "rounds",
+    // Dashboard sidebar
+    "dashboard.no_cases":        "No cases yet",
+    "dashboard.starting_soon":   "Starting Soon",
+    // Signup industry select
+    "signup.select_industry":    "Select industry…",
     // ApplyWizard
     "apply.title":          "Apply to Case",
     "apply.step0_label":    "Case Brief",
@@ -1723,6 +1756,39 @@ const TRANSLATIONS = {
     // Phase labels (also used in SettingsPhasesTab)
     "cd.phase_design":           "Diseño",
     "cd.phase_development":      "Desarrollo",
+    // CreateCaseWizard — work mode cards
+    "cs.work_remote":            "Remoto",
+    "cs.work_remote_desc":       "Completamente remoto, cualquier ubicación",
+    "cs.work_remote_desc_exp":   "Totalmente remoto",
+    "cs.work_onsite":            "Presencial",
+    "cs.work_onsite_desc":       "Requerido en instalaciones del cliente",
+    "cs.work_hybrid":            "Híbrido",
+    "cs.work_hybrid_desc":       "Combinación de remoto y presencial",
+    "cs.work_hybrid_desc_exp":   "Mixto",
+    // CreateCaseWizard — interview format cards
+    "cs.intv_phone":             "Llamada Telefónica",
+    "cs.intv_phone_desc":        "Solo llamada de audio",
+    "cs.intv_video":             "Videollamada",
+    "cs.intv_video_desc":        "Teams, Zoom u similar",
+    "cs.intv_inperson":          "En Persona",
+    "cs.intv_inperson_desc":     "Reunión cara a cara",
+    // CreateCaseWizard — mode selector
+    "cs.mode_express":           "Express",
+    "cs.mode_advanced":          "Avanzado",
+    // CreateCaseWizard — review step
+    "cs.rev_work_mode_lbl":      "Modalidad:",
+    "cs.rev_location_lbl":       "Ubicación:",
+    "cs.rev_travel":             "Requiere viaje",
+    "cs.rev_min_exp_lbl":        "Exp. mín.:",
+    "cs.rev_clearance":          "Requiere autorización de seguridad",
+    "cs.rev_tech_assess":        "Evaluación técnica",
+    "cs.rev_rounds":             "ronda",
+    "cs.rev_rounds_pl":          "rondas",
+    // Dashboard sidebar
+    "dashboard.no_cases":        "Sin casos aún",
+    "dashboard.starting_soon":   "Próximos a Iniciar",
+    // Signup industry select
+    "signup.select_industry":    "Selecciona industria…",
     // ApplyWizard
     "apply.title":          "Postularse al Caso",
     "apply.step0_label":    "Resumen del Caso",
@@ -5906,7 +5972,7 @@ function AuthScreen({ onAuth }) {
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t("company.industry")}</label>
                     <select value={industry} onChange={e => setIndustry(e.target.value)}
                       className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
-                      <option value="">Select industry…</option>
+                      <option value="">{t("signup.select_industry")}</option>
                       <option value="technology">Technology</option>
                       <option value="finance">Finance & Banking</option>
                       <option value="healthcare">Healthcare</option>
@@ -6608,7 +6674,7 @@ function Dashboard({ auth }) {
                   className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 {(filterSap || filterIndustry || filterStartFrom) && (
                   <button onClick={() => { setFilterSap(""); setFilterInd(""); setStartFrom(""); }}
-                    className="text-xs text-gray-400 hover:text-gray-600 px-2"><X size={11} className="mr-0.5 inline" />Clear</button>
+                    className="text-xs text-gray-400 hover:text-gray-600 px-2"><X size={11} className="mr-0.5 inline" />{t("action.clear")}</button>
                 )}
               </div>
 
@@ -6837,7 +6903,7 @@ function Dashboard({ auth }) {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
         <div className="p-4 border-b border-gray-100">
           <span className="text-sm font-bold text-gray-900">
-            {auth.isConsultant ? "My Cases" : auth.isClient ? "My Cases" : "Recent Cases"}
+            {auth.isConsultant ? t("dashboard.my_cases") : auth.isClient ? t("dashboard.my_cases") : t("dashboard.recent_cases")}
           </span>
         </div>
         <div className="divide-y divide-gray-50">
@@ -6851,7 +6917,7 @@ function Dashboard({ auth }) {
             </div>
           ))}
           {(auth.isConsultant ? assignedCases : auth.isClient ? myCases : cases).length === 0 && (
-            <div className="px-4 py-6 text-center text-xs text-gray-400">No cases yet</div>
+            <div className="px-4 py-6 text-center text-xs text-gray-400">{t("dashboard.no_cases")}</div>
           )}
         </div>
       </div>
@@ -6868,7 +6934,7 @@ function Dashboard({ auth }) {
           <div className="bg-white rounded-2xl border border-amber-100 shadow-sm">
             <div className="p-4 border-b border-amber-100 flex items-center gap-2">
               <Clock className="w-3.5 h-3.5 text-amber-500" />
-              <span className="text-sm font-bold text-gray-900">Starting Soon</span>
+              <span className="text-sm font-bold text-gray-900">{t("dashboard.starting_soon")}</span>
             </div>
             <div className="divide-y divide-gray-50">
               {soon.map(c => {
@@ -7240,7 +7306,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               <div className="w-12 h-12 rounded-xl bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center mb-4 transition-colors">
                 <Zap className="w-6 h-6 text-blue-600" />
               </div>
-              <div className="font-bold text-gray-900 text-base mb-1">Express</div>
+              <div className="font-bold text-gray-900 text-base mb-1">{t("cs.mode_express")}</div>
               <div className="text-sm text-gray-500 leading-relaxed">{t("case.mode_express_sub")} <span className="font-medium text-blue-600">3 steps.</span></div>
             </button>
             <button onClick={() => selectMode("advanced")}
@@ -7248,7 +7314,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               <div className="w-12 h-12 rounded-xl bg-gray-100 group-hover:bg-[#1A4B8C]/10 flex items-center justify-center mb-4 transition-colors">
                 <Settings className="w-6 h-6 text-gray-600 group-hover:text-[#1A4B8C]" />
               </div>
-              <div className="font-bold text-gray-900 text-base mb-1">Advanced</div>
+              <div className="font-bold text-gray-900 text-base mb-1">{t("cs.mode_advanced")}</div>
               <div className="text-sm text-gray-500 leading-relaxed">{t("case.mode_adv_sub")} <span className="font-medium text-gray-700">9 steps.</span></div>
             </button>
           </div>
@@ -7419,9 +7485,9 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                   <p className="text-sm font-medium text-gray-700 mb-2">{t("proj.work_mode")}</p>
                   <div className="grid grid-cols-3 gap-3">
                     {[
-                      { value: "remote", label: "Remote",  desc: "Fully remote" },
-                      { value: "onsite", label: "On-site", desc: "At client location" },
-                      { value: "hybrid", label: "Hybrid",  desc: "Mixed" },
+                      { value: "remote", label: t("cs.work_remote"), desc: t("cs.work_remote_desc_exp") },
+                      { value: "onsite", label: t("cs.work_onsite"), desc: t("cs.work_onsite_desc") },
+                      { value: "hybrid", label: t("cs.work_hybrid"), desc: t("cs.work_hybrid_desc_exp") },
                     ].map(opt => (
                       <button key={opt.value} type="button"
                         onClick={() => setArr(p => ({ ...p, work_mode: opt.value }))}
@@ -7490,9 +7556,9 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               <p className="text-sm font-medium text-gray-700 mb-2">{t("case.work_mode_req")}</p>
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { value: "remote",  label: "Remote",   desc: "Fully remote, any location" },
-                  { value: "onsite",  label: "On-site",  desc: "Required at client location" },
-                  { value: "hybrid",  label: "Hybrid",   desc: "Mix of remote and on-site" },
+                  { value: "remote",  label: t("cs.work_remote"), desc: t("cs.work_remote_desc") },
+                  { value: "onsite",  label: t("cs.work_onsite"), desc: t("cs.work_onsite_desc") },
+                  { value: "hybrid",  label: t("cs.work_hybrid"), desc: t("cs.work_hybrid_desc") },
                 ].map(opt => (
                   <button key={opt.value} type="button"
                     onClick={() => setArr(p => ({ ...p, work_mode: opt.value }))}
@@ -7721,9 +7787,9 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                   <p className="text-sm font-medium text-gray-700 mb-2">{t("case.intv_format")}</p>
                   <div className="grid grid-cols-3 gap-3">
                     {[
-                      { value: "phone",     label: "Phone Call",  desc: "Audio call only" },
-                      { value: "video",     label: "Video Call",  desc: "Teams, Zoom or similar" },
-                      { value: "in_person", label: "In Person",   desc: "Face to face meeting" },
+                      { value: "phone",     label: t("cs.intv_phone"),    desc: t("cs.intv_phone_desc") },
+                      { value: "video",     label: t("cs.intv_video"),    desc: t("cs.intv_video_desc") },
+                      { value: "in_person", label: t("cs.intv_inperson"), desc: t("cs.intv_inperson_desc") },
                     ].map(opt => (
                       <button key={opt.value} type="button"
                         onClick={() => setIntv(p => ({ ...p, interview_format: opt.value }))}
@@ -7877,11 +7943,11 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               <div className="border border-gray-100 rounded-xl p-4">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("case.rev_work_req")}</p>
                 <div className="grid grid-cols-2 gap-y-2 text-sm">
-                  <div><span className="text-gray-400">Work mode:</span> <span className="font-medium ml-1 capitalize">{arrangement.work_mode}</span></div>
-                  {arrangement.work_location && <div><span className="text-gray-400">Location:</span> <span className="font-medium ml-1">{arrangement.work_location}</span></div>}
-                  {arrangement.travel_required && <div className="col-span-2 text-xs text-amber-600 font-semibold">Travel required</div>}
-                  {quals.min_years_experience && <div><span className="text-gray-400">Min exp:</span> <span className="font-medium ml-1">{quals.min_years_experience} yrs</span></div>}
-                  {quals.security_clearance && <div className="col-span-2 text-xs text-red-600 font-semibold">Security clearance required</div>}
+                  <div><span className="text-gray-400">{t("cs.rev_work_mode_lbl")}</span> <span className="font-medium ml-1 capitalize">{arrangement.work_mode}</span></div>
+                  {arrangement.work_location && <div><span className="text-gray-400">{t("cs.rev_location_lbl")}</span> <span className="font-medium ml-1">{arrangement.work_location}</span></div>}
+                  {arrangement.travel_required && <div className="col-span-2 text-xs text-amber-600 font-semibold">{t("cs.rev_travel")}</div>}
+                  {quals.min_years_experience && <div><span className="text-gray-400">{t("cs.rev_min_exp_lbl")}</span> <span className="font-medium ml-1">{quals.min_years_experience} yrs</span></div>}
+                  {quals.security_clearance && <div className="col-span-2 text-xs text-red-600 font-semibold">{t("cs.rev_clearance")}</div>}
                 </div>
                 {quals.certifications_required.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
@@ -7901,8 +7967,8 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t("case.rev_interview")}</p>
                   <div className="text-sm flex flex-wrap gap-3">
                     <span className="capitalize">{interview.interview_format?.replace("_", " ")}</span>
-                    <span>· {interview.interview_rounds} round{interview.interview_rounds > 1 ? "s" : ""}</span>
-                    {interview.technical_assessment && <span>· Technical assessment</span>}
+                    <span>· {interview.interview_rounds} {interview.interview_rounds > 1 ? t("cs.rev_rounds_pl") : t("cs.rev_rounds")}</span>
+                    {interview.technical_assessment && <span>· {t("cs.rev_tech_assess")}</span>}
                   </div>
                 </div>
               )}
@@ -8580,9 +8646,9 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
               <p className="text-sm font-medium text-gray-700 mb-2">{t("proj.work_mode")}</p>
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { value: "remote",  label: "Remote",   desc: "Fully remote" },
-                  { value: "onsite",  label: "On-site",  desc: "At client location" },
-                  { value: "hybrid",  label: "Hybrid",   desc: "Mix of both" },
+                  { value: "remote",  label: t("cs.work_remote"), desc: t("cs.work_remote_desc_exp") },
+                  { value: "onsite",  label: t("cs.work_onsite"), desc: t("cs.work_onsite_desc") },
+                  { value: "hybrid",  label: t("cs.work_hybrid"), desc: t("cs.work_hybrid_desc_exp") },
                 ].map(opt => (
                   <button key={opt.value} type="button"
                     onClick={() => setReqs(p => ({ ...p, work_mode: opt.value }))}
