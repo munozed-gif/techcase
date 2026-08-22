@@ -1699,6 +1699,45 @@ const TRANSLATIONS = {
     "cd.approve_bypass_can":        "You can bypass this as a manager/admin — provide a reason below.",
     "cd.approve_must_complete":     "All activities must be complete before approval.",
     "cd.approve_contact_mgr":       "Contact a manager or admin to bypass this check.",
+    // Misc remaining strings
+    "state.searching":              "Searching…",
+    "cd.hrs_logged":                "{n}h logged",
+    "cd.progress_to":               "Progress → {n}%",
+    "cd.comments_locked":           "Comments are not allowed in the {n} stage.",
+    "cd.edit_subcase_title":        "Edit Sub-case #{n} (dates & hours only)",
+    "cd.edit_act_title":            "Edit Activity #{n}",
+    "case.starts_today":            "Starts today",
+    "case.starts_tomorrow":         "Starts tomorrow",
+    "case.start_overdue":           "{n}d start overdue",
+    "case.starts_in":               "Starts in {n}d",
+    "case.applicants_one":          "{n} applicant",
+    "case.applicants_many":         "{n} applicants",
+    "company.empty_hint":           "Edit your company profile below",
+    "reports.csv_title":            "Case Title",
+    "reports.csv_status":           "Status",
+    "reports.csv_client":           "Client",
+    "reports.csv_manager":          "Manager",
+    "reports.csv_created":          "Created",
+    "auth.code_sent":               "Code sent to {n} — check your inbox.",
+    "auth.key_user_desc":           "I'm the primary contact at a client company working on assigned cases",
+    "auth.key_user_linked":         "Linked to {n}",
+    "auth.key_user_not_registered": "Your email isn't registered as a Key User for any company",
+    "auth.error_email_first":       "Enter your email first.",
+    "auth.error_email_taken":       "This email already has an account — use Sign In instead.",
+    "auth.error_rate_limit":        "Too many requests — please wait a minute and try again.",
+    "auth.error_smtp":              "Email delivery error. Ensure custom SMTP is configured in Supabase → Authentication → SMTP Settings.",
+    "auth.error_signup_disabled":   "Sign-ups are disabled. Go to Supabase → Authentication → Settings and turn off \"Disable sign-ups\".",
+    "auth.error_name":              "Enter your full name.",
+    "auth.error_password_short":    "Password must be at least 6 characters.",
+    "auth.error_password_match":    "Passwords don't match.",
+    "auth.error_headline":          "Enter a professional headline.",
+    "auth.error_company":           "Enter your company name.",
+    "auth.error_key_user":          "Your email is not registered as a Key User for any company.",
+    "spec.saved":                   "saved",
+    "spec.not_saved":               "not saved",
+    "spec.saving_pdfs":             "Saving PDFs…",
+    "spec.submit_option":           "Submitting: Option {n} — {label}",
+    "spec.click_tab_select":        "Click a tab above to select which spec to submit",
   },
   es: {
     // Navigation
@@ -3346,6 +3385,45 @@ const TRANSLATIONS = {
     "case.approve_modal_title":  "Aprobar Caso y Generar Reporte de Cierre",
     "case.approve_modal_body":   "Esto generará un Reporte de Cierre de 7 secciones y marcará el caso como Aprobado.",
     "case.closure_includes":     "El Reporte de Cierre incluirá:",
+    // Misc remaining strings
+    "state.searching":              "Buscando…",
+    "cd.hrs_logged":                "{n}h registradas",
+    "cd.progress_to":               "Progreso → {n}%",
+    "cd.comments_locked":           "No se permiten comentarios en la etapa {n}.",
+    "cd.edit_subcase_title":        "Editar Sub-caso #{n} (solo fechas y horas)",
+    "cd.edit_act_title":            "Editar Actividad #{n}",
+    "case.starts_today":            "Comienza hoy",
+    "case.starts_tomorrow":         "Comienza mañana",
+    "case.start_overdue":           "{n}d de retraso",
+    "case.starts_in":               "Comienza en {n}d",
+    "case.applicants_one":          "{n} postulante",
+    "case.applicants_many":         "{n} postulantes",
+    "company.empty_hint":           "Edita el perfil de tu empresa abajo",
+    "reports.csv_title":            "Título del Caso",
+    "reports.csv_status":           "Estado",
+    "reports.csv_client":           "Cliente",
+    "reports.csv_manager":          "Gerente",
+    "reports.csv_created":          "Creado",
+    "auth.code_sent":               "Código enviado a {n} — revisa tu bandeja.",
+    "auth.key_user_desc":           "Soy el contacto principal en una empresa cliente trabajando en casos asignados",
+    "auth.key_user_linked":         "Vinculado a {n}",
+    "auth.key_user_not_registered": "Tu correo no está registrado como Usuario Clave en ninguna empresa",
+    "auth.error_email_first":       "Ingresa tu correo primero.",
+    "auth.error_email_taken":       "Este correo ya tiene una cuenta — usa Iniciar Sesión.",
+    "auth.error_rate_limit":        "Demasiadas solicitudes — espera un minuto e intenta de nuevo.",
+    "auth.error_smtp":              "Error de envío de correo. Asegúrate de que SMTP personalizado esté configurado en Supabase → Autenticación → Configuración SMTP.",
+    "auth.error_signup_disabled":   "Los registros están deshabilitados. Ve a Supabase → Autenticación → Configuración y desactiva \"Deshabilitar registros\".",
+    "auth.error_name":              "Ingresa tu nombre completo.",
+    "auth.error_password_short":    "La contraseña debe tener al menos 6 caracteres.",
+    "auth.error_password_match":    "Las contraseñas no coinciden.",
+    "auth.error_headline":          "Ingresa un titular profesional.",
+    "auth.error_company":           "Ingresa el nombre de tu empresa.",
+    "auth.error_key_user":          "Tu correo no está registrado como Usuario Clave en ninguna empresa.",
+    "spec.saved":                   "guardado",
+    "spec.not_saved":               "no guardado",
+    "spec.saving_pdfs":             "Guardando PDFs…",
+    "spec.submit_option":           "Enviando: Opción {n} — {label}",
+    "spec.click_tab_select":        "Haz clic en una pestaña para seleccionar qué especificación enviar",
   },
 };
 
@@ -5880,7 +5958,7 @@ function AuthScreen({ onAuth }) {
 
   // ── Step 0a: send OTP ─────────────────────────────────────────
   async function sendCode() {
-    if (!email.trim()) { setError("Enter your email first."); return; }
+    if (!email.trim()) { setError(t("auth.error_email_first")); return; }
     setError(""); setLoad(true);
     try {
       // signUp is the correct API for new account creation.
@@ -5899,18 +5977,18 @@ function AuthScreen({ onAuth }) {
           ? (err.status ? `Auth error ${err.status} — check Supabase configuration.` : "Could not send code — check your Supabase settings and try again.")
           : raw;
         if (msg.toLowerCase().includes("already registered") || msg.toLowerCase().includes("already exists"))
-          setError("This email already has an account — use Sign In instead.");
+          setError(t("auth.error_email_taken"));
         else if (msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("too many"))
-          setError("Too many requests — please wait a minute and try again.");
+          setError(t("auth.error_rate_limit"));
         else if (msg.toLowerCase().includes("signup") || msg.toLowerCase().includes("disabled"))
-          setError("Sign-ups are disabled. Go to Supabase → Authentication → Settings and turn off \"Disable sign-ups\".");
+          setError(t("auth.error_signup_disabled"));
         else if (msg.toLowerCase().includes("smtp") || msg.toLowerCase().includes("email"))
-          setError("Email delivery error. Ensure custom SMTP is configured in Supabase → Authentication → SMTP Settings.");
+          setError(t("auth.error_smtp"));
         else
           setError(msg);
       } else if (!data?.user || data.user.identities?.length === 0) {
         // Supabase returns an empty identities array when the email already exists
-        setError("This email already has an account — use Sign In instead.");
+        setError(t("auth.error_email_taken"));
       } else {
         setCodeSent(true);
         setCode("");
@@ -5960,12 +6038,12 @@ function AuthScreen({ onAuth }) {
 
   // ── Step 2: create account ────────────────────────────────────
   async function createAccount() {
-    if (!name.trim()) { setError("Enter your full name."); return; }
-    if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
-    if (password !== confirmPass) { setError("Passwords don't match."); return; }
-    if (role === "consultant" && !headline.trim()) { setError("Enter a professional headline."); return; }
-    if (role === "client" && !companyName.trim()) { setError("Enter your company name."); return; }
-    if (role === "key_user" && !keyUserCompany) { setError("Your email is not registered as a Key User for any company."); return; }
+    if (!name.trim()) { setError(t("auth.error_name")); return; }
+    if (password.length < 6) { setError(t("auth.error_password_short")); return; }
+    if (password !== confirmPass) { setError(t("auth.error_password_match")); return; }
+    if (role === "consultant" && !headline.trim()) { setError(t("auth.error_headline")); return; }
+    if (role === "client" && !companyName.trim()) { setError(t("auth.error_company")); return; }
+    if (role === "key_user" && !keyUserCompany) { setError(t("auth.error_key_user")); return; }
     setError(""); setLoad(true);
     try {
       await supabase.auth.updateUser({
@@ -6095,7 +6173,7 @@ function AuthScreen({ onAuth }) {
                 ) : (
                   <>
                     <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-xl text-sm text-blue-700">
-                      <Mail className="w-4 h-4 inline-block mr-1" />Code sent to <strong>{email}</strong> — check your inbox.
+                      <Mail className="w-4 h-4 inline-block mr-1" />{t("auth.code_sent").replace("{n}", email)}
                     </div>
                     <Input label={t("auth.code_label")} value={code}
                       onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 10))}
@@ -6144,10 +6222,10 @@ function AuthScreen({ onAuth }) {
                   <UserCheck className={`w-8 h-8 flex-shrink-0 ${keyUserCompany ? "text-blue-600" : "text-gray-400"}`} />
                   <div className="min-w-0">
                     <div className={`font-semibold text-sm ${keyUserCompany ? "text-blue-700" : "text-gray-500"}`}>{t("auth.role_key_user")}</div>
-                    <div className="text-xs text-gray-500 mt-0.5">I'm the primary contact at a client company working on assigned cases</div>
+                    <div className="text-xs text-gray-500 mt-0.5">{t("auth.key_user_desc")}</div>
                     {keyUserCompany
-                      ? <div className="text-xs text-blue-600 font-semibold mt-1">Linked to <span className="font-bold">{keyUserCompany}</span></div>
-                      : <div className="text-xs text-amber-600 mt-1">Your email isn't registered as a Key User for any company</div>
+                      ? <div className="text-xs text-blue-600 font-semibold mt-1">{t("auth.key_user_linked").replace("{n}", keyUserCompany)}</div>
+                      : <div className="text-xs text-amber-600 mt-1">{t("auth.key_user_not_registered")}</div>
                     }
                   </div>
                 </button>
@@ -10369,12 +10447,12 @@ function CasesView({ auth }) {
                     )}
                     {c.due_date && <span>{t("label.due")} {fmtDate(c.due_date)}</span>}
                     {c.budget && <span>{t("label.budget")}: ${Number(c.budget).toLocaleString()}</span>}
-                    <span>{c.applications?.[0]?.count ?? 0} applicant{c.applications?.[0]?.count !== 1 ? "s" : ""}</span>
+                    <span>{t(c.applications?.[0]?.count !== 1 ? "case.applicants_many" : "case.applicants_one").replace("{n}", c.applications?.[0]?.count ?? 0)}</span>
                     {c.status === "assigned" && c.start_date && (() => {
                       const d = Math.ceil((new Date(c.start_date + "T00:00:00") - Date.now()) / 86400000);
                       if (d > 3) return null;
                       const late = d < 0;
-                      const txt = late ? `${Math.abs(d)}d start overdue` : d === 0 ? "Starts today" : d === 1 ? "Starts tomorrow" : `Starts in ${d}d`;
+                      const txt = late ? t("case.start_overdue").replace("{n}", Math.abs(d)) : d === 0 ? t("case.starts_today") : d === 1 ? t("case.starts_tomorrow") : t("case.starts_in").replace("{n}", d);
                       return <span className={`px-2 py-0.5 rounded-lg font-semibold ${late ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>{txt}</span>;
                     })()}
                   </div>
@@ -12991,20 +13069,20 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   {/* PDF status row */}
                   <div className="flex items-center gap-3 flex-wrap">
                     {[
-                      { key: 'a', label: 'Custom ABAP', color: 'bg-amber-400' },
-                      { key: 'b', label: 'Standard SAP', color: 'bg-green-500' },
-                      { key: 'c', label: 'Customer Proposal', color: 'bg-purple-500' },
+                      { key: 'a', label: t("spec.tab_a"), color: 'bg-amber-400' },
+                      { key: 'b', label: t("spec.tab_b"), color: 'bg-green-500' },
+                      { key: 'c', label: t("spec.tab_c"), color: 'bg-purple-500' },
                     ].map(({ key, label, color }) => (
                       <span key={key} className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${savedSpecUrls[key] ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
                         <span className={`w-2 h-2 rounded-full ${savedSpecUrls[key] ? 'bg-green-500' : color} opacity-70`} />
-                        {label} {savedSpecUrls[key] ? <><Check size={10} className="inline mr-0.5" />saved</> : 'not saved'}
+                        {label} {savedSpecUrls[key] ? <><Check size={10} className="inline mr-0.5" />{t("spec.saved")}</> : t("spec.not_saved")}
                       </span>
                     ))}
-                    {savingDoc && <span className="text-xs text-blue-600 flex items-center gap-1"><Spinner />&nbsp;Saving PDFs…</span>}
+                    {savingDoc && <span className="text-xs text-blue-600 flex items-center gap-1"><Spinner />&nbsp;{t("spec.saving_pdfs")}</span>}
                   </div>
                   <div className="flex gap-2 items-center justify-between">
                     <p className="text-xs text-gray-500">
-                      {selectedSpec ? `Submitting: Option ${selectedSpec.toUpperCase()} — ${selectedSpec === 'a' ? 'Custom ABAP' : selectedSpec === 'b' ? 'Standard SAP' : 'Customer Proposal'}` : 'Click a tab above to select which spec to submit'}
+                      {selectedSpec ? t("spec.submit_option").replace("{n}", selectedSpec.toUpperCase()).replace("{label}", selectedSpec === 'a' ? t("spec.tab_a") : selectedSpec === 'b' ? t("spec.tab_b") : t("spec.tab_c")) : t("spec.click_tab_select")}
                     </p>
                     <div className="flex gap-2">
                       <button onClick={async () => {
@@ -15186,8 +15264,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 </div>
                 <p className="text-gray-700 leading-relaxed">{c.body}</p>
                 <div className="flex gap-4 mt-2 text-xs text-gray-400">
-                  {c.hours_logged > 0 && <span className="flex items-center gap-0.5"><Clock className="w-3 h-3 inline-block" /> {c.hours_logged}h logged</span>}
-                  {c.progress_update !== null && <span className="flex items-center gap-0.5"><TrendingUp className="w-3 h-3 inline-block" /> Progress → {c.progress_update}%</span>}
+                  {c.hours_logged > 0 && <span className="flex items-center gap-0.5"><Clock className="w-3 h-3 inline-block" /> {t("cd.hrs_logged").replace("{n}", c.hours_logged)}</span>}
+                  {c.progress_update !== null && <span className="flex items-center gap-0.5"><TrendingUp className="w-3 h-3 inline-block" /> {t("cd.progress_to").replace("{n}", c.progress_update)}</span>}
                 </div>
               </div>
             ))}
@@ -15199,7 +15277,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           {/* Add comment */}
           {!stageRules.can_comment && (
             <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
-              <AlertTriangle size={13} className="flex-shrink-0" /> Comments are not allowed in the <strong>{currentStage?.label ?? "current"}</strong> stage.
+              <AlertTriangle size={13} className="flex-shrink-0" /> {t("cd.comments_locked").replace("{n}", currentStage?.label ?? "")}
             </div>
           )}
           {stageRules.can_comment && <div className="border border-gray-200 rounded-xl p-4 space-y-3">
@@ -15903,7 +15981,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                             onChange={e => { setCaseSearchQuery(e.target.value); searchCasesToLink(e.target.value); }}
                             placeholder={t("case.search_cases_ph")}
                             className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
-                          {searchingCases && <span className="absolute right-3 top-8 text-xs text-gray-400">Searching…</span>}
+                          {searchingCases && <span className="absolute right-3 top-8 text-xs text-gray-400">{t("state.searching")}</span>}
                           {caseSearchResults.length > 0 && !selectedLinkedCase && (
                             <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
                               {caseSearchResults.map(c => (
@@ -16124,7 +16202,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                   if (isEditing) return (
                     <div key={act.id} className={`border rounded-xl p-4 space-y-3 ${act.activity_type === "sub_case" ? "bg-violet-50 border-violet-200" : "bg-blue-50 border-blue-200"}`}>
                       <p className={`text-xs font-semibold uppercase tracking-wide ${act.activity_type === "sub_case" ? "text-violet-700" : "text-blue-700"}`}>
-                        {act.activity_type === "sub_case" ? `Edit Sub-case #${act.task_no} (dates & hours only)` : `Edit Activity #${act.task_no}`}
+                        {t(act.activity_type === "sub_case" ? "cd.edit_subcase_title" : "cd.edit_act_title").replace("{n}", act.task_no)}
                       </p>
                       <div className="grid grid-cols-2 gap-3">
                         {act.activity_type !== "sub_case" && (
@@ -18776,7 +18854,7 @@ function ReportsView() {
           <button
             onClick={() => {
               const rows = [
-                ["Case Title","Status","Client","Manager","Created"],
+                [t("reports.csv_title"),t("reports.csv_status"),t("reports.csv_client"),t("reports.csv_manager"),t("reports.csv_created")],
                 ...filtCases.map(c => [
                   `"${(c.title ?? "").replace(/"/g,'""')}"`,
                   c.status ?? "",
@@ -20876,7 +20954,7 @@ function ClientProfileView({ auth }) {
               {profile?.company_name || auth.profile?.full_name || "My Company"}
             </h1>
             <p className="text-gray-500 text-sm mt-0.5">
-              {[profile?.industry, profile?.hq_location].filter(Boolean).join(" · ") || "Edit your company profile below"}
+              {[profile?.industry, profile?.hq_location].filter(Boolean).join(" · ") || t("company.empty_hint")}
             </p>
             <div className="flex flex-wrap gap-2 mt-2">
               {profile?.company_size && <Badge className="bg-gray-100 text-gray-600">{profile.company_size}</Badge>}
@@ -21981,12 +22059,12 @@ function TimeEntriesView({ auth }) {
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Date" type="date" value={form.date}
+            <Input label={t("label.date")} type="date" value={form.date}
               onChange={e => setForm(p => ({ ...p, date: e.target.value }))} />
-            <Input label="Hours" type="number" min="0.25" step="0.25" value={form.hours}
+            <Input label={t("label.hours")} type="number" min="0.25" step="0.25" value={form.hours}
               onChange={e => setForm(p => ({ ...p, hours: e.target.value }))} />
           </div>
-          <Textarea label="Description" value={form.description}
+          <Textarea label={t("label.description")} value={form.description}
             onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
             placeholder={t("time.worked_on")} />
           <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer mb-4">
