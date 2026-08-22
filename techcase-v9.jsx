@@ -1199,6 +1199,33 @@ const TRANSLATIONS = {
     "spec.select_option":        "Select an option…",
     // Progress bar label
     "cd.progress_bar":           "Progress",
+    // AI plan generation banners & buttons
+    "cd.gen_plan":               "Generate {n} Plan",
+    "cd.genning_plan":           "Generating {n} Plan…",
+    "cd.phase_complete_banner":  "{phase} complete — generate {plan} Plan",
+    "cd.phase_passed_banner":    "All {n} {phase} activities passed. Generate a {plan} plan with activities and sequential dependencies.",
+    // Sub-case count labels
+    "cd.subcase_single":         "sub-case",
+    "cd.subcase_plural":         "sub-cases",
+    // Inline field labels
+    "label.due_colon":           "Due:",
+    "label.from_date":           "From",
+    "label.status_colon":        "Status:",
+    "label.progress_colon":      "Progress:",
+    "label.logged_subcase":      "Logged on sub-case:",
+    // And N more
+    "label.and_more":            "…and {n} more",
+    // Case scope step
+    "cs.custom_due_date":        "Custom Due Date",
+    "cs.calc_due_date":          "Calculated due date:",
+    // Confirm dialogs
+    "cd.confirm_delete_case":    "Permanently delete \"{n}\"? This cannot be undone.",
+    "cd.confirm_delete_act":     "Delete this activity?",
+    "cd.confirm_remove_subcase": "Remove this sub-case link? The sub-case will NOT be deleted.",
+    "cd.confirm_delete_tmpl":    "Delete \"{n}\"? This cannot be undone.",
+    // Project status confirm
+    "proj.confirm_complete_cases": "This will also complete {n} case(s) linked to this project. Continue?",
+    "proj.confirm_cancel_cases":   "This will also cancel {n} case(s) linked to this project. Continue?",
     // ApplyWizard
     "apply.title":          "Apply to Case",
     "apply.step0_label":    "Case Brief",
@@ -1837,6 +1864,33 @@ const TRANSLATIONS = {
     "spec.select_option":        "Selecciona una opción…",
     // Progress bar label
     "cd.progress_bar":           "Progreso",
+    // AI plan generation banners & buttons
+    "cd.gen_plan":               "Generar Plan de {n}",
+    "cd.genning_plan":           "Generando Plan de {n}…",
+    "cd.phase_complete_banner":  "{phase} completo — generar Plan de {plan}",
+    "cd.phase_passed_banner":    "Las {n} actividades de {phase} pasaron. Genera un plan de {plan} con actividades y dependencias secuenciales.",
+    // Sub-case count labels
+    "cd.subcase_single":         "sub-caso",
+    "cd.subcase_plural":         "sub-casos",
+    // Inline field labels
+    "label.due_colon":           "Vencimiento:",
+    "label.from_date":           "Desde",
+    "label.status_colon":        "Estado:",
+    "label.progress_colon":      "Progreso:",
+    "label.logged_subcase":      "Registrado en sub-caso:",
+    // And N more
+    "label.and_more":            "…y {n} más",
+    // Case scope step
+    "cs.custom_due_date":        "Fecha Límite Personalizada",
+    "cs.calc_due_date":          "Fecha límite calculada:",
+    // Confirm dialogs
+    "cd.confirm_delete_case":    "¿Eliminar permanentemente \"{n}\"? Esta acción no se puede deshacer.",
+    "cd.confirm_delete_act":     "¿Eliminar esta actividad?",
+    "cd.confirm_remove_subcase": "¿Quitar el vínculo al sub-caso? El sub-caso NO se eliminará.",
+    "cd.confirm_delete_tmpl":    "¿Eliminar \"{n}\"? Esta acción no se puede deshacer.",
+    // Project status confirm
+    "proj.confirm_complete_cases": "También se completarán {n} caso(s) vinculado(s) a este proyecto. ¿Continuar?",
+    "proj.confirm_cancel_cases":   "También se cancelarán {n} caso(s) vinculado(s) a este proyecto. ¿Continuar?",
     // ApplyWizard
     "apply.title":          "Postularse al Caso",
     "apply.step0_label":    "Resumen del Caso",
@@ -6646,7 +6700,7 @@ function Dashboard({ auth }) {
                   <div className="min-w-0">
                     <div className="font-medium text-gray-900 text-sm truncate">{c.title}</div>
                     <div className="text-xs text-gray-400 mt-0.5 flex gap-2 flex-wrap">
-                      {c.due_date && <span>Due: {fmtDate(c.due_date)}</span>}
+                      {c.due_date && <span>{t("label.due_colon")} {fmtDate(c.due_date)}</span>}
                       {c.budget && <span>${Number(c.budget).toLocaleString()}</span>}
                     </div>
                   </div>
@@ -7578,11 +7632,11 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                   </div>
                 </div>
                 {scope.sla === "custom" ? (
-                  <Input label="Custom Due Date" type="date" value={scope.due_date}
+                  <Input label={t("cs.custom_due_date")} type="date" value={scope.due_date}
                     onChange={e => setScope(p => ({ ...p, due_date: e.target.value }))} />
                 ) : (
                   <p className="text-xs text-gray-400 -mt-1 mb-2">
-                    Calculated due date: <span className="font-semibold text-gray-700">{fmtDate(scope.due_date)}</span>
+                    {t("cs.calc_due_date")} <span className="font-semibold text-gray-700">{fmtDate(scope.due_date)}</span>
                   </p>
                 )}
                 <Input label={t("case.start_date_label")} type="date" value={scope.start_date}
@@ -7953,7 +8007,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                   )}
                   {scope.due_date && (
                     <div>
-                      <span className="text-gray-400">Due:</span>
+                      <span className="text-gray-400">{t("label.due_colon")}</span>
                       <span className="font-medium ml-1">{fmtDate(scope.due_date)}</span>
                       {scope.sla !== "custom" && (
                         <span className="ml-1 text-xs text-blue-500">({SLA_PRESETS.find(p => p.value === scope.sla)?.label})</span>
@@ -9063,10 +9117,8 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
     if (terminal.includes(newStatus)) {
       const openCount = project.cases?.filter(c => !terminal.includes(c.status)).length ?? 0;
       if (openCount > 0) {
-        const verb = newStatus === "completed" ? "complete" : "cancel";
-        const ok = window.confirm(
-          `This will also ${verb} ${openCount} case(s) linked to this project. Continue?`
-        );
+        const confirmKey = newStatus === "completed" ? "proj.confirm_complete_cases" : "proj.confirm_cancel_cases";
+        const ok = window.confirm(t(confirmKey).replace("{n}", openCount));
         if (!ok) return;
       }
       await onClose(project.id, newStatus);
@@ -11945,7 +11997,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
     return (
       <div className="flex items-center justify-center py-16 text-gray-400">
         <Spinner />
-        <span className="ml-3 text-sm">Loading specification…</span>
+        <span className="ml-3 text-sm">{t("label.loading")}</span>
       </div>
     );
   }
@@ -13175,7 +13227,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
       alert(`Cannot delete: this case has ${blockers.join(", ")}.\n\nRemove them first, or change the status to "Cancelled" instead.`);
       return;
     }
-    if (!window.confirm(`Permanently delete "${caseData.title}"? This cannot be undone.`)) return;
+    if (!window.confirm(t("cd.confirm_delete_case").replace("{n}", caseData.title))) return;
     try { await onDelete(); } catch (e) { alert(e.message); }
   }
 
@@ -15049,7 +15101,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             <p className="text-sm text-gray-500">
               {subCases.length === 0
                 ? t("case.no_subcases")
-                : `${subCases.length} sub-case${subCases.length !== 1 ? "s" : ""}`}
+                : `${subCases.length} ${subCases.length !== 1 ? t("cd.subcase_plural") : t("cd.subcase_single")}`}
             </p>
             {canAddSubCase && !showSubCaseForm && (
               <button onClick={() => setShowSubCaseForm(true)}
@@ -15498,15 +15550,15 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                               <span><span className="font-semibold">{a.title}</span>{a.adjustment_notes ? ': ' + a.adjustment_notes : ''}</span>
                             </p>
                           ))}
-                          {failedActs.length > 3 && <p className="text-[10px] text-amber-600">…and {failedActs.length - 3} more</p>}
+                          {failedActs.length > 3 && <p className="text-[10px] text-amber-600">{t("label.and_more").replace("{n}", failedActs.length - 3)}</p>}
                         </div>
                         <button
                           onClick={() => generateAdjustmentPlan(trigger.testPhase, failedActs)}
                           disabled={generatingAdjustment || generatingTestPlan}
                           className="mt-2.5 flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 transition-colors">
                           {isGenerating
-                            ? <><Spinner size={12} /> Generating {trigger.adjLabel} Plan…</>
-                            : <><Wand2 size={12} /> Generate {trigger.adjLabel} Plan</>}
+                            ? <><Spinner size={12} /> {t("cd.genning_plan").replace("{n}", trigger.adjLabel)}</>
+                            : <><Wand2 size={12} /> {t("cd.gen_plan").replace("{n}", trigger.adjLabel)}</>}
                         </button>
                       </div>
                     </div>
@@ -15544,18 +15596,18 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-violet-900">
-                          {fromStat.label} complete — generate {trigger.label} Plan
+                          {t("cd.phase_complete_banner").replace("{phase}", fromStat.label).replace("{plan}", trigger.label)}
                         </p>
                         <p className="text-xs text-violet-600 mt-0.5">
-                          All {fromStat.count} {fromStat.label} activities passed. Generate a {trigger.label} plan with activities and sequential dependencies.
+                          {t("cd.phase_passed_banner").replace("{n}", fromStat.count).replace("{phase}", fromStat.label).replace("{plan}", trigger.label)}
                         </p>
                         <button
                           onClick={() => generateTestPlan(trigger.toPhase, fromPhaseActs)}
                           disabled={generatingTestPlan || generatingAdjustment}
                           className="mt-2.5 flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 transition-colors">
                           {isGenerating
-                            ? <><Spinner size={12} /> Generating {trigger.label} Plan…</>
-                            : <><Sparkles size={12} /> Generate {trigger.label} Plan</>}
+                            ? <><Spinner size={12} /> {t("cd.genning_plan").replace("{n}", trigger.label)}</>
+                            : <><Sparkles size={12} /> {t("cd.gen_plan").replace("{n}", trigger.label)}</>}
                         </button>
                       </div>
                     </div>
@@ -16059,7 +16111,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                         )}
                       </div>
                       <div className="flex items-center justify-between pt-1 border-t border-blue-100">
-                        <button onClick={() => { if(window.confirm(act.activity_type === "sub_case" ? "Remove this sub-case link? The sub-case will NOT be deleted." : "Delete this activity?")) deleteActivity(act.id); }}
+                        <button onClick={() => { if(window.confirm(act.activity_type === "sub_case" ? t("cd.confirm_remove_subcase") : t("cd.confirm_delete_act"))) deleteActivity(act.id); }}
                           className="text-xs text-red-400 hover:text-red-600">
                           {act.activity_type === "sub_case" ? t("cd.remove_link") : t("cd.delete_act")}
                         </button>
@@ -16140,10 +16192,10 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                         {isExpanded && (
                           <div className="border-t border-violet-100 bg-violet-50 px-4 py-3 space-y-2">
                             <div className="flex items-center gap-4 text-xs text-gray-500">
-                              <span>Logged on sub-case: <strong className="text-gray-700">{subHours.toFixed(1)}h</strong></span>
-                              <span>Progress: <strong className="text-violet-700">{subPct}%</strong></span>
+                              <span>{t("label.logged_subcase")} <strong className="text-gray-700">{subHours.toFixed(1)}h</strong></span>
+                              <span>{t("label.progress_colon")} <strong className="text-violet-700">{subPct}%</strong></span>
                               {act.linked_case?.status && (
-                                <span>Status: <strong className="text-gray-700">{cap(fmt(act.linked_case.status))}</strong></span>
+                                <span>{t("label.status_colon")} <strong className="text-gray-700">{cap(fmt(act.linked_case.status))}</strong></span>
                               )}
                             </div>
                             <p className="text-[10px] text-violet-600">
@@ -16151,7 +16203,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                             </p>
                             {canManage && (
                               <button
-                                onClick={() => { if(window.confirm("Remove this sub-case link? The sub-case itself will NOT be deleted.")) deleteActivity(act.id); }}
+                                onClick={() => { if(window.confirm(t("cd.confirm_remove_subcase"))) deleteActivity(act.id); }}
                                 className="text-xs text-red-400 hover:text-red-600 mt-1">
                                 {t("cd.remove_link")}
                               </button>
@@ -16483,8 +16535,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                               {a.description && <p className="text-xs text-gray-500 mt-0.5 truncate">{a.description}</p>}
                               <div className="flex gap-3 mt-1 text-[10px] text-gray-400">
                                 {a.est_hours ? <span>{a.est_hours}h</span> : null}
-                                {a.start_date_plan && <span>From {a.start_date_plan}</span>}
-                                {a.end_date_plan && <span>To {a.end_date_plan}</span>}
+                                {a.start_date_plan && <span>{t("label.from_date")} {a.start_date_plan}</span>}
+                                {a.end_date_plan && <span>{t("label.to")} {a.end_date_plan}</span>}
                               </div>
                             </div>
                           </label>
@@ -17828,7 +17880,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
                             </div>
                           );
                         })}
-                        {incomplete.length > 12 && <p className="text-xs text-gray-400 text-center">…and {incomplete.length - 12} more</p>}
+                        {incomplete.length > 12 && <p className="text-xs text-gray-400 text-center">{t("label.and_more").replace("{n}", incomplete.length - 12)}</p>}
                       </div>
                       {/* Bypass — managers/admins only */}
                       {canBypass && (
@@ -19535,7 +19587,7 @@ function LifecycleSettingsView({ auth }) {
   }
 
   async function handleDelete(tmpl) {
-    if (!window.confirm(`Delete "${tmpl.name}"? This cannot be undone.`)) return;
+    if (!window.confirm(t("cd.confirm_delete_tmpl").replace("{n}", tmpl.name))) return;
     try {
       const { error } = await supabase.from("lifecycle_templates").delete().eq("id", tmpl.id);
       if (error) throw error;
@@ -19554,7 +19606,7 @@ function LifecycleSettingsView({ auth }) {
     }
   }, [templates]);
 
-  if (loadingTmpl) return <div className="p-8 text-sm text-gray-400">Loading…</div>;
+  if (loadingTmpl) return <div className="p-8 text-sm text-gray-400">{t("label.loading")}</div>;
 
   const ROLES = [
     { key: "manager",    label: t("auth.role_manager"),    color: "#1d4ed8", bg: "#dbeafe" },
