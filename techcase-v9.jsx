@@ -231,6 +231,8 @@ const TRANSLATIONS = {
     "state.saving":       "Saving…",
     "state.deleting":     "Deleting…",
     "state.creating":     "Creating…",
+    "state.confirmed":    "Confirmed",
+    "state.open":         "Open",
     // Dashboard
     "dashboard.title":           "Dashboard",
     "dashboard.subtitle":        "Here's what's happening on the platform today.",
@@ -1174,6 +1176,29 @@ const TRANSLATIONS = {
     "dashboard.starting_soon":   "Starting Soon",
     // Signup industry select
     "signup.select_industry":    "Select industry…",
+    // Role labels (used in system user management and signup)
+    "auth.role_manager":         "Manager",
+    "auth.role_consultant":      "Consultant",
+    "auth.role_client":          "Client",
+    "auth.role_key_user":        "Key User",
+    // Activity plan modals (adjustment / dev plan / test plan)
+    "cd.discard_activities":     "Discard Activities",
+    "cd.discard":                "Discard",
+    "cd.adding_acts_short":      "Adding activities…",
+    "cd.add_acts_to_case":       "Add {n} Activities to Case",
+    "cd.add_act_to_case":        "Add {n} Activity to Case",
+    // Count labels
+    "label.active_count":        "active",
+    "label.done_count":          "done",
+    "label.completed_count":     "completed",
+    // Spec AI accordion
+    "spec.analysis_results":     "Analysis Results from Steps 1 & 2",
+    "spec.hide":                 "▲ Hide",
+    "spec.show":                 "▼ Show",
+    // Wizard interview select option
+    "spec.select_option":        "Select an option…",
+    // Progress bar label
+    "cd.progress_bar":           "Progress",
     // ApplyWizard
     "apply.title":          "Apply to Case",
     "apply.step0_label":    "Case Brief",
@@ -1789,6 +1814,29 @@ const TRANSLATIONS = {
     "dashboard.starting_soon":   "Próximos a Iniciar",
     // Signup industry select
     "signup.select_industry":    "Selecciona industria…",
+    // Role labels
+    "auth.role_manager":         "Gerente",
+    "auth.role_consultant":      "Consultor",
+    "auth.role_client":          "Cliente",
+    "auth.role_key_user":        "Usuario Clave",
+    // Activity plan modals
+    "cd.discard_activities":     "Descartar Actividades",
+    "cd.discard":                "Descartar",
+    "cd.adding_acts_short":      "Agregando actividades…",
+    "cd.add_acts_to_case":       "Agregar {n} Actividades al Caso",
+    "cd.add_act_to_case":        "Agregar {n} Actividad al Caso",
+    // Count labels
+    "label.active_count":        "activos",
+    "label.done_count":          "completados",
+    "label.completed_count":     "completados",
+    // Spec AI accordion
+    "spec.analysis_results":     "Resultados de Análisis — Pasos 1 y 2",
+    "spec.hide":                 "▲ Ocultar",
+    "spec.show":                 "▼ Mostrar",
+    // Wizard interview select option
+    "spec.select_option":        "Selecciona una opción…",
+    // Progress bar label
+    "cd.progress_bar":           "Progreso",
     // ApplyWizard
     "apply.title":          "Postularse al Caso",
     "apply.step0_label":    "Resumen del Caso",
@@ -2298,6 +2346,8 @@ const TRANSLATIONS = {
     "state.saving":       "Guardando…",
     "state.deleting":     "Eliminando…",
     "state.creating":     "Creando…",
+    "state.confirmed":    "Confirmado",
+    "state.open":         "Abierto",
     // Dashboard
     "dashboard.title":           "Panel",
     "dashboard.subtitle":        "Esto es lo que está pasando en la plataforma hoy.",
@@ -5895,7 +5945,7 @@ function AuthScreen({ onAuth }) {
                       : "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed"}`}>
                   <UserCheck className={`w-8 h-8 flex-shrink-0 ${keyUserCompany ? "text-blue-600" : "text-gray-400"}`} />
                   <div className="min-w-0">
-                    <div className={`font-semibold text-sm ${keyUserCompany ? "text-blue-700" : "text-gray-500"}`}>Key User</div>
+                    <div className={`font-semibold text-sm ${keyUserCompany ? "text-blue-700" : "text-gray-500"}`}>{t("auth.role_key_user")}</div>
                     <div className="text-xs text-gray-500 mt-0.5">I'm the primary contact at a client company working on assigned cases</div>
                     {keyUserCompany
                       ? <div className="text-xs text-blue-600 font-semibold mt-1">Linked to <span className="font-bold">{keyUserCompany}</span></div>
@@ -6623,7 +6673,7 @@ function Dashboard({ auth }) {
                   </div>
                   <div className="min-w-0">
                     <div className="font-medium text-gray-900 text-sm truncate">
-                      {a.case?.title ?? "Unknown case"}
+                      {a.case?.title ?? t("reports.unknown")}
                     </div>
                     <div className="text-xs text-gray-400 mt-0.5 flex gap-2 flex-wrap">
                       {a.consultant?.full_name && <span>{a.consultant.full_name}</span>}
@@ -6942,7 +6992,7 @@ function Dashboard({ auth }) {
                 return (
                   <div key={c.id} className="px-4 py-3 flex items-center justify-between gap-2 cursor-pointer hover:bg-gray-50" onClick={() => setSelectedCase(c)}>
                     <span className="text-xs font-medium text-gray-800 truncate">{c.title}</span>
-                    <span className="text-xs text-amber-600 font-semibold flex-shrink-0">{d === 0 ? "Today" : `${d}d`}</span>
+                    <span className="text-xs text-amber-600 font-semibold flex-shrink-0">{d === 0 ? t("dashboard.today") : `${d}d`}</span>
                   </div>
                 );
               })}
@@ -7887,7 +7937,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                 {basics.description && <p className="text-sm text-gray-500 mt-1 leading-relaxed">{basics.description}</p>}
                 <div className="flex flex-wrap gap-2 mt-3">
                   <Badge className={PRIORITY_COLORS[basics.priority]}>{cap(basics.priority)}</Badge>
-                  <Badge className={STATUS_COLORS[startConfirmed ? "confirmed" : "open"]}>{startConfirmed ? "Confirmed" : "Open"}</Badge>
+                  <Badge className={STATUS_COLORS[startConfirmed ? "confirmed" : "open"]}>{startConfirmed ? t("state.confirmed") : t("state.open")}</Badge>
                   {basics.area_sap && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs">{basics.area_sap}</span>}
                   {basics.area_industry && <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg text-xs">{basics.area_industry}</span>}
                 </div>
@@ -9575,18 +9625,18 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
                           <div className="min-w-0">
                             <p className="font-semibold text-gray-900 text-sm">{con.name}</p>
                             <p className="text-[10px] text-gray-400 mt-0.5">
-                              {con.cases.length} case{con.cases.length !== 1 ? "s" : ""}
-                              {activeCases.length > 0 && ` · ${activeCases.length} active`}
-                              {doneCases.length > 0 && ` · ${doneCases.length} completed`}
+                              {con.cases.length} {con.cases.length !== 1 ? t("dashboard.case_plural") : t("dashboard.case_single")}
+                              {activeCases.length > 0 && ` · ${activeCases.length} ${t("label.active_count")}`}
+                              {doneCases.length > 0 && ` · ${doneCases.length} ${t("label.completed_count")}`}
                             </p>
                           </div>
                         </div>
                         <div className="flex gap-1 flex-shrink-0">
                           {activeCases.length > 0 && (
-                            <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-blue-50 text-blue-700">{activeCases.length} active</span>
+                            <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-blue-50 text-blue-700">{activeCases.length} {t("label.active_count")}</span>
                           )}
                           {doneCases.length > 0 && (
-                            <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-green-50 text-green-700">{doneCases.length} done</span>
+                            <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-green-50 text-green-700">{doneCases.length} {t("label.done_count")}</span>
                           )}
                         </div>
                       </div>
@@ -9944,8 +9994,8 @@ function ProjectsView({ auth }) {
                     {totalCases > 0 && (
                       <div>
                         <div className="flex items-center justify-between text-[10px] text-gray-400 mb-1">
-                          <span>Progress</span>
-                          <span className="font-semibold text-gray-600">{progress}% · {doneCases}/{totalCases} done</span>
+                          <span>{t("cd.progress_bar")}</span>
+                          <span className="font-semibold text-gray-600">{progress}% · {doneCases}/{totalCases} {t("dashboard.done")}</span>
                         </div>
                         <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                           <div
@@ -12252,7 +12302,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   {q.type === 'select' && Array.isArray(q.options) ? (
                     <select value={q.a ?? ''} onChange={e => updateAnswer(currentObjIdx, q.id, e.target.value)}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
-                      <option value="">Select an option…</option>
+                      <option value="">{t("spec.select_option")}</option>
                       {q.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                     </select>
                   ) : q.type === 'multiline' ? (
@@ -12591,8 +12641,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
               <div className="border border-gray-200 rounded-xl overflow-hidden">
                 <button onClick={() => setAnalysisOpen(p => !p)}
                   className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 text-sm font-semibold text-gray-700">
-                  <span>Analysis Results from Steps 1 & 2</span>
-                  <span className="text-gray-400 text-xs">{analysisOpen ? '▲ Hide' : '▼ Show'}</span>
+                  <span>{t("spec.analysis_results")}</span>
+                  <span className="text-gray-400 text-xs">{analysisOpen ? t("spec.hide") : t("spec.show")}</span>
                 </button>
                 {analysisOpen && (
                   <div className="p-4 space-y-4 border-t border-gray-200">
@@ -14933,7 +14983,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                     <div className="w-6 h-6 rounded-full bg-blue-200 text-blue-700 text-xs flex items-center justify-center font-bold">
                       {c.author?.full_name?.[0] ?? "?"}
                     </div>
-                    <span className="font-medium text-gray-900">{c.author?.full_name ?? "Unknown"}</span>
+                    <span className="font-medium text-gray-900">{c.author?.full_name ?? t("reports.unknown")}</span>
                     {c.is_internal && <Badge className="bg-amber-200 text-amber-800">{t("case.badge_internal")}</Badge>}
                   </div>
                   <span className="text-xs text-gray-400">{fmtDate(c.created_at)}</span>
@@ -15154,7 +15204,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                     className="font-medium text-sm text-blue-600 hover:underline truncate block">{doc.file_name}</a>
                   <div className="text-xs text-gray-400 mt-0.5">
                     {doc.file_size_kb ? `${doc.file_size_kb} KB · ` : ""}
-                    {doc.uploader?.full_name ?? "Unknown"} · {fmtDate(doc.created_at)}
+                    {doc.uploader?.full_name ?? t("reports.unknown")} · {fmtDate(doc.created_at)}
                   </div>
                   {doc.notes && <p className="text-xs text-gray-500 mt-0.5">{doc.notes}</p>}
                 </div>
@@ -17897,14 +17947,14 @@ function ConsultantDetailModal({ consultantId, auth }) {
           <div className="flex justify-between items-center gap-3 border-t border-gray-100 p-5 flex-shrink-0">
             <button onClick={() => setAdjustmentPreview(null)} disabled={confirmingAdjustment}
               className="px-4 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40">
-              Discard Activities
+              {t("cd.discard_activities")}
             </button>
             <button onClick={confirmAdjustmentActivities}
               disabled={confirmingAdjustment || adjustmentPreview.activities.filter(a => a._selected).length === 0}
               className="flex items-center gap-2 px-6 py-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-xl disabled:opacity-40 transition-colors">
               {confirmingAdjustment
-                ? <><Spinner size={13} /> Adding activities…</>
-                : <>Add {adjustmentPreview.activities.filter(a => a._selected).length} Activities to Case</>}
+                ? <><Spinner size={13} /> {t("cd.adding_acts_short")}</>
+                : <>{(() => { const n = adjustmentPreview.activities.filter(a => a._selected).length; return t(n === 1 ? "cd.add_act_to_case" : "cd.add_acts_to_case").replace("{n}", n); })()}</>}
             </button>
           </div>
         </div>
@@ -18017,15 +18067,15 @@ function ConsultantDetailModal({ consultantId, auth }) {
               <div className="flex gap-2">
                 <button onClick={() => setDevPlanPreview(null)} disabled={confirmingDevPlan}
                   className="px-3 py-[6px] text-[12px] font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 transition-colors">
-                  Discard
+                  {t("cd.discard")}
                 </button>
                 <button onClick={confirmDevPlanActivities}
                   disabled={confirmingDevPlan || selectedCount === 0}
                   className="flex items-center gap-1.5 px-4 py-[6px] text-[12px] font-semibold text-white rounded-lg disabled:opacity-40 transition-opacity"
                   style={{ background: 'linear-gradient(135deg,#4F46E5,#7C3AED)' }}>
                   {confirmingDevPlan
-                    ? <><Spinner size={12} /> Adding activities…</>
-                    : <>Add {selectedCount} Activit{selectedCount === 1 ? 'y' : 'ies'} to Case</>}
+                    ? <><Spinner size={12} /> {t("cd.adding_acts_short")}</>
+                    : <>{t(selectedCount === 1 ? "cd.add_act_to_case" : "cd.add_acts_to_case").replace("{n}", selectedCount)}</>}
                 </button>
               </div>
             </div>
@@ -18104,14 +18154,14 @@ function ConsultantDetailModal({ consultantId, auth }) {
           <div className="flex justify-between items-center gap-3 border-t border-gray-100 p-5 flex-shrink-0">
             <button onClick={() => setTestPlanPreview(null)} disabled={confirmingTestPlan}
               className="px-4 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40">
-              Discard Activities
+              {t("cd.discard_activities")}
             </button>
             <button onClick={confirmTestPlanActivities}
               disabled={confirmingTestPlan || testPlanPreview.activities.filter(a => a._selected).length === 0}
               className="flex items-center gap-2 px-6 py-2 text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 rounded-xl disabled:opacity-40 transition-colors">
               {confirmingTestPlan
-                ? <><Spinner size={13} /> Adding activities…</>
-                : <>Add {testPlanPreview.activities.filter(a => a._selected).length} Activities to Case</>}
+                ? <><Spinner size={13} /> {t("cd.adding_acts_short")}</>
+                : <>{(() => { const n = testPlanPreview.activities.filter(a => a._selected).length; return t(n === 1 ? "cd.add_act_to_case" : "cd.add_acts_to_case").replace("{n}", n); })()}</>}
             </button>
           </div>
         </div>
@@ -18363,10 +18413,10 @@ function UsersView() {
             <Select label={t("label.role")} value={addForm.role}
               onChange={e => setAddForm(p => ({ ...p, role: e.target.value }))}
               options={[
-                { value: "manager",    label: "Manager" },
+                { value: "manager",    label: t("auth.role_manager") },
                 { value: "admin",      label: "Admin" },
-                { value: "consultant", label: "Consultant" },
-                { value: "client",     label: "Client" },
+                { value: "consultant", label: t("auth.role_consultant") },
+                { value: "client",     label: t("auth.role_client") },
               ]} />
             <Input label={t("sys.temp_pwd")} type="password" value={addForm.password}
               onChange={e => setAddForm(p => ({ ...p, password: e.target.value }))}
@@ -19507,10 +19557,10 @@ function LifecycleSettingsView({ auth }) {
   if (loadingTmpl) return <div className="p-8 text-sm text-gray-400">Loading…</div>;
 
   const ROLES = [
-    { key: "manager",    label: "Manager",    color: "#1d4ed8", bg: "#dbeafe" },
-    { key: "consultant", label: "Consultant", color: "#065f46", bg: "#d1fae5" },
-    { key: "client",     label: "Client",     color: "#92400e", bg: "#fef3c7" },
-    { key: "key_user",   label: "Key User",   color: "#5b21b6", bg: "#ede9fe" },
+    { key: "manager",    label: t("auth.role_manager"),    color: "#1d4ed8", bg: "#dbeafe" },
+    { key: "consultant", label: t("auth.role_consultant"), color: "#065f46", bg: "#d1fae5" },
+    { key: "client",     label: t("auth.role_client"),     color: "#92400e", bg: "#fef3c7" },
+    { key: "key_user",   label: t("auth.role_key_user"),   color: "#5b21b6", bg: "#ede9fe" },
   ];
 
   const ALL_TABS = [
