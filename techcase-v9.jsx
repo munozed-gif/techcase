@@ -1032,6 +1032,9 @@ const TRANSLATIONS = {
     "case.import_failed":    "Import failed",
     "case.import_all":       "All",
     "case.import_none":      "None",
+    "case.import_act_added":   "{n} activity added to the case",
+    "case.import_acts_added":  "{n} activities added to the case",
+    "case.import_scroll_hint": "Scroll up to see them in the activities list.",
     // Approval modal
     "case.approve_modal_title":  "Approve Case & Generate Closure Report",
     "case.approve_modal_body":   "This will generate a 7-section PDF Closure Report and mark the case as Approved.",
@@ -1185,6 +1188,15 @@ const TRANSLATIONS = {
     "dashboard.starting_soon":   "Starting Soon",
     // Signup industry select
     "signup.select_industry":    "Select industry…",
+    "industry.technology":       "Technology",
+    "industry.finance":          "Finance & Banking",
+    "industry.healthcare":       "Healthcare",
+    "industry.manufacturing":    "Manufacturing",
+    "industry.retail":           "Retail & E-commerce",
+    "industry.energy":           "Energy & Utilities",
+    "industry.logistics":        "Logistics & Supply Chain",
+    "industry.professional":     "Professional Services",
+    "industry.other":            "Other",
     // Role labels (used in system user management and signup)
     "auth.role_manager":         "Manager",
     "auth.role_consultant":      "Consultant",
@@ -1301,6 +1313,7 @@ const TRANSLATIONS = {
     "conn.sap_client":      "SAP Client",
     "conn.db_schema":       "Database / Schema",
     "conn.username_oauth":  "Username / OAuth Client",
+    "conn.service_path":    "Service Path",
     "conn.vpn_protocol":    "VPN Protocol",
     "conn.profile_label":   "Profile / Label",
     "state.adding":         "Adding…",
@@ -1904,6 +1917,15 @@ const TRANSLATIONS = {
     "dashboard.starting_soon":   "Próximos a Iniciar",
     // Signup industry select
     "signup.select_industry":    "Selecciona industria…",
+    "industry.technology":       "Tecnología",
+    "industry.finance":          "Finanzas y Banca",
+    "industry.healthcare":       "Salud",
+    "industry.manufacturing":    "Manufactura",
+    "industry.retail":           "Comercio Minorista",
+    "industry.energy":           "Energía y Servicios",
+    "industry.logistics":        "Logística y Cadena de Suministro",
+    "industry.professional":     "Servicios Profesionales",
+    "industry.other":            "Otro",
     // Role labels
     "auth.role_manager":         "Gerente",
     "auth.role_consultant":      "Consultor",
@@ -2020,6 +2042,7 @@ const TRANSLATIONS = {
     "conn.sap_client":      "Cliente SAP",
     "conn.db_schema":       "Base de Datos / Esquema",
     "conn.username_oauth":  "Usuario / Cliente OAuth",
+    "conn.service_path":    "Ruta de Servicio",
     "conn.vpn_protocol":    "Protocolo VPN",
     "conn.profile_label":   "Perfil / Etiqueta",
     "state.adding":         "Agregando…",
@@ -3312,6 +3335,9 @@ const TRANSLATIONS = {
     "case.import_failed":    "Error al importar",
     "case.import_all":       "Todos",
     "case.import_none":      "Ninguno",
+    "case.import_act_added":   "{n} actividad agregada al caso",
+    "case.import_acts_added":  "{n} actividades agregadas al caso",
+    "case.import_scroll_hint": "Desplázate hacia arriba para verlas en la lista de actividades.",
     // Approval modal
     "case.approve_modal_title":  "Aprobar Caso y Generar Reporte de Cierre",
     "case.approve_modal_body":   "Esto generará un Reporte de Cierre de 7 secciones y marcará el caso como Aprobado.",
@@ -6191,15 +6217,15 @@ function AuthScreen({ onAuth }) {
                     <select value={industry} onChange={e => setIndustry(e.target.value)}
                       className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
                       <option value="">{t("signup.select_industry")}</option>
-                      <option value="technology">Technology</option>
-                      <option value="finance">Finance & Banking</option>
-                      <option value="healthcare">Healthcare</option>
-                      <option value="manufacturing">Manufacturing</option>
-                      <option value="retail">Retail & E-commerce</option>
-                      <option value="energy">Energy & Utilities</option>
-                      <option value="logistics">Logistics & Supply Chain</option>
-                      <option value="professional_services">Professional Services</option>
-                      <option value="other">Other</option>
+                      <option value="technology">{t("industry.technology")}</option>
+                      <option value="finance">{t("industry.finance")}</option>
+                      <option value="healthcare">{t("industry.healthcare")}</option>
+                      <option value="manufacturing">{t("industry.manufacturing")}</option>
+                      <option value="retail">{t("industry.retail")}</option>
+                      <option value="energy">{t("industry.energy")}</option>
+                      <option value="logistics">{t("industry.logistics")}</option>
+                      <option value="professional_services">{t("industry.professional")}</option>
+                      <option value="other">{t("industry.other")}</option>
                     </select>
                   </div>
                 </>)}
@@ -16688,9 +16714,9 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       ) : (
                         <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
                           <p className="text-sm font-semibold text-green-700">
-                            <><Check size={13} className="mr-1 inline" />{importResult.count} {importResult.count === 1 ? 'activity' : 'activities'} added to the case</>
+                            <><Check size={13} className="mr-1 inline" />{t(importResult.count === 1 ? "case.import_act_added" : "case.import_acts_added").replace("{n}", importResult.count)}</>
                           </p>
-                          <p className="text-xs text-green-600 mt-1">Scroll up to see them in the activities list.</p>
+                          <p className="text-xs text-green-600 mt-1">{t("case.import_scroll_hint")}</p>
                         </div>
                       )}
                       <div className="flex gap-2">
@@ -19370,7 +19396,7 @@ function DbConnectionsList({ client, auth }) {
           {form.db_type === "sap_odata" && (
             <div className="grid grid-cols-3 gap-3">
               <Input label={t("label.port")} type="number" value={form.port} onChange={e => setForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="443" />
-              <Input label="Service Path" value={form.db_name} onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} placeholder="/sap/opu/odata/sap/..." />
+              <Input label={t("conn.service_path")} value={form.db_name} onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} placeholder="/sap/opu/odata/sap/..." />
               <Input label={t("conn.username_oauth")} value={form.username} onChange={e => setForm(p => ({ ...p, username: e.target.value }))} />
             </div>
           )}
@@ -21485,10 +21511,10 @@ function ClientProfileView({ auth }) {
                           onChange={e => setPhasesForm(prev => prev.map((p, i) => i === idx ? { ...p, required_status: e.target.value || null } : p))}
                           className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400">
                           <option value="">{t("phases.status_none")}</option>
-                          <option value="in_progress">In Progress</option>
-                          <option value="technical_test">Technical Test</option>
-                          <option value="functional_test">Functional Test</option>
-                          <option value="user_test">User Test</option>
+                          <option value="in_progress">{t("act.in_progress")}</option>
+                          <option value="technical_test">{t("cd.phase_technical_test")}</option>
+                          <option value="functional_test">{t("cd.phase_functional_test")}</option>
+                          <option value="user_test">{t("cd.phase_user_test")}</option>
                         </select>
                       </div>
                       <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer flex-shrink-0">
