@@ -1119,6 +1119,28 @@ const TRANSLATIONS = {
     "ob.notes_label":            "Additional Notes",
     "ob.nav_complete_client":    "Complete Setup →",
     "ob.skip_all_client":        "Skip all and go to dashboard",
+    // Consultant onboarding — expertise & availability options
+    "ob.level_junior":           "Junior",
+    "ob.level_mid":              "Mid-Level",
+    "ob.level_senior":           "Senior",
+    "ob.level_lead":             "Lead / Principal",
+    "ob.avail_full_time":        "Full-Time",
+    "ob.avail_part_time":        "Part-Time",
+    "ob.avail_contract":         "Contract",
+    "ob.avail_project":          "Project-Based",
+    // Profile — auth type options
+    "profile.auth_citizen":      "Citizen",
+    "profile.auth_perm_resident":"Permanent Resident",
+    "profile.auth_work_visa":    "Work Visa",
+    "profile.auth_other":        "Other",
+    // Dashboard
+    "dashboard.no_area":         "No area set",
+    "dashboard.case_single":     "case",
+    "dashboard.case_plural":     "cases",
+    "dashboard.done":            "done",
+    // Phase labels (also used in SettingsPhasesTab)
+    "cd.phase_design":           "Design",
+    "cd.phase_development":      "Development",
     // ApplyWizard
     "apply.title":          "Apply to Case",
     "apply.step0_label":    "Case Brief",
@@ -1679,6 +1701,28 @@ const TRANSLATIONS = {
     "ob.notes_label":            "Notas Adicionales",
     "ob.nav_complete_client":    "Completar Configuración →",
     "ob.skip_all_client":        "Omitir todo e ir al panel",
+    // Consultant onboarding — expertise & availability options
+    "ob.level_junior":           "Junior",
+    "ob.level_mid":              "Nivel Medio",
+    "ob.level_senior":           "Senior",
+    "ob.level_lead":             "Líder / Principal",
+    "ob.avail_full_time":        "Tiempo Completo",
+    "ob.avail_part_time":        "Medio Tiempo",
+    "ob.avail_contract":         "Contrato",
+    "ob.avail_project":          "Por Proyecto",
+    // Profile — auth type options
+    "profile.auth_citizen":      "Ciudadano",
+    "profile.auth_perm_resident":"Residente Permanente",
+    "profile.auth_work_visa":    "Visa de Trabajo",
+    "profile.auth_other":        "Otro",
+    // Dashboard
+    "dashboard.no_area":         "Sin área asignada",
+    "dashboard.case_single":     "caso",
+    "dashboard.case_plural":     "casos",
+    "dashboard.done":            "completado",
+    // Phase labels (also used in SettingsPhasesTab)
+    "cd.phase_design":           "Diseño",
+    "cd.phase_development":      "Desarrollo",
     // ApplyWizard
     "apply.title":          "Postularse al Caso",
     "apply.step0_label":    "Resumen del Caso",
@@ -6363,7 +6407,7 @@ function Dashboard({ auth }) {
                         </div>
                       </div>
                       <div style={{ fontSize:10.5, fontWeight:600, color:'#5b7a9b', maxWidth:66, textAlign:'center', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{cl.name}</div>
-                      <div style={{ fontSize:9, fontWeight:700, color:'#8fa8c2', textAlign:'center', marginTop:-4 }}>{cl.pastCases} done <Check size={8} className="inline" /></div>
+                      <div style={{ fontSize:9, fontWeight:700, color:'#8fa8c2', textAlign:'center', marginTop:-4 }}>{cl.pastCases} {t("dashboard.done")} <Check size={8} className="inline" /></div>
                     </div>
                   ))}
                 </div>
@@ -6395,7 +6439,7 @@ function Dashboard({ auth }) {
             className="flex items-center justify-between px-4 py-3 hover:bg-blue-50 cursor-pointer transition-colors group">
             <div className="flex-1 min-w-0">
               <p className="font-medium text-gray-900 text-sm truncate group-hover:text-blue-700">{c.title}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{[c.area_sap, c.area_industry].filter(Boolean).join(" · ") || "No area set"}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{[c.area_sap, c.area_industry].filter(Boolean).join(" · ") || t("dashboard.no_area")}</p>
             </div>
             <div className="flex items-center gap-3 ml-4 flex-shrink-0">
               <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
@@ -6410,7 +6454,7 @@ function Dashboard({ auth }) {
             <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-blue-50/60">
               <div>
                 <span className="font-semibold text-gray-900 text-sm">{clientFilter.name}</span>
-                <span className="ml-2 text-xs text-gray-400">{clientCases.length} {clientCases.length === 1 ? "case" : "cases"} total</span>
+                <span className="ml-2 text-xs text-gray-400">{clientCases.length} {clientCases.length === 1 ? t("dashboard.case_single") : t("dashboard.case_plural")} total</span>
               </div>
               <button onClick={() => setClientFilter(null)} className="text-gray-400 hover:text-gray-600 transition-colors"><X size={16} /></button>
             </div>
@@ -17386,7 +17430,7 @@ function ProfileView({ auth }) {
                 <Input label={t("profile.country")} value={authForm.country_name} onChange={e => setAuthForm(p => ({ ...p, country_name: e.target.value }))} />
                 <Input label={t("profile.country_code")} value={authForm.country_code} onChange={e => setAuthForm(p => ({ ...p, country_code: e.target.value.toUpperCase() }))} placeholder="US" />
                 <Select label={t("profile.auth_type")} value={authForm.auth_type} onChange={e => setAuthForm(p => ({ ...p, auth_type: e.target.value }))}
-                  options={[{ value: "citizen", label: "Citizen" }, { value: "permanent_resident", label: "Permanent Resident" }, { value: "work_visa", label: "Work Visa" }, { value: "other", label: "Other" }]} />
+                  options={[{ value: "citizen", label: t("profile.auth_citizen") }, { value: "permanent_resident", label: t("profile.auth_perm_resident") }, { value: "work_visa", label: t("profile.auth_work_visa") }, { value: "other", label: t("profile.auth_other") }]} />
               </div>
               <button onClick={handleAddWorkAuth} disabled={savingExp || !authForm.country_name}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
@@ -21910,18 +21954,18 @@ function ConsultantOnboardingView({ auth, onComplete }) {
               <Select label={t("ob.expertise_label")} value={basicsForm.expertise_level}
                 onChange={e => setBasicsForm(p => ({ ...p, expertise_level: e.target.value }))}
                 options={[
-                  { value: "junior", label: "Junior" },
-                  { value: "mid",    label: "Mid-Level" },
-                  { value: "senior", label: "Senior" },
-                  { value: "lead",   label: "Lead / Principal" },
+                  { value: "junior", label: t("ob.level_junior") },
+                  { value: "mid",    label: t("ob.level_mid") },
+                  { value: "senior", label: t("ob.level_senior") },
+                  { value: "lead",   label: t("ob.level_lead") },
                 ]} />
               <Select label={t("ob.avail_type_label")} value={basicsForm.availability_type}
                 onChange={e => setBasicsForm(p => ({ ...p, availability_type: e.target.value }))}
                 options={[
-                  { value: "full_time",     label: "Full-Time" },
-                  { value: "part_time",     label: "Part-Time" },
-                  { value: "contract",      label: "Contract" },
-                  { value: "project_based", label: "Project-Based" },
+                  { value: "full_time",     label: t("ob.avail_full_time") },
+                  { value: "part_time",     label: t("ob.avail_part_time") },
+                  { value: "contract",      label: t("ob.avail_contract") },
+                  { value: "project_based", label: t("ob.avail_project") },
                 ]} />
             </div>
             <Input label={t("label.linkedin")} value={basicsForm.linkedin_url}
@@ -22620,15 +22664,16 @@ function SettingsUsersTab() {
 }
 
 function SettingsPhasesTab({ ssCtx }) {
+  const { t } = useT();
   const DEFAULT_PHASES = [
-    { key: "design",                label: "Design",                color: "#6366f1", required_status: null },
-    { key: "development",           label: "Development",           color: "#2563eb", required_status: null },
-    { key: "technical_test",        label: "Technical Test",        color: "#0891b2", required_status: "technical_test" },
-    { key: "technical_adjustment",  label: "Technical Adjustment",  color: "#0e7490", required_status: null },
-    { key: "functional_test",       label: "Functional Test",       color: "#059669", required_status: "functional_test" },
-    { key: "functional_adjustment", label: "Functional Adjustment", color: "#047857", required_status: null },
-    { key: "user_test",             label: "User Test",             color: "#7c3aed", required_status: "user_test" },
-    { key: "user_adjustment",       label: "User Adjustment",       color: "#6d28d9", required_status: null },
+    { key: "design",                label: t("cd.phase_design"),             color: "#6366f1", required_status: null },
+    { key: "development",           label: t("cd.phase_development"),        color: "#2563eb", required_status: null },
+    { key: "technical_test",        label: t("cd.phase_technical_test"),     color: "#0891b2", required_status: "technical_test" },
+    { key: "technical_adjustment",  label: t("cd.phase_technical_adj"),      color: "#0e7490", required_status: null },
+    { key: "functional_test",       label: t("cd.phase_functional_test"),    color: "#059669", required_status: "functional_test" },
+    { key: "functional_adjustment", label: t("cd.phase_functional_adj"),     color: "#047857", required_status: null },
+    { key: "user_test",             label: t("cd.phase_user_test"),          color: "#7c3aed", required_status: "user_test" },
+    { key: "user_adjustment",       label: t("cd.phase_user_adj"),           color: "#6d28d9", required_status: null },
   ];
   const ALL_STATUSES = ["", "open", "estimated", "assigned", "in_progress", "on_hold",
     "technical_test", "functional_test", "user_test", "completed", "cancelled"];
@@ -22639,7 +22684,6 @@ function SettingsPhasesTab({ ssCtx }) {
   const [newPhase, setNewPhase] = useState({ key: "", label: "", color: "#6366f1", required_status: "" });
   const [saving, setSaving]   = useState(false);
   const [toast, setToast]     = useState(null);
-  const { t } = useT();
 
   useEffect(() => {
     if (!ssCtx.loading) {
