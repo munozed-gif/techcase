@@ -2103,6 +2103,10 @@ const TRANSLATIONS = {
     "status.accepted":     "Accepted",
     "status.rejected":     "Rejected",
     "status.withdrawn":    "Withdrawn",
+    // Invoice status labels
+    "inv.status_sent":     "Sent",
+    // Case wizard: open status hint
+    "case.status_auto":    "(set automatically)",
   },
   es: {
     // Navigation
@@ -4155,6 +4159,10 @@ const TRANSLATIONS = {
     "status.accepted":     "Aceptado",
     "status.rejected":     "Rechazado",
     "status.withdrawn":    "Retirado",
+    // Invoice status labels
+    "inv.status_sent":     "Enviado",
+    // Case wizard: open status hint
+    "case.status_auto":    "(se establece automáticamente)",
   },
 };
 
@@ -6227,6 +6235,7 @@ function cap(val) { return val ? val.charAt(0).toUpperCase() + val.slice(1) : ""
 const STATUS_LABEL_KEYS = { open:"status.open", estimated:"status.estimated", assigned:"status.assigned", in_progress:"status.in_progress", on_hold:"status.on_hold", completed:"status.completed", cancelled:"status.cancelled", draft:"status.draft", active:"status.active", pending:"status.pending", under_review:"status.under_review", accepted:"status.accepted", rejected:"status.rejected", withdrawn:"status.withdrawn" };
 const AVAIL_LABEL_KEYS  = { full_time:"avail.full_time", part_time:"avail.part_time", contract:"avail.contract", project_based:"avail.project" };
 const PRIORITY_LABEL_KEYS = { low:"priority.low", medium:"priority.medium", high:"priority.high", critical:"priority.critical" };
+const INV_STATUS_LABEL_KEYS = { draft:"status.draft", sent:"inv.status_sent", paid:"invoices.paid", overdue:"invoices.overdue" };
 function fmtDate(d) {
   if (!d) return "—";
   return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -8444,7 +8453,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                 <div className="grid grid-cols-2 gap-3">
                   <Select label={t("label.priority")} value={basics.priority}
                     onChange={e => setBasics(p => ({ ...p, priority: e.target.value }))}
-                    options={["low","medium","high","critical"].map(s => ({ value: s, label: cap(s) }))} />
+                    options={["low","medium","high","critical"].map(s => ({ value: s, label: PRIORITY_LABEL_KEYS[s] ? t(PRIORITY_LABEL_KEYS[s]) : cap(s) }))} />
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.sap_area")}</label>
                     <select value={basics.area_sap}
@@ -8468,10 +8477,10 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                 <div className="grid grid-cols-2 gap-3">
                   <Select label={t("label.priority")} value={basics.priority}
                     onChange={e => setBasics(p => ({ ...p, priority: e.target.value }))}
-                    options={["low","medium","high","critical"].map(s => ({ value: s, label: cap(s) }))} />
+                    options={["low","medium","high","critical"].map(s => ({ value: s, label: PRIORITY_LABEL_KEYS[s] ? t(PRIORITY_LABEL_KEYS[s]) : cap(s) }))} />
                   <div className="flex items-end pb-1">
                     <span className="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 w-full">
-                      {t("label.status")}: <span className="font-semibold text-blue-600">Open</span> (set automatically)
+                      {t("label.status")}: <span className="font-semibold text-blue-600">{t("status.open")}</span> {t("case.status_auto")}
                     </span>
                   </div>
                 </div>
@@ -16085,7 +16094,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               <div className="grid grid-cols-2 gap-3">
                 <Select label={t("label.priority")} value={subCaseForm.priority}
                   onChange={e => setSubCaseForm(p => ({ ...p, priority: e.target.value }))}
-                  options={["low","medium","high","critical"].map(s => ({ value: s, label: cap(s) }))} />
+                  options={["low","medium","high","critical"].map(s => ({ value: s, label: PRIORITY_LABEL_KEYS[s] ? t(PRIORITY_LABEL_KEYS[s]) : cap(s) }))} />
                 <Select label={t("label.status")} value={subCaseForm.status}
                   onChange={e => setSubCaseForm(p => ({ ...p, status: e.target.value }))}
                   options={["open","in_progress"].map(s => ({ value: s, label: STATUS_LABEL_KEYS[s] ? t(STATUS_LABEL_KEYS[s]) : cap(fmt(s)) }))} />
@@ -21032,7 +21041,7 @@ function CaseDefaultsPanel({ profile, updateProfile }) {
           <div className="grid grid-cols-2 gap-3">
             <Select label={t("cd.default_priority")} value={form.priority}
               onChange={e => setForm(p => ({ ...p, priority: e.target.value }))}
-              options={["low","medium","high","critical"].map(v => ({ value: v, label: cap(v) }))} />
+              options={["low","medium","high","critical"].map(v => ({ value: v, label: PRIORITY_LABEL_KEYS[v] ? t(PRIORITY_LABEL_KEYS[v]) : cap(v) }))} />
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">{t("cd.default_sap_area")}</label>
               <select value={form.area_sap} onChange={e => setForm(p => ({ ...p, area_sap: e.target.value }))}
@@ -22468,7 +22477,7 @@ function InvoicesView({ auth }) {
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
           className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
           <option value="">{t("invoices.all_statuses")}</option>
-          {["draft","sent","paid","overdue"].map(s => <option key={s} value={s}>{cap(s)}</option>)}
+          {["draft","sent","paid","overdue"].map(s => <option key={s} value={s}>{INV_STATUS_LABEL_KEYS[s] ? t(INV_STATUS_LABEL_KEYS[s]) : cap(s)}</option>)}
         </select>
       </div>
 
@@ -22496,7 +22505,7 @@ function InvoicesView({ auth }) {
                 <td className="px-5 py-4 text-gray-500">{inv.case?.title ?? "—"}</td>
                 <td className="px-5 py-4 font-semibold text-gray-900">${(inv.amount ?? 0).toLocaleString()}</td>
                 <td className="px-5 py-4">
-                  <Badge className={INVOICE_STATUS_COLORS[inv.status] ?? INVOICE_STATUS_COLORS.draft}>{cap(inv.status)}</Badge>
+                  <Badge className={INVOICE_STATUS_COLORS[inv.status] ?? INVOICE_STATUS_COLORS.draft}>{INV_STATUS_LABEL_KEYS[inv.status] ? t(INV_STATUS_LABEL_KEYS[inv.status]) : cap(inv.status)}</Badge>
                 </td>
                 <td className="px-5 py-4 text-gray-500">{fmtDate(inv.due_date)}</td>
                 {(auth.isAdmin || auth.isManager) && (
@@ -22546,7 +22555,7 @@ function InvoicesView({ auth }) {
             onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} />
           <Select label={t("label.status")} value={form.status}
             onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
-            options={["draft","sent","paid","overdue"].map(s => ({ value: s, label: cap(s) }))} />
+            options={["draft","sent","paid","overdue"].map(s => ({ value: s, label: INV_STATUS_LABEL_KEYS[s] ? t(INV_STATUS_LABEL_KEYS[s]) : cap(s) }))} />
         </div>
         <Input label={t("invoices.col_due")} type="date" value={form.due_date}
           onChange={e => setForm(p => ({ ...p, due_date: e.target.value }))} />
@@ -23976,7 +23985,7 @@ function SettingsPhasesTab({ ssCtx }) {
                 <select value={newPhase.required_status}
                   onChange={e => setNewPhase(p => ({ ...p, required_status: e.target.value }))}
                   className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full">
-                  {ALL_STATUSES.map(s => <option key={s} value={s}>{s || "— none —"}</option>)}
+                  {ALL_STATUSES.map(s => <option key={s} value={s}>{s || t("sys.none_status")}</option>)}
                 </select>
               </div>
             </div>
