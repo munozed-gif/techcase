@@ -2087,6 +2087,22 @@ const TRANSLATIONS = {
     "spec.status_submitted":        "Submitted",
     "spec.status_approved":         "Approved",
     "spec.status_rejected":         "Rejected",
+    // Case / project status labels
+    "status.open":         "Open",
+    "status.estimated":    "Estimated",
+    "status.assigned":     "Assigned",
+    "status.in_progress":  "In Progress",
+    "status.on_hold":      "On Hold",
+    "status.completed":    "Completed",
+    "status.cancelled":    "Cancelled",
+    "status.draft":        "Draft",
+    "status.active":       "Active",
+    // Application status labels
+    "status.pending":      "Pending",
+    "status.under_review": "Under Review",
+    "status.accepted":     "Accepted",
+    "status.rejected":     "Rejected",
+    "status.withdrawn":    "Withdrawn",
   },
   es: {
     // Navigation
@@ -4123,6 +4139,22 @@ const TRANSLATIONS = {
     "spec.status_submitted":        "Enviado",
     "spec.status_approved":         "Aprobado",
     "spec.status_rejected":         "Rechazado",
+    // Case / project status labels
+    "status.open":         "Abierto",
+    "status.estimated":    "Estimado",
+    "status.assigned":     "Asignado",
+    "status.in_progress":  "En Progreso",
+    "status.on_hold":      "En Espera",
+    "status.completed":    "Completado",
+    "status.cancelled":    "Cancelado",
+    "status.draft":        "Borrador",
+    "status.active":       "Activo",
+    // Application status labels
+    "status.pending":      "Pendiente",
+    "status.under_review": "En Revisión",
+    "status.accepted":     "Aceptado",
+    "status.rejected":     "Rechazado",
+    "status.withdrawn":    "Retirado",
   },
 };
 
@@ -6192,6 +6224,9 @@ const INVOICE_STATUS_COLORS = {
 
 function fmt(val) { return val?.replace(/_/g, " ") ?? "—"; }
 function cap(val) { return val ? val.charAt(0).toUpperCase() + val.slice(1) : ""; }
+const STATUS_LABEL_KEYS = { open:"status.open", estimated:"status.estimated", assigned:"status.assigned", in_progress:"status.in_progress", on_hold:"status.on_hold", completed:"status.completed", cancelled:"status.cancelled", draft:"status.draft", active:"status.active", pending:"status.pending", under_review:"status.under_review", accepted:"status.accepted", rejected:"status.rejected", withdrawn:"status.withdrawn" };
+const AVAIL_LABEL_KEYS  = { full_time:"avail.full_time", part_time:"avail.part_time", contract:"avail.contract", project_based:"avail.project" };
+const PRIORITY_LABEL_KEYS = { low:"priority.low", medium:"priority.medium", high:"priority.high", critical:"priority.critical" };
 function fmtDate(d) {
   if (!d) return "—";
   return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -6358,7 +6393,7 @@ function FeedCard({ item, caseData, onOpenCase, onMarkRead }) {
           {/* Case footer */}
           {caseData && (
             <div className="mt-3 flex items-center gap-2">
-              <Badge className={STATUS_COLORS[caseData.status] ?? 'bg-gray-100 text-gray-600'}>{cap(fmt(caseData.status))}</Badge>
+              <Badge className={STATUS_COLORS[caseData.status] ?? 'bg-gray-100 text-gray-600'}>{STATUS_LABEL_KEYS[caseData.status] ? t(STATUS_LABEL_KEYS[caseData.status]) : cap(fmt(caseData.status))}</Badge>
               {caseData.area_sap && <span className="text-xs text-gray-400">{caseData.area_sap}</span>}
               {caseData.progress_pct != null && <span className="text-xs text-gray-400">{caseData.progress_pct}%</span>}
               <span className="ml-auto text-xs text-[#1A4B8C] font-semibold hover:underline">{t("feed.open_case")}</span>
@@ -7630,8 +7665,8 @@ function Dashboard({ auth }) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 ml-3 flex-shrink-0">
-                  <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
-                  <Badge className={STATUS_COLORS[c.status]}>{cap(fmt(c.status))}</Badge>
+                  <Badge className={PRIORITY_COLORS[c.priority]}>{PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}</Badge>
+                  <Badge className={STATUS_COLORS[c.status]}>{STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(fmt(c.status))}</Badge>
                   {activeStat.id === "open" && auth.isConsultant && !appliedCaseIds.has(c.id) && (
                     <button onClick={() => setApplying(c)}
                       className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors">
@@ -7747,7 +7782,7 @@ function Dashboard({ auth }) {
                             {/* Title + badges */}
                             <div className="flex items-center gap-2 mb-1 flex-wrap">
                               <span className="font-semibold text-gray-900 text-sm">{c.title}</span>
-                              <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
+                              <Badge className={PRIORITY_COLORS[c.priority]}>{PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}</Badge>
                               {c.area_sap      && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{c.area_sap}</span>}
                               {c.area_industry && <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg text-xs font-medium">{c.area_industry}</span>}
                             </div>
@@ -7805,7 +7840,7 @@ function Dashboard({ auth }) {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                    <Badge className={STATUS_COLORS[c.status]}>{cap(fmt(c.status))}</Badge>
+                    <Badge className={STATUS_COLORS[c.status]}>{STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(fmt(c.status))}</Badge>
                   </div>
                 </div>
               ))}
@@ -7940,7 +7975,7 @@ function Dashboard({ auth }) {
               <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center text-blue-700 font-bold text-xs flex-shrink-0">{c.title?.[0]}</div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-medium text-gray-900 truncate">{c.title}</div>
-                <Badge className={`mt-0.5 ${STATUS_COLORS[c.status] ?? 'bg-gray-100 text-gray-600'}`}>{cap(fmt(c.status))}</Badge>
+                <Badge className={`mt-0.5 ${STATUS_COLORS[c.status] ?? 'bg-gray-100 text-gray-600'}`}>{STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(fmt(c.status))}</Badge>
               </div>
             </div>
           ))}
@@ -8914,7 +8949,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                 <p className="font-semibold text-gray-900 text-base">{basics.title}</p>
                 {basics.description && <p className="text-sm text-gray-500 mt-1 leading-relaxed">{basics.description}</p>}
                 <div className="flex flex-wrap gap-2 mt-3">
-                  <Badge className={PRIORITY_COLORS[basics.priority]}>{cap(basics.priority)}</Badge>
+                  <Badge className={PRIORITY_COLORS[basics.priority]}>{PRIORITY_LABEL_KEYS[basics.priority] ? t(PRIORITY_LABEL_KEYS[basics.priority]) : cap(basics.priority)}</Badge>
                   <Badge className={STATUS_COLORS[startConfirmed ? "confirmed" : "open"]}>{startConfirmed ? t("state.confirmed") : t("state.open")}</Badge>
                   {basics.area_sap && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs">{basics.area_sap}</span>}
                   {basics.area_industry && <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg text-xs">{basics.area_industry}</span>}
@@ -9145,7 +9180,7 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
               <div>
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className="font-bold text-gray-900 text-base">{caseData.title}</span>
-                  <Badge className={PRIORITY_COLORS[caseData.priority]}>{cap(caseData.priority)}</Badge>
+                  <Badge className={PRIORITY_COLORS[caseData.priority]}>{PRIORITY_LABEL_KEYS[caseData.priority] ? t(PRIORITY_LABEL_KEYS[caseData.priority]) : cap(caseData.priority)}</Badge>
                 </div>
                 {caseData.description && (
                   <p className="text-sm text-gray-600 leading-relaxed">{caseData.description}</p>
@@ -9337,11 +9372,11 @@ const PROJECT_STATUS_COLORS = {
 };
 
 const PROJECT_LIFECYCLE_STAGES = [
-  { key: "draft",     label: "Draft",     color: "#6B7280", is_terminal: false },
-  { key: "active",    label: "Active",    color: "#2563EB", is_terminal: false },
-  { key: "on_hold",   label: "On Hold",   color: "#D97706", is_terminal: false },
-  { key: "completed", label: "Completed", color: "#059669", is_terminal: true  },
-  { key: "cancelled", label: "Cancelled", color: "#DC2626", is_terminal: true  },
+  { key: "draft",     labelKey: "status.draft",     label: "Draft",     color: "#6B7280", is_terminal: false },
+  { key: "active",    labelKey: "status.active",    label: "Active",    color: "#2563EB", is_terminal: false },
+  { key: "on_hold",   labelKey: "status.on_hold",   label: "On Hold",   color: "#D97706", is_terminal: false },
+  { key: "completed", labelKey: "status.completed", label: "Completed", color: "#059669", is_terminal: true  },
+  { key: "cancelled", labelKey: "status.cancelled", label: "Cancelled", color: "#DC2626", is_terminal: true  },
 ];
 
 const PROJECT_NEXT_META = {
@@ -9709,7 +9744,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
                 <p className="font-semibold text-gray-900 text-base">{basics.name || <span className="italic text-gray-400">{t("proj.untitled")}</span>}</p>
                 {basics.description && <p className="text-sm text-gray-500 mt-1 leading-relaxed">{basics.description}</p>}
                 <div className="flex flex-wrap gap-2 mt-3">
-                  <Badge className={PRIORITY_COLORS[reqs.priority]}>{cap(reqs.priority)}</Badge>
+                  <Badge className={PRIORITY_COLORS[reqs.priority]}>{PRIORITY_LABEL_KEYS[reqs.priority] ? t(PRIORITY_LABEL_KEYS[reqs.priority]) : cap(reqs.priority)}</Badge>
                   <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${PROJECT_STATUS_COLORS[basics.status] ?? "bg-gray-100 text-gray-600"}`}>{cap(basics.status)}</span>
                 </div>
               </div>
@@ -10142,7 +10177,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${PROJECT_STATUS_COLORS[project.status] ?? "bg-gray-100 text-gray-600"}`}>
-              {cap(fmt(project.status))}
+              {STATUS_LABEL_KEYS[project.status] ? t(STATUS_LABEL_KEYS[project.status]) : cap(fmt(project.status))}
             </span>
             {canEdit && (
               <button onClick={() => setShowEditWizard(true)}
@@ -10194,7 +10229,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
                         <Icon className="w-6 h-6" style={{ color: s.color }} />
                       </div>
                       <div className="min-w-0">
-                        <p className="font-semibold text-gray-900 text-sm">{s.label}</p>
+                        <p className="font-semibold text-gray-900 text-sm">{s.labelKey ? t(s.labelKey) : s.label}</p>
                         <p className="text-xs text-gray-400 mt-0.5 leading-snug">{desc}</p>
                       </div>
                     </button>
@@ -10242,7 +10277,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
             {project.priority && (
               <div>
                 <span className="text-gray-400 block text-xs mb-1">{t("label.priority")}</span>
-                <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${PRIORITY_COLORS[project.priority] ?? "bg-gray-100 text-gray-600"}`}>{cap(project.priority)}</span>
+                <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${PRIORITY_COLORS[project.priority] ?? "bg-gray-100 text-gray-600"}`}>{PRIORITY_LABEL_KEYS[project.priority] ? t(PRIORITY_LABEL_KEYS[project.priority]) : cap(project.priority)}</span>
               </div>
             )}
             {project.work_mode && (
@@ -10487,11 +10522,11 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
                           <ChevronRight size={14} className={`flex-shrink-0 text-gray-400 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
                           <span className="font-medium text-gray-900 truncate text-sm">{c.title}</span>
                           <span className={`flex-shrink-0 px-2 py-0.5 text-[10px] font-semibold rounded-lg ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
-                            {cap(fmt(c.status))}
+                            {STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(fmt(c.status))}
                           </span>
                           {c.priority && (
                             <span className={`flex-shrink-0 px-2 py-0.5 text-[10px] font-semibold rounded-lg ${PRIORITY_COLORS[c.priority] ?? ""}`}>
-                              {cap(c.priority)}
+                              {PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}
                             </span>
                           )}
                         </div>
@@ -10625,7 +10660,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
                               <div className="flex items-center gap-2 min-w-0 flex-1">
                                 <span className="font-medium text-gray-800 text-sm truncate">{c.title}</span>
                                 <span className={`flex-shrink-0 px-2 py-0.5 text-[10px] font-semibold rounded-lg ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
-                                  {cap(fmt(c.status))}
+                                  {STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(fmt(c.status))}
                                 </span>
                               </div>
                               <div className="flex items-center gap-3 flex-shrink-0 ml-2">
@@ -10798,7 +10833,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
                   className="w-full text-left border border-gray-100 rounded-xl px-4 py-3 hover:bg-blue-50 hover:border-blue-200 transition-colors">
                   <div className="font-medium text-gray-900 text-sm">{c.title}</div>
                   <span className={`mt-1 inline-block px-2 py-0.5 text-xs rounded-lg ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
-                    {cap(fmt(c.status))}
+                    {STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(fmt(c.status))}
                   </span>
                 </button>
               ))}
@@ -10944,7 +10979,7 @@ function ProjectsView({ auth }) {
                         )}
                       </div>
                       <span className={`flex-shrink-0 px-2 py-0.5 text-xs font-semibold rounded-lg ${PROJECT_STATUS_COLORS[p.status] ?? "bg-gray-100 text-gray-600"}`}>
-                        {cap(fmt(p.status))}
+                        {STATUS_LABEL_KEYS[p.status] ? t(STATUS_LABEL_KEYS[p.status]) : cap(fmt(p.status))}
                       </span>
                     </div>
 
@@ -11106,7 +11141,7 @@ function CasesView({ auth }) {
           className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
           <option value="">{t("cases.all_statuses")}</option>
           {["open","in_progress","on_hold","completed","cancelled"].map(s => (
-            <option key={s} value={s}>{cap(fmt(s))}</option>
+            <option key={s} value={s}>{STATUS_LABEL_KEYS[s] ? t(STATUS_LABEL_KEYS[s]) : cap(fmt(s))}</option>
           ))}
         </select>
         {filterProjects.length > 0 && (
@@ -11141,8 +11176,8 @@ function CasesView({ auth }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <h3 className="font-semibold text-gray-900 truncate">{c.title}</h3>
-                    <Badge className={STATUS_COLORS[c.status]}>{cap(fmt(c.status))}</Badge>
-                    <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
+                    <Badge className={STATUS_COLORS[c.status]}>{STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(fmt(c.status))}</Badge>
+                    <Badge className={PRIORITY_COLORS[c.priority]}>{PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}</Badge>
                   </div>
                   <p className="text-sm text-gray-500 line-clamp-2">{c.description}</p>
                   <div className="flex items-center gap-4 mt-3 text-xs text-gray-400 flex-wrap">
@@ -15413,9 +15448,9 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                   const stage = lifecycleStages.find(s => s.key === caseData.status);
                   return stage
                     ? <span className="px-2 py-0.5 text-xs font-semibold rounded-lg" style={{ backgroundColor: stage.color + "22", color: stage.color }}>{stage.label}</span>
-                    : <Badge className={STATUS_COLORS[caseData.status] ?? "bg-gray-100 text-gray-600"}>{cap(fmt(caseData.status))}</Badge>;
+                    : <Badge className={STATUS_COLORS[caseData.status] ?? "bg-gray-100 text-gray-600"}>{STATUS_LABEL_KEYS[caseData.status] ? t(STATUS_LABEL_KEYS[caseData.status]) : cap(fmt(caseData.status))}</Badge>;
                 })()}
-                <Badge className={PRIORITY_COLORS[caseData.priority]}>{cap(caseData.priority)}</Badge>
+                <Badge className={PRIORITY_COLORS[caseData.priority]}>{PRIORITY_LABEL_KEYS[caseData.priority] ? t(PRIORITY_LABEL_KEYS[caseData.priority]) : cap(caseData.priority)}</Badge>
                 {caseData.is_confidential && <span className="px-2 py-0.5 bg-gray-800 text-white rounded-lg text-xs font-semibold">{t("case.badge_private")}</span>}
                 {caseData.nda_required && <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">{t("case.badge_nda")}</span>}
                 {caseData.status === "standby" && caseData.standby_reason && (
@@ -15676,9 +15711,9 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 const stage = lifecycleStages.find(s => s.key === caseData.status);
                 return stage
                   ? <span className="px-2 py-0.5 text-xs font-semibold rounded-lg" style={{ backgroundColor: stage.color + "22", color: stage.color }}>{stage.label}</span>
-                  : <Badge className={STATUS_COLORS[caseData.status] ?? "bg-gray-100 text-gray-600"}>{cap(fmt(caseData.status))}</Badge>;
+                  : <Badge className={STATUS_COLORS[caseData.status] ?? "bg-gray-100 text-gray-600"}>{STATUS_LABEL_KEYS[caseData.status] ? t(STATUS_LABEL_KEYS[caseData.status]) : cap(fmt(caseData.status))}</Badge>;
               })()}
-              {showEditWizard && <Badge className={PRIORITY_COLORS[caseData.priority]}>{cap(caseData.priority)}</Badge>}
+              {showEditWizard && <Badge className={PRIORITY_COLORS[caseData.priority]}>{PRIORITY_LABEL_KEYS[caseData.priority] ? t(PRIORITY_LABEL_KEYS[caseData.priority]) : cap(caseData.priority)}</Badge>}
               {caseData.parent_case_id && (
                 <Badge className="bg-violet-100 text-blue-700">{t("case.badge_subcase")}</Badge>
               )}
@@ -16053,7 +16088,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                   options={["low","medium","high","critical"].map(s => ({ value: s, label: cap(s) }))} />
                 <Select label={t("label.status")} value={subCaseForm.status}
                   onChange={e => setSubCaseForm(p => ({ ...p, status: e.target.value }))}
-                  options={["open","in_progress"].map(s => ({ value: s, label: cap(fmt(s)) }))} />
+                  options={["open","in_progress"].map(s => ({ value: s, label: STATUS_LABEL_KEYS[s] ? t(STATUS_LABEL_KEYS[s]) : cap(fmt(s)) }))} />
               </div>
               <div className="flex justify-end gap-3">
                 <button onClick={() => setShowSubCaseForm(false)}
@@ -16076,8 +16111,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-gray-900 text-sm">{sc.title}</span>
-                      <Badge className={STATUS_COLORS[sc.status]}>{cap(fmt(sc.status))}</Badge>
-                      <Badge className={PRIORITY_COLORS[sc.priority]}>{cap(sc.priority)}</Badge>
+                      <Badge className={STATUS_COLORS[sc.status]}>{STATUS_LABEL_KEYS[sc.status] ? t(STATUS_LABEL_KEYS[sc.status]) : cap(fmt(sc.status))}</Badge>
+                      <Badge className={PRIORITY_COLORS[sc.priority]}>{PRIORITY_LABEL_KEYS[sc.priority] ? t(PRIORITY_LABEL_KEYS[sc.priority]) : cap(sc.priority)}</Badge>
                     </div>
                     {sc.description && (
                       <p className="text-xs text-gray-500 mt-1 line-clamp-1">{sc.description}</p>
@@ -16694,7 +16729,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                                   className="w-full text-left px-4 py-2.5 hover:bg-violet-50 border-b border-gray-100 last:border-0">
                                   <span className="text-sm font-medium text-gray-800">{c.title}</span>
                                   {c.case_ref && <span className="text-xs text-gray-400 ml-2">#{c.case_ref}</span>}
-                                  <span className="text-xs text-gray-400 ml-2">{cap(fmt(c.status))}</span>
+                                  <span className="text-xs text-gray-400 ml-2">{STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(fmt(c.status))}</span>
                                 </button>
                               ))}
                             </div>
@@ -17074,7 +17109,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                             </div>
                             {act.linked_case?.status && (
                               <p className="text-xs text-gray-400 mt-0.5">
-                                {cap(fmt(act.linked_case.status))}
+                                {STATUS_LABEL_KEYS[act.linked_case.status] ? t(STATUS_LABEL_KEYS[act.linked_case.status]) : cap(fmt(act.linked_case.status))}
                               </p>
                             )}
                           </div>
@@ -17121,7 +17156,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                               <span>{t("label.logged_subcase")} <strong className="text-gray-700">{subHours.toFixed(1)}h</strong></span>
                               <span>{t("label.progress_colon")} <strong className="text-violet-700">{subPct}%</strong></span>
                               {act.linked_case?.status && (
-                                <span>{t("label.status_colon")} <strong className="text-gray-700">{cap(fmt(act.linked_case.status))}</strong></span>
+                                <span>{t("label.status_colon")} <strong className="text-gray-700">{STATUS_LABEL_KEYS[act.linked_case.status] ? t(STATUS_LABEL_KEYS[act.linked_case.status]) : cap(fmt(act.linked_case.status))}</strong></span>
                               )}
                             </div>
                             <p className="text-[10px] text-violet-600">
@@ -17804,7 +17839,7 @@ function ArenaView({ auth }) {
               onClick={canViewRanking ? () => setArenaSelected(c) : undefined}>
               <div className="flex items-start justify-between gap-2 mb-2">
                 <h3 className="font-semibold text-gray-900 text-sm leading-snug">{c.title}</h3>
-                <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
+                <Badge className={PRIORITY_COLORS[c.priority]}>{PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}</Badge>
               </div>
               <div className="flex flex-wrap gap-1 mb-2">
                 {c.area_sap      && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{c.area_sap}</span>}
@@ -18028,7 +18063,7 @@ function ArenaView({ auth }) {
             <div className="min-w-0">
               <h1 className="text-xl font-bold text-gray-900 leading-tight">{c.title}</h1>
               <div className="flex flex-wrap gap-2 mt-2">
-                <Badge className={PRIORITY_COLORS[c.priority]}>{cap(c.priority)}</Badge>
+                <Badge className={PRIORITY_COLORS[c.priority]}>{PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}</Badge>
                 {c.area_sap      && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{c.area_sap}</span>}
                 {c.area_industry && <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg text-xs font-medium">{c.area_industry}</span>}
                 {c.is_confidential && <span className="px-2 py-0.5 bg-gray-800 text-white rounded-lg text-xs font-semibold">{t("arena.private")}</span>}
@@ -18244,7 +18279,7 @@ function ProfileView({ auth }) {
                 <Badge className="bg-violet-100 text-violet-700">{cap(profile.expertise_level)}</Badge>
               )}
               {profile?.availability_type && (
-                <Badge className="bg-teal-100 text-teal-700">{cap(fmt(profile.availability_type))}</Badge>
+                <Badge className="bg-teal-100 text-teal-700">{AVAIL_LABEL_KEYS[profile.availability_type] ? t(AVAIL_LABEL_KEYS[profile.availability_type]) : cap(fmt(profile.availability_type))}</Badge>
               )}
             </div>
           </div>
@@ -18385,7 +18420,7 @@ function ProfileView({ auth }) {
                     <div key={a.case?.id} className="flex items-center justify-between text-sm border border-gray-100 rounded-xl px-4 py-2">
                       <span className="font-medium text-gray-800">{a.case?.title}</span>
                       <div className="flex items-center gap-2">
-                        <Badge className={STATUS_COLORS[a.case?.status]}>{cap(fmt(a.case?.status))}</Badge>
+                        <Badge className={STATUS_COLORS[a.case?.status]}>{STATUS_LABEL_KEYS[a.case?.status] ? t(STATUS_LABEL_KEYS[a.case?.status]) : cap(fmt(a.case?.status))}</Badge>
                         <span className="text-gray-400 text-xs">{a.time_commitment}%</span>
                       </div>
                     </div>
@@ -18625,7 +18660,7 @@ function ConsultantsView({ auth }) {
                 <Badge className="bg-violet-100 text-violet-700">{cap(c.expertise_level)}</Badge>
               )}
               {c.availability_type && (
-                <Badge className="bg-teal-100 text-teal-700">{cap(fmt(c.availability_type))}</Badge>
+                <Badge className="bg-teal-100 text-teal-700">{AVAIL_LABEL_KEYS[c.availability_type] ? t(AVAIL_LABEL_KEYS[c.availability_type]) : cap(fmt(c.availability_type))}</Badge>
               )}
             </div>
             {c.skills?.length > 0 && (
@@ -18706,7 +18741,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
         )}
         {profile?.availability_type && (
           <div><span className="text-gray-400">{t("label.type")}: </span>
-            <Badge className="bg-teal-100 text-teal-700 ml-1">{cap(fmt(profile.availability_type))}</Badge>
+            <Badge className="bg-teal-100 text-teal-700 ml-1">{AVAIL_LABEL_KEYS[profile.availability_type] ? t(AVAIL_LABEL_KEYS[profile.availability_type]) : cap(fmt(profile.availability_type))}</Badge>
           </div>
         )}
       </div>
@@ -19495,7 +19530,7 @@ function ReportsView() {
   const filtEntries  = timeEntries.filter(e => inRange(e.date));
 
   const byStatus = ["open","estimated","assigned","in_progress","on_hold","completed","cancelled"].map(s => ({
-    label: cap(fmt(s)),
+    label: STATUS_LABEL_KEYS[s] ? t(STATUS_LABEL_KEYS[s]) : cap(fmt(s)),
     count: filtCases.filter(c => c.status === s).length,
     color: s === "open" ? "bg-emerald-400" : s === "estimated" ? "bg-teal-400" :
            s === "assigned" ? "bg-violet-400" : s === "in_progress" ? "bg-blue-400" :
@@ -19507,7 +19542,7 @@ function ReportsView() {
   const conversionRate = totalApps > 0 ? Math.round((acceptedApps / totalApps) * 100) : 0;
 
   const byAppStatus = ["pending","under_review","accepted","rejected","withdrawn"].map(s => ({
-    label: cap(fmt(s)),
+    label: STATUS_LABEL_KEYS[s] ? t(STATUS_LABEL_KEYS[s]) : cap(fmt(s)),
     count: filtApps.filter(a => a.status === s).length,
   }));
 
