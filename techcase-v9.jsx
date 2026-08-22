@@ -184,6 +184,9 @@ const TRANSLATIONS = {
     "label.industry":     "Industry",
     "label.start_date":   "Start Date",
     "label.end_date":     "End Date",
+    "label.stakeholder":  "Stakeholder",
+    "label.billing":      "Billing",
+    "label.consultants":  "Consultants",
     "label.created_at":   "Created",
     "label.updated_at":   "Updated",
     "label.skills":       "Skills",
@@ -1143,6 +1146,12 @@ const TRANSLATIONS = {
     // Phase labels (also used in SettingsPhasesTab)
     "cd.phase_design":           "Design",
     "cd.phase_development":      "Development",
+    // Dev Plan preview modal
+    "cd.dev_plan_title":         "Design & Development Plan — Review Activities",
+    "cd.dev_plan_desc":          "PDF saved to Docs. Deselect any activities you don't need, adjust hours, then confirm to add with sequential dependencies.",
+    "cd.phase_label":            "{n} Phase",
+    "cd.hrs_selected":           "{n}h selected",
+    "cd.acts_n_of_m":            "{n} of {total} activities selected",
     // CreateCaseWizard — work mode cards
     "cs.work_remote":            "Remote",
     "cs.work_remote_desc":       "Fully remote, any location",
@@ -1520,6 +1529,54 @@ const TRANSLATIONS = {
     "spec.awaiting":          "Submitted — awaiting approval",
     "spec.pdf_saved3":        "3 PDFs saved",
     "spec.save_all3":         "Save All 3 PDFs",
+    "spec.approved_on":       "Approved on {n}",
+    "spec.wiz_analyzing":     "Analyzing your case requirements…",
+    "spec.wiz_gen_qs":        "Generating questions for this {n}…",
+    "spec.obj_n_of":          "Object {n} of {total}",
+    "spec.wiz_add":           "+ Add",
+    "spec.no_docs_wiz":       "No documents attached. Upload files in the Documents tab to help Claude understand the requirements.",
+    "spec.ai_mode_manual":    "AI Analysis — Manual Mode",
+    "spec.ai_mode_wizard":    "AI Analysis — Wizard Mode",
+    "spec.ai_mode_gen":       "AI Generate",
+    "spec.no_docs_ai":        "No documents attached. Upload files in the Documents tab for better results.",
+    "spec.ai_step1_desc":     "Claude will analyze whether standard SAP configuration and transactions can cover this requirement before recommending custom development.",
+    "spec.sap_full":          "Fully covered by SAP standard",
+    "spec.sap_partial":       "Partially covered — gaps exist",
+    "spec.sap_none":          "Custom ABAP development required",
+    "spec.sap_txns":          "Standard SAP transactions available:",
+    "spec.sap_gaps":          "Gaps requiring custom development:",
+    "spec.rerun_check":       "Re-run check",
+    "spec.step1_badge":       "Step 1:",
+    "spec.coverage_lbl":      "Coverage —",
+    "spec.ai_step2_desc":     "Claude will validate whether the custom development proposal is technically justified, correctly scoped, and low-risk before writing the spec.",
+    "spec.proposal_valid":    "Proposal is valid",
+    "spec.proposal_warn":     "Proposal has concerns",
+    "spec.risk_lbl":          "Risk:",
+    "spec.score_lbl":         "Score:",
+    "spec.strengths":         "Strengths:",
+    "spec.concerns":          "Concerns:",
+    "spec.revalidate":        "Re-validate",
+    "spec.sap_txns_short":    "Standard transactions:",
+    "spec.sap_gaps_short":    "Gaps requiring custom dev:",
+    "spec.prop_valid":        "Valid",
+    "spec.prop_concerns":     "Concerns",
+    "spec.gen_three_desc":    "Claude will generate three specifications based on the analysis:",
+    "spec.opt_a":             "Custom ABAP development (with pros & cons)",
+    "spec.opt_b":             "Standard SAP configuration",
+    "spec.opt_c":             "Customer proposal as-is",
+    "spec.gen_all_three":     "Generate All Three Specifications",
+    "spec.gen_all_loading":   "Claude is generating all three specifications simultaneously…",
+    "spec.tab_a":             "Custom ABAP",
+    "spec.tab_b":             "Standard SAP",
+    "spec.tab_c":             "Customer Proposal",
+    "spec.selected":          "Selected",
+    "spec.opt_a_long":        "Option A: Custom ABAP Development",
+    "spec.opt_b_long":        "Option B: Standard SAP Configuration",
+    "spec.opt_c_long":        "Option C: Customer Proposal As-Is",
+    "spec.select_above":      "Select an option above",
+    "spec.preview_lbl":       "Preview",
+    "spec.edit_lbl":          "Edit",
+    "spec.regen_all":         "Re-generate all",
     // CaseDetail — cancel reasons
     "cd.cancel_reason_withdrew":    "Client withdrew the request",
     "cd.cancel_reason_budget":      "Budget constraints",
@@ -1808,6 +1865,12 @@ const TRANSLATIONS = {
     // Phase labels (also used in SettingsPhasesTab)
     "cd.phase_design":           "Diseño",
     "cd.phase_development":      "Desarrollo",
+    // Dev Plan preview modal
+    "cd.dev_plan_title":         "Plan de Diseño y Desarrollo — Revisar Actividades",
+    "cd.dev_plan_desc":          "PDF guardado en Docs. Deselecciona las actividades que no necesitas, ajusta las horas y confirma para agregar con dependencias secuenciales.",
+    "cd.phase_label":            "Fase de {n}",
+    "cd.hrs_selected":           "{n}h seleccionadas",
+    "cd.acts_n_of_m":            "{n} de {total} actividades seleccionadas",
     // CreateCaseWizard — work mode cards
     "cs.work_remote":            "Remoto",
     "cs.work_remote_desc":       "Completamente remoto, cualquier ubicación",
@@ -2185,6 +2248,54 @@ const TRANSLATIONS = {
     "spec.awaiting":          "Enviado — en espera de aprobación",
     "spec.pdf_saved3":        "3 PDFs guardados",
     "spec.save_all3":         "Guardar los 3 PDFs",
+    "spec.approved_on":       "Aprobado el {n}",
+    "spec.wiz_analyzing":     "Analizando los requisitos del caso…",
+    "spec.wiz_gen_qs":        "Generando preguntas para este {n}…",
+    "spec.obj_n_of":          "Objeto {n} de {total}",
+    "spec.wiz_add":           "+ Agregar",
+    "spec.no_docs_wiz":       "Sin documentos adjuntos. Sube archivos en la pestaña Documentos para que Claude entienda mejor los requisitos.",
+    "spec.ai_mode_manual":    "Análisis IA — Modo Manual",
+    "spec.ai_mode_wizard":    "Análisis IA — Modo Asistente",
+    "spec.ai_mode_gen":       "Generar con IA",
+    "spec.no_docs_ai":        "Sin documentos adjuntos. Sube archivos en la pestaña Documentos para mejores resultados.",
+    "spec.ai_step1_desc":     "Claude analizará si la configuración SAP estándar y las transacciones pueden cubrir este requisito antes de recomendar desarrollo personalizado.",
+    "spec.sap_full":          "Cubierto completamente por SAP estándar",
+    "spec.sap_partial":       "Cubierto parcialmente — existen brechas",
+    "spec.sap_none":          "Se requiere desarrollo ABAP personalizado",
+    "spec.sap_txns":          "Transacciones SAP estándar disponibles:",
+    "spec.sap_gaps":          "Brechas que requieren desarrollo personalizado:",
+    "spec.rerun_check":       "Repetir verificación",
+    "spec.step1_badge":       "Paso 1:",
+    "spec.coverage_lbl":      "Cobertura —",
+    "spec.ai_step2_desc":     "Claude validará si la propuesta de desarrollo personalizado está técnicamente justificada, bien delimitada y es de bajo riesgo antes de escribir la especificación.",
+    "spec.proposal_valid":    "Propuesta válida",
+    "spec.proposal_warn":     "Propuesta con observaciones",
+    "spec.risk_lbl":          "Riesgo:",
+    "spec.score_lbl":         "Puntaje:",
+    "spec.strengths":         "Fortalezas:",
+    "spec.concerns":          "Observaciones:",
+    "spec.revalidate":        "Revalidar",
+    "spec.sap_txns_short":    "Transacciones estándar:",
+    "spec.sap_gaps_short":    "Brechas que requieren desarrollo:",
+    "spec.prop_valid":        "Válida",
+    "spec.prop_concerns":     "Observaciones",
+    "spec.gen_three_desc":    "Claude generará tres especificaciones basadas en el análisis:",
+    "spec.opt_a":             "Desarrollo ABAP personalizado (con pros y contras)",
+    "spec.opt_b":             "Configuración SAP estándar",
+    "spec.opt_c":             "Propuesta del cliente tal como está",
+    "spec.gen_all_three":     "Generar las Tres Especificaciones",
+    "spec.gen_all_loading":   "Claude está generando las tres especificaciones simultáneamente…",
+    "spec.tab_a":             "ABAP Personalizado",
+    "spec.tab_b":             "SAP Estándar",
+    "spec.tab_c":             "Propuesta del Cliente",
+    "spec.selected":          "Seleccionada",
+    "spec.opt_a_long":        "Opción A: Desarrollo ABAP Personalizado",
+    "spec.opt_b_long":        "Opción B: Configuración SAP Estándar",
+    "spec.opt_c_long":        "Opción C: Propuesta del Cliente Tal Como Está",
+    "spec.select_above":      "Selecciona una opción arriba",
+    "spec.preview_lbl":       "Vista previa",
+    "spec.edit_lbl":          "Editar",
+    "spec.regen_all":         "Regenerar todo",
     // CaseDetail — cancel reasons
     "cd.cancel_reason_withdrew":    "El cliente retiró la solicitud",
     "cd.cancel_reason_budget":      "Restricciones de presupuesto",
@@ -2353,6 +2464,9 @@ const TRANSLATIONS = {
     "label.industry":     "Industria",
     "label.start_date":   "Fecha de inicio",
     "label.end_date":     "Fecha de fin",
+    "label.stakeholder":  "Responsable",
+    "label.billing":      "Facturación",
+    "label.consultants":  "Consultores",
     "label.created_at":   "Creado",
     "label.updated_at":   "Actualizado",
     "label.skills":       "Habilidades",
@@ -8795,19 +8909,19 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("proj.rev_scope")}</p>
                 <div className="grid grid-cols-2 gap-y-2 text-sm">
                   {scopeData.total_budget && (
-                    <div><span className="text-gray-400">Budget:</span> <span className="font-medium ml-1">${Number(scopeData.total_budget).toLocaleString()}</span></div>
+                    <div><span className="text-gray-400">{t("label.budget")}:</span> <span className="font-medium ml-1">${Number(scopeData.total_budget).toLocaleString()}</span></div>
                   )}
                   {scopeData.start_date && (
-                    <div><span className="text-gray-400">Start:</span> <span className="font-medium ml-1">{fmtDate(scopeData.start_date)}</span></div>
+                    <div><span className="text-gray-400">{t("label.start_date")}:</span> <span className="font-medium ml-1">{fmtDate(scopeData.start_date)}</span></div>
                   )}
                   {scopeData.end_date && (
-                    <div><span className="text-gray-400">End:</span> <span className="font-medium ml-1">{fmtDate(scopeData.end_date)}</span></div>
+                    <div><span className="text-gray-400">{t("label.end_date")}:</span> <span className="font-medium ml-1">{fmtDate(scopeData.end_date)}</span></div>
                   )}
                   {scopeData.area_sap && (
-                    <div><span className="text-gray-400">SAP Area:</span> <span className="font-medium ml-1">{scopeData.area_sap}</span></div>
+                    <div><span className="text-gray-400">{t("label.sap_area")}:</span> <span className="font-medium ml-1">{scopeData.area_sap}</span></div>
                   )}
                   {scopeData.industry && (
-                    <div><span className="text-gray-400">Industry:</span> <span className="font-medium ml-1">{scopeData.industry}</span></div>
+                    <div><span className="text-gray-400">{t("label.industry")}:</span> <span className="font-medium ml-1">{scopeData.industry}</span></div>
                   )}
                 </div>
                 {!scopeData.total_budget && !scopeData.start_date && !scopeData.end_date && (
@@ -8837,16 +8951,16 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("proj.rev_team")}</p>
                   <div className="grid grid-cols-2 gap-y-2 text-sm">
                     {team.stakeholder_name && (
-                      <div><span className="text-gray-400">Stakeholder:</span> <span className="font-medium ml-1">{team.stakeholder_name}</span></div>
+                      <div><span className="text-gray-400">{t("label.stakeholder")}:</span> <span className="font-medium ml-1">{team.stakeholder_name}</span></div>
                     )}
                     {team.stakeholder_email && (
-                      <div><span className="text-gray-400">Email:</span> <span className="font-medium ml-1">{team.stakeholder_email}</span></div>
+                      <div><span className="text-gray-400">{t("label.email")}:</span> <span className="font-medium ml-1">{team.stakeholder_email}</span></div>
                     )}
                     {team.billing_contact_name && (
-                      <div><span className="text-gray-400">Billing:</span> <span className="font-medium ml-1">{team.billing_contact_name}</span></div>
+                      <div><span className="text-gray-400">{t("label.billing")}:</span> <span className="font-medium ml-1">{team.billing_contact_name}</span></div>
                     )}
                     {team.expected_consultants && (
-                      <div><span className="text-gray-400">Consultants:</span> <span className="font-medium ml-1">{team.expected_consultants}</span></div>
+                      <div><span className="text-gray-400">{t("label.consultants")}:</span> <span className="font-medium ml-1">{team.expected_consultants}</span></div>
                     )}
                   </div>
                 </div>
@@ -12018,7 +12132,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
             <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
             <div>
               <p className="font-semibold text-green-800 text-sm">{t("spec.approved_title")}</p>
-              {spec.approved_at && <p className="text-xs text-green-600 mt-0.5">Approved on {fmtDate(spec.approved_at)}</p>}
+              {spec.approved_at && <p className="text-xs text-green-600 mt-0.5">{t("spec.approved_on").replace("{n}", fmtDate(spec.approved_at))}</p>}
             </div>
           </div>
         )}
@@ -12067,7 +12181,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
               className="w-full border border-red-200 rounded-lg p-2 text-sm resize-none" rows={3}
               placeholder="Explain why the spec is being rejected…" />
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setShowRejectInput(false)} className="px-3 py-1.5 text-xs text-gray-500">Cancel</button>
+              <button onClick={() => setShowRejectInput(false)} className="px-3 py-1.5 text-xs text-gray-500">{t("action.cancel")}</button>
               <button onClick={handleReject} disabled={!rejectReason.trim() || approving}
                 className="px-3 py-1.5 text-xs font-semibold bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50">
                 {t("spec.confirm_reject")}
@@ -12237,7 +12351,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
           )}
           {(documents ?? []).length === 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
-              No documents attached. Upload files in the <span className="font-semibold">Documents</span> tab to help Claude understand the requirements.
+              {t("spec.no_docs_wiz")}
             </div>
           )}
 
@@ -12251,7 +12365,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
           {wizardLoading && (
             <div className="flex items-center justify-center py-12 gap-3 text-gray-400">
               <Spinner />
-              <span className="text-sm">Analyzing your case requirements…</span>
+              <span className="text-sm">{t("spec.wiz_analyzing")}</span>
             </div>
           )}
 
@@ -12290,7 +12404,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   setWizardObjects(prev => [...prev, { name: addObjName.trim(), type: addObjType.trim() || 'Object', purpose: '', questions: [] }]);
                   setAddObjName(''); setAddObjType('');
                 }} className="px-3 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 flex-shrink-0">
-                  + Add
+                  {t("spec.wiz_add")}
                 </button>
               </div>
 
@@ -12318,7 +12432,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
               <button onClick={() => setWizardStage('objects')} className="text-xs text-gray-400 hover:text-gray-600">← {t("action.back")}</button>
               <span className="text-sm font-semibold text-gray-700">{t("spec.wiz_interview")}</span>
             </div>
-            <span className="text-xs text-gray-400">Object {currentObjIdx + 1} of {wizardObjects.length}</span>
+            <span className="text-xs text-gray-400">{t("spec.obj_n_of").replace("{n}", currentObjIdx + 1).replace("{total}", wizardObjects.length)}</span>
           </div>
 
           {/* Progress bar */}
@@ -12338,7 +12452,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
           {wizardLoading && (
             <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
               <Spinner />
-              <span className="text-sm">Generating questions for this {curObj?.type}…</span>
+              <span className="text-sm">{t("spec.wiz_gen_qs").replace("{n}", curObj?.type ?? "")}</span>
             </div>
           )}
 
@@ -12475,7 +12589,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
             if (!dest) { setPrevMode(null); setAnalysisCustomerContent(''); }
           }} className="text-xs text-gray-400 hover:text-gray-600">← {t("action.back")}</button>
           <span className="text-sm font-semibold text-gray-700">
-            {prevMode === 'manual' ? 'AI Analysis — Manual Mode' : prevMode === 'wizard' ? 'AI Analysis — Wizard Mode' : 'AI Generate'}
+            {prevMode === 'manual' ? t("spec.ai_mode_manual") : prevMode === 'wizard' ? t("spec.ai_mode_wizard") : t("spec.ai_mode_gen")}
           </span>
         </div>
 
@@ -12508,7 +12622,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
         {/* Documents panel (always visible) */}
         {(documents ?? []).length > 0 ? (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
-            <p className="text-xs font-semibold text-blue-700 mb-1.5">Documents Claude will read:</p>
+            <p className="text-xs font-semibold text-blue-700 mb-1.5">{t("spec.wiz_docs_lbl")}</p>
             <div className="flex flex-col gap-1">
               {documents.map(doc => (
                 <a key={doc.id} href={doc.file_url} target="_blank" rel="noopener noreferrer"
@@ -12521,7 +12635,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
           </div>
         ) : (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
-            No documents attached. Upload files in the <span className="font-semibold">Documents</span> tab for better results.
+            {t("spec.no_docs_ai")}
           </div>
         )}
 
@@ -12535,7 +12649,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
           <div className="space-y-4">
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
               <h3 className="text-sm font-semibold text-gray-800 mb-1">{t("spec.ai_step1_h")}</h3>
-              <p className="text-xs text-gray-500">Claude will analyze whether standard SAP configuration and transactions can cover this requirement before recommending custom development.</p>
+              <p className="text-xs text-gray-500">{t("spec.ai_step1_desc")}</p>
             </div>
 
             {!sapCheck && !stepLoading && (
@@ -12557,9 +12671,9 @@ Respond with ONLY a valid JSON object, no markdown fences:
               <div className={`border rounded-xl p-4 space-y-3 ${cc[0]} ${cc[1]}`}>
                 <div className="flex items-center justify-between">
                   <span className={`text-sm font-bold ${cc[3]}`}>
-                    {sapCheck.coverage === 'full' ? <><Check size={11} className="inline mr-1 text-emerald-600" />Fully covered by SAP standard</> :
-                     sapCheck.coverage === 'partial' ? <><AlertTriangle size={11} className="inline mr-1 text-amber-500" />Partially covered — gaps exist</> :
-                     <><X size={11} className="inline mr-1 text-red-500" />Custom ABAP development required</>}
+                    {sapCheck.coverage === 'full' ? <><Check size={11} className="inline mr-1 text-emerald-600" />{t("spec.sap_full")}</> :
+                     sapCheck.coverage === 'partial' ? <><AlertTriangle size={11} className="inline mr-1 text-amber-500" />{t("spec.sap_partial")}</> :
+                     <><X size={11} className="inline mr-1 text-red-500" />{t("spec.sap_none")}</>}
                   </span>
                   <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${cc[1]} ${cc[2]} uppercase`}>{sapCheck.coverage}</span>
                 </div>
@@ -12567,16 +12681,16 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
                 {(sapCheck.standard_transactions ?? []).length > 0 && (
                   <div>
-                    <p className={`text-xs font-semibold mb-1 ${cc[3]}`}>Standard SAP transactions available:</p>
+                    <p className={`text-xs font-semibold mb-1 ${cc[3]}`}>{t("spec.sap_txns")}</p>
                     <ul className={`text-xs space-y-0.5 ${cc[2]}`}>
-                      {sapCheck.standard_transactions.map((t, i) => <li key={i} className="flex gap-1"><span>•</span><span>{t}</span></li>)}
+                      {sapCheck.standard_transactions.map((tx, i) => <li key={i} className="flex gap-1"><span>•</span><span>{tx}</span></li>)}
                     </ul>
                   </div>
                 )}
 
                 {(sapCheck.gaps ?? []).length > 0 && (
                   <div>
-                    <p className={`text-xs font-semibold mb-1 ${cc[3]}`}>Gaps requiring custom development:</p>
+                    <p className={`text-xs font-semibold mb-1 ${cc[3]}`}>{t("spec.sap_gaps")}</p>
                     <ul className={`text-xs space-y-0.5 ${cc[2]}`}>
                       {sapCheck.gaps.map((g, i) => <li key={i} className="flex gap-1"><span>→</span><span>{g}</span></li>)}
                     </ul>
@@ -12588,7 +12702,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 )}
 
                 <div className="flex gap-3 justify-between items-center pt-1">
-                  <button onClick={handleSapCheck} className={`text-xs underline ${cc[2]}`}>Re-run check</button>
+                  <button onClick={handleSapCheck} className={`text-xs underline ${cc[2]}`}>{t("spec.rerun_check")}</button>
                   <button onClick={() => setAiStep(2)}
                     className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
                     {t("spec.continue_step2")}
@@ -12605,15 +12719,15 @@ Respond with ONLY a valid JSON object, no markdown fences:
             {/* Step 1 summary badge */}
             {sapCheck && (
               <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg border ${cc[0]} ${cc[1]} ${cc[2]}`}>
-                <span className="font-semibold">Step 1:</span>
-                <span>Coverage — <span className="font-bold uppercase">{sapCheck.coverage}</span></span>
+                <span className="font-semibold">{t("spec.step1_badge")}</span>
+                <span>{t("spec.coverage_lbl")} <span className="font-bold uppercase">{sapCheck.coverage}</span></span>
                 <span className="ml-auto opacity-70">{sapCheck.recommendation}</span>
               </div>
             )}
 
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
               <h3 className="text-sm font-semibold text-gray-800 mb-1">{t("spec.ai_step2_h")}</h3>
-              <p className="text-xs text-gray-500">Claude will validate whether the custom development proposal is technically justified, correctly scoped, and low-risk before writing the spec.</p>
+              <p className="text-xs text-gray-500">{t("spec.ai_step2_desc")}</p>
             </div>
 
             {!proposalCheck && !stepLoading && (
@@ -12635,21 +12749,21 @@ Respond with ONLY a valid JSON object, no markdown fences:
               <div className={`border rounded-xl p-4 space-y-3 ${proposalCheck.valid ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <span className={`text-sm font-bold ${proposalCheck.valid ? 'text-green-800' : 'text-amber-800'}`}>
-                    {proposalCheck.valid ? <><Check size={11} className="inline mr-1 text-green-700" />Proposal is valid</> : <><AlertTriangle size={11} className="inline mr-1 text-amber-800" />Proposal has concerns</>}
+                    {proposalCheck.valid ? <><Check size={11} className="inline mr-1 text-green-700" />{t("spec.proposal_valid")}</> : <><AlertTriangle size={11} className="inline mr-1 text-amber-800" />{t("spec.proposal_warn")}</>}
                   </span>
                   <div className="flex items-center gap-2">
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${riskColor[proposalCheck.risk_level] ?? riskColor.medium}`}>
-                      Risk: {proposalCheck.risk_level ?? 'medium'}
+                      {t("spec.risk_lbl")} {proposalCheck.risk_level ?? 'medium'}
                     </span>
                     <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-700">
-                      Score: {proposalCheck.score}/10
+                      {t("spec.score_lbl")} {proposalCheck.score}/10
                     </span>
                   </div>
                 </div>
 
                 {(proposalCheck.strengths ?? []).length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold text-green-700 mb-1">Strengths:</p>
+                    <p className="text-xs font-semibold text-green-700 mb-1">{t("spec.strengths")}</p>
                     <ul className="text-xs text-green-700 space-y-0.5">
                       {proposalCheck.strengths.map((s, i) => <li key={i} className="flex gap-1"><Check size={11} /><span>{s}</span></li>)}
                     </ul>
@@ -12658,7 +12772,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
                 {(proposalCheck.concerns ?? []).length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold text-amber-700 mb-1">Concerns:</p>
+                    <p className="text-xs font-semibold text-amber-700 mb-1">{t("spec.concerns")}</p>
                     <ul className="text-xs text-amber-700 space-y-0.5">
                       {proposalCheck.concerns.map((c, i) => <li key={i} className="flex gap-1"><AlertTriangle size={11} /><span>{c}</span></li>)}
                     </ul>
@@ -12673,7 +12787,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
                 <div className="flex gap-3 justify-between items-center pt-1">
                   <button onClick={handleProposalValidation}
-                    className={`text-xs underline ${proposalCheck.valid ? 'text-green-700' : 'text-amber-700'}`}>Re-validate</button>
+                    className={`text-xs underline ${proposalCheck.valid ? 'text-green-700' : 'text-amber-700'}`}>{t("spec.revalidate")}</button>
                   <button onClick={() => setAiStep(3)}
                     className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
                     {t("spec.generate_spec")}
@@ -12709,13 +12823,13 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         <p className={`text-xs ${cc[2]}`}>{sapCheck.summary}</p>
                         {(sapCheck.standard_transactions??[]).length > 0 && (
                           <div>
-                            <p className={`text-xs font-semibold mb-0.5 ${cc[3]}`}>Standard transactions:</p>
-                            <ul className={`text-xs space-y-0.5 ${cc[2]}`}>{sapCheck.standard_transactions.map((t,i)=><li key={i} className="flex gap-1"><span>•</span><span>{t}</span></li>)}</ul>
+                            <p className={`text-xs font-semibold mb-0.5 ${cc[3]}`}>{t("spec.sap_txns_short")}</p>
+                            <ul className={`text-xs space-y-0.5 ${cc[2]}`}>{sapCheck.standard_transactions.map((tx,i)=><li key={i} className="flex gap-1"><span>•</span><span>{tx}</span></li>)}</ul>
                           </div>
                         )}
                         {(sapCheck.gaps??[]).length > 0 && (
                           <div>
-                            <p className={`text-xs font-semibold mb-0.5 ${cc[3]}`}>Gaps requiring custom dev:</p>
+                            <p className={`text-xs font-semibold mb-0.5 ${cc[3]}`}>{t("spec.sap_gaps_short")}</p>
                             <ul className={`text-xs space-y-0.5 ${cc[2]}`}>{sapCheck.gaps.map((g,i)=><li key={i} className="flex gap-1"><span>→</span><span>{g}</span></li>)}</ul>
                           </div>
                         )}
@@ -12729,20 +12843,20 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs font-bold text-gray-500 uppercase">{t("spec.ai_step2_h")}</span>
                           <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${proposalCheck.valid ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
-                            {proposalCheck.valid ? 'Valid' : 'Concerns'}
+                            {proposalCheck.valid ? t("spec.prop_valid") : t("spec.prop_concerns")}
                           </span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${riskColor[proposalCheck.risk_level]??riskColor.medium}`}>Risk: {proposalCheck.risk_level}</span>
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-700 font-bold">Score: {proposalCheck.score}/10</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${riskColor[proposalCheck.risk_level]??riskColor.medium}`}>{t("spec.risk_lbl")} {proposalCheck.risk_level}</span>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-700 font-bold">{t("spec.score_lbl")} {proposalCheck.score}/10</span>
                         </div>
                         {(proposalCheck.strengths??[]).length > 0 && (
                           <div>
-                            <p className="text-xs font-semibold text-green-700 mb-0.5">Strengths:</p>
+                            <p className="text-xs font-semibold text-green-700 mb-0.5">{t("spec.strengths")}</p>
                             <ul className="text-xs text-green-700 space-y-0.5">{proposalCheck.strengths.map((s,i)=><li key={i} className="flex gap-1"><Check size={11} /><span>{s}</span></li>)}</ul>
                           </div>
                         )}
                         {(proposalCheck.concerns??[]).length > 0 && (
                           <div>
-                            <p className="text-xs font-semibold text-amber-700 mb-0.5">Concerns:</p>
+                            <p className="text-xs font-semibold text-amber-700 mb-0.5">{t("spec.concerns")}</p>
                             <ul className="text-xs text-amber-700 space-y-0.5">{proposalCheck.concerns.map((c,i)=><li key={i} className="flex gap-1"><AlertTriangle size={11} /><span>{c}</span></li>)}</ul>
                           </div>
                         )}
@@ -12760,22 +12874,22 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-3">
                   <Sparkles className="w-7 h-7 text-blue-600" />
                 </div>
-                <p className="text-sm text-gray-600 mb-2">Claude will generate <strong>three specifications</strong> based on the analysis:</p>
+                <p className="text-sm text-gray-600 mb-2">{t("spec.gen_three_desc")}</p>
                 <div className="flex flex-wrap justify-center gap-4 mb-5 text-xs text-gray-500">
-                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"/><strong>Option A</strong> — Custom ABAP development (with pros &amp; cons)</span>
-                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"/><strong>Option B</strong> — Standard SAP configuration</span>
-                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-purple-400 inline-block"/><strong>Option C</strong> — Customer proposal as-is</span>
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"/><strong>A</strong> — {t("spec.opt_a")}</span>
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"/><strong>B</strong> — {t("spec.opt_b")}</span>
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-purple-400 inline-block"/><strong>C</strong> — {t("spec.opt_c")}</span>
                 </div>
                 <button onClick={handleGenerateSpecs}
                   className="px-6 py-3 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
-                  Generate All Three Specifications
+                  {t("spec.gen_all_three")}
                 </button>
               </div>
             )}
 
             {generatingSpecs && (
               <div className="flex items-center justify-center py-16 gap-3 text-gray-400">
-                <Spinner /><span className="text-sm">Claude is generating all three specifications simultaneously…</span>
+                <Spinner /><span className="text-sm">{t("spec.gen_all_loading")}</span>
               </div>
             )}
 
@@ -12787,20 +12901,20 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   <button onClick={() => { setSelectedSpec('a'); setAiContent(aiSpecA); }}
                     className={`flex-1 py-3 px-2 text-sm font-semibold border-b-2 transition-colors text-left flex items-center gap-2 ${selectedSpec === 'a' ? 'border-[#1A4B8C] text-[#1A4B8C] bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
                     <span className="w-5 h-5 rounded-full bg-amber-400 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold">A</span>
-                    <span className="truncate">Custom ABAP</span>
-                    {selectedSpec === 'a' && <span className="ml-auto text-xs font-semibold text-[#1A4B8C] bg-blue-100 px-2 py-0.5 rounded-full flex-shrink-0">Selected</span>}
+                    <span className="truncate">{t("spec.tab_a")}</span>
+                    {selectedSpec === 'a' && <span className="ml-auto text-xs font-semibold text-[#1A4B8C] bg-blue-100 px-2 py-0.5 rounded-full flex-shrink-0">{t("spec.selected")}</span>}
                   </button>
                   <button onClick={() => { setSelectedSpec('b'); setAiContent(aiSpecB); }}
                     className={`flex-1 py-3 px-2 text-sm font-semibold border-b-2 transition-colors text-left flex items-center gap-2 ${selectedSpec === 'b' ? 'border-[#1A4B8C] text-[#1A4B8C] bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
                     <span className="w-5 h-5 rounded-full bg-green-500 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold">B</span>
-                    <span className="truncate">Standard SAP</span>
-                    {selectedSpec === 'b' && <span className="ml-auto text-xs font-semibold text-[#1A4B8C] bg-blue-100 px-2 py-0.5 rounded-full flex-shrink-0">Selected</span>}
+                    <span className="truncate">{t("spec.tab_b")}</span>
+                    {selectedSpec === 'b' && <span className="ml-auto text-xs font-semibold text-[#1A4B8C] bg-blue-100 px-2 py-0.5 rounded-full flex-shrink-0">{t("spec.selected")}</span>}
                   </button>
                   <button onClick={() => { setSelectedSpec('c'); setAiContent(aiSpecC); }}
                     className={`flex-1 py-3 px-2 text-sm font-semibold border-b-2 transition-colors text-left flex items-center gap-2 ${selectedSpec === 'c' ? 'border-[#1A4B8C] text-[#1A4B8C] bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
                     <span className="w-5 h-5 rounded-full bg-purple-500 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold">C</span>
-                    <span className="truncate">Customer Proposal</span>
-                    {selectedSpec === 'c' && <span className="ml-auto text-xs font-semibold text-[#1A4B8C] bg-blue-100 px-2 py-0.5 rounded-full flex-shrink-0">Selected</span>}
+                    <span className="truncate">{t("spec.tab_c")}</span>
+                    {selectedSpec === 'c' && <span className="ml-auto text-xs font-semibold text-[#1A4B8C] bg-blue-100 px-2 py-0.5 rounded-full flex-shrink-0">{t("spec.selected")}</span>}
                   </button>
                 </div>
 
@@ -12809,16 +12923,16 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   {/* Edit toggle row */}
                   <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200">
                     <span className="text-xs text-gray-500">
-                      {selectedSpec === 'a' ? 'Option A: Custom ABAP Development' : selectedSpec === 'b' ? 'Option B: Standard SAP Configuration' : selectedSpec === 'c' ? 'Option C: Customer Proposal As-Is' : 'Select an option above'}
+                      {selectedSpec === 'a' ? t("spec.opt_a_long") : selectedSpec === 'b' ? t("spec.opt_b_long") : selectedSpec === 'c' ? t("spec.opt_c_long") : t("spec.select_above")}
                     </span>
                     <div className="flex gap-2">
                       <button onClick={() => setAiEditing(p => !p)}
                         className="px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-white">
-                        {aiEditing ? 'Preview' : 'Edit'}
+                        {aiEditing ? t("spec.preview_lbl") : t("spec.edit_lbl")}
                       </button>
                       <button onClick={handleGenerateSpecs}
                         className="px-2.5 py-1 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
-                        Re-generate all
+                        {t("spec.regen_all")}
                       </button>
                     </div>
                   </div>
@@ -18078,9 +18192,9 @@ function ConsultantDetailModal({ consultantId, auth }) {
                 <Sparkles size={15} className="text-violet-600" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-slate-900 text-[14px]">Design &amp; Development Plan — Review Activities</h3>
+                <h3 className="font-semibold text-slate-900 text-[14px]">{t("cd.dev_plan_title")}</h3>
                 <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
-                  PDF saved to Docs. Deselect any activities you don't need, adjust hours, then confirm to add with sequential dependencies.
+                  {t("cd.dev_plan_desc")}
                 </p>
               </div>
               {!confirmingDevPlan && (
@@ -18095,8 +18209,8 @@ function ConsultantDetailModal({ consultantId, auth }) {
               {/* Design band */}
               {designActs.length > 0 && (<>
                 <div className="flex items-center justify-between px-5 py-[7px]" style={{ background: '#1E1B4B' }}>
-                  <span className="text-[11px] font-mono font-medium tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.85)', letterSpacing: '0.1em' }}>Design Phase</span>
-                  <span className="text-[11px] font-mono" style={{ color: 'rgba(255,255,255,0.38)' }}>{designHrs}h selected</span>
+                  <span className="text-[11px] font-mono font-medium tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.85)', letterSpacing: '0.1em' }}>{t("cd.phase_label").replace("{n}", t("cd.phase_design"))}</span>
+                  <span className="text-[11px] font-mono" style={{ color: 'rgba(255,255,255,0.38)' }}>{t("cd.hrs_selected").replace("{n}", designHrs)}</span>
                 </div>
                 {designActs.map((act, pi) => <Row key={act._i} act={act} phaseIdx={pi} isFirst={pi === 0} />)}
               </>)}
@@ -18104,8 +18218,8 @@ function ConsultantDetailModal({ consultantId, auth }) {
               {/* Development band */}
               {devActs.length > 0 && (<>
                 <div className="flex items-center justify-between px-5 py-[7px]" style={{ background: '#0C2747' }}>
-                  <span className="text-[11px] font-mono font-medium tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.85)', letterSpacing: '0.1em' }}>Development Phase</span>
-                  <span className="text-[11px] font-mono" style={{ color: 'rgba(255,255,255,0.38)' }}>{devHrs}h selected</span>
+                  <span className="text-[11px] font-mono font-medium tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.85)', letterSpacing: '0.1em' }}>{t("cd.phase_label").replace("{n}", t("cd.phase_development"))}</span>
+                  <span className="text-[11px] font-mono" style={{ color: 'rgba(255,255,255,0.38)' }}>{t("cd.hrs_selected").replace("{n}", devHrs)}</span>
                 </div>
                 {devActs.map((act, pi) => <Row key={act._i} act={act} phaseIdx={pi} isFirst={pi === 0} />)}
               </>)}
@@ -18114,7 +18228,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
             {/* Footer */}
             <div className="flex items-center justify-between gap-3 border-t border-slate-200 px-5 py-3 bg-white flex-shrink-0">
               <span className="text-[11px] text-slate-500">
-                <span className="font-semibold text-slate-700">{selectedCount}</span> of {devPlanPreview.activities.length} activities selected
+                {t("cd.acts_n_of_m").replace("{n}", selectedCount).replace("{total}", devPlanPreview.activities.length)}
               </span>
               <div className="flex gap-2">
                 <button onClick={() => setDevPlanPreview(null)} disabled={confirmingDevPlan}
