@@ -1997,6 +1997,44 @@ const TRANSLATIONS = {
     "sap.role_trn":                 "Training",
     // SAP transport route placeholder
     "sap.ph_transport":             "DEV → QAS → PRD",
+    // Contact form placeholders (shared across team member, onboarding contact)
+    "contact.ph_name":              "Jane Smith",
+    "contact.ph_email":             "jane@company.com",
+    "contact.ph_role_title":        "IT Manager",
+    "contact.ph_phone":             "+1 555 000 0000",
+    // Auth / signup form placeholders
+    "auth.ph_email":                "you@company.com",
+    "auth.ph_password_dots":        "••••••••",
+    "auth.ph_headline_eg":          "e.g. SAP FICO Consultant · 8 yrs",
+    "auth.ph_skills_eg":            "e.g. SAP, FICO, Finance, ERP",
+    "auth.ph_company_eg":           "Acme Corp",
+    // DB connection placeholders
+    "conn.ph_host":                 "db.example.com",
+    "conn.ph_db_name":              "my_database",
+    "conn.ph_username":             "readonly_user",
+    "conn.ph_notes_eg":             "e.g. DEV system only",
+    // Consultant profile / profile settings
+    "profile.ph_headline_eg":       "Senior Full-Stack Consultant",
+    "profile.ph_skills_eg":         "React, Node.js, AWS, PostgreSQL",
+    "profile.ph_linkedin":          "https://linkedin.com/in/yourprofile",
+    "profile.ph_headline_ob":       "Senior SAP Consultant & Solution Architect",
+    // Company profile
+    "company.ph_website":           "https://yourcompany.com",
+    "company.ph_linkedin":          "https://linkedin.com/company/...",
+    // Client onboarding / company settings placeholders
+    "ob.ph_company_name":           "Acme Corporation",
+    "ob.ph_industry":               "e.g. Financial Services",
+    "ob.ph_company_size":           "e.g. 500–1,000 employees",
+    "ob.ph_contact_title":          "VP of Technology",
+    "ob.ph_categories":             "Cloud, AI, ERP, Cybersecurity",
+    "ob.ph_prefs_notes":            "Special requirements, compliance needs, vetting criteria…",
+    "ob.ph_country_name":           "United States",
+    // Miscellaneous
+    "invoices.ph_number":           "INV-2024-001",
+    "lc.ph_template_name":          "e.g. Enterprise Lifecycle",
+    "case.ph_title_eg":             "e.g. SAP S/4HANA Migration",
+    "proj.ph_title_eg":             "e.g. SAP S/4HANA Transformation",
+    "case.ph_budget_num":           "e.g. 50000",
   },
   es: {
     // Navigation
@@ -3943,6 +3981,44 @@ const TRANSLATIONS = {
     "sap.role_trn":                 "Capacitación",
     // SAP transport route placeholder
     "sap.ph_transport":             "DEV → QAS → PRD",
+    // Contact form placeholders
+    "contact.ph_name":              "María García",
+    "contact.ph_email":             "m.garcia@empresa.com",
+    "contact.ph_role_title":        "Gerente de TI",
+    "contact.ph_phone":             "+1 555 000 0000",
+    // Auth / signup form placeholders
+    "auth.ph_email":                "tu@empresa.com",
+    "auth.ph_password_dots":        "••••••••",
+    "auth.ph_headline_eg":          "p.ej. Consultor SAP FICO · 8 años",
+    "auth.ph_skills_eg":            "p.ej. SAP, FICO, Finanzas, ERP",
+    "auth.ph_company_eg":           "Empresa S.A.",
+    // DB connection placeholders
+    "conn.ph_host":                 "db.example.com",
+    "conn.ph_db_name":              "mi_base_datos",
+    "conn.ph_username":             "usuario_lectura",
+    "conn.ph_notes_eg":             "p.ej. solo sistema DEV",
+    // Consultant profile / profile settings
+    "profile.ph_headline_eg":       "Consultor Senior Full-Stack",
+    "profile.ph_skills_eg":         "React, Node.js, AWS, PostgreSQL",
+    "profile.ph_linkedin":          "https://linkedin.com/in/tuperfil",
+    "profile.ph_headline_ob":       "Consultor SAP Senior & Arquitecto de Soluciones",
+    // Company profile
+    "company.ph_website":           "https://tuempresa.com",
+    "company.ph_linkedin":          "https://linkedin.com/company/...",
+    // Client onboarding / company settings placeholders
+    "ob.ph_company_name":           "Empresa Ejemplo S.A.",
+    "ob.ph_industry":               "p.ej. Servicios Financieros",
+    "ob.ph_company_size":           "p.ej. 500–1.000 empleados",
+    "ob.ph_contact_title":          "VP de Tecnología",
+    "ob.ph_categories":             "Cloud, IA, ERP, Ciberseguridad",
+    "ob.ph_prefs_notes":            "Requisitos especiales, necesidades de cumplimiento, criterios de selección…",
+    "ob.ph_country_name":           "Estados Unidos",
+    // Miscellaneous
+    "invoices.ph_number":           "FAC-2024-001",
+    "lc.ph_template_name":          "p.ej. Ciclo de Vida Empresarial",
+    "case.ph_title_eg":             "p.ej. Migración SAP S/4HANA",
+    "proj.ph_title_eg":             "p.ej. Transformación SAP S/4HANA",
+    "case.ph_budget_num":           "p.ej. 50000",
   },
 };
 
@@ -6645,9 +6721,9 @@ function AuthScreen({ onAuth }) {
           <div className="bg-white rounded-2xl shadow-xl p-8">
             {tabs}
             <Input label={t("auth.email")} type="email" value={siEmail}
-              onChange={e => setSiEmail(e.target.value)} placeholder="you@company.com" />
+              onChange={e => setSiEmail(e.target.value)} placeholder={t("auth.ph_email")} />
             <Input label={t("auth.password")} type="password" value={siPass}
-              onChange={e => setSiPass(e.target.value)} placeholder="••••••••" />
+              onChange={e => setSiPass(e.target.value)} placeholder={t("auth.ph_password_dots")} />
             {errorBox}
             <button onClick={handleSignIn} disabled={loading}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 mt-2">
@@ -6685,7 +6761,7 @@ function AuthScreen({ onAuth }) {
                 <h2 className="text-lg font-bold text-gray-900 mb-1">{t("auth.verify_heading")}</h2>
                 <p className="text-sm text-gray-500 mb-5">{t("auth.verify_subtitle")}</p>
                 <Input label={t("auth.email")} type="email" value={email}
-                  onChange={e => setEmail(e.target.value)} placeholder="you@company.com" />
+                  onChange={e => setEmail(e.target.value)} placeholder={t("auth.ph_email")} />
                 {!codeSent ? (
                   <button onClick={sendCode} disabled={loading}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50">
@@ -6777,21 +6853,21 @@ function AuthScreen({ onAuth }) {
 
                 {/* ── Common fields ── */}
                 <Input label={t("label.full_name")} value={name}
-                  onChange={e => setName(e.target.value)} placeholder="Jane Smith" />
+                  onChange={e => setName(e.target.value)} placeholder={t("contact.ph_name")} />
                 <Input label={t("auth.password")} type="password" value={password}
                   onChange={e => setPass(e.target.value)} placeholder={t("auth.ph_password")} />
                 <Input label={t("auth.confirm_password")} type="password" value={confirmPass}
-                  onChange={e => setConf(e.target.value)} placeholder="••••••••" />
+                  onChange={e => setConf(e.target.value)} placeholder={t("auth.ph_password_dots")} />
 
                 {/* ── Consultant fields ── */}
                 {role === "consultant" && (<>
                   <div className="border-t border-gray-100 my-4" />
                   <Input label={t("label.headline")} value={headline}
                     onChange={e => setHeadline(e.target.value)}
-                    placeholder="e.g. SAP FICO Consultant · 8 yrs" />
+                    placeholder={t("auth.ph_headline_eg")} />
                   <Input label={t("profile.skills_label")} value={skills}
                     onChange={e => setSkills(e.target.value)}
-                    placeholder="e.g. SAP, FICO, Finance, ERP" />
+                    placeholder={t("auth.ph_skills_eg")} />
                   <div className="grid grid-cols-2 gap-3">
                     <Input label={t("label.years_exp")} type="number" value={yearsExp}
                       onChange={e => setYearsExp(e.target.value)} placeholder="8" />
@@ -6814,7 +6890,7 @@ function AuthScreen({ onAuth }) {
                 {role === "client" && (<>
                   <div className="border-t border-gray-100 my-4" />
                   <Input label={t("company.name")} value={companyName}
-                    onChange={e => setCompany(e.target.value)} placeholder="Acme Corp" />
+                    onChange={e => setCompany(e.target.value)} placeholder={t("auth.ph_company_eg")} />
                   <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t("company.industry")}</label>
                     <select value={industry} onChange={e => setIndustry(e.target.value)}
@@ -8222,7 +8298,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
             <p className="text-sm text-gray-500 mb-5">{t("case.step1_desc")}</p>
             <Input label={`${t("label.title")} *`} value={basics.title}
               onChange={e => setBasics(p => ({ ...p, title: e.target.value }))}
-              placeholder="e.g. SAP S/4HANA Migration" />
+              placeholder={t("case.ph_title_eg")} />
             {mode === "express" ? (
               <>
                 <div className="grid grid-cols-2 gap-3">
@@ -8361,7 +8437,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                 <div className="grid grid-cols-2 gap-3">
                   <Input label={t("proj.budget_label")} type="number" value={scope.budget}
                     onChange={e => setScope(p => ({ ...p, budget: e.target.value }))}
-                    placeholder="e.g. 50000" />
+                    placeholder={t("case.ph_budget_num")} />
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t("case.sla_label")}</label>
                     <select value={scope.sla}
@@ -9269,7 +9345,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
             <p className="text-sm text-gray-500 mb-5">{t("proj.step0_desc")}</p>
             <Input label={t("proj.name_label")} value={basics.name}
               onChange={e => setBasics(p => ({ ...p, name: e.target.value }))}
-              placeholder="e.g. SAP S/4HANA Transformation" />
+              placeholder={t("proj.ph_title_eg")} />
             <Textarea label={t("label.description")} value={basics.description}
               onChange={e => setBasics(p => ({ ...p, description: e.target.value }))}
               placeholder={t("proj.ph_objectives")} />
@@ -9758,21 +9834,21 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
               </select>
             </div>
             <Input label={t("conn.host_ip")} value={form.host}
-              onChange={e => setForm(p => ({ ...p, host: e.target.value }))} placeholder="db.example.com" />
+              onChange={e => setForm(p => ({ ...p, host: e.target.value }))} placeholder={t("conn.ph_host")} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Input label={t("label.port")} type="number" value={form.port}
               onChange={e => setForm(p => ({ ...p, port: +e.target.value }))} />
             {!isVpnType(form.db_type) && (
               <Input label={t("conn.db_sid")} value={form.db_name}
-                onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} placeholder="my_database" />
+                onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} placeholder={t("conn.ph_db_name")} />
             )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Input label={t("label.username")} value={form.username}
-              onChange={e => setForm(p => ({ ...p, username: e.target.value }))} placeholder="readonly_user" />
+              onChange={e => setForm(p => ({ ...p, username: e.target.value }))} placeholder={t("conn.ph_username")} />
             <Input label={t("label.notes")} value={form.notes}
-              onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="e.g. DEV system only" />
+              onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder={t("conn.ph_notes_eg")} />
           </div>
           {isSapType(form.db_type) && (
             <SapProfileFields meta={form.meta} dbType={form.db_type}
@@ -18104,7 +18180,7 @@ function ProfileView({ auth }) {
         <div className="bg-white rounded-2xl border border-blue-200 shadow-sm p-6 mb-6">
           <h3 className="font-semibold text-gray-900 mb-4">{t("profile.edit")}</h3>
           <Input label={t("label.headline")} value={form.headline} onChange={e => setForm(p => ({ ...p, headline: e.target.value }))}
-            placeholder="Senior Full-Stack Consultant" />
+            placeholder={t("profile.ph_headline_eg")} />
           <Textarea label={t("profile.bio_label")} value={form.bio} onChange={e => setForm(p => ({ ...p, bio: e.target.value }))}
             placeholder={t("profile.ph_bio")} />
           <div className="grid grid-cols-2 gap-3">
@@ -18133,10 +18209,10 @@ function ProfileView({ auth }) {
           </div>
           <Input label={t("label.linkedin")} value={form.linkedin_url}
             onChange={e => setForm(p => ({ ...p, linkedin_url: e.target.value }))}
-            placeholder="https://linkedin.com/in/yourprofile" />
+            placeholder={t("profile.ph_linkedin")} />
           <Input label={t("profile.skills_label")} value={form._skills}
             onChange={e => setForm(p => ({ ...p, _skills: e.target.value }))}
-            placeholder="React, Node.js, AWS, PostgreSQL" />
+            placeholder={t("profile.ph_skills_eg")} />
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               {t("profile.ext_occupancy")} {form.external_occupancy_pct}%
@@ -19204,10 +19280,10 @@ function UsersView() {
             </div>
             <Input label={t("label.full_name")} value={addForm.full_name}
               onChange={e => setAddForm(p => ({ ...p, full_name: e.target.value }))}
-              placeholder="Jane Smith" />
+              placeholder={t("contact.ph_name")} />
             <Input label={t("label.email")} type="email" value={addForm.email}
               onChange={e => setAddForm(p => ({ ...p, email: e.target.value }))}
-              placeholder="jane@company.com" />
+              placeholder={t("contact.ph_email")} />
             <Select label={t("label.role")} value={addForm.role}
               onChange={e => setAddForm(p => ({ ...p, role: e.target.value }))}
               options={[
@@ -20183,15 +20259,15 @@ function ClientTeamList({ client, auth }) {
         <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <Input label={t("team.name_label")} value={form.full_name}
-              onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Jane Smith" />
+              onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder={t("contact.ph_name")} />
             <Input label={t("team.email_label")} type="email" value={form.email}
-              onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="jane@company.com" />
+              onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder={t("contact.ph_email")} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Input label={t("team.role_label")} value={form.role_title}
-              onChange={e => setForm(p => ({ ...p, role_title: e.target.value }))} placeholder="IT Manager" />
+              onChange={e => setForm(p => ({ ...p, role_title: e.target.value }))} placeholder={t("contact.ph_role_title")} />
             <Input label={t("team.phone_label")} value={form.phone}
-              onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="+1 555 000 0000" />
+              onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder={t("contact.ph_phone")} />
           </div>
           <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
             <input type="checkbox" checked={form.is_primary}
@@ -20405,7 +20481,7 @@ function LifecycleSettingsView({ auth }) {
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("label.name")}</label>
               <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
-                placeholder="e.g. Enterprise Lifecycle"
+                placeholder={t("lc.ph_template_name")}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
@@ -20861,7 +20937,7 @@ function CaseDefaultsPanel({ profile, updateProfile }) {
               </select>
             </div>
             <Input label={t("cd.default_budget")} type="number" value={form.budget}
-              onChange={e => setForm(p => ({ ...p, budget: e.target.value }))} placeholder="e.g. 50000" />
+              onChange={e => setForm(p => ({ ...p, budget: e.target.value }))} placeholder={t("case.ph_budget_num")} />
           </div>
           <Input label={t("cd.default_skills")} value={form.skills}
             onChange={e => setForm(p => ({ ...p, skills: e.target.value }))}
@@ -21504,12 +21580,12 @@ function ClientProfileView({ auth }) {
               onChange={e => setForm(p => ({ ...p, company_name: e.target.value }))} />
             <Input label={t("company.industry")} value={form.industry}
               onChange={e => setForm(p => ({ ...p, industry: e.target.value }))}
-              placeholder="e.g. Financial Services" />
+              placeholder={t("ob.ph_industry")} />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <Input label={t("company.size")} value={form.company_size}
               onChange={e => setForm(p => ({ ...p, company_size: e.target.value }))}
-              placeholder="e.g. 500–1,000 employees" />
+              placeholder={t("ob.ph_company_size")} />
             <Input label={t("company.founded")} type="number" value={form.founded_year}
               onChange={e => setForm(p => ({ ...p, founded_year: e.target.value }))} />
             <Input label={t("company.hq")} value={form.hq_location}
@@ -21519,10 +21595,10 @@ function ClientProfileView({ auth }) {
           <div className="grid grid-cols-2 gap-3">
             <Input label={t("company.website")} value={form.website}
               onChange={e => setForm(p => ({ ...p, website: e.target.value }))}
-              placeholder="https://yourcompany.com" />
+              placeholder={t("company.ph_website")} />
             <Input label={t("company.linkedin")} value={form.linkedin_url}
               onChange={e => setForm(p => ({ ...p, linkedin_url: e.target.value }))}
-              placeholder="https://linkedin.com/company/..." />
+              placeholder={t("company.ph_linkedin")} />
           </div>
           <Textarea label={t("company.description")} value={form.description}
             onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
@@ -21916,15 +21992,15 @@ function ClientProfileView({ auth }) {
             <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <Input label={t("team.name_label")} value={memberForm.full_name}
-                  onChange={e => setMemberForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Jane Smith" />
+                  onChange={e => setMemberForm(p => ({ ...p, full_name: e.target.value }))} placeholder={t("contact.ph_name")} />
                 <Input label={t("team.email_label")} type="email" value={memberForm.email}
-                  onChange={e => setMemberForm(p => ({ ...p, email: e.target.value }))} placeholder="jane@company.com" />
+                  onChange={e => setMemberForm(p => ({ ...p, email: e.target.value }))} placeholder={t("contact.ph_email")} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <Input label={t("team.role_label")} value={memberForm.role_title}
-                  onChange={e => setMemberForm(p => ({ ...p, role_title: e.target.value }))} placeholder="IT Manager" />
+                  onChange={e => setMemberForm(p => ({ ...p, role_title: e.target.value }))} placeholder={t("contact.ph_role_title")} />
                 <Input label={t("team.phone_label")} value={memberForm.phone}
-                  onChange={e => setMemberForm(p => ({ ...p, phone: e.target.value }))} placeholder="+1 555 000 0000" />
+                  onChange={e => setMemberForm(p => ({ ...p, phone: e.target.value }))} placeholder={t("contact.ph_phone")} />
               </div>
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <input type="checkbox" checked={memberForm.is_primary}
@@ -22324,7 +22400,7 @@ function InvoicesView({ auth }) {
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title={t("invoices.new_title")}>
         <Input label={t("invoices.number")} value={form.invoice_number}
           onChange={e => setForm(p => ({ ...p, invoice_number: e.target.value }))}
-          placeholder="INV-2024-001" />
+          placeholder={t("invoices.ph_number")} />
         <div className="grid grid-cols-2 gap-3">
           <Input label={t("invoices.amount_label")} type="number" value={form.amount}
             onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} />
@@ -22856,7 +22932,7 @@ function ConsultantOnboardingView({ auth, onComplete }) {
             <p className="text-sm text-gray-500 mb-5">{t("ob.basics_subtitle")}</p>
             <Input label={t("ob.headline_label")} value={basicsForm.headline}
               onChange={e => setBasicsForm(p => ({ ...p, headline: e.target.value }))}
-              placeholder="Senior SAP Consultant & Solution Architect" />
+              placeholder={t("profile.ph_headline_ob")} />
             <Textarea label={t("label.bio")} value={basicsForm.bio}
               onChange={e => setBasicsForm(p => ({ ...p, bio: e.target.value }))}
               placeholder={t("profile.ph_bio")} />
@@ -22886,7 +22962,7 @@ function ConsultantOnboardingView({ auth, onComplete }) {
             </div>
             <Input label={t("label.linkedin")} value={basicsForm.linkedin_url}
               onChange={e => setBasicsForm(p => ({ ...p, linkedin_url: e.target.value }))}
-              placeholder="https://linkedin.com/in/yourprofile" />
+              placeholder={t("profile.ph_linkedin")} />
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {t("ob.ext_occ_label")} {basicsForm.external_occupancy_pct}%
@@ -22927,7 +23003,7 @@ function ConsultantOnboardingView({ auth, onComplete }) {
               <div className="grid grid-cols-3 gap-3">
                 <Input label={t("ob.country_name_label")} value={authForm.country_name}
                   onChange={e => setAuthForm(p => ({ ...p, country_name: e.target.value }))}
-                  placeholder="United States" />
+                  placeholder={t("ob.ph_country_name")} />
                 <Input label={t("ob.country_code_label")} value={authForm.country_code}
                   onChange={e => setAuthForm(p => ({ ...p, country_code: e.target.value.toUpperCase() }))}
                   placeholder="US" />
@@ -23196,14 +23272,14 @@ function ClientOnboardingView({ auth, onComplete }) {
             <p className="text-sm text-gray-500 mb-5">{t("ob.company_info_subtitle")}</p>
             <Input label={t("ob.company_name_req")} value={companyForm.company_name}
               onChange={e => setCompanyForm(p => ({ ...p, company_name: e.target.value }))}
-              placeholder="Acme Corporation" />
+              placeholder={t("ob.ph_company_name")} />
             <div className="grid grid-cols-2 gap-3">
               <Input label={t("label.industry")} value={companyForm.industry}
                 onChange={e => setCompanyForm(p => ({ ...p, industry: e.target.value }))}
-                placeholder="e.g. Financial Services" />
+                placeholder={t("ob.ph_industry")} />
               <Input label={t("ob.company_size_label")} value={companyForm.company_size}
                 onChange={e => setCompanyForm(p => ({ ...p, company_size: e.target.value }))}
-                placeholder="e.g. 500–1,000 employees" />
+                placeholder={t("ob.ph_company_size")} />
               <Input label={t("ob.founded_year_label")} type="number" value={companyForm.founded_year}
                 onChange={e => setCompanyForm(p => ({ ...p, founded_year: e.target.value }))} />
               <Input label={t("ob.hq_location_label")} value={companyForm.hq_location}
@@ -23212,7 +23288,7 @@ function ClientOnboardingView({ auth, onComplete }) {
             </div>
             <Input label={t("ob.website_label")} value={companyForm.website}
               onChange={e => setCompanyForm(p => ({ ...p, website: e.target.value }))}
-              placeholder="https://yourcompany.com" />
+              placeholder={t("company.ph_website")} />
             <Textarea label={t("label.description")} value={companyForm.description}
               onChange={e => setCompanyForm(p => ({ ...p, description: e.target.value }))}
               placeholder={t("company.ph_about")} />
@@ -23227,16 +23303,16 @@ function ClientOnboardingView({ auth, onComplete }) {
             <div className="grid grid-cols-2 gap-3">
               <Input label={t("ob.contact_name_label")} value={contactForm.contact_name}
                 onChange={e => setContactForm(p => ({ ...p, contact_name: e.target.value }))}
-                placeholder="Jane Smith" />
+                placeholder={t("contact.ph_name")} />
               <Input label={t("ob.contact_title_label")} value={contactForm.contact_title}
                 onChange={e => setContactForm(p => ({ ...p, contact_title: e.target.value }))}
-                placeholder="VP of Technology" />
+                placeholder={t("ob.ph_contact_title")} />
               <Input label={t("ob.contact_email_label")} type="email" value={contactForm.contact_email}
                 onChange={e => setContactForm(p => ({ ...p, contact_email: e.target.value }))}
-                placeholder="jane@company.com" />
+                placeholder={t("contact.ph_email")} />
               <Input label={t("ob.contact_phone_label")} value={contactForm.contact_phone}
                 onChange={e => setContactForm(p => ({ ...p, contact_phone: e.target.value }))}
-                placeholder="+1 555 000 0000" />
+                placeholder={t("contact.ph_phone")} />
             </div>
           </>
         )}
@@ -23251,10 +23327,10 @@ function ClientOnboardingView({ auth, onComplete }) {
               placeholder={t("proj.ph_budget_eg")} />
             <Input label={t("ob.areas_label")} value={prefsForm._categories}
               onChange={e => setPrefsForm(p => ({ ...p, _categories: e.target.value }))}
-              placeholder="Cloud, AI, ERP, Cybersecurity" />
+              placeholder={t("ob.ph_categories")} />
             <Textarea label={t("ob.notes_label")} value={prefsForm.notes}
               onChange={e => setPrefsForm(p => ({ ...p, notes: e.target.value }))}
-              placeholder="Special requirements, compliance needs, vetting criteria…" />
+              placeholder={t("ob.ph_prefs_notes")} />
           </>
         )}
       </div>
@@ -23551,9 +23627,9 @@ function SettingsUsersTab() {
               {t("sys.create_user_notice")}
             </div>
             <Input label={t("label.full_name")} value={addForm.full_name}
-              onChange={e => setAddForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Jane Smith" />
+              onChange={e => setAddForm(p => ({ ...p, full_name: e.target.value }))} placeholder={t("contact.ph_name")} />
             <Input label={t("label.email")} type="email" value={addForm.email}
-              onChange={e => setAddForm(p => ({ ...p, email: e.target.value }))} placeholder="jane@company.com" />
+              onChange={e => setAddForm(p => ({ ...p, email: e.target.value }))} placeholder={t("contact.ph_email")} />
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.role")}</label>
               <select value={addForm.role} onChange={e => setAddForm(p => ({ ...p, role: e.target.value }))}
