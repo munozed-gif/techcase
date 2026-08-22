@@ -18749,7 +18749,7 @@ function ConsultantDetailModal({ consultantId, auth }) {
         {profile?.travel_available && <div className="flex items-center gap-1"><Plane className="w-3 h-3 inline-block mr-0.5" /> {t("label.travel")}</div>}
         {profile?.expertise_level && (
           <div><span className="text-gray-400">{t("label.level")} </span>
-            <Badge className="bg-violet-100 text-violet-700 ml-1">{cap(profile.expertise_level)}</Badge>
+            <Badge className="bg-violet-100 text-violet-700 ml-1">{EXPERTISE_LABEL_KEYS[profile.expertise_level] ? t(EXPERTISE_LABEL_KEYS[profile.expertise_level]) : cap(profile.expertise_level)}</Badge>
           </div>
         )}
         {profile?.availability_type && (
