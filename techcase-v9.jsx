@@ -2035,6 +2035,32 @@ const TRANSLATIONS = {
     "case.ph_title_eg":             "e.g. SAP S/4HANA Migration",
     "proj.ph_title_eg":             "e.g. SAP S/4HANA Transformation",
     "case.ph_budget_num":           "e.g. 50000",
+    // Remaining form placeholders
+    "case.ph_location_eg":          "e.g. Toronto, Canada",
+    "case.ph_agency_eg":            "e.g. TechTalent Agency",
+    "case.ph_min_exp_eg":           "e.g. 5",
+    "case.ph_ms_title_eg":          "e.g. Discovery & Requirements",
+    "case.ph_progress_eg":          "e.g. 75",
+    "apply.ph_rate_eg":             "e.g. 150",
+    "proj.ph_budget_large_eg":      "e.g. 200000",
+    "proj.ph_stakeholder_name":     "e.g. Anna Müller",
+    "proj.ph_stakeholder_email":    "e.g. a.muller@company.com",
+    "proj.ph_billing_name":         "e.g. Carlos Reyes",
+    "proj.ph_billing_email":        "e.g. c.reyes@company.com",
+    "proj.ph_n_eg":                 "e.g. 3",
+    "auth.ph_years_eg":             "8",
+    "auth.ph_rate_num_eg":          "150",
+    // Feed card fallbacks and inline text
+    "feed.unknown_case":            "Unknown case",
+    "feed.pct_commitment":          "% commitment",
+    // SAP connection placeholders
+    "sap.ph_release":               "2023 / FPS01",
+    "sap.ph_message_server":        "sap-ms.example.com",
+    // DB connection placeholders
+    "conn.ph_vpn_profile":          "Corporate VPN",
+    // Lifecycle / system settings placeholders
+    "sys.ph_stage_key_eg":          "e.g. integration_test",
+    "sys.ph_stage_label_eg":        "e.g. Integration Test",
   },
   es: {
     // Navigation
@@ -4019,6 +4045,32 @@ const TRANSLATIONS = {
     "case.ph_title_eg":             "p.ej. Migración SAP S/4HANA",
     "proj.ph_title_eg":             "p.ej. Transformación SAP S/4HANA",
     "case.ph_budget_num":           "p.ej. 50000",
+    // Remaining form placeholders
+    "case.ph_location_eg":          "p.ej. Toronto, Canadá",
+    "case.ph_agency_eg":            "p.ej. TechTalent Agency",
+    "case.ph_min_exp_eg":           "p.ej. 5",
+    "case.ph_ms_title_eg":          "p.ej. Descubrimiento y Requisitos",
+    "case.ph_progress_eg":          "p.ej. 75",
+    "apply.ph_rate_eg":             "p.ej. 150",
+    "proj.ph_budget_large_eg":      "p.ej. 200000",
+    "proj.ph_stakeholder_name":     "p.ej. Ana Müller",
+    "proj.ph_stakeholder_email":    "p.ej. a.muller@empresa.com",
+    "proj.ph_billing_name":         "p.ej. Carlos Reyes",
+    "proj.ph_billing_email":        "p.ej. c.reyes@empresa.com",
+    "proj.ph_n_eg":                 "p.ej. 3",
+    "auth.ph_years_eg":             "8",
+    "auth.ph_rate_num_eg":          "150",
+    // Feed card fallbacks and inline text
+    "feed.unknown_case":            "Caso desconocido",
+    "feed.pct_commitment":          "% de compromiso",
+    // SAP connection placeholders
+    "sap.ph_release":               "2023 / FPS01",
+    "sap.ph_message_server":        "sap-ms.ejemplo.com",
+    // DB connection placeholders
+    "conn.ph_vpn_profile":          "VPN Corporativa",
+    // Lifecycle / system settings placeholders
+    "sys.ph_stage_key_eg":          "p.ej. prueba_integracion",
+    "sys.ph_stage_label_eg":        "p.ej. Prueba de Integración",
   },
 };
 
@@ -6187,7 +6239,7 @@ const FEED_TYPE_STYLES = {
 
 function FeedCard({ item, caseData, onOpenCase, onMarkRead }) {
   const { t } = useT();
-  const caseTitle = caseData?.title ?? item.title ?? 'Unknown case';
+  const caseTitle = caseData?.title ?? item.title ?? t("feed.unknown_case");
   const style = FEED_TYPE_STYLES[item._type] ?? FEED_TYPE_STYLES.alert;
   const actorInitials = item.actor_name
     ? item.actor_name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
@@ -6222,7 +6274,7 @@ function FeedCard({ item, caseData, onOpenCase, onMarkRead }) {
             <p className="text-sm text-gray-900 leading-snug">
               {item._type === 'comment' && <><span className="font-semibold">{item.actor_name}</span>{t("feed.commented_on")}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span></>}
               {item._type === 'progress' && <><span className="font-semibold">{item.actor_name}</span>{t("feed.updated")}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span>{t("feed.to")}<span className="font-semibold text-green-600">{item.progress_update}%</span></>}
-              {item._type === 'assignment' && <><span className="font-semibold">{item.actor_name}</span>{t("feed.joined_case")}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span>{item.time_commitment ? <span className="text-gray-500"> · {item.time_commitment}% commitment</span> : null}</>}
+              {item._type === 'assignment' && <><span className="font-semibold">{item.actor_name}</span>{t("feed.joined_case")}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span>{item.time_commitment ? <span className="text-gray-500"> · {item.time_commitment}{t("feed.pct_commitment")}</span> : null}</>}
               {item._type === 'status_change' && <>{t("feed.status_changed_on")}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span>{': '}<span className="font-semibold text-indigo-600">{(item.title ?? '').replace('Status → ', '')}</span></>}
               {item._type === 'milestone' && <span className="font-semibold text-gray-900">{item.title}</span>}
               {item._type === 'document' && <span className="font-semibold text-gray-900">{item.title}</span>}
@@ -6870,9 +6922,9 @@ function AuthScreen({ onAuth }) {
                     placeholder={t("auth.ph_skills_eg")} />
                   <div className="grid grid-cols-2 gap-3">
                     <Input label={t("label.years_exp")} type="number" value={yearsExp}
-                      onChange={e => setYearsExp(e.target.value)} placeholder="8" />
+                      onChange={e => setYearsExp(e.target.value)} placeholder={t("auth.ph_years_eg")} />
                     <Input label={t("label.hourly_rate")} type="number" value={hourlyRate}
-                      onChange={e => setHourly(e.target.value)} placeholder="150" />
+                      onChange={e => setHourly(e.target.value)} placeholder={t("auth.ph_rate_num_eg")} />
                   </div>
                   <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.expertise")}</label>
@@ -8425,7 +8477,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                 {(arrangement.work_mode === "onsite" || arrangement.work_mode === "hybrid") && (
                   <Input label={t("case.location_label")} value={arrangement.work_location}
                     onChange={e => setArr(p => ({ ...p, work_location: e.target.value }))}
-                    placeholder="e.g. Toronto, Canada" />
+                    placeholder={t("case.ph_location_eg")} />
                 )}
                 <div className="mt-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-xs text-blue-700 flex items-start gap-2">
                   <Zap className="w-3.5 h-3.5 mt-0.5 shrink-0" />
@@ -8500,7 +8552,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
             {(arrangement.work_mode === "onsite" || arrangement.work_mode === "hybrid") && (
               <Input label={t("case.location_label")} value={arrangement.work_location}
                 onChange={e => setArr(p => ({ ...p, work_location: e.target.value }))}
-                placeholder="e.g. Toronto, Canada" />
+                placeholder={t("case.ph_location_eg")} />
             )}
 
             {/* Travel */}
@@ -8595,7 +8647,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               {roles.is_head_hunter && (
                 <Input label={t("case.hh_name_label")} value={roles.head_hunter_name}
                   onChange={e => setRoles(p => ({ ...p, head_hunter_name: e.target.value }))}
-                  placeholder="e.g. TechTalent Agency" />
+                  placeholder={t("case.ph_agency_eg")} />
               )}
             </div>
           </>
@@ -8610,7 +8662,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
             {/* Min years experience */}
             <Input label={t("case.min_exp")} type="number" value={quals.min_years_experience}
               onChange={e => setQuals(p => ({ ...p, min_years_experience: e.target.value }))}
-              placeholder="e.g. 5" />
+              placeholder={t("case.ph_min_exp_eg")} />
 
             {/* Certifications */}
             <div className="mb-4">
@@ -8783,7 +8835,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               )}
               <Input label={t("case.ms_title")} value={mlForm.title}
                 onChange={e => setMlForm(p => ({ ...p, title: e.target.value }))}
-                placeholder="e.g. Discovery & Requirements" />
+                placeholder={t("case.ph_ms_title_eg")} />
               <div className="grid grid-cols-2 gap-3">
                 <Input label={t("label.due_date")} type="date" value={mlForm.due_date}
                   onChange={e => setMlForm(p => ({ ...p, due_date: e.target.value }))} />
@@ -9099,7 +9151,7 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
             <p className="text-sm text-gray-500 mb-5">{t("apply.terms_desc")}</p>
             <Input label={t("apply.rate_label")} type="number" value={terms.proposed_rate}
               onChange={e => setTerms(p => ({ ...p, proposed_rate: e.target.value }))}
-              placeholder="e.g. 150" />
+              placeholder={t("apply.ph_rate_eg")} />
 
             {/* Availability cap indicator */}
             <div className={`mt-4 mb-4 rounded-xl p-4 ${maxAvailable === 0 ? "bg-red-50 border border-red-200" : "bg-blue-50 border border-blue-100"}`}>
@@ -9415,7 +9467,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
             )}
             <Input label={t("proj.budget_label")} type="number" value={scopeData.total_budget}
               onChange={e => setScopeData(p => ({ ...p, total_budget: e.target.value }))}
-              placeholder="e.g. 200000" />
+              placeholder={t("proj.ph_budget_large_eg")} />
             <div className="grid grid-cols-2 gap-3">
               <Input label={t("label.start_date")} type="date" value={scopeData.start_date}
                 onChange={e => setScopeData(p => ({ ...p, start_date: e.target.value }))} />
@@ -9503,26 +9555,26 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
             <div className="grid grid-cols-2 gap-3 mb-5">
               <Input label={t("proj.stakeholder_name")} value={team.stakeholder_name}
                 onChange={e => setTeam(p => ({ ...p, stakeholder_name: e.target.value }))}
-                placeholder="e.g. Anna Müller" />
+                placeholder={t("proj.ph_stakeholder_name")} />
               <Input label={t("proj.stakeholder_email")} value={team.stakeholder_email}
                 onChange={e => setTeam(p => ({ ...p, stakeholder_email: e.target.value }))}
-                placeholder="e.g. a.muller@company.com" />
+                placeholder={t("proj.ph_stakeholder_email")} />
             </div>
             <div className="border-t border-gray-100 pt-5 mb-5">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("proj.billing_contact")}</p>
               <div className="grid grid-cols-2 gap-3">
                 <Input label={t("proj.billing_name")} value={team.billing_contact_name}
                   onChange={e => setTeam(p => ({ ...p, billing_contact_name: e.target.value }))}
-                  placeholder="e.g. Carlos Reyes" />
+                  placeholder={t("proj.ph_billing_name")} />
                 <Input label={t("proj.billing_email")} value={team.billing_contact_email}
                   onChange={e => setTeam(p => ({ ...p, billing_contact_email: e.target.value }))}
-                  placeholder="e.g. c.reyes@company.com" />
+                  placeholder={t("proj.ph_billing_email")} />
               </div>
             </div>
             <div className="border-t border-gray-100 pt-5">
               <Input label={t("proj.consultants_label")} type="number" value={team.expected_consultants}
                 onChange={e => setTeam(p => ({ ...p, expected_consultants: e.target.value }))}
-                placeholder="e.g. 3" />
+                placeholder={t("proj.ph_n_eg")} />
             </div>
           </>
         )}
@@ -15894,7 +15946,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 <label className="block text-xs font-medium text-gray-600 mb-1">{t("case.update_progress")}</label>
                 <input type="number" min="0" max="100" value={commentForm.progressUpdate}
                   onChange={e => setCommentForm(p => ({ ...p, progressUpdate: e.target.value }))}
-                  placeholder="e.g. 75"
+                  placeholder={t("case.ph_progress_eg")}
                   className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
             </div>
@@ -19886,7 +19938,7 @@ function SapProfileFields({ meta = {}, onChange, dbType }) {
           </select>
         </div>
         <Input label={t("sap.release_label")} value={meta.sap_release ?? ""}
-          onChange={e => set("sap_release", e.target.value)} placeholder="2023 / FPS01" />
+          onChange={e => set("sap_release", e.target.value)} placeholder={t("sap.ph_release")} />
         <Input label={t("sap.basis_label")} value={meta.basis_release ?? ""}
           onChange={e => set("basis_release", e.target.value)} placeholder="7.58" />
       </div>
@@ -19927,7 +19979,7 @@ function SapProfileFields({ meta = {}, onChange, dbType }) {
           <Input label={t("sap.logon_group_label")} value={meta.logon_group ?? ""}
             onChange={e => set("logon_group", e.target.value)} placeholder="PUBLIC" />
           <Input label={t("sap.message_server_label")} value={meta.message_server ?? ""}
-            onChange={e => set("message_server", e.target.value)} placeholder="sap-ms.example.com" />
+            onChange={e => set("message_server", e.target.value)} placeholder={t("sap.ph_message_server")} />
         </div>
       )}
       {dbType === "sap_rfc" && (
@@ -20101,7 +20153,7 @@ function DbConnectionsList({ client, auth }) {
                 </select>
               </div>
               <Input label={t("label.port")} type="number" value={form.port} onChange={e => setForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="1194" />
-              <Input label={t("conn.profile_label")} value={form.db_name} onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} placeholder="Corporate VPN" />
+              <Input label={t("conn.profile_label")} value={form.db_name} onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} placeholder={t("conn.ph_vpn_profile")} />
             </div>
           )}
 
@@ -20964,7 +21016,7 @@ function CaseDefaultsPanel({ profile, updateProfile }) {
           </div>
           {(form.work_mode === "onsite" || form.work_mode === "hybrid") && (
             <Input label={t("cd.default_location")} value={form.work_location}
-              onChange={e => setForm(p => ({ ...p, work_location: e.target.value }))} placeholder="e.g. Toronto, Canada" />
+              onChange={e => setForm(p => ({ ...p, work_location: e.target.value }))} placeholder={t("case.ph_location_eg")} />
           )}
           <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
             <input type="checkbox" checked={form.travel_required} onChange={e => setForm(p => ({ ...p, travel_required: e.target.checked }))} className="rounded accent-blue-600" />
@@ -20978,7 +21030,7 @@ function CaseDefaultsPanel({ profile, updateProfile }) {
         {sectionHdr(t("cd.section_qual"))}
         <div className="space-y-3">
           <Input label={t("cd.min_years")} type="number" value={form.min_years_experience}
-            onChange={e => setForm(p => ({ ...p, min_years_experience: e.target.value }))} placeholder="e.g. 3" />
+            onChange={e => setForm(p => ({ ...p, min_years_experience: e.target.value }))} placeholder={t("proj.ph_n_eg")} />
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">{t("cd.default_langs")}</label>
             <div className="flex flex-wrap gap-1.5 mb-2">
@@ -21923,7 +21975,7 @@ function ClientProfileView({ auth }) {
                     </select>
                   </div>
                   <Input label={t("conn.port")} type="number" value={connForm.port} onChange={e => setConnForm(p => ({ ...p, port: Number(e.target.value) }))} placeholder="1194" />
-                  <Input label={t("conn.vpn_profile")} value={connForm.db_name} onChange={e => setConnForm(p => ({ ...p, db_name: e.target.value }))} placeholder="Corporate VPN" />
+                  <Input label={t("conn.vpn_profile")} value={connForm.db_name} onChange={e => setConnForm(p => ({ ...p, db_name: e.target.value }))} placeholder={t("conn.ph_vpn_profile")} />
                 </div>
               )}
               <Textarea label={t("conn.notes")} value={connForm.notes}
@@ -23816,12 +23868,12 @@ function SettingsPhasesTab({ ssCtx }) {
                 <label className="block text-sm font-medium text-gray-700 mb-1">{t("sys.phase_key_label")}</label>
                 <input value={newPhase.key}
                   onChange={e => setNewPhase(p => ({ ...p, key: e.target.value.toLowerCase().replace(/\s+/g, "_") }))}
-                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full" placeholder="e.g. integration_test" />
+                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full" placeholder={t("sys.ph_stage_key_eg")} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">{t("sys.col_label")}</label>
                 <input value={newPhase.label} onChange={e => setNewPhase(p => ({ ...p, label: e.target.value }))}
-                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full" placeholder="e.g. Integration Test" />
+                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full" placeholder={t("sys.ph_stage_label_eg")} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">{t("sys.col_color")}</label>
