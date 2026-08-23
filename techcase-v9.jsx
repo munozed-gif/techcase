@@ -2087,6 +2087,19 @@ const TRANSLATIONS = {
     "spec.status_submitted":        "Submitted",
     "spec.status_approved":         "Approved",
     "spec.status_rejected":         "Rejected",
+    // Spec HTML export labels
+    "spec.html_title":              "SAP Functional Specification",
+    "spec.label_case_id":           "Case ID",
+    "spec.label_generated":         "Generated",
+    "spec.label_sig_analyst":       "Functional Analyst",
+    "spec.label_sig_dev":           "ABAP Developer",
+    "spec.label_sig_client":        "Client Approval",
+    "spec.label_sig_date":          "Signature / Date",
+    "spec.save_pdf_btn":            "⬇ Save as PDF",
+    // SLA case type default labels
+    "sla.type_general":             "General Information",
+    "sla.type_problem":             "Problem",
+    "sla.type_change_req":          "Change Request",
     // Case / project status labels
     "status.open":         "Open",
     "status.estimated":    "Estimated",
@@ -4143,6 +4156,19 @@ const TRANSLATIONS = {
     "spec.status_submitted":        "Enviado",
     "spec.status_approved":         "Aprobado",
     "spec.status_rejected":         "Rechazado",
+    // Spec HTML export labels
+    "spec.html_title":              "Especificación Funcional SAP",
+    "spec.label_case_id":           "ID de Caso",
+    "spec.label_generated":         "Generado",
+    "spec.label_sig_analyst":       "Analista Funcional",
+    "spec.label_sig_dev":           "Desarrollador ABAP",
+    "spec.label_sig_client":        "Aprobación del Cliente",
+    "spec.label_sig_date":          "Firma / Fecha",
+    "spec.save_pdf_btn":            "⬇ Guardar como PDF",
+    // SLA case type default labels
+    "sla.type_general":             "Información General",
+    "sla.type_problem":             "Problema",
+    "sla.type_change_req":          "Solicitud de Cambio",
     // Case / project status labels
     "status.open":         "Abierto",
     "status.estimated":    "Estimado",
@@ -6089,9 +6115,9 @@ const SLA_PRIORITIES = [
 ];
 
 const SLA_DEFAULT_TYPES = [
-  { key: "general",        label: "General Information" },
-  { key: "problem",        label: "Problem"             },
-  { key: "change_request", label: "Change Request"      },
+  { key: "general",        labelKey: "sla.type_general",   label: "General Information" },
+  { key: "problem",        labelKey: "sla.type_problem",   label: "Problem"             },
+  { key: "change_request", labelKey: "sla.type_change_req",label: "Change Request"      },
 ];
 
 function makeDefaultMatrix(keys) {
@@ -6155,7 +6181,7 @@ function SlaMatrixEditor({ caseTypes, matrix, editing, onChangeCaseTypes, onChan
                     )}
                   </div>
                 ) : (
-                  <span className="text-xs font-semibold text-gray-700">{ct.label}</span>
+                  <span className="text-xs font-semibold text-gray-700">{ct.labelKey ? t(ct.labelKey) : ct.label}</span>
                 )}
               </th>
             ))}
@@ -11727,11 +11753,12 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
   function buildSpecHtml(markdown) {
     const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     const bodyHtml = renderMarkdown(markdown);
+    const specTitle = t("spec.html_title");
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Functional Specification — ${caseData.title}</title>
+<title>${specTitle} — ${caseData.title}</title>
 <style>
   *{box-sizing:border-box}
   body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;color:#1a1a1a;max-width:900px;margin:0 auto;padding:40px}
@@ -11767,25 +11794,25 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
 </head>
 <body>
 <div class="print-bar">
-  <span>SAP Functional Specification — ${caseData.title}</span>
-  <button onclick="window.print()">⬇ Save as PDF</button>
+  <span>${specTitle} — ${caseData.title}</span>
+  <button onclick="window.print()">${t("spec.save_pdf_btn")}</button>
 </div>
 <div class="doc-wrap">
 <div class="doc-header">
-  <h1>SAP Functional Specification</h1>
+  <h1>${specTitle}</h1>
   <div class="sub">${caseData.title}</div>
 </div>
 <div class="meta-grid">
-  <div class="meta-item"><label>Case ID</label><span>#${(caseData.id ?? '').slice(0, 8) || '—'}</span></div>
-  <div class="meta-item"><label>SAP Area</label><span>${caseData.area_sap ?? '—'}</span></div>
-  <div class="meta-item"><label>Priority</label><span>${caseData.priority ?? '—'}</span></div>
-  <div class="meta-item"><label>Generated</label><span>${date}</span></div>
+  <div class="meta-item"><label>${t("spec.label_case_id")}</label><span>#${(caseData.id ?? '').slice(0, 8) || '—'}</span></div>
+  <div class="meta-item"><label>${t("label.sap_area")}</label><span>${caseData.area_sap ?? '—'}</span></div>
+  <div class="meta-item"><label>${t("label.priority")}</label><span>${caseData.priority ?? '—'}</span></div>
+  <div class="meta-item"><label>${t("spec.label_generated")}</label><span>${date}</span></div>
 </div>
 <p style="margin:0.5rem 0">${bodyHtml}</p>
 <div class="footer">
-  <div class="sig"><label>Functional Analyst</label><div class="line">Signature / Date</div></div>
-  <div class="sig"><label>ABAP Developer</label><div class="line">Signature / Date</div></div>
-  <div class="sig"><label>Client Approval</label><div class="line">Signature / Date</div></div>
+  <div class="sig"><label>${t("spec.label_sig_analyst")}</label><div class="line">${t("spec.label_sig_date")}</div></div>
+  <div class="sig"><label>${t("spec.label_sig_dev")}</label><div class="line">${t("spec.label_sig_date")}</div></div>
+  <div class="sig"><label>${t("spec.label_sig_client")}</label><div class="line">${t("spec.label_sig_date")}</div></div>
 </div>
 </div>
 </body>
