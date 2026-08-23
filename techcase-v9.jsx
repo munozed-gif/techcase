@@ -1712,7 +1712,7 @@ const TRANSLATIONS = {
     "case.starts_in":               "Starts in {n}d",
     "case.applicants_one":          "{n} applicant",
     "case.applicants_many":         "{n} applicants",
-    "company.empty_hint":           "Edit your company profile below",
+    "company.empty_hint_sub":       "Edit your company profile below",
     "reports.csv_title":            "Case Title",
     "reports.csv_status":           "Status",
     "reports.csv_client":           "Client",
@@ -3780,7 +3780,7 @@ const TRANSLATIONS = {
     "case.starts_in":               "Comienza en {n}d",
     "case.applicants_one":          "{n} postulante",
     "case.applicants_many":         "{n} postulantes",
-    "company.empty_hint":           "Edita el perfil de tu empresa abajo",
+    "company.empty_hint_sub":       "Edita el perfil de tu empresa abajo",
     "reports.csv_title":            "Título del Caso",
     "reports.csv_status":           "Estado",
     "reports.csv_client":           "Cliente",
@@ -21735,7 +21735,7 @@ function ClientProfileView({ auth }) {
               {profile?.company_name || auth.profile?.full_name || t("company.title")}
             </h1>
             <p className="text-gray-500 text-sm mt-0.5">
-              {[profile?.industry, profile?.hq_location].filter(Boolean).join(" · ") || t("company.empty_hint")}
+              {[profile?.industry, profile?.hq_location].filter(Boolean).join(" · ") || t("company.empty_hint_sub")}
             </p>
             <div className="flex flex-wrap gap-2 mt-2">
               {profile?.company_size && <Badge className="bg-gray-100 text-gray-600">{profile.company_size}</Badge>}
