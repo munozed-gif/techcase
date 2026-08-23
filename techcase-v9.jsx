@@ -12417,7 +12417,7 @@ Include 2-6 objects. Use realistic Z-names. Types can be: Report, Function Modul
       let parsed;
       try { parsed = JSON.parse(raw.trim()); } catch (_) {
         const m = raw.match(/\[[\s\S]*\]/);
-        parsed = m ? JSON.parse(m[0]) : [];
+        try { parsed = m ? JSON.parse(m[0]) : []; } catch (_2) { parsed = []; }
       }
       setWizardObjects((parsed ?? []).map(o => ({ ...o, questions: [] })));
     } catch (e) {
@@ -12451,7 +12451,7 @@ Generate 4-7 targeted questions relevant to the ${obj.type} type (e.g. for a Rep
     let parsed;
     try { parsed = JSON.parse(raw.trim()); } catch (_) {
       const m = raw.match(/\[[\s\S]*\]/);
-      parsed = m ? JSON.parse(m[0]) : [];
+      try { parsed = m ? JSON.parse(m[0]) : []; } catch (_2) { parsed = []; }
     }
     return parsed ?? [];
   }
@@ -14292,12 +14292,12 @@ Extract every discrete task, activity, deliverable, or work item. If you find no
         model: 'claude-haiku-4-5-20251001',
         system: 'You are a project analyst. Extract structured activity lists from documents. Return only valid JSON arrays.',
         messages: [{ role: 'user', content: [block, { type: 'text', text: prompt }] }],
-        max_tokens: 3000,
+        max_tokens: 4096,
       });
       let parsed;
       try { parsed = JSON.parse(raw.trim()); } catch (_) {
         const m = raw.match(/\[[\s\S]*\]/);
-        parsed = m ? JSON.parse(m[0]) : [];
+        try { parsed = m ? JSON.parse(m[0]) : []; } catch (_2) { parsed = []; }
       }
       setExtractedActs((parsed ?? []).map((a, i) => ({ ...a, _id: i, _selected: true })));
       setImportStep('preview');
