@@ -14970,25 +14970,11 @@ Keep each section concise.`,
       await addDocument(file, 'Design & Development Plan — auto-generated from approved spec');
       if (refetchDocuments) await refetchDocuments();
 
-      setDevPlanPreview({ activities: parsedActivities, markdown });
-    } catch (e) {
-      alert(t("alert.devplan_failed") + e.message);
-    } finally {
-      setGeneratingDevPlan(false);
-    }
-  }
-
-  async function confirmDevPlanActivities() {
-    if (!devPlanPreview) return;
-    setConfirmingDevPlan(true);
-    try {
-      const selected = devPlanPreview.activities.filter(a => a._selected);
-      if (!selected.length) { setDevPlanPreview(null); return; }
-
+      // Insert activities directly into the Activities tab
       const maxNo = activities.reduce((m, a) => Math.max(m, a.task_no ?? 0), 0);
       const insertedIds = [];
-      for (let i = 0; i < selected.length; i++) {
-        const a = selected[i];
+      for (let i = 0; i < parsedActivities.length; i++) {
+        const a = parsedActivities[i];
         const row = {
           case_id: caseData.id,
           task_no: maxNo + i + 1,
@@ -15010,17 +14996,16 @@ Keep each section concise.`,
 
       setActRefreshKey(k => k + 1);
       setDevPlanGenerated(true);
-      setDevPlanPreview(null);
-      const designCount = selected.filter(a => a.phase === 'design').length;
-      const devCount = selected.filter(a => a.phase === 'development').length;
+      const designCount = parsedActivities.filter(a => a.phase === 'design').length;
+      const devCount = parsedActivities.filter(a => a.phase === 'development').length;
       await addComment({
         body: `Design & Development Plan generated from approved spec: ${designCount} Design + ${devCount} Development activities added with sequential dependencies.`,
         isInternal: true,
       });
     } catch (e) {
-      alert(t("alert.create_acts_failed") + e.message);
+      alert(t("alert.devplan_failed") + e.message);
     } finally {
-      setConfirmingDevPlan(false);
+      setGeneratingDevPlan(false);
     }
   }
 
@@ -19016,127 +19001,6 @@ function ConsultantDetailModal({ consultantId, auth }) {
     )}
 
     {/* ── Dev Plan Preview Modal (Phase Bands) ── */}
-    {devPlanPreview && (() => {
-      const selectedCount = devPlanPreview.activities.filter(a => a._selected).length;
-      const toggle = i => setDevPlanPreview(prev => ({
-        ...prev,
-        activities: prev.activities.map((a, j) => j === i ? { ...a, _selected: !a._selected } : a),
-      }));
-      const setHours = (i, v) => setDevPlanPreview(prev => ({
-        ...prev,
-        activities: prev.activities.map((a, j) => j === i ? { ...a, est_hours: Number(v) || 1 } : a),
-      }));
-      const designActs = devPlanPreview.activities.map((a, i) => ({ ...a, _i: i })).filter(a => a.phase === 'design');
-      const devActs    = devPlanPreview.activities.map((a, i) => ({ ...a, _i: i })).filter(a => a.phase === 'development');
-      const designHrs  = designActs.reduce((s, a) => s + (a._selected ? a.est_hours : 0), 0);
-      const devHrs     = devActs.reduce((s, a) => s + (a._selected ? a.est_hours : 0), 0);
-
-      const Row = ({ act, phaseIdx, isFirst }) => (
-        <div
-          onClick={() => toggle(act._i)}
-          className={`flex items-stretch border-b border-slate-100 bg-white cursor-pointer transition-colors hover:bg-slate-50 select-none ${!act._selected ? 'opacity-35' : ''}`}>
-          {/* accent bar */}
-          <div className={`w-[3px] flex-shrink-0 ${act.phase === 'design' ? 'bg-indigo-400' : 'bg-sky-400'}`} />
-          {/* checkbox */}
-          <div className="px-3 pt-[13px] flex-shrink-0">
-            <input type="checkbox" checked={act._selected} readOnly
-              onClick={e => { e.stopPropagation(); toggle(act._i); }}
-              className={`w-[13px] h-[13px] cursor-pointer ${act.phase === 'design' ? 'accent-indigo-500' : 'accent-sky-500'}`} />
-          </div>
-          {/* content */}
-          <div className="flex-1 py-[11px] pr-3 min-w-0">
-            <div className="text-[13px] font-medium text-slate-800 leading-snug">{act.title}</div>
-            {act.description && <div className="text-[11px] text-slate-500 mt-[3px] leading-relaxed">{act.description}</div>}
-            {act.acceptance_criteria && (
-              <div className="flex items-start gap-1 mt-[4px]">
-                <Check size={10} className="text-emerald-500 mt-[1px] flex-shrink-0" />
-                <span className="text-[11px] text-emerald-700 font-medium leading-snug">{act.acceptance_criteria}</span>
-              </div>
-            )}
-          </div>
-          {/* right: hours + dep */}
-          <div className="flex flex-col items-end justify-center gap-1 px-4 flex-shrink-0">
-            <input type="number" min="0.5" max="40" step="0.5"
-              value={act.est_hours}
-              onClick={e => e.stopPropagation()}
-              onChange={e => setHours(act._i, e.target.value)}
-              className="w-14 text-[12px] font-medium text-center font-mono bg-slate-100 text-slate-700 border-0 rounded px-1 py-0.5 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
-            {!isFirst && (
-              <span className="text-[10px] font-mono text-slate-400">→ #{phaseIdx}</span>
-            )}
-          </div>
-        </div>
-      );
-
-      return (
-        <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4"
-          onClick={e => e.target === e.currentTarget && !confirmingDevPlan && setDevPlanPreview(null)}>
-          <div className="w-full max-w-2xl flex flex-col max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl"
-            style={{ background: '#F8FAFC', border: '1px solid rgba(0,0,0,0.07)' }}>
-
-            {/* Header */}
-            <div className="flex items-start gap-3 px-5 py-4 border-b border-slate-200 bg-white flex-shrink-0">
-              <div className="w-[34px] h-[34px] rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#EDE9FE' }}>
-                <Sparkles size={15} className="text-violet-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-slate-900 text-[14px]">{t("cd.dev_plan_title")}</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
-                  {t("cd.dev_plan_desc")}
-                </p>
-              </div>
-              {!confirmingDevPlan && (
-                <button onClick={() => setDevPlanPreview(null)} className="text-slate-400 hover:text-slate-600 flex-shrink-0 transition-colors">
-                  <X size={17} />
-                </button>
-              )}
-            </div>
-
-            {/* Scrollable body */}
-            <div className="flex-1 overflow-y-auto">
-              {/* Design band */}
-              {designActs.length > 0 && (<>
-                <div className="flex items-center justify-between px-5 py-[7px]" style={{ background: '#1E1B4B' }}>
-                  <span className="text-[11px] font-mono font-medium tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.85)', letterSpacing: '0.1em' }}>{t("cd.phase_label").replace("{n}", t("cd.phase_design"))}</span>
-                  <span className="text-[11px] font-mono" style={{ color: 'rgba(255,255,255,0.38)' }}>{t("cd.hrs_selected").replace("{n}", designHrs)}</span>
-                </div>
-                {designActs.map((act, pi) => <Row key={act._i} act={act} phaseIdx={pi} isFirst={pi === 0} />)}
-              </>)}
-
-              {/* Development band */}
-              {devActs.length > 0 && (<>
-                <div className="flex items-center justify-between px-5 py-[7px]" style={{ background: '#0C2747' }}>
-                  <span className="text-[11px] font-mono font-medium tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.85)', letterSpacing: '0.1em' }}>{t("cd.phase_label").replace("{n}", t("cd.phase_development"))}</span>
-                  <span className="text-[11px] font-mono" style={{ color: 'rgba(255,255,255,0.38)' }}>{t("cd.hrs_selected").replace("{n}", devHrs)}</span>
-                </div>
-                {devActs.map((act, pi) => <Row key={act._i} act={act} phaseIdx={pi} isFirst={pi === 0} />)}
-              </>)}
-            </div>
-
-            {/* Footer */}
-            <div className="flex items-center justify-between gap-3 border-t border-slate-200 px-5 py-3 bg-white flex-shrink-0">
-              <span className="text-[11px] text-slate-500">
-                {t("cd.acts_n_of_m").replace("{n}", selectedCount).replace("{total}", devPlanPreview.activities.length)}
-              </span>
-              <div className="flex gap-2">
-                <button onClick={() => setDevPlanPreview(null)} disabled={confirmingDevPlan}
-                  className="px-3 py-[6px] text-[12px] font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 transition-colors">
-                  {t("cd.discard")}
-                </button>
-                <button onClick={confirmDevPlanActivities}
-                  disabled={confirmingDevPlan || selectedCount === 0}
-                  className="flex items-center gap-1.5 px-4 py-[6px] text-[12px] font-semibold text-white rounded-lg disabled:opacity-40 transition-opacity"
-                  style={{ background: 'linear-gradient(135deg,#4F46E5,#7C3AED)' }}>
-                  {confirmingDevPlan
-                    ? <><Spinner size={12} /> {t("cd.adding_acts_short")}</>
-                    : <>{t(selectedCount === 1 ? "cd.add_act_to_case" : "cd.add_acts_to_case").replace("{n}", selectedCount)}</>}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    })()}
 
     {testPlanPreview && (
       <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4"
