@@ -14805,6 +14805,285 @@ Approver signature, Date.`;
     }
   }
 
+  function buildDevPlanHtml(cd, acts, mdNarrative) {
+    const date = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+    const designActs = acts.filter(a => a.phase === 'design');
+    const devActs    = acts.filter(a => a.phase === 'development');
+    const totalHrs   = acts.reduce((s, a) => s + (a.est_hours || 0), 0);
+    const designHrs  = designActs.reduce((s, a) => s + (a.est_hours || 0), 0);
+    const devHrs     = devActs.reduce((s, a) => s + (a.est_hours || 0), 0);
+
+    const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+    const actCard = (a, phase) => `
+      <div class="activity ${phase}">
+        <div class="rail"></div>
+        <div class="activity-inner">
+          <div class="act-head">
+            <h3>${esc(a.title)}</h3>
+            <span class="act-hours">${a.est_hours}h</span>
+          </div>
+          ${a.description ? `<p class="act-desc">${esc(a.description)}</p>` : ''}
+          ${a.acceptance_criteria ? `<div class="act-crit"><span class="crit-icon">✓</span>${esc(a.acceptance_criteria)}</div>` : ''}
+        </div>
+      </div>`;
+
+    const mdToHtml = md => {
+      if (!md) return '';
+      return md.split('\n').map(line => {
+        if (line.startsWith('## '))  return `<h2 class="md-h2">${esc(line.slice(3))}</h2>`;
+        if (line.startsWith('### ')) return `<h3 class="md-h3">${esc(line.slice(4))}</h3>`;
+        if (line.startsWith('- ') || line.startsWith('* ')) return `<li>${esc(line.slice(2))}</li>`;
+        if (/^\d+\.\s/.test(line)) return `<li class="ol">${esc(line.replace(/^\d+\.\s/,''))}</li>`;
+        const t = line.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        return line.trim() ? `<p>${t}</p>` : '<br>';
+      }).join('\n');
+    };
+
+    // Gantt data: spread activities across weeks proportionally
+    const TOTAL_WEEKS = 8;
+    const ganttItems = [
+      ...designActs.map((a, i) => ({
+        label: a.title.length > 32 ? a.title.slice(0, 30) + '…' : a.title,
+        phase: 'design',
+        ws: 1 + (i / Math.max(designActs.length, 1)) * 2,
+        we: 1 + ((i + 1) / Math.max(designActs.length, 1)) * 2.8,
+      })),
+      ...devActs.map((a, i) => ({
+        label: a.title.length > 32 ? a.title.slice(0, 30) + '…' : a.title,
+        phase: 'dev',
+        ws: 4 + (i / Math.max(devActs.length, 1)) * 3,
+        we: 4 + ((i + 1) / Math.max(devActs.length, 1)) * 3.8,
+      })),
+    ];
+
+    return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Plan D&D — ${esc(cd.title)}</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'IBM Plex Sans',system-ui,sans-serif;background:#F6F7FB;color:#1A2A4A;font-size:0.9rem;line-height:1.65}
+.doc-header{background:#1A2A4A;color:#fff;padding:2.5rem 3rem 2rem}
+.doc-header .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:0.5rem}
+.doc-header h1{font-family:'DM Serif Display',Georgia,serif;font-size:clamp(1.5rem,3vw,2.3rem);font-weight:400;line-height:1.15;color:#fff;margin-bottom:0.3rem}
+.doc-header h1 em{font-style:italic;color:rgba(255,255,255,0.65)}
+.meta-row{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1.2rem;padding-top:1.1rem;border-top:1px solid rgba(255,255,255,0.1)}
+.meta-item{display:flex;flex-direction:column;gap:0.15rem}
+.meta-item .lbl{font-family:'IBM Plex Mono',monospace;font-size:0.6rem;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.35)}
+.meta-item .val{font-size:0.8rem;color:rgba(255,255,255,0.8);font-weight:500}
+.doc-body{max-width:860px;margin:0 auto;padding:0 1.5rem 4rem}
+.kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#DDE1EE;border:1px solid #DDE1EE;border-radius:10px;overflow:hidden;margin:2rem 0}
+.kpi{background:#fff;padding:0.9rem 1.1rem}
+.kpi .num{font-family:'DM Serif Display',serif;font-size:1.8rem;line-height:1;color:#0056A0;font-variant-numeric:tabular-nums}
+.kpi .desc{font-size:0.72rem;color:#4A5878;line-height:1.3}
+.section-band{display:flex;align-items:center;gap:0.7rem;padding:0.6rem 1rem;border-radius:6px;margin:2rem 0 1rem}
+.section-band.design{background:#E6EFF8}.section-band.dev{background:#e8f5ee}.section-band.charts{background:#1A2A4A}
+.section-band h2{font-family:'IBM Plex Sans',sans-serif;font-size:0.74rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#1A2A4A}
+.section-band.charts h2{color:#fff}
+.num-badge{font-family:'IBM Plex Mono',monospace;font-size:0.62rem;font-weight:500;padding:0.18rem 0.45rem;border-radius:4px;flex-shrink:0;color:#fff}
+.section-band.design .num-badge{background:#1254A0}.section-band.dev .num-badge{background:#1C6B3A}.section-band.charts .num-badge{background:rgba(255,255,255,0.2);color:#fff}
+.activity{display:grid;grid-template-columns:3px 1fr;background:#fff;border:1px solid #DDE1EE;border-radius:8px;overflow:hidden;margin-bottom:0.9rem}
+.activity .rail{background:#1254A0}.activity.dev .rail{background:#1C6B3A}
+.activity-inner{padding:0.9rem 1rem}
+.act-head{display:flex;align-items:flex-start;justify-content:space-between;gap:0.7rem;margin-bottom:0.5rem}
+.act-head h3{font-size:0.85rem;font-weight:600;color:#1A2A4A;line-height:1.35}
+.act-hours{font-family:'IBM Plex Mono',monospace;font-size:0.72rem;font-weight:500;background:#F6F7FB;color:#4A5878;padding:0.18rem 0.5rem;border-radius:20px;white-space:nowrap;flex-shrink:0}
+.act-desc{font-size:0.78rem;color:#4A5878;margin-bottom:0.4rem}
+.act-crit{display:flex;gap:0.4rem;font-size:0.75rem;color:#1C6B3A;font-weight:500;margin-top:0.35rem}
+.crit-icon{flex-shrink:0;font-size:0.7rem}
+.narrative{background:#fff;border:1px solid #DDE1EE;border-radius:8px;padding:1.2rem 1.4rem;margin-bottom:1rem}
+.narrative p{font-size:0.82rem;color:#4A5878;margin-bottom:0.6rem}
+.narrative li{font-size:0.82rem;color:#4A5878;margin-left:1.2rem;margin-bottom:0.3rem}
+.md-h2{font-family:'IBM Plex Sans',sans-serif;font-size:0.76rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#1254A0;margin:1.1rem 0 0.5rem;padding-bottom:0.3rem;border-bottom:1px solid #DDE1EE}
+.md-h3{font-size:0.82rem;font-weight:600;color:#1A2A4A;margin:0.8rem 0 0.3rem}
+.chart-section{background:#1A2A4A;margin:2.5rem -1.5rem 0;padding:2rem 1.5rem 2.5rem}
+.chart-section .inner{max-width:860px;margin:0 auto}
+.chart-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:0.6rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:0.3rem}
+.chart-title{font-family:'DM Serif Display',serif;font-size:1.4rem;font-weight:400;color:#fff;margin-bottom:1.5rem}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem}
+.chart-card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:1.1rem}
+.chart-card.full{grid-column:1/-1}
+.chart-lbl{font-family:'IBM Plex Mono',monospace;font-size:0.6rem;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.38);margin-bottom:0.7rem}
+canvas{display:block;width:100%}
+.print-btn{position:fixed;bottom:1.5rem;right:1.5rem;background:#0056A0;color:#fff;border:none;border-radius:8px;padding:0.7rem 1.3rem;font-family:'IBM Plex Sans',sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;box-shadow:0 4px 16px rgba(0,86,160,0.4)}
+.print-btn:hover{background:#004080}
+@media print{.print-btn{display:none}body{background:#fff}.chart-section{margin:2rem 0;border-radius:8px}}
+</style>
+</head>
+<body>
+<button class="print-btn" onclick="window.print()">⬇ Guardar como PDF</button>
+
+<header class="doc-header">
+  <div class="eyebrow">SAP Consulting · Plan de Proyecto</div>
+  <h1>Plan de Diseño &amp; Desarrollo<br><em>${esc(cd.title)}</em></h1>
+  <div class="meta-row">
+    <div class="meta-item"><span class="lbl">Módulo SAP</span><span class="val">${esc(cd.area_sap || 'N/A')}</span></div>
+    <div class="meta-item"><span class="lbl">Industria</span><span class="val">${esc(cd.area_industry || 'N/A')}</span></div>
+    <div class="meta-item"><span class="lbl">Tipo de Plan</span><span class="val">Diseño &amp; Desarrollo</span></div>
+    <div class="meta-item"><span class="lbl">Fecha</span><span class="val">${date}</span></div>
+  </div>
+</header>
+
+<div class="doc-body">
+  <div class="kpi-strip">
+    <div class="kpi"><div class="num">${totalHrs}</div><div class="desc">Horas totales estimadas</div></div>
+    <div class="kpi"><div class="num">${acts.length}</div><div class="desc">Actividades planificadas</div></div>
+    <div class="kpi"><div class="num">${designActs.length}</div><div class="desc">Actividades de diseño</div></div>
+    <div class="kpi"><div class="num">${devActs.length}</div><div class="desc">Actividades de desarrollo</div></div>
+  </div>
+
+  ${designActs.length > 0 ? `
+  <div class="section-band design">
+    <span class="num-badge">D</span>
+    <h2>Fase de Diseño — ${designHrs}h</h2>
+  </div>
+  ${designActs.map(a => actCard(a, 'design')).join('')}` : ''}
+
+  ${devActs.length > 0 ? `
+  <div class="section-band dev">
+    <span class="num-badge">V</span>
+    <h2>Fase de Desarrollo — ${devHrs}h</h2>
+  </div>
+  ${devActs.map(a => actCard(a, 'dev')).join('')}` : ''}
+
+  ${mdNarrative ? `
+  <div class="section-band design" style="margin-top:2rem">
+    <span class="num-badge">≡</span>
+    <h2>Narrativa del Plan</h2>
+  </div>
+  <div class="narrative">${mdToHtml(mdNarrative)}</div>` : ''}
+</div>
+
+<div class="chart-section">
+  <div class="inner">
+    <div class="chart-eyebrow">Visualización</div>
+    <div class="chart-title">Distribución de Tareas y Tiempos</div>
+    <div class="charts-grid">
+      <div class="chart-card full"><div class="chart-lbl">Cronograma — Gantt</div><canvas id="ganttC" height="220"></canvas></div>
+      <div class="chart-card full"><div class="chart-lbl">Horas por Actividad</div><canvas id="hoursC" height="${Math.max(160, acts.length * 24)}"></canvas></div>
+      <div class="chart-card"><div class="chart-lbl">Distribución por Fase</div><canvas id="donutC" height="200"></canvas></div>
+      <div class="chart-card"><div class="chart-lbl">Diseño vs Desarrollo</div><canvas id="barC" height="200"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const DC='#4A9FE8', VC='#4CB87A';
+  const ganttItems=${JSON.stringify(ganttItems)};
+  const hoursData=${JSON.stringify(acts.map(a => ({ label: a.title.length > 30 ? a.title.slice(0,28)+'…' : a.title, h: a.est_hours, phase: a.phase })))};
+  const totalHrs=${totalHrs}, designHrs=${designHrs}, devHrs=${devHrs};
+
+  function drawGantt(){
+    const cv=document.getElementById('ganttC');
+    const gc=cv.getContext('2d');
+    const W=cv.offsetWidth, H=220;
+    cv.width=W*devicePixelRatio; cv.height=H*devicePixelRatio;
+    gc.scale(devicePixelRatio,devicePixelRatio);
+    const labelW=180, pad=10, chartW=W-labelW-pad*2, rowH=18, weeks=8;
+    gc.clearRect(0,0,W,H);
+    for(let w=1;w<=weeks;w++){
+      const x=labelW+(w-1)/weeks*chartW;
+      gc.fillStyle='rgba(255,255,255,0.12)'; gc.fillRect(x,18,1,H-18);
+      gc.font='500 9px IBM Plex Mono,monospace'; gc.fillStyle='rgba(255,255,255,0.3)';
+      gc.fillText('S'+w,x+2,13);
+    }
+    ganttItems.forEach((a,i)=>{
+      const y=22+i*(rowH+3), color=a.phase==='design'?DC:VC;
+      gc.font='400 9.5px IBM Plex Sans,sans-serif'; gc.fillStyle='rgba(255,255,255,0.6)';
+      gc.fillText(a.label,pad,y+rowH/2+3);
+      gc.fillStyle='rgba(255,255,255,0.05)'; gc.beginPath(); gc.roundRect(labelW,y,chartW,rowH,3); gc.fill();
+      const bx=labelW+(a.ws-1)/weeks*chartW, bw=(a.we-a.ws)/weeks*chartW;
+      gc.fillStyle=color; gc.globalAlpha=0.85; gc.beginPath(); gc.roundRect(bx,y,bw,rowH,3); gc.fill(); gc.globalAlpha=1;
+    });
+  }
+
+  function drawHours(){
+    const cv=document.getElementById('hoursC');
+    const hc=cv.getContext('2d');
+    const W=cv.offsetWidth, H=Math.max(160,hoursData.length*26);
+    cv.width=W*devicePixelRatio; cv.height=H*devicePixelRatio;
+    hc.scale(devicePixelRatio,devicePixelRatio);
+    const labelW=140, pad=10, chartW=W-labelW-pad*2-30;
+    const maxH=Math.max(...hoursData.map(d=>d.h));
+    const rowH=18, gap=4;
+    hc.clearRect(0,0,W,H);
+    hoursData.forEach((d,i)=>{
+      const y=pad+i*(rowH+gap), color=d.phase==='design'?DC:VC;
+      const bw=(d.h/maxH)*chartW;
+      hc.font='400 9px IBM Plex Sans,sans-serif'; hc.fillStyle='rgba(255,255,255,0.55)';
+      hc.fillText(d.label,pad,y+rowH-4);
+      hc.fillStyle='rgba(255,255,255,0.05)'; hc.beginPath(); hc.roundRect(labelW,y,chartW,rowH,3); hc.fill();
+      hc.fillStyle=color; hc.globalAlpha=0.85; hc.beginPath(); hc.roundRect(labelW,y,bw,rowH,3); hc.fill(); hc.globalAlpha=1;
+      hc.font='500 9px IBM Plex Mono,monospace'; hc.fillStyle='rgba(255,255,255,0.45)';
+      hc.fillText(d.h+'h',labelW+bw+5,y+rowH-4);
+    });
+  }
+
+  function drawDonut(){
+    const cv=document.getElementById('donutC');
+    const dc=cv.getContext('2d');
+    const W=cv.offsetWidth, H=200;
+    cv.width=W*devicePixelRatio; cv.height=H*devicePixelRatio;
+    dc.scale(devicePixelRatio,devicePixelRatio);
+    const cx=W*0.4, cy=H/2, r=Math.min(cx,cy)*0.72, ri=r*0.58;
+    const slices=[{v:designHrs,label:'Diseño',color:DC},{v:devHrs,label:'Desarrollo',color:VC}];
+    let angle=-Math.PI/2;
+    slices.forEach(s=>{
+      const sweep=(s.v/totalHrs)*Math.PI*2;
+      dc.beginPath(); dc.moveTo(cx,cy); dc.arc(cx,cy,r,angle,angle+sweep); dc.closePath();
+      dc.fillStyle=s.color; dc.globalAlpha=0.9; dc.fill(); dc.globalAlpha=1;
+      dc.beginPath(); dc.arc(cx,cy,ri,0,Math.PI*2); dc.fillStyle='#1A2A4A'; dc.fill();
+      angle+=sweep;
+    });
+    dc.font="bold 20px 'DM Serif Display',serif"; dc.fillStyle='rgba(255,255,255,0.9)';
+    dc.textAlign='center'; dc.fillText(totalHrs+'h',cx,cy+4);
+    dc.font="400 9px 'IBM Plex Mono',monospace"; dc.fillStyle='rgba(255,255,255,0.35)';
+    dc.fillText('total',cx,cy+17); dc.textAlign='left';
+    const lx=W*0.85;
+    slices.forEach((s,i)=>{
+      const ly=cy-14+i*26;
+      dc.fillStyle=s.color; dc.globalAlpha=0.9; dc.beginPath(); dc.roundRect(lx-46,ly,9,9,2); dc.fill(); dc.globalAlpha=1;
+      dc.font="400 9px 'IBM Plex Sans',sans-serif"; dc.fillStyle='rgba(255,255,255,0.6)'; dc.fillText(s.label,lx-33,ly+8);
+      dc.font="500 9px 'IBM Plex Mono',monospace"; dc.fillStyle='rgba(255,255,255,0.4)'; dc.fillText(s.v+'h',lx-33,ly+19);
+    });
+  }
+
+  function drawBar(){
+    const cv=document.getElementById('barC');
+    const bc=cv.getContext('2d');
+    const W=cv.offsetWidth, H=200;
+    cv.width=W*devicePixelRatio; cv.height=H*devicePixelRatio;
+    bc.scale(devicePixelRatio,devicePixelRatio);
+    const data=[{label:'Diseño',h:designHrs,color:DC},{label:'Desarrollo',h:devHrs,color:VC}];
+    const pad=24, bw=(W-pad*2)/data.length*0.5, maxH=Math.max(designHrs,devHrs);
+    const chartH=H-50;
+    data.forEach((d,i)=>{
+      const x=pad+i*(W-pad*2)/data.length+(W-pad*2)/data.length*0.25;
+      const barH=(d.h/maxH)*chartH;
+      const y=H-30-barH;
+      bc.fillStyle=d.color; bc.globalAlpha=0.85;
+      bc.beginPath(); bc.roundRect(x,y,bw,barH,4); bc.fill(); bc.globalAlpha=1;
+      bc.font="500 11px 'DM Serif Display',serif"; bc.fillStyle='rgba(255,255,255,0.85)';
+      bc.textAlign='center'; bc.fillText(d.h+'h',x+bw/2,y-6);
+      bc.font="400 9px 'IBM Plex Sans',sans-serif"; bc.fillStyle='rgba(255,255,255,0.45)';
+      bc.fillText(d.label,x+bw/2,H-14); bc.textAlign='left';
+    });
+  }
+
+  function drawAll(){drawGantt();drawHours();drawDonut();drawBar();}
+  if(document.fonts&&document.fonts.ready){document.fonts.ready.then(drawAll);}else{setTimeout(drawAll,300);}
+  let raf; window.addEventListener('resize',()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(drawAll);});
+})();
+</script>
+</body>
+</html>`;
+  }
+
   async function generateDevelopmentPlan() {
     setGeneratingDevPlan(true);
     try {
@@ -14895,80 +15174,19 @@ Keep each section concise.`,
         max_tokens: 3000,
       });
 
-      // Save PDF
-      const { jsPDF } = await import('jspdf');
-      const { default: autoTable } = await import('jspdf-autotable');
-      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-      const W = 210, L = 12, R = 198;
-      const headerColor = [26, 75, 140];
-      const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-
-      doc.setFillColor(...headerColor);
-      doc.rect(0, 0, W, 38, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(7);
-      doc.text('SAP CONSULTING — PROJECT PLAN', L, 10);
-      doc.setFontSize(14);
-      doc.text('DESIGN & DEVELOPMENT PLAN', L, 20);
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.text(caseData.title ?? '', L, 29);
-      doc.text(date, R, 29, { align: 'right' });
-      doc.setTextColor(0, 0, 0);
-
-      let y = 45;
-      autoTable(doc, {
-        startY: y,
-        head: [['Case', 'SAP Module', 'Industry', 'Plan Type', 'Date']],
-        body: [[caseData.title ?? '', caseData.area_sap ?? '', caseData.area_industry ?? '', 'Design & Development', date]],
-        styles: { fontSize: 8, cellPadding: 3 },
-        headStyles: { fillColor: headerColor, textColor: 255, fontStyle: 'bold' },
-        margin: { left: L, right: W - R },
-      });
-      y = doc.lastAutoTable.finalY + 8;
-
-      const lines = markdown.split('\n');
-      doc.setFont('helvetica', 'normal');
-      for (const raw2 of lines) {
-        const line = raw2.trimEnd();
-        if (y > 275) { doc.addPage(); y = 15; }
-        if (line.startsWith('## ')) {
-          y += 3;
-          doc.setFillColor(...headerColor);
-          doc.rect(L, y - 4, R - L, 7, 'F');
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
-          doc.text(line.replace(/^## /, ''), L + 2, y);
-          doc.setTextColor(0, 0, 0); y += 6;
-        } else if (line.startsWith('### ')) {
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(26, 75, 140);
-          doc.text(line.replace(/^### /, ''), L, y); doc.setTextColor(0, 0, 0); y += 5;
-        } else if (line.startsWith('**') && line.endsWith('**')) {
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
-          doc.text(line.replace(/\*\*/g, ''), L + 2, y); y += 5;
-        } else if (line.startsWith('- ') || line.startsWith('* ')) {
-          doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-          const wrapped = doc.splitTextToSize('• ' + line.slice(2), R - L - 4);
-          wrapped.forEach(l => { if (y > 275) { doc.addPage(); y = 15; } doc.text(l, L + 4, y); y += 4.5; });
-        } else if (/^\d+\. /.test(line)) {
-          doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-          const wrapped = doc.splitTextToSize(line, R - L - 4);
-          wrapped.forEach(l => { if (y > 275) { doc.addPage(); y = 15; } doc.text(l, L + 4, y); y += 4.5; });
-        } else if (line.trim()) {
-          doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-          const wrapped = doc.splitTextToSize(line, R - L);
-          wrapped.forEach(l => { if (y > 275) { doc.addPage(); y = 15; } doc.text(l, L, y); y += 4.5; });
-        } else {
-          y += 2;
-        }
-      }
-
-      const pdfBlob = doc.output('blob');
+      // Build styled HTML plan and upload as document
+      const planHtml = buildDevPlanHtml(caseData, parsedActivities, markdown);
       const safeName = (caseData.title ?? 'Case').replace(/[^a-z0-9]/gi, '_');
-      const fileName = `DevPlan_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`;
-      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
-      await addDocument(file, 'Design & Development Plan — auto-generated from approved spec');
+      const fileName = `DevPlan_${safeName}_${new Date().toISOString().slice(0, 10)}.html`;
+      const htmlFile = new File([planHtml], fileName, { type: 'text/html' });
+      await addDocument(htmlFile, 'Design & Development Plan — auto-generated from approved spec');
       if (refetchDocuments) await refetchDocuments();
+
+      // Open in new window so user can print/save as PDF
+      const blob = new Blob([planHtml], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const win = window.open(url, '_blank');
+      if (win) setTimeout(() => URL.revokeObjectURL(url), 60000);
 
       // Insert activities directly into the Activities tab
       const maxNo = activities.reduce((m, a) => Math.max(m, a.task_no ?? 0), 0);
