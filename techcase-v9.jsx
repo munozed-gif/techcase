@@ -11770,11 +11770,18 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
         .replace(/`([^`\n]+)`/g, '<code>$1</code>');
       const lines = md.split('\n');
       const out = [];
-      let inUl = false, inOl = false, inTable = false, inThead = false;
+      let inUl = false, inOl = false, inTable = false, inThead = false, inCode = false, codeLines = [];
       const closeList  = () => { if (inUl) { out.push('</ul>'); inUl = false; } if (inOl) { out.push('</ol>'); inOl = false; } };
       const closeTable = () => { if (inTable) { out.push('</tbody></table></div>'); inTable = false; inThead = false; } };
+      const closeCode  = () => { if (inCode) { out.push('<pre><code>' + codeLines.map(l => esc(l)).join('\n') + '</code></pre>'); inCode = false; codeLines = []; } };
       for (const raw of lines) {
         const line = raw.trimEnd();
+        if (line.startsWith('```')) {
+          if (inCode) { closeCode(); }
+          else { closeList(); closeTable(); inCode = true; codeLines = []; }
+          continue;
+        }
+        if (inCode) { codeLines.push(raw); continue; }
         const isBullet   = /^[\-\*] /.test(line);
         const isNumbered = /^\d+\. /.test(line);
         const isTableRow = line.startsWith('|');
@@ -11813,6 +11820,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
       if (inUl) out.push('</ul>');
       if (inOl) out.push('</ol>');
       closeTable();
+      closeCode();
       return out.join('\n');
     };
     const metaHtml = (metaItems ?? []).map(m => `<div class="meta-item"><span class="lbl">${esc(m.label)}</span><span class="val">${esc(m.value)}</span></div>`).join('');
@@ -11845,6 +11853,8 @@ li{font-size:0.83rem;color:#2E3D5A;margin-bottom:0.25rem;line-height:1.55}
 strong{color:#1A2A4A;font-weight:600}
 code{font-family:'IBM Plex Mono',monospace;font-size:0.75em;background:#ECEEF5;color:#D4600A;padding:0.1em 0.35em;border-radius:3px}
 hr{border:none;border-top:1px solid #DDE1EE;margin:1.5rem 0}
+pre{background:#ECEEF5;border:1px solid #DDE1EE;border-radius:6px;padding:1rem 1.2rem;margin:1rem 0;overflow-x:auto}
+pre code{background:none;padding:0;color:#1A2A4A;font-size:0.78rem;line-height:1.6}
 .tbl-wrap{overflow-x:auto;margin:1rem 0}
 table{width:100%;border-collapse:collapse;font-size:0.78rem;border:1px solid #DDE1EE;border-radius:6px;overflow:hidden}
 th{background:#ECEEF5;color:#4A5878;font-weight:600;font-size:0.7rem;letter-spacing:0.05em;text-transform:uppercase;text-align:left;padding:0.55rem 0.8rem;border-bottom:1px solid #DDE1EE}
