@@ -12402,22 +12402,22 @@ ${mdToHtml(markdownContent)}
     parsed.querySelectorAll('style').forEach(s => el.appendChild(s.cloneNode(true)));
     const body = document.createElement('div');
     body.innerHTML = parsed.body.innerHTML;
-    // hide the print button inside the PDF render
     body.querySelectorAll('.print-btn').forEach(b => { b.style.display = 'none'; });
     el.appendChild(body);
-    el.style.cssText = 'position:fixed;left:-9999px;top:0;width:860px;background:#fff;';
+    // position:absolute (not fixed) so html2canvas can capture the element
+    el.style.cssText = 'position:absolute;left:-9999px;top:0;width:860px;background:#fff;';
     document.body.appendChild(el);
-    // wait for Google Fonts to load
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise(r => setTimeout(r, 1000));
     try {
       return await window.html2pdf()
         .set({
           margin: 0,
-          html2canvas: { scale: 2, useCORS: true, allowTaint: true, logging: false },
+          html2canvas: { scale: 1.5, useCORS: true, allowTaint: true, logging: false, scrollX: 0, scrollY: 0 },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         })
         .from(el)
-        .outputPdf('blob');
+        .toPdf()
+        .output('blob');
     } finally {
       document.body.removeChild(el);
     }
