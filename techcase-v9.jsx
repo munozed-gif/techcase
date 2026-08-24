@@ -849,6 +849,9 @@ const TRANSLATIONS = {
     "sys.scoring_hint":         "Must sum to 100. Current total:",
     "sys.settings_saved":       "Settings saved!",
     "sys.save":                 "Save Settings",
+    "sys.spec_regen_title":     "Specification Controls",
+    "sys.spec_regen_label":     "Restrict re-generate to managers only",
+    "sys.spec_regen_hint":      "When enabled, only managers and admins can re-generate specifications.",
     // Kanban
     "kanban.title":     "Kanban Board",
     "kanban.subtitle":  "Visual case pipeline",
@@ -3577,6 +3580,9 @@ const TRANSLATIONS = {
     "sys.scoring_hint":         "Debe sumar 100. Total actual:",
     "sys.settings_saved":       "¡Configuración guardada!",
     "sys.save":                 "Guardar Configuración",
+    "sys.spec_regen_title":     "Controles de Especificación",
+    "sys.spec_regen_label":     "Restringir regeneración solo a managers",
+    "sys.spec_regen_hint":      "Cuando está activo, solo managers y administradores pueden regenerar especificaciones.",
     // Kanban
     "kanban.title":     "Tablero Kanban",
     "kanban.subtitle":  "Pipeline visual de casos",
@@ -11667,6 +11673,7 @@ function renderMarkdown(md) {
 
 function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocuments, onUpdate }) {
   const { t } = useT();
+  const ssCtx = useSystemSettings();
   const { spec, loading: specLoading, saveSpec, refetch } = useCaseSpecification(caseData.id, auth.user?.id);
 
   // Mode selection
@@ -13124,7 +13131,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {spec.mode === 'ai' && spec.status === 'approved' && (auth.isAdmin || auth.isManager) && (
+            {spec.mode === 'ai' && spec.status === 'approved' &&
+              (auth.isAdmin || auth.isManager || ssCtx.settings["spec_regen_manager_only"] === false) && (
               <button onClick={() => { setMode('ai'); setAiContent(spec.content ?? ''); setAiGenerating(false); }}
                 className="px-3 py-1.5 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
                 {t("spec.regen_btn")}
@@ -13901,10 +13909,12 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         className="px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-white">
                         {aiEditing ? t("spec.preview_lbl") : t("spec.edit_lbl")}
                       </button>
-                      <button onClick={handleGenerateSpecs}
-                        className="px-2.5 py-1 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
-                        {t("spec.regen_all")}
-                      </button>
+                      {(auth.isAdmin || auth.isManager || ssCtx.settings["spec_regen_manager_only"] === false) && (
+                        <button onClick={handleGenerateSpecs}
+                          className="px-2.5 py-1 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
+                          {t("spec.regen_all")}
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -24338,6 +24348,7 @@ function SettingsPlatformTab({ ssCtx }) {
     overdue_grace_days:         1,
     invoice_due_days:           30,
     max_applications_per_case:  10,
+    spec_regen_manager_only:    true,
   };
 
   const AI_MODELS = [
@@ -24360,6 +24371,7 @@ function SettingsPlatformTab({ ssCtx }) {
         overdue_grace_days:         ssCtx.settings["overdue_grace_days"]         ?? DEFAULTS.overdue_grace_days,
         invoice_due_days:           ssCtx.settings["invoice_due_days"]           ?? DEFAULTS.invoice_due_days,
         max_applications_per_case:  ssCtx.settings["max_applications_per_case"]  ?? DEFAULTS.max_applications_per_case,
+        spec_regen_manager_only:    ssCtx.settings["spec_regen_manager_only"]    ?? DEFAULTS.spec_regen_manager_only,
       });
     }
   }, [ssCtx.loading, ssCtx.settings]);
@@ -24374,6 +24386,7 @@ function SettingsPlatformTab({ ssCtx }) {
         ssCtx.setSetting("overdue_grace_days",        form.overdue_grace_days),
         ssCtx.setSetting("invoice_due_days",          form.invoice_due_days),
         ssCtx.setSetting("max_applications_per_case", form.max_applications_per_case),
+        ssCtx.setSetting("spec_regen_manager_only",   form.spec_regen_manager_only),
       ]);
       setToast(t("sys.settings_saved"));
       setTimeout(() => setToast(null), 3000);
@@ -24456,6 +24469,24 @@ function SettingsPlatformTab({ ssCtx }) {
         </div>
       </div>
 
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <FileText size={16} className="text-blue-600" /> {t("sys.spec_regen_title")}
+        </h3>
+        <label className="flex items-center justify-between gap-4 cursor-pointer select-none">
+          <div>
+            <p className="text-sm font-medium text-gray-700">{t("sys.spec_regen_label")}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{t("sys.spec_regen_hint")}</p>
+          </div>
+          <button type="button"
+            onClick={() => setForm(p => ({ ...p, spec_regen_manager_only: !p.spec_regen_manager_only }))}
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${form.spec_regen_manager_only ? 'bg-blue-600' : 'bg-gray-200'}`}
+            role="switch" aria-checked={form.spec_regen_manager_only}>
+            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${form.spec_regen_manager_only ? 'translate-x-5' : 'translate-x-0'}`} />
+          </button>
+        </label>
+      </div>
+
       {toast && (
         <div className={`px-4 py-3 rounded-xl text-sm flex items-center gap-2 ${toast.startsWith("Error") ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
           <CheckCircle2 size={14} /> {toast}
@@ -24470,6 +24501,7 @@ function SettingsPlatformTab({ ssCtx }) {
             overdue_grace_days:        DEFAULTS.overdue_grace_days,
             invoice_due_days:          DEFAULTS.invoice_due_days,
             max_applications_per_case: DEFAULTS.max_applications_per_case,
+            spec_regen_manager_only:   DEFAULTS.spec_regen_manager_only,
           })}
           className="px-4 py-2 border border-gray-200 text-gray-700 text-sm rounded-xl hover:bg-gray-50 flex items-center gap-1.5">
           <RotateCcw size={13} /> {t("sys.reset_defaults")}
