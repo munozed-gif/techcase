@@ -14291,6 +14291,20 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
 
   const totalTimeHours = timeEntries.reduce((s, e) => s + (e.hours ?? 0), 0);
 
+  async function openDocInNewTab(doc) {
+    if (doc.file_name?.endsWith('.html') || doc.file_type?.includes('html')) {
+      try {
+        const resp = await fetch(doc.file_url);
+        const html = await resp.text();
+        openHtmlInNewTab(html);
+      } catch (_) {
+        window.open(doc.file_url, '_blank');
+      }
+    } else {
+      window.open(doc.file_url, '_blank');
+    }
+  }
+
   async function handleDocUpload() {
     if (!pendingDocFile) return;
     setUploadingDoc(true);
@@ -16561,8 +16575,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                   {doc.file_type?.includes("pdf") ? <FileText className="w-4 h-4 text-red-400" /> : doc.file_type?.includes("image") ? <FileImage className="w-4 h-4 text-blue-400" /> : <Paperclip className="w-4 h-4 text-gray-400" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <a href={doc.file_url} target="_blank" rel="noreferrer"
-                    className="font-medium text-sm text-blue-600 hover:underline truncate block">{doc.file_name}</a>
+                  <button onClick={() => openDocInNewTab(doc)}
+                    className="font-medium text-sm text-blue-600 hover:underline truncate block text-left w-full">{doc.file_name}</button>
                   <div className="text-xs text-gray-400 mt-0.5">
                     {doc.file_size_kb ? `${doc.file_size_kb} KB · ` : ""}
                     {doc.uploader?.full_name ?? t("reports.unknown")} · {fmtDate(doc.created_at)}
