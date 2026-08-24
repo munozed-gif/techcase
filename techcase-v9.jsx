@@ -229,6 +229,7 @@ const TRANSLATIONS = {
     // States
     "state.empty":        "No results found",
     "state.loading":      "Loading…",
+    "state.generating":   "Generating…",
     "state.error":        "Something went wrong",
     "state.saved":        "Saved",
     "state.saving":       "Saving…",
@@ -2960,6 +2961,7 @@ const TRANSLATIONS = {
     // States
     "state.empty":        "Sin resultados",
     "state.loading":      "Cargando…",
+    "state.generating":   "Generando…",
     "state.error":        "Algo salió mal",
     "state.saved":        "Guardado",
     "state.saving":       "Guardando…",
@@ -12917,7 +12919,7 @@ TOTAL:||Total|[amount]|
 Use realistic Z object names matching the customer's described solution for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM/COL values.`;
   }
 
-  async function handleGenerateSpecs() {
+  async function handleGenerateSpecs({ autoSubmit = false } = {}) {
     setGeneratingSpecs(true);
     setAiError(null);
     setAiSpecA('');
@@ -12939,11 +12941,12 @@ Use realistic Z object names matching the customer's described solution for ${ca
       setSelectedSpec('a');
       setAiContent(specA);
       setSavedSpecUrls({ a: null, b: null, c: null });
+      const saveStatus = autoSubmit ? 'submitted' : 'draft';
       try {
-        await saveSpec({ mode: 'ai', status: 'draft', content: specA, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, selectedSpec: 'a', prevMode, analysisCustomerContent: customerContent }), title: caseData.title + t("spec.doc_title_suffix") });
+        await saveSpec({ mode: 'ai', status: saveStatus, content: specA, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, selectedSpec: 'a', prevMode, analysisCustomerContent: customerContent }), title: caseData.title + t("spec.doc_title_suffix") });
       } catch (_) {}
-      // Auto-save all 3 as PDF documents (includes validation results)
       await saveAllSpecsAsDocuments(specA, specB, specC, sapCheck, proposalCheck);
+      if (autoSubmit) await refetch();
     } catch (e) {
       setAiError(e.message);
     }
@@ -13133,9 +13136,9 @@ Respond with ONLY a valid JSON object, no markdown fences:
           <div className="flex items-center gap-2">
             {spec.mode === 'ai' && spec.status === 'approved' &&
               (auth.isAdmin || auth.isManager || ssCtx.settings["spec_regen_manager_only"] === false) && (
-              <button onClick={() => { setMode('ai'); setAiContent(spec.content ?? ''); setAiGenerating(false); }}
-                className="px-3 py-1.5 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
-                {t("spec.regen_btn")}
+              <button onClick={() => handleGenerateSpecs({ autoSubmit: true })} disabled={generatingSpecs}
+                className="px-3 py-1.5 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 disabled:opacity-50">
+                {generatingSpecs ? t("state.generating") : t("spec.regen_btn")}
               </button>
             )}
             {spec.status === 'submitted' && canApprove && (
