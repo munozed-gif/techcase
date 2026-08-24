@@ -11673,7 +11673,7 @@ function renderMarkdown(md) {
   return out.join('\n');
 }
 
-function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocuments, onUpdate }) {
+function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocument, refetchDocuments, onUpdate }) {
   const { t } = useT();
   const ssCtx = useSystemSettings();
   const { spec, loading: specLoading, saveSpec, refetch } = useCaseSpecification(caseData.id, auth.user?.id);
@@ -12401,6 +12401,14 @@ ${mdToHtml(markdownContent)}
   async function saveAllSpecsAsDocuments(specA, specB, specC, sap, proposal) {
     setSavingDoc(true);
     try {
+      const SPEC_PREFIXES = ['SpecA_CustomABAP', 'SpecB_StandardSAP', 'SpecC_PropuestaCliente'];
+      if (deleteDocument && documents?.length) {
+        const oldDocs = documents.filter(d =>
+          d.file_name && SPEC_PREFIXES.some(p => d.file_name.startsWith(p))
+        );
+        await Promise.all(oldDocs.map(d => deleteDocument(d.id, d.file_url)));
+      }
+
       const safeName = (caseData.title ?? 'Spec').replace(/[^a-z0-9]/gi, '_');
       const dateStr  = new Date().toISOString().slice(0, 10);
       const dateLong = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -18024,7 +18032,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
       {/* Lifecycle Tab */}
       {/* Spec Tab */}
       {activeTab === "spec" && (
-        <SpecificationTab caseData={caseData} auth={auth} documents={documents} addDocument={addDocument} refetchDocuments={refetchDocuments} onUpdate={onUpdate} />
+        <SpecificationTab caseData={caseData} auth={auth} documents={documents} addDocument={addDocument} deleteDocument={deleteDocument} refetchDocuments={refetchDocuments} onUpdate={onUpdate} />
       )}
 
       {activeTab === "lifecycle" && (auth.isAdmin || auth.isManager || auth.isClient) && (() => {
