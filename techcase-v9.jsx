@@ -12368,6 +12368,41 @@ ${mdToHtml(markdownContent)}
     else { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.click(); }
   }
 
+  async function htmlStringToPdfBlob(htmlString) {
+    if (!window.html2pdf) {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+        s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+    const parsed = new DOMParser().parseFromString(htmlString, 'text/html');
+    const el = document.createElement('div');
+    parsed.querySelectorAll('style').forEach(s => el.appendChild(s.cloneNode(true)));
+    const body = document.createElement('div');
+    body.innerHTML = parsed.body.innerHTML;
+    // hide the print button inside the PDF render
+    body.querySelectorAll('.print-btn').forEach(b => { b.style.display = 'none'; });
+    el.appendChild(body);
+    el.style.cssText = 'position:fixed;left:-9999px;top:0;width:860px;background:#fff;';
+    document.body.appendChild(el);
+    // wait for Google Fonts to load
+    await new Promise(r => setTimeout(r, 800));
+    try {
+      return await window.html2pdf()
+        .set({
+          margin: 0,
+          html2canvas: { scale: 2, useCORS: true, allowTaint: true, logging: false },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        })
+        .from(el)
+        .outputPdf('blob');
+    } finally {
+      document.body.removeChild(el);
+    }
+  }
+
   async function saveSpecAsDocument(markdown, filePrefix, docNote) {
     setSavingDoc(true);
     try {
@@ -12386,8 +12421,10 @@ ${mdToHtml(markdownContent)}
       setSpecHtml(htmlString);
       const safeName = (caseData.title ?? 'Spec').replace(/[^a-z0-9]/gi, '_');
       const prefix = filePrefix ?? 'FuncSpec';
-      const fileName = `${prefix}_${safeName}_${new Date().toISOString().slice(0, 10)}.html`;
-      const file = new File([htmlString], fileName, { type: 'text/html' });
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const pdfBlob = await htmlStringToPdfBlob(htmlString);
+      const fileName = `${prefix}_${safeName}_${dateStr}.pdf`;
+      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
       await addDocument(file, docNote ?? 'Auto-generated functional specification');
       setSavedSpecUrls(p => ({ ...p, a: fileName }));
       if (refetchDocuments) await refetchDocuments();
@@ -12432,8 +12469,9 @@ ${mdToHtml(markdownContent)}
           baseMeta,
           s.content
         );
-        const fileName = `${s.prefix}_${safeName}_${dateStr}.html`;
-        const file = new File([htmlString], fileName, { type: 'text/html' });
+        const pdfBlob = await htmlStringToPdfBlob(htmlString);
+        const fileName = `${s.prefix}_${safeName}_${dateStr}.pdf`;
+        const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
         await addDocument(file, s.note);
         newUrls[s.key] = fileName;
         openHtmlInNewTab(htmlString);
@@ -14292,6 +14330,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const totalTimeHours = timeEntries.reduce((s, e) => s + (e.hours ?? 0), 0);
 
   async function openDocInNewTab(doc) {
+    // HTML files stored in Supabase get wrong Content-Type → fetch and re-open as blob
     if (doc.file_name?.endsWith('.html') || doc.file_type?.includes('html')) {
       try {
         const resp = await fetch(doc.file_url);
@@ -14301,6 +14340,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
         window.open(doc.file_url, '_blank');
       }
     } else {
+      // PDFs and other files open directly (Supabase serves them correctly)
       window.open(doc.file_url, '_blank');
     }
   }
@@ -15293,19 +15333,18 @@ Keep each section concise.`,
         max_tokens: 3000,
       });
 
-      // Build styled HTML plan and upload as document
+      // Build styled HTML plan, convert to PDF and upload as document
       const planHtml = buildDevPlanHtml(caseData, parsedActivities, markdown);
       const safeName = (caseData.title ?? 'Case').replace(/[^a-z0-9]/gi, '_');
-      const fileName = `DevPlan_${safeName}_${new Date().toISOString().slice(0, 10)}.html`;
-      const htmlFile = new File([planHtml], fileName, { type: 'text/html' });
-      await addDocument(htmlFile, 'Design & Development Plan — auto-generated from approved spec');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const pdfBlob = await htmlStringToPdfBlob(planHtml);
+      const fileName = `DevPlan_${safeName}_${dateStr}.pdf`;
+      const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+      await addDocument(pdfFile, 'Design & Development Plan — auto-generated from approved spec');
       if (refetchDocuments) await refetchDocuments();
 
-      // Open in new window so user can print/save as PDF
-      const blob = new Blob([planHtml], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      const win = window.open(url, '_blank');
-      if (win) setTimeout(() => URL.revokeObjectURL(url), 60000);
+      // Also open the HTML version in new tab for reviewing
+      openHtmlInNewTab(planHtml);
 
       // Insert activities directly into the Activities tab
       const maxNo = activities.reduce((m, a) => Math.max(m, a.task_no ?? 0), 0);
