@@ -11750,73 +11750,127 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
     return blocks;
   }
 
-  function buildSpecHtml(markdown) {
-    const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    const bodyHtml = renderMarkdown(markdown);
-    const specTitle = t("spec.html_title");
+  function buildCaseDocHtml(docTitle, eyebrow, metaItems, markdownContent) {
+    const date = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+    const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const mdToHtml = md => {
+      if (!md) return '';
+      const lines = md.split('\n');
+      const out = [];
+      let inUl = false, inOl = false;
+      for (const raw of lines) {
+        const line = raw.trimEnd();
+        const isBullet = /^[\-\*] /.test(line);
+        const isNumbered = /^\d+\. /.test(line);
+        if (!isBullet && inUl) { out.push('</ul>'); inUl = false; }
+        if (!isNumbered && inOl) { out.push('</ol>'); inOl = false; }
+        if (line.startsWith('# '))       { out.push(`<h1>${esc(line.slice(2))}</h1>`); }
+        else if (line.startsWith('## ')) { out.push(`<h2>${esc(line.slice(3))}</h2>`); }
+        else if (line.startsWith('### ')){ out.push(`<h3>${esc(line.slice(4))}</h3>`); }
+        else if (line.startsWith('#### ')){ out.push(`<h4>${esc(line.slice(5))}</h4>`); }
+        else if (line === '---')          { out.push('<hr>'); }
+        else if (isBullet) {
+          if (!inUl) { out.push('<ul>'); inUl = true; }
+          out.push(`<li>${esc(line.slice(2)).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')}</li>`);
+        } else if (isNumbered) {
+          if (!inOl) { out.push('<ol>'); inOl = true; }
+          out.push(`<li>${esc(line.replace(/^\d+\. /,''))}</li>`);
+        } else if (line.startsWith('|')) {
+          const cells = line.split('|').slice(1,-1).map(c => c.trim());
+          if (cells.every(c => /^[-: ]+$/.test(c))) { out.push('</thead><tbody>'); }
+          else if (!out.some(l => l.includes('<table'))) {
+            out.push('<div class="tbl-wrap"><table><thead><tr>' + cells.map(c => `<th>${esc(c)}</th>`).join('') + '</tr>');
+          } else if (out[out.length-1] === '</thead><tbody>') {
+            out.push('<tr>' + cells.map(c => `<td>${esc(c)}</td>`).join('') + '</tr>');
+          } else {
+            out.push('<tr>' + cells.map(c => `<td>${esc(c)}</td>`).join('') + '</tr>');
+          }
+        } else if (line === '' && out.length && out[out.length-1]?.startsWith('<tr')) {
+          out.push('</tbody></table></div>');
+        } else if (line.trim()) {
+          const t2 = esc(line).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/`([^`]+)`/g,'<code>$1</code>');
+          out.push(`<p>${t2}</p>`);
+        } else { out.push('<br>'); }
+      }
+      if (inUl) out.push('</ul>');
+      if (inOl) out.push('</ol>');
+      return out.join('\n');
+    };
+    const metaHtml = (metaItems ?? []).map(m => `<div class="meta-item"><span class="lbl">${esc(m.label)}</span><span class="val">${esc(m.value)}</span></div>`).join('');
     return `<!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>${specTitle} — ${caseData.title}</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(docTitle)} — ${esc(caseData.title)}</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-  *{box-sizing:border-box}
-  body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;color:#1a1a1a;max-width:900px;margin:0 auto;padding:40px}
-  .print-bar{position:fixed;top:0;left:0;right:0;background:#1A4B8C;color:#fff;padding:10px 24px;display:flex;align-items:center;justify-content:space-between;z-index:999;font-size:13px}
-  .print-bar button{background:#fff;color:#1A4B8C;border:none;padding:7px 18px;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px}
-  .print-bar span{opacity:.85}
-  .doc-wrap{margin-top:52px}
-  .doc-header{background:#1A4B8C;color:#fff;margin:-40px -40px 32px;padding:32px 40px}
-  .doc-header h1{margin:0 0 6px;font-size:22px;font-weight:800}
-  .doc-header .sub{font-size:13px;opacity:.8}
-  .meta-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;background:#f0f4fa;border-left:4px solid #1A4B8C;padding:16px;border-radius:0 6px 6px 0;margin-bottom:32px}
-  .meta-item label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7280;margin-bottom:3px}
-  .meta-item span{font-size:13px;font-weight:600}
-  h1{font-size:18px;font-weight:800;color:#1A4B8C;border-bottom:2px solid #1A4B8C;padding-bottom:6px;margin:28px 0 12px}
-  h2{font-size:15px;font-weight:700;color:#1A4B8C;border-bottom:1px solid #d1d5db;padding-bottom:4px;margin:24px 0 10px}
-  h3{font-size:13px;font-weight:700;color:#374151;margin:18px 0 8px}
-  h4{font-size:12px;font-weight:700;color:#6b7280;margin:14px 0 6px}
-  p{margin:8px 0;line-height:1.65}
-  ul,ol{margin:8px 0 8px 24px}
-  li{margin:4px 0;line-height:1.6}
-  code{background:#f3f4f6;padding:2px 5px;border-radius:3px;font-family:Consolas,monospace;font-size:12px}
-  hr{border:none;border-top:1px solid #e5e7eb;margin:20px 0}
-  strong{font-weight:700}
-  em{font-style:italic}
-  table{border-collapse:collapse;width:100%;margin:12px 0;font-size:12px}
-  th{background:#e8f0fb;border:1px solid #d1d5db;padding:7px 10px;text-align:left;font-weight:700;color:#374151}
-  td{border:1px solid #d1d5db;padding:7px 10px}
-  .footer{margin-top:48px;border-top:2px solid #e5e7eb;padding-top:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
-  .sig label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;color:#9ca3af;margin-bottom:20px}
-  .sig .line{border-top:1px solid #374151;padding-top:4px;font-size:11px;color:#6b7280}
-  @media print{.print-bar{display:none!important}.doc-wrap{margin-top:0}body{padding:20px}.doc-header{margin:-20px -20px 24px;padding:24px 20px}}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'IBM Plex Sans',system-ui,sans-serif;background:#F6F7FB;color:#1A2A4A;font-size:0.9rem;line-height:1.65}
+.doc-header{background:#1A2A4A;color:#fff;padding:2.5rem 3rem 2rem}
+.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:0.5rem}
+.doc-header h1{font-family:'DM Serif Display',Georgia,serif;font-size:clamp(1.5rem,3vw,2.3rem);font-weight:400;line-height:1.15;color:#fff;margin-bottom:0.2rem}
+.doc-header h1 em{font-style:italic;color:rgba(255,255,255,0.65)}
+.meta-row{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:1.2rem;padding-top:1.1rem;border-top:1px solid rgba(255,255,255,0.1)}
+.meta-item{display:flex;flex-direction:column;gap:0.15rem}
+.lbl{font-family:'IBM Plex Mono',monospace;font-size:0.6rem;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.35)}
+.val{font-size:0.8rem;color:rgba(255,255,255,0.8);font-weight:500}
+.doc-body{max-width:860px;margin:0 auto;padding:2rem 1.5rem 4rem}
+h1{font-family:'DM Serif Display',serif;font-size:1.35rem;font-weight:400;color:#1254A0;margin:1.8rem 0 0.6rem;padding-bottom:0.4rem;border-bottom:2px solid #DDE1EE}
+h2{font-family:'IBM Plex Sans',sans-serif;font-size:0.82rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#1254A0;margin:1.4rem 0 0.5rem;padding-bottom:0.3rem;border-bottom:1px solid #DDE1EE}
+h3{font-size:0.88rem;font-weight:600;color:#1A2A4A;margin:1rem 0 0.35rem}
+h4{font-size:0.8rem;font-weight:600;color:#4A5878;margin:0.8rem 0 0.3rem}
+p{font-size:0.85rem;color:#2E3D5A;margin-bottom:0.65rem;line-height:1.7}
+ul,ol{padding-left:1.4rem;margin-bottom:0.65rem}
+li{font-size:0.83rem;color:#2E3D5A;margin-bottom:0.25rem;line-height:1.55}
+strong{color:#1A2A4A;font-weight:600}
+code{font-family:'IBM Plex Mono',monospace;font-size:0.75em;background:#ECEEF5;color:#D4600A;padding:0.1em 0.35em;border-radius:3px}
+hr{border:none;border-top:1px solid #DDE1EE;margin:1.5rem 0}
+.tbl-wrap{overflow-x:auto;margin:1rem 0}
+table{width:100%;border-collapse:collapse;font-size:0.78rem;border:1px solid #DDE1EE;border-radius:6px;overflow:hidden}
+th{background:#ECEEF5;color:#4A5878;font-weight:600;font-size:0.7rem;letter-spacing:0.05em;text-transform:uppercase;text-align:left;padding:0.55rem 0.8rem;border-bottom:1px solid #DDE1EE}
+td{padding:0.55rem 0.8rem;border-bottom:1px solid #DDE1EE;color:#2E3D5A;vertical-align:top}
+tr:last-child td{border-bottom:none}
+.sig-row{display:grid;grid-template-columns:repeat(3,1fr);gap:2rem;margin-top:3rem;padding-top:1.5rem;border-top:2px solid #DDE1EE}
+.sig-block .sig-label{font-family:'IBM Plex Mono',monospace;font-size:0.62rem;letter-spacing:0.12em;text-transform:uppercase;color:#8494B2;margin-bottom:1.8rem}
+.sig-block .sig-line{border-top:1px solid #1A2A4A;padding-top:0.4rem;font-size:0.72rem;color:#4A5878}
+.print-btn{position:fixed;bottom:1.5rem;right:1.5rem;background:#0056A0;color:#fff;border:none;border-radius:8px;padding:0.65rem 1.2rem;font-family:'IBM Plex Sans',sans-serif;font-size:0.8rem;font-weight:600;cursor:pointer;box-shadow:0 4px 16px rgba(0,86,160,0.35)}
+.print-btn:hover{background:#004080}
+@media print{.print-btn{display:none}body{background:#fff}}
 </style>
 </head>
 <body>
-<div class="print-bar">
-  <span>${specTitle} — ${caseData.title}</span>
-  <button onclick="window.print()">${t("spec.save_pdf_btn")}</button>
-</div>
-<div class="doc-wrap">
-<div class="doc-header">
-  <h1>${specTitle}</h1>
-  <div class="sub">${caseData.title}</div>
-</div>
-<div class="meta-grid">
-  <div class="meta-item"><label>${t("spec.label_case_id")}</label><span>#${(caseData.id ?? '').slice(0, 8) || '—'}</span></div>
-  <div class="meta-item"><label>${t("label.sap_area")}</label><span>${caseData.area_sap ?? '—'}</span></div>
-  <div class="meta-item"><label>${t("label.priority")}</label><span>${caseData.priority ?? '—'}</span></div>
-  <div class="meta-item"><label>${t("spec.label_generated")}</label><span>${date}</span></div>
-</div>
-<p style="margin:0.5rem 0">${bodyHtml}</p>
-<div class="footer">
-  <div class="sig"><label>${t("spec.label_sig_analyst")}</label><div class="line">${t("spec.label_sig_date")}</div></div>
-  <div class="sig"><label>${t("spec.label_sig_dev")}</label><div class="line">${t("spec.label_sig_date")}</div></div>
-  <div class="sig"><label>${t("spec.label_sig_client")}</label><div class="line">${t("spec.label_sig_date")}</div></div>
+<button class="print-btn" onclick="window.print()">⬇ Guardar como PDF</button>
+<header class="doc-header">
+  <div class="eyebrow">${esc(eyebrow)}</div>
+  <h1>${esc(docTitle)}<br><em>${esc(caseData.title)}</em></h1>
+  <div class="meta-row">${metaHtml}</div>
+</header>
+<div class="doc-body">
+${mdToHtml(markdownContent)}
+<div class="sig-row">
+  <div class="sig-block"><div class="sig-label">${t("spec.label_sig_analyst")}</div><div class="sig-line">${t("spec.label_sig_date")}</div></div>
+  <div class="sig-block"><div class="sig-label">${t("spec.label_sig_dev")}</div><div class="sig-line">${t("spec.label_sig_date")}</div></div>
+  <div class="sig-block"><div class="sig-label">${t("spec.label_sig_client")}</div><div class="sig-line">${t("spec.label_sig_date")}</div></div>
 </div>
 </div>
 </body>
 </html>`;
+  }
+
+  function buildSpecHtml(markdown) {
+    const date = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+    return buildCaseDocHtml(
+      t("spec.html_title"),
+      'SAP Consulting · ' + t("spec.html_title"),
+      [
+        { label: t("spec.label_case_id"),  value: '#' + ((caseData.id ?? '').slice(0, 8) || '—') },
+        { label: t("label.sap_area"),      value: caseData.area_sap ?? '—' },
+        { label: t("label.priority"),      value: (caseData.priority ?? '—').toUpperCase() },
+        { label: t("spec.label_generated"),value: date },
+      ],
+      markdown
+    );
   }
 
   function parseMarkdownNodes(md) {
@@ -12297,18 +12351,38 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
     return lines.join('\n');
   }
 
+  function openHtmlInNewTab(htmlString) {
+    const blob = new Blob([htmlString], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, '_blank');
+    if (win) setTimeout(() => URL.revokeObjectURL(url), 60000);
+    else { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.click(); }
+  }
+
   async function saveSpecAsDocument(markdown, filePrefix, docNote) {
     setSavingDoc(true);
     try {
+      const date = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+      const htmlString = buildCaseDocHtml(
+        t("spec.html_title"),
+        'SAP Consulting · ' + t("spec.html_title"),
+        [
+          { label: t("spec.label_case_id"),   value: '#' + ((caseData.id ?? '').slice(0, 8) || '—') },
+          { label: t("label.sap_area"),        value: caseData.area_sap ?? '—' },
+          { label: t("label.priority"),        value: (caseData.priority ?? '—').toUpperCase() },
+          { label: t("spec.label_generated"),  value: date },
+        ],
+        markdown
+      );
+      setSpecHtml(htmlString);
       const safeName = (caseData.title ?? 'Spec').replace(/[^a-z0-9]/gi, '_');
       const prefix = filePrefix ?? 'FuncSpec';
-      const fileName = `${prefix}_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`;
-      const pdfBlob = await buildSpecPdf(markdown);
-      setSpecHtml(pdfBlob);
-      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+      const fileName = `${prefix}_${safeName}_${new Date().toISOString().slice(0, 10)}.html`;
+      const file = new File([htmlString], fileName, { type: 'text/html' });
       await addDocument(file, docNote ?? 'Auto-generated functional specification');
       setSavedSpecUrls(p => ({ ...p, a: fileName }));
       if (refetchDocuments) await refetchDocuments();
+      openHtmlInNewTab(htmlString);
     } catch (e) {
       alert(t("alert.pdf_gen_error") + e.message);
     }
@@ -12319,20 +12393,33 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
     setSavingDoc(true);
     try {
       const safeName = (caseData.title ?? 'Spec').replace(/[^a-z0-9]/gi, '_');
-      const dateStr = new Date().toISOString().slice(0, 10);
+      const dateStr  = new Date().toISOString().slice(0, 10);
+      const dateLong = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
       const valSection = buildValidationMarkdown(sap, proposal);
+      const baseMeta = [
+        { label: t("spec.label_case_id"),  value: '#' + ((caseData.id ?? '').slice(0, 8) || '—') },
+        { label: t("label.sap_area"),      value: caseData.area_sap ?? '—' },
+        { label: t("label.priority"),      value: (caseData.priority ?? '—').toUpperCase() },
+        { label: t("spec.label_generated"),value: dateLong },
+      ];
       const specs = [
-        { key: 'a', content: valSection + specA, prefix: 'SpecA_CustomABAP',      note: 'Option A — Custom ABAP Development' },
-        { key: 'b', content: valSection + specB, prefix: 'SpecB_StandardSAP',     note: 'Option B — Standard SAP Configuration' },
-        { key: 'c', content: valSection + specC, prefix: 'SpecC_CustomerProposal', note: 'Option C — Customer Proposal As-Is' },
+        { key: 'a', content: valSection + specA, prefix: 'SpecA_CustomABAP',       note: 'Opción A — Desarrollo Custom ABAP',       title: 'Opción A — Desarrollo Custom ABAP' },
+        { key: 'b', content: valSection + specB, prefix: 'SpecB_StandardSAP',      note: 'Opción B — Configuración SAP Estándar',   title: 'Opción B — Configuración SAP Estándar' },
+        { key: 'c', content: valSection + specC, prefix: 'SpecC_PropuestaCliente', note: 'Opción C — Propuesta del Cliente',         title: 'Opción C — Propuesta del Cliente' },
       ];
       const newUrls = { a: null, b: null, c: null };
       for (const s of specs) {
-        const fileName = `${s.prefix}_${safeName}_${dateStr}.pdf`;
-        const pdfBlob = await buildSpecPdf(s.content);
-        const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+        const htmlString = buildCaseDocHtml(
+          s.title,
+          'SAP Consulting · ' + t("spec.html_title"),
+          baseMeta,
+          s.content
+        );
+        const fileName = `${s.prefix}_${safeName}_${dateStr}.html`;
+        const file = new File([htmlString], fileName, { type: 'text/html' });
         await addDocument(file, s.note);
         newUrls[s.key] = fileName;
+        openHtmlInNewTab(htmlString);
       }
       setSavedSpecUrls(newUrls);
       if (refetchDocuments) await refetchDocuments();
@@ -12344,10 +12431,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, refetchDocum
 
   function openSpecInNewTab() {
     if (!specHtml) return;
-    const url = URL.createObjectURL(specHtml);
-    const win = window.open(url, '_blank');
-    if (win) setTimeout(() => URL.revokeObjectURL(url), 60000);
-    else { const a = document.createElement('a'); a.href = url; a.download = 'FuncSpec.pdf'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 5000); }
+    openHtmlInNewTab(specHtml);
   }
 
   const canApprove = auth.isAdmin || auth.isManager || auth.isConsultant;
