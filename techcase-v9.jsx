@@ -11764,45 +11764,55 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
     const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const mdToHtml = md => {
       if (!md) return '';
+      const fmt = s => esc(s)
+        .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+        .replace(/`([^`\n]+)`/g, '<code>$1</code>');
       const lines = md.split('\n');
       const out = [];
-      let inUl = false, inOl = false;
+      let inUl = false, inOl = false, inTable = false, inThead = false;
+      const closeList  = () => { if (inUl) { out.push('</ul>'); inUl = false; } if (inOl) { out.push('</ol>'); inOl = false; } };
+      const closeTable = () => { if (inTable) { out.push('</tbody></table></div>'); inTable = false; inThead = false; } };
       for (const raw of lines) {
         const line = raw.trimEnd();
-        const isBullet = /^[\-\*] /.test(line);
+        const isBullet   = /^[\-\*] /.test(line);
         const isNumbered = /^\d+\. /.test(line);
-        if (!isBullet && inUl) { out.push('</ul>'); inUl = false; }
-        if (!isNumbered && inOl) { out.push('</ol>'); inOl = false; }
-        if (line.startsWith('# '))       { out.push(`<h1>${esc(line.slice(2))}</h1>`); }
-        else if (line.startsWith('## ')) { out.push(`<h2>${esc(line.slice(3))}</h2>`); }
-        else if (line.startsWith('### ')){ out.push(`<h3>${esc(line.slice(4))}</h3>`); }
-        else if (line.startsWith('#### ')){ out.push(`<h4>${esc(line.slice(5))}</h4>`); }
-        else if (line === '---')          { out.push('<hr>'); }
+        const isTableRow = line.startsWith('|');
+        const isSep      = isTableRow && line.split('|').slice(1,-1).every(c => /^[-: ]+$/.test(c.trim()));
+        if (!isBullet)   { if (inUl) { out.push('</ul>'); inUl = false; } }
+        if (!isNumbered) { if (inOl) { out.push('</ol>'); inOl = false; } }
+        if (!isTableRow) { closeTable(); }
+        if      (line.startsWith('#### ')) { out.push(`<h4>${fmt(line.slice(5))}</h4>`); }
+        else if (line.startsWith('### '))  { out.push(`<h3>${fmt(line.slice(4))}</h3>`); }
+        else if (line.startsWith('## '))   { out.push(`<h2>${fmt(line.slice(3))}</h2>`); }
+        else if (line.startsWith('# '))    { out.push(`<h1>${fmt(line.slice(2))}</h1>`); }
+        else if (line === '---')           { out.push('<hr>'); }
         else if (isBullet) {
           if (!inUl) { out.push('<ul>'); inUl = true; }
-          out.push(`<li>${esc(line.slice(2)).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')}</li>`);
+          out.push(`<li>${fmt(line.slice(2))}</li>`);
         } else if (isNumbered) {
           if (!inOl) { out.push('<ol>'); inOl = true; }
-          out.push(`<li>${esc(line.replace(/^\d+\. /,''))}</li>`);
-        } else if (line.startsWith('|')) {
+          out.push(`<li>${fmt(line.replace(/^\d+\. /,''))}</li>`);
+        } else if (isSep) {
+          if (inThead) { out.push('</thead><tbody>'); inThead = false; }
+        } else if (isTableRow) {
           const cells = line.split('|').slice(1,-1).map(c => c.trim());
-          if (cells.every(c => /^[-: ]+$/.test(c))) { out.push('</thead><tbody>'); }
-          else if (!out.some(l => l.includes('<table'))) {
-            out.push('<div class="tbl-wrap"><table><thead><tr>' + cells.map(c => `<th>${esc(c)}</th>`).join('') + '</tr>');
-          } else if (out[out.length-1] === '</thead><tbody>') {
-            out.push('<tr>' + cells.map(c => `<td>${esc(c)}</td>`).join('') + '</tr>');
+          if (!inTable) {
+            out.push('<div class="tbl-wrap"><table><thead>');
+            out.push('<tr>' + cells.map(c => `<th>${fmt(c)}</th>`).join('') + '</tr>');
+            inTable = true; inThead = true;
           } else {
-            out.push('<tr>' + cells.map(c => `<td>${esc(c)}</td>`).join('') + '</tr>');
+            out.push('<tr>' + cells.map(c => `<td>${fmt(c)}</td>`).join('') + '</tr>');
           }
-        } else if (line === '' && out.length && out[out.length-1]?.startsWith('<tr')) {
-          out.push('</tbody></table></div>');
         } else if (line.trim()) {
-          const t2 = esc(line).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/`([^`]+)`/g,'<code>$1</code>');
-          out.push(`<p>${t2}</p>`);
-        } else { out.push('<br>'); }
+          out.push(`<p>${fmt(line)}</p>`);
+        } else {
+          out.push('<br>');
+        }
       }
       if (inUl) out.push('</ul>');
       if (inOl) out.push('</ol>');
+      closeTable();
       return out.join('\n');
     };
     const metaHtml = (metaItems ?? []).map(m => `<div class="meta-item"><span class="lbl">${esc(m.label)}</span><span class="val">${esc(m.value)}</span></div>`).join('');
