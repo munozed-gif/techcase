@@ -69,6 +69,79 @@ const ROLE_PERMISSIONS_DEFAULTS = {
 };
 
 // ============================================================
+// GENERATION PROFILES DEFAULTS
+// ============================================================
+const GENERATION_PROFILE_DEFAULTS = {
+  default_profile: "standard",
+  profiles: {
+    basic: {
+      additional_instructions: "",
+      spec_a:   { executive_summary:true, scope:true, pros_cons:false, technical_recommendation:false, technical_objects:true,  time_estimation:true,  screen_prototype:false, risks_assumptions:false, next_steps:false },
+      spec_b:   { executive_summary:true, scope:true, pros_cons:false, technical_recommendation:false, configuration_objects:true, implementation_timeline:true, screen_prototype:false, risks_assumptions:false, next_steps:false },
+      spec_c:   { executive_summary:true, scope:true, customer_proposal_details:true, technical_objects:true, time_estimation:true, screen_prototype:false, assumptions:false, next_steps:false },
+      dev_plan: { scope_summary:true, design_phase:true, development_phase:true, dependencies_risks:false, estimated_timeline:false },
+    },
+    standard: {
+      additional_instructions: "",
+      spec_a:   { executive_summary:true, scope:true, pros_cons:true, technical_recommendation:true, technical_objects:true,  time_estimation:true,  screen_prototype:false, risks_assumptions:true, next_steps:false },
+      spec_b:   { executive_summary:true, scope:true, pros_cons:true, technical_recommendation:true, configuration_objects:true, implementation_timeline:true, screen_prototype:false, risks_assumptions:true, next_steps:false },
+      spec_c:   { executive_summary:true, scope:true, customer_proposal_details:true, technical_objects:true, time_estimation:true, screen_prototype:false, assumptions:true, next_steps:false },
+      dev_plan: { scope_summary:true, design_phase:true, development_phase:true, dependencies_risks:true, estimated_timeline:false },
+    },
+    full: {
+      additional_instructions: "",
+      spec_a:   { executive_summary:true, scope:true, pros_cons:true, technical_recommendation:true, technical_objects:true,  time_estimation:true,  screen_prototype:true, risks_assumptions:true, next_steps:true },
+      spec_b:   { executive_summary:true, scope:true, pros_cons:true, technical_recommendation:true, configuration_objects:true, implementation_timeline:true, screen_prototype:true, risks_assumptions:true, next_steps:true },
+      spec_c:   { executive_summary:true, scope:true, customer_proposal_details:true, technical_objects:true, time_estimation:true, screen_prototype:true, assumptions:true, next_steps:true },
+      dev_plan: { scope_summary:true, design_phase:true, development_phase:true, dependencies_risks:true, estimated_timeline:true },
+    },
+  },
+};
+
+// Document + section metadata used by settings UI and prompt builder
+const GEN_DOCS = [
+  { key:"spec_a",   label:"Spec A — Custom ABAP",       sections:[
+    { key:"executive_summary",        label:"Executive Summary" },
+    { key:"scope",                    label:"Scope" },
+    { key:"pros_cons",                label:"Pros & Cons" },
+    { key:"technical_recommendation", label:"Technical Recommendation" },
+    { key:"technical_objects",        label:"Technical Objects" },
+    { key:"time_estimation",          label:"Time Estimation" },
+    { key:"screen_prototype",         label:"SAP Screen Prototype" },
+    { key:"risks_assumptions",        label:"Risks & Assumptions" },
+    { key:"next_steps",               label:"Next Steps" },
+  ]},
+  { key:"spec_b",   label:"Spec B — Standard SAP",      sections:[
+    { key:"executive_summary",        label:"Executive Summary" },
+    { key:"scope",                    label:"Scope" },
+    { key:"pros_cons",                label:"Pros & Cons" },
+    { key:"technical_recommendation", label:"Technical Recommendation" },
+    { key:"configuration_objects",    label:"Configuration Objects" },
+    { key:"implementation_timeline",  label:"Implementation Timeline" },
+    { key:"screen_prototype",         label:"SAP Screen Prototype" },
+    { key:"risks_assumptions",        label:"Risks & Assumptions" },
+    { key:"next_steps",               label:"Next Steps" },
+  ]},
+  { key:"spec_c",   label:"Spec C — Customer Proposal", sections:[
+    { key:"executive_summary",          label:"Executive Summary" },
+    { key:"scope",                      label:"Scope" },
+    { key:"customer_proposal_details",  label:"Customer Proposal Details" },
+    { key:"technical_objects",          label:"Technical Objects" },
+    { key:"time_estimation",            label:"Time Estimation" },
+    { key:"screen_prototype",           label:"SAP Screen Prototype" },
+    { key:"assumptions",                label:"Assumptions" },
+    { key:"next_steps",                 label:"Next Steps" },
+  ]},
+  { key:"dev_plan", label:"Dev & Design Plan",           sections:[
+    { key:"scope_summary",       label:"Project Scope Summary" },
+    { key:"design_phase",        label:"Design Phase" },
+    { key:"development_phase",   label:"Development Phase" },
+    { key:"dependencies_risks",  label:"Dependencies & Risks" },
+    { key:"estimated_timeline",  label:"Estimated Timeline" },
+  ]},
+];
+
+// ============================================================
 // INTERNATIONALIZATION (EN / ES)
 // ============================================================
 const TRANSLATIONS = {
@@ -909,6 +982,26 @@ const TRANSLATIONS = {
     "sys.spec_regen_title":     "Specification Controls",
     "sys.spec_regen_label":     "Restrict re-generate to managers only",
     "sys.spec_regen_hint":      "When enabled, only managers and admins can re-generate specifications.",
+    // Generation Depth
+    "gen.tab_title":                    "Generation Depth",
+    "gen.tab_subtitle":                 "Control how deep the AI goes when generating documents.",
+    "gen.default_profile":              "Default Profile",
+    "gen.default_profile_hint":         "This profile will be pre-selected in the generation picker.",
+    "gen.additional_instructions_label":"Additional Instructions",
+    "gen.additional_instructions_hint": "Free-text prompt injected before every generation for this profile.",
+    "gen.additional_instructions_ph":   "e.g. Always include a cost-benefit analysis…",
+    "gen.profile_basic":                "Basic",
+    "gen.profile_standard":             "Standard",
+    "gen.profile_full":                 "Full",
+    "gen.profile_basic_desc":           "Core sections only — fast and concise.",
+    "gen.profile_standard_desc":        "Balanced depth — recommended for most cases.",
+    "gen.profile_full_desc":            "Every section including prototypes — comprehensive.",
+    "gen.modal_title":                  "Choose Generation Profile",
+    "gen.sections":                     "sections",
+    "gen.generate_btn":                 "Generate",
+    "gen.save":                         "Save Settings",
+    "gen.saved":                        "Generation settings saved!",
+    "settings.generation":              "Generation Depth",
     // Kanban
     "kanban.title":     "Kanban Board",
     "kanban.subtitle":  "Visual case pipeline",
@@ -3681,6 +3774,26 @@ const TRANSLATIONS = {
     "sys.spec_regen_title":     "Controles de Especificación",
     "sys.spec_regen_label":     "Restringir regeneración solo a managers",
     "sys.spec_regen_hint":      "Cuando está activo, solo managers y administradores pueden regenerar especificaciones.",
+    // Generation Depth
+    "gen.tab_title":                    "Profundidad de Generación",
+    "gen.tab_subtitle":                 "Controla qué tan profundo va la IA al generar documentos.",
+    "gen.default_profile":              "Perfil por Defecto",
+    "gen.default_profile_hint":         "Este perfil se preseleccionará en el selector de generación.",
+    "gen.additional_instructions_label":"Instrucciones Adicionales",
+    "gen.additional_instructions_hint": "Texto libre inyectado antes de cada generación para este perfil.",
+    "gen.additional_instructions_ph":   "ej. Siempre incluir un análisis costo-beneficio…",
+    "gen.profile_basic":                "Básico",
+    "gen.profile_standard":             "Estándar",
+    "gen.profile_full":                 "Completo",
+    "gen.profile_basic_desc":           "Solo secciones clave — rápido y conciso.",
+    "gen.profile_standard_desc":        "Profundidad equilibrada — recomendado para la mayoría de casos.",
+    "gen.profile_full_desc":            "Todas las secciones incluidos prototipos — completo.",
+    "gen.modal_title":                  "Elegir Perfil de Generación",
+    "gen.sections":                     "secciones",
+    "gen.generate_btn":                 "Generar",
+    "gen.save":                         "Guardar Configuración",
+    "gen.saved":                        "¡Configuración de generación guardada!",
+    "settings.generation":              "Profundidad de Generación",
     // Kanban
     "kanban.title":     "Tablero Kanban",
     "kanban.subtitle":  "Pipeline visual de casos",
@@ -11832,6 +11945,92 @@ function renderMarkdown(md) {
   return out.join('\n');
 }
 
+// ── Generation Profile Modal ─────────────────────────────────
+function buildSectionConstraint(docKey, genProfile) {
+  if (!genProfile) return '';
+  const docMeta = GEN_DOCS.find(d => d.key === docKey);
+  if (!docMeta) return '';
+  const enabled = docMeta.sections.filter(s => genProfile[docKey]?.[s.key] !== false).map(s => `- ${s.label}`);
+  if (!enabled.length) return '';
+  return `\nSECTION CONSTRAINT: Generate ONLY these sections (omit all others):\n${enabled.join('\n')}\n`;
+}
+
+function buildGenSuffix(genProfile) {
+  const instr = genProfile?.additional_instructions?.trim();
+  return instr ? `\n\nADDITIONAL INSTRUCTIONS:\n${instr}` : '';
+}
+
+function GenerationProfileModal({ onConfirm, onClose, title }) {
+  const { t } = useT();
+  const { settings } = useSystemSettings();
+  const stored = settings["generation_profiles"] ?? {};
+  const defaultProfileKey = stored.default_profile ?? GENERATION_PROFILE_DEFAULTS.default_profile;
+  const [selected, setSelected] = useState(defaultProfileKey);
+
+  function resolveProfile(key) {
+    const def = GENERATION_PROFILE_DEFAULTS.profiles[key] ?? {};
+    const sto = stored.profiles?.[key] ?? {};
+    const merged = { ...def };
+    for (const dk of GEN_DOCS.map(d => d.key)) {
+      merged[dk] = { ...(def[dk] ?? {}), ...(sto[dk] ?? {}) };
+    }
+    merged.additional_instructions = sto.additional_instructions ?? def.additional_instructions ?? "";
+    return merged;
+  }
+
+  const PROFILES = [
+    { key: "basic",    icon: Zap,     desc: t("gen.profile_basic_desc") },
+    { key: "standard", icon: BarChart2, desc: t("gen.profile_standard_desc") },
+    { key: "full",     icon: Sparkles,  desc: t("gen.profile_full_desc") },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100">
+          <h2 className="font-bold text-gray-900">{title ?? t("gen.modal_title")}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+        </div>
+        <div className="p-6 space-y-3">
+          {PROFILES.map(({ key, icon: Icon, desc }) => {
+            const p = resolveProfile(key);
+            const totalSections = GEN_DOCS.reduce((s, d) => s + d.sections.filter(sec => p[d.key]?.[sec.key] !== false).length, 0);
+            const isSelected = selected === key;
+            return (
+              <button key={key} onClick={() => setSelected(key)}
+                className={`w-full flex items-start gap-4 p-4 rounded-xl border-2 text-left transition-all ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-200 hover:bg-gray-50'}`}>
+                <div className={`p-2 rounded-lg flex-shrink-0 ${isSelected ? 'bg-blue-100' : 'bg-gray-100'}`}>
+                  <Icon size={18} className={isSelected ? 'text-blue-600' : 'text-gray-500'} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className={`font-semibold text-sm capitalize ${isSelected ? 'text-blue-700' : 'text-gray-800'}`}>{t("gen.profile_" + key)}</span>
+                    <span className="text-xs text-gray-400">{totalSections} {t("gen.sections")}</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+                  {p.additional_instructions && (
+                    <p className="text-xs text-blue-600 mt-1 italic truncate">+ {p.additional_instructions.slice(0, 60)}{p.additional_instructions.length > 60 ? '…' : ''}</p>
+                  )}
+                </div>
+                {isSelected && <Check size={16} className="text-blue-600 flex-shrink-0 mt-1" />}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex gap-3 px-6 pb-6">
+          <button onClick={onClose} className="flex-1 py-2.5 border border-gray-200 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-50">
+            {t("action.cancel")}
+          </button>
+          <button onClick={() => { onConfirm(selected, resolveProfile(selected)); onClose(); }}
+            className="flex-1 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 flex items-center justify-center gap-2">
+            <Sparkles size={14} /> {t("gen.generate_btn")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocument, refetchDocuments, onUpdate }) {
   const { t } = useT();
   const ssCtx = useSystemSettings();
@@ -11867,6 +12066,9 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [analysisCustomerContent, setAnalysisCustomerContent] = useState('');
   const [prevMode, setPrevMode]         = useState(null); // 'manual' | 'wizard' | null
+  // Generation profile modal
+  const [showGenModal, setShowGenModal]   = useState(false);
+  const [pendingGenOpts, setPendingGenOpts] = useState(null);
 
   // Manual state
   const [manualNotes, setManualNotes]     = useState('');
@@ -12927,7 +13129,8 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
   }
 
   // ── AI Generate — two specs ─────────────────────────────────
-  function buildSpecPrompt(isCustomDev) {
+
+  function buildSpecPrompt(isCustomDev, genProfile) {
     const sapCtx = sapCheck ? `\nSAP Standard Coverage Analysis: ${sapCheck.coverage} — ${sapCheck.summary}\nGaps: ${(sapCheck.gaps??[]).join('; ')||'none'}\nStandard transactions: ${(sapCheck.standard_transactions??[]).join(', ')||'none'}` : '';
     const propCtx = proposalCheck ? `\nProposal Validation: score ${proposalCheck.score}/10, risk ${proposalCheck.risk_level}\nStrengths: ${(proposalCheck.strengths??[]).join('; ')||'none'}\nConcerns: ${(proposalCheck.concerns??[]).join('; ')||'none'}` : '';
 
@@ -13002,7 +13205,7 @@ TOTAL:||Total|[amount]|
 ## 9. Next Steps
 1. [action item to start the custom development]
 
-Use realistic Z object names, actual SAP table names for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM/COL values.`;
+Use realistic Z object names, actual SAP table names for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM/COL values.${buildSectionConstraint('spec_a', genProfile)}${buildGenSuffix(genProfile)}`;
     } else {
       return `Write Option B: Standard SAP Configuration Functional Specification for this case.${sapCtx}
 
@@ -13071,11 +13274,11 @@ TOTAL:||Total|[amount]|
 ## 9. Next Steps
 1. [action item: configure standard SAP]
 
-Use real standard SAP transaction codes and configuration objects for ${caseData.area_sap ?? 'the module'}.`;
+Use real standard SAP transaction codes and configuration objects for ${caseData.area_sap ?? 'the module'}.${buildSectionConstraint('spec_b', genProfile)}${buildGenSuffix(genProfile)}`;
     }
   }
 
-  function buildSpecCPrompt(customerContent) {
+  function buildSpecCPrompt(customerContent, genProfile) {
     return `Write Option C: Customer Proposal As-Is Functional Specification for this case.
 
 This option formalizes EXACTLY what the customer proposed, without any AI alternatives or suggestions. Do NOT add any SAP standard alternatives or custom dev recommendations — this is a direct formalization of the customer's own technical proposal.
@@ -13142,10 +13345,16 @@ TOTAL:||Total|[amount]|
 ## 8. Next Steps
 1. [action item derived from the customer's proposed approach]
 
-Use realistic Z object names matching the customer's described solution for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM/COL values.`;
+Use realistic Z object names matching the customer's described solution for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM/COL values.${buildSectionConstraint('spec_c', genProfile)}${buildGenSuffix(genProfile)}`;
   }
 
-  async function handleGenerateSpecs({ autoSubmit = false } = {}) {
+  async function handleGenerateSpecs({ autoSubmit = false, genProfile = null } = {}) {
+    if (!genProfile) {
+      // Show profile picker modal; actual generation runs after modal confirm
+      setPendingGenOpts({ autoSubmit });
+      setShowGenModal(true);
+      return;
+    }
     setGeneratingSpecs(true);
     setAiError(null);
     setAiSpecA('');
@@ -13157,9 +13366,9 @@ Use realistic Z object names matching the customer's described solution for ${ca
       const msgContent = (prompt) => docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt;
       const customerContent = analysisCustomerContent || caseData.description || '';
       const [specA, specB, specC] = await Promise.all([
-        callClaude({ model: 'claude-haiku-4-5-20251001', system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecPrompt(true)) }], max_tokens: 4000 }),
-        callClaude({ model: 'claude-haiku-4-5-20251001', system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecPrompt(false)) }], max_tokens: 4000 }),
-        callClaude({ model: 'claude-haiku-4-5-20251001', system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecCPrompt(customerContent)) }], max_tokens: 4000 }),
+        callClaude({ model: 'claude-haiku-4-5-20251001', system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecPrompt(true, genProfile)) }], max_tokens: 4000 }),
+        callClaude({ model: 'claude-haiku-4-5-20251001', system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecPrompt(false, genProfile)) }], max_tokens: 4000 }),
+        callClaude({ model: 'claude-haiku-4-5-20251001', system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecCPrompt(customerContent, genProfile)) }], max_tokens: 4000 }),
       ]);
       setAiSpecA(specA);
       setAiSpecB(specB);
@@ -13431,6 +13640,12 @@ Respond with ONLY a valid JSON object, no markdown fences:
               <p className="text-xs text-gray-500 mt-2">{spec.document_ids.length} document(s) attached</p>
             )}
           </div>
+        )}
+        {showGenModal && (
+          <GenerationProfileModal
+            onConfirm={(profileKey, resolvedProfile) => { setShowGenModal(false); handleGenerateSpecs({ ...(pendingGenOpts ?? {}), genProfile: resolvedProfile }); }}
+            onClose={() => setShowGenModal(false)}
+          />
         )}
       </div>
     );
@@ -14216,6 +14431,12 @@ Respond with ONLY a valid JSON object, no markdown fences:
             )}
           </div>
         )}
+        {showGenModal && (
+          <GenerationProfileModal
+            onConfirm={(profileKey, resolvedProfile) => { setShowGenModal(false); handleGenerateSpecs({ ...(pendingGenOpts ?? {}), genProfile: resolvedProfile }); }}
+            onClose={() => setShowGenModal(false)}
+          />
+        )}
       </div>
     );
   }
@@ -14308,6 +14529,8 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [devPlanPreview, setDevPlanPreview]   = useState(null);
   const [confirmingDevPlan, setConfirmingDevPlan] = useState(false);
   const [devPlanGenerated, setDevPlanGenerated] = useState(false);
+  const [showDevPlanModal, setShowDevPlanModal] = useState(false);
+  const [pendingDevPlanIsRegen, setPendingDevPlanIsRegen] = useState(false);
   const [projectLifecycle, setProjectLifecycle] = useState(null);
   const [lcMode, setLcMode] = useState(caseData.case_lifecycle?.preset ?? null);
   const [savingLc, setSavingLc] = useState(false);
@@ -15423,7 +15646,12 @@ canvas{display:block;width:100%}
 </html>`;
   }
 
-  async function generateDevelopmentPlan() {
+  async function generateDevelopmentPlan(genProfile = null) {
+    if (!genProfile) {
+      setPendingDevPlanIsRegen(false);
+      setShowDevPlanModal(true);
+      return;
+    }
     setGeneratingDevPlan(true);
     try {
       const specContent = caseSpec?.content ?? '';
@@ -15508,7 +15736,7 @@ For each development activity: technical approach and deliverables.
 ## 4. Dependencies & Risks
 ## 5. Estimated Timeline
 
-Keep each section concise.`,
+Keep each section concise.${buildSectionConstraint('dev_plan', genProfile)}${buildGenSuffix(genProfile)}`,
         }],
         max_tokens: 3000,
       });
@@ -16971,7 +17199,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                     {canManage && caseSpec?.status === 'approved' &&
                       activities.some(a => a.phase === 'design' || a.phase === 'development') && (
                       <button
-                        onClick={generateDevelopmentPlan}
+                        onClick={() => { setPendingDevPlanIsRegen(true); setShowDevPlanModal(true); }}
                         disabled={generatingDevPlan}
                         className="flex items-center gap-1 text-[10px] font-semibold text-blue-500 hover:text-blue-700 disabled:opacity-50 transition-colors"
                         title={t("spec.regen_tooltip")}>
@@ -17044,7 +17272,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       {t("cd.spec_approved_desc")}
                     </p>
                     <button
-                      onClick={generateDevelopmentPlan}
+                      onClick={() => { setPendingDevPlanIsRegen(false); setShowDevPlanModal(true); }}
                       disabled={generatingDevPlan}
                       className="mt-2.5 flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
                       {generatingDevPlan
@@ -18357,6 +18585,13 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             onCancel={() => setShowEditWizard(false)}
           />
         </div>
+      )}
+      {showDevPlanModal && (
+        <GenerationProfileModal
+          title={t("gen.modal_title")}
+          onConfirm={(profileKey, resolvedProfile) => { setShowDevPlanModal(false); generateDevelopmentPlan(resolvedProfile); }}
+          onClose={() => setShowDevPlanModal(false)}
+        />
       )}
     </div>
   );
@@ -24939,19 +25174,184 @@ function SettingsRolesTab({ ssCtx }) {
   );
 }
 
+function SettingsGenerationTab({ ssCtx }) {
+  const { t } = useT();
+  const [activeProfile, setActiveProfile] = useState("basic");
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast]   = useState(null);
+
+  const [form, setForm] = useState(null);
+
+  useEffect(() => {
+    if (!ssCtx.loading) {
+      const stored = ssCtx.settings["generation_profiles"] ?? {};
+      const merged = {
+        default_profile: stored.default_profile ?? GENERATION_PROFILE_DEFAULTS.default_profile,
+        profiles: {},
+      };
+      for (const pk of ["basic", "standard", "full"]) {
+        const def = GENERATION_PROFILE_DEFAULTS.profiles[pk] ?? {};
+        const sto = stored.profiles?.[pk] ?? {};
+        const p = { additional_instructions: sto.additional_instructions ?? def.additional_instructions ?? "" };
+        for (const dk of GEN_DOCS.map(d => d.key)) {
+          p[dk] = { ...(def[dk] ?? {}), ...(sto[dk] ?? {}) };
+        }
+        merged.profiles[pk] = p;
+      }
+      setForm(merged);
+    }
+  }, [ssCtx.loading, ssCtx.settings]);
+
+  function toggleSection(profileKey, docKey, sectionKey) {
+    setForm(prev => {
+      const cur = prev.profiles[profileKey][docKey]?.[sectionKey] !== false;
+      return {
+        ...prev,
+        profiles: {
+          ...prev.profiles,
+          [profileKey]: {
+            ...prev.profiles[profileKey],
+            [docKey]: {
+              ...prev.profiles[profileKey][docKey],
+              [sectionKey]: !cur,
+            },
+          },
+        },
+      };
+    });
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await ssCtx.setSetting("generation_profiles", form);
+      setToast(t("gen.saved"));
+      setTimeout(() => setToast(null), 3000);
+    } catch (e) {
+      setToast(t("state.error_prefix") + e.message);
+    }
+    setSaving(false);
+  }
+
+  if (ssCtx.loading || !form) return <Spinner />;
+
+  const PROFILE_KEYS = ["basic", "standard", "full"];
+  const PROFILE_ICONS = { basic: Zap, standard: BarChart2, full: Sparkles };
+
+  return (
+    <div className="space-y-6 max-w-3xl">
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+          <Sparkles size={16} className="text-purple-600" /> {t("gen.tab_title")}
+        </h3>
+        <p className="text-xs text-gray-400 mb-4">{t("gen.tab_subtitle")}</p>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t("gen.default_profile")}</label>
+          <div className="flex gap-2 flex-wrap mb-1">
+            {PROFILE_KEYS.map(pk => {
+              const Icon = PROFILE_ICONS[pk];
+              const isSel = form.default_profile === pk;
+              return (
+                <button key={pk} onClick={() => setForm(p => ({ ...p, default_profile: pk }))}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${isSel ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-blue-200 hover:bg-gray-50'}`}>
+                  <Icon size={13} /> {t("gen.profile_" + pk)}
+                  {isSel && <Check size={12} className="text-blue-600 ml-1" />}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-gray-400">{t("gen.default_profile_hint")}</p>
+        </div>
+      </div>
+
+      {/* Profile detail tabs */}
+      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <div className="flex border-b border-gray-100">
+          {PROFILE_KEYS.map(pk => {
+            const Icon = PROFILE_ICONS[pk];
+            const isAct = activeProfile === pk;
+            return (
+              <button key={pk} onClick={() => setActiveProfile(pk)}
+                className={`flex items-center gap-1.5 flex-1 py-3 px-4 text-sm font-medium transition-colors border-b-2 -mb-px ${isAct ? 'border-blue-600 text-blue-700 bg-blue-50/50' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                <Icon size={13} /> {t("gen.profile_" + pk)}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="p-5 space-y-5">
+          {/* Additional instructions */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t("gen.additional_instructions_label")}</label>
+            <textarea
+              value={form.profiles[activeProfile].additional_instructions}
+              onChange={e => setForm(prev => ({
+                ...prev,
+                profiles: {
+                  ...prev.profiles,
+                  [activeProfile]: { ...prev.profiles[activeProfile], additional_instructions: e.target.value },
+                },
+              }))}
+              rows={3} placeholder={t("gen.additional_instructions_ph")}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-y focus:outline-none focus:border-blue-400" />
+            <p className="text-xs text-gray-400 mt-1">{t("gen.additional_instructions_hint")}</p>
+          </div>
+
+          {/* Per-document section toggles */}
+          <div className="space-y-4">
+            {GEN_DOCS.map(doc => (
+              <div key={doc.key}>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{doc.label}</p>
+                <div className="flex flex-wrap gap-2">
+                  {doc.sections.map(sec => {
+                    const enabled = form.profiles[activeProfile][doc.key]?.[sec.key] !== false;
+                    return (
+                      <button key={sec.key}
+                        onClick={() => toggleSection(activeProfile, doc.key, sec.key)}
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all ${enabled ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
+                        {enabled ? <Check size={10} className="text-blue-500" /> : <X size={10} className="text-gray-300" />}
+                        {sec.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {toast && (
+        <div className={`px-4 py-3 rounded-xl text-sm flex items-center gap-2 ${toast.startsWith("Error") ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
+          <CheckCircle2 size={14} /> {toast}
+        </div>
+      )}
+
+      <div className="flex justify-end">
+        <button onClick={handleSave} disabled={saving}
+          className="px-6 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
+          {saving ? t("state.saving") : <><Check size={14} /> {t("gen.save")}</>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function SystemSettingsView({ auth }) {
   const { t } = useT();
   const [activeTab, setActiveTab] = useState("users");
   const ssCtx = useSystemSettings();
 
   const tabs = [
-    { id: "users",     label: t("settings.users"),           Icon: Users },
-    { id: "roles",     label: t("settings.roles"),           Icon: Shield },
-    { id: "lifecycle", label: t("settings.lifecycle"),       Icon: TrendingUp },
-    { id: "phases",    label: t("settings.activity_phases"), Icon: ListChecks },
-    { id: "catalog",   label: t("settings.catalog"),         Icon: Tag },
-    { id: "sla",       label: t("settings.sla"),             Icon: Shield },
-    { id: "platform",  label: t("settings.platform"),        Icon: Sparkles },
+    { id: "users",      label: t("settings.users"),           Icon: Users },
+    { id: "roles",      label: t("settings.roles"),           Icon: Shield },
+    { id: "lifecycle",  label: t("settings.lifecycle"),       Icon: TrendingUp },
+    { id: "phases",     label: t("settings.activity_phases"), Icon: ListChecks },
+    { id: "catalog",    label: t("settings.catalog"),         Icon: Tag },
+    { id: "sla",        label: t("settings.sla"),             Icon: Shield },
+    { id: "platform",   label: t("settings.platform"),        Icon: Sparkles },
+    { id: "generation", label: t("settings.generation"),      Icon: Zap },
   ];
 
   return (
@@ -24971,13 +25371,14 @@ function SystemSettingsView({ auth }) {
         ))}
       </div>
 
-      {activeTab === "users"     && <SettingsUsersTab />}
-      {activeTab === "lifecycle" && <LifecycleSettingsView auth={auth} />}
-      {activeTab === "roles"     && <SettingsRolesTab ssCtx={ssCtx} />}
-      {activeTab === "phases"    && <SettingsPhasesTab ssCtx={ssCtx} />}
-      {activeTab === "catalog"   && <SettingsCatalogTab ssCtx={ssCtx} />}
-      {activeTab === "sla"       && <SlaView auth={auth} />}
-      {activeTab === "platform"  && <SettingsPlatformTab ssCtx={ssCtx} />}
+      {activeTab === "users"      && <SettingsUsersTab />}
+      {activeTab === "lifecycle"  && <LifecycleSettingsView auth={auth} />}
+      {activeTab === "roles"      && <SettingsRolesTab ssCtx={ssCtx} />}
+      {activeTab === "phases"     && <SettingsPhasesTab ssCtx={ssCtx} />}
+      {activeTab === "catalog"    && <SettingsCatalogTab ssCtx={ssCtx} />}
+      {activeTab === "sla"        && <SlaView auth={auth} />}
+      {activeTab === "platform"   && <SettingsPlatformTab ssCtx={ssCtx} />}
+      {activeTab === "generation" && <SettingsGenerationTab ssCtx={ssCtx} />}
     </div>
   );
 }
