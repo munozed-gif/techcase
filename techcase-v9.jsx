@@ -69,6 +69,18 @@ const ROLE_PERMISSIONS_DEFAULTS = {
 };
 
 // ============================================================
+// GENERATION CONTEXT DEFAULTS
+// ============================================================
+const GENERATION_CONTEXT_DEFAULTS = {
+  include_client_info:   true,
+  include_sap_profile:   true,
+  include_case_metadata: true,
+  include_project_ctx:   false,
+  include_related_cases: false,
+  related_cases_count:   3,
+};
+
+// ============================================================
 // GENERATION PROFILES DEFAULTS
 // ============================================================
 const GENERATION_PROFILE_DEFAULTS = {
@@ -1003,6 +1015,19 @@ const TRANSLATIONS = {
     "gen.generate_btn":                 "Generate",
     "gen.save":                         "Save Settings",
     "gen.saved":                        "Generation settings saved!",
+    "gen.context_title":           "Generation Context",
+    "gen.context_subtitle":        "Choose what case information is included when the AI generates documents.",
+    "gen.ctx_client_info":         "Client Info",
+    "gen.ctx_client_info_desc":    "Company name and sector from the client profile.",
+    "gen.ctx_sap_profile":         "SAP System Profile",
+    "gen.ctx_sap_profile_desc":    "Product, release, basis version, active components and transport route from the DB connection record.",
+    "gen.ctx_case_metadata":       "Case Metadata",
+    "gen.ctx_case_metadata_desc":  "Priority, budget, due date, and required skills.",
+    "gen.ctx_project_ctx":         "Project Context",
+    "gen.ctx_project_ctx_desc":    "Project name, description, goals, and deliverables (only if the case belongs to a project).",
+    "gen.ctx_related_cases":       "Related Cases",
+    "gen.ctx_related_cases_desc":  "Most recent cases for the same client and SAP module.",
+    "gen.ctx_related_count":       "Number of cases",
     "settings.generation":              "Generation Depth",
     // Kanban
     "kanban.title":     "Kanban Board",
@@ -3797,6 +3822,19 @@ const TRANSLATIONS = {
     "gen.generate_btn":                 "Generar",
     "gen.save":                         "Guardar Configuración",
     "gen.saved":                        "¡Configuración de generación guardada!",
+    "gen.context_title":           "Contexto de Generación",
+    "gen.context_subtitle":        "Elige qué información del caso se incluye cuando la IA genera documentos.",
+    "gen.ctx_client_info":         "Info del Cliente",
+    "gen.ctx_client_info_desc":    "Nombre de empresa y sector del perfil del cliente.",
+    "gen.ctx_sap_profile":         "Perfil del Sistema SAP",
+    "gen.ctx_sap_profile_desc":    "Producto, release, versión base, componentes activos y ruta de transporte del registro de conexión.",
+    "gen.ctx_case_metadata":       "Metadatos del Caso",
+    "gen.ctx_case_metadata_desc":  "Prioridad, presupuesto, fecha de vencimiento y habilidades requeridas.",
+    "gen.ctx_project_ctx":         "Contexto del Proyecto",
+    "gen.ctx_project_ctx_desc":    "Nombre, descripción, objetivos y entregables del proyecto (solo si el caso pertenece a uno).",
+    "gen.ctx_related_cases":       "Casos Relacionados",
+    "gen.ctx_related_cases_desc":  "Casos más recientes del mismo cliente y módulo SAP.",
+    "gen.ctx_related_count":       "Número de casos",
     "settings.generation":              "Profundidad de Generación",
     // Kanban
     "kanban.title":     "Tablero Kanban",
@@ -11949,6 +11987,52 @@ function renderMarkdown(md) {
   return out.join('\n');
 }
 
+// ── Generation Context Helper ─────────────────────────────────
+function buildContextString(caseData, genCtx = {}, extra = {}) {
+  const cfg = { ...GENERATION_CONTEXT_DEFAULTS, ...genCtx };
+  const lines = [];
+
+  if (cfg.include_client_info) {
+    const co = caseData.client?.client_profiles?.company_name;
+    if (co) lines.push(`Client Company: ${co}`);
+    const sec = caseData.client?.client_profiles?.industry_sector ?? caseData.area_industry;
+    if (sec) lines.push(`Client Sector: ${sec}`);
+  }
+
+  if (cfg.include_sap_profile && extra.connection) {
+    const m = extra.connection.meta ?? {};
+    const sys = [m.sap_product, m.sap_release ? `Release ${m.sap_release}` : null, m.basis_release ? `Basis ${m.basis_release}` : null].filter(Boolean).join(' | ');
+    if (sys) lines.push(`SAP System: ${sys}`);
+    if (m.system_role) lines.push(`System Role: ${m.system_role}`);
+    if (m.language && m.language !== 'EN') lines.push(`System Language: ${m.language}`);
+    if (m.components?.length) lines.push(`Active SAP Components: ${m.components.join(', ')}`);
+    if (m.transport_route) lines.push(`Transport Route: ${m.transport_route}`);
+  }
+
+  if (cfg.include_case_metadata) {
+    if (caseData.priority) lines.push(`Priority: ${caseData.priority}`);
+    if (caseData.budget) lines.push(`Budget: ${caseData.budget}`);
+    if (caseData.due_date) lines.push(`Due Date: ${caseData.due_date}`);
+    if (caseData.skills_required?.length) lines.push(`Skills Required: ${caseData.skills_required.join(', ')}`);
+  }
+
+  if (cfg.include_project_ctx && extra.project) {
+    lines.push(`Project: ${extra.project.name}`);
+    if (extra.project.description) lines.push(`Project Description: ${extra.project.description}`);
+    if (extra.project.goals) lines.push(`Project Goals: ${extra.project.goals}`);
+    if (extra.project.deliverables?.length) lines.push(`Project Deliverables: ${extra.project.deliverables.join('; ')}`);
+  }
+
+  if (cfg.include_related_cases && extra.relatedCases?.length) {
+    lines.push(`Related Cases (same client & SAP module):`);
+    extra.relatedCases.forEach((c, i) => {
+      lines.push(`  ${i + 1}. "${c.title}" — ${c.status}${c.area_sap ? ` [${c.area_sap}]` : ''}`);
+    });
+  }
+
+  return lines.length ? `\n${lines.join('\n')}` : '';
+}
+
 // ── Generation Profile Modal ─────────────────────────────────
 function buildSectionConstraint(docKey, genProfile) {
   if (!genProfile) return '';
@@ -13134,9 +13218,55 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
     ));
   }
 
+  async function buildGenContext() {
+    const genCtx = { ...GENERATION_CONTEXT_DEFAULTS, ...(ssCtx.settings["generation_context"] ?? {}) };
+    const extra = {};
+    const fetches = [];
+
+    if (genCtx.include_sap_profile && caseData.client_id) {
+      fetches.push(
+        supabase.from("db_connections")
+          .select("*")
+          .eq("client_id", caseData.client_id)
+          .is("project_id", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+          .then(({ data }) => { if (data) extra.connection = data; })
+      );
+    }
+
+    if (genCtx.include_project_ctx && caseData.project_id) {
+      fetches.push(
+        supabase.from("projects")
+          .select("name, description, goals, deliverables")
+          .eq("id", caseData.project_id)
+          .maybeSingle()
+          .then(({ data }) => { if (data) extra.project = data; })
+      );
+    }
+
+    if (genCtx.include_related_cases && caseData.client_id && caseData.area_sap) {
+      const n = genCtx.related_cases_count ?? 3;
+      fetches.push(
+        supabase.from("cases")
+          .select("title, status, area_sap")
+          .eq("client_id", caseData.client_id)
+          .eq("area_sap", caseData.area_sap)
+          .neq("id", caseData.id)
+          .order("created_at", { ascending: false })
+          .limit(n)
+          .then(({ data }) => { if (data?.length) extra.relatedCases = data; })
+      );
+    }
+
+    await Promise.all(fetches);
+    return buildContextString(caseData, genCtx, extra);
+  }
+
   // ── AI Generate — two specs ─────────────────────────────────
 
-  function buildSpecPrompt(isCustomDev, genProfile) {
+  function buildSpecPrompt(isCustomDev, genProfile, contextStr = '') {
     const sapCtx = sapCheck ? `\nSAP Standard Coverage Analysis: ${sapCheck.coverage} — ${sapCheck.summary}\nGaps: ${(sapCheck.gaps??[]).join('; ')||'none'}\nStandard transactions: ${(sapCheck.standard_transactions??[]).join(', ')||'none'}` : '';
     const propCtx = proposalCheck ? `\nProposal Validation: score ${proposalCheck.score}/10, risk ${proposalCheck.risk_level}\nStrengths: ${(proposalCheck.strengths??[]).join('; ')||'none'}\nConcerns: ${(proposalCheck.concerns??[]).join('; ')||'none'}` : '';
 
@@ -13146,7 +13276,7 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
 Case: ${caseData.title}
 Description: ${caseData.description ?? '(none)'}
 SAP Module: ${caseData.area_sap ?? ''}
-Industry: ${caseData.area_industry ?? ''}
+Industry: ${caseData.area_industry ?? ''}${contextStr}
 
 IMPORTANT: The Pros & Cons section must reference the step analysis above — use the actual gaps as justification for custom dev, and the proposal strengths/concerns as pros/cons.
 
@@ -13218,7 +13348,7 @@ Use realistic Z object names, actual SAP table names for ${caseData.area_sap ?? 
 Case: ${caseData.title}
 Description: ${caseData.description ?? '(none)'}
 SAP Module: ${caseData.area_sap ?? ''}
-Industry: ${caseData.area_industry ?? ''}
+Industry: ${caseData.area_industry ?? ''}${contextStr}
 
 IMPORTANT: This spec covers the approach WITHOUT custom ABAP development. It uses only standard SAP transactions, configuration, and possibly SAPscript/Smartform-based standard tools. Reference the standard transactions found in the coverage analysis.
 
@@ -13284,7 +13414,7 @@ Use real standard SAP transaction codes and configuration objects for ${caseData
     }
   }
 
-  function buildSpecCPrompt(customerContent, genProfile) {
+  function buildSpecCPrompt(customerContent, genProfile, contextStr = '') {
     return `Write Option C: Customer Proposal As-Is Functional Specification for this case.
 
 This option formalizes EXACTLY what the customer proposed, without any AI alternatives or suggestions. Do NOT add any SAP standard alternatives or custom dev recommendations — this is a direct formalization of the customer's own technical proposal.
@@ -13292,7 +13422,7 @@ This option formalizes EXACTLY what the customer proposed, without any AI altern
 Case: ${caseData.title}
 Description: ${caseData.description ?? '(none)'}
 SAP Module: ${caseData.area_sap ?? ''}
-Industry: ${caseData.area_industry ?? ''}
+Industry: ${caseData.area_industry ?? ''}${contextStr}
 Customer Proposal / Notes:
 ${customerContent || '(see case description above)'}
 
@@ -13371,10 +13501,11 @@ Use realistic Z object names matching the customer's described solution for ${ca
       const docBlocks = await buildDocumentBlocks();
       const msgContent = (prompt) => docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt;
       const customerContent = analysisCustomerContent || caseData.description || '';
+      const contextStr = await buildGenContext();
       const [specA, specB, specC] = await Promise.all([
-        callClaude({ model: genModel, system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecPrompt(true, genProfile)) }], max_tokens: 4000 }),
-        callClaude({ model: genModel, system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecPrompt(false, genProfile)) }], max_tokens: 4000 }),
-        callClaude({ model: genModel, system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecCPrompt(customerContent, genProfile)) }], max_tokens: 4000 }),
+        callClaude({ model: genModel, system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecPrompt(true, genProfile, contextStr)) }], max_tokens: 4000 }),
+        callClaude({ model: genModel, system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecPrompt(false, genProfile, contextStr)) }], max_tokens: 4000 }),
+        callClaude({ model: genModel, system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecCPrompt(customerContent, genProfile, contextStr)) }], max_tokens: 4000 }),
       ]);
       setAiSpecA(specA);
       setAiSpecB(specB);
@@ -15655,6 +15786,52 @@ canvas{display:block;width:100%}
 </html>`;
   }
 
+  async function buildDevPlanContext() {
+    const genCtx = { ...GENERATION_CONTEXT_DEFAULTS, ...(cdSettings["generation_context"] ?? {}) };
+    const extra = {};
+    const fetches = [];
+
+    if (genCtx.include_sap_profile && caseData.client_id) {
+      fetches.push(
+        supabase.from("db_connections")
+          .select("*")
+          .eq("client_id", caseData.client_id)
+          .is("project_id", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+          .then(({ data }) => { if (data) extra.connection = data; })
+      );
+    }
+
+    if (genCtx.include_project_ctx && caseData.project_id) {
+      fetches.push(
+        supabase.from("projects")
+          .select("name, description, goals, deliverables")
+          .eq("id", caseData.project_id)
+          .maybeSingle()
+          .then(({ data }) => { if (data) extra.project = data; })
+      );
+    }
+
+    if (genCtx.include_related_cases && caseData.client_id && caseData.area_sap) {
+      const n = genCtx.related_cases_count ?? 3;
+      fetches.push(
+        supabase.from("cases")
+          .select("title, status, area_sap")
+          .eq("client_id", caseData.client_id)
+          .eq("area_sap", caseData.area_sap)
+          .neq("id", caseData.id)
+          .order("created_at", { ascending: false })
+          .limit(n)
+          .then(({ data }) => { if (data?.length) extra.relatedCases = data; })
+      );
+    }
+
+    await Promise.all(fetches);
+    return buildContextString(caseData, genCtx, extra);
+  }
+
   async function generateDevelopmentPlan(genProfile = null) {
     if (!genProfile) {
       setPendingDevPlanIsRegen(false);
@@ -15664,10 +15841,11 @@ canvas{display:block;width:100%}
     setGeneratingDevPlan(true);
     try {
       const specContent = caseSpec?.content ?? '';
+      const contextStr = await buildDevPlanContext();
       const ctx = `Case: ${caseData.title}
 Description: ${caseData.description ?? '(none)'}
 SAP Module: ${caseData.area_sap ?? 'N/A'}
-Industry: ${caseData.area_industry ?? 'N/A'}
+Industry: ${caseData.area_industry ?? 'N/A'}${contextStr}
 
 Approved Functional Specification:
 ${specContent ? specContent.slice(0, 4000) : '(Spec content not available — use the case description to infer scope)'}`;
@@ -25176,10 +25354,12 @@ function SettingsGenerationTab({ ssCtx }) {
   useEffect(() => {
     if (!ssCtx.loading) {
       const stored = ssCtx.settings["generation_profiles"] ?? {};
+      const storedCtx = ssCtx.settings["generation_context"] ?? {};
       const merged = {
         ai_model:       ssCtx.settings["ai_model"]       ?? "claude-haiku-4-5-20251001",
         analysis_model: ssCtx.settings["analysis_model"] ?? "claude-haiku-4-5-20251001",
         default_profile: stored.default_profile ?? GENERATION_PROFILE_DEFAULTS.default_profile,
+        context: { ...GENERATION_CONTEXT_DEFAULTS, ...storedCtx },
         profiles: {},
       };
       for (const pk of ["basic", "standard", "full"]) {
@@ -25217,10 +25397,11 @@ function SettingsGenerationTab({ ssCtx }) {
   async function handleSave() {
     setSaving(true);
     try {
-      const { ai_model, analysis_model, ...genProfiles } = form;
+      const { ai_model, analysis_model, context, ...genProfiles } = form;
       await Promise.all([
-        ssCtx.setSetting("ai_model",       ai_model),
-        ssCtx.setSetting("analysis_model", analysis_model),
+        ssCtx.setSetting("ai_model",            ai_model),
+        ssCtx.setSetting("analysis_model",      analysis_model),
+        ssCtx.setSetting("generation_context",  context),
         ssCtx.setSetting("generation_profiles", genProfiles),
       ]);
       setToast(t("gen.saved"));
@@ -25282,6 +25463,44 @@ function SettingsGenerationTab({ ssCtx }) {
             })}
           </div>
           <p className="text-xs text-gray-400">{t("gen.default_profile_hint")}</p>
+        </div>
+      </div>
+
+      {/* Generation Context */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+          <Database size={16} className="text-indigo-600" /> {t("gen.context_title")}
+        </h3>
+        <p className="text-xs text-gray-400 mb-4">{t("gen.context_subtitle")}</p>
+        <div className="space-y-3">
+          {[
+            { key: "include_client_info",   labelKey: "gen.ctx_client_info",   descKey: "gen.ctx_client_info_desc" },
+            { key: "include_sap_profile",   labelKey: "gen.ctx_sap_profile",   descKey: "gen.ctx_sap_profile_desc" },
+            { key: "include_case_metadata", labelKey: "gen.ctx_case_metadata", descKey: "gen.ctx_case_metadata_desc" },
+            { key: "include_project_ctx",   labelKey: "gen.ctx_project_ctx",   descKey: "gen.ctx_project_ctx_desc" },
+            { key: "include_related_cases", labelKey: "gen.ctx_related_cases", descKey: "gen.ctx_related_cases_desc" },
+          ].map(({ key, labelKey, descKey }) => (
+            <label key={key} className="flex items-center justify-between gap-4 cursor-pointer select-none">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-700">{t(labelKey)}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{t(descKey)}</p>
+                {key === "include_related_cases" && form.context.include_related_cases && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-xs text-gray-500">{t("gen.ctx_related_count")}:</span>
+                    <input type="number" min={1} max={10} value={form.context.related_cases_count}
+                      onChange={e => setForm(p => ({ ...p, context: { ...p.context, related_cases_count: Math.min(10, Math.max(1, +e.target.value)) } }))}
+                      className="w-16 border border-gray-200 rounded-lg px-2 py-1 text-xs text-center focus:outline-none focus:border-blue-400" />
+                  </div>
+                )}
+              </div>
+              <button type="button"
+                onClick={() => setForm(p => ({ ...p, context: { ...p.context, [key]: !p.context[key] } }))}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${form.context[key] ? 'bg-blue-600' : 'bg-gray-200'}`}
+                role="switch" aria-checked={form.context[key]}>
+                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${form.context[key] ? 'translate-x-5' : 'translate-x-0'}`} />
+              </button>
+            </label>
+          ))}
         </div>
       </div>
 
