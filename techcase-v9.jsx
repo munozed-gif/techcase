@@ -810,6 +810,37 @@ const TRANSLATIONS = {
     "settings.catalog":         "Catalog Values",
     "settings.sla":             "SLA Config",
     "settings.platform":        "Platform & AI",
+    "settings.roles":           "Roles & Permissions",
+    // Role labels
+    "role.admin":       "Admin",
+    "role.manager":     "Manager",
+    "role.consultant":  "Consultant",
+    "role.client":      "Client",
+    "role.key_user":    "Key User",
+    "role.headhunter":  "Headhunter",
+    "role.final_user":  "Final User",
+    // Roles tab UI
+    "roles.title":           "Roles & Permissions",
+    "roles.subtitle":        "Configure what each role can do across the platform.",
+    "roles.capability":      "Capability",
+    "roles.saved":           "Permissions saved!",
+    "roles.reset":           "Reset defaults",
+    "roles.save":            "Save permissions",
+    "roles.cap.create_cases":      "Create cases",
+    "roles.cap.view_all_cases":    "View all cases",
+    "roles.cap.approve_specs":     "Approve specifications",
+    "roles.cap.regen_specs":       "Re-generate specifications",
+    "roles.cap.upload_docs":       "Upload documents",
+    "roles.cap.view_docs":         "View documents",
+    "roles.cap.add_activities":    "Add & manage activities",
+    "roles.cap.log_time":          "Log time entries",
+    "roles.cap.approve_time":      "Approve time entries",
+    "roles.cap.apply_to_cases":    "Apply to cases",
+    "roles.cap.view_reports":      "View reports & analytics",
+    "roles.cap.manage_invoices":   "Manage invoices",
+    "roles.cap.view_lifecycle":    "View lifecycle tab",
+    "roles.cap.submit_specs":      "Submit specs for approval",
+    "roles.cap.generate_dev_plan": "Generate dev & design plan",
     // System Settings inner tabs
     "sys.search_users":         "Search users…",
     "sys.add_user":             "Add User",
@@ -3542,6 +3573,37 @@ const TRANSLATIONS = {
     "settings.catalog":         "Valores de Catálogo",
     "settings.sla":             "Config. SLA",
     "settings.platform":        "Plataforma e IA",
+    "settings.roles":           "Roles y Permisos",
+    // Role labels
+    "role.admin":       "Administrador",
+    "role.manager":     "Manager",
+    "role.consultant":  "Consultor",
+    "role.client":      "Cliente",
+    "role.key_user":    "Key User",
+    "role.headhunter":  "Headhunter",
+    "role.final_user":  "Usuario Final",
+    // Roles tab UI
+    "roles.title":           "Roles y Permisos",
+    "roles.subtitle":        "Configura qué puede hacer cada rol en la plataforma.",
+    "roles.capability":      "Capacidad",
+    "roles.saved":           "¡Permisos guardados!",
+    "roles.reset":           "Restablecer valores",
+    "roles.save":            "Guardar permisos",
+    "roles.cap.create_cases":      "Crear casos",
+    "roles.cap.view_all_cases":    "Ver todos los casos",
+    "roles.cap.approve_specs":     "Aprobar especificaciones",
+    "roles.cap.regen_specs":       "Regenerar especificaciones",
+    "roles.cap.upload_docs":       "Subir documentos",
+    "roles.cap.view_docs":         "Ver documentos",
+    "roles.cap.add_activities":    "Agregar y gestionar actividades",
+    "roles.cap.log_time":          "Registrar tiempo",
+    "roles.cap.approve_time":      "Aprobar entradas de tiempo",
+    "roles.cap.apply_to_cases":    "Postularse a casos",
+    "roles.cap.view_reports":      "Ver reportes y analíticas",
+    "roles.cap.manage_invoices":   "Gestionar facturas",
+    "roles.cap.view_lifecycle":    "Ver pestaña de ciclo de vida",
+    "roles.cap.submit_specs":      "Enviar especificaciones a aprobación",
+    "roles.cap.generate_dev_plan": "Generar plan de diseño y desarrollo",
     // System Settings inner tabs
     "sys.search_users":         "Buscar usuarios…",
     "sys.add_user":             "Agregar Usuario",
@@ -4833,6 +4895,8 @@ function useAuth() {
     isConsultant: profile?.role === "consultant",
     isClient:     profile?.role === "client",
     isKeyUser:    profile?.role === "key_user",
+    isHeadhunter: profile?.role === "headhunter",
+    isFinalUser:  profile?.role === "final_user",
   };
 }
 
@@ -23904,7 +23968,7 @@ function SettingsUsersTab() {
   const [resetSent, setResetSent] = useState({});
   const [search, setSearch]     = useState("");
 
-  const ROLES = ["admin", "manager", "consultant", "client", "key_user"];
+  const ROLES = ["admin", "manager", "consultant", "client", "key_user", "headhunter", "final_user"];
 
   async function loadUsers() {
     const { data } = await supabase.from("users").select("*").order("created_at", { ascending: false });
@@ -24599,6 +24663,175 @@ function SettingsPlatformTab({ ssCtx }) {
   );
 }
 
+function SettingsRolesTab({ ssCtx }) {
+  const { t } = useT();
+
+  const ALL_ROLES = ["admin", "manager", "consultant", "client", "key_user", "headhunter", "final_user"];
+  const CAPABILITIES = [
+    "create_cases", "view_all_cases", "approve_specs", "regen_specs",
+    "upload_docs", "view_docs", "add_activities", "log_time",
+    "approve_time", "apply_to_cases", "view_reports", "manage_invoices",
+    "view_lifecycle", "submit_specs", "generate_dev_plan",
+  ];
+  const DEFAULTS = {
+    create_cases:      { admin:true,  manager:true,  consultant:false, client:true,  key_user:true,  headhunter:false, final_user:false },
+    view_all_cases:    { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false },
+    approve_specs:     { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false },
+    regen_specs:       { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false },
+    upload_docs:       { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false },
+    view_docs:         { admin:true,  manager:true,  consultant:true,  client:true,  key_user:true,  headhunter:false, final_user:true  },
+    add_activities:    { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false },
+    log_time:          { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false },
+    approve_time:      { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false },
+    apply_to_cases:    { admin:false, manager:false, consultant:true,  client:false, key_user:false, headhunter:true,  final_user:false },
+    view_reports:      { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:false },
+    manage_invoices:   { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:false },
+    view_lifecycle:    { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:true  },
+    submit_specs:      { admin:true,  manager:true,  consultant:true,  client:true,  key_user:true,  headhunter:false, final_user:false },
+    generate_dev_plan: { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false },
+  };
+
+  const [matrix, setMatrix] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast]   = useState(null);
+
+  useEffect(() => {
+    if (!ssCtx.loading) {
+      const stored = ssCtx.settings["role_permissions"] ?? {};
+      const merged = {};
+      for (const cap of CAPABILITIES) {
+        merged[cap] = { ...DEFAULTS[cap], ...(stored[cap] ?? {}) };
+      }
+      setMatrix(merged);
+    }
+  }, [ssCtx.loading, ssCtx.settings]);
+
+  function toggle(cap, role) {
+    if (role === 'admin') return; // admin always has everything
+    setMatrix(p => ({ ...p, [cap]: { ...p[cap], [role]: !p[cap][role] } }));
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await ssCtx.setSetting("role_permissions", matrix);
+      setToast(t("roles.saved"));
+      setTimeout(() => setToast(null), 3000);
+    } catch (e) {
+      setToast("Error: " + e.message);
+    }
+    setSaving(false);
+  }
+
+  function handleReset() {
+    const fresh = {};
+    for (const cap of CAPABILITIES) fresh[cap] = { ...DEFAULTS[cap] };
+    setMatrix(fresh);
+  }
+
+  if (ssCtx.loading || !matrix) return <Spinner />;
+
+  const ROLE_COLORS = {
+    admin: 'bg-red-100 text-red-700',
+    manager: 'bg-purple-100 text-purple-700',
+    consultant: 'bg-blue-100 text-blue-700',
+    client: 'bg-green-100 text-green-700',
+    key_user: 'bg-amber-100 text-amber-700',
+    headhunter: 'bg-pink-100 text-pink-700',
+    final_user: 'bg-teal-100 text-teal-700',
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+            <Shield size={16} className="text-blue-600" /> {t("roles.title")}
+          </h3>
+        </div>
+        <p className="text-xs text-gray-400 mb-5">{t("roles.subtitle")} {" "}
+          <span className="text-red-500 font-medium">Admin always has full access and cannot be restricted.</span>
+        </p>
+
+        {/* Role chips legend */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {ALL_ROLES.map(r => (
+            <span key={r} className={`text-xs font-semibold px-2.5 py-1 rounded-full ${ROLE_COLORS[r]}`}>
+              {t("role." + r)}
+            </span>
+          ))}
+        </div>
+
+        {/* Permission matrix */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th className="text-left py-2 pr-4 font-semibold text-gray-500 text-xs uppercase tracking-wide w-48">
+                  {t("roles.capability")}
+                </th>
+                {ALL_ROLES.map(r => (
+                  <th key={r} className="text-center py-2 px-2 min-w-[72px]">
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ROLE_COLORS[r]}`}>
+                      {t("role." + r)}
+                    </span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {CAPABILITIES.map((cap, idx) => (
+                <tr key={cap} className={`border-b border-gray-100 ${idx % 2 === 0 ? 'bg-gray-50/50' : ''}`}>
+                  <td className="py-2.5 pr-4 font-medium text-gray-700 text-xs">
+                    {t("roles.cap." + cap)}
+                  </td>
+                  {ALL_ROLES.map(role => (
+                    <td key={role} className="text-center py-2.5 px-2">
+                      {role === 'admin' ? (
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-100 text-red-600" title="Admin always has access">
+                          <Check size={11} />
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => toggle(cap, role)}
+                          className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${
+                            matrix[cap][role]
+                              ? 'bg-blue-600 border-blue-600 text-white'
+                              : 'bg-white border-gray-300 text-transparent hover:border-blue-400'
+                          }`}
+                        >
+                          <Check size={11} />
+                        </button>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {toast && (
+        <div className={`px-4 py-3 rounded-xl text-sm flex items-center gap-2 ${toast.startsWith("Error") ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
+          <CheckCircle2 size={14} /> {toast}
+        </div>
+      )}
+
+      <div className="flex gap-3">
+        <button onClick={handleReset}
+          className="px-4 py-2 border border-gray-200 text-gray-700 text-sm rounded-xl hover:bg-gray-50 flex items-center gap-1.5">
+          <RotateCcw size={13} /> {t("roles.reset")}
+        </button>
+        <button onClick={handleSave} disabled={saving}
+          className="px-6 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
+          {saving ? t("state.saving") : <><Check size={14} /> {t("roles.save")}</>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function SystemSettingsView({ auth }) {
   const { t } = useT();
   const [activeTab, setActiveTab] = useState("users");
@@ -24606,6 +24839,7 @@ function SystemSettingsView({ auth }) {
 
   const tabs = [
     { id: "users",     label: t("settings.users"),           Icon: Users },
+    { id: "roles",     label: t("settings.roles"),           Icon: Shield },
     { id: "lifecycle", label: t("settings.lifecycle"),       Icon: TrendingUp },
     { id: "phases",    label: t("settings.activity_phases"), Icon: ListChecks },
     { id: "catalog",   label: t("settings.catalog"),         Icon: Tag },
@@ -24632,6 +24866,7 @@ function SystemSettingsView({ auth }) {
 
       {activeTab === "users"     && <SettingsUsersTab />}
       {activeTab === "lifecycle" && <LifecycleSettingsView auth={auth} />}
+      {activeTab === "roles"     && <SettingsRolesTab ssCtx={ssCtx} />}
       {activeTab === "phases"    && <SettingsPhasesTab ssCtx={ssCtx} />}
       {activeTab === "catalog"   && <SettingsCatalogTab ssCtx={ssCtx} />}
       {activeTab === "sla"       && <SlaView auth={auth} />}
