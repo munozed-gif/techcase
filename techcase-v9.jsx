@@ -47,6 +47,27 @@ const supabase = createClient(
 );
 
 // ============================================================
+// ROLE PERMISSIONS DEFAULTS
+// ============================================================
+const ROLE_PERMISSIONS_DEFAULTS = {
+  create_cases:      { admin:true,  manager:true,  consultant:false, client:true,  key_user:true,  headhunter:false, final_user:false },
+  view_all_cases:    { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false },
+  approve_specs:     { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false },
+  regen_specs:       { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false },
+  upload_docs:       { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false },
+  view_docs:         { admin:true,  manager:true,  consultant:true,  client:true,  key_user:true,  headhunter:false, final_user:true  },
+  add_activities:    { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false },
+  log_time:          { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false },
+  approve_time:      { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false },
+  apply_to_cases:    { admin:false, manager:false, consultant:true,  client:false, key_user:false, headhunter:true,  final_user:false },
+  view_reports:      { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:false },
+  manage_invoices:   { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:false },
+  view_lifecycle:    { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:true  },
+  submit_specs:      { admin:true,  manager:true,  consultant:true,  client:true,  key_user:true,  headhunter:false, final_user:false },
+  generate_dev_plan: { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false },
+};
+
+// ============================================================
 // INTERNATIONALIZATION (EN / ES)
 // ============================================================
 const TRANSLATIONS = {
@@ -820,12 +841,14 @@ const TRANSLATIONS = {
     "role.headhunter":  "Headhunter",
     "role.final_user":  "Final User",
     // Roles tab UI
-    "roles.title":           "Roles & Permissions",
-    "roles.subtitle":        "Configure what each role can do across the platform.",
-    "roles.capability":      "Capability",
-    "roles.saved":           "Permissions saved!",
-    "roles.reset":           "Reset defaults",
-    "roles.save":            "Save permissions",
+    "roles.title":                "Roles & Permissions",
+    "roles.subtitle":             "Configure what each role can do across the platform.",
+    "roles.capability":           "Capability",
+    "roles.saved":                "Permissions saved!",
+    "roles.reset":                "Reset defaults",
+    "roles.save":                 "Save permissions",
+    "roles.require_team_title":   "Require team membership for Final Users",
+    "roles.require_team_desc":    "When enabled, Final Users must enter a valid company code to sign up. They cannot register without belonging to a customer team.",
     "roles.cap.create_cases":      "Create cases",
     "roles.cap.view_all_cases":    "View all cases",
     "roles.cap.approve_specs":     "Approve specifications",
@@ -1768,6 +1791,14 @@ const TRANSLATIONS = {
     "auth.error_headline":          "Enter a professional headline.",
     "auth.error_company":           "Enter your company name.",
     "auth.error_key_user":          "Your email is not registered as a Key User for any company.",
+    "auth.error_team_code":         "Verify your company code before continuing.",
+    "auth.role_final_user":         "Final User",
+    "auth.final_user_desc":         "I'm a collaborator or stakeholder with access to specific cases",
+    "auth.final_user_team_required":"A valid company code is required to sign up as a Final User",
+    "auth.team_code_label":         "Company code",
+    "auth.team_code_ph":            "Enter your company name",
+    "auth.team_code_verify":        "Verify",
+    "auth.team_code_invalid":       "No company found with that name. Check with your administrator.",
     "spec.saved":                   "saved",
     "spec.not_saved":               "not saved",
     "spec.saving_pdfs":             "Saving PDFs…",
@@ -3583,12 +3614,14 @@ const TRANSLATIONS = {
     "role.headhunter":  "Headhunter",
     "role.final_user":  "Usuario Final",
     // Roles tab UI
-    "roles.title":           "Roles y Permisos",
-    "roles.subtitle":        "Configura qué puede hacer cada rol en la plataforma.",
-    "roles.capability":      "Capacidad",
-    "roles.saved":           "¡Permisos guardados!",
-    "roles.reset":           "Restablecer valores",
-    "roles.save":            "Guardar permisos",
+    "roles.title":                "Roles y Permisos",
+    "roles.subtitle":             "Configura qué puede hacer cada rol en la plataforma.",
+    "roles.capability":           "Capacidad",
+    "roles.saved":                "¡Permisos guardados!",
+    "roles.reset":                "Restablecer valores",
+    "roles.save":                 "Guardar permisos",
+    "roles.require_team_title":   "Requerir membresía de equipo para Usuarios Finales",
+    "roles.require_team_desc":    "Cuando está activo, los Usuarios Finales deben ingresar un código de empresa válido para registrarse. No pueden registrarse sin pertenecer a un equipo cliente.",
     "roles.cap.create_cases":      "Crear casos",
     "roles.cap.view_all_cases":    "Ver todos los casos",
     "roles.cap.approve_specs":     "Aprobar especificaciones",
@@ -3871,6 +3904,14 @@ const TRANSLATIONS = {
     "auth.error_headline":          "Ingresa un titular profesional.",
     "auth.error_company":           "Ingresa el nombre de tu empresa.",
     "auth.error_key_user":          "Tu correo no está registrado como Usuario Clave en ninguna empresa.",
+    "auth.error_team_code":         "Verifica tu código de empresa antes de continuar.",
+    "auth.role_final_user":         "Usuario Final",
+    "auth.final_user_desc":         "Soy un colaborador o interesado con acceso a casos específicos",
+    "auth.final_user_team_required":"Se requiere un código de empresa válido para registrarse como Usuario Final",
+    "auth.team_code_label":         "Código de empresa",
+    "auth.team_code_ph":            "Ingresa el nombre de tu empresa",
+    "auth.team_code_verify":        "Verificar",
+    "auth.team_code_invalid":       "No se encontró ninguna empresa con ese nombre. Consulta con tu administrador.",
     "spec.saved":                   "guardado",
     "spec.not_saved":               "no guardado",
     "spec.saving_pdfs":             "Guardando PDFs…",
@@ -6783,10 +6824,15 @@ function AuthScreen({ onAuth }) {
   const [industry, setIndustry]       = useState("");
   // Key-user detection (set after OTP verify)
   const [keyUserCompany, setKeyUserCompany] = useState(null);
+  // Final-user team code
+  const [teamCode, setTeamCode]             = useState("");
+  const [teamCodeVerified, setTeamCodeVerified] = useState(null); // company_name if valid
 
   const [error, setError]   = useState("");
   const [loading, setLoad]  = useState(false);
   const auth = useAuth();
+  const { settings: ssSettings } = useSystemSettings();
+  const requireTeamForFinalUser = ssSettings["require_team_for_final_user"] === true;
 
   const SIGNUP_STEPS = [
     { id: "verify",  label: t("auth.step_verify"),  Icon: Mail },
@@ -6892,6 +6938,7 @@ function AuthScreen({ onAuth }) {
     if (role === "consultant" && !headline.trim()) { setError(t("auth.error_headline")); return; }
     if (role === "client" && !companyName.trim()) { setError(t("auth.error_company")); return; }
     if (role === "key_user" && !keyUserCompany) { setError(t("auth.error_key_user")); return; }
+    if (role === "final_user" && requireTeamForFinalUser && !teamCodeVerified) { setError(t("auth.error_team_code")); return; }
     setError(""); setLoad(true);
     try {
       await supabase.auth.updateUser({
@@ -7077,6 +7124,19 @@ function AuthScreen({ onAuth }) {
                     }
                   </div>
                 </button>
+                {/* Final User */}
+                <button
+                  onClick={() => selectRole("final_user")}
+                  className="w-full mt-3 flex items-center gap-4 p-4 border-2 border-gray-200 hover:border-teal-400 hover:bg-teal-50 rounded-2xl transition-all text-left cursor-pointer">
+                  <Globe className="w-8 h-8 flex-shrink-0 text-teal-600" />
+                  <div className="min-w-0">
+                    <div className="font-semibold text-sm text-gray-700">{t("auth.role_final_user")}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">{t("auth.final_user_desc")}</div>
+                    {requireTeamForFinalUser && (
+                      <div className="text-xs text-teal-600 mt-1">{t("auth.final_user_team_required")}</div>
+                    )}
+                  </div>
+                </button>
               </div>
             )}
 
@@ -7086,6 +7146,7 @@ function AuthScreen({ onAuth }) {
                 <h2 className="text-lg font-bold text-gray-900 mb-1">
                   {role === "consultant" ? t("auth.build_consultant")
                     : role === "key_user" ? t("auth.build_key_user")
+                    : role === "final_user" ? t("auth.role_final_user")
                     : t("auth.build_client")}
                 </h2>
                 <p className="text-sm text-gray-500 mb-5">
@@ -7093,6 +7154,8 @@ function AuthScreen({ onAuth }) {
                     ? t("auth.help_clients")
                     : role === "key_user"
                     ? t("auth.key_user_access").replace("{n}", keyUserCompany ?? "your company")
+                    : role === "final_user"
+                    ? t("auth.final_user_desc")
                     : t("auth.tell_consultants")}
                 </p>
                 {role === "key_user" && keyUserCompany && (
@@ -7159,6 +7222,53 @@ function AuthScreen({ onAuth }) {
                     </select>
                   </div>
                 </>)}
+
+                {/* ── Final User fields ── */}
+                {role === "final_user" && requireTeamForFinalUser && (
+                  <div className="mt-2">
+                    <div className="border-t border-gray-100 my-4" />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t("auth.team_code_label")}
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={teamCode}
+                        onChange={e => { setTeamCode(e.target.value); setTeamCodeVerified(null); }}
+                        placeholder={t("auth.team_code_ph")}
+                        className="flex-1 border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none" />
+                      <button
+                        type="button"
+                        disabled={loading || !teamCode.trim()}
+                        onClick={async () => {
+                          setLoad(true);
+                          const { data } = await supabase
+                            .from("client_profiles")
+                            .select("company_name")
+                            .ilike("company_name", teamCode.trim())
+                            .limit(1);
+                          if (data?.length) {
+                            setTeamCodeVerified(data[0].company_name);
+                          } else {
+                            setTeamCodeVerified(false);
+                          }
+                          setLoad(false);
+                        }}
+                        className="px-4 py-2 text-sm font-semibold bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-50 whitespace-nowrap">
+                        {t("auth.team_code_verify")}
+                      </button>
+                    </div>
+                    {teamCodeVerified === false && (
+                      <p className="text-xs text-red-500 mt-1">{t("auth.team_code_invalid")}</p>
+                    )}
+                    {teamCodeVerified && (
+                      <div className="flex items-center gap-2 bg-teal-50 border border-teal-200 rounded-xl px-3 py-2 mt-2">
+                        <CheckCircle2 size={14} className="text-teal-600 flex-shrink-0" />
+                        <span className="text-sm text-teal-700 font-medium">{teamCodeVerified}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <button onClick={createAccount} disabled={loading}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 mt-2">
@@ -12573,8 +12683,9 @@ ${mdToHtml(markdownContent)}
     openHtmlInNewTab(specHtml);
   }
 
-  const canApprove = auth.isAdmin || auth.isManager || auth.isConsultant;
-  const canSubmit  = auth.isClient || auth.isKeyUser || auth.isAdmin || auth.isManager || auth.isConsultant;
+  const perms = usePermissions(auth);
+  const canApprove = perms.can('approve_specs');
+  const canSubmit  = perms.can('submit_specs');
 
   // Pre-fill from existing spec when mode is selected
   useEffect(() => {
@@ -13265,7 +13376,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
           </div>
           <div className="flex items-center gap-2">
             {spec.mode === 'ai' && spec.status === 'approved' &&
-              (auth.isAdmin || auth.isManager || ssCtx.settings["spec_regen_manager_only"] === false) && (
+              perms.can('regen_specs') && (
               <button onClick={() => handleGenerateSpecs({ autoSubmit: true })} disabled={generatingSpecs}
                 className="px-3 py-1.5 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 disabled:opacity-50">
                 {generatingSpecs ? t("state.generating") : t("spec.regen_btn")}
@@ -14042,7 +14153,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         className="px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-white">
                         {aiEditing ? t("spec.preview_lbl") : t("spec.edit_lbl")}
                       </button>
-                      {(auth.isAdmin || auth.isManager || ssCtx.settings["spec_regen_manager_only"] === false) && (
+                      {perms.can('regen_specs') && (
                         <button onClick={handleGenerateSpecs}
                           className="px-2.5 py-1 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
                           {t("spec.regen_all")}
@@ -23919,10 +24030,11 @@ function ManagerAdminWelcomeView({ auth, onComplete }) {
 }
 
 // ============================================================
-// SYSTEM SETTINGS
+// SYSTEM SETTINGS (context-based — single Supabase query app-wide)
 // ============================================================
+const SystemSettingsContext = createContext(null);
 
-function useSystemSettings() {
+function SystemSettingsProvider({ children }) {
   const [settings, setSettings] = useState({});
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState(null);
@@ -23951,7 +24063,39 @@ function useSystemSettings() {
     setSettings(prev => ({ ...prev, [key]: value }));
   }
 
-  return { settings, loading, dbError, setSetting, reload: load };
+  return (
+    <SystemSettingsContext.Provider value={{ settings, loading, dbError, setSetting, reload: load }}>
+      {children}
+    </SystemSettingsContext.Provider>
+  );
+}
+
+function useSystemSettings() {
+  const ctx = useContext(SystemSettingsContext);
+  if (!ctx) {
+    // Fallback for components rendered outside the provider (e.g. AuthScreen)
+    return { settings: {}, loading: false, dbError: null, setSetting: async () => {}, reload: async () => {} };
+  }
+  return ctx;
+}
+
+// Returns a `can(capability)` function based on the role_permissions setting
+function usePermissions(auth) {
+  const { settings } = useSystemSettings();
+  const role = auth?.profile?.role ?? null;
+
+  const storedMatrix = settings["role_permissions"] ?? {};
+
+  function can(capability) {
+    if (!role) return false;
+    if (role === "admin") return true;
+    const capDefaults = ROLE_PERMISSIONS_DEFAULTS[capability] ?? {};
+    const capStored   = storedMatrix[capability] ?? {};
+    const merged = { ...capDefaults, ...capStored };
+    return merged[role] === true;
+  }
+
+  return { can };
 }
 
 function SettingsUsersTab() {
@@ -24667,47 +24811,27 @@ function SettingsRolesTab({ ssCtx }) {
   const { t } = useT();
 
   const ALL_ROLES = ["admin", "manager", "consultant", "client", "key_user", "headhunter", "final_user"];
-  const CAPABILITIES = [
-    "create_cases", "view_all_cases", "approve_specs", "regen_specs",
-    "upload_docs", "view_docs", "add_activities", "log_time",
-    "approve_time", "apply_to_cases", "view_reports", "manage_invoices",
-    "view_lifecycle", "submit_specs", "generate_dev_plan",
-  ];
-  const DEFAULTS = {
-    create_cases:      { admin:true,  manager:true,  consultant:false, client:true,  key_user:true,  headhunter:false, final_user:false },
-    view_all_cases:    { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false },
-    approve_specs:     { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false },
-    regen_specs:       { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false },
-    upload_docs:       { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false },
-    view_docs:         { admin:true,  manager:true,  consultant:true,  client:true,  key_user:true,  headhunter:false, final_user:true  },
-    add_activities:    { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false },
-    log_time:          { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false },
-    approve_time:      { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false },
-    apply_to_cases:    { admin:false, manager:false, consultant:true,  client:false, key_user:false, headhunter:true,  final_user:false },
-    view_reports:      { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:false },
-    manage_invoices:   { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:false },
-    view_lifecycle:    { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:true  },
-    submit_specs:      { admin:true,  manager:true,  consultant:true,  client:true,  key_user:true,  headhunter:false, final_user:false },
-    generate_dev_plan: { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false },
-  };
+  const CAPABILITIES = Object.keys(ROLE_PERMISSIONS_DEFAULTS);
 
   const [matrix, setMatrix] = useState(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast]   = useState(null);
+  const [requireTeam, setRequireTeam] = useState(false);
 
   useEffect(() => {
     if (!ssCtx.loading) {
       const stored = ssCtx.settings["role_permissions"] ?? {};
       const merged = {};
       for (const cap of CAPABILITIES) {
-        merged[cap] = { ...DEFAULTS[cap], ...(stored[cap] ?? {}) };
+        merged[cap] = { ...ROLE_PERMISSIONS_DEFAULTS[cap], ...(stored[cap] ?? {}) };
       }
       setMatrix(merged);
+      setRequireTeam(ssCtx.settings["require_team_for_final_user"] === true);
     }
   }, [ssCtx.loading, ssCtx.settings]);
 
   function toggle(cap, role) {
-    if (role === 'admin') return; // admin always has everything
+    if (role === 'admin') return;
     setMatrix(p => ({ ...p, [cap]: { ...p[cap], [role]: !p[cap][role] } }));
   }
 
@@ -24715,6 +24839,7 @@ function SettingsRolesTab({ ssCtx }) {
     setSaving(true);
     try {
       await ssCtx.setSetting("role_permissions", matrix);
+      await ssCtx.setSetting("require_team_for_final_user", requireTeam);
       setToast(t("roles.saved"));
       setTimeout(() => setToast(null), 3000);
     } catch (e) {
@@ -24725,8 +24850,9 @@ function SettingsRolesTab({ ssCtx }) {
 
   function handleReset() {
     const fresh = {};
-    for (const cap of CAPABILITIES) fresh[cap] = { ...DEFAULTS[cap] };
+    for (const cap of CAPABILITIES) fresh[cap] = { ...ROLE_PERMISSIONS_DEFAULTS[cap] };
     setMatrix(fresh);
+    setRequireTeam(false);
   }
 
   if (ssCtx.loading || !matrix) return <Spinner />;
@@ -24809,6 +24935,24 @@ function SettingsRolesTab({ ssCtx }) {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Final User Team Restriction */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-2">
+              <Lock size={14} className="text-teal-600" /> {t("roles.require_team_title")}
+            </h3>
+            <p className="text-xs text-gray-400 mt-1">{t("roles.require_team_desc")}</p>
+          </div>
+          <button
+            onClick={() => setRequireTeam(p => !p)}
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${requireTeam ? 'bg-teal-600' : 'bg-gray-200'}`}
+            role="switch" aria-checked={requireTeam}>
+            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${requireTeam ? 'translate-x-5' : 'translate-x-0'}`} />
+          </button>
         </div>
       </div>
 
@@ -24914,12 +25058,14 @@ export default function App() {
 
   if (!authed || !auth.user) {
     return (
-      <LanguageProvider userId={null}>
-        <AuthScreen onAuth={(newRole = null) => {
-          setAuthed(true);
-          if (newRole) setOnboarding(newRole);
-        }} />
-      </LanguageProvider>
+      <SystemSettingsProvider>
+        <LanguageProvider userId={null}>
+          <AuthScreen onAuth={(newRole = null) => {
+            setAuthed(true);
+            if (newRole) setOnboarding(newRole);
+          }} />
+        </LanguageProvider>
+      </SystemSettingsProvider>
     );
   }
 
@@ -24986,24 +25132,26 @@ export default function App() {
   }
 
   return (
-    <LanguageProvider userId={auth.user?.id}>
-      <StartDateMonitor auth={auth} />
-      <div className="min-h-screen bg-[#EAF4FD]">
-        <Sidebar
-          role={auth.role}
-          activeView={activeView}
-          onNav={setActiveView}
-          onSignOut={handleSignOut}
-          profile={auth.profile}
-          unreadCount={unreadCount}
-        />
-        <main className="ml-64 p-8 min-h-screen">
-          <div className="max-w-5xl mx-auto">
-            {renderView()}
-          </div>
-        </main>
-      </div>
-    </LanguageProvider>
+    <SystemSettingsProvider>
+      <LanguageProvider userId={auth.user?.id}>
+        <StartDateMonitor auth={auth} />
+        <div className="min-h-screen bg-[#EAF4FD]">
+          <Sidebar
+            role={auth.role}
+            activeView={activeView}
+            onNav={setActiveView}
+            onSignOut={handleSignOut}
+            profile={auth.profile}
+            unreadCount={unreadCount}
+          />
+          <main className="ml-64 p-8 min-h-screen">
+            <div className="max-w-5xl mx-auto">
+              {renderView()}
+            </div>
+          </main>
+        </div>
+      </LanguageProvider>
+    </SystemSettingsProvider>
   );
 }
 
