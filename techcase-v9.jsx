@@ -63,8 +63,9 @@ const ROLE_PERMISSIONS_DEFAULTS = {
   view_reports:      { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:false },
   manage_invoices:   { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:false },
   view_lifecycle:    { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:true  },
-  submit_specs:      { admin:true,  manager:true,  consultant:true,  client:true,  key_user:true,  headhunter:false, final_user:false },
-  generate_dev_plan: { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false },
+  submit_specs:        { admin:true,  manager:true,  consultant:true,  client:true,  key_user:true,  headhunter:false, final_user:false },
+  generate_dev_plan:   { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false },
+  require_team_signup: { admin:false, manager:false, consultant:false, client:false, key_user:true,  headhunter:false, final_user:true  },
 };
 
 // ============================================================
@@ -863,7 +864,8 @@ const TRANSLATIONS = {
     "roles.cap.manage_invoices":   "Manage invoices",
     "roles.cap.view_lifecycle":    "View lifecycle tab",
     "roles.cap.submit_specs":      "Submit specs for approval",
-    "roles.cap.generate_dev_plan": "Generate dev & design plan",
+    "roles.cap.generate_dev_plan":   "Generate dev & design plan",
+    "roles.cap.require_team_signup": "Require pre-registration to sign up",
     // System Settings inner tabs
     "sys.search_users":         "Search users…",
     "sys.add_user":             "Add User",
@@ -3634,7 +3636,8 @@ const TRANSLATIONS = {
     "roles.cap.manage_invoices":   "Gestionar facturas",
     "roles.cap.view_lifecycle":    "Ver pestaña de ciclo de vida",
     "roles.cap.submit_specs":      "Enviar especificaciones a aprobación",
-    "roles.cap.generate_dev_plan": "Generar plan de diseño y desarrollo",
+    "roles.cap.generate_dev_plan":   "Generar plan de diseño y desarrollo",
+    "roles.cap.require_team_signup": "Requerir pre-registro para registrarse",
     // System Settings inner tabs
     "sys.search_users":         "Buscar usuarios…",
     "sys.add_user":             "Agregar Usuario",
@@ -6827,7 +6830,12 @@ function AuthScreen({ onAuth }) {
   const [loading, setLoad]  = useState(false);
   const auth = useAuth();
   const { settings: ssSettings } = useSystemSettings();
-  const requireTeamForFinalUser = ssSettings["require_team_for_final_user"] === true;
+  const rolePermMatrix = ssSettings["role_permissions"] ?? {};
+  function requiresTeamFor(role) {
+    const defaults = ROLE_PERMISSIONS_DEFAULTS["require_team_signup"] ?? {};
+    const stored   = rolePermMatrix["require_team_signup"] ?? {};
+    return ({ ...defaults, ...stored })[role] === true;
+  }
 
   const SIGNUP_STEPS = [
     { id: "verify",  label: t("auth.step_verify"),  Icon: Mail },
@@ -6946,7 +6954,8 @@ function AuthScreen({ onAuth }) {
     if (role === "consultant" && !headline.trim()) { setError(t("auth.error_headline")); return; }
     if (role === "client" && !companyName.trim()) { setError(t("auth.error_company")); return; }
     if (role === "key_user" && !keyUserCompany) { setError(t("auth.error_key_user")); return; }
-    if (role === "final_user" && requireTeamForFinalUser && !finalUserClient) { setError(t("auth.error_team_code")); return; }
+    if (role === "final_user" && requiresTeamFor("final_user") && !finalUserClient) { setError(t("auth.error_team_code")); return; }
+    if (role === "key_user"   && requiresTeamFor("key_user")   && !keyUserCompany)  { setError(t("auth.error_key_user"));  return; }
     setError(""); setLoad(true);
     try {
       await supabase.auth.updateUser({
@@ -7114,39 +7123,41 @@ function AuthScreen({ onAuth }) {
                     </button>
                   ))}
                 </div>
-                {/* Key User — only selectable if email is pre-registered */}
+                {/* Key User — locked by matrix or email pre-registration */}
                 <button
-                  onClick={() => keyUserCompany && selectRole("key_user")}
-                  disabled={!keyUserCompany}
+                  onClick={() => (!requiresTeamFor("key_user") || keyUserCompany) && selectRole("key_user")}
+                  disabled={requiresTeamFor("key_user") && !keyUserCompany}
                   className={`w-full mt-3 flex items-center gap-4 p-4 border-2 rounded-2xl transition-all text-left
-                    ${keyUserCompany
+                    ${(!requiresTeamFor("key_user") || keyUserCompany)
                       ? "border-blue-300 bg-blue-50 hover:border-blue-500 hover:bg-blue-100 cursor-pointer"
                       : "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed"}`}>
-                  <UserCheck className={`w-8 h-8 flex-shrink-0 ${keyUserCompany ? "text-blue-600" : "text-gray-400"}`} />
+                  <UserCheck className={`w-8 h-8 flex-shrink-0 ${(!requiresTeamFor("key_user") || keyUserCompany) ? "text-blue-600" : "text-gray-400"}`} />
                   <div className="min-w-0">
-                    <div className={`font-semibold text-sm ${keyUserCompany ? "text-blue-700" : "text-gray-500"}`}>{t("auth.role_key_user")}</div>
+                    <div className={`font-semibold text-sm ${(!requiresTeamFor("key_user") || keyUserCompany) ? "text-blue-700" : "text-gray-500"}`}>{t("auth.role_key_user")}</div>
                     <div className="text-xs text-gray-500 mt-0.5">{t("auth.key_user_desc")}</div>
                     {keyUserCompany
                       ? <div className="text-xs text-blue-600 font-semibold mt-1">{t("auth.key_user_linked").replace("{n}", keyUserCompany)}</div>
-                      : <div className="text-xs text-amber-600 mt-1">{t("auth.key_user_not_registered")}</div>
+                      : requiresTeamFor("key_user")
+                      ? <div className="text-xs text-amber-600 mt-1">{t("auth.key_user_not_registered")}</div>
+                      : null
                     }
                   </div>
                 </button>
                 {/* Final User — only selectable if email is pre-registered on a client team */}
                 <button
-                  onClick={() => (!requireTeamForFinalUser || finalUserClient) && selectRole("final_user")}
-                  disabled={requireTeamForFinalUser && !finalUserClient}
+                  onClick={() => (!requiresTeamFor("final_user") || finalUserClient) && selectRole("final_user")}
+                  disabled={requiresTeamFor("final_user") && !finalUserClient}
                   className={`w-full mt-3 flex items-center gap-4 p-4 border-2 rounded-2xl transition-all text-left
-                    ${(!requireTeamForFinalUser || finalUserClient)
+                    ${(!requiresTeamFor("final_user") || finalUserClient)
                       ? "border-teal-300 bg-teal-50 hover:border-teal-500 hover:bg-teal-100 cursor-pointer"
                       : "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed"}`}>
-                  <Globe className={`w-8 h-8 flex-shrink-0 ${(!requireTeamForFinalUser || finalUserClient) ? "text-teal-600" : "text-gray-400"}`} />
+                  <Globe className={`w-8 h-8 flex-shrink-0 ${(!requiresTeamFor("final_user") || finalUserClient) ? "text-teal-600" : "text-gray-400"}`} />
                   <div className="min-w-0">
-                    <div className={`font-semibold text-sm ${(!requireTeamForFinalUser || finalUserClient) ? "text-teal-700" : "text-gray-500"}`}>{t("auth.role_final_user")}</div>
+                    <div className={`font-semibold text-sm ${(!requiresTeamFor("final_user") || finalUserClient) ? "text-teal-700" : "text-gray-500"}`}>{t("auth.role_final_user")}</div>
                     <div className="text-xs text-gray-500 mt-0.5">{t("auth.final_user_desc")}</div>
                     {finalUserClient
                       ? <div className="text-xs text-teal-600 font-semibold mt-1">{t("auth.final_user_linked").replace("{n}", finalUserClient.companyName)}</div>
-                      : requireTeamForFinalUser
+                      : requiresTeamFor("final_user")
                       ? <div className="text-xs text-amber-600 mt-1">{t("auth.final_user_not_registered")}</div>
                       : null
                     }
@@ -24790,7 +24801,6 @@ function SettingsRolesTab({ ssCtx }) {
   const [matrix, setMatrix] = useState(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast]   = useState(null);
-  const [requireTeam, setRequireTeam] = useState(false);
 
   useEffect(() => {
     if (!ssCtx.loading) {
@@ -24800,7 +24810,6 @@ function SettingsRolesTab({ ssCtx }) {
         merged[cap] = { ...ROLE_PERMISSIONS_DEFAULTS[cap], ...(stored[cap] ?? {}) };
       }
       setMatrix(merged);
-      setRequireTeam(ssCtx.settings["require_team_for_final_user"] === true);
     }
   }, [ssCtx.loading, ssCtx.settings]);
 
@@ -24813,7 +24822,6 @@ function SettingsRolesTab({ ssCtx }) {
     setSaving(true);
     try {
       await ssCtx.setSetting("role_permissions", matrix);
-      await ssCtx.setSetting("require_team_for_final_user", requireTeam);
       setToast(t("roles.saved"));
       setTimeout(() => setToast(null), 3000);
     } catch (e) {
@@ -24826,7 +24834,6 @@ function SettingsRolesTab({ ssCtx }) {
     const fresh = {};
     for (const cap of CAPABILITIES) fresh[cap] = { ...ROLE_PERMISSIONS_DEFAULTS[cap] };
     setMatrix(fresh);
-    setRequireTeam(false);
   }
 
   if (ssCtx.loading || !matrix) return <Spinner />;
@@ -24909,24 +24916,6 @@ function SettingsRolesTab({ ssCtx }) {
               ))}
             </tbody>
           </table>
-        </div>
-      </div>
-
-      {/* Final User Team Restriction */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-5">
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-2">
-              <Lock size={14} className="text-teal-600" /> {t("roles.require_team_title")}
-            </h3>
-            <p className="text-xs text-gray-400 mt-1">{t("roles.require_team_desc")}</p>
-          </div>
-          <button
-            onClick={() => setRequireTeam(p => !p)}
-            className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${requireTeam ? 'bg-teal-600' : 'bg-gray-200'}`}
-            role="switch" aria-checked={requireTeam}>
-            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${requireTeam ? 'translate-x-5' : 'translate-x-0'}`} />
-          </button>
         </div>
       </div>
 
