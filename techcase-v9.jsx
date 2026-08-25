@@ -1791,14 +1791,12 @@ const TRANSLATIONS = {
     "auth.error_headline":          "Enter a professional headline.",
     "auth.error_company":           "Enter your company name.",
     "auth.error_key_user":          "Your email is not registered as a Key User for any company.",
-    "auth.error_team_code":         "Verify your company code before continuing.",
-    "auth.role_final_user":         "Final User",
-    "auth.final_user_desc":         "I'm a collaborator or stakeholder with access to specific cases",
-    "auth.final_user_team_required":"A valid company code is required to sign up as a Final User",
-    "auth.team_code_label":         "Company code",
-    "auth.team_code_ph":            "Enter your company name",
-    "auth.team_code_verify":        "Verify",
-    "auth.team_code_invalid":       "No company found with that name. Check with your administrator.",
+    "auth.error_team_code":          "Your email is not registered on any client team. Ask your administrator to add you first.",
+    "auth.role_final_user":          "Final User",
+    "auth.final_user_desc":          "I'm a collaborator or stakeholder with access to specific cases",
+    "auth.final_user_team_required": "Must be pre-registered on a client team by your administrator",
+    "auth.final_user_linked":        "Linked to {n}",
+    "auth.final_user_not_registered":"Your email is not registered on any client team",
     "spec.saved":                   "saved",
     "spec.not_saved":               "not saved",
     "spec.saving_pdfs":             "Saving PDFs…",
@@ -3904,14 +3902,12 @@ const TRANSLATIONS = {
     "auth.error_headline":          "Ingresa un titular profesional.",
     "auth.error_company":           "Ingresa el nombre de tu empresa.",
     "auth.error_key_user":          "Tu correo no está registrado como Usuario Clave en ninguna empresa.",
-    "auth.error_team_code":         "Verifica tu código de empresa antes de continuar.",
-    "auth.role_final_user":         "Usuario Final",
-    "auth.final_user_desc":         "Soy un colaborador o interesado con acceso a casos específicos",
-    "auth.final_user_team_required":"Se requiere un código de empresa válido para registrarse como Usuario Final",
-    "auth.team_code_label":         "Código de empresa",
-    "auth.team_code_ph":            "Ingresa el nombre de tu empresa",
-    "auth.team_code_verify":        "Verificar",
-    "auth.team_code_invalid":       "No se encontró ninguna empresa con ese nombre. Consulta con tu administrador.",
+    "auth.error_team_code":          "Tu correo no está registrado en ningún equipo cliente. Pide a tu administrador que te agregue primero.",
+    "auth.role_final_user":          "Usuario Final",
+    "auth.final_user_desc":          "Soy un colaborador o interesado con acceso a casos específicos",
+    "auth.final_user_team_required": "Debes ser pre-registrado en un equipo cliente por tu administrador",
+    "auth.final_user_linked":        "Vinculado a {n}",
+    "auth.final_user_not_registered":"Tu correo no está registrado en ningún equipo cliente",
     "spec.saved":                   "guardado",
     "spec.not_saved":               "no guardado",
     "spec.saving_pdfs":             "Guardando PDFs…",
@@ -6824,9 +6820,8 @@ function AuthScreen({ onAuth }) {
   const [industry, setIndustry]       = useState("");
   // Key-user detection (set after OTP verify)
   const [keyUserCompany, setKeyUserCompany] = useState(null);
-  // Final-user team code
-  const [teamCode, setTeamCode]             = useState("");
-  const [teamCodeVerified, setTeamCodeVerified] = useState(null); // company_name if valid
+  // Final-user detection (set after OTP verify, like key user)
+  const [finalUserClient, setFinalUserClient] = useState(null); // { clientId, companyName } | null
 
   const [error, setError]   = useState("");
   const [loading, setLoad]  = useState(false);
@@ -6923,6 +6918,19 @@ function AuthScreen({ onAuth }) {
     } else {
       setKeyUserCompany(null);
     }
+    // Detect if this email is pre-registered as a final user on any client team
+    const { data: fuRows } = await supabase
+      .from("client_team_members")
+      .select("client_id, client:client_id(client_profiles(company_name))")
+      .eq("email", email.trim())
+      .limit(1);
+    if (fuRows?.length > 0) {
+      const cp = fuRows[0].client?.client_profiles;
+      const companyName = (Array.isArray(cp) ? cp[0]?.company_name : cp?.company_name) ?? "a company";
+      setFinalUserClient({ clientId: fuRows[0].client_id, companyName });
+    } else {
+      setFinalUserClient(null);
+    }
     setStep(1);
     setLoad(false);
   }
@@ -6938,7 +6946,7 @@ function AuthScreen({ onAuth }) {
     if (role === "consultant" && !headline.trim()) { setError(t("auth.error_headline")); return; }
     if (role === "client" && !companyName.trim()) { setError(t("auth.error_company")); return; }
     if (role === "key_user" && !keyUserCompany) { setError(t("auth.error_key_user")); return; }
-    if (role === "final_user" && requireTeamForFinalUser && !teamCodeVerified) { setError(t("auth.error_team_code")); return; }
+    if (role === "final_user" && requireTeamForFinalUser && !finalUserClient) { setError(t("auth.error_team_code")); return; }
     setError(""); setLoad(true);
     try {
       await supabase.auth.updateUser({
@@ -7124,17 +7132,24 @@ function AuthScreen({ onAuth }) {
                     }
                   </div>
                 </button>
-                {/* Final User */}
+                {/* Final User — only selectable if email is pre-registered on a client team */}
                 <button
-                  onClick={() => selectRole("final_user")}
-                  className="w-full mt-3 flex items-center gap-4 p-4 border-2 border-gray-200 hover:border-teal-400 hover:bg-teal-50 rounded-2xl transition-all text-left cursor-pointer">
-                  <Globe className="w-8 h-8 flex-shrink-0 text-teal-600" />
+                  onClick={() => (!requireTeamForFinalUser || finalUserClient) && selectRole("final_user")}
+                  disabled={requireTeamForFinalUser && !finalUserClient}
+                  className={`w-full mt-3 flex items-center gap-4 p-4 border-2 rounded-2xl transition-all text-left
+                    ${(!requireTeamForFinalUser || finalUserClient)
+                      ? "border-teal-300 bg-teal-50 hover:border-teal-500 hover:bg-teal-100 cursor-pointer"
+                      : "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed"}`}>
+                  <Globe className={`w-8 h-8 flex-shrink-0 ${(!requireTeamForFinalUser || finalUserClient) ? "text-teal-600" : "text-gray-400"}`} />
                   <div className="min-w-0">
-                    <div className="font-semibold text-sm text-gray-700">{t("auth.role_final_user")}</div>
+                    <div className={`font-semibold text-sm ${(!requireTeamForFinalUser || finalUserClient) ? "text-teal-700" : "text-gray-500"}`}>{t("auth.role_final_user")}</div>
                     <div className="text-xs text-gray-500 mt-0.5">{t("auth.final_user_desc")}</div>
-                    {requireTeamForFinalUser && (
-                      <div className="text-xs text-teal-600 mt-1">{t("auth.final_user_team_required")}</div>
-                    )}
+                    {finalUserClient
+                      ? <div className="text-xs text-teal-600 font-semibold mt-1">{t("auth.final_user_linked").replace("{n}", finalUserClient.companyName)}</div>
+                      : requireTeamForFinalUser
+                      ? <div className="text-xs text-amber-600 mt-1">{t("auth.final_user_not_registered")}</div>
+                      : null
+                    }
                   </div>
                 </button>
               </div>
@@ -7162,6 +7177,12 @@ function AuthScreen({ onAuth }) {
                   <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 mb-4">
                     <Building2 className="w-4 h-4 text-blue-600 flex-shrink-0" />
                     <span className="text-sm text-blue-700 font-medium">{keyUserCompany}</span>
+                  </div>
+                )}
+                {role === "final_user" && finalUserClient && (
+                  <div className="flex items-center gap-2 bg-teal-50 border border-teal-200 rounded-xl px-4 py-2.5 mb-4">
+                    <Building2 className="w-4 h-4 text-teal-600 flex-shrink-0" />
+                    <span className="text-sm text-teal-700 font-medium">{finalUserClient.companyName}</span>
                   </div>
                 )}
 
@@ -7222,53 +7243,6 @@ function AuthScreen({ onAuth }) {
                     </select>
                   </div>
                 </>)}
-
-                {/* ── Final User fields ── */}
-                {role === "final_user" && requireTeamForFinalUser && (
-                  <div className="mt-2">
-                    <div className="border-t border-gray-100 my-4" />
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t("auth.team_code_label")}
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={teamCode}
-                        onChange={e => { setTeamCode(e.target.value); setTeamCodeVerified(null); }}
-                        placeholder={t("auth.team_code_ph")}
-                        className="flex-1 border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none" />
-                      <button
-                        type="button"
-                        disabled={loading || !teamCode.trim()}
-                        onClick={async () => {
-                          setLoad(true);
-                          const { data } = await supabase
-                            .from("client_profiles")
-                            .select("company_name")
-                            .ilike("company_name", teamCode.trim())
-                            .limit(1);
-                          if (data?.length) {
-                            setTeamCodeVerified(data[0].company_name);
-                          } else {
-                            setTeamCodeVerified(false);
-                          }
-                          setLoad(false);
-                        }}
-                        className="px-4 py-2 text-sm font-semibold bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-50 whitespace-nowrap">
-                        {t("auth.team_code_verify")}
-                      </button>
-                    </div>
-                    {teamCodeVerified === false && (
-                      <p className="text-xs text-red-500 mt-1">{t("auth.team_code_invalid")}</p>
-                    )}
-                    {teamCodeVerified && (
-                      <div className="flex items-center gap-2 bg-teal-50 border border-teal-200 rounded-xl px-3 py-2 mt-2">
-                        <CheckCircle2 size={14} className="text-teal-600 flex-shrink-0" />
-                        <span className="text-sm text-teal-700 font-medium">{teamCodeVerified}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 <button onClick={createAccount} disabled={loading}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 mt-2">
