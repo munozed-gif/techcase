@@ -968,8 +968,8 @@ const TRANSLATIONS = {
     "sys.no_values":            "No values. Add one below.",
     "sys.add_value_ph":         "Add new {cat} value…",
     "sys.ai_config_title":      "AI Configuration",
-    "sys.model_label":          "Model for Plan Generation",
-    "sys.model_hint":           "Used for development plan generation and SAP coverage analysis.",
+    "sys.model_label":          "Model for Document Generation",
+    "sys.model_hint":           "Used for all specification and development plan generation.",
     "sys.general_title":        "General",
     "sys.currency_label":       "Default Currency",
     "sys.invoice_due_label":    "Invoice Due (days)",
@@ -3760,8 +3760,8 @@ const TRANSLATIONS = {
     "sys.no_values":            "Sin valores. Agrega uno abajo.",
     "sys.add_value_ph":         "Agregar nuevo valor de {cat}…",
     "sys.ai_config_title":      "Configuración de IA",
-    "sys.model_label":          "Modelo para Generación de Planes",
-    "sys.model_hint":           "Usado para generación de planes de desarrollo y análisis de cobertura SAP.",
+    "sys.model_label":          "Modelo para Generación de Documentos",
+    "sys.model_hint":           "Usado para todas las especificaciones y generación de planes de desarrollo.",
     "sys.general_title":        "General",
     "sys.currency_label":       "Moneda Predeterminada",
     "sys.invoice_due_label":    "Vencimiento de Factura (días)",
@@ -12034,6 +12034,7 @@ function GenerationProfileModal({ onConfirm, onClose, title }) {
 function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocument, refetchDocuments, onUpdate }) {
   const { t } = useT();
   const ssCtx = useSystemSettings();
+  const genModel = ssCtx.settings["ai_model"] ?? 'claude-haiku-4-5-20251001';
   const { spec, loading: specLoading, saveSpec, refetch } = useCaseSpecification(caseData.id, auth.user?.id);
 
   // Mode selection
@@ -13366,9 +13367,9 @@ Use realistic Z object names matching the customer's described solution for ${ca
       const msgContent = (prompt) => docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt;
       const customerContent = analysisCustomerContent || caseData.description || '';
       const [specA, specB, specC] = await Promise.all([
-        callClaude({ model: 'claude-haiku-4-5-20251001', system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecPrompt(true, genProfile)) }], max_tokens: 4000 }),
-        callClaude({ model: 'claude-haiku-4-5-20251001', system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecPrompt(false, genProfile)) }], max_tokens: 4000 }),
-        callClaude({ model: 'claude-haiku-4-5-20251001', system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecCPrompt(customerContent, genProfile)) }], max_tokens: 4000 }),
+        callClaude({ model: genModel, system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecPrompt(true, genProfile)) }], max_tokens: 4000 }),
+        callClaude({ model: genModel, system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecPrompt(false, genProfile)) }], max_tokens: 4000 }),
+        callClaude({ model: genModel, system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecCPrompt(customerContent, genProfile)) }], max_tokens: 4000 }),
       ]);
       setAiSpecA(specA);
       setAiSpecB(specB);
@@ -14446,6 +14447,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
 function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdate, onBack }) {
   const { t } = useT();
+  const { settings: cdSettings } = useSystemSettings();
+  const genModel = cdSettings["ai_model"] ?? 'claude-haiku-4-5-20251001';
   const { applications, apply, reviewApplication } = useApplications(caseData.id);
   const { milestones, toggleMilestone, addMilestone } = useMilestones(caseData.id);
   const { comments, addComment } = useCaseComments(caseData.id);
@@ -15665,7 +15668,7 @@ ${specContent ? specContent.slice(0, 4000) : '(Spec content not available — us
 
       // ── Call 1: JSON activities only ──────────────────────────────
       const jsonRaw = await callClaude({
-        model: 'claude-haiku-4-5-20251001',
+        model: genModel,
         system: 'You are an SAP project delivery expert. Respond with ONLY a valid JSON object. No markdown, no code fences, no explanation — just the JSON object.',
         messages: [{
           role: 'user',
@@ -15718,7 +15721,7 @@ Rules: phase must be exactly "design" or "development". Return ONLY the JSON, no
       const actSummary = parsedActivities.map((a, i) =>
         `${i + 1}. [${a.phase.toUpperCase()}] ${a.title} (${a.est_hours}h)`).join('\n');
       const markdown = await callClaude({
-        model: 'claude-haiku-4-5-20251001',
+        model: genModel,
         system: 'You are an SAP project delivery expert. Write clear, concise project documentation.',
         messages: [{
           role: 'user',
@@ -24854,7 +24857,6 @@ function SettingsCatalogTab({ ssCtx }) {
 
 function SettingsPlatformTab({ ssCtx }) {
   const DEFAULTS = {
-    ai_model:                   "claude-haiku-4-5-20251001",
     default_currency:           "USD",
     scoring_weights:            { skills: 40, experience: 30, availability: 15, rate: 15 },
     overdue_grace_days:         1,
@@ -24862,12 +24864,6 @@ function SettingsPlatformTab({ ssCtx }) {
     max_applications_per_case:  10,
     spec_regen_manager_only:    true,
   };
-
-  const AI_MODELS = [
-    { value: "claude-haiku-4-5-20251001", labelKey: "model.haiku_label" },
-    { value: "claude-sonnet-5-20251001",  labelKey: "model.sonnet_label" },
-    { value: "claude-opus-5-20250101",    labelKey: "model.opus_label" },
-  ];
 
   const [form, setForm]     = useState(null);
   const [saving, setSaving] = useState(false);
@@ -24877,7 +24873,6 @@ function SettingsPlatformTab({ ssCtx }) {
   useEffect(() => {
     if (!ssCtx.loading) {
       setForm({
-        ai_model:                   ssCtx.settings["ai_model"]                   ?? DEFAULTS.ai_model,
         default_currency:           ssCtx.settings["default_currency"]           ?? DEFAULTS.default_currency,
         scoring_weights:            ssCtx.settings["scoring_weights"]            ?? { ...DEFAULTS.scoring_weights },
         overdue_grace_days:         ssCtx.settings["overdue_grace_days"]         ?? DEFAULTS.overdue_grace_days,
@@ -24892,7 +24887,6 @@ function SettingsPlatformTab({ ssCtx }) {
     setSaving(true);
     try {
       await Promise.all([
-        ssCtx.setSetting("ai_model",                  form.ai_model),
         ssCtx.setSetting("default_currency",          form.default_currency),
         ssCtx.setSetting("scoring_weights",           form.scoring_weights),
         ssCtx.setSetting("overdue_grace_days",        form.overdue_grace_days),
@@ -24914,20 +24908,6 @@ function SettingsPlatformTab({ ssCtx }) {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <div className="bg-white rounded-2xl border border-gray-200 p-5">
-        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Sparkles size={16} className="text-purple-600" /> {t("sys.ai_config_title")}
-        </h3>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">{t("sys.model_label")}</label>
-          <select value={form.ai_model} onChange={e => setForm(p => ({ ...p, ai_model: e.target.value }))}
-            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm">
-            {AI_MODELS.map(m => <option key={m.value} value={m.value}>{t(m.labelKey)}</option>)}
-          </select>
-          <p className="text-xs text-gray-400 mt-1">{t("sys.model_hint")}</p>
-        </div>
-      </div>
-
       <div className="bg-white rounded-2xl border border-gray-200 p-5">
         <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Settings size={16} className="text-gray-600" /> {t("sys.general_title")}
@@ -25007,7 +24987,6 @@ function SettingsPlatformTab({ ssCtx }) {
 
       <div className="flex gap-3">
         <button onClick={() => setForm({
-            ai_model:                  DEFAULTS.ai_model,
             default_currency:          DEFAULTS.default_currency,
             scoring_weights:           { ...DEFAULTS.scoring_weights },
             overdue_grace_days:        DEFAULTS.overdue_grace_days,
@@ -25182,10 +25161,17 @@ function SettingsGenerationTab({ ssCtx }) {
 
   const [form, setForm] = useState(null);
 
+  const AI_MODELS = [
+    { value: "claude-haiku-4-5-20251001", labelKey: "model.haiku_label" },
+    { value: "claude-sonnet-5-20251001",  labelKey: "model.sonnet_label" },
+    { value: "claude-opus-5-20250101",    labelKey: "model.opus_label" },
+  ];
+
   useEffect(() => {
     if (!ssCtx.loading) {
       const stored = ssCtx.settings["generation_profiles"] ?? {};
       const merged = {
+        ai_model: ssCtx.settings["ai_model"] ?? "claude-haiku-4-5-20251001",
         default_profile: stored.default_profile ?? GENERATION_PROFILE_DEFAULTS.default_profile,
         profiles: {},
       };
@@ -25224,7 +25210,11 @@ function SettingsGenerationTab({ ssCtx }) {
   async function handleSave() {
     setSaving(true);
     try {
-      await ssCtx.setSetting("generation_profiles", form);
+      const { ai_model, ...genProfiles } = form;
+      await Promise.all([
+        ssCtx.setSetting("ai_model", ai_model),
+        ssCtx.setSetting("generation_profiles", genProfiles),
+      ]);
       setToast(t("gen.saved"));
       setTimeout(() => setToast(null), 3000);
     } catch (e) {
@@ -25241,8 +25231,22 @@ function SettingsGenerationTab({ ssCtx }) {
   return (
     <div className="space-y-6 max-w-3xl">
       <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Sparkles size={16} className="text-purple-600" /> {t("sys.ai_config_title")}
+        </h3>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t("sys.model_label")}</label>
+          <select value={form.ai_model} onChange={e => setForm(p => ({ ...p, ai_model: e.target.value }))}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm">
+            {AI_MODELS.map(m => <option key={m.value} value={m.value}>{t(m.labelKey)}</option>)}
+          </select>
+          <p className="text-xs text-gray-400 mt-1">{t("sys.model_hint")}</p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
         <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
-          <Sparkles size={16} className="text-purple-600" /> {t("gen.tab_title")}
+          <Zap size={16} className="text-blue-600" /> {t("gen.tab_title")}
         </h3>
         <p className="text-xs text-gray-400 mb-4">{t("gen.tab_subtitle")}</p>
 
