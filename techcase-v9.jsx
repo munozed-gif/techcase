@@ -970,6 +970,8 @@ const TRANSLATIONS = {
     "sys.ai_config_title":      "AI Configuration",
     "sys.model_label":          "Model for Document Generation",
     "sys.model_hint":           "Used for all specification and development plan generation.",
+    "sys.analysis_model_label": "Model for Analysis & Checks",
+    "sys.analysis_model_hint":  "Used for SAP checks, wizard suggestions, test plans, and other quick analysis tasks.",
     "sys.general_title":        "General",
     "sys.currency_label":       "Default Currency",
     "sys.invoice_due_label":    "Invoice Due (days)",
@@ -3762,6 +3764,8 @@ const TRANSLATIONS = {
     "sys.ai_config_title":      "Configuración de IA",
     "sys.model_label":          "Modelo para Generación de Documentos",
     "sys.model_hint":           "Usado para todas las especificaciones y generación de planes de desarrollo.",
+    "sys.analysis_model_label": "Modelo para Análisis y Verificaciones",
+    "sys.analysis_model_hint":  "Usado para verificaciones SAP, sugerencias del asistente, planes de prueba y otras tareas de análisis rápido.",
     "sys.general_title":        "General",
     "sys.currency_label":       "Moneda Predeterminada",
     "sys.invoice_due_label":    "Vencimiento de Factura (días)",
@@ -12034,7 +12038,8 @@ function GenerationProfileModal({ onConfirm, onClose, title }) {
 function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocument, refetchDocuments, onUpdate }) {
   const { t } = useT();
   const ssCtx = useSystemSettings();
-  const genModel = ssCtx.settings["ai_model"] ?? 'claude-haiku-4-5-20251001';
+  const genModel      = ssCtx.settings["ai_model"]       ?? 'claude-haiku-4-5-20251001';
+  const analysisModel = ssCtx.settings["analysis_model"] ?? 'claude-haiku-4-5-20251001';
   const { spec, loading: specLoading, saveSpec, refetch } = useCaseSpecification(caseData.id, auth.user?.id);
 
   // Mode selection
@@ -12928,7 +12933,7 @@ Respond with ONLY a JSON array like:
 
 Include 2-6 objects. Use realistic Z-names. Types can be: Report, Function Module, Enhancement, BAdI, User Exit, Form, Smartform, Program, Class, Interface, Workflow, Table, View, Transaction — whatever fits.`;
       const raw = await callClaude({
-        model: 'claude-haiku-4-5-20251001',
+        model: analysisModel,
         system: 'You are an SAP functional consultant. Respond with ONLY a JSON array, no markdown code blocks, no explanation.',
         messages: [{
           role: 'user',
@@ -12950,7 +12955,7 @@ Include 2-6 objects. Use realistic Z-names. Types can be: Report, Function Modul
 
   async function generateQuestionsForObject(obj) {
     const raw = await callClaude({
-      model: 'claude-haiku-4-5-20251001',
+      model: analysisModel,
       system: 'You are an SAP functional consultant creating a requirements interview. Respond with ONLY a JSON array, no markdown code blocks.',
       messages: [{
         role: 'user',
@@ -13106,7 +13111,7 @@ TOTAL:||Total general|[amount]|
 Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA1, MARA, etc.) for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM and COL lines with actual field names and columns relevant to this case — do NOT leave placeholder bracket text.`;
 
       const spec = await callClaude({
-        model: 'claude-haiku-4-5-20251001',
+        model: analysisModel,
         system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template provided.',
         messages: [{
           role: 'user',
@@ -13434,7 +13439,7 @@ coverage meanings:
 "none"    = Custom ABAP development is required — standard SAP cannot satisfy this`;
 
       const raw = await callClaude({
-        model: 'claude-haiku-4-5-20251001',
+        model: analysisModel,
         system: 'You are an SAP senior consultant. Respond ONLY with a valid JSON object, no markdown.',
         messages: [{ role: 'user', content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt }],
         max_tokens: 800,
@@ -13483,7 +13488,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
 }`;
 
       const raw = await callClaude({
-        model: 'claude-haiku-4-5-20251001',
+        model: analysisModel,
         system: 'You are an SAP senior consultant. Validate development proposals. Respond ONLY with a valid JSON object, no markdown.',
         messages: [{ role: 'user', content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt }],
         max_tokens: 800,
@@ -14448,7 +14453,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
 function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdate, onBack }) {
   const { t } = useT();
   const { settings: cdSettings } = useSystemSettings();
-  const genModel = cdSettings["ai_model"] ?? 'claude-haiku-4-5-20251001';
+  const genModel      = cdSettings["ai_model"]       ?? 'claude-haiku-4-5-20251001';
+  const analysisModel = cdSettings["analysis_model"] ?? 'claude-haiku-4-5-20251001';
   const { applications, apply, reviewApplication } = useApplications(caseData.id);
   const { milestones, toggleMilestone, addMilestone } = useMilestones(caseData.id);
   const { comments, addComment } = useCaseComments(caseData.id);
@@ -14854,7 +14860,7 @@ Respond ONLY with a valid JSON array, no markdown fences:
 Extract every discrete task, activity, deliverable, or work item. If you find none, return [].`;
 
       const raw = await callClaude({
-        model: 'claude-haiku-4-5-20251001',
+        model: analysisModel,
         system: 'You are a project analyst. Extract structured activity lists from documents. Return only valid JSON arrays.',
         messages: [{ role: 'user', content: [block, { type: 'text', text: prompt }] }],
         max_tokens: 4096,
@@ -14991,7 +14997,7 @@ Tester signature, Approver signature, Date.`;
     setTestPlanSaved(false);
     try {
       const raw = await callClaude({
-        model: 'claude-haiku-4-5-20251001',
+        model: analysisModel,
         system: 'You are an SAP testing specialist. Generate clear, professional test plans. Follow the output format exactly — JSON block first, then the markdown plan.',
         messages: [{ role: 'user', content: prompt }],
         max_tokens: 6000,
@@ -15213,7 +15219,7 @@ Approver signature, Date.`;
     setAdjustmentTarget({ testPhase: testPhaseKey, adjPhase });
     try {
       const raw = await callClaude({
-        model: 'claude-haiku-4-5-20251001',
+        model: analysisModel,
         system: 'You are an SAP quality specialist. Generate clear, targeted adjustment plans. Follow the output format exactly — JSON block first, then the markdown plan.',
         messages: [{ role: 'user', content: prompt }],
         max_tokens: 6000,
@@ -15878,7 +15884,7 @@ Write a practical user manual in markdown. Include:
 Be practical, concise, and written from the end-user perspective. Avoid technical jargon.`;
 
       const userManual = await callClaude({
-        model: 'claude-haiku-4-5-20251001',
+        model: analysisModel,
         system: 'You are a technical writer specializing in SAP end-user documentation. Write clear, practical user manuals.',
         messages: [{ role: 'user', content: userManualPrompt }],
         max_tokens: 4000,
@@ -25171,7 +25177,8 @@ function SettingsGenerationTab({ ssCtx }) {
     if (!ssCtx.loading) {
       const stored = ssCtx.settings["generation_profiles"] ?? {};
       const merged = {
-        ai_model: ssCtx.settings["ai_model"] ?? "claude-haiku-4-5-20251001",
+        ai_model:       ssCtx.settings["ai_model"]       ?? "claude-haiku-4-5-20251001",
+        analysis_model: ssCtx.settings["analysis_model"] ?? "claude-haiku-4-5-20251001",
         default_profile: stored.default_profile ?? GENERATION_PROFILE_DEFAULTS.default_profile,
         profiles: {},
       };
@@ -25210,9 +25217,10 @@ function SettingsGenerationTab({ ssCtx }) {
   async function handleSave() {
     setSaving(true);
     try {
-      const { ai_model, ...genProfiles } = form;
+      const { ai_model, analysis_model, ...genProfiles } = form;
       await Promise.all([
-        ssCtx.setSetting("ai_model", ai_model),
+        ssCtx.setSetting("ai_model",       ai_model),
+        ssCtx.setSetting("analysis_model", analysis_model),
         ssCtx.setSetting("generation_profiles", genProfiles),
       ]);
       setToast(t("gen.saved"));
@@ -25241,6 +25249,14 @@ function SettingsGenerationTab({ ssCtx }) {
             {AI_MODELS.map(m => <option key={m.value} value={m.value}>{t(m.labelKey)}</option>)}
           </select>
           <p className="text-xs text-gray-400 mt-1">{t("sys.model_hint")}</p>
+        </div>
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t("sys.analysis_model_label")}</label>
+          <select value={form.analysis_model} onChange={e => setForm(p => ({ ...p, analysis_model: e.target.value }))}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm">
+            {AI_MODELS.map(m => <option key={m.value} value={m.value}>{t(m.labelKey)}</option>)}
+          </select>
+          <p className="text-xs text-gray-400 mt-1">{t("sys.analysis_model_hint")}</p>
         </div>
       </div>
 
