@@ -1028,6 +1028,8 @@ const TRANSLATIONS = {
     "gen.ctx_related_cases":       "Related Cases",
     "gen.ctx_related_cases_desc":  "Most recent cases for the same client and SAP module.",
     "gen.ctx_related_count":       "Number of cases",
+    "log.title":    "Audit Log",
+    "log.nav":      "Audit Log",
     "settings.generation":              "Generation Depth",
     // Kanban
     "kanban.title":     "Kanban Board",
@@ -3835,6 +3837,8 @@ const TRANSLATIONS = {
     "gen.ctx_related_cases":       "Casos Relacionados",
     "gen.ctx_related_cases_desc":  "Casos más recientes del mismo cliente y módulo SAP.",
     "gen.ctx_related_count":       "Número de casos",
+    "log.title":    "Registro de Actividad",
+    "log.nav":      "Registro",
     "settings.generation":              "Profundidad de Generación",
     // Kanban
     "kanban.title":     "Tablero Kanban",
@@ -4767,6 +4771,7 @@ function useProjects(filters = {}) {
   async function createProject(data) {
     const { data: row, error } = await supabase.from("projects").insert(data).select().single();
     if (error) throw error;
+    logEvent('project.created', { entityType: 'project', entityId: row.id, entityName: row.name ?? row.title });
     await fetchProjects();
     return row;
   }
@@ -5074,6 +5079,7 @@ function useAuth() {
       options: { data: { full_name: fullName, role } }
     });
     if (error) throw error;
+    logEvent('user.signed_up', { userId: data.user?.id, userEmail: email, entityType: 'user', entityName: fullName, metadata: { role } });
     return data;
   }
 
@@ -5140,12 +5146,18 @@ function useCases(filters = {}) {
   async function createCase(data) {
     const { data: row, error } = await supabase.from("cases").insert(data).select().single();
     if (error) throw error;
+    logEvent('case.created', { entityType: 'case', entityId: row.id, entityName: row.title });
     await fetchCases();
     notifyManagers("New case created", `Case "${row.title}" has been submitted and needs review.`);
     return row;
   }
 
   async function updateCase(id, updates) {
+    let _oldStatus = null;
+    if (updates.status) {
+      const { data: _old } = await supabase.from('cases').select('status').eq('id', id).single();
+      _oldStatus = _old?.status ?? null;
+    }
     const { data: rows, error } = await supabase.from("cases").update(updates).eq("id", id).select();
     const row = rows?.[0] ?? null;
     if (error) throw error;
@@ -5166,6 +5178,7 @@ function useCases(filters = {}) {
       };
       const body = TEST_MSG[updates.status] ?? `Case status changed to "${label}".`;
       notifyCaseParticipants(id, user?.id, `Status → ${label}`, body, { case_id: id, event_type: "status_change" });
+      logEvent('case.status_changed', { userId: user.id, userEmail: user.email, entityType: 'case', entityId: id, entityName: rows?.[0]?.title, oldValue: { status: _oldStatus }, newValue: { status: updates.status } });
     }
     return row;
   }
@@ -5951,6 +5964,30 @@ async function callClaude({ system, messages, max_tokens = 2048, model = 'claude
   if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'Claude API error'); }
   const data = await res.json();
   return data.content[0].text;
+}
+
+async function logEvent(eventType, opts = {}) {
+  try {
+    let uid = opts.userId ?? null;
+    let uemail = opts.userEmail ?? null;
+    if (!uid) {
+      const { data: { user } } = await supabase.auth.getUser();
+      uid    = user?.id    ?? null;
+      uemail = uemail ?? user?.email ?? null;
+    }
+    await supabase.from('audit_logs').insert({
+      event_type:  eventType,
+      user_id:     uid,
+      user_name:   opts.userName   ?? null,
+      user_email:  uemail,
+      entity_type: opts.entityType ?? null,
+      entity_id:   opts.entityId  != null ? String(opts.entityId) : null,
+      entity_name: opts.entityName ?? null,
+      old_value:   opts.oldValue   ?? null,
+      new_value:   opts.newValue   ?? null,
+      metadata:    opts.metadata   ?? null,
+    });
+  } catch (_) {}
 }
 // ─────────────────────────────────────────────────────────────
 
@@ -7447,6 +7484,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
       { id: "db-connections",  Icon: Database,          labelKey: "nav.db_connections" },
       { id: "team-members",    Icon: Handshake,         labelKey: "nav.team_members" },
       { id: "reports",         Icon: BarChart2,         labelKey: "nav.reports" },
+      { id: "audit_log",       Icon: ClipboardList,     labelKey: "log.nav" },
       { id: "settings",        Icon: SlidersHorizontal, labelKey: "nav.settings" },
     ],
     manager: [
@@ -7460,6 +7498,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
       { id: "consultants",     Icon: UserCheck,         labelKey: "nav.consultants" },
       { id: "db-connections",  Icon: Database,          labelKey: "nav.db_connections" },
       { id: "team-members",    Icon: Handshake,         labelKey: "nav.team_members" },
+      { id: "audit_log",       Icon: ClipboardList,     labelKey: "log.nav" },
       { id: "settings",        Icon: SlidersHorizontal, labelKey: "nav.settings" },
     ],
     consultant: [
@@ -13516,6 +13555,7 @@ Use realistic Z object names matching the customer's described solution for ${ca
       const saveStatus = autoSubmit ? 'submitted' : 'draft';
       try {
         await saveSpec({ mode: 'ai', status: saveStatus, content: specA, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, selectedSpec: 'a', prevMode, analysisCustomerContent: customerContent }), title: caseData.title + t("spec.doc_title_suffix") });
+        logEvent('spec.generated', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, metadata: { model: genModel } });
       } catch (_) {}
       await saveAllSpecsAsDocuments(specA, specB, specC, sapCheck, proposalCheck);
       if (autoSubmit) await refetch();
@@ -13641,6 +13681,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
     try {
       await saveSpec({ status: 'approved', approved_by: auth.user?.id, approved_at: new Date().toISOString(), rejected_reason: null });
       await supabase.from('cases').update({ status: 'estimated' }).eq('id', caseData.id);
+      logEvent('spec.approved', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, oldValue: { status: 'ai' }, newValue: { status: 'estimated' } });
       await refetch();
       onUpdate?.(caseData.id, { status: 'estimated' });
     } catch (e) { alert(e.message); }
@@ -14791,6 +14832,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
       await supabase.from("cases")
         .update({ status: "cancelled", cancellation_reason: cancelReason, cancellation_notes: cancelNotes || null })
         .eq("id", cancelModal.caseId);
+      logEvent('case.cancelled', { entityType: 'case', entityId: cancelModal?.caseId ?? cancelModal?.id, entityName: cancelModal?.title ?? cancelModal?.caseTitle, newValue: { status: 'cancelled' }, metadata: { reason: cancelReason ?? cancelModal?.reason } });
       setSelectedSubCase(prev => ({ ...prev, status: "cancelled" }));
     } else {
       await onStatusChange(cancelModal.caseId, "cancelled", {
@@ -15964,6 +16006,7 @@ Keep each section concise.${buildSectionConstraint('dev_plan', genProfile)}${bui
         if (error) throw error;
         insertedIds.push(data.id);
       }
+      logEvent('devplan.generated', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, metadata: { model: genModel, activity_count: insertedIds.length } });
 
       setActRefreshKey(k => k + 1);
       setDevPlanGenerated(true);
@@ -25577,6 +25620,149 @@ function SettingsGenerationTab({ ssCtx }) {
   );
 }
 
+function AuditLogDashboard() {
+  const { t } = useT();
+  const [logs, setLogs] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const PAGE = 50;
+  const [filters, setFilters] = useState({ type: '', search: '', dateFrom: '', dateTo: '' });
+
+  useEffect(() => { fetchLogs(); }, [filters, page]);
+
+  async function fetchLogs() {
+    setLoading(true);
+    let q = supabase.from('audit_logs')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(page * PAGE, (page + 1) * PAGE - 1);
+    if (filters.type)     q = q.eq('event_type', filters.type);
+    if (filters.search)   q = q.or(`entity_name.ilike.%${filters.search}%,user_email.ilike.%${filters.search}%,user_name.ilike.%${filters.search}%`);
+    if (filters.dateFrom) q = q.gte('created_at', filters.dateFrom + 'T00:00:00Z');
+    if (filters.dateTo)   q = q.lte('created_at', filters.dateTo   + 'T23:59:59Z');
+    const { data, count, error } = await q;
+    if (!error) { setLogs(data ?? []); setTotal(count ?? 0); }
+    setLoading(false);
+  }
+
+  const EVENT_COLORS = {
+    'case.created':        'bg-blue-100 text-blue-700',
+    'case.status_changed': 'bg-amber-100 text-amber-700',
+    'case.cancelled':      'bg-red-100 text-red-700',
+    'case.updated':        'bg-gray-100 text-gray-600',
+    'spec.generated':      'bg-purple-100 text-purple-700',
+    'spec.approved':       'bg-green-100 text-green-700',
+    'devplan.generated':   'bg-indigo-100 text-indigo-700',
+    'project.created':     'bg-teal-100 text-teal-700',
+    'user.signed_up':      'bg-sky-100 text-sky-700',
+  };
+
+  const ALL_TYPES = Object.keys(EVENT_COLORS);
+
+  function renderDetail(log) {
+    if (log.event_type === 'case.status_changed') {
+      const ov = log.old_value?.status;
+      const nv = log.new_value?.status;
+      return (
+        <span className="flex items-center gap-1.5 text-xs mt-0.5">
+          {ov && <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">{ov}</span>}
+          {ov && nv && <span className="text-gray-400">→</span>}
+          {nv && <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded font-medium">{nv}</span>}
+        </span>
+      );
+    }
+    if (log.event_type === 'case.cancelled' && log.metadata?.reason) {
+      return <p className="text-xs text-gray-400 mt-0.5 truncate">Reason: {log.metadata.reason}</p>;
+    }
+    if (log.event_type === 'spec.generated' || log.event_type === 'devplan.generated') {
+      const m = log.metadata ?? {};
+      const parts = [];
+      if (m.model) parts.push(m.model.replace('claude-', '').replace(/-\d{8,}$/, ''));
+      if (m.duration_ms) parts.push(`${(m.duration_ms / 1000).toFixed(1)}s`);
+      if (m.activity_count) parts.push(`${m.activity_count} activities`);
+      return parts.length ? <p className="text-xs text-gray-400 mt-0.5">{parts.join(' · ')}</p> : null;
+    }
+    return null;
+  }
+
+  return (
+    <div className="space-y-5 max-w-5xl mx-auto p-6">
+      <div>
+        <h2 className="text-xl font-bold text-gray-900">Audit Log</h2>
+        <p className="text-sm text-gray-500 mt-0.5">Full activity trail — status changes, generation events, and user actions.</p>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <select value={filters.type}
+          onChange={e => { setFilters(p => ({ ...p, type: e.target.value })); setPage(0); }}
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 bg-white">
+          <option value="">All event types</option>
+          {ALL_TYPES.map(k => <option key={k} value={k}>{k}</option>)}
+        </select>
+        <input value={filters.search} placeholder="Search case, user…"
+          onChange={e => { setFilters(p => ({ ...p, search: e.target.value })); setPage(0); }}
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 flex-1 min-w-[180px] bg-white" />
+        <input type="date" value={filters.dateFrom}
+          onChange={e => { setFilters(p => ({ ...p, dateFrom: e.target.value })); setPage(0); }}
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 bg-white" />
+        <span className="self-center text-gray-400 text-xs">to</span>
+        <input type="date" value={filters.dateTo}
+          onChange={e => { setFilters(p => ({ ...p, dateTo: e.target.value })); setPage(0); }}
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 bg-white" />
+        {(filters.type || filters.search || filters.dateFrom || filters.dateTo) && (
+          <button onClick={() => { setFilters({ type: '', search: '', dateFrom: '', dateTo: '' }); setPage(0); }}
+            className="px-3 py-2 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50 bg-white">
+            Clear
+          </button>
+        )}
+      </div>
+
+      {!loading && <p className="text-xs text-gray-400">{total.toLocaleString()} events total</p>}
+
+      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        {loading ? (
+          <div className="flex justify-center py-16"><Spinner /></div>
+        ) : logs.length === 0 ? (
+          <div className="py-16 text-center text-sm text-gray-400">No events match your filters.</div>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {logs.map(log => (
+              <div key={log.id} className="flex items-start gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors">
+                <span className={`mt-0.5 shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${EVENT_COLORS[log.event_type] ?? 'bg-gray-100 text-gray-600'}`}>
+                  {log.event_type}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">{log.entity_name ?? log.entity_id ?? '—'}</p>
+                  {renderDetail(log)}
+                </div>
+                <div className="text-right text-xs text-gray-400 whitespace-nowrap shrink-0">
+                  <p className="font-medium text-gray-600">{log.user_name ?? log.user_email ?? 'system'}</p>
+                  <p>{new Date(log.created_at).toLocaleString()}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {(page > 0 || logs.length === PAGE) && (
+        <div className="flex justify-between items-center">
+          <button disabled={page === 0} onClick={() => setPage(p => p - 1)}
+            className="px-4 py-2 text-sm border border-gray-200 rounded-xl disabled:opacity-40 hover:bg-gray-50 bg-white">
+            ← Previous
+          </button>
+          <span className="text-xs text-gray-400">Page {page + 1} · {Math.min((page + 1) * PAGE, total).toLocaleString()} of {total.toLocaleString()}</span>
+          <button disabled={logs.length < PAGE} onClick={() => setPage(p => p + 1)}
+            className="px-4 py-2 text-sm border border-gray-200 rounded-xl disabled:opacity-40 hover:bg-gray-50 bg-white">
+            Next →
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SystemSettingsView({ auth }) {
   const { t } = useT();
   const [activeTab, setActiveTab] = useState("users");
@@ -25726,6 +25912,7 @@ export default function App() {
       case "client-profile": return auth.isClient ? <ClientProfileView auth={auth} /> : <Dashboard auth={auth} />;
       case "lifecycle":      return (auth.isAdmin || auth.isManager) ? <LifecycleSettingsView auth={auth} /> : <Dashboard auth={auth} />;
       case "settings":       return (auth.isAdmin || auth.isManager) ? <SystemSettingsView auth={auth} /> : <Dashboard auth={auth} />;
+      case "audit_log":      return (auth.isAdmin || auth.isManager) ? <AuditLogDashboard /> : <Dashboard auth={auth} />;
       case "notifications":  return <NotificationsView />;
       case "invoices":       return <InvoicesView auth={auth} />;
       case "kanban":         return <KanbanView auth={auth} />;
