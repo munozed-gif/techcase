@@ -2308,6 +2308,10 @@ const TRANSLATIONS = {
     "inv.status_sent":     "Sent",
     // Case wizard: open status hint
     "case.status_auto":    "(set automatically)",
+    // Trust & verification
+    "nav.approvals":        "Approvals",
+    "trust.tab_title":      "Trust & Tiers",
+    "trust.approvals_tab":  "Approvals",
   },
   es: {
     // Navigation
@@ -4458,6 +4462,10 @@ const TRANSLATIONS = {
     "inv.status_sent":     "Enviado",
     // Case wizard: open status hint
     "case.status_auto":    "(se establece automáticamente)",
+    // Trust & verification
+    "nav.approvals":        "Aprobaciones",
+    "trust.tab_title":      "Confianza y Niveles",
+    "trust.approvals_tab":  "Aprobaciones",
   },
 };
 
@@ -6917,6 +6925,17 @@ function Spinner() {
   );
 }
 
+function TrustBadge({ level, size = 'sm' }) {
+  if (!level || level === 'starter') return null;
+  const cfg = {
+    silver:   { label: 'Silver',   cls: 'bg-gray-100 text-gray-600 border border-gray-300' },
+    gold:     { label: 'Gold',     cls: 'bg-yellow-50 text-yellow-700 border border-yellow-300' },
+    platinum: { label: 'Platinum', cls: 'bg-purple-50 text-purple-700 border border-purple-300' },
+  }[level] ?? { label: level, cls: 'bg-gray-100 text-gray-500' };
+  const sz = size === 'xs' ? 'text-[10px] px-1.5 py-0 rounded' : 'text-xs px-2 py-0.5 rounded-full';
+  return <span className={`inline-flex items-center font-medium ${sz} ${cfg.cls}`}>{cfg.label}</span>;
+}
+
 function EmptyState({ Icon: IconComp, title, subtitle, action }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -7485,6 +7504,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
       { id: "team-members",    Icon: Handshake,         labelKey: "nav.team_members" },
       { id: "reports",         Icon: BarChart2,         labelKey: "nav.reports" },
       { id: "audit_log",       Icon: ClipboardList,     labelKey: "log.nav" },
+      { id: "approvals",       Icon: UserCheck,         labelKey: "nav.approvals" },
       { id: "settings",        Icon: SlidersHorizontal, labelKey: "nav.settings" },
     ],
     manager: [
@@ -7499,6 +7519,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
       { id: "db-connections",  Icon: Database,          labelKey: "nav.db_connections" },
       { id: "team-members",    Icon: Handshake,         labelKey: "nav.team_members" },
       { id: "audit_log",       Icon: ClipboardList,     labelKey: "log.nav" },
+      { id: "approvals",       Icon: UserCheck,         labelKey: "nav.approvals" },
       { id: "settings",        Icon: SlidersHorizontal, labelKey: "nav.settings" },
     ],
     consultant: [
@@ -14705,6 +14726,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [standbyNotes, setStandbyNotes] = useState("");
   const [approvalModal, setApprovalModal]     = useState(false);
   const [approvalBypass, setApprovalBypass]   = useState("");
+  const [ratingModal, setRatingModal]         = useState(null); // { caseId, caseTitle, rateeId, rateeName, rateeRole, raterRole }
   const [generatingClosure, setGeneratingClosure] = useState(false);
   const [generatingDevPlan, setGeneratingDevPlan] = useState(false);
   const [devPlanPreview, setDevPlanPreview]   = useState(null);
@@ -16603,13 +16625,19 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 const color = isCancelled ? "#EF4444" : s.color;
                 return (
                   <button key={s.key}
-                    onClick={() => {
+                    onClick={async () => {
                       if (isCancelled) return initCancelModal(caseData.id);
                       if (s.key === "standby") { setStandbyReason(""); setStandbyNotes(""); setStandbyModal(true); return; }
                       if (s.key === "approved") { setApprovalBypass(""); setApprovalModal(true); return; }
                       if (needsConfirm && !isPending) { setPendingStageKey(s.key); return; }
                       setPendingStageKey(null);
-                      onStatusChange(caseData.id, s.key);
+                      await onStatusChange(caseData.id, s.key);
+                      if (s.key === "completed") {
+                        const ratee = auth.isConsultant
+                          ? { id: caseData.client?.id, name: caseData.client?.full_name, role: "client" }
+                          : { id: caseData.case_assignments?.[0]?.users?.id, name: caseData.case_assignments?.[0]?.users?.full_name, role: "consultant" };
+                        if (ratee.id) setRatingModal({ caseId: caseData.id, caseTitle: caseData.title, rateeId: ratee.id, rateeName: ratee.name, rateeRole: ratee.role, raterRole: auth.role });
+                      }
                     }}
                     className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl border-2 text-left transition-all hover:shadow-md active:scale-[0.98] bg-white ${
                       isCancelled
@@ -18823,6 +18851,18 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           onClose={() => setShowDevPlanModal(false)}
         />
       )}
+      {ratingModal && (
+        <RatingModal
+          caseId={ratingModal.caseId}
+          caseTitle={ratingModal.caseTitle}
+          rateeId={ratingModal.rateeId}
+          rateeName={ratingModal.rateeName}
+          rateeRole={ratingModal.rateeRole}
+          raterRole={ratingModal.raterRole}
+          onClose={() => setRatingModal(null)}
+          onSubmitted={() => setRatingModal(null)}
+        />
+      )}
     </div>
   );
 }
@@ -20398,7 +20438,10 @@ function UsersView() {
                         {u.full_name?.[0]}
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">{u.full_name}</div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-medium text-gray-900">{u.full_name}</span>
+                          <TrustBadge level={u.trust_level} size="xs" />
+                        </div>
                         <div className="text-xs text-gray-400">{u.email}</div>
                       </div>
                     </div>
@@ -24654,7 +24697,12 @@ function SettingsUsersTab() {
           <tbody>
             {filtered.map(u => (
               <tr key={u.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium text-gray-900">{u.full_name ?? "—"}</td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-medium text-gray-900">{u.full_name ?? "—"}</span>
+                    <TrustBadge level={u.trust_level} size="xs" />
+                  </div>
+                </td>
                 <td className="px-4 py-3 text-gray-500">{u.email}</td>
                 <td className="px-4 py-3">
                   {editId === u.id ? (
@@ -25620,6 +25668,218 @@ function SettingsGenerationTab({ ssCtx }) {
   );
 }
 
+function UserApprovalQueue() {
+  const { t } = useT();
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [rejectModal, setRejectModal] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [processing, setProcessing] = useState(null);
+
+  useEffect(() => { fetchPending(); }, []);
+
+  async function fetchPending() {
+    setLoading(true);
+    const { data } = await supabase.from('users')
+      .select('id, full_name, email, role, created_at, verification_status, trust_level, avg_rating, completed_cases_count')
+      .eq('verification_status', 'pending')
+      .order('created_at', { ascending: true });
+    setUsers(data ?? []);
+    setLoading(false);
+  }
+
+  async function handleApprove(userId) {
+    setProcessing(userId);
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from('users').update({
+      verification_status: 'approved',
+      approved_by: user.id,
+      approved_at: new Date().toISOString(),
+    }).eq('id', userId);
+    logEvent('user.approved', { entityType: 'user', entityId: userId });
+    setUsers(p => p.filter(u => u.id !== userId));
+    setProcessing(null);
+  }
+
+  async function handleReject() {
+    if (!rejectModal) return;
+    setProcessing(rejectModal.id);
+    await supabase.from('users').update({
+      verification_status: 'rejected',
+      rejection_reason: rejectReason || null,
+    }).eq('id', rejectModal.id);
+    logEvent('user.rejected', { entityType: 'user', entityId: rejectModal.id, metadata: { reason: rejectReason } });
+    setUsers(p => p.filter(u => u.id !== rejectModal.id));
+    setRejectModal(null);
+    setRejectReason('');
+    setProcessing(null);
+  }
+
+  const ROLE_COLORS = {
+    consultant:  'bg-blue-100 text-blue-700',
+    client:      'bg-green-100 text-green-700',
+    headhunter:  'bg-purple-100 text-purple-700',
+    manager:     'bg-orange-100 text-orange-700',
+  };
+
+  return (
+    <div className="space-y-4 max-w-4xl">
+      <div>
+        <h2 className="text-xl font-bold text-gray-900">Pending Approvals</h2>
+        <p className="text-sm text-gray-500 mt-0.5">New users waiting for identity verification and approval.</p>
+      </div>
+
+      {loading ? <div className="flex justify-center py-12"><Spinner /></div>
+      : users.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-200 py-14 text-center text-sm text-gray-400">
+          No pending users — all caught up.
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+          {users.map(u => (
+            <div key={u.id} className="flex items-center gap-4 px-5 py-4">
+              <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-500 shrink-0">
+                {(u.full_name || u.email || '?')[0].toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm font-semibold text-gray-900">{u.full_name || '—'}</p>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[u.role] ?? 'bg-gray-100 text-gray-500'}`}>{u.role}</span>
+                </div>
+                <p className="text-xs text-gray-400 mt-0.5">{u.email} · Signed up {new Date(u.created_at).toLocaleDateString()}</p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <button onClick={() => setRejectModal(u)} disabled={processing === u.id}
+                  className="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-40">
+                  Reject
+                </button>
+                <button onClick={() => handleApprove(u.id)} disabled={processing === u.id}
+                  className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors">
+                  {processing === u.id ? '…' : 'Approve'}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Reject modal */}
+      {rejectModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm space-y-4">
+            <h3 className="font-semibold text-gray-900">Reject {rejectModal.full_name || rejectModal.email}?</h3>
+            <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)}
+              placeholder="Reason for rejection (optional — shown to the user)"
+              rows={3}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 resize-none" />
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => { setRejectModal(null); setRejectReason(''); }}
+                className="px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50">Cancel</button>
+              <button onClick={handleReject} disabled={processing === rejectModal.id}
+                className="px-4 py-2 text-sm bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-40">
+                Confirm Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RatingModal({ caseId, caseTitle, rateeId, rateeName, rateeRole, raterRole, onClose, onSubmitted }) {
+  const [dimensions, setDimensions] = useState([]);
+  const [scores, setScores] = useState({});
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    supabase.from('rating_dimensions')
+      .select('*')
+      .eq('active', true)
+      .order('sort_order')
+      .then(({ data }) => {
+        setDimensions(data ?? []);
+        const init = {};
+        (data ?? []).forEach(d => { init[d.key] = 3; });
+        setScores(init);
+      });
+  }, []);
+
+  async function handleSubmit() {
+    setSubmitting(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from('case_ratings').insert({
+      case_id: caseId,
+      rater_id: user.id,
+      ratee_id: rateeId,
+      rater_role: raterRole,
+      ratee_role: rateeRole,
+      scores,
+      comment: comment.trim() || null,
+    });
+    if (!error) {
+      await supabase.rpc('recalculate_trust_level', { p_user_id: rateeId });
+      logEvent('case.rated', { entityType: 'case', entityId: caseId, entityName: caseTitle, metadata: { ratee_id: rateeId, ratee_role: rateeRole } });
+      onSubmitted?.();
+    }
+    setSubmitting(false);
+    if (!error) onClose();
+  }
+
+  const stars = [1, 2, 3, 4, 5];
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div className="p-5 border-b border-gray-100">
+          <h3 className="font-semibold text-gray-900">Rate {rateeName}</h3>
+          <p className="text-xs text-gray-400 mt-0.5">Case: {caseTitle}</p>
+        </div>
+        <div className="p-5 space-y-5">
+          {dimensions.map(d => (
+            <div key={d.key}>
+              <div className="flex justify-between items-baseline mb-1.5">
+                <p className="text-sm font-medium text-gray-700">{d.label}</p>
+                <p className="text-xs text-gray-400">{scores[d.key] ?? 3}/5</p>
+              </div>
+              {d.description && <p className="text-xs text-gray-400 mb-2">{d.description}</p>}
+              <div className="flex gap-2">
+                {stars.map(s => (
+                  <button key={s} type="button"
+                    onClick={() => setScores(p => ({ ...p, [d.key]: s }))}
+                    className={`flex-1 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                      (scores[d.key] ?? 3) >= s
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-400 border-gray-200 hover:border-blue-300'
+                    }`}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-1.5">Comment <span className="text-gray-400 font-normal">(optional)</span></p>
+            <textarea value={comment} onChange={e => setComment(e.target.value)}
+              rows={3} placeholder="Any additional feedback…"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 resize-none" />
+          </div>
+        </div>
+        <div className="p-5 border-t border-gray-100 flex gap-2 justify-end">
+          <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50">
+            Skip for now
+          </button>
+          <button onClick={handleSubmit} disabled={submitting || dimensions.length === 0}
+            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-40">
+            {submitting ? 'Submitting…' : 'Submit Rating'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AuditLogDashboard() {
   const { t } = useT();
   const [logs, setLogs] = useState([]);
@@ -25763,6 +26023,115 @@ function AuditLogDashboard() {
   );
 }
 
+function SettingsTrustTab({ ssCtx }) {
+  const { t } = useT();
+  const [dimensions, setDimensions] = useState([]);
+  const [dimLoading, setDimLoading] = useState(true);
+  const [thresholds, setThresholds] = useState({ silver: { cases: 3, min_rating: 3.5 }, gold: { cases: 10, min_rating: 4.2 }, platinum: { cases: 25, min_rating: 4.5 } });
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    supabase.from('rating_dimensions').select('*').order('sort_order').then(({ data }) => {
+      setDimensions(data ?? []);
+      setDimLoading(false);
+    });
+    const stored = ssCtx.settings['trust_thresholds'];
+    if (stored) {
+      try { setThresholds(typeof stored === 'string' ? JSON.parse(stored) : stored); } catch (_) {}
+    }
+  }, [ssCtx.settings]);
+
+  async function toggleDimension(id, active) {
+    await supabase.from('rating_dimensions').update({ active }).eq('id', id);
+    setDimensions(p => p.map(d => d.id === id ? { ...d, active } : d));
+  }
+
+  async function saveThresholds() {
+    setSaving(true);
+    await ssCtx.setSetting('trust_thresholds', JSON.stringify(thresholds));
+    setToast('Saved!');
+    setTimeout(() => setToast(null), 2000);
+    setSaving(false);
+  }
+
+  const TIERS = ['silver', 'gold', 'platinum'];
+  const TIER_LABELS = { silver: 'Silver', gold: 'Gold', platinum: 'Platinum' };
+
+  return (
+    <div className="space-y-6 max-w-3xl">
+      {toast && <div className="fixed top-4 right-4 z-50 bg-green-600 text-white text-sm px-4 py-2 rounded-xl shadow-lg">{toast}</div>}
+
+      {/* Tier thresholds */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <h3 className="font-semibold text-gray-900 mb-1">Tier Thresholds</h3>
+        <p className="text-xs text-gray-400 mb-4">Minimum completed ratings and average score required to reach each tier.</p>
+        <div className="space-y-4">
+          {TIERS.map(tier => (
+            <div key={tier} className="grid grid-cols-3 gap-3 items-end">
+              <div>
+                <p className="text-xs font-medium text-gray-600 mb-1">{TIER_LABELS[tier]}</p>
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Min. cases rated</label>
+                <input type="number" min={1} value={thresholds[tier]?.cases ?? 0}
+                  onChange={e => setThresholds(p => ({ ...p, [tier]: { ...p[tier], cases: +e.target.value } }))}
+                  className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Min. avg rating (1–5)</label>
+                <input type="number" min={1} max={5} step={0.1} value={thresholds[tier]?.min_rating ?? 0}
+                  onChange={e => setThresholds(p => ({ ...p, [tier]: { ...p[tier], min_rating: +e.target.value } }))}
+                  className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-blue-400" />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-end mt-4">
+          <button onClick={saveThresholds} disabled={saving}
+            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-40">
+            {saving ? 'Saving…' : 'Save Thresholds'}
+          </button>
+        </div>
+      </div>
+
+      {/* Rating dimensions */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <h3 className="font-semibold text-gray-900 mb-1">Rating Dimensions</h3>
+        <p className="text-xs text-gray-400 mb-4">Categories shown in the rating modal after a case completes. Weight affects the tier calculation average.</p>
+        {dimLoading ? <Spinner /> : (
+          <div className="space-y-2">
+            {dimensions.map(d => (
+              <div key={d.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800">{d.label}</p>
+                  <p className="text-xs text-gray-400 truncate">{d.description}</p>
+                </div>
+                <div className="flex items-center gap-1 text-xs text-gray-400">
+                  <span>×</span>
+                  <input type="number" min={0.1} max={5} step={0.1} value={d.weight}
+                    onChange={e => {
+                      const w = +e.target.value;
+                      setDimensions(p => p.map(x => x.id === d.id ? { ...x, weight: w } : x));
+                      supabase.from('rating_dimensions').update({ weight: w }).eq('id', d.id);
+                    }}
+                    className="w-14 border border-gray-200 rounded px-1 py-0.5 text-center focus:outline-none focus:border-blue-400" />
+                </div>
+                <button type="button"
+                  onClick={() => toggleDimension(d.id, !d.active)}
+                  className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors ${d.active ? 'bg-blue-600' : 'bg-gray-200'}`}
+                  role="switch" aria-checked={d.active}>
+                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${d.active ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SystemSettingsView({ auth }) {
   const { t } = useT();
   const [activeTab, setActiveTab] = useState("users");
@@ -25777,6 +26146,8 @@ function SystemSettingsView({ auth }) {
     { id: "sla",        label: t("settings.sla"),             Icon: Shield },
     { id: "platform",   label: t("settings.platform"),        Icon: Sparkles },
     { id: "generation", label: t("settings.generation"),      Icon: Zap },
+    { id: "trust",      label: t("trust.tab_title"),          Icon: Shield },
+    { id: "approvals",  label: t("trust.approvals_tab"),      Icon: UserCheck },
   ];
 
   return (
@@ -25804,6 +26175,8 @@ function SystemSettingsView({ auth }) {
       {activeTab === "sla"        && <SlaView auth={auth} />}
       {activeTab === "platform"   && <SettingsPlatformTab ssCtx={ssCtx} />}
       {activeTab === "generation" && <SettingsGenerationTab ssCtx={ssCtx} />}
+      {activeTab === "trust"      && <SettingsTrustTab ssCtx={ssCtx} />}
+      {activeTab === "approvals"  && <UserApprovalQueue />}
     </div>
   );
 }
@@ -25913,6 +26286,7 @@ export default function App() {
       case "lifecycle":      return (auth.isAdmin || auth.isManager) ? <LifecycleSettingsView auth={auth} /> : <Dashboard auth={auth} />;
       case "settings":       return (auth.isAdmin || auth.isManager) ? <SystemSettingsView auth={auth} /> : <Dashboard auth={auth} />;
       case "audit_log":      return (auth.isAdmin || auth.isManager) ? <AuditLogDashboard /> : <Dashboard auth={auth} />;
+      case "approvals":      return (auth.isAdmin || auth.isManager) ? <UserApprovalQueue /> : <Dashboard auth={auth} />;
       case "notifications":  return <NotificationsView />;
       case "invoices":       return <InvoicesView auth={auth} />;
       case "kanban":         return <KanbanView auth={auth} />;
