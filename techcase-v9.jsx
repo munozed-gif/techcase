@@ -21,6 +21,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo, Fragment, createContext, useContext, Component } from "react";
 import { createClient } from "@supabase/supabase-js";
+import DOMPurify from "dompurify";
 import {
   LayoutDashboard, FolderOpen, LayoutGrid, Target, Receipt, Clock,
   Users, UserCheck, Settings, Database, Handshake, BarChart2, User,
@@ -7291,8 +7292,8 @@ function TierProgressBar({ ratingsData, currentTier, thresholds }) {
   }
 
   const nextThresholds = thresholds[nextTier] ?? {};
-  const minCases = nextThresholds.cases ?? 1;
-  const minRating = nextThresholds.min_rating ?? 3.5;
+  const minCases = nextThresholds.min_cases ?? 1;
+  const minRating = nextThresholds.min_avg_rating ?? 3.5;
 
   const caseIds = new Set((ratingsData ?? []).map(r => r.case_id));
   const completedRatedCases = caseIds.size;
@@ -7475,9 +7476,9 @@ function ConsultantProfileView({ userId }) {
   const isOwnProfile = !userId || userId === auth.user?.id;
 
   const DEFAULT_THRESHOLDS = {
-    silver:   { cases: 1,  min_rating: 3.5 },
-    gold:     { cases: 5,  min_rating: 4.0 },
-    platinum: { cases: 10, min_rating: 4.5 },
+    silver:   { min_cases: 1,  min_avg_rating: 3.5 },
+    gold:     { min_cases: 5,  min_avg_rating: 4.0 },
+    platinum: { min_cases: 10, min_avg_rating: 4.5 },
   };
 
   const [section, setSection] = useState('overview');
@@ -7498,7 +7499,7 @@ function ConsultantProfileView({ userId }) {
       setError(null);
       try {
         const [profRes, ratingsRes, dimsRes, assignRes, logsRes, ssRes] = await Promise.all([
-          supabase.from('profiles')
+          supabase.from('users')
             .select('id, full_name, email, role, trust_level, avg_rating, created_at')
             .eq('id', targetUserId).single(),
           supabase.from('case_ratings')
@@ -13054,6 +13055,7 @@ function CasesView({ auth, initialCaseId }) {
     const headers = ['ID', 'Title', 'Status', 'Client', 'Created'];
     const rows = [...selectedCases].map(id => {
       const c = cases.find(x => x.id === id);
+      if (!c) return [id, '', '', '', ''];
       return [c.id, c.title, c.status, c.client?.full_name ?? c.client_name ?? '', c.created_at?.slice(0,10) ?? ''];
     });
     const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
@@ -15466,7 +15468,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
         {/* Content */}
         {spec.content && (
           <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 text-sm text-gray-800 leading-relaxed overflow-x-auto"
-            dangerouslySetInnerHTML={{ __html: '<p style="margin:0.5rem 0">' + renderMarkdown(spec.content) + '</p>' }} />
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize('<p style="margin:0.5rem 0">' + renderMarkdown(spec.content) + '</p>') }} />
         )}
         {spec.mode === 'wizard' && !spec.content && (spec.objects ?? []).length > 0 && (
           <div className="space-y-3">
@@ -15813,7 +15815,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
           {!wizardLoading && compiledSpec && (
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 text-sm text-gray-800 leading-relaxed overflow-x-auto"
-              dangerouslySetInnerHTML={{ __html: '<p style="margin:0.5rem 0">' + renderMarkdown(compiledSpec) + '</p>' }} />
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize('<p style="margin:0.5rem 0">' + renderMarkdown(compiledSpec) + '</p>') }} />
           )}
 
           {!wizardLoading && compiledSpec && (
@@ -16232,7 +16234,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         rows={25} className="w-full border border-gray-200 rounded-xl p-3 text-sm font-mono resize-y focus:outline-none focus:border-blue-400" />
                     ) : (
                       <div className="text-sm text-gray-800 leading-relaxed"
-                        dangerouslySetInnerHTML={{ __html: '<div>' + renderMarkdown(selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA) + '</div>' }} />
+                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize('<div>' + renderMarkdown(selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA) + '</div>') }} />
                     )}
                   </div>
                 </div>
@@ -28205,6 +28207,7 @@ function ClientRatingModal({ isOpen, onClose, caseId, caseTitle, clientId, clien
         comment: comment.trim() || null,
       });
       if (!error) {
+        await supabase.rpc('recalculate_trust_level', { p_user_id: clientId });
         logEvent('rating.submitted', { entityType: 'case', entityId: caseId, entityName: caseTitle,
           metadata: { ratee_id: clientId, ratee_role: 'client' } });
         notify(clientId, 'You received a rating', `A consultant submitted a rating for case "${caseTitle}".`);
@@ -29076,7 +29079,7 @@ export default function App() {
     }
   }
 
-  if (auth.profile && auth.profile.verification_status && auth.profile.verification_status !== 'approved') {
+  if (auth.profile && auth.profile.verification_status !== 'approved') {
     return <PendingApprovalScreen auth={auth} />;
   }
 
