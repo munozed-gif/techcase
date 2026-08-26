@@ -2383,6 +2383,14 @@ const TRANSLATIONS = {
     "files.delete":       "Delete",
     "files.uploading":    "Uploading...",
     "files.size_error":   "File too large (max 10MB)",
+    "search.placeholder": "Search cases, projects, people...",
+    "search.empty":       "Type to search",
+    "search.no_results":  "No results",
+    "search.cases":       "Cases",
+    "search.projects":    "Projects",
+    "search.people":      "People",
+    "search.view":        "View",
+    "search.shortcut_hint": "Search",
   },
   es: {
     // Navigation
@@ -4608,6 +4616,14 @@ const TRANSLATIONS = {
     "files.delete":       "Eliminar",
     "files.uploading":    "Subiendo...",
     "files.size_error":   "Archivo demasiado grande (máx. 10 MB)",
+    "search.placeholder": "Buscar casos, proyectos, personas...",
+    "search.empty":       "Escribe para buscar",
+    "search.no_results":  "Sin resultados",
+    "search.cases":       "Casos",
+    "search.projects":    "Proyectos",
+    "search.people":      "Personas",
+    "search.view":        "Ver",
+    "search.shortcut_hint": "Buscar",
   },
 };
 
@@ -8260,7 +8276,7 @@ function AuthScreen({ onAuth }) {
 // ============================================================
 // SIDEBAR NAV
 // ============================================================
-function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, auth }) {
+function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, auth, onSearchOpen }) {
   const { t, lang, setLang } = useT();
 
   const navItems = {
@@ -8331,6 +8347,18 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
             <div className="text-xs text-blue-300 capitalize">{role} Portal</div>
           </div>
         </div>
+      </div>
+
+      {/* Search trigger */}
+      <div className="px-4 pt-3 pb-1">
+        <button
+          onClick={() => onSearchOpen?.()}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-blue-300 hover:text-white hover:bg-blue-900/70 border border-blue-800/40 transition-all"
+        >
+          <Search className="w-4 h-4 flex-shrink-0" />
+          <span className="flex-1 text-left">{t("search.shortcut_hint")}</span>
+          <kbd className="text-[11px] bg-blue-900/60 text-blue-400 px-1.5 py-0.5 rounded font-mono select-none">⌘K</kbd>
+        </button>
       </div>
 
       {/* Nav */}
@@ -12148,7 +12176,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
   );
 }
 
-function ProjectsView({ auth }) {
+function ProjectsView({ auth, initialProjectId }) {
   const { t } = useT();
   const clientFilter = auth.isClient ? { client_id: auth.user?.id } : {};
   const { projects, loading, createProject, updateProject, closeProject } = useProjects(clientFilter);
@@ -12169,6 +12197,18 @@ function ProjectsView({ auth }) {
   const displayed = statusFilter
     ? projects.filter(p => p.status === statusFilter)
     : projects;
+
+  // Open a specific project when navigated from GlobalSearch
+  const [initialProjectOpened, setInitialProjectOpened] = useState(false);
+  useEffect(() => {
+    if (!initialProjectId || initialProjectOpened || loading) return;
+    const match = projects.find(p => p.id === initialProjectId);
+    if (match) { setSelectedProject(match); setInitialProjectOpened(true); return; }
+    if (projects.length > 0) {
+      supabase.from('projects').select('*').eq('id', initialProjectId).single()
+        .then(({ data }) => { if (data) { setSelectedProject(data); setInitialProjectOpened(true); } });
+    }
+  }, [initialProjectId, initialProjectOpened, loading, projects]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return <Spinner />;
 
@@ -12335,7 +12375,7 @@ function ProjectsView({ auth }) {
 // ============================================================
 // CASES VIEW
 // ============================================================
-function CasesView({ auth }) {
+function CasesView({ auth, initialCaseId }) {
   const { t } = useT();
   const [search, setSearch]           = useState("");
   const [statusFilter, setStatus]     = useState("");
@@ -12358,6 +12398,18 @@ function CasesView({ auth }) {
     search: search || undefined,
     client_id: auth.isClient ? auth.user?.id : undefined,
   });
+
+  // Open a specific case when navigated from GlobalSearch
+  const [initialCaseOpened, setInitialCaseOpened] = useState(false);
+  useEffect(() => {
+    if (!initialCaseId || initialCaseOpened || loading) return;
+    const match = cases.find(c => c.id === initialCaseId);
+    if (match) { setSelected(match); setInitialCaseOpened(true); return; }
+    if (cases.length > 0) {
+      supabase.from('cases').select(`*, client:client_id(id, full_name, email, client_profiles(company_name)), manager:manager_id(id, full_name, email), case_assignments(consultant_id, time_commitment, users:consultant_id(id, full_name, avatar_url)), case_key_users(user_id, area, users:user_id(full_name, email)), applications(count)`).eq('id', initialCaseId).single()
+        .then(({ data }) => { if (data) { setSelected(data); setInitialCaseOpened(true); } });
+    }
+  }, [initialCaseId, initialCaseOpened, loading, cases]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Consultants and key users see only their linked cases.
   const visibleCases = auth.isConsultant
@@ -27431,6 +27483,207 @@ function SystemSettingsView({ auth }) {
 }
 
 // ============================================================
+// GLOBAL SEARCH
+// ============================================================
+function GlobalSearch({ auth, onNavigate, onClose }) {
+  const { t } = useT();
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState({ cases: [], projects: [], users: [] });
+  const [searching, setSearching] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const inputRef = useRef(null);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  useEffect(() => {
+    if (query.length < 2) {
+      setResults({ cases: [], projects: [], users: [] });
+      return;
+    }
+    const q = query;
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      const [casesRes, projectsRes, usersRes] = await Promise.all([
+        supabase.from('cases')
+          .select('id, title, status, client_id')
+          .or(`title.ilike.%${q}%,description.ilike.%${q}%`)
+          .limit(5),
+        supabase.from('projects')
+          .select('id, name, status')
+          .ilike('name', `%${q}%`)
+          .limit(5),
+        supabase.from('users')
+          .select('id, full_name, email, role, trust_level')
+          .or(`full_name.ilike.%${q}%,email.ilike.%${q}%`)
+          .limit(5),
+      ]);
+      setResults({
+        cases:    casesRes.data    ?? [],
+        projects: projectsRes.data ?? [],
+        users:    usersRes.data    ?? [],
+      });
+      setSearching(false);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const allResults = [
+    ...results.cases.map(c    => ({ type: 'case',    item: c })),
+    ...results.projects.map(p => ({ type: 'project', item: p })),
+    ...results.users.map(u    => ({ type: 'user',    item: u })),
+  ];
+  const casesOffset    = 0;
+  const projectsOffset = results.cases.length;
+  const usersOffset    = results.cases.length + results.projects.length;
+
+  function handleSelect({ type, item }) {
+    if (type === 'case') {
+      logEvent('search.navigate', { metadata: { query, resultType: 'case',    resultId: item.id } });
+      onNavigate({ view: 'cases',    caseId:    item.id });
+    } else if (type === 'project') {
+      logEvent('search.navigate', { metadata: { query, resultType: 'project', resultId: item.id } });
+      onNavigate({ view: 'projects', projectId: item.id });
+    } else if (type === 'user') {
+      logEvent('search.navigate', { metadata: { query, resultType: 'user',    resultId: item.id } });
+      onNavigate({ view: 'profile',  userId:    item.id });
+    }
+  }
+
+  function handleKeyDown(e) {
+    if (e.key === 'Escape') { onClose(); return; }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setFocusedIndex(i => Math.min(i + 1, allResults.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setFocusedIndex(i => Math.max(i - 1, -1));
+    } else if (e.key === 'Enter' && focusedIndex >= 0) {
+      handleSelect(allResults[focusedIndex]);
+    }
+  }
+
+  const searched      = query.length >= 2;
+  const totalResults  = results.cases.length + results.projects.length + results.users.length;
+
+  const sectionHeader = (label) => (
+    <div className="px-4 py-1.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 border-b border-gray-100">
+      {label}
+    </div>
+  );
+
+  const resultRow = (globalIdx, icon, title, badge, onClick) => (
+    <button
+      key={globalIdx}
+      className={`w-full flex items-center justify-between px-4 py-2.5 text-left transition-colors text-sm border-b border-gray-50 last:border-0 ${focusedIndex === globalIdx ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+      onClick={onClick}
+      onMouseEnter={() => setFocusedIndex(globalIdx)}
+    >
+      <div className="flex items-center gap-2.5 min-w-0">
+        {icon}
+        <span className="font-medium text-gray-800 truncate">{title}</span>
+        {badge && <span className="text-[11px] text-gray-500 capitalize bg-gray-100 px-1.5 py-0.5 rounded flex-shrink-0">{badge}</span>}
+      </div>
+      <span className="text-xs text-blue-500 flex-shrink-0 ml-3">{t('search.view')} →</span>
+    </button>
+  );
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] bg-black/40"
+      onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-xl mx-4 overflow-hidden flex flex-col"
+        style={{ maxHeight: '70vh' }}
+        onKeyDown={handleKeyDown}
+      >
+        {/* Input row */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 flex-shrink-0">
+          {searching
+            ? <div className="w-4 h-4 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin flex-shrink-0" />
+            : <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          }
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={e => { setQuery(e.target.value); setFocusedIndex(-1); }}
+            onKeyDown={handleKeyDown}
+            placeholder={t('search.placeholder')}
+            className="flex-1 outline-none text-gray-800 text-sm bg-transparent placeholder:text-gray-400"
+          />
+          {query
+            ? <button onClick={() => { setQuery(''); setFocusedIndex(-1); inputRef.current?.focus(); }}
+                className="text-gray-400 hover:text-gray-600 transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            : null
+          }
+          <kbd className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded font-mono select-none">Esc</kbd>
+        </div>
+
+        {/* Results */}
+        <div className="overflow-y-auto">
+          {!searched && (
+            <div className="px-4 py-10 text-center text-sm text-gray-400">{t('search.empty')}</div>
+          )}
+          {searched && !searching && totalResults === 0 && (
+            <div className="px-4 py-10 text-center text-sm text-gray-400">
+              {t('search.no_results')} &ldquo;{query}&rdquo;
+            </div>
+          )}
+
+          {searched && results.cases.length > 0 && (
+            <div>
+              {sectionHeader(t('search.cases'))}
+              {results.cases.map((c, i) =>
+                resultRow(
+                  casesOffset + i,
+                  <FolderOpen className="w-4 h-4 text-blue-400 flex-shrink-0" />,
+                  c.title,
+                  c.status?.replace(/_/g, ' '),
+                  () => handleSelect({ type: 'case', item: c })
+                )
+              )}
+            </div>
+          )}
+
+          {searched && results.projects.length > 0 && (
+            <div>
+              {sectionHeader(t('search.projects'))}
+              {results.projects.map((p, i) =>
+                resultRow(
+                  projectsOffset + i,
+                  <Layers className="w-4 h-4 text-purple-400 flex-shrink-0" />,
+                  p.name,
+                  p.status?.replace(/_/g, ' '),
+                  () => handleSelect({ type: 'project', item: p })
+                )
+              )}
+            </div>
+          )}
+
+          {searched && results.users.length > 0 && (
+            <div>
+              {sectionHeader(t('search.people'))}
+              {results.users.map((u, i) =>
+                resultRow(
+                  usersOffset + i,
+                  <Users className="w-4 h-4 text-green-500 flex-shrink-0" />,
+                  u.full_name || u.email,
+                  u.role,
+                  () => handleSelect({ type: 'user', item: u })
+                )
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // ROOT APP
 // ============================================================
 function StartDateMonitor({ auth }) {
@@ -27449,15 +27702,31 @@ function StartDateMonitor({ auth }) {
 
 export default function App() {
   const auth = useAuth();
-  const [activeView, setActiveView]     = useState("dashboard");
-  const [authed, setAuthed]             = useState(false);
-  const [onboardingRole, setOnboarding] = useState(null); // role string or null
-  const unreadCount                     = useUnreadCount();
+  const [activeView, setActiveView]       = useState("dashboard");
+  const [authed, setAuthed]               = useState(false);
+  const [onboardingRole, setOnboarding]   = useState(null); // role string or null
+  const unreadCount                       = useUnreadCount();
+  const [searchOpen, setSearchOpen]       = useState(false);
+  const [pendingCaseId, setPendingCaseId] = useState(null);
+  const [pendingProjectId, setPendingProjectId] = useState(null);
+  const [pendingUserId, setPendingUserId] = useState(null);
 
   // Sync authed state with auth session
   useEffect(() => {
     if (!auth.loading) setAuthed(!!auth.user);
   }, [auth.loading, auth.user]);
+
+  // Global Cmd+K / Ctrl+K shortcut
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   if (auth.loading) {
     return (
@@ -27520,11 +27789,13 @@ export default function App() {
   function renderView() {
     switch (activeView) {
       case "dashboard":      return <Dashboard auth={auth} />;
-      case "projects":       return <ProjectsView auth={auth} />;
-      case "cases":          return <CasesView auth={auth} />;
-      case "my-cases":       return <CasesView auth={auth} />;
+      case "projects":       return <ProjectsView auth={auth} initialProjectId={pendingProjectId} />;
+      case "cases":          return <CasesView auth={auth} initialCaseId={pendingCaseId} />;
+      case "my-cases":       return <CasesView auth={auth} initialCaseId={pendingCaseId} />;
       case "arena":          return <ArenaView auth={auth} />;
-      case "profile":        return auth.isConsultant ? <ConsultantProfileView /> : <ProfileView auth={auth} />;
+      case "profile":        return pendingUserId
+                               ? <ConsultantProfileView userId={pendingUserId} />
+                               : auth.isConsultant ? <ConsultantProfileView /> : <ProfileView auth={auth} />;
       case "consultants":    return <ConsultantsView auth={auth} />;
       case "users":          return auth.isAdmin ? <UsersView /> : <Dashboard auth={auth} />;
       case "reports":        return auth.isAdmin ? <ReportsView /> : <Dashboard auth={auth} />;
@@ -27561,7 +27832,21 @@ export default function App() {
             profile={auth.profile}
             unreadCount={unreadCount}
             auth={auth}
+            onSearchOpen={() => setSearchOpen(true)}
           />
+          {searchOpen && (
+            <GlobalSearch
+              auth={auth}
+              onNavigate={({ view, caseId, projectId, userId }) => {
+                setPendingCaseId(caseId ?? null);
+                setPendingProjectId(projectId ?? null);
+                setPendingUserId(userId ?? null);
+                setActiveView(view);
+                setSearchOpen(false);
+              }}
+              onClose={() => setSearchOpen(false)}
+            />
+          )}
           <main className="ml-64 p-8 min-h-screen">
             <div className="max-w-5xl mx-auto">
               <ErrorBoundary key={activeView}>
