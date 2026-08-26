@@ -2316,6 +2316,11 @@ const TRANSLATIONS = {
     "pending.subtitle":      "Your account is being verified by our team.",
     "pending.rejected_title":"Application not approved",
     "pending.sign_out":      "Sign out",
+    "case.min_trust_level_label": "Minimum Consultant Level",
+    "case.min_trust_any":         "Any level (default)",
+    "case.min_trust_silver":      "Silver and above",
+    "case.min_trust_gold":        "Gold and above",
+    "case.min_trust_platinum":    "Platinum only",
   },
   es: {
     // Navigation
@@ -4474,6 +4479,11 @@ const TRANSLATIONS = {
     "pending.subtitle":      "Tu cuenta está siendo verificada por nuestro equipo.",
     "pending.rejected_title":"Solicitud no aprobada",
     "pending.sign_out":      "Cerrar sesión",
+    "case.min_trust_level_label": "Nivel Mínimo de Consultor",
+    "case.min_trust_any":         "Cualquier nivel (por defecto)",
+    "case.min_trust_silver":      "Plata y superior",
+    "case.min_trust_gold":        "Oro y superior",
+    "case.min_trust_platinum":    "Solo Platino",
   },
 };
 
@@ -7713,7 +7723,27 @@ function Dashboard({ auth }) {
       .filter(a => a.consultant_id === auth.user?.id)
       .map(a => a.case_id ?? a.id)
   );
-  const availableCases   = cases.filter(c => c.status === "estimated" && !appliedCaseIds.has(c.id) && !assignedCaseIds.has(c.id));
+  const TRUST_ORDER = ['starter', 'silver', 'gold', 'platinum'];
+  const _userTrustIdx = TRUST_ORDER.indexOf(auth.profile?.trust_level ?? 'starter');
+  const availableCases = cases.filter(c => {
+    if (c.status !== 'estimated') return false;
+    if (appliedCaseIds.has(c.id) || assignedCaseIds.has(c.id)) return false;
+    if (c.min_trust_level && TRUST_ORDER.indexOf(c.min_trust_level) > _userTrustIdx) return false;
+    return true;
+  });
+  const _hiddenTierCases = cases.filter(c =>
+    c.status === 'estimated' &&
+    !appliedCaseIds.has(c.id) &&
+    !assignedCaseIds.has(c.id) &&
+    c.min_trust_level &&
+    TRUST_ORDER.indexOf(c.min_trust_level) > _userTrustIdx
+  );
+  const _nextUnlockTier = _hiddenTierCases.length > 0
+    ? _hiddenTierCases.reduce((best, c) => {
+        const idx = TRUST_ORDER.indexOf(c.min_trust_level);
+        return idx < TRUST_ORDER.indexOf(best) ? c.min_trust_level : best;
+      }, 'platinum')
+    : null;
 
   const filteredAvailable = availableCases.filter(c => {
     if (filterSap       && c.area_sap      !== filterSap)      return false;
@@ -8202,6 +8232,14 @@ function Dashboard({ auth }) {
                   {filteredAvailable.length} open
                 </span>
               </div>
+              {_hiddenTierCases.length > 0 && (auth.isConsultant || auth.isHeadhunter) && (
+                <div className="mx-5 mt-3 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2">
+                  <span className="text-amber-500 shrink-0 text-base">🔒</span>
+                  <p className="text-sm text-amber-700">
+                    <strong>{_hiddenTierCases.length}</strong> premium {_hiddenTierCases.length === 1 ? 'case is' : 'cases are'} hidden — reach <strong className="capitalize">{_nextUnlockTier}</strong> level to unlock {_hiddenTierCases.length === 1 ? 'it' : 'them'}.
+                  </p>
+                </div>
+              )}
 
               {/* Filters */}
               <div className="px-5 py-3 border-b border-gray-100 flex flex-wrap gap-2 bg-gray-50/50">
@@ -8554,7 +8592,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId);
   const [wizardProjects, setWizardProjects]         = useState([]);
 
-  const [basics, setBasics] = useState({ title: initialData?.title ?? "", description: initialData?.description ?? "", priority: initialData?.priority ?? "medium", area_sap: initialData?.area_sap ?? "", area_industry: initialData?.area_industry ?? "", is_confidential: initialData?.is_confidential ?? false, nda_required: initialData?.nda_required ?? false });
+  const [basics, setBasics] = useState({ title: initialData?.title ?? "", description: initialData?.description ?? "", priority: initialData?.priority ?? "medium", area_sap: initialData?.area_sap ?? "", area_industry: initialData?.area_industry ?? "", is_confidential: initialData?.is_confidential ?? false, nda_required: initialData?.nda_required ?? false, min_trust_level: initialData?.min_trust_level ?? null });
   const [scope, setScope]   = useState({ budget: initialData?.budget ?? "", start_date: initialData?.start_date ?? "", due_date: initialData?.due_date ?? daysFromNow(30), sla: "standard", _skills: (initialData?.skills_required ?? []).join(", "), client_id: auth.isClient ? auth.user?.id : (initialData?.client_id ?? "") });
 
   // Step 3: Work Arrangement
@@ -8769,6 +8807,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         area_industry: basics.area_industry || null,
         is_confidential: basics.is_confidential,
         nda_required: basics.nda_required,
+        min_trust_level: basics.min_trust_level ?? null,
         ...rest,
         start_date: rest.start_date || null,
         due_date: rest.due_date || null,
@@ -8995,6 +9034,23 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                     <span className="text-xs text-gray-400">{t("case.nda_desc")}</span>
                   </label>
                 </div>
+                {(auth.isAdmin || auth.isManager) && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Minimum Consultant Level
+                    </label>
+                    <p className="text-xs text-gray-400 mb-2">Restrict which consultants can see this case based on their trust tier.</p>
+                    <select
+                      value={basics.min_trust_level ?? ''}
+                      onChange={e => setBasics(p => ({ ...p, min_trust_level: e.target.value || null }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+                      <option value="">Any level (default)</option>
+                      <option value="silver">Silver and above</option>
+                      <option value="gold">Gold and above</option>
+                      <option value="platinum">Platinum only</option>
+                    </select>
+                  </div>
+                )}
               </>
             )}
           </>
