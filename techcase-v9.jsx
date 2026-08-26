@@ -19,7 +19,7 @@
 //                   file_type, file_size_kb, notes, created_at)
 // ============================================================
 
-import { useState, useEffect, useCallback, useRef, Fragment, createContext, useContext } from "react";
+import { useState, useEffect, useCallback, useRef, Fragment, createContext, useContext, Component } from "react";
 import { createClient } from "@supabase/supabase-js";
 import {
   LayoutDashboard, FolderOpen, LayoutGrid, Target, Receipt, Clock,
@@ -417,6 +417,12 @@ const TRANSLATIONS = {
     "notif.mark_read": "Mark all read",
     "notif.none":      "All caught up!",
     "notif.none_hint": "Notifications will appear here when cases are updated, applications change status, or you receive messages.",
+    "notif.approved_title":   "Your account has been approved! 🎉",
+    "notif.approved_body":    "You now have access to the platform. Welcome aboard.",
+    "notif.rejected_title":   "Your account application was not approved",
+    "notif.rating_title":     "You received a new rating",
+    "notif.mark_all_read":    "Mark all read",
+    "notif.empty":            "No notifications yet",
     // Reports
     "reports.title":           "Reports",
     "reports.subtitle":        "Platform analytics",
@@ -3239,6 +3245,12 @@ const TRANSLATIONS = {
     "notif.mark_read": "Marcar todo como leído",
     "notif.none":      "¡Todo al día!",
     "notif.none_hint": "Las notificaciones aparecerán aquí cuando los casos se actualicen, cambien las postulaciones o recibas mensajes.",
+    "notif.approved_title":   "¡Tu cuenta ha sido aprobada! 🎉",
+    "notif.approved_body":    "Ya tienes acceso a la plataforma. ¡Bienvenido!",
+    "notif.rejected_title":   "Tu solicitud de cuenta no fue aprobada",
+    "notif.rating_title":     "Recibiste una nueva valoración",
+    "notif.mark_all_read":    "Marcar todo como leído",
+    "notif.empty":            "No hay notificaciones aún",
     // Reports
     "reports.title":           "Reportes",
     "reports.subtitle":        "Analítica de la plataforma",
@@ -6015,6 +6027,7 @@ async function logEvent(eventType, opts = {}) {
     });
   } catch (_) {}
 }
+
 // ─────────────────────────────────────────────────────────────
 
 // ── Case Specification hook ──────────────────────────────────
@@ -6997,6 +7010,38 @@ function PendingApprovalScreen({ auth }) {
   );
 }
 
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    console.error('[ErrorBoundary]', error, info?.componentStack);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex items-center justify-center h-64 p-8">
+          <div className="text-center space-y-3 max-w-sm">
+            <div className="text-3xl">⚠️</div>
+            <p className="font-semibold text-gray-800">Something went wrong</p>
+            <p className="text-xs text-gray-400 font-mono">{this.state.error?.message}</p>
+            <button
+              onClick={() => this.setState({ hasError: false, error: null })}
+              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700">
+              Try again
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function TrustBadge({ level, size = 'sm' }) {
   if (!level || level === 'starter') return null;
   const cfg = {
@@ -7006,6 +7051,62 @@ function TrustBadge({ level, size = 'sm' }) {
   }[level] ?? { label: level, cls: 'bg-gray-100 text-gray-500' };
   const sz = size === 'xs' ? 'text-[10px] px-1.5 py-0 rounded' : 'text-xs px-2 py-0.5 rounded-full';
   return <span className={`inline-flex items-center font-medium ${sz} ${cfg.cls}`}>{cfg.label}</span>;
+}
+
+function NotificationBell({ auth }) {
+  const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function handle(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => { setOpen(p => !p); }}
+        className="relative p-2 rounded-xl text-blue-200 hover:bg-blue-900 transition-colors">
+        <Bell size={20} />
+        {unreadCount > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 leading-none">
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute left-0 bottom-full mb-2 w-80 bg-white rounded-2xl border border-gray-200 shadow-xl z-50 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+            <h3 className="font-semibold text-gray-900 text-sm">Notifications</h3>
+            {unreadCount > 0 && (
+              <button onClick={markAllRead} className="text-xs text-blue-600 hover:text-blue-700">
+                Mark all read
+              </button>
+            )}
+          </div>
+          <div className="max-h-80 overflow-y-auto divide-y divide-gray-50">
+            {notifications.length === 0 ? (
+              <p className="py-8 text-center text-sm text-gray-400">No notifications yet</p>
+            ) : notifications.map(n => (
+              <div key={n.id}
+                onClick={() => !n.is_read && markRead(n.id)}
+                className={`px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors flex items-start gap-2.5 ${!n.is_read ? 'bg-blue-50/40' : ''}`}>
+                {!n.is_read && <span className="mt-2 w-2 h-2 rounded-full bg-blue-500 shrink-0" />}
+                <div className={!n.is_read ? '' : 'pl-4'}>
+                  <p className="text-sm font-medium text-gray-800 leading-snug">{n.title}</p>
+                  {n.body && <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{n.body}</p>}
+                  <p className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function EmptyState({ Icon: IconComp, title, subtitle, action }) {
@@ -7560,7 +7661,7 @@ function AuthScreen({ onAuth }) {
 // ============================================================
 // SIDEBAR NAV
 // ============================================================
-function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
+function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, auth }) {
   const { t, lang, setLang } = useT();
 
   const navItems = {
@@ -7684,6 +7785,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount }) {
             <div className="text-sm font-medium text-white truncate">{profile?.full_name ?? t("fallback.user")}</div>
             <div className="text-xs text-blue-300 truncate">{profile?.email}</div>
           </div>
+          {auth && <NotificationBell auth={auth} />}
         </div>
         <button onClick={onSignOut}
           className="w-full text-sm text-blue-300 hover:text-white py-1.5 px-3 rounded-lg hover:bg-blue-900 transition-colors text-left">
@@ -25815,6 +25917,7 @@ function UserApprovalQueue() {
       approved_at: new Date().toISOString(),
     }).eq('id', userId);
     logEvent('user.approved', { entityType: 'user', entityId: userId });
+    notify(userId, 'Your account has been approved! 🎉', 'You now have access to the platform. Welcome aboard.');
     setUsers(p => p.filter(u => u.id !== userId));
     setProcessing(null);
   }
@@ -25827,6 +25930,7 @@ function UserApprovalQueue() {
       rejection_reason: rejectReason || null,
     }).eq('id', rejectModal.id);
     logEvent('user.rejected', { entityType: 'user', entityId: rejectModal.id, metadata: { reason: rejectReason } });
+    notify(rejectModal.id, 'Your account application was not approved', rejectReason.trim() || 'Please contact our team for more information.');
     setUsers(p => p.filter(u => u.id !== rejectModal.id));
     setRejectModal(null);
     setRejectReason('');
@@ -25938,6 +26042,7 @@ function RatingModal({ caseId, caseTitle, rateeId, rateeName, rateeRole, raterRo
     });
     if (!error) {
       await supabase.rpc('recalculate_trust_level', { p_user_id: rateeId });
+      notify(rateeId, 'You received a new rating', `A rating was submitted for case "${caseTitle}".`);
       logEvent('case.rated', { entityType: 'case', entityId: caseId, entityName: caseTitle, metadata: { ratee_id: rateeId, ratee_role: rateeRole } });
       onSubmitted?.();
     }
@@ -26429,10 +26534,13 @@ export default function App() {
             onSignOut={handleSignOut}
             profile={auth.profile}
             unreadCount={unreadCount}
+            auth={auth}
           />
           <main className="ml-64 p-8 min-h-screen">
             <div className="max-w-5xl mx-auto">
-              {renderView()}
+              <ErrorBoundary key={activeView}>
+                {renderView()}
+              </ErrorBoundary>
             </div>
           </main>
         </div>
