@@ -14916,7 +14916,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
       await supabase.from("cases")
         .update({ status: "cancelled", cancellation_reason: cancelReason, cancellation_notes: cancelNotes || null })
         .eq("id", cancelModal.caseId);
-      logEvent('case.cancelled', { entityType: 'case', entityId: cancelModal?.caseId ?? cancelModal?.id, entityName: cancelModal?.title ?? cancelModal?.caseTitle, newValue: { status: 'cancelled' }, metadata: { reason: cancelReason ?? cancelModal?.reason } });
+      logEvent('case.cancelled', { entityType: 'case', entityId: cancelModal?.caseId, entityName: selectedSubCase?.title, newValue: { status: 'cancelled' }, metadata: { reason: cancelReason } });
       setSelectedSubCase(prev => ({ ...prev, status: "cancelled" }));
     } else {
       await onStatusChange(cancelModal.caseId, "cancelled", {
