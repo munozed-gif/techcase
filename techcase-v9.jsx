@@ -7595,6 +7595,13 @@ function ConsultantProfileView({ userId }) {
         </div>
       )}
 
+      {/* Vouches */}
+      {section === 'vouches' && (
+        <div className="space-y-4">
+          <VouchingPanel targetUserId={targetUserId} targetName={profileData?.full_name} />
+        </div>
+      )}
+
       {/* Edit profile */}
       {section === 'edit' && isOwnProfile && (
         <ProfileView auth={auth} />
@@ -8369,12 +8376,13 @@ function Dashboard({ auth }) {
   const [ratedCaseIds, setRatedCaseIds]       = useState(new Set());
   const [ratePendingModal, setRatePendingModal] = useState(null); // { caseId, caseTitle, rateeId, rateeName }
 
-  // Fetch which cases this consultant has already rated (to drive rate-pending banner)
+  // Fetch which cases this consultant has already rated the CLIENT for (ratee_role = 'client')
   useEffect(() => {
     if (!auth.isConsultant || !auth.user?.id) return;
     supabase.from('case_ratings')
       .select('case_id')
       .eq('rater_id', auth.user.id)
+      .eq('ratee_role', 'client')
       .then(({ data }) => {
         setRatedCaseIds(new Set((data ?? []).map(r => r.case_id)));
       });
@@ -9237,15 +9245,13 @@ function Dashboard({ auth }) {
     </div>
 
     {ratePendingModal && (
-      <RatingModal
+      <ClientRatingModal
+        isOpen={true}
         caseId={ratePendingModal.caseId}
         caseTitle={ratePendingModal.caseTitle}
-        rateeId={ratePendingModal.rateeId}
-        rateeName={ratePendingModal.rateeName}
-        rateeRole="client"
-        raterRole="consultant"
-        onClose={() => setRatePendingModal(null)}
-        onSubmitted={() => {
+        clientId={ratePendingModal.rateeId}
+        clientName={ratePendingModal.rateeName}
+        onClose={() => {
           setRatedCaseIds(prev => new Set([...prev, ratePendingModal.caseId]));
           setRatePendingModal(null);
         }}
@@ -15561,6 +15567,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [approvalModal, setApprovalModal]     = useState(false);
   const [approvalBypass, setApprovalBypass]   = useState("");
   const [ratingModal, setRatingModal]         = useState(null); // { caseId, caseTitle, rateeId, rateeName, rateeRole, raterRole }
+  const [clientRatingModal, setClientRatingModal] = useState(null); // { caseId, caseTitle, clientId, clientName }
   const [generatingClosure, setGeneratingClosure] = useState(false);
   const [generatingDevPlan, setGeneratingDevPlan] = useState(false);
   const [devPlanPreview, setDevPlanPreview]   = useState(null);
@@ -17467,10 +17474,16 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       setPendingStageKey(null);
                       await onStatusChange(caseData.id, s.key);
                       if (s.key === "completed") {
-                        const ratee = auth.isConsultant
-                          ? { id: caseData.client?.id, name: caseData.client?.full_name, role: "client" }
-                          : { id: caseData.case_assignments?.[0]?.users?.id, name: caseData.case_assignments?.[0]?.users?.full_name, role: "consultant" };
-                        if (ratee.id) setRatingModal({ caseId: caseData.id, caseTitle: caseData.title, rateeId: ratee.id, rateeName: ratee.name, rateeRole: ratee.role, raterRole: auth.role });
+                        if (auth.isConsultant) {
+                          // Consultant rates client
+                          if (caseData.client?.id) {
+                            setClientRatingModal({ caseId: caseData.id, caseTitle: caseData.title, clientId: caseData.client.id, clientName: caseData.client.full_name ?? 'Client' });
+                          }
+                        } else {
+                          // Client/admin rates consultant
+                          const ratee = { id: caseData.case_assignments?.[0]?.users?.id, name: caseData.case_assignments?.[0]?.users?.full_name, role: "consultant" };
+                          if (ratee.id) setRatingModal({ caseId: caseData.id, caseTitle: caseData.title, rateeId: ratee.id, rateeName: ratee.name, rateeRole: ratee.role, raterRole: auth.role });
+                        }
                       }
                     }}
                     className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl border-2 text-left transition-all hover:shadow-md active:scale-[0.98] bg-white ${
@@ -17781,6 +17794,19 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                   <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-semibold">{t("case.technical_assessment")}</span>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Rate Client button — assigned consultant, case already completed */}
+          {auth.isConsultant && caseData.status === "completed" &&
+            caseData.case_assignments?.some(a => a.consultant_id === auth.user?.id) &&
+            caseData.client?.id && (
+            <div className="border-t border-gray-100 pt-4">
+              <button
+                onClick={() => setClientRatingModal({ caseId: caseData.id, caseTitle: caseData.title, clientId: caseData.client.id, clientName: caseData.client.full_name ?? 'Client' })}
+                className="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors shadow-sm">
+                {t('rating.rate_client')}
+              </button>
             </div>
           )}
 
@@ -19695,6 +19721,16 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           raterRole={ratingModal.raterRole}
           onClose={() => setRatingModal(null)}
           onSubmitted={() => setRatingModal(null)}
+        />
+      )}
+      {clientRatingModal && (
+        <ClientRatingModal
+          isOpen={true}
+          caseId={clientRatingModal.caseId}
+          caseTitle={clientRatingModal.caseTitle}
+          clientId={clientRatingModal.clientId}
+          clientName={clientRatingModal.clientName}
+          onClose={() => setClientRatingModal(null)}
         />
       )}
     </div>
@@ -26619,6 +26655,105 @@ function UserApprovalQueue() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ============================================================
+// CLIENT RATING MODAL  (consultant → client direction)
+// ============================================================
+function ClientRatingModal({ isOpen, onClose, caseId, caseTitle, clientId, clientName }) {
+  const auth = useAuth();
+  const { t } = useT();
+  const CLIENT_DIMS = ['Communication', 'Clarity of requirements', 'Responsiveness', 'Overall'];
+  const [scores, setScores] = useState(() => {
+    const init = {};
+    CLIENT_DIMS.forEach(d => { init[d] = 3; });
+    return init;
+  });
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  if (!isOpen) return null;
+  if (!auth.isConsultant) return null;
+
+  async function handleSubmit() {
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.from('case_ratings').insert({
+        case_id: caseId,
+        rater_id: auth.user.id,
+        ratee_id: clientId,
+        rater_role: 'consultant',
+        ratee_role: 'client',
+        scores,
+        comment: comment.trim() || null,
+      });
+      if (!error) {
+        logEvent('rating.submitted', { entityType: 'case', entityId: caseId, entityName: caseTitle,
+          metadata: { ratee_id: clientId, ratee_role: 'client' } });
+        notify(clientId, 'You received a rating', `A consultant submitted a rating for case "${caseTitle}".`);
+        setToast(t('rating.client_success'));
+        setTimeout(() => { setToast(null); onClose(); }, 1500);
+      }
+    } catch (e) {
+      console.error('ClientRatingModal submit error:', e);
+    }
+    setSubmitting(false);
+  }
+
+  const stars = [1, 2, 3, 4, 5];
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div className="p-5 border-b border-gray-100">
+          <h3 className="font-semibold text-gray-900">{t('rating.client_modal_title')}: {clientName}</h3>
+          <p className="text-xs text-gray-400 mt-0.5">Case: {caseTitle}</p>
+        </div>
+        <div className="p-5 space-y-5">
+          {toast && (
+            <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-2 text-sm text-green-700">{toast}</div>
+          )}
+          {CLIENT_DIMS.map(dim => (
+            <div key={dim}>
+              <div className="flex justify-between items-baseline mb-1.5">
+                <p className="text-sm font-medium text-gray-700">{dim}</p>
+                <p className="text-xs text-gray-400">{scores[dim] ?? 3}/5</p>
+              </div>
+              <div className="flex gap-2">
+                {stars.map(s => (
+                  <button key={s} type="button"
+                    onClick={() => setScores(p => ({ ...p, [dim]: s }))}
+                    className={`flex-1 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                      (scores[dim] ?? 3) >= s
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-400 border-gray-200 hover:border-blue-300'
+                    }`}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-1.5">Comment <span className="text-gray-400 font-normal">(optional)</span></p>
+            <textarea value={comment} onChange={e => setComment(e.target.value)}
+              rows={3} placeholder="Any additional feedback…"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 resize-none" />
+          </div>
+        </div>
+        <div className="p-5 border-t border-gray-100 flex gap-2 justify-end">
+          <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50">
+            Skip for now
+          </button>
+          <button onClick={handleSubmit} disabled={submitting}
+            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-40">
+            {submitting ? t('rating.submitting') : t('rating.submit')}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
