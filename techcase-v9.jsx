@@ -7087,6 +7087,363 @@ function TrustBadge({ level, size = 'sm' }) {
   return <span className={`inline-flex items-center font-medium ${sz} ${cfg.cls}`}>{cfg.label}</span>;
 }
 
+// ============================================================
+// TIER PROGRESS BAR
+// ============================================================
+function TierProgressBar({ ratingsData, currentTier, thresholds }) {
+  const { t } = useT();
+  const TIER_ORDER = ['starter', 'silver', 'gold', 'platinum'];
+  const currentIdx = TIER_ORDER.indexOf(currentTier ?? 'starter');
+  const nextTier = TIER_ORDER[currentIdx + 1];
+
+  if (!nextTier) {
+    return (
+      <div className="flex items-center gap-2 text-purple-700 text-sm font-medium">
+        <TrustBadge level="platinum" size="sm" />
+        <span>{t('profile.top_tier')}</span>
+      </div>
+    );
+  }
+
+  const nextThresholds = thresholds[nextTier] ?? {};
+  const minCases = nextThresholds.cases ?? 1;
+  const minRating = nextThresholds.min_rating ?? 3.5;
+
+  const caseIds = new Set((ratingsData ?? []).map(r => r.case_id));
+  const completedRatedCases = caseIds.size;
+
+  const ratingsWithAvg = (ratingsData ?? []).map(r => {
+    const vals = Object.values(r.scores ?? {});
+    return vals.length > 0 ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
+  });
+  const currentAvg = ratingsWithAvg.length > 0
+    ? ratingsWithAvg.reduce((s, v) => s + v, 0) / ratingsWithAvg.length
+    : 0;
+
+  const casesPct = Math.min(100, Math.round((completedRatedCases / Math.max(minCases, 1)) * 100));
+  const ratingMet = currentAvg >= minRating;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-gray-500 font-medium">{t('profile.current_tier')}:</span>
+        {currentTier && currentTier !== 'starter'
+          ? <TrustBadge level={currentTier} size="sm" />
+          : <span className="text-xs text-gray-600 capitalize">{currentTier ?? 'Starter'}</span>}
+        <span className="text-gray-300 text-xs">→</span>
+        <span className="text-xs text-gray-500 font-medium">{t('profile.next_tier')}:</span>
+        <TrustBadge level={nextTier} size="sm" />
+      </div>
+      <div>
+        <div className="flex justify-between text-xs text-gray-500 mb-1">
+          <span>{t('profile.completed_cases')}</span>
+          <span className="font-semibold">{completedRatedCases} / {minCases}</span>
+        </div>
+        <div className="w-full bg-gray-100 rounded-full h-2">
+          <div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${casesPct}%` }} />
+        </div>
+      </div>
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-gray-500">{t('profile.avg_rating')}</span>
+        <span className={`font-semibold ${ratingMet ? 'text-green-600' : 'text-gray-700'}`}>
+          {currentAvg > 0 ? currentAvg.toFixed(2) : '—'} / {minRating}{ratingMet ? ' ✓' : ''}
+        </span>
+      </div>
+      {completedRatedCases < minCases && (
+        <p className="text-xs text-gray-400">
+          {t('profile.cases_to_go').replace('{n}', Math.max(0, minCases - completedRatedCases))}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// CONSULTANT PROFILE VIEW
+// ============================================================
+function ConsultantProfileView({ userId }) {
+  const auth = useAuth();
+  const { t } = useT();
+  const targetUserId = userId ?? auth.profile?.id ?? auth.user?.id;
+  const isOwnProfile = !userId || userId === auth.user?.id;
+
+  const DEFAULT_THRESHOLDS = {
+    silver:   { cases: 1,  min_rating: 3.5 },
+    gold:     { cases: 5,  min_rating: 4.0 },
+    platinum: { cases: 10, min_rating: 4.5 },
+  };
+
+  const [section, setSection] = useState('overview');
+  const [profileData, setProfileData]   = useState(null);
+  const [ratingsData, setRatingsData]   = useState([]);
+  const [dimensions, setDimensions]     = useState([]);
+  const [assignedCount, setAssignedCount] = useState(0);
+  const [activity, setActivity]         = useState([]);
+  const [thresholds, setThresholds]     = useState(DEFAULT_THRESHOLDS);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState(null);
+
+  useEffect(() => {
+    if (!targetUserId) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [profRes, ratingsRes, dimsRes, assignRes, logsRes, ssRes] = await Promise.all([
+          supabase.from('profiles')
+            .select('id, full_name, email, role, trust_level, avg_rating, created_at')
+            .eq('id', targetUserId).single(),
+          supabase.from('case_ratings')
+            .select('id, case_id, scores, created_at, cases(title)')
+            .eq('ratee_id', targetUserId)
+            .order('created_at', { ascending: false }),
+          supabase.from('rating_dimensions')
+            .select('key, label').eq('active', true).order('sort_order'),
+          supabase.from('case_assignments')
+            .select('id', { count: 'exact', head: true })
+            .eq('consultant_id', targetUserId),
+          supabase.from('audit_logs')
+            .select('id, event_type, entity_name, created_at')
+            .eq('user_id', targetUserId)
+            .order('created_at', { ascending: false }).limit(5),
+          supabase.from('system_settings')
+            .select('key, value').eq('key', 'trust_thresholds').maybeSingle(),
+        ]);
+        if (cancelled) return;
+        setProfileData(profRes.data ?? null);
+        setRatingsData(ratingsRes.data ?? []);
+        setDimensions(dimsRes.data ?? []);
+        setAssignedCount(assignRes.count ?? 0);
+        setActivity(logsRes.data ?? []);
+        if (ssRes.data?.value) {
+          try {
+            const parsed = typeof ssRes.data.value === 'string'
+              ? JSON.parse(ssRes.data.value) : ssRes.data.value;
+            setThresholds(parsed);
+          } catch (_) {}
+        }
+      } catch (e) {
+        if (!cancelled) setError(e.message ?? 'Failed to load profile.');
+      }
+      if (!cancelled) setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [targetUserId]);
+
+  // Compute averages from ratingsData
+  const perRatingAvgs = ratingsData.map(r => {
+    const vals = Object.values(r.scores ?? {});
+    return vals.length > 0 ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+  }).filter(v => v !== null);
+  const overallAvg = perRatingAvgs.length > 0
+    ? (perRatingAvgs.reduce((s, v) => s + v, 0) / perRatingAvgs.length).toFixed(2)
+    : null;
+
+  // Avg per dimension
+  const dimAvgs = {};
+  dimensions.forEach(d => {
+    const vals = ratingsData.map(r => r.scores?.[d.key]).filter(v => v != null);
+    dimAvgs[d.key] = vals.length > 0
+      ? (vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(2) : null;
+  });
+
+  // Group ratings by case for the history view
+  const ratingsByCase = [];
+  const seenCases = new Set();
+  for (const r of ratingsData) {
+    if (!seenCases.has(r.case_id)) {
+      seenCases.add(r.case_id);
+      ratingsByCase.push({ caseId: r.case_id, caseTitle: r.cases?.title ?? r.case_id, ratings: [] });
+    }
+    const group = ratingsByCase.find(g => g.caseId === r.case_id);
+    if (group) group.ratings.push(r);
+  }
+
+  const tabs = [
+    { id: 'overview',  label: t('profile.tab_overview') },
+    { id: 'ratings',   label: t('profile.tab_ratings') },
+    { id: 'tier',      label: t('profile.tab_tier') },
+    { id: 'activity',  label: t('profile.tab_activity') },
+    ...(isOwnProfile ? [{ id: 'edit', label: t('profile.tab_edit') }] : []),
+  ];
+
+  if (loading) return <Spinner />;
+  if (error) return (
+    <div className="p-6 bg-red-50 rounded-2xl border border-red-200 text-red-600 text-sm">{error}</div>
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 text-2xl font-bold flex-shrink-0">
+            {profileData?.full_name?.[0] ?? '?'}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl font-bold text-gray-900">{profileData?.full_name ?? '—'}</h1>
+              {profileData?.trust_level && <TrustBadge level={profileData.trust_level} size="sm" />}
+            </div>
+            <p className="text-sm text-gray-500">{profileData?.email}</p>
+            <p className="text-xs text-gray-400 capitalize mt-0.5">
+              {profileData?.role} · {t('profile.member_since')} {profileData?.created_at
+                ? new Date(profileData.created_at).toLocaleDateString() : '—'}
+            </p>
+          </div>
+          {overallAvg && (
+            <div className="text-right flex-shrink-0">
+              <div className="text-2xl font-bold text-yellow-500">★ {overallAvg}</div>
+              <div className="text-xs text-gray-400">{t('profile.overall_avg')}</div>
+              <div className="text-xs text-gray-500 mt-0.5">
+                {ratingsData.length} {t('profile.ratings_received')}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Tab bar */}
+      <div className="flex gap-1 border-b border-gray-200 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+        {tabs.map(tabItem => (
+          <button key={tabItem.id} onClick={() => setSection(tabItem.id)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+              tabItem.id === section
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}>
+            {tabItem.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Overview */}
+      {section === 'overview' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+            <h3 className="font-semibold text-gray-900 text-sm">{t('profile.completed_cases')}</h3>
+            <div className="text-3xl font-bold text-blue-600">{assignedCount}</div>
+            {dimensions.length > 0 && (
+              <div className="space-y-2 border-t border-gray-100 pt-4 mt-2">
+                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                  {t('profile.avg_rating')} {t('profile.by_dimension')}
+                </h4>
+                {dimensions.map(d => (
+                  <div key={d.key} className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">{d.label}</span>
+                    <span className="font-semibold text-gray-800">{dimAvgs[d.key] ?? '—'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <h3 className="font-semibold text-gray-900 text-sm mb-4">{t('profile.tier_progress')}</h3>
+            <TierProgressBar
+              ratingsData={ratingsData}
+              currentTier={profileData?.trust_level}
+              thresholds={thresholds}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Ratings history */}
+      {section === 'ratings' && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+            <h3 className="font-semibold text-gray-900">{t('profile.tab_ratings')}</h3>
+            {overallAvg && (
+              <span className="text-yellow-500 font-bold">★ {overallAvg} {t('profile.overall_avg')}</span>
+            )}
+          </div>
+          {ratingsByCase.length === 0 ? (
+            <div className="p-8 text-center text-gray-400 text-sm">{t('profile.no_ratings')}</div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {ratingsByCase.map(group => {
+                const gAvgs = group.ratings.map(r => {
+                  const vals = Object.values(r.scores ?? {});
+                  return vals.length > 0 ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
+                });
+                const gAvg = gAvgs.length > 0
+                  ? (gAvgs.reduce((s, v) => s + v, 0) / gAvgs.length).toFixed(2) : '—';
+                return (
+                  <div key={group.caseId} className="p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="font-medium text-gray-800 text-sm">{group.caseTitle}</span>
+                      <span className="text-xs text-yellow-600 font-semibold">★ {gAvg}</span>
+                    </div>
+                    {group.ratings.map(r => (
+                      <div key={r.id} className="ml-3 border-l-2 border-gray-100 pl-3 mt-2 space-y-1.5">
+                        <div className="text-xs text-gray-400">
+                          {t('label.client')} · {new Date(r.created_at).toLocaleDateString()}
+                        </div>
+                        {dimensions.map(d => r.scores?.[d.key] != null && (
+                          <div key={d.key} className="flex items-center justify-between text-xs">
+                            <span className="text-gray-500">{d.label}</span>
+                            <div className="flex gap-0.5">
+                              {[1,2,3,4,5].map(s => (
+                                <span key={s} className={s <= r.scores[d.key] ? 'text-yellow-400' : 'text-gray-200'}>★</span>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tier progress */}
+      {section === 'tier' && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h3 className="font-semibold text-gray-900 mb-5">{t('profile.tier_progress')}</h3>
+          <TierProgressBar
+            ratingsData={ratingsData}
+            currentTier={profileData?.trust_level}
+            thresholds={thresholds}
+          />
+        </div>
+      )}
+
+      {/* Activity */}
+      {section === 'activity' && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+          <div className="p-5 border-b border-gray-100">
+            <h3 className="font-semibold text-gray-900">{t('profile.tab_activity')}</h3>
+          </div>
+          {activity.length === 0 ? (
+            <div className="p-8 text-center text-gray-400 text-sm">{t('profile.no_activity')}</div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {activity.map(log => (
+                <div key={log.id} className="p-4 flex items-start gap-3">
+                  <div className="w-2 h-2 rounded-full bg-blue-400 mt-2 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-sm text-gray-700">{log.entity_name ?? log.event_type}</div>
+                    <div className="text-xs text-gray-400 mt-0.5">{new Date(log.created_at).toLocaleString()}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Edit profile */}
+      {section === 'edit' && isOwnProfile && (
+        <ProfileView auth={auth} />
+      )}
+    </div>
+  );
+}
+
 function NotificationBell({ auth }) {
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
   const [open, setOpen] = useState(false);
@@ -7850,6 +8207,19 @@ function Dashboard({ auth }) {
   const { followed, isFollowing, toggle: toggleFollow } = useFollowedClients();
   const { prefs, savePrefs } = useFeedPrefs(auth.user?.id);
   const { markRead } = useNotifications();
+  const [ratedCaseIds, setRatedCaseIds]       = useState(new Set());
+  const [ratePendingModal, setRatePendingModal] = useState(null); // { caseId, caseTitle, rateeId, rateeName }
+
+  // Fetch which cases this consultant has already rated (to drive rate-pending banner)
+  useEffect(() => {
+    if (!auth.isConsultant || !auth.user?.id) return;
+    supabase.from('case_ratings')
+      .select('case_id')
+      .eq('rater_id', auth.user.id)
+      .then(({ data }) => {
+        setRatedCaseIds(new Set((data ?? []).map(r => r.case_id)));
+      });
+  }, [auth.isConsultant, auth.user?.id]);
 
   // Pre-compute filtered sets
   const myApplications   = applications.filter(a => a.consultant_id === auth.user?.id);
@@ -8477,6 +8847,41 @@ function Dashboard({ auth }) {
             </div>
           )}
 
+          {/* Rate-pending banner — consultants only */}
+          {auth.isConsultant && (() => {
+            const pendingRate = assignedCases.filter(
+              c => c.status === 'completed' && !ratedCaseIds.has(c.id)
+            );
+            if (!pendingRate.length) return null;
+            return (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-2 flex items-start gap-3">
+                <div className="flex-shrink-0 w-7 h-7 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 font-bold text-sm">!</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-amber-800">
+                    {t('profile.rate_pending').replace('{n}', pendingRate.length)}
+                  </p>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {pendingRate.map(c => (
+                      <button key={c.id}
+                        onClick={() => setRatePendingModal({
+                          caseId: c.id,
+                          caseTitle: c.title,
+                          rateeId: c.client_id,
+                          rateeName: (Array.isArray(c.client?.client_profiles)
+                            ? c.client?.client_profiles[0]?.company_name
+                            : c.client?.client_profiles?.company_name)
+                            ?? c.client?.full_name ?? 'Client',
+                        })}
+                        className="px-3 py-1 text-xs font-semibold bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors">
+                        {t('profile.rate_now')}: {c.title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Recent / Assigned Cases */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
             <div className="p-5 border-b border-gray-100">
@@ -8671,6 +9076,22 @@ function Dashboard({ auth }) {
         );
       })()}
     </div>
+
+    {ratePendingModal && (
+      <RatingModal
+        caseId={ratePendingModal.caseId}
+        caseTitle={ratePendingModal.caseTitle}
+        rateeId={ratePendingModal.rateeId}
+        rateeName={ratePendingModal.rateeName}
+        rateeRole="client"
+        raterRole="consultant"
+        onClose={() => setRatePendingModal(null)}
+        onSubmitted={() => {
+          setRatedCaseIds(prev => new Set([...prev, ratePendingModal.caseId]));
+          setRatePendingModal(null);
+        }}
+      />
+    )}
 
     <FeedPreferencesModal
       open={showFeedPrefs}
@@ -26532,7 +26953,7 @@ export default function App() {
       case "cases":          return <CasesView auth={auth} />;
       case "my-cases":       return <CasesView auth={auth} />;
       case "arena":          return <ArenaView auth={auth} />;
-      case "profile":        return <ProfileView auth={auth} />;
+      case "profile":        return auth.isConsultant ? <ConsultantProfileView /> : <ProfileView auth={auth} />;
       case "consultants":    return <ConsultantsView auth={auth} />;
       case "users":          return auth.isAdmin ? <UsersView /> : <Dashboard auth={auth} />;
       case "reports":        return auth.isAdmin ? <ReportsView /> : <Dashboard auth={auth} />;
