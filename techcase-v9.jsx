@@ -36,6 +36,7 @@ import {
   ListChecks, ChevronDown, ChevronRight, AlertTriangle, CircleSlash,
   GripVertical, Pencil, Timer, Link2, ExternalLink, Upload, Code2, Lock,
   Plus, Tag, RefreshCw, Shield,
+  LayoutTemplate, Copy,
 } from "lucide-react";
 
 // ============================================================
@@ -2421,6 +2422,21 @@ const TRANSLATIONS = {
     "bulk.processing":       "Processing...",
     "bulk.done":             "Done",
     "bulk.select_all":       "Select all",
+    "nav.templates":         "Templates",
+    "template.title":        "Case Templates",
+    "template.new":          "New Template",
+    "template.use":          "Use Template",
+    "template.save_as":      "Save as Template",
+    "template.name":         "Template Name",
+    "template.category":     "Category",
+    "template.use_count":    "Used {n} times",
+    "template.start_from":   "Start from template",
+    "template.pick":         "Choose a template",
+    "template.search":       "Search templates...",
+    "template.delete_confirm": "Delete this template?",
+    "template.create_from":  "Create Case from Template",
+    "template.none":         "No templates yet",
+    "template.saved":        "Template saved",
   },
   es: {
     // Navigation
@@ -4684,6 +4700,21 @@ const TRANSLATIONS = {
     "bulk.processing":       "Procesando...",
     "bulk.done":             "Listo",
     "bulk.select_all":       "Seleccionar todo",
+    "nav.templates":         "Plantillas",
+    "template.title":        "Plantillas de Caso",
+    "template.new":          "Nueva Plantilla",
+    "template.use":          "Usar Plantilla",
+    "template.save_as":      "Guardar como Plantilla",
+    "template.name":         "Nombre de Plantilla",
+    "template.category":     "Categoría",
+    "template.use_count":    "Usado {n} veces",
+    "template.start_from":   "Comenzar desde plantilla",
+    "template.pick":         "Elegir una plantilla",
+    "template.search":       "Buscar plantillas...",
+    "template.delete_confirm": "¿Eliminar esta plantilla?",
+    "template.create_from":  "Crear Caso desde Plantilla",
+    "template.none":         "Sin plantillas todavía",
+    "template.saved":        "Plantilla guardada",
   },
 };
 
@@ -8352,6 +8383,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       { id: "team-members",    Icon: Handshake,         labelKey: "nav.team_members" },
       { id: "reports",         Icon: BarChart2,         labelKey: "nav.reports" },
       { id: "audit_log",       Icon: ClipboardList,     labelKey: "log.nav" },
+      { id: "templates",       Icon: LayoutTemplate,    labelKey: "nav.templates" },
       { id: "approvals",       Icon: UserCheck,         labelKey: "nav.approvals" },
       { id: "settings",        Icon: SlidersHorizontal, labelKey: "nav.settings" },
     ],
@@ -8367,6 +8399,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       { id: "db-connections",  Icon: Database,          labelKey: "nav.db_connections" },
       { id: "team-members",    Icon: Handshake,         labelKey: "nav.team_members" },
       { id: "audit_log",       Icon: ClipboardList,     labelKey: "log.nav" },
+      { id: "templates",       Icon: LayoutTemplate,    labelKey: "nav.templates" },
       { id: "approvals",       Icon: UserCheck,         labelKey: "nav.approvals" },
       { id: "settings",        Icon: SlidersHorizontal, labelKey: "nav.settings" },
     ],
@@ -9400,6 +9433,404 @@ function Dashboard({ auth }) {
 }
 
 // ============================================================
+// CASE TEMPLATES
+// ============================================================
+
+const SAP_TEMPLATES = [
+  {
+    name: "S/4HANA Migration Assessment",
+    category: "Migration",
+    description: "Assess readiness for S/4HANA migration including system landscape analysis, data quality review, and custom code impact.",
+    template_data: {
+      title: "S/4HANA Migration Assessment",
+      description: "Assess readiness for S/4HANA migration including system landscape analysis, data quality review, and custom code impact.",
+      estimated_hours: 80,
+      min_trust_level: "silver",
+    },
+  },
+  {
+    name: "FI/CO Configuration",
+    category: "Finance",
+    description: "Configure SAP Financial Accounting and Controlling modules including chart of accounts, cost centers, and profit centers.",
+    template_data: { title: "FI/CO Configuration", estimated_hours: 120, min_trust_level: "silver" },
+  },
+  {
+    name: "SAP BTP Integration",
+    category: "Integration",
+    description: "Design and implement integrations using SAP Business Technology Platform, including API Management and Integration Suite.",
+    template_data: { title: "SAP BTP Integration", estimated_hours: 160, min_trust_level: "gold" },
+  },
+  {
+    name: "SD Module Implementation",
+    category: "Sales",
+    description: "Implement SAP Sales & Distribution module covering order management, pricing, billing, and shipping.",
+    template_data: { title: "SD Module Implementation", estimated_hours: 200, min_trust_level: "silver" },
+  },
+  {
+    name: "ABAP Custom Development",
+    category: "Development",
+    description: "Custom ABAP development including reports, enhancements, user exits, and BAPI implementations.",
+    template_data: { title: "ABAP Custom Development", estimated_hours: 40, min_trust_level: "starter" },
+  },
+];
+
+function CaseTemplatePickerModal({ onClose, onSelect }) {
+  const { t } = useT();
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("case_templates")
+          .select("*")
+          .order("use_count", { ascending: false });
+        if (!error) setTemplates(data ?? []);
+      } catch {}
+      setLoading(false);
+    })();
+  }, []);
+
+  const filtered = templates.filter(tpl =>
+    !search ||
+    tpl.name.toLowerCase().includes(search.toLowerCase()) ||
+    (tpl.category ?? "").toLowerCase().includes(search.toLowerCase()) ||
+    (tpl.description ?? "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">{t("template.pick")}</h2>
+            <p className="text-xs text-gray-400 mt-0.5">{t("template.start_from")}</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 text-gray-400">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-4 border-b border-gray-50">
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder={t("template.search")}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div className="flex-1 overflow-y-auto p-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-12 text-gray-400 text-sm">Loading...</div>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+              <LayoutTemplate className="w-10 h-10 mb-3 opacity-30" />
+              <p className="text-sm">{t("template.none")}</p>
+            </div>
+          ) : (
+            <div className="grid gap-3">
+              {filtered.map(tpl => (
+                <button key={tpl.id}
+                  onClick={() => onSelect(tpl)}
+                  className="text-left w-full p-4 border-2 border-gray-100 hover:border-blue-400 hover:bg-blue-50 rounded-xl transition-all group">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-gray-900 text-sm">{tpl.name}</span>
+                        {tpl.category && (
+                          <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium">{tpl.category}</span>
+                        )}
+                      </div>
+                      {tpl.description && (
+                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">{tpl.description}</p>
+                      )}
+                      <p className="text-xs text-gray-300 mt-1.5">
+                        {t("template.use_count").replace("{n}", tpl.use_count ?? 0)}
+                      </p>
+                    </div>
+                    <Copy className="w-4 h-4 text-gray-300 group-hover:text-blue-500 flex-shrink-0 mt-0.5 transition-colors" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SaveCaseAsTemplateModal({ caseData, onClose }) {
+  const { t } = useT();
+  const [name, setName] = useState(caseData.title ?? "");
+  const [category, setCategory] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  async function handleSave() {
+    if (!name.trim()) return;
+    setSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const templateData = {};
+      const fields = ["title","description","estimated_hours","budget","min_trust_level","area_sap","area_industry","priority","work_mode","travel_required","skills_required","certifications_required","languages_required","min_years_experience","security_clearance","interview_required","interview_format","interview_rounds","technical_assessment"];
+      fields.forEach(f => { if (caseData[f] !== undefined && caseData[f] !== null) templateData[f] = caseData[f]; });
+      const { error } = await supabase.from("case_templates").insert({
+        name: name.trim(),
+        category: category.trim() || null,
+        description: caseData.description ?? null,
+        template_data: templateData,
+        created_by: user?.id ?? null,
+        is_global: false,
+      });
+      if (!error) {
+        logEvent('template.created', { entityType: 'case_template', metadata: { name: name.trim() } });
+        setSaved(true);
+        setTimeout(() => onClose(), 1200);
+      } else {
+        alert(error.message);
+      }
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-bold text-gray-900">{t("template.save_as")}</h2>
+          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-400"><X className="w-4 h-4" /></button>
+        </div>
+        {saved ? (
+          <div className="flex items-center gap-2 text-green-600 text-sm font-medium py-4">
+            <CheckCircle2 className="w-5 h-5" /> {t("template.saved")}
+          </div>
+        ) : (
+          <>
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("template.name")} *</label>
+              <input value={name} onChange={e => setName(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder={t("template.name")} />
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("template.category")}</label>
+              <input value={category} onChange={e => setCategory(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g. Migration, Finance, Integration" />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50">{t("action.cancel")}</button>
+              <button onClick={handleSave} disabled={saving || !name.trim()}
+                className="px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl disabled:opacity-40">
+                {saving ? t("state.saving") : t("template.save_as")}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CaseTemplatesView({ auth }) {
+  const { t } = useT();
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [showCreateCase, setShowCreateCase] = useState(false);
+  const [createInitialData, setCreateInitialData] = useState(null);
+  const [seeded, setSeeded] = useState(false);
+  const { createCase } = useCases({});
+
+  async function loadTemplates() {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("case_templates")
+        .select("*, creator:created_by(full_name, email)")
+        .order("created_at", { ascending: false });
+      if (!error) setTemplates(data ?? []);
+    } catch {}
+    setLoading(false);
+  }
+
+  useEffect(() => { loadTemplates(); }, []);
+
+  // Seed built-in templates on mount if table is empty
+  useEffect(() => {
+    if (seeded || loading || templates.length > 0) return;
+    setSeeded(true);
+    (async () => {
+      try {
+        await supabase.from("case_templates").insert(
+          SAP_TEMPLATES.map(tpl => ({ ...tpl, is_global: true, created_by: null }))
+        );
+        loadTemplates();
+      } catch {}
+    })();
+  }, [loading, templates.length, seeded]);
+
+  const filtered = templates.filter(tpl =>
+    !search ||
+    tpl.name.toLowerCase().includes(search.toLowerCase()) ||
+    (tpl.category ?? "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  async function handleDelete(id) {
+    await supabase.from("case_templates").delete().eq("id", id);
+    setConfirmDeleteId(null);
+    loadTemplates();
+  }
+
+  async function handleSaveEdit() {
+    setSaving(true);
+    try {
+      await supabase.from("case_templates").update({
+        name: editForm.name,
+        category: editForm.category || null,
+        description: editForm.description || null,
+      }).eq("id", editingId);
+      setEditingId(null);
+      loadTemplates();
+    } catch {}
+    setSaving(false);
+  }
+
+  if (showCreateCase) {
+    return (
+      <div className="min-h-screen bg-[#EAF4FD] p-6">
+        <CreateCaseWizard
+          auth={auth}
+          createCase={createCase}
+          presetData={createInitialData}
+          onComplete={() => setShowCreateCase(false)}
+          onCancel={() => setShowCreateCase(false)}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{t("template.title")}</h1>
+          <p className="text-gray-500 text-sm mt-1">{filtered.length} {filtered.length === 1 ? "template" : "templates"}</p>
+        </div>
+      </div>
+
+      <div className="mb-5">
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          placeholder={t("template.search")}
+          className="border border-gray-200 rounded-xl px-4 py-2 text-sm w-full max-w-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+
+      {loading ? (
+        <Spinner />
+      ) : filtered.length === 0 ? (
+        <EmptyState Icon={LayoutTemplate} title={t("template.none")} subtitle="" />
+      ) : (
+        <div className="grid gap-4">
+          {filtered.map(tpl => (
+            <div key={tpl.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              {editingId === tpl.id ? (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">{t("template.name")}</label>
+                    <input value={editForm.name ?? ""} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">{t("template.category")}</label>
+                    <input value={editForm.category ?? ""} onChange={e => setEditForm(p => ({ ...p, category: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
+                    <textarea value={editForm.description ?? ""} onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))}
+                      rows={3}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={handleSaveEdit} disabled={saving}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-40">
+                      {saving ? t("state.saving") : t("action.save_changes")}
+                    </button>
+                    <button onClick={() => setEditingId(null)}
+                      className="px-4 py-2 border border-gray-200 text-gray-600 text-sm rounded-xl hover:bg-gray-50">
+                      {t("action.cancel")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <h3 className="font-semibold text-gray-900">{tpl.name}</h3>
+                      {tpl.category && (
+                        <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium">{tpl.category}</span>
+                      )}
+                      {tpl.is_global && (
+                        <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-lg text-xs">Built-in</span>
+                      )}
+                    </div>
+                    {tpl.description && (
+                      <p className="text-sm text-gray-500 line-clamp-2 mb-2">{tpl.description}</p>
+                    )}
+                    <div className="flex items-center gap-4 text-xs text-gray-400 flex-wrap">
+                      <span>{t("template.use_count").replace("{n}", tpl.use_count ?? 0)}</span>
+                      {tpl.creator?.full_name && <span>By {tpl.creator.full_name}</span>}
+                      <span>{tpl.created_at?.slice(0, 10)}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => {
+                        const td = tpl.template_data ?? {};
+                        setCreateInitialData({ title: td.title ?? tpl.name, description: td.description ?? tpl.description ?? "", ...td });
+                        setShowCreateCase(true);
+                        supabase.from("case_templates").update({ use_count: (tpl.use_count ?? 0) + 1 }).eq("id", tpl.id).then(() => {});
+                      }}
+                      className="px-3 py-1.5 text-xs font-medium text-blue-600 border border-blue-200 rounded-xl hover:bg-blue-50 transition-colors flex items-center gap-1">
+                      <Plus className="w-3.5 h-3.5" /> {t("template.create_from")}
+                    </button>
+                    <button
+                      onClick={() => { setEditingId(tpl.id); setEditForm({ name: tpl.name, category: tpl.category ?? "", description: tpl.description ?? "" }); }}
+                      className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    {confirmDeleteId === tpl.id ? (
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => handleDelete(tpl.id)}
+                          className="px-2 py-1 text-xs text-white bg-red-500 hover:bg-red-600 rounded-lg">{t("action.confirm")}</button>
+                        <button onClick={() => setConfirmDeleteId(null)}
+                          className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">{t("action.cancel")}</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setConfirmDeleteId(tpl.id)}
+                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
 // CREATE CASE WIZARD
 // ============================================================
 
@@ -9422,7 +9853,7 @@ const SLA_PRESETS = [
 
 const EXPRESS_STEP_IDS = [0, 1, 2, 4, 8];
 
-function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, initialData = null, initialProjectId = null }) {
+function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, initialData = null, initialProjectId = null, presetData = null }) {
   const { t } = useT();
   const isEdit = !!initialData;
   const CREATE_CASE_STEPS = [
@@ -9469,6 +9900,10 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   const [clients, setClients] = useState([]);
   const [startConfirmed, setStartConfirmed] = useState(false);
   const [keyUserClientId, setKeyUserClientId] = useState(null);
+  // Template state
+  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [canConfirmOnCreate, setCanConfirmOnCreate] = useState(false);
 
   useEffect(() => {
@@ -9523,6 +9958,27 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         setCanConfirmOnCreate(can);
       });
   }, [auth.role, auth.isAdmin, isEdit]);
+
+  // Apply template preset data on mount (when creating from template)
+  useEffect(() => {
+    if (!presetData) return;
+    setBasics(p => ({
+      ...p,
+      title:           presetData.title           ?? p.title,
+      description:     presetData.description     ?? p.description,
+      priority:        presetData.priority        ?? p.priority,
+      area_sap:        presetData.area_sap        ?? p.area_sap,
+      area_industry:   presetData.area_industry   ?? p.area_industry,
+      min_trust_level: presetData.min_trust_level ?? p.min_trust_level,
+    }));
+    setScope(p => ({
+      ...p,
+      budget:   presetData.budget ?? p.budget,
+      _skills:  presetData.skills_required ? presetData.skills_required.join(", ") : p._skills,
+    }));
+    if (presetData.work_mode) setArr(p => ({ ...p, work_mode: presetData.work_mode }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const expressIdx = EXPRESS_STEP_IDS.indexOf(step);
   const isLast = mode === "express"
@@ -9705,6 +10161,28 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
             );
           }
         }
+        if (saveAsTemplate && templateName.trim()) {
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            const { _skills, client_id: _ci, sla: _sla, ...scopeRest } = scope;
+            const tplData = {
+              ...basics,
+              ...scopeRest,
+              ...arrangement,
+              ...quals,
+              ...interview,
+              skills_required: _skills.split(",").map(s => s.trim()).filter(Boolean),
+            };
+            await supabase.from("case_templates").insert({
+              name: templateName.trim(),
+              description: basics.description || null,
+              template_data: tplData,
+              created_by: user?.id ?? null,
+              is_global: false,
+            });
+            logEvent('template.created', { entityType: 'case_template', metadata: { name: templateName.trim() } });
+          } catch {}
+        }
         onComplete(newCase?.id);
       }
     } catch (e) { alert(e.message); }
@@ -9718,6 +10196,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   }
 
   return (
+    <>
     <div className="max-w-2xl mx-auto py-6">
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -9809,7 +10288,18 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         {step === 1 && (
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("case.step1_h2")}</h2>
-            <p className="text-sm text-gray-500 mb-5">{t("case.step1_desc")}</p>
+            <p className="text-sm text-gray-500 mb-3">{t("case.step1_desc")}</p>
+            {!isEdit && (
+              <div className="mb-4">
+                <button
+                  type="button"
+                  onClick={() => setShowTemplatePicker(true)}
+                  className="flex items-center gap-2 px-4 py-2 text-sm border-2 border-dashed border-blue-200 text-blue-600 hover:border-blue-400 hover:bg-blue-50 rounded-xl transition-all font-medium">
+                  <LayoutTemplate className="w-4 h-4" />
+                  {t("template.start_from")}
+                </button>
+              </div>
+            )}
             <Input label={`${t("label.title")} *`} value={basics.title}
               onChange={e => setBasics(p => ({ ...p, title: e.target.value }))}
               placeholder={t("case.ph_title_eg")} />
@@ -10439,6 +10929,28 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                 </div>
               </label>
             )}
+            {/* Save as Template */}
+            {!isEdit && (
+              <div className="mt-4 border-2 border-gray-100 rounded-xl p-4">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={saveAsTemplate}
+                    onChange={e => { setSaveAsTemplate(e.target.checked); if (e.target.checked && !templateName) setTemplateName(basics.title); }}
+                    className="w-4 h-4 rounded accent-blue-600" />
+                  <div className="flex items-center gap-2">
+                    <LayoutTemplate className="w-4 h-4 text-gray-500" />
+                    <span className="text-sm font-semibold text-gray-800">{t("template.save_as")}</span>
+                  </div>
+                </label>
+                {saveAsTemplate && (
+                  <div className="mt-3 ml-7">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">{t("template.name")} *</label>
+                    <input value={templateName} onChange={e => setTemplateName(e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder={t("template.name")} />
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>
@@ -10475,6 +10987,20 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
       </div>
       </>}
     </div>
+    {showTemplatePicker && (
+      <CaseTemplatePickerModal
+        onClose={() => setShowTemplatePicker(false)}
+        onSelect={tpl => {
+          const td = tpl.template_data ?? {};
+          if (td.title) setBasics(p => ({ ...p, title: td.title, description: td.description ?? p.description, priority: td.priority ?? p.priority, area_sap: td.area_sap ?? p.area_sap, area_industry: td.area_industry ?? p.area_industry, min_trust_level: td.min_trust_level ?? p.min_trust_level }));
+          if (td.budget || td.start_date || td.due_date || td.skills_required) setScope(p => ({ ...p, budget: td.budget ?? p.budget, start_date: td.start_date ?? p.start_date, due_date: td.due_date ?? p.due_date, _skills: td.skills_required ? td.skills_required.join(", ") : p._skills }));
+          if (td.work_mode) setArr(p => ({ ...p, work_mode: td.work_mode, work_location: td.work_location ?? p.work_location }));
+          supabase.from("case_templates").update({ use_count: (tpl.use_count ?? 0) + 1 }).eq("id", tpl.id).then(() => {});
+          setShowTemplatePicker(false);
+        }}
+      />
+    )}
+    </>
   );
 }
 
@@ -16485,6 +17011,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
 
   const [showEditWizard, setShowEditWizard]     = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
   const [clientLifecycle, setClientLifecycle] = useState(null);
   const [parentCaseLifecycle, setParentCaseLifecycle] = useState(null);
   const [cancelModal, setCancelModal] = useState(null); // { caseId, isSubCase }
@@ -18806,7 +19333,18 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               </p>
             </div>
           )}
+          {(auth.isAdmin || auth.isManager) && (
+            <div className="border-t border-gray-100 pt-4 mt-2">
+              <button onClick={() => setShowSaveAsTemplate(true)}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                <LayoutTemplate className="w-4 h-4" /> {t("template.save_as")}
+              </button>
+            </div>
+          )}
         </div>
+      )}
+      {showSaveAsTemplate && (
+        <SaveCaseAsTemplateModal caseData={caseData} onClose={() => setShowSaveAsTemplate(false)} />
       )}
 
       {/* Milestones Tab */}
@@ -28529,6 +29067,7 @@ export default function App() {
       case "settings":       return (auth.isAdmin || auth.isManager) ? <SystemSettingsView auth={auth} /> : <Dashboard auth={auth} />;
       case "audit_log":      return (auth.isAdmin || auth.isManager) ? <AuditLogDashboard /> : <Dashboard auth={auth} />;
       case "approvals":      return (auth.isAdmin || auth.isManager) ? <UserApprovalQueue /> : <Dashboard auth={auth} />;
+      case "templates":      return (auth.isAdmin || auth.isManager) ? <CaseTemplatesView auth={auth} /> : <Dashboard auth={auth} />;
       case "notifications":  return <NotificationsView />;
       case "invoices":       return <InvoicesView auth={auth} />;
       case "kanban":         return <KanbanView auth={auth} />;
