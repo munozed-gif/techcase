@@ -2410,6 +2410,17 @@ const TRANSLATIONS = {
     "invoice.saved":         "Invoice Saved",
     "invoice.default_rate":  "Default Rate",
     "settings.invoice":      "Invoice Settings",
+    "bulk.selected":         "{n} selected",
+    "bulk.deselect":         "Deselect all",
+    "bulk.change_status":    "Change Status",
+    "bulk.export_csv":       "Export CSV",
+    "bulk.delete":           "Delete Selected",
+    "bulk.delete_confirm":   "Delete {n} cases? This cannot be undone.",
+    "bulk.approve_all":      "Approve All",
+    "bulk.reject_all":       "Reject All",
+    "bulk.processing":       "Processing...",
+    "bulk.done":             "Done",
+    "bulk.select_all":       "Select all",
   },
   es: {
     // Navigation
@@ -4662,6 +4673,17 @@ const TRANSLATIONS = {
     "invoice.saved":         "Factura Guardada",
     "invoice.default_rate":  "Tarifa por Defecto",
     "settings.invoice":      "Config. Facturación",
+    "bulk.selected":         "{n} seleccionados",
+    "bulk.deselect":         "Deseleccionar todo",
+    "bulk.change_status":    "Cambiar Estado",
+    "bulk.export_csv":       "Exportar CSV",
+    "bulk.delete":           "Eliminar Seleccionados",
+    "bulk.delete_confirm":   "¿Eliminar {n} casos? Esta acción no se puede deshacer.",
+    "bulk.approve_all":      "Aprobar Todo",
+    "bulk.reject_all":       "Rechazar Todo",
+    "bulk.processing":       "Procesando...",
+    "bulk.done":             "Listo",
+    "bulk.select_all":       "Seleccionar todo",
   },
 };
 
@@ -12424,6 +12446,10 @@ function CasesView({ auth, initialCaseId }) {
   const [feedbackCase, setFeedbackCase] = useState(null);
   const [filterProjects, setFilterProjects] = useState([]);
   const { isFavorite, toggle }        = useFavorites();
+  const [selectedCases, setSelectedCases]     = useState(new Set());
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [bulkProcessing, setBulkProcessing]   = useState(false);
+  const [bulkStatusOpen, setBulkStatusOpen]   = useState(false);
 
   useEffect(() => {
     let q = supabase.from("projects").select("id, name, status").order("name");
@@ -12431,7 +12457,7 @@ function CasesView({ auth, initialCaseId }) {
     q.then(({ data }) => setFilterProjects(data ?? []));
   }, [auth.user?.id]);
 
-  const { cases, loading, createCase, updateCase, deleteCase } = useCases({
+  const { cases, loading, createCase, updateCase, deleteCase, refetch } = useCases({
     status: statusFilter || undefined,
     search: search || undefined,
     client_id: auth.isClient ? auth.user?.id : undefined,
@@ -12471,6 +12497,54 @@ function CasesView({ auth, initialCaseId }) {
         setFeedbackCase(updatedCase);
       }
     }
+  }
+
+  function toggleCaseSelect(id, e) {
+    e.stopPropagation();
+    setSelectedCases(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+  function toggleSelectAll() {
+    if (selectedCases.size === displayed.length && displayed.length > 0) {
+      setSelectedCases(new Set());
+    } else {
+      setSelectedCases(new Set(displayed.map(c => c.id)));
+    }
+  }
+  async function handleBulkStatusChange(newStatus) {
+    setBulkProcessing(true);
+    setBulkStatusOpen(false);
+    const ids = [...selectedCases];
+    await supabase.from('cases').update({ status: newStatus }).in('id', ids);
+    ids.forEach(id => logEvent('case.status_bulk_changed', { entityType: 'case', entityId: id, newValue: newStatus }));
+    setSelectedCases(new Set());
+    setBulkProcessing(false);
+    refetch();
+  }
+  function handleBulkExport() {
+    const headers = ['ID', 'Title', 'Status', 'Client', 'Created'];
+    const rows = [...selectedCases].map(id => {
+      const c = cases.find(x => x.id === id);
+      return [c.id, c.title, c.status, c.client?.full_name ?? c.client_name ?? '', c.created_at?.slice(0,10) ?? ''];
+    });
+    const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'cases.csv'; a.click();
+    URL.revokeObjectURL(url);
+  }
+  async function handleBulkDelete() {
+    setBulkProcessing(true);
+    const ids = [...selectedCases];
+    await supabase.from('cases').delete().in('id', ids);
+    ids.forEach(id => logEvent('case.deleted_bulk', { entityType: 'case', entityId: id }));
+    setSelectedCases(new Set());
+    setShowDeleteConfirm(false);
+    setBulkProcessing(false);
+    refetch();
   }
 
   if (loading) return <Spinner />;
@@ -12557,47 +12631,132 @@ function CasesView({ auth, initialCaseId }) {
       </div>
 
       {/* Cases Grid */}
+      {(auth.isAdmin || auth.isManager) && displayed.length > 0 && (
+        <div className="flex items-center gap-2 mb-2 px-1">
+          <input type="checkbox"
+            checked={selectedCases.size === displayed.length && displayed.length > 0}
+            onChange={toggleSelectAll}
+            className="w-4 h-4 rounded border-gray-300 text-blue-600 cursor-pointer accent-blue-600"
+            title={t("bulk.select_all")} />
+          <span className="text-xs text-gray-500">{t("bulk.select_all")}</span>
+        </div>
+      )}
       {displayed.length === 0 ? (
         <EmptyState Icon={FolderOpen} title={t("cases.no_cases")} subtitle={t("cases.no_cases_hint")} />
       ) : (
         <div className="grid gap-4">
           {displayed.map(c => (
             <div key={c.id}
-              className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer p-5"
+              className={`rounded-2xl border shadow-sm hover:shadow-md transition-all cursor-pointer p-5 ${selectedCases.has(c.id) ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-100'}`}
               onClick={() => setSelected(c)}>
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <h3 className="font-semibold text-gray-900 truncate">{c.title}</h3>
-                    <Badge className={STATUS_COLORS[c.status]}>{STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(fmt(c.status))}</Badge>
-                    <Badge className={PRIORITY_COLORS[c.priority]}>{PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}</Badge>
+              <div className="flex items-start gap-3">
+                {(auth.isAdmin || auth.isManager) && (
+                  <div className="pt-0.5 shrink-0">
+                    <input type="checkbox"
+                      checked={selectedCases.has(c.id)}
+                      onChange={() => {}}
+                      onClick={e => toggleCaseSelect(c.id, e)}
+                      className="w-4 h-4 rounded border-gray-300 text-blue-600 cursor-pointer accent-blue-600" />
                   </div>
-                  <p className="text-sm text-gray-500 line-clamp-2">{c.description}</p>
-                  <div className="flex items-center gap-4 mt-3 text-xs text-gray-400 flex-wrap">
-                    {c.skills_required?.length > 0 && (
-                      <span>{t("label.skills")}: {c.skills_required.slice(0, 3).join(", ")}{c.skills_required.length > 3 ? "…" : ""}</span>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <h3 className="font-semibold text-gray-900 truncate">{c.title}</h3>
+                        <Badge className={STATUS_COLORS[c.status]}>{STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(fmt(c.status))}</Badge>
+                        <Badge className={PRIORITY_COLORS[c.priority]}>{PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}</Badge>
+                      </div>
+                      <p className="text-sm text-gray-500 line-clamp-2">{c.description}</p>
+                      <div className="flex items-center gap-4 mt-3 text-xs text-gray-400 flex-wrap">
+                        {c.skills_required?.length > 0 && (
+                          <span>{t("label.skills")}: {c.skills_required.slice(0, 3).join(", ")}{c.skills_required.length > 3 ? "…" : ""}</span>
+                        )}
+                        {c.due_date && <span>{t("label.due")} {fmtDate(c.due_date)}</span>}
+                        {c.budget && <span>{t("label.budget")}: ${Number(c.budget).toLocaleString()}</span>}
+                        <span>{t(c.applications?.[0]?.count !== 1 ? "case.applicants_many" : "case.applicants_one").replace("{n}", c.applications?.[0]?.count ?? 0)}</span>
+                        {c.status === "assigned" && c.start_date && (() => {
+                          const d = Math.ceil((new Date(c.start_date + "T00:00:00") - Date.now()) / 86400000);
+                          if (d > 3) return null;
+                          const late = d < 0;
+                          const txt = late ? t("case.start_overdue").replace("{n}", Math.abs(d)) : d === 0 ? t("case.starts_today") : d === 1 ? t("case.starts_tomorrow") : t("case.starts_in").replace("{n}", d);
+                          return <span className={`px-2 py-0.5 rounded-lg font-semibold ${late ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>{txt}</span>;
+                        })()}
+                      </div>
+                    </div>
+                    {auth.isConsultant && (
+                      <button onClick={e => { e.stopPropagation(); toggle(c.id); }}
+                        className="text-xl text-yellow-400 hover:text-yellow-500 transition-colors flex-shrink-0">
+                        <Star className={`w-4 h-4 ${isFavorite(c.id) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`} />
+                      </button>
                     )}
-                    {c.due_date && <span>{t("label.due")} {fmtDate(c.due_date)}</span>}
-                    {c.budget && <span>{t("label.budget")}: ${Number(c.budget).toLocaleString()}</span>}
-                    <span>{t(c.applications?.[0]?.count !== 1 ? "case.applicants_many" : "case.applicants_one").replace("{n}", c.applications?.[0]?.count ?? 0)}</span>
-                    {c.status === "assigned" && c.start_date && (() => {
-                      const d = Math.ceil((new Date(c.start_date + "T00:00:00") - Date.now()) / 86400000);
-                      if (d > 3) return null;
-                      const late = d < 0;
-                      const txt = late ? t("case.start_overdue").replace("{n}", Math.abs(d)) : d === 0 ? t("case.starts_today") : d === 1 ? t("case.starts_tomorrow") : t("case.starts_in").replace("{n}", d);
-                      return <span className={`px-2 py-0.5 rounded-lg font-semibold ${late ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>{txt}</span>;
-                    })()}
                   </div>
                 </div>
-                {auth.isConsultant && (
-                  <button onClick={e => { e.stopPropagation(); toggle(c.id); }}
-                    className="text-xl text-yellow-400 hover:text-yellow-500 transition-colors flex-shrink-0">
-                    <Star className={`w-4 h-4 ${isFavorite(c.id) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`} />
-                  </button>
-                )}
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Bulk Action Toolbar */}
+      {(auth.isAdmin || auth.isManager) && selectedCases.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-gray-900 text-white rounded-2xl shadow-2xl px-5 py-3 flex-wrap">
+          <span className="text-sm font-medium">{t("bulk.selected").replace("{n}", selectedCases.size)}</span>
+          <div className="w-px h-5 bg-gray-600" />
+          {/* Change Status */}
+          <div className="relative">
+            <button onClick={() => setBulkStatusOpen(p => !p)} disabled={bulkProcessing}
+              className="flex items-center gap-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-xl px-3 py-1.5 disabled:opacity-50 transition-colors">
+              <ChevronDown className="w-3.5 h-3.5" />{t("bulk.change_status")}
+            </button>
+            {bulkStatusOpen && (
+              <div className="absolute bottom-full mb-2 left-0 bg-white text-gray-900 rounded-xl shadow-lg py-1 min-w-[9rem] z-10">
+                {["open","in_progress","on_hold","completed","cancelled"].map(s => (
+                  <button key={s} onClick={() => handleBulkStatusChange(s)}
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors">
+                    {STATUS_LABEL_KEYS[s] ? t(STATUS_LABEL_KEYS[s]) : cap(fmt(s))}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {/* Export CSV */}
+          <button onClick={handleBulkExport} disabled={bulkProcessing}
+            className="flex items-center gap-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-xl px-3 py-1.5 disabled:opacity-50 transition-colors">
+            <Download className="w-3.5 h-3.5" />{t("bulk.export_csv")}
+          </button>
+          {/* Delete — admin only */}
+          {auth.isAdmin && (
+            <button onClick={() => setShowDeleteConfirm(true)} disabled={bulkProcessing}
+              className="flex items-center gap-1.5 text-sm bg-red-600 hover:bg-red-500 rounded-xl px-3 py-1.5 disabled:opacity-50 transition-colors">
+              <Trash2 className="w-3.5 h-3.5" />{t("bulk.delete")}
+            </button>
+          )}
+          {bulkProcessing && <span className="text-xs text-gray-300">{t("bulk.processing")}</span>}
+          <div className="w-px h-5 bg-gray-600" />
+          <button onClick={() => setSelectedCases(new Set())} disabled={bulkProcessing}
+            className="text-sm text-gray-300 hover:text-white px-2 disabled:opacity-50">
+            {t("bulk.deselect")}
+          </button>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm space-y-4">
+            <h3 className="font-semibold text-gray-900 text-lg">{t("bulk.delete_confirm").replace("{n}", selectedCases.size)}</h3>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setShowDeleteConfirm(false)} disabled={bulkProcessing}
+                className="px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50">
+                {t("action.cancel")}
+              </button>
+              <button onClick={handleBulkDelete} disabled={bulkProcessing}
+                className="px-4 py-2 text-sm bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-40">
+                {bulkProcessing ? t("bulk.processing") : t("bulk.delete")}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -27227,6 +27386,10 @@ function UserApprovalQueue() {
   const [rejectModal, setRejectModal] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
   const [processing, setProcessing] = useState(null);
+  const [selectedUserIds, setSelectedUserIds] = useState(new Set());
+  const [bulkRejectOpen, setBulkRejectOpen] = useState(false);
+  const [bulkRejectReason, setBulkRejectReason] = useState('');
+  const [bulkProcessing, setBulkProcessing] = useState(false);
 
   useEffect(() => { fetchPending(); }, []);
 
@@ -27269,6 +27432,71 @@ function UserApprovalQueue() {
     setProcessing(null);
   }
 
+  function toggleUserSelect(id) {
+    setSelectedUserIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+  function toggleSelectAllUsers() {
+    if (selectedUserIds.size === users.length && users.length > 0) {
+      setSelectedUserIds(new Set());
+    } else {
+      setSelectedUserIds(new Set(users.map(u => u.id)));
+    }
+  }
+  async function handleBulkApprove() {
+    setBulkProcessing(true);
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    const ids = [...selectedUserIds];
+    for (const userId of ids) {
+      await supabase.from('users').update({
+        verification_status: 'approved',
+        approved_by: currentUser.id,
+        approved_at: new Date().toISOString(),
+      }).eq('id', userId);
+      await notify(userId, 'Account approved', 'Your account has been approved. Welcome aboard.');
+      await logEvent('user.approved_bulk', { entityType: 'user', entityId: userId });
+    }
+    setUsers(p => p.filter(u => !ids.includes(u.id)));
+    setSelectedUserIds(new Set());
+    setBulkProcessing(false);
+  }
+  async function handleBulkReject() {
+    setBulkProcessing(true);
+    const ids = [...selectedUserIds];
+    for (const userId of ids) {
+      await supabase.from('users').update({
+        verification_status: 'rejected',
+        rejection_reason: bulkRejectReason || null,
+      }).eq('id', userId);
+      await logEvent('user.rejected_bulk', { entityType: 'user', entityId: userId, metadata: { reason: bulkRejectReason } });
+      await notify(userId, 'Your account application was not approved', bulkRejectReason.trim() || 'Please contact our team for more information.');
+    }
+    setUsers(p => p.filter(u => !ids.includes(u.id)));
+    setSelectedUserIds(new Set());
+    setBulkRejectOpen(false);
+    setBulkRejectReason('');
+    setBulkProcessing(false);
+  }
+  function exportUsersCSV() {
+    const headers = ['Name', 'Email', 'Role', 'Trust Level', 'Verification Status', 'Joined Date'];
+    const rows = users.map(u => [
+      u.full_name ?? '',
+      u.email ?? '',
+      u.role ?? '',
+      u.trust_level ?? '',
+      u.verification_status ?? '',
+      u.created_at ? new Date(u.created_at).toLocaleDateString() : '',
+    ]);
+    const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'pending_users.csv'; a.click();
+    URL.revokeObjectURL(url);
+  }
+
   const ROLE_COLORS = {
     consultant:  'bg-blue-100 text-blue-700',
     client:      'bg-green-100 text-green-700',
@@ -27278,9 +27506,17 @@ function UserApprovalQueue() {
 
   return (
     <div className="space-y-4 max-w-4xl">
-      <div>
-        <h2 className="text-xl font-bold text-gray-900">Pending Approvals</h2>
-        <p className="text-sm text-gray-500 mt-0.5">New users waiting for identity verification and approval.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Pending Approvals</h2>
+          <p className="text-sm text-gray-500 mt-0.5">New users waiting for identity verification and approval.</p>
+        </div>
+        {users.length > 0 && (
+          <button onClick={exportUsersCSV}
+            className="flex items-center gap-1.5 text-sm border border-gray-200 rounded-xl px-3 py-1.5 hover:bg-gray-50 shrink-0 transition-colors">
+            <Download className="w-3.5 h-3.5 text-gray-500" />{t("bulk.export_csv")}
+          </button>
+        )}
       </div>
 
       {loading ? <div className="flex justify-center py-12"><Spinner /></div>
@@ -27289,35 +27525,70 @@ function UserApprovalQueue() {
           No pending users — all caught up.
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
-          {users.map(u => (
-            <div key={u.id} className="flex items-center gap-4 px-5 py-4">
-              <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-500 shrink-0">
-                {(u.full_name || u.email || '?')[0].toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-semibold text-gray-900">{u.full_name || '—'}</p>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[u.role] ?? 'bg-gray-100 text-gray-500'}`}>{u.role}</span>
+        <>
+          {/* Select-all + bulk toolbar */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer select-none">
+              <input type="checkbox"
+                checked={selectedUserIds.size === users.length && users.length > 0}
+                onChange={toggleSelectAllUsers}
+                className="w-4 h-4 rounded border-gray-300 accent-blue-600 cursor-pointer" />
+              {t("bulk.select_all")}
+            </label>
+            {selectedUserIds.size > 0 && (
+              <>
+                <span className="text-xs text-gray-500">{t("bulk.selected").replace("{n}", selectedUserIds.size)}</span>
+                <button onClick={handleBulkApprove} disabled={bulkProcessing}
+                  className="flex items-center gap-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg px-3 py-1.5 hover:bg-blue-700 disabled:opacity-40 transition-colors">
+                  <UserCheck className="w-3.5 h-3.5" />
+                  {bulkProcessing ? t("bulk.processing") : t("bulk.approve_all").replace("All", `All (${selectedUserIds.size})`)}
+                </button>
+                <button onClick={() => setBulkRejectOpen(true)} disabled={bulkProcessing}
+                  className="flex items-center gap-1.5 text-xs font-medium border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-red-50 hover:text-red-600 hover:border-red-200 disabled:opacity-40 transition-colors">
+                  {t("bulk.reject_all").replace("All", `All (${selectedUserIds.size})`)}
+                </button>
+                <button onClick={() => setSelectedUserIds(new Set())} disabled={bulkProcessing}
+                  className="text-xs text-gray-400 hover:text-gray-700 px-1">
+                  {t("bulk.deselect")}
+                </button>
+              </>
+            )}
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+            {users.map(u => (
+              <div key={u.id} className={`flex items-center gap-4 px-5 py-4 transition-colors ${selectedUserIds.has(u.id) ? 'bg-blue-50' : ''}`}>
+                <input type="checkbox"
+                  checked={selectedUserIds.has(u.id)}
+                  onChange={() => toggleUserSelect(u.id)}
+                  className="w-4 h-4 rounded border-gray-300 accent-blue-600 cursor-pointer shrink-0" />
+                <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-500 shrink-0">
+                  {(u.full_name || u.email || '?')[0].toUpperCase()}
                 </div>
-                <p className="text-xs text-gray-400 mt-0.5">{u.email} · Signed up {new Date(u.created_at).toLocaleDateString()}</p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-semibold text-gray-900">{u.full_name || '—'}</p>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[u.role] ?? 'bg-gray-100 text-gray-500'}`}>{u.role}</span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-0.5">{u.email} · Signed up {new Date(u.created_at).toLocaleDateString()}</p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button onClick={() => setRejectModal(u)} disabled={processing === u.id || bulkProcessing}
+                    className="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-40">
+                    Reject
+                  </button>
+                  <button onClick={() => handleApprove(u.id)} disabled={processing === u.id || bulkProcessing}
+                    className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors">
+                    {processing === u.id ? '…' : 'Approve'}
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-2 shrink-0">
-                <button onClick={() => setRejectModal(u)} disabled={processing === u.id}
-                  className="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-40">
-                  Reject
-                </button>
-                <button onClick={() => handleApprove(u.id)} disabled={processing === u.id}
-                  className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors">
-                  {processing === u.id ? '…' : 'Approve'}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
 
-      {/* Reject modal */}
+      {/* Reject modal (single) */}
       {rejectModal && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm space-y-4">
@@ -27332,6 +27603,29 @@ function UserApprovalQueue() {
               <button onClick={handleReject} disabled={processing === rejectModal.id}
                 className="px-4 py-2 text-sm bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-40">
                 Confirm Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Reject modal */}
+      {bulkRejectOpen && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm space-y-4">
+            <h3 className="font-semibold text-gray-900">{t("bulk.reject_all")} ({selectedUserIds.size})</h3>
+            <textarea value={bulkRejectReason} onChange={e => setBulkRejectReason(e.target.value)}
+              placeholder="Reason for rejection (optional — shown to all selected users)"
+              rows={3}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 resize-none" />
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => { setBulkRejectOpen(false); setBulkRejectReason(''); }}
+                className="px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50">
+                {t("action.cancel")}
+              </button>
+              <button onClick={handleBulkReject} disabled={bulkProcessing}
+                className="px-4 py-2 text-sm bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-40">
+                {bulkProcessing ? t("bulk.processing") : 'Confirm Reject All'}
               </button>
             </div>
           </div>
