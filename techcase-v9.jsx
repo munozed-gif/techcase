@@ -2362,6 +2362,27 @@ const TRANSLATIONS = {
     "case.min_trust_silver":      "Silver and above",
     "case.min_trust_gold":        "Gold and above",
     "case.min_trust_platinum":    "Platinum only",
+    // Time Logging (time_logs table)
+    "time.log_time":      "Log Time",
+    "time.add_entry":     "+ Log Time",
+    "time.total_hours":   "Total Hours",
+    "time.no_entries":    "No time logged yet",
+    "time.date":          "Date",
+    "time.hours":         "Hours",
+    "time.description":   "Description",
+    "time.logged_by":     "Logged by",
+    "time.cancel":        "Cancel",
+    "time.tab":           "Time",
+    // File Attachments (case_files table)
+    "files.tab":          "Files",
+    "files.upload":       "Upload Files",
+    "files.no_files":     "No files attached yet",
+    "files.drop_hint":    "Click to upload or drag and drop",
+    "files.max_size":     "Max 10MB per file",
+    "files.download":     "Download",
+    "files.delete":       "Delete",
+    "files.uploading":    "Uploading...",
+    "files.size_error":   "File too large (max 10MB)",
   },
   es: {
     // Navigation
@@ -4566,6 +4587,27 @@ const TRANSLATIONS = {
     "case.min_trust_silver":      "Plata y superior",
     "case.min_trust_gold":        "Oro y superior",
     "case.min_trust_platinum":    "Solo Platino",
+    // Time Logging (time_logs table)
+    "time.log_time":      "Registrar Tiempo",
+    "time.add_entry":     "+ Registrar Tiempo",
+    "time.total_hours":   "Total de Horas",
+    "time.no_entries":    "Aún no hay tiempo registrado",
+    "time.date":          "Fecha",
+    "time.hours":         "Horas",
+    "time.description":   "Descripción",
+    "time.logged_by":     "Registrado por",
+    "time.cancel":        "Cancelar",
+    "time.tab":           "Tiempo",
+    // File Attachments (case_files table)
+    "files.tab":          "Archivos",
+    "files.upload":       "Subir Archivos",
+    "files.no_files":     "Aún no hay archivos adjuntos",
+    "files.drop_hint":    "Haz clic para subir o arrastra y suelta",
+    "files.max_size":     "Máx. 10 MB por archivo",
+    "files.download":     "Descargar",
+    "files.delete":       "Eliminar",
+    "files.uploading":    "Subiendo...",
+    "files.size_error":   "Archivo demasiado grande (máx. 10 MB)",
   },
 };
 
@@ -15483,6 +15525,344 @@ Respond with ONLY a valid JSON object, no markdown fences:
   return null;
 }
 
+// ============================================================
+// TIME LOG PANEL  (time_logs table — simple per-case log)
+// ============================================================
+function TimeLogPanel({ caseId, caseTitle, auth }) {
+  const { t } = useT();
+  const [logs, setLogs]         = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm]         = useState({ log_date: new Date().toISOString().slice(0, 10), hours: 1, description: "" });
+  const [saving, setSaving]     = useState(false);
+
+  async function fetchLogs() {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('time_logs')
+        .select('*, users(full_name)')
+        .eq('case_id', caseId)
+        .order('log_date', { ascending: false });
+      if (error) throw error;
+      setLogs(data ?? []);
+    } catch (e) { console.error('time_logs fetch:', e); }
+    setLoading(false);
+  }
+
+  useEffect(() => { if (caseId) fetchLogs(); }, [caseId]);
+
+  async function handleAdd() {
+    const hrs = parseFloat(form.hours);
+    if (!hrs || hrs <= 0) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('time_logs').insert({
+        case_id:     caseId,
+        user_id:     auth.user.id,
+        hours:       hrs,
+        description: form.description.trim() || null,
+        log_date:    form.log_date,
+      });
+      if (error) throw error;
+      logEvent('time.logged', { entityType: 'case', entityId: caseId, metadata: { hours: hrs, description: form.description } });
+      setForm({ log_date: new Date().toISOString().slice(0, 10), hours: 1, description: "" });
+      setShowForm(false);
+      await fetchLogs();
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  async function handleDelete(log) {
+    if (!window.confirm('Delete this time log entry?')) return;
+    try {
+      const { error } = await supabase.from('time_logs').delete().eq('id', log.id);
+      if (error) throw error;
+      await fetchLogs();
+    } catch (e) { alert(e.message); }
+  }
+
+  const totalHours = logs.reduce((s, l) => s + parseFloat(l.hours ?? 0), 0);
+
+  if (loading) return <Spinner />;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="text-sm font-semibold text-gray-700">
+          {t("time.total_hours")}: <span className="text-blue-600 font-bold">{totalHours.toFixed(1)}h</span>
+        </div>
+        <button onClick={() => setShowForm(p => !p)}
+          className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700">
+          {t("time.add_entry")}
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{t("time.date")}</label>
+              <input type="date" value={form.log_date}
+                onChange={e => setForm(p => ({ ...p, log_date: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{t("time.hours")}</label>
+              <input type="number" min="0.5" max="24" step="0.5" value={form.hours}
+                onChange={e => setForm(p => ({ ...p, hours: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{t("time.description")}</label>
+            <textarea rows={2} value={form.description}
+              onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+              placeholder="What did you work on?"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => setShowForm(false)} className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700">
+              {t("time.cancel")}
+            </button>
+            <button onClick={handleAdd} disabled={saving}
+              className="px-4 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              {saving ? t("time.saving") : t("time.log_time")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 text-left">
+              <th className="pb-2 pr-4 text-xs font-semibold text-gray-400 uppercase tracking-wide">{t("time.date")}</th>
+              <th className="pb-2 pr-4 text-xs font-semibold text-gray-400 uppercase tracking-wide">{t("time.hours")}</th>
+              <th className="pb-2 pr-4 text-xs font-semibold text-gray-400 uppercase tracking-wide">{t("time.description")}</th>
+              <th className="pb-2 pr-4 text-xs font-semibold text-gray-400 uppercase tracking-wide">{t("time.logged_by")}</th>
+              <th className="pb-2"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {logs.map(log => (
+              <tr key={log.id} className="hover:bg-gray-50">
+                <td className="py-2 pr-4 text-gray-600 font-variant-numeric tabular-nums">{log.log_date}</td>
+                <td className="py-2 pr-4 font-semibold text-blue-700 font-variant-numeric tabular-nums">{parseFloat(log.hours).toFixed(1)}h</td>
+                <td className="py-2 pr-4 text-gray-500 max-w-xs truncate">{log.description || "—"}</td>
+                <td className="py-2 pr-4 text-gray-700">{log.users?.full_name ?? "—"}</td>
+                <td className="py-2">
+                  {(log.user_id === auth.user?.id || auth.isAdmin || auth.isManager) && (
+                    <button onClick={() => handleDelete(log)}
+                      className="text-xs text-red-400 hover:text-red-600 px-2 py-0.5 rounded border border-red-100 hover:bg-red-50">
+                      {t("action.delete")}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          {logs.length > 0 && (
+            <tfoot>
+              <tr className="border-t-2 border-gray-200">
+                <td className="pt-2 pr-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("time.total_hours")}</td>
+                <td className="pt-2 font-bold text-blue-700 font-variant-numeric tabular-nums">{totalHours.toFixed(1)}h</td>
+                <td colSpan={3}></td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+        {logs.length === 0 && (
+          <div className="text-center py-10 text-gray-400">
+            <div className="mb-2 flex justify-center"><Clock className="w-8 h-8 text-gray-300" /></div>
+            <p className="text-sm">{t("time.no_entries")}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// CASE FILES PANEL  (case_files table + case-files storage bucket)
+// ============================================================
+const CF_ALLOWED_EXTS = ['pdf','doc','docx','xls','xlsx','ppt','pptx','png','jpg','jpeg','txt','csv'];
+const CF_MAX_BYTES    = 10 * 1024 * 1024; // 10 MB
+
+function cfFileIcon(mime) {
+  if (!mime) return '📎';
+  if (mime.startsWith('image/'))                          return '🖼';
+  if (mime.includes('pdf') || mime.includes('word') || mime.startsWith('text/')) return '📄';
+  if (mime.includes('excel') || mime.includes('spreadsheet') || mime.includes('csv')) return '📊';
+  if (mime.includes('presentation') || mime.includes('powerpoint')) return '📊';
+  return '📎';
+}
+
+function cfFmtSize(bytes) {
+  if (!bytes && bytes !== 0) return '';
+  if (bytes < 1024)           return `${bytes} B`;
+  if (bytes < 1024 * 1024)    return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function CaseFilesPanel({ caseId, auth }) {
+  const { t }                             = useT();
+  const [files, setFiles]                 = useState([]);
+  const [loading, setLoading]             = useState(true);
+  const [uploading, setUploading]         = useState({});   // { filename: true }
+  const [sizeErrors, setSizeErrors]       = useState([]);
+  const fileInputRef                      = useRef();
+
+  async function fetchFiles() {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('case_files')
+        .select('*, users(full_name)')
+        .eq('case_id', caseId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setFiles(data ?? []);
+    } catch (e) { console.error('case_files fetch:', e); }
+    setLoading(false);
+  }
+
+  useEffect(() => { if (caseId) fetchFiles(); }, [caseId]);
+
+  async function handleFileSelect(e) {
+    const selected = Array.from(e.target.files ?? []);
+    if (!selected.length) return;
+    const errors = [];
+    const valid  = selected.filter(f => {
+      if (f.size > CF_MAX_BYTES) { errors.push(`${f.name}: ${t("files.size_error")}`); return false; }
+      return true;
+    });
+    setSizeErrors(errors);
+    for (const file of valid) {
+      const ts   = Date.now();
+      const path = `${caseId}/${auth.user.id}/${ts}-${file.name}`;
+      setUploading(p => ({ ...p, [file.name]: true }));
+      try {
+        const { error: upErr } = await supabase.storage.from('case-files').upload(path, file);
+        if (upErr) throw upErr;
+        const { error: dbErr } = await supabase.from('case_files').insert({
+          case_id:   caseId,
+          user_id:   auth.user.id,
+          file_name: file.name,
+          file_path: path,
+          file_size: file.size,
+          mime_type: file.type || null,
+        });
+        if (dbErr) throw dbErr;
+      } catch (err) { alert(`Upload failed: ${err.message}`); }
+      setUploading(p => { const n = { ...p }; delete n[file.name]; return n; });
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    await fetchFiles();
+  }
+
+  async function handleDownload(file) {
+    try {
+      const { data, error } = await supabase.storage
+        .from('case-files').createSignedUrl(file.file_path, 3600);
+      if (error) throw error;
+      window.open(data.signedUrl, '_blank', 'noopener');
+    } catch (e) { alert(`Download failed: ${e.message}`); }
+  }
+
+  async function handleDelete(file) {
+    if (!window.confirm(`Delete "${file.file_name}"?`)) return;
+    try {
+      await supabase.storage.from('case-files').remove([file.file_path]);
+      const { error } = await supabase.from('case_files').delete().eq('id', file.id);
+      if (error) throw error;
+      await fetchFiles();
+    } catch (e) { alert(`Delete failed: ${e.message}`); }
+  }
+
+  const isUploading = Object.keys(uploading).length > 0;
+
+  if (loading) return <Spinner />;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="text-sm font-semibold text-gray-700">
+          {files.length} file{files.length !== 1 ? 's' : ''}
+        </div>
+        <button onClick={() => fileInputRef.current?.click()}
+          className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 flex items-center gap-1.5">
+          <Upload className="w-3.5 h-3.5" />{t("files.upload")}
+        </button>
+      </div>
+
+      <input ref={fileInputRef} type="file" multiple className="hidden"
+        accept={CF_ALLOWED_EXTS.map(e => `.${e}`).join(',')}
+        onChange={handleFileSelect} />
+
+      {sizeErrors.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700 space-y-0.5">
+          {sizeErrors.map((err, i) => <div key={i}>{err}</div>)}
+        </div>
+      )}
+
+      {isUploading && (
+        <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 space-y-1">
+          {Object.keys(uploading).map(name => (
+            <div key={name} className="flex items-center gap-2 text-sm text-blue-700">
+              <div className="w-4 h-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin flex-shrink-0" />
+              <span>{t("files.uploading")} <span className="font-medium">{name}</span></span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Drop / click zone */}
+      <div onClick={() => fileInputRef.current?.click()}
+        className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-colors select-none">
+        <div className="text-gray-400 text-sm">
+          <Paperclip className="w-6 h-6 mx-auto mb-2 text-gray-300" />
+          <div className="font-medium">{t("files.drop_hint")}</div>
+          <div className="text-xs text-gray-300 mt-0.5">{t("files.max_size")}</div>
+        </div>
+      </div>
+
+      {/* File list */}
+      <div className="space-y-2">
+        {files.map(file => (
+          <div key={file.id}
+            className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
+            <span className="text-xl flex-shrink-0 leading-none">{cfFileIcon(file.mime_type)}</span>
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-sm text-gray-900 truncate">{file.file_name}</div>
+              <div className="text-xs text-gray-400 mt-0.5">
+                {cfFmtSize(file.file_size)}{file.file_size ? ' · ' : ''}
+                {file.users?.full_name ?? '—'} · {fmtDate(file.created_at)}
+              </div>
+            </div>
+            <button onClick={() => handleDownload(file)}
+              className="text-xs text-blue-500 hover:text-blue-700 px-2 py-1 rounded border border-blue-100 hover:bg-blue-50 flex-shrink-0 flex items-center gap-1 transition-colors">
+              <Download className="w-3 h-3" />{t("files.download")}
+            </button>
+            {(file.user_id === auth.user?.id || auth.isAdmin || auth.isManager) && (
+              <button onClick={() => handleDelete(file)}
+                className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded border border-red-100 hover:bg-red-50 flex-shrink-0 transition-colors">
+                {t("files.delete")}
+              </button>
+            )}
+          </div>
+        ))}
+        {files.length === 0 && (
+          <div className="text-center py-10 text-gray-400">
+            <div className="mb-2 flex justify-center"><Paperclip className="w-8 h-8 text-gray-300" /></div>
+            <p className="text-sm">{t("files.no_files")}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdate, onBack }) {
   const { t } = useT();
   const { settings: cdSettings } = useSystemSettings();
@@ -17318,7 +17698,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
     { id: "time",       label: t("case.tab_time"),       icon: Clock,         count: `${totalTimeHours.toFixed(1)}h` },
     ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "applications", label: t("case.tab_applicants"), icon: Users, count: applications.length }] : []),
     ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "lifecycle", label: t("case.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
-    { id: "spec", label: t("case.tab_spec"), icon: FileText, count: null },
+    { id: "spec",  label: t("case.tab_spec"),  icon: FileText, count: null },
+    { id: "files", label: t("files.tab"),      icon: Paperclip, count: null },
   ];
   const tabs = stageRules.visible_tabs
     ? allTabs.filter(t => stageRules.visible_tabs.includes(t.id))
@@ -19494,118 +19875,14 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         );
       })()}
 
-      {/* V9 Time Entries Tab */}
+      {/* Time Log Tab — uses time_logs table via TimeLogPanel */}
       {activeTab === "time" && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold text-gray-700">
-              {t("case.total_hours")} <span className="text-blue-600">{totalTimeHours.toFixed(1)}h</span>
-              {" · "}{t("case.billable_hours")} <span className="text-green-600">{timeEntries.filter(e => e.is_billable).reduce((s, e) => s + e.hours, 0).toFixed(1)}h</span>
-            </div>
-            {auth.isConsultant && stageRules.can_log_time && (
-              <button onClick={() => setShowTimeForm(p => !p)}
-                className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700">
-                {t("time.log")}
-              </button>
-            )}
-          </div>
-          {showTimeForm && (
-            <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <Input label={t("label.date")} type="date" value={timeForm.date}
-                  onChange={e => setTimeForm(p => ({ ...p, date: e.target.value }))} />
-                <Input label={t("label.hours")} type="number" min="0.25" step="0.25" value={timeForm.hours}
-                  onChange={e => setTimeForm(p => ({ ...p, hours: e.target.value }))} />
-              </div>
-              {activities.length > 0 && (
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("case.activity_label")}</label>
-                  <select value={timeForm.activity_id}
-                    onChange={e => setTimeForm(p => ({ ...p, activity_id: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                    <option value="">{t("case.activity_ph")}</option>
-                    {activities.filter(a => a.status !== "completed").map(a => (
-                      <option key={a.id} value={a.id}>#{a.task_no} {a.title}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              <Textarea label={t("label.description")} value={timeForm.description}
-                onChange={e => setTimeForm(p => ({ ...p, description: e.target.value }))}
-                placeholder={t("cd.ph_work_done")} />
-              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                <input type="checkbox" checked={timeForm.is_billable}
-                  onChange={e => setTimeForm(p => ({ ...p, is_billable: e.target.checked }))}
-                  className="rounded accent-blue-600" />
-                {t("label.billable")}
-              </label>
-              <div className="flex gap-2 justify-end">
-                <button onClick={() => setShowTimeForm(false)} className="px-3 py-1.5 text-sm text-gray-500">{t("action.cancel")}</button>
-                <button onClick={handleTimeLog} disabled={savingTime}
-                  className="px-4 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                  {savingTime ? t("time.saving") : t("time.log")}
-                </button>
-              </div>
-            </div>
-          )}
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 text-left">
-                  <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">{t("time.col_date")}</th>
-                  <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">{t("time.col_consultant")}</th>
-                  <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">{t("time.col_hours")}</th>
-                  {activities.length > 0 && <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">{t("act.task")}</th>}
-                  <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">{t("time.col_desc")}</th>
-                  <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">{t("time.col_billable")}</th>
-                  <th className="pb-2 text-xs font-semibold text-gray-400 uppercase">{t("label.status")}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {timeEntries.map(e => {
-                  const linkedAct = activities.find(a => a.id === e.activity_id);
-                  return (
-                  <tr key={e.id} className="hover:bg-gray-50">
-                    <td className="py-2 text-gray-600">{fmtDate(e.date)}</td>
-                    <td className="py-2 text-gray-700">{e.consultant?.full_name ?? "—"}</td>
-                    <td className="py-2 font-semibold text-blue-700">{e.hours}h</td>
-                    {activities.length > 0 && (
-                      <td className="py-2">
-                        {linkedAct ? (
-                          <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-medium">#{linkedAct.task_no} {linkedAct.title}</span>
-                        ) : <span className="text-xs text-gray-300">—</span>}
-                      </td>
-                    )}
-                    <td className="py-2 text-gray-500 max-w-xs truncate">{e.description}</td>
-                    <td className="py-2">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${e.is_billable ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                        {e.is_billable ? t("label.yes") : t("label.no")}
-                      </span>
-                    </td>
-                    <td className="py-2">
-                      {e.is_approved
-                        ? <span className="flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full"><Check className="w-3 h-3" /> {t("time.approved")}</span>
-                        : (auth.isAdmin || auth.isManager)
-                          ? <button onClick={() => approveEntry(e.id, true)}
-                              className="text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 px-2 py-0.5 rounded-full hover:bg-yellow-100">
-                              {t("time.approve")}
-                            </button>
-                          : <span className="text-xs text-gray-400">{t("time.pending")}</span>
-                      }
-                    </td>
-                  </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            {timeEntries.length === 0 && (
-              <div className="text-center py-8 text-gray-400">
-                <div className="mb-2 flex justify-center"><Clock className="w-8 h-8 text-gray-300" /></div>
-                <p className="text-sm">{t("case.no_time")}</p>
-              </div>
-            )}
-          </div>
-        </div>
+        <TimeLogPanel caseId={caseData.id} caseTitle={caseData.title} auth={auth} />
+      )}
+
+      {/* Files Tab — uses case_files table + case-files storage bucket */}
+      {activeTab === "files" && (
+        <CaseFilesPanel caseId={caseData.id} auth={auth} />
       )}
 
       {/* Lifecycle Tab */}
