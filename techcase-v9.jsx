@@ -2312,6 +2312,10 @@ const TRANSLATIONS = {
     "nav.approvals":        "Approvals",
     "trust.tab_title":      "Trust & Tiers",
     "trust.approvals_tab":  "Approvals",
+    "pending.title":         "Account under review",
+    "pending.subtitle":      "Your account is being verified by our team.",
+    "pending.rejected_title":"Application not approved",
+    "pending.sign_out":      "Sign out",
   },
   es: {
     // Navigation
@@ -4466,6 +4470,10 @@ const TRANSLATIONS = {
     "nav.approvals":        "Aprobaciones",
     "trust.tab_title":      "Confianza y Niveles",
     "trust.approvals_tab":  "Aprobaciones",
+    "pending.title":         "Cuenta en revisión",
+    "pending.subtitle":      "Tu cuenta está siendo verificada por nuestro equipo.",
+    "pending.rejected_title":"Solicitud no aprobada",
+    "pending.sign_out":      "Cerrar sesión",
   },
 };
 
@@ -6921,6 +6929,60 @@ function Spinner() {
   return (
     <div className="flex items-center justify-center h-48">
       <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+    </div>
+  );
+}
+
+function PendingApprovalScreen({ auth }) {
+  const { t } = useT();
+  const isRejected = auth.profile?.verification_status === 'rejected';
+  const rejectionReason = auth.profile?.rejection_reason;
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 max-w-md w-full text-center space-y-5">
+        {isRejected ? (
+          <>
+            <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto">
+              <XCircle size={32} className="text-red-400" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Application not approved</h1>
+              <p className="text-sm text-gray-500 mt-1">Your account request could not be approved at this time.</p>
+            </div>
+            {rejectionReason && (
+              <div className="bg-red-50 rounded-xl p-3 text-sm text-red-700 text-left">
+                <p className="font-medium mb-0.5">Reason provided:</p>
+                <p>{rejectionReason}</p>
+              </div>
+            )}
+            <p className="text-xs text-gray-400">If you believe this is a mistake, please contact our team.</p>
+          </>
+        ) : (
+          <>
+            <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mx-auto">
+              <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Account under review</h1>
+              <p className="text-sm text-gray-500 mt-2">
+                Your account is being verified by our team. You'll be notified once it's approved.
+              </p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4 text-left space-y-1">
+              <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Signed up as</p>
+              <p className="text-sm font-semibold text-gray-800">{auth.profile?.full_name || auth.user?.email}</p>
+              <p className="text-xs text-gray-500 capitalize">{auth.profile?.role}</p>
+            </div>
+            <p className="text-xs text-gray-400">This usually takes 1–2 business days.</p>
+          </>
+        )}
+        <button
+          onClick={() => supabase.auth.signOut()}
+          className="w-full py-2.5 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+          Sign out
+        </button>
+      </div>
     </div>
   );
 }
@@ -26293,6 +26355,10 @@ export default function App() {
       case "time":           return <TimeEntriesView auth={auth} />;
       default:               return <Dashboard auth={auth} />;
     }
+  }
+
+  if (auth.profile && auth.profile.verification_status && auth.profile.verification_status !== 'approved') {
+    return <PendingApprovalScreen auth={auth} />;
   }
 
   return (
