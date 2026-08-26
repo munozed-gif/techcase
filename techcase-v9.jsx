@@ -19,7 +19,7 @@
 //                   file_type, file_size_kb, notes, created_at)
 // ============================================================
 
-import { useState, useEffect, useCallback, useRef, Fragment, createContext, useContext, Component } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, Fragment, createContext, useContext, Component } from "react";
 import { createClient } from "@supabase/supabase-js";
 import {
   LayoutDashboard, FolderOpen, LayoutGrid, Target, Receipt, Clock,
@@ -2391,6 +2391,25 @@ const TRANSLATIONS = {
     "search.people":      "People",
     "search.view":        "View",
     "search.shortcut_hint": "Search",
+    "invoice.title":         "Invoice",
+    "invoice.generate":      "Generate Invoice",
+    "invoice.number":        "Invoice #",
+    "invoice.date":          "Date",
+    "invoice.bill_to":       "Bill To",
+    "invoice.bill_from":     "From",
+    "invoice.description":   "Description",
+    "invoice.hours":         "Hours",
+    "invoice.rate":          "Rate ($/hr)",
+    "invoice.amount":        "Amount",
+    "invoice.subtotal":      "Subtotal",
+    "invoice.tax":           "Tax",
+    "invoice.total":         "Total",
+    "invoice.notes":         "Notes",
+    "invoice.print":         "Print / Save PDF",
+    "invoice.save":          "Save Invoice",
+    "invoice.saved":         "Invoice Saved",
+    "invoice.default_rate":  "Default Rate",
+    "settings.invoice":      "Invoice Settings",
   },
   es: {
     // Navigation
@@ -4624,6 +4643,25 @@ const TRANSLATIONS = {
     "search.people":      "Personas",
     "search.view":        "Ver",
     "search.shortcut_hint": "Buscar",
+    "invoice.title":         "Factura",
+    "invoice.generate":      "Generar Factura",
+    "invoice.number":        "Factura #",
+    "invoice.date":          "Fecha",
+    "invoice.bill_to":       "Facturar a",
+    "invoice.bill_from":     "De",
+    "invoice.description":   "Descripción",
+    "invoice.hours":         "Horas",
+    "invoice.rate":          "Tarifa ($/hr)",
+    "invoice.amount":        "Importe",
+    "invoice.subtotal":      "Subtotal",
+    "invoice.tax":           "Impuesto",
+    "invoice.total":         "Total",
+    "invoice.notes":         "Notas",
+    "invoice.print":         "Imprimir / Guardar PDF",
+    "invoice.save":          "Guardar Factura",
+    "invoice.saved":         "Factura Guardada",
+    "invoice.default_rate":  "Tarifa por Defecto",
+    "settings.invoice":      "Config. Facturación",
   },
 };
 
@@ -15915,6 +15953,305 @@ function CaseFilesPanel({ caseId, auth }) {
   );
 }
 
+// ============================================================
+// INVOICE MODAL — print-to-PDF invoice generation
+// ============================================================
+function InvoiceModal({ isOpen, onClose, caseData, auth }) {
+  const { t } = useT();
+  const { settings } = useSystemSettings();
+
+  const [loading, setLoading]         = useState(false);
+  const [saving, setSaving]           = useState(false);
+  const [error, setError]             = useState(null);
+  const [lineItems, setLineItems]     = useState([]);
+  const [defaultRate, setDefaultRate] = useState(150);
+  const [taxRate, setTaxRate]         = useState(0);
+  const [notes, setNotes]             = useState('');
+  const [companyName, setCompanyName] = useState('Your Company');
+  const [consultantName, setConsultantName] = useState('');
+  const [savedOk, setSavedOk]         = useState(false);
+
+  const today = new Date().toISOString().slice(0, 10);
+  // Stable invoice number for the session open (rebuilt on re-open via key or reset)
+  const invoiceNumber = useMemo(
+    () => `INV-${new Date().getFullYear()}-${(caseData?.id ?? '').slice(0, 4).toUpperCase()}-${Math.floor(Math.random() * 900) + 100}`,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isOpen]
+  );
+
+  useEffect(() => {
+    if (!isOpen || !caseData?.id) return;
+    setSavedOk(false);
+    setError(null);
+    fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, caseData?.id]);
+
+  async function fetchData() {
+    setLoading(true);
+    try {
+      const cn = settings['invoice_company_name'] ?? 'Your Company';
+      const tr = parseFloat(settings['invoice_tax_rate'] ?? '0') || 0;
+      const dr = parseFloat(settings['invoice_hourly_rate'] ?? '150') || 150;
+      setCompanyName(cn);
+      setTaxRate(tr);
+      setDefaultRate(dr);
+
+      const [{ data: logs, error: logsErr }, { data: assignment }] = await Promise.all([
+        supabase.from('time_logs').select('*, users(full_name)').eq('case_id', caseData.id).order('log_date', { ascending: true }),
+        supabase.from('case_assignments').select('*, users:consultant_id(id, full_name, email)').eq('case_id', caseData.id).limit(1).maybeSingle(),
+      ]);
+      if (logsErr) throw logsErr;
+
+      const cName = assignment?.users?.full_name ?? auth?.profile?.full_name ?? '';
+      setConsultantName(cName);
+
+      const items = (logs ?? []).map(log => ({
+        id: log.id,
+        description: log.description || `Work — ${caseData.title}`,
+        hours: parseFloat(log.hours ?? 0),
+        rate: dr,
+        date: log.log_date,
+      }));
+      setLineItems(items.length > 0 ? items : [{
+        id: 'default',
+        description: `Consulting services — ${caseData.title}`,
+        hours: 1,
+        rate: dr,
+        date: today,
+      }]);
+    } catch (e) {
+      setError(e.message ?? 'Failed to load invoice data');
+    }
+    setLoading(false);
+  }
+
+  const subtotal  = lineItems.reduce((s, i) => s + (parseFloat(i.hours) * parseFloat(i.rate)), 0);
+  const taxAmount = subtotal * (taxRate / 100);
+  const total     = subtotal + taxAmount;
+
+  function updateItem(id, field, value) {
+    setLineItems(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
+  }
+  function addItem() {
+    setLineItems(prev => [...prev, { id: Date.now().toString(), description: '', hours: 1, rate: defaultRate, date: today }]);
+  }
+  function removeItem(id) {
+    setLineItems(prev => prev.filter(i => i.id !== id));
+  }
+  function handleDefaultRateChange(rate) {
+    const r = parseFloat(rate) || 0;
+    setDefaultRate(r);
+    setLineItems(prev => prev.map(item => ({ ...item, rate: r })));
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+    try {
+      const { error: insErr } = await supabase.from('invoices').insert({
+        case_id:         caseData.id,
+        invoice_number:  invoiceNumber,
+        issued_by:       auth.user.id,
+        client_name:     caseData.client?.full_name ?? '',
+        consultant_name: consultantName,
+        line_items:      lineItems,
+        subtotal,
+        tax_rate:        taxRate,
+        tax_amount:      taxAmount,
+        total,
+        notes:           notes.trim() || null,
+        status:          'draft',
+      });
+      if (insErr) throw insErr;
+      logEvent('invoice.created', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, metadata: { invoice_number: invoiceNumber, total } });
+      if (caseData.client_id) {
+        try { await notify(caseData.client_id, t('invoice.title'), `Invoice ${invoiceNumber} has been created for "${caseData.title}"`); } catch (_) {}
+      }
+      setSavedOk(true);
+    } catch (e) {
+      setError(e.message ?? 'Failed to save invoice');
+    }
+    setSaving(false);
+  }
+
+  if (!isOpen) return null;
+
+  const clientName  = caseData.client?.full_name ?? '';
+  const clientEmail = caseData.client?.email ?? '';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto py-8 no-print"
+         style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}>
+      {/* Print styles injected inline */}
+      <style>{`
+        @media print {
+          body > * { visibility: hidden; }
+          .invoice-print-area { visibility: visible !important; position: fixed !important; top: 0; left: 0; width: 100% !important; padding: 40px !important; box-shadow: none !important; border-radius: 0 !important; background: white !important; }
+          .invoice-print-area * { visibility: visible !important; }
+          .no-print { display: none !important; visibility: hidden !important; }
+        }
+      `}</style>
+
+      <div className="relative w-full mx-4" style={{ maxWidth: '854px' }}>
+        {/* Modal chrome — hidden on print */}
+        <div className="no-print bg-white rounded-t-2xl border-b border-gray-100 px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
+          <div className="flex items-center gap-2">
+            <Receipt className="w-5 h-5 text-blue-600" />
+            <h2 className="font-bold text-gray-900 text-base">{t('invoice.title')}</h2>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <label className="text-xs text-gray-500 whitespace-nowrap">{t('invoice.default_rate')}</label>
+            <input type="number" min={0} step={1} value={defaultRate}
+              onChange={e => handleDefaultRateChange(e.target.value)}
+              className="w-20 border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            <label className="text-xs text-gray-500 ml-2">{t('invoice.tax')}</label>
+            <div className="flex items-center gap-1">
+              <input type="number" min={0} max={100} step={0.5} value={taxRate}
+                onChange={e => setTaxRate(parseFloat(e.target.value) || 0)}
+                className="w-16 border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              <span className="text-xs text-gray-500">%</span>
+            </div>
+            <button onClick={() => window.print()}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold rounded-xl transition-colors">
+              <FileText className="w-3.5 h-3.5" />{t('invoice.print')}
+            </button>
+            <button onClick={handleSave} disabled={saving || savedOk}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl disabled:opacity-60 transition-colors">
+              {saving ? '...' : savedOk ? t('invoice.saved') : t('invoice.save')}
+            </button>
+            <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg ml-1">
+              <X className="w-5 h-5 text-gray-400" />
+            </button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="no-print bg-red-50 border-l-4 border-red-400 text-red-700 text-sm px-6 py-3">
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="bg-white px-6 py-16 text-center text-gray-400 rounded-b-2xl"><Spinner /></div>
+        ) : (
+          /* ── Invoice print area ── */
+          <div className="invoice-print-area bg-white rounded-b-2xl shadow-xl px-10 py-10">
+            {/* Header */}
+            <div className="flex justify-between items-start mb-8">
+              <div>
+                <div className="text-xs text-gray-400 uppercase tracking-widest font-semibold mb-1">{t('invoice.number')}</div>
+                <div className="text-2xl font-extrabold text-gray-900 tracking-tight">{invoiceNumber}</div>
+                <div className="text-xs text-gray-400 mt-1.5">{t('invoice.date')}: <span className="text-gray-600 font-medium">{today}</span></div>
+              </div>
+              <div className="text-right">
+                <div className="text-3xl font-extrabold text-blue-700 leading-tight">{companyName}</div>
+              </div>
+            </div>
+
+            <hr className="border-gray-200 mb-7" />
+
+            {/* Bill To / From */}
+            <div className="grid grid-cols-2 gap-8 mb-8">
+              <div>
+                <div className="text-xs text-gray-400 uppercase tracking-widest font-semibold mb-2">{t('invoice.bill_to')}</div>
+                <div className="font-semibold text-gray-900 text-base">{clientName || '—'}</div>
+                {clientEmail && <div className="text-sm text-gray-500 mt-0.5">{clientEmail}</div>}
+              </div>
+              <div>
+                <div className="text-xs text-gray-400 uppercase tracking-widest font-semibold mb-2">{t('invoice.bill_from')}</div>
+                <div className="font-semibold text-gray-900 text-base">{companyName}</div>
+                {consultantName && <div className="text-sm text-gray-500 mt-0.5">{consultantName}</div>}
+              </div>
+            </div>
+
+            {/* Line items table */}
+            <div className="mb-7 overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b-2 border-gray-200">
+                    <th className="text-left pb-2 pt-1 pr-3 text-xs text-gray-400 uppercase tracking-widest font-semibold w-1/2">{t('invoice.description')}</th>
+                    <th className="text-right pb-2 pt-1 px-2 text-xs text-gray-400 uppercase tracking-widest font-semibold w-24">{t('invoice.hours')}</th>
+                    <th className="text-right pb-2 pt-1 px-2 text-xs text-gray-400 uppercase tracking-widest font-semibold w-28">{t('invoice.rate')}</th>
+                    <th className="text-right pb-2 pt-1 pl-2 text-xs text-gray-400 uppercase tracking-widest font-semibold w-28">{t('invoice.amount')}</th>
+                    <th className="no-print w-8 pb-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lineItems.map((item, idx) => (
+                    <tr key={item.id} className={idx % 2 === 0 ? 'bg-gray-50/60' : 'bg-white'}>
+                      <td className="py-2.5 pr-3 align-middle">
+                        <input value={item.description}
+                          onChange={e => updateItem(item.id, 'description', e.target.value)}
+                          className="no-print w-full bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-400 focus:outline-none text-gray-900 text-sm py-0.5" />
+                        <span className="hidden print:inline text-gray-900">{item.description}</span>
+                      </td>
+                      <td className="py-2.5 px-2 text-right align-middle">
+                        <input type="number" min={0} step={0.25} value={item.hours}
+                          onChange={e => updateItem(item.id, 'hours', e.target.value)}
+                          className="no-print w-20 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-400 focus:outline-none text-right text-sm py-0.5" />
+                        <span className="hidden print:inline">{item.hours}</span>
+                      </td>
+                      <td className="py-2.5 px-2 text-right align-middle">
+                        <input type="number" min={0} step={1} value={item.rate}
+                          onChange={e => updateItem(item.id, 'rate', e.target.value)}
+                          className="no-print w-24 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-400 focus:outline-none text-right text-sm py-0.5" />
+                        <span className="hidden print:inline">${parseFloat(item.rate).toFixed(2)}</span>
+                      </td>
+                      <td className="py-2.5 pl-2 text-right align-middle font-semibold text-gray-900">
+                        ${(parseFloat(item.hours) * parseFloat(item.rate)).toFixed(2)}
+                      </td>
+                      <td className="no-print py-2.5 pl-2 align-middle">
+                        <button onClick={() => removeItem(item.id)}
+                          className="text-gray-300 hover:text-red-400 transition-colors p-0.5">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button onClick={addItem}
+                className="no-print mt-3 text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors">
+                <Plus className="w-3.5 h-3.5" /> Add line item
+              </button>
+            </div>
+
+            {/* Totals */}
+            <div className="flex justify-end mb-8">
+              <div className="w-64 space-y-2 text-sm">
+                <div className="flex justify-between text-gray-600">
+                  <span>{t('invoice.subtotal')}</span>
+                  <span className="font-medium tabular-nums">${subtotal.toFixed(2)}</span>
+                </div>
+                {taxRate > 0 && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>{t('invoice.tax')} ({taxRate}%)</span>
+                    <span className="font-medium tabular-nums">${taxAmount.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold text-gray-900 text-base border-t-2 border-gray-200 pt-2 mt-1">
+                  <span>{t('invoice.total')}</span>
+                  <span className="tabular-nums">${total.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div className="border-t border-gray-100 pt-6">
+              <div className="text-xs text-gray-400 uppercase tracking-widest font-semibold mb-2">{t('invoice.notes')}</div>
+              <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3}
+                placeholder="Payment terms, bank details, or any other notes..."
+                className="no-print w-full border border-gray-100 rounded-xl px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none bg-gray-50" />
+              {notes && <p className="hidden print:block text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{notes}</p>}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdate, onBack }) {
   const { t } = useT();
   const { settings: cdSettings } = useSystemSettings();
@@ -15987,7 +16324,8 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [importResult, setImportResult]           = useState(null); // { count } | { error }
   const [importStep, setImportStep]               = useState('select'); // 'select' | 'preview' | 'done'
 
-  const [showEditWizard, setShowEditWizard] = useState(false);
+  const [showEditWizard, setShowEditWizard]     = useState(false);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [clientLifecycle, setClientLifecycle] = useState(null);
   const [parentCaseLifecycle, setParentCaseLifecycle] = useState(null);
   const [cancelModal, setCancelModal] = useState(null); // { caseId, isSubCase }
@@ -18071,12 +18409,20 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">{t("case.badge_nda")}</span>
               )}
             </div>
-            {canEditCase && (
-              <button onClick={() => setShowEditWizard(true)}
-                className="text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-3 py-1.5 flex-shrink-0">
-                {t("action.edit")}
-              </button>
-            )}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {(auth.isAdmin || auth.isManager) && (
+                <button onClick={() => setShowInvoiceModal(true)}
+                  className="text-sm border border-blue-200 text-blue-600 hover:bg-blue-50 rounded-xl px-3 py-1.5 flex items-center gap-1.5 flex-shrink-0 transition-colors">
+                  <Receipt className="w-3.5 h-3.5" />{t("invoice.generate")}
+                </button>
+              )}
+              {canEditCase && (
+                <button onClick={() => setShowEditWizard(true)}
+                  className="text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-3 py-1.5 flex-shrink-0">
+                  {t("action.edit")}
+                </button>
+              )}
+            </div>
           </div>
 
           {showEditWizard && (
@@ -21399,6 +21745,13 @@ function ConsultantDetailModal({ consultantId, auth }) {
         </div>
       </div>
     )}
+
+    <InvoiceModal
+      isOpen={showInvoiceModal}
+      onClose={() => setShowInvoiceModal(false)}
+      caseData={caseData}
+      auth={auth}
+    />
 
     {cancelModal && (
       <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4"
@@ -27433,6 +27786,79 @@ function SettingsTrustTab({ ssCtx }) {
   );
 }
 
+// ============================================================
+// SETTINGS — INVOICE TAB
+// ============================================================
+function SettingsInvoiceTab({ ssCtx }) {
+  const { t } = useT();
+  const { settings, setSetting } = ssCtx;
+  const [companyName, setCompanyName] = useState(settings['invoice_company_name'] ?? '');
+  const [taxRate, setTaxRate]         = useState(settings['invoice_tax_rate'] ?? '0');
+  const [hourlyRate, setHourlyRate]   = useState(settings['invoice_hourly_rate'] ?? '150');
+  const [paymentNotes, setPaymentNotes] = useState(settings['invoice_payment_notes'] ?? '');
+  const [saving, setSaving]           = useState(false);
+  const [saved, setSaved]             = useState(false);
+
+  async function handleSave() {
+    setSaving(true);
+    setSaved(false);
+    try {
+      await Promise.all([
+        setSetting('invoice_company_name',  companyName.trim()),
+        setSetting('invoice_tax_rate',      taxRate),
+        setSetting('invoice_hourly_rate',   hourlyRate),
+        setSetting('invoice_payment_notes', paymentNotes.trim()),
+      ]);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  return (
+    <div className="max-w-lg space-y-6">
+      <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-5">
+        <h3 className="font-semibold text-gray-900">{t('settings.invoice')}</h3>
+
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Company Name</label>
+          <input value={companyName} onChange={e => setCompanyName(e.target.value)}
+            placeholder="Your Company LLC"
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Default Tax Rate (%)</label>
+            <input type="number" min={0} max={100} step={0.5} value={taxRate} onChange={e => setTaxRate(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Default Hourly Rate ($)</label>
+            <input type="number" min={0} step={1} value={hourlyRate} onChange={e => setHourlyRate(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Default Payment Notes / Terms</label>
+          <textarea value={paymentNotes} onChange={e => setPaymentNotes(e.target.value)} rows={4}
+            placeholder="E.g. Payment due within 30 days. Bank: ..."
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+        </div>
+
+        <div className="flex items-center gap-3 pt-1">
+          <button onClick={handleSave} disabled={saving}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors">
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+          {saved && <span className="text-sm text-emerald-600 font-medium">Saved ✓</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SystemSettingsView({ auth }) {
   const { t } = useT();
   const [activeTab, setActiveTab] = useState("users");
@@ -27449,6 +27875,7 @@ function SystemSettingsView({ auth }) {
     { id: "generation", label: t("settings.generation"),      Icon: Zap },
     { id: "trust",      label: t("trust.tab_title"),          Icon: Shield },
     { id: "approvals",  label: t("trust.approvals_tab"),      Icon: UserCheck },
+    { id: "invoice",    label: t("settings.invoice"),         Icon: Receipt },
   ];
 
   return (
@@ -27478,6 +27905,7 @@ function SystemSettingsView({ auth }) {
       {activeTab === "generation" && <SettingsGenerationTab ssCtx={ssCtx} />}
       {activeTab === "trust"      && <SettingsTrustTab ssCtx={ssCtx} />}
       {activeTab === "approvals"  && <UserApprovalQueue />}
+      {activeTab === "invoice"    && <SettingsInvoiceTab ssCtx={ssCtx} />}
     </div>
   );
 }
