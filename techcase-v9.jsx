@@ -602,6 +602,24 @@ const TRANSLATIONS = {
     "profile.by_dimension":     "by Dimension",
     "profile.rate_pending":     "You have {n} completed case(s) where you haven't rated your client yet.",
     "profile.rate_now":         "Rate Now",
+    // Vouching
+    "vouch.tab":                "Vouches",
+    "vouch.panel_title":        "Vouch for this Consultant",
+    "vouch.already_vouched":    "You have already vouched for {name}.",
+    "vouch.count":              "{n} vouch(es) received",
+    "vouch.none":               "No vouches received yet.",
+    "vouch.note_ph":            "Optional note…",
+    "vouch.submit":             "Submit Vouch",
+    "vouch.submitted_toast":    "Vouch submitted! Their trust level may be updated.",
+    "vouch.requires_platinum":  "Only Platinum consultants can vouch for others.",
+    "vouch.submitting":         "Submitting…",
+    "vouch.vouched_by":         "Vouched by",
+    // Client rating (consultant → client direction)
+    "rating.rate_client":       "Rate Client",
+    "rating.client_modal_title":"Rate your Client",
+    "rating.submit":            "Submit Rating",
+    "rating.submitting":        "Submitting…",
+    "rating.client_success":    "Rating submitted successfully.",
     // Company profile (client)
     "company.title":          "My Company",
     "company.empty":          "Your company profile is empty",
@@ -3447,6 +3465,24 @@ const TRANSLATIONS = {
     "profile.by_dimension":     "por Dimensión",
     "profile.rate_pending":     "Tienes {n} caso(s) completado(s) donde aún no has calificado a tu cliente.",
     "profile.rate_now":         "Calificar Ahora",
+    // Vouching
+    "vouch.tab":                "Avales",
+    "vouch.panel_title":        "Avalar a este Consultor",
+    "vouch.already_vouched":    "Ya has avalado a {name}.",
+    "vouch.count":              "{n} aval(es) recibido(s)",
+    "vouch.none":               "Aún no hay avales.",
+    "vouch.note_ph":            "Nota opcional…",
+    "vouch.submit":             "Enviar Aval",
+    "vouch.submitted_toast":    "¡Aval enviado! Su nivel de confianza puede actualizarse.",
+    "vouch.requires_platinum":  "Solo consultores Platinum pueden avalar a otros.",
+    "vouch.submitting":         "Enviando…",
+    "vouch.vouched_by":         "Avalado por",
+    // Client rating (consultant → client direction)
+    "rating.rate_client":       "Calificar Cliente",
+    "rating.client_modal_title":"Califica a tu Cliente",
+    "rating.submit":            "Enviar Calificación",
+    "rating.submitting":        "Enviando…",
+    "rating.client_success":    "Calificación enviada con éxito.",
     // Company profile (client)
     "company.title":          "Mi Empresa",
     "company.empty":          "El perfil de tu empresa está vacío",
@@ -7159,6 +7195,128 @@ function TierProgressBar({ ratingsData, currentTier, thresholds }) {
 }
 
 // ============================================================
+// VOUCHING PANEL
+// ============================================================
+function VouchingPanel({ targetUserId, targetName }) {
+  const auth = useAuth();
+  const { t } = useT();
+  const [vouches, setVouches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [note, setNote] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const isPlatinum = auth.profile?.trust_level === 'platinum';
+  const isSelf = auth.user?.id === targetUserId;
+
+  useEffect(() => {
+    if (!targetUserId) return;
+    setLoading(true);
+    supabase.from('user_vouches')
+      .select('id, voucher_id, note, created_at, profiles!voucher_id(full_name)')
+      .eq('vouchee_id', targetUserId)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        setVouches(data ?? []);
+        setLoading(false);
+      });
+  }, [targetUserId]);
+
+  const alreadyVouched = vouches.some(v => v.voucher_id === auth.user?.id);
+
+  async function handleVouch() {
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.from('user_vouches').insert({
+        voucher_id: auth.user.id,
+        vouchee_id: targetUserId,
+        note: note.trim() || null,
+      });
+      if (!error) {
+        await supabase.rpc('recalculate_trust_level', { p_user_id: targetUserId });
+        notify(targetUserId, 'Someone vouched for you', `${auth.profile?.full_name ?? 'A platinum consultant'} vouched for you.`);
+        logEvent('vouch.submitted', { entityType: 'user', entityId: targetUserId, entityName: targetName });
+        // Refresh vouches
+        const { data } = await supabase.from('user_vouches')
+          .select('id, voucher_id, note, created_at, profiles!voucher_id(full_name)')
+          .eq('vouchee_id', targetUserId)
+          .order('created_at', { ascending: false });
+        setVouches(data ?? []);
+        setNote('');
+        setToast(t('vouch.submitted_toast'));
+        setTimeout(() => setToast(null), 4000);
+      }
+    } catch (e) {
+      console.error('Vouch error:', e);
+    }
+    setSubmitting(false);
+  }
+
+  if (loading) return <div className="py-4 text-center text-gray-400 text-sm"><Spinner /></div>;
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+      {/* Vouch count heading */}
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold text-gray-900 text-sm">{t('vouch.tab')}</h3>
+        <span className="text-xs text-gray-500">{t('vouch.count').replace('{n}', vouches.length)}</span>
+      </div>
+
+      {/* Toast */}
+      {toast && (
+        <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-2 text-sm text-green-700">{toast}</div>
+      )}
+
+      {/* Vouchers list */}
+      {vouches.length === 0 ? (
+        <p className="text-sm text-gray-400">{t('vouch.none')}</p>
+      ) : (
+        <div className="space-y-2">
+          {vouches.map(v => (
+            <div key={v.id} className="flex items-start gap-3 text-sm">
+              <div className="w-7 h-7 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xs flex-shrink-0">
+                {(v.profiles?.full_name ?? '?')[0]}
+              </div>
+              <div className="min-w-0">
+                <span className="font-medium text-gray-800">{v.profiles?.full_name ?? '—'}</span>
+                {v.note && <p className="text-xs text-gray-500 mt-0.5 truncate">{v.note}</p>}
+                <p className="text-xs text-gray-400">{new Date(v.created_at).toLocaleDateString()}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Submit vouch — platinum only, not self */}
+      {!isSelf && isPlatinum && (
+        <div className="border-t border-gray-100 pt-4 space-y-3">
+          <p className="text-xs font-semibold text-gray-700">{t('vouch.panel_title')}</p>
+          {alreadyVouched ? (
+            <p className="text-sm text-green-700">{t('vouch.already_vouched').replace('{name}', targetName ?? '')}</p>
+          ) : (
+            <>
+              <textarea
+                value={note}
+                onChange={e => setNote(e.target.value)}
+                rows={2}
+                placeholder={t('vouch.note_ph')}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 resize-none"
+              />
+              <button
+                onClick={handleVouch}
+                disabled={submitting}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-40">
+                {submitting ? t('vouch.submitting') : t('vouch.submit')}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
 // CONSULTANT PROFILE VIEW
 // ============================================================
 function ConsultantProfileView({ userId }) {
@@ -7265,6 +7423,7 @@ function ConsultantProfileView({ userId }) {
     { id: 'ratings',   label: t('profile.tab_ratings') },
     { id: 'tier',      label: t('profile.tab_tier') },
     { id: 'activity',  label: t('profile.tab_activity') },
+    { id: 'vouches',   label: t('vouch.tab') },
     ...(isOwnProfile ? [{ id: 'edit', label: t('profile.tab_edit') }] : []),
   ];
 
