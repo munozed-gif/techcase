@@ -7397,7 +7397,7 @@ function VouchingPanel({ targetUserId, targetName }) {
         setTimeout(() => setToast(null), 4000);
       }
     } catch (e) {
-      console.error('Vouch error:', e);
+      // error is fire-and-forget
     }
     setSubmitting(false);
   }
@@ -7982,7 +7982,6 @@ function AuthScreen({ onAuth }) {
         setCode("");
       }
     } catch (e) {
-      console.error("sendCode exception:", e);
       setError(e?.message || e?.toString() || t("auth.error_unexpected"));
     }
     setLoad(false);
@@ -16312,8 +16311,10 @@ function TimeLogPanel({ caseId, caseTitle, auth }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm]         = useState({ log_date: new Date().toISOString().slice(0, 10), hours: 1, description: "" });
   const [saving, setSaving]     = useState(false);
+  const [fetchError, setFetchError] = useState(null);
 
   async function fetchLogs() {
+    setFetchError(null);
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -16323,7 +16324,7 @@ function TimeLogPanel({ caseId, caseTitle, auth }) {
         .order('log_date', { ascending: false });
       if (error) throw error;
       setLogs(data ?? []);
-    } catch (e) { console.error('time_logs fetch:', e); }
+    } catch (e) { setFetchError(e?.message ?? 'Failed to load'); }
     setLoading(false);
   }
 
@@ -16365,6 +16366,7 @@ function TimeLogPanel({ caseId, caseTitle, auth }) {
 
   return (
     <div className="space-y-4">
+      {fetchError && <p className="text-sm text-red-500 p-3">{fetchError}</p>}
       <div className="flex items-center justify-between">
         <div className="text-sm font-semibold text-gray-700">
           {t("time.total_hours")}: <span className="text-blue-600 font-bold">{totalHours.toFixed(1)}h</span>
@@ -16488,9 +16490,11 @@ function CaseFilesPanel({ caseId, auth }) {
   const [loading, setLoading]             = useState(true);
   const [uploading, setUploading]         = useState({});   // { filename: true }
   const [sizeErrors, setSizeErrors]       = useState([]);
+  const [fetchError, setFetchError]       = useState(null);
   const fileInputRef                      = useRef();
 
   async function fetchFiles() {
+    setFetchError(null);
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -16500,7 +16504,7 @@ function CaseFilesPanel({ caseId, auth }) {
         .order('created_at', { ascending: false });
       if (error) throw error;
       setFiles(data ?? []);
-    } catch (e) { console.error('case_files fetch:', e); }
+    } catch (e) { setFetchError(e?.message ?? 'Failed to load'); }
     setLoading(false);
   }
 
@@ -16563,6 +16567,7 @@ function CaseFilesPanel({ caseId, auth }) {
 
   return (
     <div className="space-y-4">
+      {fetchError && <p className="text-sm text-red-500 p-3">{fetchError}</p>}
       <div className="flex items-center justify-between">
         <div className="text-sm font-semibold text-gray-700">
           {files.length} file{files.length !== 1 ? 's' : ''}
@@ -17511,7 +17516,7 @@ Tester signature, Approver signature, Date.`;
             _selected: true,
           }));
         } catch (_) {
-          console.warn('Could not parse activities JSON from Claude response — PDF saved, activities skipped.');
+          // JSON parse failed — PDF saved, activities skipped
         }
       }
 
@@ -17732,7 +17737,7 @@ Approver signature, Date.`;
             _selected: true,
           }));
         } catch (_) {
-          console.warn('Could not parse activities JSON from Claude response — PDF saved, activities skipped.');
+          // JSON parse failed — PDF saved, activities skipped
         }
       }
       const markdown = raw.replace(/```json[\s\S]*?```/, '').trim();
@@ -27930,6 +27935,7 @@ function UserApprovalQueue() {
   const [bulkRejectOpen, setBulkRejectOpen] = useState(false);
   const [bulkRejectReason, setBulkRejectReason] = useState('');
   const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [bulkProgressCount, setBulkProgressCount] = useState({ current: 0, total: 0 });
 
   useEffect(() => { fetchPending(); }, []);
 
@@ -27990,6 +27996,7 @@ function UserApprovalQueue() {
     setBulkProcessing(true);
     const { data: { user: currentUser } } = await supabase.auth.getUser();
     const ids = [...selectedUserIds];
+    setBulkProgressCount({ current: 0, total: ids.length });
     for (const userId of ids) {
       await supabase.from('users').update({
         verification_status: 'approved',
@@ -27998,14 +28005,17 @@ function UserApprovalQueue() {
       }).eq('id', userId);
       await notify(userId, 'Account approved', 'Your account has been approved. Welcome aboard.');
       await logEvent('user.approved_bulk', { entityType: 'user', entityId: userId });
+      setBulkProgressCount(p => ({ ...p, current: p.current + 1 }));
     }
     setUsers(p => p.filter(u => !ids.includes(u.id)));
     setSelectedUserIds(new Set());
+    setBulkProgressCount({ current: 0, total: 0 });
     setBulkProcessing(false);
   }
   async function handleBulkReject() {
     setBulkProcessing(true);
     const ids = [...selectedUserIds];
+    setBulkProgressCount({ current: 0, total: ids.length });
     for (const userId of ids) {
       await supabase.from('users').update({
         verification_status: 'rejected',
@@ -28013,11 +28023,13 @@ function UserApprovalQueue() {
       }).eq('id', userId);
       await logEvent('user.rejected_bulk', { entityType: 'user', entityId: userId, metadata: { reason: bulkRejectReason } });
       await notify(userId, 'Your account application was not approved', bulkRejectReason.trim() || 'Please contact our team for more information.');
+      setBulkProgressCount(p => ({ ...p, current: p.current + 1 }));
     }
     setUsers(p => p.filter(u => !ids.includes(u.id)));
     setSelectedUserIds(new Set());
     setBulkRejectOpen(false);
     setBulkRejectReason('');
+    setBulkProgressCount({ current: 0, total: 0 });
     setBulkProcessing(false);
   }
   function exportUsersCSV() {
@@ -28081,7 +28093,7 @@ function UserApprovalQueue() {
                 <button onClick={handleBulkApprove} disabled={bulkProcessing}
                   className="flex items-center gap-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg px-3 py-1.5 hover:bg-blue-700 disabled:opacity-40 transition-colors">
                   <UserCheck className="w-3.5 h-3.5" />
-                  {bulkProcessing ? t("bulk.processing") : t("bulk.approve_all").replace("All", `All (${selectedUserIds.size})`)}
+                  {bulkProcessing ? (bulkProgressCount.total > 0 ? `Processing ${bulkProgressCount.current}/${bulkProgressCount.total}` : t('bulk.processing')) : t("bulk.approve_all").replace("All", `All (${selectedUserIds.size})`)}
                 </button>
                 <button onClick={() => setBulkRejectOpen(true)} disabled={bulkProcessing}
                   className="flex items-center gap-1.5 text-xs font-medium border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-red-50 hover:text-red-600 hover:border-red-200 disabled:opacity-40 transition-colors">
@@ -28165,7 +28177,7 @@ function UserApprovalQueue() {
               </button>
               <button onClick={handleBulkReject} disabled={bulkProcessing}
                 className="px-4 py-2 text-sm bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-40">
-                {bulkProcessing ? t("bulk.processing") : 'Confirm Reject All'}
+                {bulkProcessing ? (bulkProgressCount.total > 0 ? `Processing ${bulkProgressCount.current}/${bulkProgressCount.total}` : t('bulk.processing')) : 'Confirm Reject All'}
               </button>
             </div>
           </div>
@@ -28215,7 +28227,7 @@ function ClientRatingModal({ isOpen, onClose, caseId, caseTitle, clientId, clien
         setTimeout(() => { setToast(null); onClose(); }, 1500);
       }
     } catch (e) {
-      console.error('ClientRatingModal submit error:', e);
+      // submit error is fire-and-forget
     }
     setSubmitting(false);
   }
