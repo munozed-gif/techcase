@@ -14786,9 +14786,9 @@ ${mdToHtml(markdownContent)}
         { label: t("spec.label_generated"),value: dateLong },
       ];
       const specs = [
-        { key: 'a', content: valSection + specA, prefix: 'SpecA_CustomABAP',       note: 'Opción A — Desarrollo Custom ABAP',       title: 'Opción A — Desarrollo Custom ABAP' },
-        { key: 'b', content: valSection + specB, prefix: 'SpecB_StandardSAP',      note: 'Opción B — Configuración SAP Estándar',   title: 'Opción B — Configuración SAP Estándar' },
-        { key: 'c', content: valSection + specC, prefix: 'SpecC_PropuestaCliente', note: 'Opción C — Propuesta del Cliente',         title: 'Opción C — Propuesta del Cliente' },
+        { key: 'a', content: valSection + specA, prefix: 'SpecA_CustomABAP',       note: 'Opción A — Desarrollo Custom ABAP (auto-generated)',      title: 'Opción A — Desarrollo Custom ABAP' },
+        { key: 'b', content: valSection + specB, prefix: 'SpecB_StandardSAP',      note: 'Opción B — Configuración SAP Estándar (auto-generated)',  title: 'Opción B — Configuración SAP Estándar' },
+        { key: 'c', content: valSection + specC, prefix: 'SpecC_PropuestaCliente', note: 'Opción C — Propuesta del Cliente (auto-generated)',        title: 'Opción C — Propuesta del Cliente' },
       ];
       const newUrls = { a: null, b: null, c: null };
       for (const s of specs) {
@@ -19743,7 +19743,10 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
 
       {/* V9 Documents Tab */}
       {activeTab === "documents" && (() => {
-        const isAiDoc = d => d.notes?.toLowerCase().includes('auto-generated');
+        const AI_NAME_PREFIXES = ['SpecA_', 'SpecB_', 'SpecC_', 'FuncSpec_'];
+        const isAiDoc = d =>
+          d.notes?.toLowerCase().includes('auto-generated') ||
+          AI_NAME_PREFIXES.some(p => d.file_name?.startsWith(p));
         const aiDocs   = documents.filter(d => isAiDoc(d));
         const caseDocs = documents.filter(d => !isAiDoc(d));
         const DOC_ICON = doc => doc.file_type?.includes("pdf")
