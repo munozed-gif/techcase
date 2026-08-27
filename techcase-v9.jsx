@@ -21760,6 +21760,16 @@ function ProfileView({ auth, compact = false }) {
       </div>
       )} {/* end !compact header */}
 
+      {/* Compact mode: show edit toggle button in a slim bar */}
+      {compact && (
+        <div className="flex justify-end mb-4">
+          <button onClick={() => setEditing(p => !p)}
+            className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-xl hover:bg-gray-50">
+            {editing ? t("profile.cancel") : t("profile.edit")}
+          </button>
+        </div>
+      )}
+
       {/* Edit form */}
       {editing && (
         <div className="bg-white rounded-2xl border border-blue-200 shadow-sm p-6 mb-6">
