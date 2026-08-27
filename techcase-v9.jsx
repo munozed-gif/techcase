@@ -7483,6 +7483,7 @@ function ConsultantProfileView({ userId }) {
 
   const [section, setSection] = useState('overview');
   const [profileData, setProfileData]   = useState(null);
+  const [cpData, setCpData]             = useState(null);
   const [ratingsData, setRatingsData]   = useState([]);
   const [dimensions, setDimensions]     = useState([]);
   const [assignedCount, setAssignedCount] = useState(0);
@@ -7498,7 +7499,7 @@ function ConsultantProfileView({ userId }) {
       setLoading(true);
       setError(null);
       try {
-        const [profRes, ratingsRes, dimsRes, assignRes, logsRes, ssRes] = await Promise.all([
+        const [profRes, ratingsRes, dimsRes, assignRes, logsRes, ssRes, cpRes] = await Promise.all([
           supabase.from('users')
             .select('id, full_name, email, role, trust_level, avg_rating, created_at')
             .eq('id', targetUserId).single(),
@@ -7517,9 +7518,13 @@ function ConsultantProfileView({ userId }) {
             .order('created_at', { ascending: false }).limit(5),
           supabase.from('system_settings')
             .select('key, value').eq('key', 'trust_thresholds').maybeSingle(),
+          supabase.from('consultant_profiles')
+            .select('headline, bio, linkedin_url, hourly_rate, years_experience, expertise_level, availability_type, travel_available, skills, external_occupancy_pct')
+            .eq('user_id', targetUserId).maybeSingle(),
         ]);
         if (cancelled) return;
         setProfileData(profRes.data ?? null);
+        setCpData(cpRes.data ?? null);
         setRatingsData(ratingsRes.data ?? []);
         setDimensions(dimsRes.data ?? []);
         setAssignedCount(assignRes.count ?? 0);
@@ -7629,31 +7634,103 @@ function ConsultantProfileView({ userId }) {
 
       {/* Overview */}
       {section === 'overview' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-            <h3 className="font-semibold text-gray-900 text-sm">{t('profile.completed_cases')}</h3>
-            <div className="text-3xl font-bold text-blue-600">{assignedCount}</div>
-            {dimensions.length > 0 && (
-              <div className="space-y-2 border-t border-gray-100 pt-4 mt-2">
-                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                  {t('profile.avg_rating')} {t('profile.by_dimension')}
-                </h4>
-                {dimensions.map(d => (
-                  <div key={d.key} className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">{d.label}</span>
-                    <span className="font-semibold text-gray-800">{dimAvgs[d.key] ?? '—'}</span>
+        <div className="space-y-6">
+          {/* Bio / Headline */}
+          {(cpData?.headline || cpData?.bio) && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-2">
+              {cpData?.headline && <p className="font-semibold text-gray-800">{cpData.headline}</p>}
+              {cpData?.bio && <p className="text-sm text-gray-600 whitespace-pre-line">{cpData.bio}</p>}
+            </div>
+          )}
+
+          {/* Key details grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Left: consultant details */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+              <h3 className="font-semibold text-gray-900 text-sm">Profile Details</h3>
+              <div className="space-y-3 text-sm">
+                {cpData?.years_experience != null && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Experience</span>
+                    <span className="font-medium text-gray-800">{cpData.years_experience} yrs</span>
                   </div>
-                ))}
+                )}
+                {cpData?.expertise_level && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Expertise</span>
+                    <span className="font-medium text-gray-800 capitalize">{cpData.expertise_level.replace('_', ' ')}</span>
+                  </div>
+                )}
+                {cpData?.hourly_rate != null && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Hourly Rate</span>
+                    <span className="font-medium text-gray-800">${cpData.hourly_rate}/hr</span>
+                  </div>
+                )}
+                {cpData?.availability_type && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Availability</span>
+                    <span className="font-medium text-gray-800 capitalize">{cpData.availability_type.replace('_', ' ')}</span>
+                  </div>
+                )}
+                {cpData?.travel_available != null && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Travel</span>
+                    <span className="font-medium text-gray-800">{cpData.travel_available ? 'Available' : 'Not available'}</span>
+                  </div>
+                )}
+                {cpData?.linkedin_url && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">LinkedIn</span>
+                    <a href={cpData.linkedin_url} target="_blank" rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline text-xs truncate max-w-[160px]">
+                      {cpData.linkedin_url.replace(/^https?:\/\/(www\.)?linkedin\.com\//, '')}
+                    </a>
+                  </div>
+                )}
+                <div className="flex justify-between border-t border-gray-100 pt-3">
+                  <span className="text-gray-500">Cases Assigned</span>
+                  <span className="font-bold text-blue-600">{assignedCount}</span>
+                </div>
               </div>
-            )}
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <h3 className="font-semibold text-gray-900 text-sm mb-4">{t('profile.tier_progress')}</h3>
-            <TierProgressBar
-              ratingsData={ratingsData}
-              currentTier={profileData?.trust_level}
-              thresholds={thresholds}
-            />
+
+              {/* Skills */}
+              {cpData?.skills?.length > 0 && (
+                <div className="border-t border-gray-100 pt-4 space-y-2">
+                  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Skills</h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {cpData.skills.map((s, i) => (
+                      <span key={i} className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full">{s}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Avg rating by dimension */}
+              {dimensions.length > 0 && (
+                <div className="border-t border-gray-100 pt-4 space-y-2">
+                  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                    {t('profile.avg_rating')} {t('profile.by_dimension')}
+                  </h4>
+                  {dimensions.map(d => (
+                    <div key={d.key} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">{d.label}</span>
+                      <span className="font-semibold text-gray-800">{dimAvgs[d.key] ?? '—'}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Right: tier progress */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <h3 className="font-semibold text-gray-900 text-sm mb-4">{t('profile.tier_progress')}</h3>
+              <TierProgressBar
+                ratingsData={ratingsData}
+                currentTier={profileData?.trust_level}
+                thresholds={thresholds}
+              />
+            </div>
           </div>
         </div>
       )}
