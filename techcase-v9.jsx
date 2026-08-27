@@ -19775,10 +19775,10 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             )}
           </div>
         );
-        const SectionHeader = ({ icon, label, count, accent, children }) => (
+        const SectionHeader = ({ Icon, iconClass, label, count, accent, children }) => (
           <div className="space-y-2">
             <div className={`flex items-center gap-2 pb-1 border-b ${accent ?? 'border-gray-100'}`}>
-              <span className="text-base">{icon}</span>
+              <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${iconClass ?? 'text-gray-400'}`} />
               <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</span>
               {count != null && <span className="ml-auto text-xs text-gray-400">{count}</span>}
             </div>
@@ -19788,7 +19788,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         return (
           <div className="space-y-6">
             {/* ── AI Generated ── */}
-            <SectionHeader icon="🤖" label="AI Generated" count={aiDocs.length} accent="border-violet-100">
+            <SectionHeader Icon={Sparkles} iconClass="text-violet-400" label="AI Generated" count={aiDocs.length} accent="border-violet-100">
               {aiDocs.length === 0
                 ? <p className="text-xs text-gray-400 py-2 pl-1">No AI-generated documents yet — run the Spec tab to generate them.</p>
                 : <div className="space-y-2">{aiDocs.map(doc => <DocRow key={doc.id} doc={doc} />)}</div>
@@ -19796,7 +19796,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             </SectionHeader>
 
             {/* ── Case Documents ── */}
-            <SectionHeader icon="📋" label="Case Documents" count={caseDocs.length} accent="border-blue-100">
+            <SectionHeader Icon={FolderOpen} iconClass="text-blue-400" label="Case Documents" count={caseDocs.length} accent="border-blue-100">
               {stageRules.can_upload_docs && (
                 <div className="flex justify-end mb-1">
                   <button onClick={() => setShowDocForm(p => !p)}
@@ -19862,7 +19862,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             </SectionHeader>
 
             {/* ── Work Files ── */}
-            <SectionHeader icon="📎" label="Work Files" accent="border-amber-100">
+            <SectionHeader Icon={Paperclip} iconClass="text-amber-400" label="Work Files" accent="border-amber-100">
               <CaseFilesPanel caseId={caseData.id} auth={auth} embedded />
             </SectionHeader>
           </div>
