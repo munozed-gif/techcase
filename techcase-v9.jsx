@@ -5529,25 +5529,44 @@ function useRatings(consultantId = null) {
     if (!consultantId) return;
     (async () => {
       setLoading(true);
-      const { data } = await supabase.from("ratings")
-        .select("*, rater:rated_by(full_name, avatar_url), case:case_id(title)")
-        .eq("consultant_id", consultantId).eq("is_public", true)
+      const { data } = await supabase.from("case_ratings")
+        .select("id, case_id, scores, comment, created_at, rater:rater_id(full_name, avatar_url), case:case_id(title)")
+        .eq("ratee_id", consultantId)
+        .eq("ratee_role", "consultant")
         .order("created_at", { ascending: false });
-      setRatings(data ?? []);
-      const { data: avg } = await supabase.rpc("get_consultant_avg_rating", { p_consultant_id: consultantId });
-      setAvgRating(avg);
+      const mapped = (data ?? []).map(r => {
+        const vals = Object.values(r.scores ?? {});
+        const score = vals.length > 0
+          ? parseFloat((vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(2))
+          : 0;
+        return { ...r, score };
+      });
+      setRatings(mapped);
+      const positiveScores = mapped.map(r => r.score).filter(s => s > 0);
+      setAvgRating(
+        positiveScores.length > 0
+          ? parseFloat((positiveScores.reduce((a, b) => a + b, 0) / positiveScores.length).toFixed(2))
+          : null
+      );
       setLoading(false);
     })();
   }, [consultantId]);
 
   async function submitRating({ caseId, score, comment }) {
     const { data: { user } } = await supabase.auth.getUser();
-    const { data, error } = await supabase.from("ratings").upsert({
-      consultant_id: consultantId, case_id: caseId,
-      rated_by: user.id, score, comment,
+    const scores = { overall: score };
+    const { data, error } = await supabase.from("case_ratings").insert({
+      case_id: caseId ?? null,
+      rater_id: user.id,
+      ratee_id: consultantId,
+      rater_role: "client",
+      ratee_role: "consultant",
+      scores,
+      comment: comment || null,
     }).select().single();
     if (error) throw error;
-    const newRatings = [...ratings.filter(r => r.rated_by !== user.id), data];
+    const newEntry = { ...data, score, rater: { full_name: null } };
+    const newRatings = [...ratings, newEntry];
     setRatings(newRatings);
     const sum = newRatings.reduce((a, r) => a + r.score, 0);
     setAvgRating(parseFloat((sum / newRatings.length).toFixed(2)));
@@ -5671,10 +5690,14 @@ function useApplicantRanking(caseData, applications) {
     const ids = [...new Set(applications.map(a => a.consultant_id))];
     (async () => {
       setLoading(true);
-      const [{ data: ratings }, { data: assignments }] = await Promise.all([
-        supabase.from("ratings").select("consultant_id, score, case_id, case:case_id(client_id)").in("consultant_id", ids),
+      const [{ data: rawRatings }, { data: assignments }] = await Promise.all([
+        supabase.from("case_ratings").select("ratee_id, scores, case_id, case:case_id(client_id)").in("ratee_id", ids).eq("ratee_role", "consultant"),
         supabase.from("case_assignments").select("consultant_id, case_id, case:case_id(client_id)").in("consultant_id", ids),
       ]);
+      const ratings = (rawRatings ?? []).map(r => {
+        const vals = Object.values(r.scores ?? {});
+        return { consultant_id: r.ratee_id, score: vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : 0, case_id: r.case_id, case: r.case };
+      });
       const weights = clientSettings ? {
         skills:            clientSettings.weight_skills            ?? 25,
         rating:            clientSettings.weight_rating            ?? 20,
@@ -6381,12 +6404,16 @@ function useLeaderboard() {
       // 2. Fetch users, ratings, applications keyed by consultant user-id in parallel
       const [{ data: usersData }, { data: ratingsData }, { data: appsData }] = await Promise.all([
         supabase.from("users").select("id, full_name, avatar_url").in("id", ids),
-        supabase.from("ratings").select("consultant_id, score").in("consultant_id", ids),
+        supabase.from("case_ratings").select("ratee_id, scores").in("ratee_id", ids).eq("ratee_role", "consultant"),
         supabase.from("applications").select("consultant_id, status").in("consultant_id", ids),
       ]);
 
       const ranked = profiles.map(c => {
-        const scores      = (ratingsData ?? []).filter(r => r.consultant_id === c.id).map(r => r.score);
+        const cRatings    = (ratingsData ?? []).filter(r => r.ratee_id === c.id);
+        const scores      = cRatings.map(r => {
+          const vals = Object.values(r.scores ?? {});
+          return vals.length > 0 ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
+        });
         const apps        = (appsData    ?? []).filter(a => a.consultant_id === c.id);
         const avgRating   = scores.length
           ? parseFloat((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2)) : 0;
@@ -6394,7 +6421,7 @@ function useLeaderboard() {
           ...c,
           user:          (usersData ?? []).find(u => u.id === c.id) ?? null,
           avgRating,
-          ratingCount:   scores.length,
+          ratingCount:   cRatings.length,
           acceptedCases: apps.filter(a => a.status === "accepted").length,
           totalApps:     apps.length,
         };
