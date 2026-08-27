@@ -7520,7 +7520,7 @@ function ConsultantProfileView({ userId }) {
             .select('key, value').eq('key', 'trust_thresholds').maybeSingle(),
           supabase.from('consultant_profiles')
             .select('headline, bio, linkedin_url, hourly_rate, years_experience, expertise_level, availability_type, travel_available, skills, external_occupancy_pct')
-            .eq('user_id', targetUserId).maybeSingle(),
+            .eq('id', targetUserId).maybeSingle(),
         ]);
         if (cancelled) return;
         setProfileData(profRes.data ?? null);
