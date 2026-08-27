@@ -7579,7 +7579,7 @@ function ConsultantProfileView({ userId }) {
     { id: 'tier',      label: t('profile.tab_tier') },
     { id: 'activity',  label: t('profile.tab_activity') },
     { id: 'vouches',   label: t('vouch.tab') },
-    ...(isOwnProfile ? [{ id: 'edit', label: t('profile.tab_edit') }] : []),
+    ...(isOwnProfile ? [{ id: 'edit', label: 'Profile' }] : []),
   ];
 
   if (loading) return <Spinner />;
@@ -7600,11 +7600,42 @@ function ConsultantProfileView({ userId }) {
               <h1 className="text-xl font-bold text-gray-900">{profileData?.full_name ?? '—'}</h1>
               {profileData?.trust_level && <TrustBadge level={profileData.trust_level} size="sm" />}
             </div>
-            <p className="text-sm text-gray-500">{profileData?.email}</p>
-            <p className="text-xs text-gray-400 capitalize mt-0.5">
-              {profileData?.role} · {t('profile.member_since')} {profileData?.created_at
-                ? new Date(profileData.created_at).toLocaleDateString() : '—'}
-            </p>
+            {cpData?.headline && (
+              <p className="text-sm font-medium text-gray-700 mt-0.5">{cpData.headline}</p>
+            )}
+            <div className="flex items-center gap-2 flex-wrap mt-1">
+              <p className="text-xs text-gray-400 capitalize">
+                {profileData?.role} · {t('profile.member_since')} {profileData?.created_at
+                  ? new Date(profileData.created_at).toLocaleDateString() : '—'}
+              </p>
+              {profileData?.email && (
+                <p className="text-xs text-gray-400">· {profileData.email}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-2 flex-wrap mt-2">
+              {overallAvg && (
+                <span className="text-xs flex items-center gap-1 text-yellow-600 font-semibold">
+                  ★ {overallAvg}
+                  <span className="text-gray-400 font-normal">({ratingsData.length})</span>
+                </span>
+              )}
+              {cpData?.expertise_level && (
+                <span className="px-2 py-0.5 bg-violet-100 text-violet-700 text-xs rounded-full capitalize">
+                  {cpData.expertise_level.replace(/_/g, ' ')}
+                </span>
+              )}
+              {cpData?.availability_type && (
+                <span className="px-2 py-0.5 bg-teal-100 text-teal-700 text-xs rounded-full capitalize">
+                  {cpData.availability_type.replace(/_/g, ' ')}
+                </span>
+              )}
+              {cpData?.travel_available && (
+                <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs rounded-full">Travel ✓</span>
+              )}
+              {cpData?.hourly_rate && (
+                <span className="text-xs text-gray-500">${cpData.hourly_rate}/hr</span>
+              )}
+            </div>
           </div>
           {overallAvg && (
             <div className="text-right flex-shrink-0">
@@ -7831,7 +7862,7 @@ function ConsultantProfileView({ userId }) {
 
       {/* Edit profile */}
       {section === 'edit' && isOwnProfile && (
-        <ProfileView auth={auth} />
+        <ProfileView auth={auth} compact={true} />
       )}
     </div>
   );
@@ -21562,7 +21593,7 @@ function ArenaView({ auth }) {
 // ============================================================
 // CONSULTANT PROFILE VIEW
 // ============================================================
-function ProfileView({ auth }) {
+function ProfileView({ auth, compact = false }) {
   const { t } = useT();
   // Extract the real consultant_profiles id from auth (useAuth already fetched it via FK join)
   const cpRaw = auth.profile?.consultant_profiles;
@@ -21660,7 +21691,8 @@ function ProfileView({ auth }) {
 
   return (
     <div>
-      {/* Profile Header */}
+      {/* Profile Header — hidden when embedded inside ConsultantProfileView */}
+      {!compact && (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
         <div className="flex items-start gap-5">
           <div className="relative">
@@ -21726,6 +21758,7 @@ function ProfileView({ auth }) {
           </div>
         </div>
       </div>
+      )} {/* end !compact header */}
 
       {/* Edit form */}
       {editing && (
