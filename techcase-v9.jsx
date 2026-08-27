@@ -7635,6 +7635,11 @@ function ConsultantProfileView({ userId }) {
               {cpData?.hourly_rate && (
                 <span className="text-xs text-gray-500">${cpData.hourly_rate}/hr</span>
               )}
+              {cpData != null && (
+                <span className="text-xs text-emerald-600 font-medium">
+                  {Math.max(0, 100 - (cpData.external_occupancy_pct ?? 0))}% free
+                </span>
+              )}
             </div>
           </div>
           {overallAvg && (
