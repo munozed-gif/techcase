@@ -16624,7 +16624,7 @@ function cfFmtSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function CaseFilesPanel({ caseId, auth }) {
+function CaseFilesPanel({ caseId, auth, embedded = false }) {
   const { t }                             = useT();
   const [files, setFiles]                 = useState([]);
   const [loading, setLoading]             = useState(true);
@@ -16708,15 +16708,25 @@ function CaseFilesPanel({ caseId, auth }) {
   return (
     <div className="space-y-4">
       {fetchError && <p className="text-sm text-red-500 p-3">{fetchError}</p>}
-      <div className="flex items-center justify-between">
-        <div className="text-sm font-semibold text-gray-700">
-          {files.length} file{files.length !== 1 ? 's' : ''}
+      {!embedded && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold text-gray-700">
+            {files.length} file{files.length !== 1 ? 's' : ''}
+          </div>
+          <button onClick={() => fileInputRef.current?.click()}
+            className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 flex items-center gap-1.5">
+            <Upload className="w-3.5 h-3.5" />{t("files.upload")}
+          </button>
         </div>
-        <button onClick={() => fileInputRef.current?.click()}
-          className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 flex items-center gap-1.5">
-          <Upload className="w-3.5 h-3.5" />{t("files.upload")}
-        </button>
-      </div>
+      )}
+      {embedded && (
+        <div className="flex justify-end">
+          <button onClick={() => fileInputRef.current?.click()}
+            className="px-3 py-1.5 bg-amber-500 text-white text-xs font-semibold rounded-lg hover:bg-amber-600 flex items-center gap-1.5">
+            <Upload className="w-3.5 h-3.5" />{t("files.upload")}
+          </button>
+        </div>
+      )}
 
       <input ref={fileInputRef} type="file" multiple className="hidden"
         accept={CF_ALLOWED_EXTS.map(e => `.${e}`).join(',')}
@@ -16739,15 +16749,17 @@ function CaseFilesPanel({ caseId, auth }) {
         </div>
       )}
 
-      {/* Drop / click zone */}
-      <div onClick={() => fileInputRef.current?.click()}
-        className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-colors select-none">
-        <div className="text-gray-400 text-sm">
-          <Paperclip className="w-6 h-6 mx-auto mb-2 text-gray-300" />
-          <div className="font-medium">{t("files.drop_hint")}</div>
-          <div className="text-xs text-gray-300 mt-0.5">{t("files.max_size")}</div>
+      {/* Drop / click zone — hidden when embedded inside a section */}
+      {!embedded && (
+        <div onClick={() => fileInputRef.current?.click()}
+          className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-colors select-none">
+          <div className="text-gray-400 text-sm">
+            <Paperclip className="w-6 h-6 mx-auto mb-2 text-gray-300" />
+            <div className="font-medium">{t("files.drop_hint")}</div>
+            <div className="text-xs text-gray-300 mt-0.5">{t("files.max_size")}</div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* File list */}
       <div className="space-y-2">
@@ -16775,9 +16787,11 @@ function CaseFilesPanel({ caseId, auth }) {
           </div>
         ))}
         {files.length === 0 && (
-          <div className="text-center py-10 text-gray-400">
-            <div className="mb-2 flex justify-center"><Paperclip className="w-8 h-8 text-gray-300" /></div>
-            <p className="text-sm">{t("files.no_files")}</p>
+          <div className={embedded ? "text-xs text-gray-400 py-2 pl-1" : "text-center py-10 text-gray-400"}>
+            {embedded
+              ? t("files.no_files")
+              : <><div className="mb-2 flex justify-center"><Paperclip className="w-8 h-8 text-gray-300" /></div><p className="text-sm">{t("files.no_files")}</p></>
+            }
           </div>
         )}
       </div>
@@ -17111,6 +17125,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   // V9 Document state
   const docFileRef = useRef();
   const [docNotes, setDocNotes]         = useState("");
+  const [docCategory, setDocCategory]   = useState("requirements");
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [showDocForm, setShowDocForm]   = useState(false);
   const [pendingDocFile, setPendingDocFile] = useState(null);
@@ -17400,8 +17415,11 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
     if (!pendingDocFile) return;
     setUploadingDoc(true);
     try {
-      await addDocument(pendingDocFile, docNotes);
-      setPendingDocFile(null); setDocNotes(""); setShowDocForm(false);
+      const catLabels = { requirements: "Requirements", deliverable: "Deliverable", reference: "Reference", other: "Other" };
+      const tag = catLabels[docCategory] ?? "Other";
+      const fullNotes = docNotes.trim() ? `[${tag}] ${docNotes.trim()}` : `[${tag}]`;
+      await addDocument(pendingDocFile, fullNotes);
+      setPendingDocFile(null); setDocNotes(""); setDocCategory("requirements"); setShowDocForm(false);
     } catch (e) { alert(e.message); }
     setUploadingDoc(false);
   }
@@ -18917,12 +18935,11 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
     { id: "milestones", label: t("case.tab_milestones"), icon: Flag,          count: `${doneMilestones}/${milestones.length}` },
     { id: "comments",   label: t("case.tab_comments"),   icon: MessageSquare, count: comments.length },
     { id: "subcases",   label: t("case.tab_subcases"),   icon: Layers,        count: subCases.length },
-    { id: "documents",  label: t("case.tab_docs"),       icon: Paperclip,     count: documents.length },
+    { id: "documents",  label: t("case.tab_docs"),       icon: Paperclip,     count: documents.length || null },
     { id: "time",       label: t("case.tab_time"),       icon: Clock,         count: `${totalTimeHours.toFixed(1)}h` },
     ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "applications", label: t("case.tab_applicants"), icon: Users, count: applications.length }] : []),
     ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "lifecycle", label: t("case.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
     { id: "spec",  label: t("case.tab_spec"),  icon: FileText, count: null },
-    { id: "files", label: t("files.tab"),      icon: Paperclip, count: null },
   ];
   const tabs = stageRules.visible_tabs
     ? allTabs.filter(t => stageRules.visible_tabs.includes(t.id))
@@ -19725,69 +19742,132 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
       )}
 
       {/* V9 Documents Tab */}
-      {activeTab === "documents" && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold text-gray-700">{documents.length} document{documents.length !== 1 ? "s" : ""}</div>
-            {stageRules.can_upload_docs && (
-              <button onClick={() => setShowDocForm(p => !p)}
-                className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700">
-                + {t("action.upload")}
+      {activeTab === "documents" && (() => {
+        const isAiDoc = d => d.notes?.toLowerCase().includes('auto-generated');
+        const aiDocs   = documents.filter(d => isAiDoc(d));
+        const caseDocs = documents.filter(d => !isAiDoc(d));
+        const DOC_ICON = doc => doc.file_type?.includes("pdf")
+          ? <FileText className="w-4 h-4 text-red-400" />
+          : doc.file_type?.includes("image")
+          ? <FileImage className="w-4 h-4 text-blue-400" />
+          : <Paperclip className="w-4 h-4 text-gray-400" />;
+        const DocRow = ({ doc }) => (
+          <div className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:bg-gray-50">
+            <div className="flex-shrink-0">{DOC_ICON(doc)}</div>
+            <div className="flex-1 min-w-0">
+              <button onClick={() => openDocInNewTab(doc)}
+                className="font-medium text-sm text-blue-600 hover:underline truncate block text-left w-full">{doc.file_name}</button>
+              <div className="text-xs text-gray-400 mt-0.5">
+                {doc.file_size_kb ? `${doc.file_size_kb} KB · ` : ""}
+                {doc.uploader?.full_name ?? t("reports.unknown")} · {fmtDate(doc.created_at)}
+              </div>
+              {doc.notes && (
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {doc.notes.replace(/^\[[^\]]+\]\s*/, '')}
+                </p>
+              )}
+            </div>
+            {(auth.isAdmin || auth.isManager) && (
+              <button onClick={() => deleteDocument(doc.id, doc.file_url)}
+                className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded border border-red-100 hover:bg-red-50 flex-shrink-0">
+                {t("action.remove")}
               </button>
             )}
           </div>
-          {showDocForm && (
-            <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t("case.file_label")}</label>
-                <input ref={docFileRef} type="file"
-                  onChange={e => setPendingDocFile(e.target.files?.[0] ?? null)}
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-              </div>
-              <Textarea label={t("case.notes_optional")} value={docNotes}
-                onChange={e => setDocNotes(e.target.value)} placeholder={t("case.notes_doc_ph")} />
-              <div className="flex gap-2 justify-end">
-                <button onClick={() => { setShowDocForm(false); setPendingDocFile(null); setDocNotes(""); }}
-                  className="px-3 py-1.5 text-sm text-gray-500">{t("action.cancel")}</button>
-                <button onClick={handleDocUpload} disabled={!pendingDocFile || uploadingDoc}
-                  className="px-4 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                  {uploadingDoc ? t("state.saving") : t("action.upload")}
-                </button>
-              </div>
-            </div>
-          )}
+        );
+        const SectionHeader = ({ icon, label, count, accent, children }) => (
           <div className="space-y-2">
-            {documents.map(doc => (
-              <div key={doc.id} className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:bg-gray-50">
-                <div className="flex-shrink-0">
-                  {doc.file_type?.includes("pdf") ? <FileText className="w-4 h-4 text-red-400" /> : doc.file_type?.includes("image") ? <FileImage className="w-4 h-4 text-blue-400" /> : <Paperclip className="w-4 h-4 text-gray-400" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <button onClick={() => openDocInNewTab(doc)}
-                    className="font-medium text-sm text-blue-600 hover:underline truncate block text-left w-full">{doc.file_name}</button>
-                  <div className="text-xs text-gray-400 mt-0.5">
-                    {doc.file_size_kb ? `${doc.file_size_kb} KB · ` : ""}
-                    {doc.uploader?.full_name ?? t("reports.unknown")} · {fmtDate(doc.created_at)}
-                  </div>
-                  {doc.notes && <p className="text-xs text-gray-500 mt-0.5">{doc.notes}</p>}
-                </div>
-                {(auth.isAdmin || auth.isManager) && (
-                  <button onClick={() => deleteDocument(doc.id, doc.file_url)}
-                    className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded border border-red-100 hover:bg-red-50 flex-shrink-0">
-                    {t("action.remove")}
-                  </button>
-                )}
-              </div>
-            ))}
-            {documents.length === 0 && (
-              <div className="text-center py-8 text-gray-400">
-                <div className="mb-2 flex justify-center"><Paperclip className="w-8 h-8 text-gray-300" /></div>
-                <p className="text-sm">{t("case.no_docs")}</p>
-              </div>
-            )}
+            <div className={`flex items-center gap-2 pb-1 border-b ${accent ?? 'border-gray-100'}`}>
+              <span className="text-base">{icon}</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</span>
+              {count != null && <span className="ml-auto text-xs text-gray-400">{count}</span>}
+            </div>
+            {children}
           </div>
-        </div>
-      )}
+        );
+        return (
+          <div className="space-y-6">
+            {/* ── AI Generated ── */}
+            <SectionHeader icon="🤖" label="AI Generated" count={aiDocs.length} accent="border-violet-100">
+              {aiDocs.length === 0
+                ? <p className="text-xs text-gray-400 py-2 pl-1">No AI-generated documents yet — run the Spec tab to generate them.</p>
+                : <div className="space-y-2">{aiDocs.map(doc => <DocRow key={doc.id} doc={doc} />)}</div>
+              }
+            </SectionHeader>
+
+            {/* ── Case Documents ── */}
+            <SectionHeader icon="📋" label="Case Documents" count={caseDocs.length} accent="border-blue-100">
+              {stageRules.can_upload_docs && (
+                <div className="flex justify-end mb-1">
+                  <button onClick={() => setShowDocForm(p => !p)}
+                    className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700">
+                    + {t("action.upload")}
+                  </button>
+                </div>
+              )}
+              {showDocForm && (
+                <div className="bg-gray-50 rounded-xl p-4 space-y-3 mb-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Category</label>
+                      <select value={docCategory} onChange={e => setDocCategory(e.target.value)}
+                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-300">
+                        <option value="requirements">Requirements</option>
+                        <option value="deliverable">Deliverable</option>
+                        <option value="reference">Reference</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">{t("case.file_label")}</label>
+                      <input ref={docFileRef} type="file"
+                        onChange={e => setPendingDocFile(e.target.files?.[0] ?? null)}
+                        className="block w-full text-sm text-gray-500 file:mr-3 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                    </div>
+                  </div>
+                  <Textarea label={t("case.notes_optional")} value={docNotes}
+                    onChange={e => setDocNotes(e.target.value)} placeholder={t("case.notes_doc_ph")} />
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => { setShowDocForm(false); setPendingDocFile(null); setDocNotes(""); setDocCategory("requirements"); }}
+                      className="px-3 py-1.5 text-sm text-gray-500">{t("action.cancel")}</button>
+                    <button onClick={handleDocUpload} disabled={!pendingDocFile || uploadingDoc}
+                      className="px-4 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                      {uploadingDoc ? t("state.saving") : t("action.upload")}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {caseDocs.length === 0
+                ? <p className="text-xs text-gray-400 py-2 pl-1">{t("case.no_docs")}</p>
+                : (
+                  <div className="space-y-2">
+                    {['requirements','deliverable','reference','other'].map(cat => {
+                      const label = cat.charAt(0).toUpperCase() + cat.slice(1);
+                      const catDocs = caseDocs.filter(d =>
+                        cat === 'other'
+                          ? !['requirements','deliverable','reference'].some(c => d.notes?.startsWith(`[${c.charAt(0).toUpperCase()+c.slice(1)}]`))
+                          : d.notes?.startsWith(`[${label}]`)
+                      );
+                      if (!catDocs.length) return null;
+                      return (
+                        <div key={cat}>
+                          <div className="text-xs text-gray-400 font-medium mb-1 pl-1">{label}</div>
+                          <div className="space-y-1.5">{catDocs.map(doc => <DocRow key={doc.id} doc={doc} />)}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )
+              }
+            </SectionHeader>
+
+            {/* ── Work Files ── */}
+            <SectionHeader icon="📎" label="Work Files" accent="border-amber-100">
+              <CaseFilesPanel caseId={caseData.id} auth={auth} embedded />
+            </SectionHeader>
+          </div>
+        );
+      })()}
 
       {/* ── Activities Tab ── */}
       {activeTab === "activities" && (() => {
@@ -21120,11 +21200,6 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
       {/* Time Log Tab — uses time_logs table via TimeLogPanel */}
       {activeTab === "time" && (
         <TimeLogPanel caseId={caseData.id} caseTitle={caseData.title} auth={auth} />
-      )}
-
-      {/* Files Tab — uses case_files table + case-files storage bucket */}
-      {activeTab === "files" && (
-        <CaseFilesPanel caseId={caseData.id} auth={auth} />
       )}
 
       {/* Lifecycle Tab */}
