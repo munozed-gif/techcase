@@ -10063,6 +10063,13 @@ function CatalogMultiSelect({ options = [], selected = [], onChange, color = "bl
 
 function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, initialData = null, initialProjectId = null, presetData = null }) {
   const { t } = useT();
+  const { settings: catalogSettings } = useSystemSettings();
+  const SKILL_DEFAULTS = ["ABAP Development", "SAP Basis Administration", "SAP FICO Configuration", "SAP MM Configuration", "SAP SD Configuration", "SAP HCM", "SAP Fiori / UI5", "SAP BW / Analytics", "SAP Integration (CPI/PI)", "S/4HANA Migration", "SAP GRC", "SAP PM / QM", "HANA DB Administration", "SAP Security / Roles", "SAP PS (Project Systems)"];
+  const CERT_DEFAULTS  = ["SAP Certified Associate - ABAP with SAP NetWeaver", "SAP Certified Application Associate - SAP S/4HANA Finance", "SAP Certified Application Associate - SAP S/4HANA Sourcing and Procurement", "SAP Certified Application Associate - SAP SuccessFactors", "SAP Certified Technology Associate - SAP HANA", "SAP Certified Technology Associate - SAP Basis", "SAP Certified Application Associate - SAP MM", "SAP Certified Application Associate - SAP SD", "SAP Certified Application Associate - SAP HCM"];
+  const LANG_DEFAULTS  = ["English", "Spanish", "German", "French", "Portuguese", "Italian", "Dutch", "Polish", "Mandarin", "Japanese", "Arabic", "Russian", "Hindi"];
+  const catalogSkills = catalogSettings["catalog_skills"] ?? SKILL_DEFAULTS;
+  const catalogCerts  = catalogSettings["catalog_certifications"] ?? CERT_DEFAULTS;
+  const catalogLangs  = catalogSettings["catalog_languages"] ?? LANG_DEFAULTS;
   const isEdit = !!initialData;
   const CREATE_CASE_STEPS = [
     { id: "project",        label: t("cs.step_project"),   Icon: Layers,         desc: "Link to a project" },
@@ -10098,8 +10105,6 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
 
   // Step 5: Qualifications
   const [quals, setQuals] = useState({ certifications_required: initialData?.certifications_required ?? [], min_years_experience: initialData?.min_years_experience ?? "", languages_required: initialData?.languages_required ?? [], security_clearance: initialData?.security_clearance ?? false });
-  const [certInput, setCertInput] = useState("");
-  const [langInput, setLangInput] = useState("");
 
   // Step 6: Interview
   const [interview, setIntv] = useState({ interview_required: initialData?.interview_required ?? false, interview_format: initialData?.interview_format ?? "video", interview_rounds: initialData?.interview_rounds ?? 1, technical_assessment: initialData?.technical_assessment ?? false });
@@ -10881,70 +10886,26 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
 
             {/* Certifications */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t("case.cert_label")}</label>
-              <div className="flex gap-2">
-                <input value={certInput} onChange={e => setCertInput(e.target.value)}
-                  onKeyDown={e => {
-                    if ((e.key === "Enter" || e.key === ",") && certInput.trim()) {
-                      e.preventDefault();
-                      setQuals(p => ({ ...p, certifications_required: [...p.certifications_required, certInput.trim()] }));
-                      setCertInput("");
-                    }
-                  }}
-                  placeholder={t("case.cert_ph")}
-                  className="flex-1 bg-gray-100 border-0 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm" />
-                <button type="button" onClick={() => {
-                  if (certInput.trim()) {
-                    setQuals(p => ({ ...p, certifications_required: [...p.certifications_required, certInput.trim()] }));
-                    setCertInput("");
-                  }
-                }} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold">+ Add</button>
-              </div>
-              {quals.certifications_required.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {quals.certifications_required.map((c, i) => (
-                    <span key={i} className="flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg">
-                      {c}
-                      <button type="button" onClick={() => setQuals(p => ({ ...p, certifications_required: p.certifications_required.filter((_, j) => j !== i) }))}
-                        className="text-blue-400 hover:text-blue-700 ml-1">×</button>
-                    </span>
-                  ))}
-                </div>
-              )}
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t("case.cert_label")}</label>
+              <CatalogMultiSelect
+                options={catalogCerts}
+                selected={quals.certifications_required}
+                onChange={val => setQuals(p => ({ ...p, certifications_required: val }))}
+                color="blue"
+                placeholder="Search certifications…"
+              />
             </div>
 
             {/* Languages */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t("case.lang_label")}</label>
-              <div className="flex gap-2">
-                <input value={langInput} onChange={e => setLangInput(e.target.value)}
-                  onKeyDown={e => {
-                    if ((e.key === "Enter" || e.key === ",") && langInput.trim()) {
-                      e.preventDefault();
-                      setQuals(p => ({ ...p, languages_required: [...p.languages_required, langInput.trim()] }));
-                      setLangInput("");
-                    }
-                  }}
-                  placeholder={t("case.lang_ph")}
-                  className="flex-1 bg-gray-100 border-0 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm" />
-                <button type="button" onClick={() => {
-                  if (langInput.trim()) {
-                    setQuals(p => ({ ...p, languages_required: [...p.languages_required, langInput.trim()] }));
-                    setLangInput("");
-                  }
-                }} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold">+ Add</button>
-              </div>
-              {quals.languages_required.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {quals.languages_required.map((l, i) => (
-                    <span key={i} className="flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 text-xs font-semibold rounded-lg">
-                      {l}
-                      <button type="button" onClick={() => setQuals(p => ({ ...p, languages_required: p.languages_required.filter((_, j) => j !== i) }))}
-                        className="text-green-400 hover:text-green-700 ml-1">×</button>
-                    </span>
-                  ))}
-                </div>
-              )}
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t("case.lang_label")}</label>
+              <CatalogMultiSelect
+                options={catalogLangs}
+                selected={quals.languages_required}
+                onChange={val => setQuals(p => ({ ...p, languages_required: val }))}
+                color="green"
+                placeholder="Search languages…"
+              />
             </div>
 
             {/* Security clearance */}
