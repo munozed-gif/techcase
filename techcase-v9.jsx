@@ -29916,12 +29916,291 @@ function RatingModal({ caseId, caseTitle, rateeId, rateeName, rateeRole, raterRo
   );
 }
 
-function AuditLogDashboard() {
-  const { t } = useT();
-  const [logs, setLogs] = useState([]);
-  const [total, setTotal] = useState(0);
+// ── Audit log shared constants ────────────────────────────────
+const AUDIT_EVENT_COLORS = {
+  'case.created':        'bg-blue-100 text-blue-700',
+  'case.status_changed': 'bg-amber-100 text-amber-700',
+  'case.cancelled':      'bg-red-100 text-red-700',
+  'case.updated':        'bg-gray-100 text-gray-600',
+  'spec.generated':      'bg-purple-100 text-purple-700',
+  'spec.approved':       'bg-green-100 text-green-700',
+  'devplan.generated':   'bg-indigo-100 text-indigo-700',
+  'project.created':     'bg-teal-100 text-teal-700',
+  'user.signed_up':      'bg-sky-100 text-sky-700',
+};
+const AUDIT_EVENT_LABELS = {
+  'case.created':        'Case created',
+  'case.status_changed': 'Status changed',
+  'case.cancelled':      'Case cancelled',
+  'case.updated':        'Case updated',
+  'spec.generated':      'Spec generated',
+  'spec.approved':       'Spec approved',
+  'devplan.generated':   'Dev plan generated',
+  'project.created':     'Project created',
+  'user.signed_up':      'User signed up',
+};
+const AUDIT_ENTITY_ICONS = {
+  case:    Briefcase,
+  project: FolderOpen,
+  user:    User,
+  client:  Building2,
+};
+
+function auditNavTarget(log) {
+  if (!log?.entity_id) return null;
+  if (log.entity_type === 'case')    return { view: 'cases',    caseId: log.entity_id };
+  if (log.entity_type === 'project') return { view: 'projects', projectId: log.entity_id };
+  if (log.entity_type === 'user')    return { view: 'users' };
+  return null;
+}
+
+function auditRenderDetail(log) {
+  if (log.event_type === 'case.status_changed') {
+    const ov = log.old_value?.status, nv = log.new_value?.status;
+    return (
+      <span className="flex items-center gap-1.5 text-xs mt-0.5">
+        {ov && <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">{ov}</span>}
+        {ov && nv && <span className="text-gray-400">→</span>}
+        {nv && <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded font-medium">{nv}</span>}
+      </span>
+    );
+  }
+  if (log.event_type === 'case.cancelled' && log.metadata?.reason) {
+    return <p className="text-xs text-gray-400 mt-0.5 truncate">Reason: {log.metadata.reason}</p>;
+  }
+  if (log.event_type === 'spec.generated' || log.event_type === 'devplan.generated') {
+    const m = log.metadata ?? {};
+    const parts = [];
+    if (m.model) parts.push(m.model.replace('claude-', '').replace(/-\d{8,}$/, ''));
+    if (m.duration_ms) parts.push(`${(m.duration_ms / 1000).toFixed(1)}s`);
+    if (m.activity_count) parts.push(`${m.activity_count} activities`);
+    return parts.length ? <p className="text-xs text-gray-400 mt-0.5">{parts.join(' · ')}</p> : null;
+  }
+  return null;
+}
+
+// ── Audit entity quick-view panel ─────────────────────────────
+function AuditEntityPanel({ log, onClose, onNavigate }) {
+  const [entity, setEntity] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(0);
+
+  useEffect(() => {
+    if (!log?.entity_id) { setLoading(false); return; }
+    setLoading(true);
+    setEntity(null);
+    (async () => {
+      try {
+        if (log.entity_type === 'case') {
+          const { data } = await supabase.from('cases').select(
+            `id, title, status, priority, description, area_sap, skills_required,
+             budget, start_date, due_date, estimated_hours, case_type,
+             client:client_id(full_name, client_profiles(company_name)),
+             project:project_id(id, name)`
+          ).eq('id', log.entity_id).maybeSingle();
+          setEntity(data);
+        } else if (log.entity_type === 'project') {
+          const { data } = await supabase.from('projects').select(
+            `id, name, status, description, start_date, end_date, budget,
+             client:client_id(full_name, client_profiles(company_name))`
+          ).eq('id', log.entity_id).maybeSingle();
+          setEntity(data);
+        } else if (log.entity_type === 'user') {
+          const { data } = await supabase.from('users').select(
+            'id, full_name, email, role, verification_status, created_at'
+          ).eq('id', log.entity_id).maybeSingle();
+          setEntity(data);
+        }
+      } catch (_) {}
+      setLoading(false);
+    })();
+  }, [log?.entity_id, log?.entity_type]);
+
+  const target   = auditNavTarget(log);
+  const EntityIcon = AUDIT_ENTITY_ICONS[log?.entity_type] ?? Tag;
+
+  return (
+    <div className="w-full max-w-md bg-white h-full flex flex-col shadow-2xl overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <EntityIcon size={14} className="text-gray-400 flex-shrink-0" />
+          <h2 className="font-bold text-gray-900 text-sm truncate">{log.entity_name ?? log.entity_id ?? 'Entity'}</h2>
+        </div>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          {target && onNavigate && (
+            <button onClick={() => { onNavigate(target); onClose(); }}
+              className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors">
+              Open in full <ExternalLink size={11} />
+            </button>
+          )}
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        {/* Event info block */}
+        <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+          <div className="flex items-center gap-2 mb-2">
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${AUDIT_EVENT_COLORS[log.event_type] ?? 'bg-gray-100 text-gray-600'}`}>
+              {AUDIT_EVENT_LABELS[log.event_type] ?? log.event_type}
+            </span>
+          </div>
+          {auditRenderDetail(log)}
+          <p className="text-xs text-gray-400 mt-2">
+            <span className="font-medium text-gray-500">{log.user_name ?? log.user_email ?? 'system'}</span>
+            <span className="mx-1.5">·</span>
+            {new Date(log.created_at).toLocaleString()}
+          </p>
+        </div>
+
+        {/* Entity current state */}
+        <div>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Current state</p>
+          {loading ? (
+            <div className="flex justify-center py-8"><Spinner /></div>
+          ) : !entity ? (
+            <div className="text-center py-8 text-sm text-gray-400 border border-dashed border-gray-200 rounded-xl">
+              <p>This record no longer exists.</p>
+              <p className="text-xs mt-1 font-mono text-gray-300">{log.entity_id}</p>
+            </div>
+          ) : log.entity_type === 'case' ? (
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {entity.priority && <Badge className={PRIORITY_COLORS[entity.priority] ?? 'bg-gray-100 text-gray-600'}>{cap(entity.priority)}</Badge>}
+                {entity.status   && <Badge className="bg-gray-100 text-gray-700 capitalize">{entity.status}</Badge>}
+                {entity.case_type && <Badge className="bg-blue-50 text-blue-700 capitalize">{entity.case_type}</Badge>}
+              </div>
+              {entity.description && <p className="text-sm text-gray-600 line-clamp-4 leading-relaxed">{entity.description}</p>}
+              {(entity.budget || entity.estimated_hours || entity.start_date || entity.due_date) && (
+                <div className="grid grid-cols-2 gap-2">
+                  {entity.budget && (
+                    <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                      <div className="text-xs text-gray-400 mb-0.5">Budget</div>
+                      <div className="font-semibold text-gray-900 tabular-nums">${Number(entity.budget).toLocaleString()}</div>
+                    </div>
+                  )}
+                  {entity.estimated_hours && (
+                    <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                      <div className="text-xs text-gray-400 mb-0.5">Est. hours</div>
+                      <div className="font-semibold text-gray-900 tabular-nums">{entity.estimated_hours}h</div>
+                    </div>
+                  )}
+                  {entity.start_date && (
+                    <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                      <div className="text-xs text-gray-400 mb-0.5">Start</div>
+                      <div className="font-semibold text-gray-900">{fmtDate(entity.start_date)}</div>
+                    </div>
+                  )}
+                  {entity.due_date && (
+                    <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                      <div className="text-xs text-gray-400 mb-0.5">Due</div>
+                      <div className="font-semibold text-gray-900">{fmtDate(entity.due_date)}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+              {entity.area_sap && (
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">SAP area</p>
+                  <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs font-medium">{entity.area_sap}</span>
+                </div>
+              )}
+              {entity.skills_required?.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-400 mb-1.5">Skills required</p>
+                  <div className="flex flex-wrap gap-1">
+                    {entity.skills_required.map(s => (
+                      <span key={s} className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">{s}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {(entity.project?.name || entity.client) && (
+                <div className="space-y-1 pt-1 border-t border-gray-100">
+                  {entity.project?.name && (
+                    <p className="text-xs text-gray-600"><span className="text-gray-400">Project: </span>{entity.project.name}</p>
+                  )}
+                  {entity.client && (
+                    <p className="text-xs text-gray-600">
+                      <span className="text-gray-400">Client: </span>
+                      {entity.client.client_profiles?.company_name ?? entity.client.full_name}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : log.entity_type === 'project' ? (
+            <div className="space-y-3">
+              {entity.status && <Badge className="bg-gray-100 text-gray-700 capitalize">{entity.status}</Badge>}
+              {entity.description && <p className="text-sm text-gray-600 line-clamp-4 leading-relaxed">{entity.description}</p>}
+              {(entity.budget || entity.start_date || entity.end_date) && (
+                <div className="grid grid-cols-2 gap-2">
+                  {entity.budget && (
+                    <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                      <div className="text-xs text-gray-400 mb-0.5">Budget</div>
+                      <div className="font-semibold text-gray-900 tabular-nums">${Number(entity.budget).toLocaleString()}</div>
+                    </div>
+                  )}
+                  {entity.start_date && (
+                    <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                      <div className="text-xs text-gray-400 mb-0.5">Start</div>
+                      <div className="font-semibold text-gray-900">{fmtDate(entity.start_date)}</div>
+                    </div>
+                  )}
+                  {entity.end_date && (
+                    <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                      <div className="text-xs text-gray-400 mb-0.5">End</div>
+                      <div className="font-semibold text-gray-900">{fmtDate(entity.end_date)}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+              {entity.client && (
+                <p className="text-xs text-gray-600 pt-1 border-t border-gray-100">
+                  <span className="text-gray-400">Client: </span>
+                  {entity.client.client_profiles?.company_name ?? entity.client.full_name}
+                </p>
+              )}
+            </div>
+          ) : log.entity_type === 'user' ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg flex-shrink-0">
+                  {entity.full_name?.[0] ?? '?'}
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900">{entity.full_name}</div>
+                  <div className="text-xs text-gray-500">{entity.email}</div>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {entity.role && <Badge className="bg-blue-50 text-blue-700 capitalize">{entity.role}</Badge>}
+                {entity.verification_status && (
+                  <Badge className={entity.verification_status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}>
+                    {entity.verification_status}
+                  </Badge>
+                )}
+              </div>
+              {entity.created_at && (
+                <p className="text-xs text-gray-400">Joined {new Date(entity.created_at).toLocaleDateString()}</p>
+              )}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AuditLogDashboard({ onNavigate }) {
+  const { t } = useT();
+  const [logs, setLogs]       = useState([]);
+  const [total, setTotal]     = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage]       = useState(0);
+  const [panelLog, setPanelLog] = useState(null);
   const PAGE = 50;
   const [filters, setFilters] = useState({ type: '', search: '', dateFrom: '', dateTo: '' });
 
@@ -29942,51 +30221,13 @@ function AuditLogDashboard() {
     setLoading(false);
   }
 
-  const EVENT_COLORS = {
-    'case.created':        'bg-blue-100 text-blue-700',
-    'case.status_changed': 'bg-amber-100 text-amber-700',
-    'case.cancelled':      'bg-red-100 text-red-700',
-    'case.updated':        'bg-gray-100 text-gray-600',
-    'spec.generated':      'bg-purple-100 text-purple-700',
-    'spec.approved':       'bg-green-100 text-green-700',
-    'devplan.generated':   'bg-indigo-100 text-indigo-700',
-    'project.created':     'bg-teal-100 text-teal-700',
-    'user.signed_up':      'bg-sky-100 text-sky-700',
-  };
-
-  const ALL_TYPES = Object.keys(EVENT_COLORS);
-
-  function renderDetail(log) {
-    if (log.event_type === 'case.status_changed') {
-      const ov = log.old_value?.status;
-      const nv = log.new_value?.status;
-      return (
-        <span className="flex items-center gap-1.5 text-xs mt-0.5">
-          {ov && <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">{ov}</span>}
-          {ov && nv && <span className="text-gray-400">→</span>}
-          {nv && <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded font-medium">{nv}</span>}
-        </span>
-      );
-    }
-    if (log.event_type === 'case.cancelled' && log.metadata?.reason) {
-      return <p className="text-xs text-gray-400 mt-0.5 truncate">Reason: {log.metadata.reason}</p>;
-    }
-    if (log.event_type === 'spec.generated' || log.event_type === 'devplan.generated') {
-      const m = log.metadata ?? {};
-      const parts = [];
-      if (m.model) parts.push(m.model.replace('claude-', '').replace(/-\d{8,}$/, ''));
-      if (m.duration_ms) parts.push(`${(m.duration_ms / 1000).toFixed(1)}s`);
-      if (m.activity_count) parts.push(`${m.activity_count} activities`);
-      return parts.length ? <p className="text-xs text-gray-400 mt-0.5">{parts.join(' · ')}</p> : null;
-    }
-    return null;
-  }
+  const ALL_TYPES = Object.keys(AUDIT_EVENT_COLORS);
 
   return (
     <div className="space-y-5 max-w-5xl mx-auto p-6">
       <div>
         <h2 className="text-xl font-bold text-gray-900">Audit Log</h2>
-        <p className="text-sm text-gray-500 mt-0.5">Full activity trail — status changes, generation events, and user actions.</p>
+        <p className="text-sm text-gray-500 mt-0.5">Full activity trail — click any row to preview the entity, or open it directly.</p>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -29994,9 +30235,9 @@ function AuditLogDashboard() {
           onChange={e => { setFilters(p => ({ ...p, type: e.target.value })); setPage(0); }}
           className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 bg-white">
           <option value="">All event types</option>
-          {ALL_TYPES.map(k => <option key={k} value={k}>{k}</option>)}
+          {ALL_TYPES.map(k => <option key={k} value={k}>{AUDIT_EVENT_LABELS[k] ?? k}</option>)}
         </select>
-        <input value={filters.search} placeholder="Search case, user…"
+        <input value={filters.search} placeholder="Search entity, user…"
           onChange={e => { setFilters(p => ({ ...p, search: e.target.value })); setPage(0); }}
           className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 flex-1 min-w-[180px] bg-white" />
         <input type="date" value={filters.dateFrom}
@@ -30023,21 +30264,45 @@ function AuditLogDashboard() {
           <div className="py-16 text-center text-sm text-gray-400">No events match your filters.</div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {logs.map(log => (
-              <div key={log.id} className="flex items-start gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors">
-                <span className={`mt-0.5 shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${EVENT_COLORS[log.event_type] ?? 'bg-gray-100 text-gray-600'}`}>
-                  {log.event_type}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">{log.entity_name ?? log.entity_id ?? '—'}</p>
-                  {renderDetail(log)}
+            {logs.map(log => {
+              const target     = auditNavTarget(log);
+              const EntityIcon = AUDIT_ENTITY_ICONS[log.entity_type] ?? null;
+              const isActive   = panelLog?.id === log.id;
+              return (
+                <div key={log.id}
+                  onClick={() => setPanelLog(isActive ? null : log)}
+                  className={`group flex items-start gap-3 px-5 py-3.5 cursor-pointer transition-colors ${
+                    isActive ? "bg-blue-50 border-l-2 border-blue-500" : "hover:bg-gray-50 border-l-2 border-transparent"
+                  }`}>
+                  {/* Event badge */}
+                  <span className={`mt-0.5 shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${AUDIT_EVENT_COLORS[log.event_type] ?? 'bg-gray-100 text-gray-600'}`}>
+                    {AUDIT_EVENT_LABELS[log.event_type] ?? log.event_type}
+                  </span>
+                  {/* Entity name + detail */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      {EntityIcon && <EntityIcon size={12} className="text-gray-400 flex-shrink-0" />}
+                      <p className={`text-sm font-medium truncate ${target ? "text-blue-700" : "text-gray-800"}`}>
+                        {log.entity_name ?? log.entity_id ?? '—'}
+                      </p>
+                    </div>
+                    {auditRenderDetail(log)}
+                  </div>
+                  {/* Right: user · time · Open button */}
+                  <div className="text-right text-xs text-gray-400 whitespace-nowrap shrink-0 flex flex-col items-end gap-0.5">
+                    <p className="font-medium text-gray-600">{log.user_name ?? log.user_email ?? 'system'}</p>
+                    <p>{new Date(log.created_at).toLocaleString()}</p>
+                    {target && onNavigate && (
+                      <button
+                        onClick={e => { e.stopPropagation(); onNavigate(target); }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5 flex items-center gap-1 text-blue-600 hover:text-blue-800 font-semibold text-xs">
+                        Open <ExternalLink size={10} />
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="text-right text-xs text-gray-400 whitespace-nowrap shrink-0">
-                  <p className="font-medium text-gray-600">{log.user_name ?? log.user_email ?? 'system'}</p>
-                  <p>{new Date(log.created_at).toLocaleString()}</p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -30053,6 +30318,20 @@ function AuditLogDashboard() {
             className="px-4 py-2 text-sm border border-gray-200 rounded-xl disabled:opacity-40 hover:bg-gray-50 bg-white">
             Next →
           </button>
+        </div>
+      )}
+
+      {/* Entity quick-view panel */}
+      {panelLog && (
+        <div className="fixed inset-0 z-50 flex pointer-events-none">
+          <div className="flex-1 pointer-events-auto" onClick={() => setPanelLog(null)} />
+          <div className="w-full max-w-md pointer-events-auto flex flex-col h-full border-l border-gray-200 shadow-2xl">
+            <AuditEntityPanel
+              log={panelLog}
+              onClose={() => setPanelLog(null)}
+              onNavigate={target => { onNavigate?.(target); setPanelLog(null); }}
+            />
+          </div>
         </div>
       )}
     </div>
@@ -30615,7 +30894,14 @@ export default function App() {
       case "client-profile": return auth.isClient ? <ClientProfileView auth={auth} /> : <Dashboard auth={auth} />;
       case "lifecycle":      return (auth.isAdmin || auth.isManager) ? <LifecycleSettingsView auth={auth} /> : <Dashboard auth={auth} />;
       case "settings":       return (auth.isAdmin || auth.isManager) ? <SystemSettingsView auth={auth} /> : <Dashboard auth={auth} />;
-      case "audit_log":      return (auth.isAdmin || auth.isManager) ? <AuditLogDashboard /> : <Dashboard auth={auth} />;
+      case "audit_log":      return (auth.isAdmin || auth.isManager)
+        ? <AuditLogDashboard onNavigate={({ view, caseId, projectId, userId }) => {
+            setPendingCaseId(caseId ?? null);
+            setPendingProjectId(projectId ?? null);
+            setPendingUserId(userId ?? null);
+            setActiveView(view);
+          }} />
+        : <Dashboard auth={auth} />;
       case "approvals":      return (auth.isAdmin || auth.isManager) ? <UserApprovalQueue /> : <Dashboard auth={auth} />;
       case "templates":      return (auth.isAdmin || auth.isManager) ? <CaseTemplatesView auth={auth} /> : <Dashboard auth={auth} />;
       case "notifications":  return <NotificationsView />;
