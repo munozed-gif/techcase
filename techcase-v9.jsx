@@ -11522,7 +11522,9 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
   const { t } = useT();
   const { settings: catalogSettings } = useSystemSettings();
   const SKILL_DEFAULTS = ["ABAP Development", "SAP Basis Administration", "SAP FICO Configuration", "SAP MM Configuration", "SAP SD Configuration", "SAP HCM", "SAP Fiori / UI5", "SAP BW / Analytics", "SAP Integration (CPI/PI)", "S/4HANA Migration", "SAP GRC", "SAP PM / QM", "HANA DB Administration", "SAP Security / Roles", "SAP PS (Project Systems)"];
-  const catalogSkills = catalogSettings["catalog_skills"] ?? SKILL_DEFAULTS;
+  const DELIVERABLE_DEFAULTS = ["Business Blueprint", "Functional Specification", "Technical Specification", "Configuration Document", "Data Migration Plan", "Test Scripts", "UAT Report", "Training Material", "Go-Live Checklist", "Cutover Plan", "Gap Analysis", "Integration Test Report", "Migration Report", "Process Flow Diagram", "Project Charter", "System Documentation", "Change Management Plan", "Hypercare Plan", "Project Status Report", "SLA Agreement"];
+  const catalogSkills       = catalogSettings["catalog_skills"]       ?? SKILL_DEFAULTS;
+  const catalogDeliverables = catalogSettings["catalog_deliverables"] ?? DELIVERABLE_DEFAULTS;
   const isEdit = !!initialData;
   const ALL_PROJECT_STEPS = [
     { id: "basics",       label: t("proj.rev_basics"),      Icon: FileText,          desc: t("proj.step_basics_desc") },
@@ -11543,7 +11545,6 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
   const [scopeData, setScopeData] = useState({ total_budget: initialData?.total_budget ?? "", start_date: initialData?.start_date ?? "", end_date: initialData?.end_date ?? "", area_sap: initialData?.area_sap ?? "", industry: initialData?.industry ?? "", client_id: auth.isClient ? auth.user?.id : (initialData?.client_id ?? "") });
   // Step 2: Objectives
   const [objectives, setObj] = useState({ objectives: initialData?.objectives ?? "", deliverables: initialData?.deliverables ?? [], success_criteria: initialData?.success_criteria ?? "", out_of_scope: initialData?.out_of_scope ?? "" });
-  const [delivInput, setDelivInput] = useState("");
   // Step 3: Team
   const [team, setTeam] = useState({ stakeholder_name: initialData?.stakeholder_name ?? "", stakeholder_email: initialData?.stakeholder_email ?? "", billing_contact_name: initialData?.billing_contact_name ?? "", billing_contact_email: initialData?.billing_contact_email ?? "", expected_consultants: initialData?.expected_consultants ?? "" });
   // Step 4: Requirements
@@ -11688,13 +11689,6 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
     setExtractedCases(p => p.map((c, i) => i === idx ? { ...c, [field]: value } : c));
   }
 
-  function addDeliverable() {
-    const val = delivInput.trim();
-    if (!val) return;
-    setObj(p => ({ ...p, deliverables: [...p.deliverables, val] }));
-    setDelivInput("");
-  }
-
   return (
     <div className="max-w-2xl mx-auto py-6">
       <div className="flex items-center justify-between mb-6">
@@ -11828,35 +11822,16 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
               onChange={e => setObj(p => ({ ...p, objectives: e.target.value }))}
               placeholder={t("proj.ph_goals")} />
 
-            {/* Deliverables tag input */}
+            {/* Deliverables multi-select */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t("proj.deliverables")}</label>
-              <div className="flex gap-2">
-                <input value={delivInput}
-                  onChange={e => setDelivInput(e.target.value)}
-                  onKeyDown={e => {
-                    if ((e.key === "Enter" || e.key === ",") && delivInput.trim()) {
-                      e.preventDefault();
-                      addDeliverable();
-                    }
-                  }}
-                  placeholder={t("proj.deliverable_ph")}
-                  className="flex-1 bg-gray-100 border-0 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm" />
-                <button type="button" onClick={addDeliverable}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold">+ Add</button>
-              </div>
-              {objectives.deliverables.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {objectives.deliverables.map((d, i) => (
-                    <span key={i} className="flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg">
-                      {d}
-                      <button type="button"
-                        onClick={() => setObj(p => ({ ...p, deliverables: p.deliverables.filter((_, j) => j !== i) }))}
-                        className="text-blue-400 hover:text-blue-700 ml-1">×</button>
-                    </span>
-                  ))}
-                </div>
-              )}
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t("proj.deliverables")}</label>
+              <CatalogMultiSelect
+                options={catalogDeliverables}
+                selected={objectives.deliverables}
+                onChange={val => setObj(p => ({ ...p, deliverables: val }))}
+                color="violet"
+                placeholder="Search deliverables…"
+              />
             </div>
 
             <Textarea label={t("proj.success_label")} value={objectives.success_criteria}
@@ -28847,6 +28822,7 @@ function SettingsCatalogTab({ ssCtx }) {
     skills:         ["ABAP Development", "SAP Basis Administration", "SAP FICO Configuration", "SAP MM Configuration", "SAP SD Configuration", "SAP HCM", "SAP Fiori / UI5", "SAP BW / Analytics", "SAP Integration (CPI/PI)", "S/4HANA Migration", "SAP GRC", "SAP PM / QM", "HANA DB Administration", "SAP Security / Roles", "SAP PS (Project Systems)"],
     certifications: ["SAP Certified Associate - ABAP with SAP NetWeaver", "SAP Certified Application Associate - SAP S/4HANA Finance", "SAP Certified Application Associate - SAP S/4HANA Sourcing and Procurement", "SAP Certified Application Associate - SAP SuccessFactors", "SAP Certified Technology Associate - SAP HANA", "SAP Certified Technology Associate - SAP Basis", "SAP Certified Application Associate - SAP MM", "SAP Certified Application Associate - SAP SD", "SAP Certified Application Associate - SAP HCM"],
     languages:      ["English", "Spanish", "German", "French", "Portuguese", "Italian", "Dutch", "Polish", "Mandarin", "Japanese", "Arabic", "Russian", "Hindi"],
+    deliverables:   ["Business Blueprint", "Functional Specification", "Technical Specification", "Configuration Document", "Data Migration Plan", "Test Scripts", "UAT Report", "Training Material", "Go-Live Checklist", "Cutover Plan", "Gap Analysis", "Integration Test Report", "Migration Report", "Process Flow Diagram", "Project Charter", "System Documentation", "Change Management Plan", "Hypercare Plan", "Project Status Report", "SLA Agreement"],
   };
 
   const [selectedCat, setSelectedCat] = useState("sap_areas");
@@ -28868,6 +28844,7 @@ function SettingsCatalogTab({ ssCtx }) {
     skills:         t("catalog.skills"),
     certifications: t("catalog.certifications"),
     languages:      t("catalog.languages"),
+    deliverables:   "Project Deliverables",
   };
 
   useEffect(() => {
