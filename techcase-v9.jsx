@@ -30521,21 +30521,31 @@ function SettingsInvoiceTab({ ssCtx }) {
 }
 
 // ── People tab — users + permissions combined ─────────────────
-function SettingsPeopleTab({ ssCtx, auth }) {
+function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
   const { t } = useT();
-  const ALL_ROLES  = ["admin", "manager", "consultant", "client", "key_user", "headhunter", "final_user"];
-  const CAPS       = Object.keys(ROLE_PERMISSIONS_DEFAULTS);
+  const ALL_ROLES = ["admin", "manager", "consultant", "client", "key_user", "headhunter", "final_user"];
+  const CAPS = Object.keys(ROLE_PERMISSIONS_DEFAULTS);
+
+  const PERSONA_TABS = [
+    { id: "internal",    label: "Internal",    roles: ["admin", "manager"],                  Icon: Shield,    accent: "purple", border: "border-purple-500", activeBg: "bg-purple-600", accentTxt: "text-purple-600", lightBg: "bg-purple-50" },
+    { id: "consultants", label: "Consultants", roles: ["consultant"],                        Icon: Briefcase, accent: "blue",   border: "border-blue-500",   activeBg: "bg-blue-600",   accentTxt: "text-blue-600",   lightBg: "bg-blue-50"   },
+    { id: "client_team", label: "Client Team", roles: ["client", "key_user", "final_user"], Icon: Building2, accent: "green",  border: "border-green-500",  activeBg: "bg-green-600",  accentTxt: "text-green-600",  lightBg: "bg-green-50"  },
+    { id: "headhunters", label: "Headhunters", roles: ["headhunter"],                       Icon: Handshake, accent: "pink",   border: "border-pink-500",   activeBg: "bg-pink-600",   accentTxt: "text-pink-600",   lightBg: "bg-pink-50"   },
+  ];
+
   const ROLE_COLORS = {
-    admin: { pill: 'bg-red-100 text-red-700 border-red-200',       active: 'bg-red-600 text-white border-red-600' },
-    manager: { pill: 'bg-purple-100 text-purple-700 border-purple-200', active: 'bg-purple-600 text-white border-purple-600' },
-    consultant: { pill: 'bg-blue-100 text-blue-700 border-blue-200',   active: 'bg-blue-600 text-white border-blue-600' },
-    client: { pill: 'bg-green-100 text-green-700 border-green-200',    active: 'bg-green-600 text-white border-green-600' },
-    key_user: { pill: 'bg-amber-100 text-amber-700 border-amber-200',  active: 'bg-amber-500 text-white border-amber-500' },
-    headhunter: { pill: 'bg-pink-100 text-pink-700 border-pink-200',   active: 'bg-pink-600 text-white border-pink-600' },
-    final_user: { pill: 'bg-teal-100 text-teal-700 border-teal-200',   active: 'bg-teal-600 text-white border-teal-600' },
+    admin:      { pill: "bg-red-100 text-red-700 border-red-200",       active: "bg-red-600 text-white border-red-600"       },
+    manager:    { pill: "bg-purple-100 text-purple-700 border-purple-200", active: "bg-purple-600 text-white border-purple-600" },
+    consultant: { pill: "bg-blue-100 text-blue-700 border-blue-200",    active: "bg-blue-600 text-white border-blue-600"     },
+    client:     { pill: "bg-green-100 text-green-700 border-green-200", active: "bg-green-600 text-white border-green-600"   },
+    key_user:   { pill: "bg-amber-100 text-amber-700 border-amber-200", active: "bg-amber-500 text-white border-amber-500"   },
+    headhunter: { pill: "bg-pink-100 text-pink-700 border-pink-200",    active: "bg-pink-600 text-white border-pink-600"     },
+    final_user: { pill: "bg-teal-100 text-teal-700 border-teal-200",    active: "bg-teal-600 text-white border-teal-600"     },
   };
 
+  const [personaTab, setPersonaTab]     = useState("consultants");
   const [selectedRole, setSelectedRole] = useState("consultant");
+  const [detailUser, setDetailUser]     = useState(null);
   const [users, setUsers]               = useState([]);
   const [loading, setLoading]           = useState(true);
   const [pendingUsers, setPendingUsers] = useState([]);
@@ -30552,6 +30562,17 @@ function SettingsPeopleTab({ ssCtx, auth }) {
   const [matrix, setMatrix]             = useState(null);
   const [matrixSaving, setMatrixSaving] = useState(false);
   const [matrixToast, setMatrixToast]   = useState(null);
+  const [detailEditRole, setDetailEditRole] = useState("");
+  const [detailEditOpen, setDetailEditOpen] = useState(false);
+
+  useEffect(() => {
+    const group = PERSONA_TABS.find(p => p.id === personaTab);
+    const defaultRole = group?.roles[0] ?? "consultant";
+    setSelectedRole(defaultRole);
+    setDetailUser(null);
+    setSearch("");
+    setEditId(null);
+  }, [personaTab]);
 
   async function loadUsers() {
     const { data } = await supabase.from("users").select("*").order("created_at", { ascending: false });
@@ -30575,12 +30596,15 @@ function SettingsPeopleTab({ ssCtx, auth }) {
   async function toggleActive(uid, isActive) {
     await supabase.from("users").update({ is_active: !isActive }).eq("id", uid);
     setUsers(p => p.map(u => u.id === uid ? { ...u, is_active: !isActive } : u));
+    setDetailUser(p => p?.id === uid ? { ...p, is_active: !isActive } : p);
   }
-  async function saveRole(uid) {
+  async function saveRole(uid, role) {
+    const roleToSave = role ?? editRole;
     setSaving(true);
-    await supabase.from("users").update({ role: editRole }).eq("id", uid);
-    setUsers(p => p.map(u => u.id === uid ? { ...u, role: editRole } : u));
-    setEditId(null); setSaving(false);
+    await supabase.from("users").update({ role: roleToSave }).eq("id", uid);
+    setUsers(p => p.map(u => u.id === uid ? { ...u, role: roleToSave } : u));
+    setDetailUser(p => p?.id === uid ? { ...p, role: roleToSave } : p);
+    setEditId(null); setDetailEditOpen(false); setSaving(false);
   }
   async function sendPasswordReset(email) {
     await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
@@ -30603,7 +30627,7 @@ function SettingsPeopleTab({ ssCtx, auth }) {
     setAdding(false);
   }
   function togglePermission(cap) {
-    if (selectedRole === 'admin') return;
+    if (selectedRole === "admin") return;
     setMatrix(p => ({ ...p, [cap]: { ...p[cap], [selectedRole]: !p[cap][selectedRole] } }));
   }
   async function savePermissions() {
@@ -30615,19 +30639,57 @@ function SettingsPeopleTab({ ssCtx, auth }) {
     setMatrixSaving(false);
   }
 
-  const byRole     = users.filter(u => u.role === selectedRole);
-  const displayed  = byRole.filter(u =>
+  function drillDown(u) {
+    if ((u.role === "consultant" || u.role === "headhunter") && onNavigate) {
+      onNavigate({ view: "profile", userId: u.id });
+    } else {
+      setDetailUser(prev => prev?.id === u.id ? null : u);
+      setDetailEditOpen(false);
+      setDetailEditRole(u.role);
+    }
+  }
+
+  const currentPersona = PERSONA_TABS.find(p => p.id === personaTab);
+  const groupRoles     = currentPersona?.roles ?? [];
+  const groupUsers     = users.filter(u => groupRoles.includes(u.role));
+  const roleFiltered   = groupRoles.length > 1 ? groupUsers.filter(u => u.role === selectedRole) : groupUsers;
+  const displayed      = roleFiltered.filter(u =>
     !search || u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase())
   );
+  const isNavigable    = personaTab === "consultants" || personaTab === "headhunters";
 
   return (
     <div className="space-y-4">
+
+      {/* Persona tab cards */}
+      <div className="grid grid-cols-4 gap-3">
+        {PERSONA_TABS.map(({ id, label, roles, Icon: Ic, border, activeBg, accentTxt, lightBg }) => {
+          const count = users.filter(u => roles.includes(u.role)).length;
+          const isActive = personaTab === id;
+          return (
+            <button key={id} onClick={() => setPersonaTab(id)}
+              className={`rounded-2xl border-2 p-4 text-left transition-all ${
+                isActive ? `${border} bg-white shadow-sm` : "border-gray-200 bg-gray-50 hover:bg-white hover:border-gray-300"
+              }`}>
+              <div className="flex items-start justify-between mb-2">
+                <div className={`p-2 rounded-xl ${isActive ? `${activeBg} text-white` : `${lightBg}`}`}>
+                  <Ic size={15} className={isActive ? "" : accentTxt} />
+                </div>
+                <span className={`text-2xl font-bold tabular-nums ${isActive ? accentTxt : "text-gray-400"}`}>{count}</span>
+              </div>
+              <div className={`text-sm font-semibold ${isActive ? "text-gray-900" : "text-gray-500"}`}>{label}</div>
+              <div className="text-xs text-gray-400 mt-0.5">{roles.map(r => r.replace("_", " ")).join(" · ")}</div>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Pending approvals banner */}
       {pendingUsers.length > 0 && (
         <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
           <AlertTriangle size={15} className="text-amber-500 flex-shrink-0" />
           <span className="text-sm text-amber-800 font-medium">
-            {pendingUsers.length} user{pendingUsers.length !== 1 ? 's' : ''} waiting for approval
+            {pendingUsers.length} user{pendingUsers.length !== 1 ? "s" : ""} waiting for approval
           </span>
           <button onClick={() => setShowApprovals(p => !p)}
             className="ml-auto text-xs text-amber-700 font-semibold underline whitespace-nowrap">
@@ -30641,31 +30703,34 @@ function SettingsPeopleTab({ ssCtx, auth }) {
         </div>
       )}
 
-      {/* Role pills with counts */}
-      <div className="flex flex-wrap gap-2">
-        {ALL_ROLES.map(role => {
-          const count = users.filter(u => u.role === role).length;
-          const colors = ROLE_COLORS[role] ?? ROLE_COLORS.final_user;
-          const isActive = selectedRole === role;
-          return (
-            <button key={role} onClick={() => { setSelectedRole(role); setSearch(""); setEditId(null); }}
-              className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl border transition-colors ${isActive ? colors.active : colors.pill}`}>
-              {t("role." + role)}
-              <span className={`ml-1.5 ${isActive ? "opacity-80" : "opacity-60"}`}>{count}</span>
-            </button>
-          );
-        })}
-      </div>
+      {/* Role pills within multi-role groups */}
+      {groupRoles.length > 1 && (
+        <div className="flex gap-2">
+          {groupRoles.map(role => {
+            const count = groupUsers.filter(u => u.role === role).length;
+            const colors = ROLE_COLORS[role];
+            const isActive = selectedRole === role;
+            return (
+              <button key={role} onClick={() => { setSelectedRole(role); setDetailUser(null); setSearch(""); setEditId(null); }}
+                className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl border transition-colors ${isActive ? colors.active : colors.pill}`}>
+                {t("role." + role)}
+                <span className={`ml-1.5 ${isActive ? "opacity-80" : "opacity-60"}`}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Two-column layout */}
       <div className="grid grid-cols-5 gap-5 items-start">
 
-        {/* LEFT: User list for selected role */}
+        {/* LEFT: User list */}
         <div className="col-span-3 bg-white rounded-2xl border border-gray-200 overflow-hidden">
           <div className="flex items-center gap-2 p-4 border-b border-gray-100">
             <div className="relative flex-1">
               <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Search ${t("role." + selectedRole)}s…`}
+              <input value={search} onChange={e => setSearch(e.target.value)}
+                placeholder={`Search ${currentPersona?.label ?? "users"}…`}
                 className="pl-8 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <button onClick={() => { setShowAdd(true); setAddForm(p => ({ ...p, role: selectedRole })); setAddError(""); }}
@@ -30673,9 +30738,10 @@ function SettingsPeopleTab({ ssCtx, auth }) {
               <Plus size={13} />{t("sys.add_user")}
             </button>
           </div>
+
           {loading ? <div className="flex justify-center py-8"><Spinner /></div> : displayed.length === 0 ? (
             <div className="py-10 text-center text-sm text-gray-400">
-              No {t("role." + selectedRole)} users{search ? " matching your search" : ""}
+              No {currentPersona?.label.toLowerCase()} users{search ? " matching your search" : ""}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -30683,125 +30749,238 @@ function SettingsPeopleTab({ ssCtx, auth }) {
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
                     <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{t("label.name")}</th>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{t("label.email")}</th>
+                    {groupRoles.length > 1 && <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Role</th>}
                     <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase">{t("label.status")}</th>
                     <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase">{t("sys.col_actions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {displayed.map(u => (
-                    <tr key={u.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                            {u.full_name?.[0] ?? '?'}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="font-medium text-gray-900 truncate text-sm">{u.full_name ?? '—'}</div>
-                            {u.trust_level && <TrustBadge level={u.trust_level} size="xs" />}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-500 max-w-[160px] truncate">{u.email}</td>
-                      <td className="px-4 py-3 text-center">
-                        <button onClick={() => toggleActive(u.id, u.is_active)}
-                          className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors ${
-                            u.is_active !== false
-                              ? "bg-green-100 text-green-700 hover:bg-red-100 hover:text-red-700"
-                              : "bg-red-100 text-red-700 hover:bg-green-100 hover:text-green-700"
-                          }`}>
-                          {u.is_active !== false ? t("label.active") : t("label.inactive")}
-                        </button>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {editId === u.id ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <select value={editRole} onChange={e => setEditRole(e.target.value)}
-                              className="border border-gray-200 rounded px-1.5 py-0.5 text-xs bg-white">
-                              {ALL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                            </select>
-                            <button onClick={() => saveRole(u.id)} disabled={saving}
-                              className="px-1.5 py-0.5 bg-green-600 text-white text-xs rounded">
-                              {saving ? "…" : "✓"}
-                            </button>
-                            <button onClick={() => setEditId(null)}
-                              className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">✕</button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center gap-2">
-                            <button onClick={() => { setEditId(u.id); setEditRole(u.role); }}
-                              title={t("action.edit") + " role"}
-                              className="text-gray-400 hover:text-blue-600 transition-colors">
-                              <Pencil size={13} />
-                            </button>
-                            <button onClick={() => sendPasswordReset(u.email)}
-                              title={t("auth.reset_email_tooltip")}
-                              className={`transition-colors ${resetSent[u.email] ? "text-green-600" : "text-gray-400 hover:text-blue-600"}`}>
-                              {resetSent[u.email] ? <Check size={13} /> : <RefreshCw size={13} />}
-                            </button>
-                          </div>
+                  {displayed.map(u => {
+                    const isSelected = detailUser?.id === u.id;
+                    return (
+                      <tr key={u.id} className={`transition-colors ${isSelected ? "bg-blue-50" : "hover:bg-gray-50"}`}>
+                        <td className="px-4 py-3">
+                          <button onClick={() => drillDown(u)}
+                            className="flex items-center gap-2 text-left group w-full">
+                            <div className="w-7 h-7 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                              {u.full_name?.[0] ?? "?"}
+                            </div>
+                            <div className="min-w-0">
+                              <div className={`font-medium truncate text-sm flex items-center gap-1 ${isNavigable ? "text-blue-700 group-hover:text-blue-900" : "text-gray-900"}`}>
+                                {u.full_name ?? "—"}
+                                {isNavigable && <ExternalLink size={10} className="opacity-0 group-hover:opacity-70 flex-shrink-0 transition-opacity" />}
+                              </div>
+                              <div className="text-xs text-gray-400 truncate">{u.email}</div>
+                            </div>
+                          </button>
+                        </td>
+                        {groupRoles.length > 1 && (
+                          <td className="px-3 py-3">
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${ROLE_COLORS[u.role]?.pill ?? ""}`}>
+                              {u.role.replace("_", " ")}
+                            </span>
+                          </td>
                         )}
-                      </td>
-                    </tr>
-                  ))}
+                        <td className="px-4 py-3 text-center">
+                          <button onClick={() => toggleActive(u.id, u.is_active)}
+                            className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors ${
+                              u.is_active !== false
+                                ? "bg-green-100 text-green-700 hover:bg-red-100 hover:text-red-700"
+                                : "bg-red-100 text-red-700 hover:bg-green-100 hover:text-green-700"
+                            }`}>
+                            {u.is_active !== false ? t("label.active") : t("label.inactive")}
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {editId === u.id ? (
+                            <div className="flex items-center justify-center gap-1">
+                              <select value={editRole} onChange={e => setEditRole(e.target.value)}
+                                className="border border-gray-200 rounded px-1.5 py-0.5 text-xs bg-white">
+                                {ALL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                              </select>
+                              <button onClick={() => saveRole(u.id)} disabled={saving}
+                                className="px-1.5 py-0.5 bg-green-600 text-white text-xs rounded">
+                                {saving ? "…" : "✓"}
+                              </button>
+                              <button onClick={() => setEditId(null)}
+                                className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">✕</button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center gap-2">
+                              <button onClick={() => { setEditId(u.id); setEditRole(u.role); }}
+                                title={t("action.edit") + " role"}
+                                className="text-gray-400 hover:text-blue-600 transition-colors">
+                                <Pencil size={13} />
+                              </button>
+                              <button onClick={() => sendPasswordReset(u.email)}
+                                title={t("auth.reset_email_tooltip")}
+                                className={`transition-colors ${resetSent[u.email] ? "text-green-600" : "text-gray-400 hover:text-blue-600"}`}>
+                                {resetSent[u.email] ? <Check size={13} /> : <RefreshCw size={13} />}
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           )}
         </div>
 
-        {/* RIGHT: Permissions panel for the selected role */}
-        <div className="col-span-2 bg-white rounded-2xl border border-gray-200 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-            <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-1.5">
-              <Shield size={14} className="text-blue-600" />Permissions
-            </h3>
-            {selectedRole !== 'admin' && (
-              <button onClick={savePermissions} disabled={matrixSaving}
-                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50 transition-colors">
-                {matrixSaving ? "Saving…" : "Save"}
-              </button>
-            )}
-          </div>
-          {selectedRole === 'admin' ? (
-            <div className="p-4">
-              <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-xs text-red-700">
-                Admin has unrestricted access to all capabilities and cannot be configured.
+        {/* RIGHT: User detail panel or permissions */}
+        <div className="col-span-2 space-y-4">
+
+          {/* User detail panel */}
+          {detailUser && !isNavigable && (
+            <div className="bg-white rounded-2xl border border-blue-200 overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-1.5">
+                  <User size={14} className="text-blue-600" />Profile
+                </h3>
+                <button onClick={() => setDetailUser(null)} className="text-gray-400 hover:text-gray-600">
+                  <X size={15} />
+                </button>
               </div>
-              <div className="mt-3 space-y-1">
-                {CAPS.map(cap => (
-                  <div key={cap} className="flex items-center justify-between py-1.5 px-2 rounded-lg text-xs">
-                    <span className="text-gray-700">{t("roles.cap." + cap)}</span>
-                    <span className="w-4 h-4 rounded-full bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0">
-                      <Check size={10} />
-                    </span>
+              <div className="p-4 space-y-4">
+                {/* Avatar + name */}
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center text-lg font-bold flex-shrink-0">
+                    {detailUser.full_name?.[0] ?? "?"}
                   </div>
-                ))}
-              </div>
-            </div>
-          ) : !matrix ? (
-            <div className="flex justify-center py-8"><Spinner /></div>
-          ) : (
-            <div className="p-2">
-              <div className="space-y-0.5 max-h-[460px] overflow-y-auto">
-                {CAPS.map(cap => (
-                  <label key={cap}
-                    className="flex items-center justify-between py-2 px-2 rounded-lg hover:bg-gray-50 cursor-pointer group">
-                    <span className="text-xs text-gray-700 group-hover:text-gray-900 pr-3">{t("roles.cap." + cap)}</span>
-                    <input type="checkbox"
-                      checked={matrix[cap]?.[selectedRole] ?? false}
-                      onChange={() => togglePermission(cap)}
-                      className="rounded accent-blue-600 w-4 h-4 flex-shrink-0 cursor-pointer" />
-                  </label>
-                ))}
-              </div>
-              {matrixToast && (
-                <div className={`mt-3 px-3 py-2 rounded-lg text-xs ${matrixToast.startsWith("Error") ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
-                  {matrixToast}
+                  <div>
+                    <div className="font-semibold text-gray-900 text-sm">{detailUser.full_name ?? "—"}</div>
+                    <div className="text-xs text-gray-500">{detailUser.email}</div>
+                  </div>
                 </div>
-              )}
+
+                {/* Badges */}
+                <div className="flex flex-wrap gap-2">
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${ROLE_COLORS[detailUser.role]?.pill ?? ""}`}>
+                    {detailUser.role?.replace("_", " ")}
+                  </span>
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                    detailUser.is_active !== false ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                  }`}>
+                    {detailUser.is_active !== false ? "Active" : "Inactive"}
+                  </span>
+                  {detailUser.verification_status && (
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                      detailUser.verification_status === "approved" ? "bg-emerald-100 text-emerald-700"
+                      : detailUser.verification_status === "pending" ? "bg-amber-100 text-amber-700"
+                      : "bg-gray-100 text-gray-600"
+                    }`}>
+                      {detailUser.verification_status}
+                    </span>
+                  )}
+                </div>
+
+                {/* Join date */}
+                {detailUser.created_at && (
+                  <div className="text-xs text-gray-500">
+                    Joined {new Date(detailUser.created_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+                  </div>
+                )}
+
+                {/* Role change */}
+                {detailEditOpen ? (
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-gray-700">Change role</label>
+                    <select value={detailEditRole} onChange={e => setDetailEditRole(e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs bg-white">
+                      {ALL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                    <div className="flex gap-2">
+                      <button onClick={() => saveRole(detailUser.id, detailEditRole)} disabled={saving}
+                        className="flex-1 px-2 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg disabled:opacity-50">
+                        {saving ? "Saving…" : "Save role"}
+                      </button>
+                      <button onClick={() => setDetailEditOpen(false)}
+                        className="px-2 py-1.5 bg-gray-100 text-gray-600 text-xs rounded-lg">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <button onClick={() => { setDetailEditOpen(true); setDetailEditRole(detailUser.role); }}
+                      className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 border border-gray-200 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors">
+                      <Pencil size={11} />Change role
+                    </button>
+                    <button onClick={() => sendPasswordReset(detailUser.email)}
+                      className={`flex items-center justify-center gap-1 px-3 py-1.5 border text-xs font-medium rounded-lg transition-colors ${
+                        resetSent[detailUser.email] ? "border-green-200 bg-green-50 text-green-700" : "border-gray-200 text-gray-700 hover:bg-gray-50"
+                      }`}>
+                      {resetSent[detailUser.email] ? <><Check size={11} />Sent</> : <><RefreshCw size={11} />Reset pwd</>}
+                    </button>
+                  </div>
+                )}
+
+                {/* Toggle active */}
+                <button onClick={() => toggleActive(detailUser.id, detailUser.is_active)}
+                  className={`w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    detailUser.is_active !== false
+                      ? "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
+                      : "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
+                  }`}>
+                  {detailUser.is_active !== false ? "Deactivate user" : "Activate user"}
+                </button>
+              </div>
             </div>
           )}
+
+          {/* Permissions panel */}
+          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+              <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-1.5">
+                <Shield size={14} className="text-blue-600" />Permissions — {t("role." + selectedRole)}
+              </h3>
+              {selectedRole !== "admin" && (
+                <button onClick={savePermissions} disabled={matrixSaving}
+                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50 transition-colors">
+                  {matrixSaving ? "Saving…" : "Save"}
+                </button>
+              )}
+            </div>
+            {selectedRole === "admin" ? (
+              <div className="p-4">
+                <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-xs text-red-700">
+                  Admin has unrestricted access to all capabilities and cannot be configured.
+                </div>
+                <div className="mt-3 space-y-1">
+                  {CAPS.map(cap => (
+                    <div key={cap} className="flex items-center justify-between py-1.5 px-2 rounded-lg text-xs">
+                      <span className="text-gray-700">{t("roles.cap." + cap)}</span>
+                      <span className="w-4 h-4 rounded-full bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0">
+                        <Check size={10} />
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : !matrix ? (
+              <div className="flex justify-center py-8"><Spinner /></div>
+            ) : (
+              <div className="p-2">
+                <div className="space-y-0.5 max-h-[340px] overflow-y-auto">
+                  {CAPS.map(cap => (
+                    <label key={cap}
+                      className="flex items-center justify-between py-2 px-2 rounded-lg hover:bg-gray-50 cursor-pointer group">
+                      <span className="text-xs text-gray-700 group-hover:text-gray-900 pr-3">{t("roles.cap." + cap)}</span>
+                      <input type="checkbox"
+                        checked={matrix[cap]?.[selectedRole] ?? false}
+                        onChange={() => togglePermission(cap)}
+                        className="rounded accent-blue-600 w-4 h-4 flex-shrink-0 cursor-pointer" />
+                    </label>
+                  ))}
+                </div>
+                {matrixToast && (
+                  <div className={`mt-3 px-3 py-2 rounded-lg text-xs ${matrixToast.startsWith("Error") ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
+                    {matrixToast}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -30898,7 +31077,7 @@ function SettingsPlatformCombinedTab({ ssCtx }) {
   );
 }
 
-function SystemSettingsView({ auth }) {
+function SystemSettingsView({ auth, onNavigate }) {
   const { t } = useT();
   const [activeTab, setActiveTab] = useState("people");
   const ssCtx = useSystemSettings();
@@ -30931,7 +31110,7 @@ function SystemSettingsView({ auth }) {
         ))}
       </div>
 
-      {activeTab === "people"     && <SettingsPeopleTab ssCtx={ssCtx} auth={auth} />}
+      {activeTab === "people"     && <SettingsPeopleTab ssCtx={ssCtx} auth={auth} onNavigate={onNavigate} />}
       {activeTab === "workflow"   && <SettingsWorkflowTab auth={auth} ssCtx={ssCtx} />}
       {activeTab === "catalog"    && <SettingsCatalogTab ssCtx={ssCtx} />}
       {activeTab === "generation" && <SettingsGenerationTab ssCtx={ssCtx} />}
@@ -31262,7 +31441,7 @@ export default function App() {
       case "team-members":   return <ClientTeamView auth={auth} />;
       case "client-profile": return auth.isClient ? <ClientProfileView auth={auth} /> : <Dashboard auth={auth} />;
       case "lifecycle":      return (auth.isAdmin || auth.isManager) ? <LifecycleSettingsView auth={auth} /> : <Dashboard auth={auth} />;
-      case "settings":       return (auth.isAdmin || auth.isManager) ? <SystemSettingsView auth={auth} /> : <Dashboard auth={auth} />;
+      case "settings":       return (auth.isAdmin || auth.isManager) ? <SystemSettingsView auth={auth} onNavigate={({ view, userId }) => { setPendingUserId(userId ?? null); setActiveView(view); }} /> : <Dashboard auth={auth} />;
       case "audit_log":      return (auth.isAdmin || auth.isManager)
         ? <AuditLogDashboard onNavigate={({ view, caseId, projectId, userId }) => {
             setPendingCaseId(caseId ?? null);
