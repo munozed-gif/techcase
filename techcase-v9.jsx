@@ -1584,11 +1584,13 @@ const TRANSLATIONS = {
     "lc.tab_applicants":    "Applicants",
     "lc.tab_lifecycle":     "Lifecycle",
     "lc.tab_spec":          "Spec",
-    "lc.rule_edit":         "Edit case",
-    "lc.rule_time":         "Log time",
-    "lc.rule_activities":   "Activities",
-    "lc.rule_comments":     "Comments",
-    "lc.rule_docs":         "Docs upload",
+    "lc.rule_edit":                    "Edit case",
+    "lc.rule_time":                    "Log time",
+    "lc.rule_activities":              "Activities",
+    "lc.rule_comments":                "Comments",
+    "lc.rule_docs":                    "Docs upload",
+    "lc.rule_act_phase":               "Edit activity phase",
+    "lc.rule_act_predecessors":        "Edit activity predecessors",
     // CreateProjectWizard
     "proj.edit_title":       "Edit Project",
     "proj.new_title":        "New Project",
@@ -2829,11 +2831,13 @@ const TRANSLATIONS = {
     "lc.tab_applicants":    "Candidatos",
     "lc.tab_lifecycle":     "Ciclo de Vida",
     "lc.tab_spec":          "Spec",
-    "lc.rule_edit":         "Editar caso",
-    "lc.rule_time":         "Registrar tiempo",
-    "lc.rule_activities":   "Actividades",
-    "lc.rule_comments":     "Comentarios",
-    "lc.rule_docs":         "Subir docs",
+    "lc.rule_edit":                    "Editar caso",
+    "lc.rule_time":                    "Registrar tiempo",
+    "lc.rule_activities":              "Actividades",
+    "lc.rule_comments":                "Comentarios",
+    "lc.rule_docs":                    "Subir docs",
+    "lc.rule_act_phase":               "Editar fase de actividad",
+    "lc.rule_act_predecessors":        "Editar predecesores de actividad",
     // CreateProjectWizard
     "proj.edit_title":       "Editar Proyecto",
     "proj.new_title":        "Nuevo Proyecto",
@@ -5195,7 +5199,9 @@ function useCaseActivities(caseId, refreshKey = 0) {
 function getStageRules(stage, userAuth) {
   const open = {
     editable: true, can_log_time: true, can_add_activities: true,
-    can_comment: true, can_upload_docs: true, visible_tabs: null,
+    can_comment: true, can_upload_docs: true,
+    can_edit_activity_phase: true, can_edit_activity_predecessors: true,
+    visible_tabs: null,
   };
   if (!stage?.rules) return open;
   const r = stage.rules;
@@ -5209,12 +5215,14 @@ function getStageRules(stage, userAuth) {
   });
   if (isBypassed) return open;
   return {
-    editable:           r.editable           ?? true,
-    can_log_time:       r.can_log_time       ?? true,
-    can_add_activities: r.can_add_activities ?? true,
-    can_comment:        r.can_comment        ?? true,
-    can_upload_docs:    r.can_upload_docs    ?? true,
-    visible_tabs:       r.visible_tabs       ?? null,
+    editable:                    r.editable                    ?? true,
+    can_log_time:                r.can_log_time                ?? true,
+    can_add_activities:          r.can_add_activities          ?? true,
+    can_comment:                 r.can_comment                 ?? true,
+    can_upload_docs:             r.can_upload_docs             ?? true,
+    can_edit_activity_phase:     r.can_edit_activity_phase     ?? true,
+    can_edit_activity_predecessors: r.can_edit_activity_predecessors ?? true,
+    visible_tabs:                r.visible_tabs                ?? null,
   };
 }
 
@@ -20278,8 +20286,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                           onChange={e => setActForm(p => ({ ...p, detail: e.target.value }))}
                           placeholder={t("cd.ph_task_detail")} />
                       </div>
-                      {/* Phase — hidden if user lacks edit_activity_phase permission */}
-                      {perms.can('edit_activity_phase') && (
+                      {/* Phase — hidden if user lacks role permission or stage disables it */}
+                      {perms.can('edit_activity_phase') && stageRules.can_edit_activity_phase && (
                         <div>
                           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("case.phase_label")}</label>
                           <select value={actForm.phase}
@@ -20292,8 +20300,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                           </select>
                         </div>
                       )}
-                      {/* Predecessors — hidden if user lacks edit_activity_predecessors permission */}
-                      {perms.can('edit_activity_predecessors') && activities.length > 0 && (
+                      {/* Predecessors — hidden if user lacks role permission or stage disables it */}
+                      {perms.can('edit_activity_predecessors') && stageRules.can_edit_activity_predecessors && activities.length > 0 && (
                         <div>
                           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("case.predecessors")}</label>
                           <div className="space-y-1 max-h-28 overflow-y-auto border border-gray-200 rounded-xl p-2 bg-white">
@@ -24055,11 +24063,13 @@ function LifecycleSettingsView({ auth }) {
   ];
 
   const ACTION_RULES = [
-    { key: "editable",           label: t("lc.rule_edit") },
-    { key: "can_log_time",       label: t("lc.rule_time") },
-    { key: "can_add_activities", label: t("lc.rule_activities") },
-    { key: "can_comment",        label: t("lc.rule_comments") },
-    { key: "can_upload_docs",    label: t("lc.rule_docs") },
+    { key: "editable",                       label: t("lc.rule_edit") },
+    { key: "can_log_time",                   label: t("lc.rule_time") },
+    { key: "can_add_activities",             label: t("lc.rule_activities") },
+    { key: "can_comment",                    label: t("lc.rule_comments") },
+    { key: "can_upload_docs",                label: t("lc.rule_docs") },
+    { key: "can_edit_activity_phase",        label: t("lc.rule_act_phase") },
+    { key: "can_edit_activity_predecessors", label: t("lc.rule_act_predecessors") },
   ];
 
   return (
