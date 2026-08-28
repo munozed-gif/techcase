@@ -13920,6 +13920,40 @@ function buildGenSuffix(genProfile) {
   return instr ? `\n\nADDITIONAL INSTRUCTIONS:\n${instr}` : '';
 }
 
+async function htmlStringToPdfBlob(htmlString) {
+  if (!window.html2pdf) {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+      s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+  const parsed = new DOMParser().parseFromString(htmlString, 'text/html');
+  const el = document.createElement('div');
+  parsed.querySelectorAll('style').forEach(s => el.appendChild(s.cloneNode(true)));
+  const body = document.createElement('div');
+  body.innerHTML = parsed.body.innerHTML;
+  body.querySelectorAll('.print-btn').forEach(b => { b.style.display = 'none'; });
+  el.appendChild(body);
+  el.style.cssText = 'position:absolute;left:-9999px;top:0;width:860px;background:#fff;';
+  document.body.appendChild(el);
+  await new Promise(r => setTimeout(r, 1000));
+  try {
+    return await window.html2pdf()
+      .set({
+        margin: 0,
+        html2canvas: { scale: 1.5, useCORS: true, allowTaint: true, logging: false, scrollX: 0, scrollY: 0 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      })
+      .from(el)
+      .toPdf()
+      .output('blob');
+  } finally {
+    document.body.removeChild(el);
+  }
+}
+
 function GenerationProfileModal({ onConfirm, onClose, title }) {
   const { t } = useT();
   const { settings } = useSystemSettings();
@@ -14709,41 +14743,6 @@ ${mdToHtml(markdownContent)}
     const win = window.open(url, '_blank');
     if (win) setTimeout(() => URL.revokeObjectURL(url), 60000);
     else { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.click(); }
-  }
-
-  async function htmlStringToPdfBlob(htmlString) {
-    if (!window.html2pdf) {
-      await new Promise((resolve, reject) => {
-        const s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-        s.onload = resolve; s.onerror = reject;
-        document.head.appendChild(s);
-      });
-    }
-    const parsed = new DOMParser().parseFromString(htmlString, 'text/html');
-    const el = document.createElement('div');
-    parsed.querySelectorAll('style').forEach(s => el.appendChild(s.cloneNode(true)));
-    const body = document.createElement('div');
-    body.innerHTML = parsed.body.innerHTML;
-    body.querySelectorAll('.print-btn').forEach(b => { b.style.display = 'none'; });
-    el.appendChild(body);
-    // position:absolute (not fixed) so html2canvas can capture the element
-    el.style.cssText = 'position:absolute;left:-9999px;top:0;width:860px;background:#fff;';
-    document.body.appendChild(el);
-    await new Promise(r => setTimeout(r, 1000));
-    try {
-      return await window.html2pdf()
-        .set({
-          margin: 0,
-          html2canvas: { scale: 1.5, useCORS: true, allowTaint: true, logging: false, scrollX: 0, scrollY: 0 },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        })
-        .from(el)
-        .toPdf()
-        .output('blob');
-    } finally {
-      document.body.removeChild(el);
-    }
   }
 
   async function saveSpecAsDocument(markdown, filePrefix, docNote) {
