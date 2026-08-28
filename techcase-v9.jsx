@@ -33,7 +33,7 @@ import {
   MapPin, UsersRound, GraduationCap, MessageSquare, X,
   Play, Pause, PauseCircle, RotateCcw, Archive, Search,
   BadgeCheck, XCircle,
-  Wand2, Download, Sparkles,
+  Wand2, Download, Sparkles, Loader2,
   ListChecks, ChevronDown, ChevronRight, AlertTriangle, CircleSlash,
   GripVertical, Pencil, Timer, Link2, ExternalLink, Upload, Code2, Lock,
   Plus, Tag, RefreshCw, Shield,
@@ -11516,15 +11516,17 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
   const { settings: catalogSettings } = useSystemSettings();
   const SKILL_DEFAULTS = ["ABAP Development", "SAP Basis Administration", "SAP FICO Configuration", "SAP MM Configuration", "SAP SD Configuration", "SAP HCM", "SAP Fiori / UI5", "SAP BW / Analytics", "SAP Integration (CPI/PI)", "S/4HANA Migration", "SAP GRC", "SAP PM / QM", "HANA DB Administration", "SAP Security / Roles", "SAP PS (Project Systems)"];
   const catalogSkills = catalogSettings["catalog_skills"] ?? SKILL_DEFAULTS;
-  const PROJECT_STEPS = [
+  const isEdit = !!initialData;
+  const ALL_PROJECT_STEPS = [
     { id: "basics",       label: t("proj.rev_basics"),      Icon: FileText,          desc: t("proj.step_basics_desc") },
     { id: "scope",        label: t("proj.rev_scope"),        Icon: DollarSign,        desc: t("proj.step_scope_desc") },
     { id: "objectives",   label: t("proj.rev_objectives"),   Icon: Target,            desc: t("proj.step_objectives_desc") },
     { id: "team",         label: t("proj.rev_team"),         Icon: Users,             desc: t("proj.step_team_desc") },
     { id: "requirements", label: t("proj.rev_requirements"), Icon: SlidersHorizontal, desc: t("proj.step_reqs_desc") },
+    { id: "import_plan",  label: "Import Plan",              Icon: Upload,            desc: "Auto-create cases from a document" },
     { id: "review",       label: t("apply.step3_label"),     Icon: CheckCircle2,      desc: t("proj.step_review_desc") },
   ];
-  const isEdit = !!initialData;
+  const PROJECT_STEPS = isEdit ? ALL_PROJECT_STEPS.filter(s => s.id !== 'import_plan') : ALL_PROJECT_STEPS;
   const [step, setSt] = useState(0);
   const [creating, setCreating] = useState(false);
 
@@ -11539,8 +11541,15 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
   const [team, setTeam] = useState({ stakeholder_name: initialData?.stakeholder_name ?? "", stakeholder_email: initialData?.stakeholder_email ?? "", billing_contact_name: initialData?.billing_contact_name ?? "", billing_contact_email: initialData?.billing_contact_email ?? "", expected_consultants: initialData?.expected_consultants ?? "" });
   // Step 4: Requirements
   const [reqs, setReqs] = useState({ skills_required: initialData?.skills_required ?? [], work_mode: initialData?.work_mode ?? "remote", compliance_notes: initialData?.compliance_notes ?? "", priority: initialData?.priority ?? "medium" });
+  // Step 5: Import Plan
+  const [planFile, setPlanFile]             = useState(null);
+  const [extracting, setExtracting]         = useState(false);
+  const [extractedCases, setExtractedCases] = useState(null);
+  const [extractError, setExtractError]     = useState(null);
+  const [caseMode, setCaseMode]             = useState("express");
 
   const isLast = step === PROJECT_STEPS.length - 1;
+  const stepId = PROJECT_STEPS[step]?.id ?? '';
 
   async function handleCreate() {
     setCreating(true);
@@ -11566,11 +11575,79 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
       if (isEdit) {
         await onSave(payload);
       } else {
-        await createProject({ ...payload, created_by: auth.user?.id });
+        const newProject = await createProject({ ...payload, created_by: auth.user?.id });
+        if (newProject && extractedCases && extractedCases.length > 0) {
+          const clientId = auth.isClient ? auth.user?.id : (scopeData.client_id || null);
+          for (const c of extractedCases) {
+            await supabase.from('cases').insert({
+              title:           c.title,
+              description:     c.description || null,
+              priority:        c.priority || 'medium',
+              area_sap:        c.area_sap || null,
+              skills_required: c.skills?.length ? c.skills : null,
+              estimated_hours: c.est_hours ? Number(c.est_hours) : null,
+              project_id:      newProject.id,
+              client_id:       clientId,
+              status:          'open',
+              case_type:       caseMode,
+              created_by:      auth.user?.id,
+            });
+          }
+        }
       }
       onComplete();
     } catch (e) { alert(e.message); }
     setCreating(false);
+  }
+
+  async function handleExtract() {
+    setExtracting(true);
+    setExtractError(null);
+    try {
+      const isPdf = planFile.name.toLowerCase().endsWith('.pdf');
+      const systemPrompt = `You are an expert SAP project analyst. Extract all tasks or cases from the provided project plan document.
+Return ONLY a valid JSON array with no markdown, no explanation, no code fences. Use this structure for each item:
+{"title":"...","description":"...","priority":"medium","area_sap":"","skills":[],"est_hours":null}
+Priority must be one of: low, medium, high, urgent. est_hours is a number or null. If no tasks found, return [].`;
+      let messages;
+      if (isPdf) {
+        const buf = await planFile.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        const b64 = btoa(binary);
+        messages = [{
+          role: "user",
+          content: [
+            { type: "document", source: { type: "base64", media_type: "application/pdf", data: b64 } },
+            { type: "text", text: "Extract all tasks/cases from this project plan. Return JSON array only." }
+          ]
+        }];
+      } else {
+        const text = await planFile.text();
+        messages = [{ role: "user", content: `Project plan document:\n\n${text.slice(0, 30000)}\n\nExtract all tasks/cases. Return JSON array only.` }];
+      }
+      const raw = await callClaude({ system: systemPrompt, messages, max_tokens: 4096 });
+      const jsonMatch = raw.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) throw new Error("No structured data found. Try a text or PDF file with a clear task list.");
+      const cases = JSON.parse(jsonMatch[0]);
+      if (!Array.isArray(cases) || cases.length === 0) throw new Error("No cases found in the document.");
+      setExtractedCases(cases.map(c => ({
+        title:       String(c.title ?? "Untitled case"),
+        description: String(c.description ?? ""),
+        priority:    ['low','medium','high','urgent'].includes(c.priority) ? c.priority : 'medium',
+        area_sap:    c.area_sap ?? "",
+        skills:      Array.isArray(c.skills) ? c.skills : [],
+        est_hours:   c.est_hours ? Number(c.est_hours) : null,
+      })));
+    } catch (e) {
+      setExtractError(e.message);
+    }
+    setExtracting(false);
+  }
+
+  function updateExtractedCase(idx, field, value) {
+    setExtractedCases(p => p.map((c, i) => i === idx ? { ...c, [field]: value } : c));
   }
 
   function addDeliverable() {
@@ -11832,8 +11909,113 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
           </>
         )}
 
-        {/* ── Step 5: Review ── */}
-        {step === 5 && (
+        {/* ── Step 5: Import Plan ── */}
+        {stepId === 'import_plan' && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Import Project Plan</h2>
+            <p className="text-sm text-gray-500 mb-5">Upload a document with your project plan. AI will extract the cases and create them automatically when the project is saved.</p>
+
+            {!extractedCases && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Plan document</label>
+                <input type="file" accept=".txt,.md,.csv,.json,.pdf"
+                  onChange={e => { setPlanFile(e.target.files[0] ?? null); setExtractError(null); }}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 cursor-pointer" />
+                {planFile && (
+                  <p className="mt-2 text-xs text-gray-500">{planFile.name} ({Math.round(planFile.size / 1024)} KB)</p>
+                )}
+                {extractError && (
+                  <p className="mt-2 text-xs text-red-600">{extractError}</p>
+                )}
+                {planFile && (
+                  <button onClick={handleExtract} disabled={extracting}
+                    className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors">
+                    {extracting ? (
+                      <><Loader2 size={14} className="animate-spin" />Extracting cases…</>
+                    ) : (
+                      <><Sparkles size={14} />Extract with AI</>
+                    )}
+                  </button>
+                )}
+                <p className="mt-3 text-xs text-gray-400">Supported formats: .txt, .md, .csv, .json, .pdf — You can skip this step if you don't have a plan yet.</p>
+              </div>
+            )}
+
+            {extractedCases && (
+              <>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-semibold text-gray-700">{extractedCases.length} case{extractedCases.length !== 1 ? 's' : ''} found</p>
+                  <button onClick={() => { setExtractedCases(null); setPlanFile(null); setExtractError(null); }}
+                    className="text-xs text-gray-400 hover:text-gray-600 underline">Clear &amp; re-upload</button>
+                </div>
+
+                <div className="overflow-x-auto rounded-xl border border-gray-100 mb-4">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 text-left">
+                        <th className="px-3 py-2 text-xs font-semibold text-gray-500">Title</th>
+                        <th className="px-3 py-2 text-xs font-semibold text-gray-500 w-28">Priority</th>
+                        <th className="px-3 py-2 text-xs font-semibold text-gray-500 w-24">Est. Hours</th>
+                        <th className="px-3 py-2 text-xs font-semibold text-gray-500 w-32">SAP Area</th>
+                        <th className="w-8"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {extractedCases.map((c, idx) => (
+                        <tr key={idx} className="hover:bg-gray-50">
+                          <td className="px-3 py-1.5">
+                            <input value={c.title}
+                              onChange={e => updateExtractedCase(idx, 'title', e.target.value)}
+                              className="w-full border-0 bg-transparent text-gray-900 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5" />
+                          </td>
+                          <td className="px-3 py-1.5">
+                            <select value={c.priority}
+                              onChange={e => updateExtractedCase(idx, 'priority', e.target.value)}
+                              className="border border-gray-200 bg-white text-gray-700 text-xs rounded-lg px-1.5 py-1 focus:outline-none">
+                              {['low','medium','high','urgent'].map(p => <option key={p} value={p}>{p}</option>)}
+                            </select>
+                          </td>
+                          <td className="px-3 py-1.5">
+                            <input type="number" value={c.est_hours ?? ''}
+                              onChange={e => updateExtractedCase(idx, 'est_hours', e.target.value ? Number(e.target.value) : null)}
+                              className="w-20 border border-gray-200 bg-white text-gray-700 text-sm rounded-lg px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400" />
+                          </td>
+                          <td className="px-3 py-1.5">
+                            <input value={c.area_sap ?? ''}
+                              onChange={e => updateExtractedCase(idx, 'area_sap', e.target.value)}
+                              className="w-full border border-gray-200 bg-white text-gray-700 text-xs rounded-lg px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400" />
+                          </td>
+                          <td className="px-3 py-1.5 text-center">
+                            <button onClick={() => setExtractedCases(p => p.filter((_, i) => i !== idx))}
+                              className="text-gray-300 hover:text-red-500 transition-colors">
+                              <X size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="p-4 bg-violet-50 rounded-xl border border-violet-100">
+                  <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide mb-3">Case settings</p>
+                  <div className="flex items-center gap-3">
+                    <label className="text-sm text-gray-700 font-medium">Case type:</label>
+                    <select value={caseMode} onChange={e => setCaseMode(e.target.value)}
+                      className="text-sm border border-violet-200 rounded-xl px-2 py-1.5 bg-white focus:outline-none">
+                      <option value="express">Express (recommended — fast flow)</option>
+                      <option value="standard">Standard</option>
+                    </select>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">Cases will be created as "open" and linked to this project automatically.</p>
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {/* ── Step 6: Review ── */}
+        {stepId === 'review' && (
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("proj.step5_h2")}</h2>
             <p className="text-sm text-gray-500 mb-5">{t("proj.step5_desc")}</p>
@@ -11928,6 +12110,30 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
                   {reqs.compliance_notes && <p className="text-xs text-gray-500">{reqs.compliance_notes}</p>}
                 </div>
               )}
+
+              {/* Imported cases card */}
+              {extractedCases && extractedCases.length > 0 && (
+                <div className="border border-violet-100 rounded-xl p-4 bg-violet-50">
+                  <p className="text-xs font-semibold text-violet-600 uppercase tracking-wide mb-3">
+                    <Upload size={12} className="inline mr-1.5" />Imported cases — {extractedCases.length} will be created
+                  </p>
+                  <div className="space-y-1">
+                    {extractedCases.slice(0, 5).map((c, i) => (
+                      <div key={i} className="flex items-center gap-2 text-sm">
+                        <span className={`px-1.5 py-0.5 text-xs font-semibold rounded ${
+                          c.priority === 'high' || c.priority === 'urgent' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
+                        }`}>{c.priority}</span>
+                        <span className="text-gray-800 truncate">{c.title}</span>
+                        {c.est_hours && <span className="text-gray-400 text-xs ml-auto shrink-0">{c.est_hours}h</span>}
+                      </div>
+                    ))}
+                    {extractedCases.length > 5 && (
+                      <p className="text-xs text-gray-400 mt-1">+ {extractedCases.length - 5} more cases…</p>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">Type: <strong>{caseMode}</strong></p>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -11940,22 +12146,22 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
           {step === 0 ? <><X size={13} className="mr-1 inline" />{t("action.cancel")}</> : `← ${t("action.back")}`}
         </button>
         <div className="flex items-center gap-3">
-          {(step === 2 || step === 3) && (
+          {(stepId === 'objectives' || stepId === 'team' || stepId === 'import_plan') && (
             <button onClick={() => setSt(s => s + 1)}
               className="px-4 py-2.5 text-sm text-gray-400 hover:text-gray-600 border border-gray-200 rounded-xl">
-              {t("action.skip")}
+              {stepId === 'import_plan' ? "Skip for now" : t("action.skip")}
             </button>
           )}
           {!isLast ? (
             <button onClick={() => setSt(s => s + 1)}
-              disabled={step === 0 && !basics.name.trim()}
+              disabled={stepId === 'basics' && !basics.name.trim()}
               className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
-              {t("action.continue")}
+              {stepId === 'import_plan' && extractedCases?.length ? `Continue with ${extractedCases.length} case${extractedCases.length !== 1 ? 's' : ''}` : t("action.continue")}
             </button>
           ) : (
             <button onClick={handleCreate} disabled={creating}
               className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
-              {creating ? (isEdit ? t("state.saving") : t("state.creating")) : (isEdit ? <><Check size={13} className="mr-1 inline" />{t("action.save_changes")}</> : <><Check size={13} className="mr-1 inline" />{t("proj.create")}</>)}
+              {creating ? (isEdit ? t("state.saving") : (extractedCases?.length ? `Creating project + ${extractedCases.length} cases…` : t("state.creating"))) : (isEdit ? <><Check size={13} className="mr-1 inline" />{t("action.save_changes")}</> : <><Check size={13} className="mr-1 inline" />{t("proj.create")}</>)}
             </button>
           )}
         </div>
