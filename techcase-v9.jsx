@@ -10072,7 +10072,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   const { templates: lcTemplates } = useLifecycleTemplates();
 
   useEffect(() => {
-    let q = supabase.from("projects").select("id, name, status, area_sap, case_lifecycle").eq("status", "active").order("name");
+    let q = supabase.from("projects").select("id, name, status, area_sap, case_lifecycle, client_id, client:client_id(full_name, client_profiles(company_name))").eq("status", "active").order("name");
     if (auth.isClient) q = q.eq("client_id", auth.user?.id);
     q.then(({ data }) => setWizardProjects(data ?? []));
   }, [auth.user?.id]);
@@ -10411,7 +10411,11 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               <div className="grid grid-cols-2 gap-3">
                 {wizardProjects.map(p => (
                   <button key={p.id}
-                    onClick={() => setSelectedProjectId(p.id)}
+                    onClick={() => {
+                      setSelectedProjectId(p.id);
+                      if (p.client_id) setScope(prev => ({ ...prev, client_id: p.client_id }));
+                      else setScope(prev => ({ ...prev, client_id: auth.isClient ? auth.user?.id : "" }));
+                    }}
                     className={`text-left border-2 rounded-xl p-4 transition-colors ${
                       selectedProjectId === p.id
                         ? "border-blue-500 bg-blue-50"
@@ -10421,10 +10425,15 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                     {p.area_sap && (
                       <span className="mt-1 inline-block px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs">{p.area_sap}</span>
                     )}
+                    {p.client && (
+                      <div className="text-xs text-gray-400 mt-1">
+                        {p.client.client_profiles?.company_name || p.client.full_name}
+                      </div>
+                    )}
                   </button>
                 ))}
                 <button
-                  onClick={() => setSelectedProjectId(null)}
+                  onClick={() => { setSelectedProjectId(null); setScope(prev => ({ ...prev, client_id: auth.isClient ? auth.user?.id : "" })); }}
                   className={`text-left border-2 rounded-xl p-4 transition-colors ${
                     selectedProjectId === null
                       ? "border-gray-400 bg-gray-100"
@@ -10559,21 +10568,36 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
             <p className="text-sm text-gray-500 mb-5">
               {mode === "express" ? t("case.step2_desc_express") : t("case.step2_desc_adv")}
             </p>
-            {(auth.isAdmin || auth.isManager) && (
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.client")}</label>
-                <select value={scope.client_id}
-                  onChange={e => setScope(p => ({ ...p, client_id: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">{t("label.select_client")}</option>
-                  {clients.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.client_profiles?.company_name || c.full_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+            {(auth.isAdmin || auth.isManager) && (() => {
+              const selectedProject = wizardProjects.find(p => p.id === selectedProjectId);
+              const projectLockedClient = selectedProject?.client_id
+                ? (selectedProject.client?.client_profiles?.company_name || selectedProject.client?.full_name)
+                : null;
+              return projectLockedClient ? (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.client")}</label>
+                  <div className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-xl bg-gray-50 text-sm text-gray-700">
+                    <Lock className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                    <span className="font-medium">{projectLockedClient}</span>
+                    <span className="text-xs text-gray-400 ml-1">— inherited from project</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.client")}</label>
+                  <select value={scope.client_id}
+                    onChange={e => setScope(p => ({ ...p, client_id: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">{t("label.select_client")}</option>
+                    {clients.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.client_profiles?.company_name || c.full_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              );
+            })()}
             {mode === "express" ? (
               <>
                 <Input label={t("case.skills_label")} value={scope._skills}
