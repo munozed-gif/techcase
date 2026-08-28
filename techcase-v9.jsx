@@ -11513,6 +11513,9 @@ const PROJECT_NEXT_META = {
 
 function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel, clients = [], initialData = null }) {
   const { t } = useT();
+  const { settings: catalogSettings } = useSystemSettings();
+  const SKILL_DEFAULTS = ["ABAP Development", "SAP Basis Administration", "SAP FICO Configuration", "SAP MM Configuration", "SAP SD Configuration", "SAP HCM", "SAP Fiori / UI5", "SAP BW / Analytics", "SAP Integration (CPI/PI)", "S/4HANA Migration", "SAP GRC", "SAP PM / QM", "HANA DB Administration", "SAP Security / Roles", "SAP PS (Project Systems)"];
+  const catalogSkills = catalogSettings["catalog_skills"] ?? SKILL_DEFAULTS;
   const PROJECT_STEPS = [
     { id: "basics",       label: t("proj.rev_basics"),      Icon: FileText,          desc: t("proj.step_basics_desc") },
     { id: "scope",        label: t("proj.rev_scope"),        Icon: DollarSign,        desc: t("proj.step_scope_desc") },
@@ -11536,7 +11539,6 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
   const [team, setTeam] = useState({ stakeholder_name: initialData?.stakeholder_name ?? "", stakeholder_email: initialData?.stakeholder_email ?? "", billing_contact_name: initialData?.billing_contact_name ?? "", billing_contact_email: initialData?.billing_contact_email ?? "", expected_consultants: initialData?.expected_consultants ?? "" });
   // Step 4: Requirements
   const [reqs, setReqs] = useState({ skills_required: initialData?.skills_required ?? [], work_mode: initialData?.work_mode ?? "remote", compliance_notes: initialData?.compliance_notes ?? "", priority: initialData?.priority ?? "medium" });
-  const [skillInput, setSkillInput] = useState("");
 
   const isLast = step === PROJECT_STEPS.length - 1;
 
@@ -11576,13 +11578,6 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
     if (!val) return;
     setObj(p => ({ ...p, deliverables: [...p.deliverables, val] }));
     setDelivInput("");
-  }
-
-  function addSkill() {
-    const val = skillInput.trim();
-    if (!val) return;
-    setReqs(p => ({ ...p, skills_required: [...p.skills_required, val] }));
-    setSkillInput("");
   }
 
   return (
@@ -11797,35 +11792,16 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
             <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("proj.step4_h2")}</h2>
             <p className="text-sm text-gray-500 mb-5">{t("proj.step4_desc")}</p>
 
-            {/* Skills tag input */}
+            {/* Skills multi-select */}
             <div className="mb-5">
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.skills")}</label>
-              <div className="flex gap-2">
-                <input value={skillInput}
-                  onChange={e => setSkillInput(e.target.value)}
-                  onKeyDown={e => {
-                    if ((e.key === "Enter" || e.key === ",") && skillInput.trim()) {
-                      e.preventDefault();
-                      addSkill();
-                    }
-                  }}
-                  placeholder={t("proj.skills_ph")}
-                  className="flex-1 bg-gray-100 border-0 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm" />
-                <button type="button" onClick={addSkill}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold">+ Add</button>
-              </div>
-              {reqs.skills_required.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {reqs.skills_required.map((s, i) => (
-                    <span key={i} className="flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded-lg">
-                      {s}
-                      <button type="button"
-                        onClick={() => setReqs(p => ({ ...p, skills_required: p.skills_required.filter((_, j) => j !== i) }))}
-                        className="text-gray-400 hover:text-gray-700 ml-1">×</button>
-                    </span>
-                  ))}
-                </div>
-              )}
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t("label.skills")}</label>
+              <CatalogMultiSelect
+                options={catalogSkills}
+                selected={reqs.skills_required}
+                onChange={val => setReqs(p => ({ ...p, skills_required: val }))}
+                color="blue"
+                placeholder="Search skills…"
+              />
             </div>
 
             {/* Work Mode cards */}
