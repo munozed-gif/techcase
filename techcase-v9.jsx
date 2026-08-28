@@ -8585,6 +8585,11 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       { id: "my-cases",  Icon: FolderOpen,      labelKey: "nav.my_cases" },
       { id: "kanban",    Icon: LayoutGrid,      labelKey: "nav.kanban" },
     ],
+    headhunter: [
+      { id: "arena",       Icon: Target,            labelKey: "nav.arena" },
+      { id: "consultants", Icon: UserCheck,         labelKey: "nav.consultants" },
+      { id: "profile",     Icon: User,              labelKey: "nav.profile" },
+    ],
   };
 
   const items = navItems[role] ?? [];
@@ -22865,9 +22870,9 @@ function ProfileView({ auth, compact = false }) {
 // ============================================================
 function ConsultantsView({ auth }) {
   const { t } = useT();
-  const [search, setSearch]   = useState("");
-  const [selected, setSelected] = useState(null);
-  const { leaderboard, loading } = useLeaderboard();
+  const [search, setSearch]       = useState("");
+  const [profileView, setProfileView] = useState(null); // consultant id for drawer
+  const { leaderboard, loading }  = useLeaderboard();
 
   const filtered = leaderboard.filter(c =>
     !search || c.user?.full_name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -22880,48 +22885,76 @@ function ConsultantsView({ auth }) {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">{t("nav.consultants")}</h1>
+        <p className="text-gray-500 text-sm mt-1">{filtered.length} consultant{filtered.length !== 1 ? 's' : ''}</p>
       </div>
       <input value={search} onChange={e => setSearch(e.target.value)}
         placeholder={t("consultant.search_ph")}
         className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500" />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map(c => (
-          <div key={c.id} onClick={() => setSelected(c)}
-            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 cursor-pointer hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg">
-                {c.user?.full_name?.[0]}
+        {filtered.map(c => {
+          const winRate = c.totalApps > 0 ? Math.round((c.acceptedCases / c.totalApps) * 100) : 0;
+          return (
+            <div key={c.id} onClick={() => setProfileView(c.id)}
+              className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 cursor-pointer hover:shadow-md hover:border-blue-200 transition-all">
+              {/* Header */}
+              <div className="flex items-start gap-3 mb-3">
+                <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg flex-shrink-0">
+                  {c.user?.full_name?.[0]}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-gray-900 truncate">{c.user?.full_name}</div>
+                  <div className="text-xs text-gray-500 truncate">{c.headline ?? `${c.years_experience ?? 0}y exp`}</div>
+                  {c.avgRating > 0 && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <span className="text-yellow-400 text-xs">{stars(c.avgRating)}</span>
+                      <span className="text-xs text-gray-500 font-semibold">{c.avgRating}</span>
+                      <span className="text-xs text-gray-400">({c.ratingCount})</span>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div>
-                <div className="font-semibold text-gray-900">{c.user?.full_name}</div>
-                <div className="text-xs text-gray-400">{c.headline ?? `${c.years_experience ?? 0}y exp`}</div>
+
+              {/* Badges */}
+              <div className="flex flex-wrap gap-1 mb-3">
+                {c.expertise_level && (
+                  <Badge className="bg-violet-100 text-violet-700">{EXPERTISE_LABEL_KEYS[c.expertise_level] ? t(EXPERTISE_LABEL_KEYS[c.expertise_level]) : cap(c.expertise_level)}</Badge>
+                )}
+                {c.availability_type && (
+                  <Badge className="bg-teal-100 text-teal-700">{AVAIL_LABEL_KEYS[c.availability_type] ? t(AVAIL_LABEL_KEYS[c.availability_type]) : cap(fmt(c.availability_type))}</Badge>
+                )}
+                {c.hourly_rate != null && (
+                  <Badge className="bg-green-100 text-green-700">${c.hourly_rate}/h</Badge>
+                )}
               </div>
-            </div>
-            {c.avgRating > 0 && (
-              <div className="flex items-center gap-1 text-sm mb-3">
-                {stars(c.avgRating)}
-                <span className="text-gray-600 ml-1">{c.avgRating}</span>
-                <span className="text-gray-400">({c.ratingCount})</span>
-              </div>
-            )}
-            <div className="flex flex-wrap gap-1 mb-2">
-              {c.expertise_level && (
-                <Badge className="bg-violet-100 text-violet-700">{EXPERTISE_LABEL_KEYS[c.expertise_level] ? t(EXPERTISE_LABEL_KEYS[c.expertise_level]) : cap(c.expertise_level)}</Badge>
+
+              {/* Win rate bar */}
+              {c.totalApps > 0 && (
+                <div className="mb-3">
+                  <div className="flex items-center justify-between mb-1 text-xs">
+                    <span className="text-gray-400">Win rate</span>
+                    <span className="font-semibold text-gray-700">{winRate}% · {c.acceptedCases} won</span>
+                  </div>
+                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${winRate}%` }} />
+                  </div>
+                </div>
               )}
-              {c.availability_type && (
-                <Badge className="bg-teal-100 text-teal-700">{AVAIL_LABEL_KEYS[c.availability_type] ? t(AVAIL_LABEL_KEYS[c.availability_type]) : cap(fmt(c.availability_type))}</Badge>
+
+              {/* Skills */}
+              {c.skills?.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {c.skills.slice(0, 4).map(s => (
+                    <span key={s} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">{s}</span>
+                  ))}
+                  {c.skills.length > 4 && (
+                    <span className="px-2 py-0.5 bg-gray-50 text-gray-400 rounded text-xs">+{c.skills.length - 4}</span>
+                  )}
+                </div>
               )}
             </div>
-            {c.skills?.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {c.skills.slice(0, 4).map(s => (
-                  <span key={s} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">{s}</span>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
         {filtered.length === 0 && (
           <div className="col-span-full">
             <EmptyState Icon={UserCheck} title={t("consultant.none_found")} subtitle={t("consultant.try_search")} />
@@ -22929,10 +22962,16 @@ function ConsultantsView({ auth }) {
         )}
       </div>
 
-      {/* Consultant Detail Modal */}
-      <Modal open={!!selected} onClose={() => setSelected(null)} title={selected?.user?.full_name ?? ""} wide>
-        {selected && <ConsultantDetailModal consultantId={selected.id} auth={auth} />}
-      </Modal>
+      {/* Consultant profile drawer */}
+      {profileView && (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="flex-1 bg-black/40" onClick={() => setProfileView(null)} />
+          <ConsultantProfilePanel
+            consultantId={profileView}
+            onClose={() => setProfileView(null)}
+          />
+        </div>
+      )}
     </div>
   );
 }
