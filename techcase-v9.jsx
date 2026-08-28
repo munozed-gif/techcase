@@ -30520,23 +30520,395 @@ function SettingsInvoiceTab({ ssCtx }) {
   );
 }
 
+// ── People tab — users + permissions combined ─────────────────
+function SettingsPeopleTab({ ssCtx, auth }) {
+  const { t } = useT();
+  const ALL_ROLES  = ["admin", "manager", "consultant", "client", "key_user", "headhunter", "final_user"];
+  const CAPS       = Object.keys(ROLE_PERMISSIONS_DEFAULTS);
+  const ROLE_COLORS = {
+    admin: { pill: 'bg-red-100 text-red-700 border-red-200',       active: 'bg-red-600 text-white border-red-600' },
+    manager: { pill: 'bg-purple-100 text-purple-700 border-purple-200', active: 'bg-purple-600 text-white border-purple-600' },
+    consultant: { pill: 'bg-blue-100 text-blue-700 border-blue-200',   active: 'bg-blue-600 text-white border-blue-600' },
+    client: { pill: 'bg-green-100 text-green-700 border-green-200',    active: 'bg-green-600 text-white border-green-600' },
+    key_user: { pill: 'bg-amber-100 text-amber-700 border-amber-200',  active: 'bg-amber-500 text-white border-amber-500' },
+    headhunter: { pill: 'bg-pink-100 text-pink-700 border-pink-200',   active: 'bg-pink-600 text-white border-pink-600' },
+    final_user: { pill: 'bg-teal-100 text-teal-700 border-teal-200',   active: 'bg-teal-600 text-white border-teal-600' },
+  };
+
+  const [selectedRole, setSelectedRole] = useState("consultant");
+  const [users, setUsers]               = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [pendingUsers, setPendingUsers] = useState([]);
+  const [showApprovals, setShowApprovals] = useState(false);
+  const [search, setSearch]             = useState("");
+  const [showAdd, setShowAdd]           = useState(false);
+  const [addForm, setAddForm]           = useState({ full_name: "", email: "", role: "consultant", password: "" });
+  const [adding, setAdding]             = useState(false);
+  const [addError, setAddError]         = useState("");
+  const [editId, setEditId]             = useState(null);
+  const [editRole, setEditRole]         = useState("");
+  const [saving, setSaving]             = useState(false);
+  const [resetSent, setResetSent]       = useState({});
+  const [matrix, setMatrix]             = useState(null);
+  const [matrixSaving, setMatrixSaving] = useState(false);
+  const [matrixToast, setMatrixToast]   = useState(null);
+
+  async function loadUsers() {
+    const { data } = await supabase.from("users").select("*").order("created_at", { ascending: false });
+    setUsers(data ?? []);
+    setLoading(false);
+  }
+  async function loadPending() {
+    const { data } = await supabase.from("users")
+      .select("id, full_name, email, role, created_at").eq("verification_status", "pending");
+    setPendingUsers(data ?? []);
+  }
+  useEffect(() => { loadUsers(); loadPending(); }, []);
+  useEffect(() => {
+    if (ssCtx.loading) return;
+    const stored = ssCtx.settings["role_permissions"] ?? {};
+    const merged = {};
+    for (const cap of CAPS) merged[cap] = { ...ROLE_PERMISSIONS_DEFAULTS[cap], ...(stored[cap] ?? {}) };
+    setMatrix(merged);
+  }, [ssCtx.loading, ssCtx.settings]);
+
+  async function toggleActive(uid, isActive) {
+    await supabase.from("users").update({ is_active: !isActive }).eq("id", uid);
+    setUsers(p => p.map(u => u.id === uid ? { ...u, is_active: !isActive } : u));
+  }
+  async function saveRole(uid) {
+    setSaving(true);
+    await supabase.from("users").update({ role: editRole }).eq("id", uid);
+    setUsers(p => p.map(u => u.id === uid ? { ...u, role: editRole } : u));
+    setEditId(null); setSaving(false);
+  }
+  async function sendPasswordReset(email) {
+    await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+    setResetSent(p => ({ ...p, [email]: true }));
+    setTimeout(() => setResetSent(p => { const n = { ...p }; delete n[email]; return n; }), 5000);
+  }
+  async function handleCreateUser() {
+    setAddError("");
+    if (!addForm.full_name || !addForm.email || !addForm.password) { setAddError(t("sys.create_user_required")); return; }
+    setAdding(true);
+    try {
+      const tmp = createClient(import.meta.env.VITE_SUPABASE_URL || "", import.meta.env.VITE_SUPABASE_ANON_KEY || "", { auth: { persistSession: false } });
+      const { error } = await tmp.auth.signUp({ email: addForm.email, password: addForm.password, options: { data: { full_name: addForm.full_name, role: addForm.role } } });
+      await tmp.auth.signOut();
+      if (error) throw error;
+      await loadUsers();
+      setShowAdd(false);
+      setAddForm({ full_name: "", email: "", role: selectedRole, password: "" });
+    } catch (e) { setAddError(e.message || JSON.stringify(e)); }
+    setAdding(false);
+  }
+  function togglePermission(cap) {
+    if (selectedRole === 'admin') return;
+    setMatrix(p => ({ ...p, [cap]: { ...p[cap], [selectedRole]: !p[cap][selectedRole] } }));
+  }
+  async function savePermissions() {
+    setMatrixSaving(true);
+    try {
+      await ssCtx.setSetting("role_permissions", matrix);
+      setMatrixToast("Saved!"); setTimeout(() => setMatrixToast(null), 3000);
+    } catch (e) { setMatrixToast("Error: " + e.message); }
+    setMatrixSaving(false);
+  }
+
+  const byRole     = users.filter(u => u.role === selectedRole);
+  const displayed  = byRole.filter(u =>
+    !search || u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-4">
+      {/* Pending approvals banner */}
+      {pendingUsers.length > 0 && (
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <AlertTriangle size={15} className="text-amber-500 flex-shrink-0" />
+          <span className="text-sm text-amber-800 font-medium">
+            {pendingUsers.length} user{pendingUsers.length !== 1 ? 's' : ''} waiting for approval
+          </span>
+          <button onClick={() => setShowApprovals(p => !p)}
+            className="ml-auto text-xs text-amber-700 font-semibold underline whitespace-nowrap">
+            {showApprovals ? "Hide queue" : "Review →"}
+          </button>
+        </div>
+      )}
+      {showApprovals && (
+        <div className="bg-white rounded-2xl border border-amber-200 p-5">
+          <UserApprovalQueue />
+        </div>
+      )}
+
+      {/* Role pills with counts */}
+      <div className="flex flex-wrap gap-2">
+        {ALL_ROLES.map(role => {
+          const count = users.filter(u => u.role === role).length;
+          const colors = ROLE_COLORS[role] ?? ROLE_COLORS.final_user;
+          const isActive = selectedRole === role;
+          return (
+            <button key={role} onClick={() => { setSelectedRole(role); setSearch(""); setEditId(null); }}
+              className={`px-3.5 py-1.5 text-xs font-semibold rounded-xl border transition-colors ${isActive ? colors.active : colors.pill}`}>
+              {t("role." + role)}
+              <span className={`ml-1.5 ${isActive ? "opacity-80" : "opacity-60"}`}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Two-column layout */}
+      <div className="grid grid-cols-5 gap-5 items-start">
+
+        {/* LEFT: User list for selected role */}
+        <div className="col-span-3 bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="flex items-center gap-2 p-4 border-b border-gray-100">
+            <div className="relative flex-1">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Search ${t("role." + selectedRole)}s…`}
+                className="pl-8 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <button onClick={() => { setShowAdd(true); setAddForm(p => ({ ...p, role: selectedRole })); setAddError(""); }}
+              className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition-colors whitespace-nowrap">
+              <Plus size={13} />{t("sys.add_user")}
+            </button>
+          </div>
+          {loading ? <div className="flex justify-center py-8"><Spinner /></div> : displayed.length === 0 ? (
+            <div className="py-10 text-center text-sm text-gray-400">
+              No {t("role." + selectedRole)} users{search ? " matching your search" : ""}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{t("label.name")}</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{t("label.email")}</th>
+                    <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase">{t("label.status")}</th>
+                    <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase">{t("sys.col_actions")}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {displayed.map(u => (
+                    <tr key={u.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                            {u.full_name?.[0] ?? '?'}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-medium text-gray-900 truncate text-sm">{u.full_name ?? '—'}</div>
+                            {u.trust_level && <TrustBadge level={u.trust_level} size="xs" />}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-500 max-w-[160px] truncate">{u.email}</td>
+                      <td className="px-4 py-3 text-center">
+                        <button onClick={() => toggleActive(u.id, u.is_active)}
+                          className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors ${
+                            u.is_active !== false
+                              ? "bg-green-100 text-green-700 hover:bg-red-100 hover:text-red-700"
+                              : "bg-red-100 text-red-700 hover:bg-green-100 hover:text-green-700"
+                          }`}>
+                          {u.is_active !== false ? t("label.active") : t("label.inactive")}
+                        </button>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {editId === u.id ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <select value={editRole} onChange={e => setEditRole(e.target.value)}
+                              className="border border-gray-200 rounded px-1.5 py-0.5 text-xs bg-white">
+                              {ALL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                            </select>
+                            <button onClick={() => saveRole(u.id)} disabled={saving}
+                              className="px-1.5 py-0.5 bg-green-600 text-white text-xs rounded">
+                              {saving ? "…" : "✓"}
+                            </button>
+                            <button onClick={() => setEditId(null)}
+                              className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">✕</button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center gap-2">
+                            <button onClick={() => { setEditId(u.id); setEditRole(u.role); }}
+                              title={t("action.edit") + " role"}
+                              className="text-gray-400 hover:text-blue-600 transition-colors">
+                              <Pencil size={13} />
+                            </button>
+                            <button onClick={() => sendPasswordReset(u.email)}
+                              title={t("auth.reset_email_tooltip")}
+                              className={`transition-colors ${resetSent[u.email] ? "text-green-600" : "text-gray-400 hover:text-blue-600"}`}>
+                              {resetSent[u.email] ? <Check size={13} /> : <RefreshCw size={13} />}
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT: Permissions panel for the selected role */}
+        <div className="col-span-2 bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+            <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-1.5">
+              <Shield size={14} className="text-blue-600" />Permissions
+            </h3>
+            {selectedRole !== 'admin' && (
+              <button onClick={savePermissions} disabled={matrixSaving}
+                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50 transition-colors">
+                {matrixSaving ? "Saving…" : "Save"}
+              </button>
+            )}
+          </div>
+          {selectedRole === 'admin' ? (
+            <div className="p-4">
+              <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-xs text-red-700">
+                Admin has unrestricted access to all capabilities and cannot be configured.
+              </div>
+              <div className="mt-3 space-y-1">
+                {CAPS.map(cap => (
+                  <div key={cap} className="flex items-center justify-between py-1.5 px-2 rounded-lg text-xs">
+                    <span className="text-gray-700">{t("roles.cap." + cap)}</span>
+                    <span className="w-4 h-4 rounded-full bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0">
+                      <Check size={10} />
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : !matrix ? (
+            <div className="flex justify-center py-8"><Spinner /></div>
+          ) : (
+            <div className="p-2">
+              <div className="space-y-0.5 max-h-[460px] overflow-y-auto">
+                {CAPS.map(cap => (
+                  <label key={cap}
+                    className="flex items-center justify-between py-2 px-2 rounded-lg hover:bg-gray-50 cursor-pointer group">
+                    <span className="text-xs text-gray-700 group-hover:text-gray-900 pr-3">{t("roles.cap." + cap)}</span>
+                    <input type="checkbox"
+                      checked={matrix[cap]?.[selectedRole] ?? false}
+                      onChange={() => togglePermission(cap)}
+                      className="rounded accent-blue-600 w-4 h-4 flex-shrink-0 cursor-pointer" />
+                  </label>
+                ))}
+              </div>
+              {matrixToast && (
+                <div className={`mt-3 px-3 py-2 rounded-lg text-xs ${matrixToast.startsWith("Error") ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
+                  {matrixToast}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Add user modal */}
+      {showAdd && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-semibold text-gray-900">{t("sys.create_user_title")}</h2>
+              <button onClick={() => setShowAdd(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-xs text-amber-800">{t("sys.create_user_notice")}</div>
+            <Input label={t("label.full_name")} value={addForm.full_name} onChange={e => setAddForm(p => ({ ...p, full_name: e.target.value }))} placeholder={t("contact.ph_name")} />
+            <Input label={t("label.email")} type="email" value={addForm.email} onChange={e => setAddForm(p => ({ ...p, email: e.target.value }))} placeholder={t("contact.ph_email")} />
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.role")}</label>
+              <select value={addForm.role} onChange={e => setAddForm(p => ({ ...p, role: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white">
+                {ALL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+            <Input label={t("sys.temp_pwd")} type="password" value={addForm.password} onChange={e => setAddForm(p => ({ ...p, password: e.target.value }))} placeholder={t("sys.temp_pwd_ph")} />
+            {addError && <p className="text-red-600 text-xs mt-2">{addError}</p>}
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setShowAdd(false)}
+                className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 text-sm rounded-xl hover:bg-gray-50">{t("action.cancel")}</button>
+              <button onClick={handleCreateUser} disabled={adding}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
+                {adding ? t("state.creating") : t("sys.create_user_btn")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Workflow tab — Lifecycle + Phases + SLA ───────────────────
+function SettingsWorkflowTab({ auth, ssCtx }) {
+  const [wTab, setWTab] = useState("lifecycle");
+  const WTABS = [
+    { id: "lifecycle", label: "Lifecycle Templates", Icon: TrendingUp },
+    { id: "phases",    label: "Activity Phases",     Icon: ListChecks },
+    { id: "sla",       label: "SLA",                 Icon: Shield },
+  ];
+  return (
+    <div>
+      <div className="flex gap-1 mb-5 border-b border-gray-100">
+        {WTABS.map(tb => (
+          <button key={tb.id} onClick={() => setWTab(tb.id)}
+            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+              wTab === tb.id ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"
+            }`}>
+            <tb.Icon size={14} />{tb.label}
+          </button>
+        ))}
+      </div>
+      {wTab === "lifecycle" && <LifecycleSettingsView auth={auth} />}
+      {wTab === "phases"    && <SettingsPhasesTab ssCtx={ssCtx} />}
+      {wTab === "sla"       && <SlaView auth={auth} />}
+    </div>
+  );
+}
+
+// ── Platform tab — Platform + Invoice + Trust stacked ─────────
+function SettingsPlatformCombinedTab({ ssCtx }) {
+  const SECTIONS = [
+    { id: "platform", label: "Platform Defaults",   Icon: Sparkles,  Component: SettingsPlatformTab },
+    { id: "invoice",  label: "Invoice Defaults",    Icon: Receipt,   Component: SettingsInvoiceTab },
+    { id: "trust",    label: "Trust & Ratings",     Icon: BadgeCheck, Component: SettingsTrustTab },
+  ];
+  const [open, setOpen] = useState({ platform: true, invoice: true, trust: true });
+  return (
+    <div className="space-y-4">
+      {SECTIONS.map(({ id, label, Icon: Ic, Component }) => (
+        <div key={id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <button
+            onClick={() => setOpen(p => ({ ...p, [id]: !p[id] }))}
+            className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
+            <span className="font-semibold text-gray-900 flex items-center gap-2">
+              <Ic size={15} className="text-blue-600" />{label}
+            </span>
+            <ChevronDown size={16} className={`text-gray-400 transition-transform duration-200 ${open[id] ? "rotate-180" : ""}`} />
+          </button>
+          {open[id] && (
+            <div className="px-5 pb-5 border-t border-gray-100">
+              <Component ssCtx={ssCtx} />
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function SystemSettingsView({ auth }) {
   const { t } = useT();
-  const [activeTab, setActiveTab] = useState("users");
+  const [activeTab, setActiveTab] = useState("people");
   const ssCtx = useSystemSettings();
 
-  const tabs = [
-    { id: "users",      label: t("settings.users"),           Icon: Users },
-    { id: "roles",      label: t("settings.roles"),           Icon: Shield },
-    { id: "lifecycle",  label: t("settings.lifecycle"),       Icon: TrendingUp },
-    { id: "phases",     label: t("settings.activity_phases"), Icon: ListChecks },
-    { id: "catalog",    label: t("settings.catalog"),         Icon: Tag },
-    { id: "sla",        label: t("settings.sla"),             Icon: Shield },
-    { id: "platform",   label: t("settings.platform"),        Icon: Sparkles },
-    { id: "generation", label: t("settings.generation"),      Icon: Zap },
-    { id: "trust",      label: t("trust.tab_title"),          Icon: Shield },
-    { id: "approvals",  label: t("trust.approvals_tab"),      Icon: UserCheck },
-    { id: "invoice",    label: t("settings.invoice"),         Icon: Receipt },
+  const TABS = [
+    { id: "people",     label: "People",         Icon: Users },
+    { id: "workflow",   label: "Workflow",        Icon: TrendingUp },
+    { id: "catalog",    label: "Catalog",         Icon: Tag },
+    { id: "generation", label: "AI & Generation", Icon: Zap },
+    { id: "platform",   label: "Platform",        Icon: Sparkles },
   ];
 
   return (
@@ -30546,27 +30918,24 @@ function SystemSettingsView({ auth }) {
         <p className="text-gray-500 text-sm mt-1">{t("settings.subtitle")}</p>
       </div>
 
-      <div className="flex border-b border-gray-200 mb-6 overflow-x-auto">
-        {tabs.map(({ id, label, Icon: Ic }) => (
+      <div className="flex border-b border-gray-200 mb-6">
+        {TABS.map(({ id, label, Icon: Ic }) => (
           <button key={id} onClick={() => setActiveTab(id)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-px
-              ${activeTab === id ? "border-blue-600 text-blue-700 bg-blue-50/50" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
-            <Ic size={14} />{label}
+            className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold whitespace-nowrap transition-colors border-b-2 -mb-px ${
+              activeTab === id
+                ? "border-blue-600 text-blue-700"
+                : "border-transparent text-gray-500 hover:text-gray-700"
+            }`}>
+            <Ic size={15} />{label}
           </button>
         ))}
       </div>
 
-      {activeTab === "users"      && <SettingsUsersTab />}
-      {activeTab === "lifecycle"  && <LifecycleSettingsView auth={auth} />}
-      {activeTab === "roles"      && <SettingsRolesTab ssCtx={ssCtx} />}
-      {activeTab === "phases"     && <SettingsPhasesTab ssCtx={ssCtx} />}
+      {activeTab === "people"     && <SettingsPeopleTab ssCtx={ssCtx} auth={auth} />}
+      {activeTab === "workflow"   && <SettingsWorkflowTab auth={auth} ssCtx={ssCtx} />}
       {activeTab === "catalog"    && <SettingsCatalogTab ssCtx={ssCtx} />}
-      {activeTab === "sla"        && <SlaView auth={auth} />}
-      {activeTab === "platform"   && <SettingsPlatformTab ssCtx={ssCtx} />}
       {activeTab === "generation" && <SettingsGenerationTab ssCtx={ssCtx} />}
-      {activeTab === "trust"      && <SettingsTrustTab ssCtx={ssCtx} />}
-      {activeTab === "approvals"  && <UserApprovalQueue />}
-      {activeTab === "invoice"    && <SettingsInvoiceTab ssCtx={ssCtx} />}
+      {activeTab === "platform"   && <SettingsPlatformCombinedTab ssCtx={ssCtx} />}
     </div>
   );
 }
