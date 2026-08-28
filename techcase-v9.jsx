@@ -11557,6 +11557,37 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
 
   const isLast = step === PROJECT_STEPS.length - 1;
   const stepId = PROJECT_STEPS[step]?.id ?? '';
+  const [stepError, setStepError] = useState(null);
+  const [skipPending, setSkipPending] = useState(false);
+  useEffect(() => { setStepError(null); setSkipPending(false); }, [step]);
+
+  function validateStep() {
+    if (stepId === 'basics' && !basics.name.trim())
+      return "Project name is required — please enter a name before continuing.";
+    if (stepId === 'scope' && (auth.isAdmin || auth.isManager) && !scopeData.client_id)
+      return "Please select a client before continuing.";
+    return null;
+  }
+  function handleContinue() {
+    const err = validateStep();
+    if (err) { setStepError(err); return; }
+    setStepError(null);
+    setSt(s => s + 1);
+  }
+  function handleSkip() {
+    if (!skipPending) {
+      setSkipPending(true);
+      setStepError(
+        stepId === 'objectives' ? "You're skipping Objectives — goals, deliverables, and success criteria can be added later from the project detail." :
+        stepId === 'team'       ? "You're skipping Team Contacts — stakeholder and billing info can be completed later." :
+                                  "You're skipping this step — it can be filled in later from the project detail."
+      );
+      return;
+    }
+    setStepError(null);
+    setSkipPending(false);
+    setSt(s => s + 1);
+  }
 
   async function handleCreate() {
     setCreating(true);
@@ -12147,30 +12178,47 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
       </div>
 
       {/* ── Navigation ── */}
-      <div className="sticky bottom-0 bg-white border-t-2 border-gray-100 shadow-xl rounded-2xl px-6 py-4 flex items-center justify-between mt-4">
-        <button onClick={() => step > 0 ? setSt(s => s - 1) : onCancel()}
-          className="px-5 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors font-medium">
-          {step === 0 ? <><X size={13} className="mr-1 inline" />{t("action.cancel")}</> : `← ${t("action.back")}`}
-        </button>
-        <div className="flex items-center gap-3">
-          {(stepId === 'objectives' || stepId === 'team' || stepId === 'import_plan') && (
-            <button onClick={() => setSt(s => s + 1)}
-              className="px-4 py-2.5 text-sm text-gray-400 hover:text-gray-600 border border-gray-200 rounded-xl">
-              {stepId === 'import_plan' ? "Skip for now" : t("action.skip")}
-            </button>
-          )}
-          {!isLast ? (
-            <button onClick={() => setSt(s => s + 1)}
-              disabled={stepId === 'basics' && !basics.name.trim()}
-              className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
-              {stepId === 'import_plan' && extractedCases?.length ? `Continue with ${extractedCases.length} case${extractedCases.length !== 1 ? 's' : ''}` : t("action.continue")}
-            </button>
-          ) : (
-            <button onClick={handleCreate} disabled={creating}
-              className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
-              {creating ? (isEdit ? t("state.saving") : (extractedCases?.length ? `Creating project + ${extractedCases.length} cases…` : t("state.creating"))) : (isEdit ? <><Check size={13} className="mr-1 inline" />{t("action.save_changes")}</> : <><Check size={13} className="mr-1 inline" />{t("proj.create")}</>)}
-            </button>
-          )}
+      <div className="sticky bottom-0 bg-white border-t-2 border-gray-100 shadow-xl rounded-2xl px-6 py-4 mt-4 space-y-3">
+        {stepError && (
+          <div className={`flex items-start gap-2 px-4 py-3 rounded-xl text-xs border ${
+            skipPending
+              ? "bg-amber-50 border-amber-200 text-amber-800"
+              : "bg-red-50 border-red-200 text-red-700"
+          }`}>
+            <AlertTriangle size={13} className={`flex-shrink-0 mt-0.5 ${skipPending ? "text-amber-500" : "text-red-500"}`} />
+            <span>{stepError}</span>
+          </div>
+        )}
+        <div className="flex items-center justify-between">
+          <button onClick={() => step > 0 ? setSt(s => s - 1) : onCancel()}
+            className="px-5 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors font-medium">
+            {step === 0 ? <><X size={13} className="mr-1 inline" />{t("action.cancel")}</> : `← ${t("action.back")}`}
+          </button>
+          <div className="flex items-center gap-3">
+            {(stepId === 'objectives' || stepId === 'team' || stepId === 'import_plan') && (
+              <button onClick={handleSkip}
+                className={`px-4 py-2.5 text-sm border rounded-xl transition-colors ${
+                  skipPending
+                    ? "border-amber-400 text-amber-700 bg-amber-50 hover:bg-amber-100 font-semibold"
+                    : "border-gray-200 text-gray-400 hover:text-gray-600"
+                }`}>
+                {skipPending
+                  ? "Skip anyway →"
+                  : stepId === 'import_plan' ? "Skip for now" : t("action.skip")}
+              </button>
+            )}
+            {!isLast ? (
+              <button onClick={handleContinue}
+                className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-colors shadow-md">
+                {stepId === 'import_plan' && extractedCases?.length ? `Continue with ${extractedCases.length} case${extractedCases.length !== 1 ? 's' : ''}` : t("action.continue")}
+              </button>
+            ) : (
+              <button onClick={handleCreate} disabled={creating}
+                className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
+                {creating ? (isEdit ? t("state.saving") : (extractedCases?.length ? `Creating project + ${extractedCases.length} cases…` : t("state.creating"))) : (isEdit ? <><Check size={13} className="mr-1 inline" />{t("action.save_changes")}</> : <><Check size={13} className="mr-1 inline" />{t("proj.create")}</>)}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
