@@ -21586,6 +21586,232 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
 }
 
 // ============================================================
+// CONSULTANT PROFILE PANEL (drawer used inside Arena)
+// ============================================================
+function ConsultantProfilePanel({ consultantId, onClose, onAddToCompare, inCompare }) {
+  const { t } = useT();
+  const { profile, availability, loading } = useConsultantProfile(consultantId);
+  const { ratings, avgRating } = useRatings(consultantId);
+  const [userName, setUserName] = useState('');
+
+  useEffect(() => {
+    if (!consultantId) return;
+    supabase.from('users').select('full_name').eq('id', consultantId).maybeSingle()
+      .then(({ data }) => setUserName(data?.full_name ?? ''));
+  }, [consultantId]);
+
+  const winRate = ratings.length > 0
+    ? Math.round((ratings.filter(r => r.score >= 4).length / ratings.length) * 100)
+    : null;
+
+  return (
+    <div className="w-full max-w-md bg-white h-full flex flex-col shadow-2xl overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+        <h2 className="font-bold text-gray-900 text-base">Consultant Profile</h2>
+        <div className="flex items-center gap-2">
+          {onAddToCompare && (
+            <button onClick={onAddToCompare}
+              className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-colors ${
+                inCompare
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "border-gray-300 text-gray-600 hover:border-blue-400 hover:text-blue-600"
+              }`}>
+              {inCompare ? "✓ In Compare" : "+ Compare"}
+            </button>
+          )}
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-5 space-y-5">
+        {loading ? <Spinner /> : (
+          <>
+            {/* Avatar + identity */}
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-blue-100 text-blue-700 font-bold text-2xl flex items-center justify-center flex-shrink-0">
+                {userName?.[0] ?? '?'}
+              </div>
+              <div className="min-w-0">
+                <h3 className="font-bold text-gray-900 text-lg leading-tight">{userName}</h3>
+                {profile?.headline && <p className="text-sm text-gray-500 mt-0.5">{profile.headline}</p>}
+                {avgRating != null && (
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className="text-yellow-400 text-xs">{stars(avgRating)}</span>
+                    <span className="text-sm font-semibold text-gray-700">{avgRating}</span>
+                    <span className="text-xs text-gray-400">({ratings.length} rating{ratings.length !== 1 ? 's' : ''})</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Bio */}
+            {profile?.bio && (
+              <p className="text-sm text-gray-600 leading-relaxed bg-gray-50 rounded-xl p-3 border border-gray-100">{profile.bio}</p>
+            )}
+
+            {/* Stats grid */}
+            <div className="grid grid-cols-3 gap-2">
+              {profile?.years_experience != null && (
+                <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
+                  <div className="font-bold text-gray-900 text-lg">{profile.years_experience}<span className="text-xs font-normal text-gray-400">y</span></div>
+                  <div className="text-xs text-gray-400 mt-0.5">Experience</div>
+                </div>
+              )}
+              {profile?.hourly_rate != null && (
+                <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
+                  <div className="font-bold text-gray-900 text-base">${profile.hourly_rate}<span className="text-[10px] font-normal text-gray-400">/h</span></div>
+                  <div className="text-xs text-gray-400 mt-0.5">Rate</div>
+                </div>
+              )}
+              {availability?.available_percentage != null && (
+                <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
+                  <div className={`font-bold text-lg ${availability.available_percentage >= 50 ? "text-green-600" : "text-orange-500"}`}>
+                    {availability.available_percentage}<span className="text-xs font-normal text-gray-400">%</span>
+                  </div>
+                  <div className="text-xs text-gray-400 mt-0.5">Available</div>
+                </div>
+              )}
+            </div>
+
+            {/* Badges row */}
+            <div className="flex flex-wrap gap-2">
+              {profile?.expertise_level && (
+                <span className="px-2.5 py-1 bg-violet-50 text-violet-700 rounded-lg text-xs font-semibold capitalize">{profile.expertise_level}</span>
+              )}
+              {profile?.availability_type && (
+                <span className="px-2.5 py-1 bg-sky-50 text-sky-700 rounded-lg text-xs font-semibold capitalize">{profile.availability_type.replace(/_/g, ' ')}</span>
+              )}
+              {profile?.travel_available && (
+                <span className="px-2.5 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-semibold">Travel OK</span>
+              )}
+            </div>
+
+            {/* Skills */}
+            {profile?.skills?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Skills</p>
+                <div className="flex flex-wrap gap-1">
+                  {profile.skills.map(s => (
+                    <span key={s} className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Certifications */}
+            {profile?.certifications?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Certifications</p>
+                <div className="flex flex-wrap gap-1">
+                  {profile.certifications.map(s => (
+                    <span key={s} className="px-2 py-0.5 bg-green-50 text-green-700 rounded-lg text-xs font-medium">{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Languages */}
+            {profile?.languages?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Languages</p>
+                <div className="flex flex-wrap gap-1">
+                  {profile.languages.map(s => (
+                    <span key={s} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-medium">{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Work Authorization */}
+            {profile?.work_authorizations?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Work Authorization</p>
+                <div className="flex flex-wrap gap-1">
+                  {profile.work_authorizations.map((wa, i) => (
+                    <span key={i} className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium">{wa.country}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Past clients */}
+            {profile?.consultant_customers?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Past Clients</p>
+                <div className="space-y-2">
+                  {profile.consultant_customers.map((cu, i) => (
+                    <div key={i} className="flex items-start gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 text-xs font-bold flex items-center justify-center flex-shrink-0">
+                        {cu.company_name?.[0] ?? '?'}
+                      </div>
+                      <div>
+                        <div className="font-medium text-sm text-gray-900">{cu.company_name}</div>
+                        <div className="text-xs text-gray-400">{cu.role}{cu.start_year ? ` · ${cu.start_year}` : ''}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Past projects */}
+            {profile?.consultant_projects?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">SAP Projects</p>
+                <div className="space-y-2">
+                  {profile.consultant_projects.map((pr, i) => (
+                    <div key={i} className="border border-gray-100 rounded-xl p-3 bg-gray-50">
+                      <div className="font-medium text-sm text-gray-900">{pr.name}</div>
+                      {pr.description && <div className="text-xs text-gray-400 mt-0.5 line-clamp-2">{pr.description}</div>}
+                      {pr.sap_modules?.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {pr.sap_modules.map(m => (
+                            <span key={m} className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-xs rounded">{m}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Recent ratings */}
+            {ratings.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Recent Ratings</p>
+                <div className="space-y-2">
+                  {ratings.slice(0, 4).map((r, i) => (
+                    <div key={i} className="border border-gray-100 rounded-xl p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-gray-400">{fmtDate(r.created_at)}{r.case?.title ? ` · ${r.case.title}` : ''}</span>
+                        <span className="text-yellow-400 text-xs">{stars(r.score)}</span>
+                      </div>
+                      {r.comment && <p className="text-xs text-gray-600 italic">"{r.comment}"</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* LinkedIn */}
+            {profile?.linkedin_url && (
+              <a href={profile.linkedin_url} target="_blank" rel="noreferrer"
+                className="flex items-center gap-2 text-sm text-blue-600 hover:underline">
+                <ExternalLink size={14} />View LinkedIn Profile
+              </a>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // ARENA (COMPETITIVE BIDDING)
 // ============================================================
 function ArenaView({ auth }) {
@@ -21593,10 +21819,18 @@ function ArenaView({ auth }) {
   const [arenaTab, setArenaTab]             = useState("cases");
   const [applyingToCase, setApplying]       = useState(null);
   const [arenaSelectedCase, setArenaSelected] = useState(null);
+  const [profileView, setProfileView]       = useState(null);  // consultant id for drawer
+  const [compareSet, setCompareSet]         = useState([]);    // ids selected for compare
   const { leaderboard, loading: lbLoading } = useLeaderboard();
   const { cases, loading: casesLoading, updateCase } = useCases();
   const { applications, reviewApplication, refetch: refetchApps } = useApplications();
   const { templates: arenaLcTemplates } = useLifecycleTemplates();
+
+  function toggleCompare(id) {
+    setCompareSet(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  }
 
   async function handleArenaReviewApplication(appId, appStatus, notes) {
     await reviewApplication(appId, appStatus, notes);
@@ -21693,11 +21927,13 @@ function ArenaView({ auth }) {
               <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">{t("arena.col_rating")}</th>
               <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">{t("arena.col_won")}</th>
               <th className="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wide">{t("arena.col_apps")}</th>
+              <th className="px-3 py-3"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {leaderboard.map((c, i) => (
-              <tr key={c.id} className="hover:bg-gray-50 transition-colors">
+              <tr key={c.id} className="hover:bg-gray-50 transition-colors cursor-pointer"
+                onClick={() => setProfileView(c.id)}>
                 <td className="px-5 py-4">
                   {i === 0 ? <span className="font-bold text-yellow-500">#1</span>
                     : i === 1 ? <span className="font-bold text-gray-400">#2</span>
@@ -21728,10 +21964,20 @@ function ArenaView({ auth }) {
                 <td className="px-5 py-4">
                   <span className="text-gray-600">{c.totalApps}</span>
                 </td>
+                <td className="px-3 py-4" onClick={e => e.stopPropagation()}>
+                  <button onClick={() => toggleCompare(c.id)}
+                    className={`text-xs px-2.5 py-1 rounded-lg border transition-colors font-semibold ${
+                      compareSet.includes(c.id)
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "border-gray-200 text-gray-400 hover:border-blue-400 hover:text-blue-600"
+                    }`}>
+                    {compareSet.includes(c.id) ? "✓" : "+"}
+                  </button>
+                </td>
               </tr>
             ))}
             {leaderboard.length === 0 && (
-              <tr><td colSpan={5} className="px-5 py-12 text-center text-gray-400 text-sm">{t("arena.no_consultants")}</td></tr>
+              <tr><td colSpan={6} className="px-5 py-12 text-center text-gray-400 text-sm">{t("arena.no_consultants")}</td></tr>
             )}
           </tbody>
         </table>
@@ -21741,97 +21987,257 @@ function ArenaView({ auth }) {
 
   const renderCards = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {leaderboard.map((c, i) => (
-        <div key={c.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow">
-          <div className="flex items-start gap-3 mb-4">
-            <div className="w-12 h-12 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-              {c.user?.full_name?.[0]}
+      {leaderboard.map((c, i) => {
+        const inCompare = compareSet.includes(c.id);
+        const winRate = c.totalApps > 0 ? Math.round((c.acceptedCases / c.totalApps) * 100) : 0;
+        return (
+          <div key={c.id}
+            className={`bg-white rounded-2xl border shadow-sm p-5 hover:shadow-md transition-all cursor-pointer ${
+              inCompare ? "border-blue-400 ring-2 ring-blue-100" : "border-gray-100"
+            }`}
+            onClick={() => setProfileView(c.id)}>
+            {/* Header */}
+            <div className="flex items-start gap-3 mb-3">
+              <div className="w-12 h-12 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-lg flex-shrink-0">
+                {c.user?.full_name?.[0]}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-gray-900 truncate">{c.user?.full_name}</div>
+                <div className="text-xs text-gray-500 truncate">{c.headline ?? t("arena.default_headline")}</div>
+                {c.avgRating > 0 && (
+                  <div className="flex items-center gap-1 mt-1">
+                    <span className="text-yellow-400 text-xs">{stars(c.avgRating)}</span>
+                    <span className="text-xs text-gray-500 font-semibold">{c.avgRating}</span>
+                    <span className="text-xs text-gray-400">({c.ratingCount})</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                {i < 3 && (
+                  <span className={`font-bold text-sm ${i === 0 ? "text-yellow-500" : i === 1 ? "text-gray-400" : "text-amber-600"}`}>
+                    #{i + 1}
+                  </span>
+                )}
+                <button onClick={e => { e.stopPropagation(); toggleCompare(c.id); }}
+                  className={`text-xs px-2 py-1 rounded-lg border transition-colors font-semibold ${
+                    inCompare
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "border-gray-200 text-gray-400 hover:border-blue-400 hover:text-blue-600"
+                  }`}>
+                  {inCompare ? "✓" : "+ Compare"}
+                </button>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold text-gray-900 truncate">{c.user?.full_name}</div>
-              <div className="text-xs text-gray-400">{c.headline ?? t("arena.default_headline")}</div>
-              {c.avgRating > 0 && (
-                <div className="flex items-center gap-1 mt-1">
-                  {stars(c.avgRating)}
-                  <span className="text-xs text-gray-500">{c.avgRating}</span>
-                </div>
+
+            {/* Badges */}
+            <div className="flex flex-wrap gap-1 mb-3">
+              {c.expertise_level && (
+                <span className="px-1.5 py-0.5 bg-violet-50 text-violet-700 rounded text-xs font-semibold capitalize">{c.expertise_level}</span>
+              )}
+              {c.availability_type && (
+                <span className="px-1.5 py-0.5 bg-sky-50 text-sky-700 rounded text-xs font-semibold capitalize">{c.availability_type.replace(/_/g, ' ')}</span>
+              )}
+              {c.hourly_rate != null && (
+                <span className="px-1.5 py-0.5 bg-green-50 text-green-700 rounded text-xs font-semibold">${c.hourly_rate}/h</span>
               )}
             </div>
-            {i === 0 ? <span className="font-bold text-yellow-500 text-sm">#1</span>
-              : i === 1 ? <span className="font-bold text-gray-400 text-sm">#2</span>
-              : i === 2 ? <span className="font-bold text-amber-600 text-sm">#3</span>
-              : null}
-          </div>
-          <div className="flex gap-4 text-xs text-gray-500">
-            <span><strong className="text-gray-800">{c.acceptedCases}</strong> {t("arena.stat_won")}</span>
-            <span><strong className="text-gray-800">{c.totalApps}</strong> {t("arena.stat_apps")}</span>
-            <span><strong className="text-gray-800">{c.ratingCount}</strong> {t("arena.stat_ratings")}</span>
-          </div>
-          {c.skills?.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1">
-              {c.skills.slice(0, 4).map(s => (
-                <span key={s} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">{s}</span>
-              ))}
+
+            {/* Win rate bar */}
+            <div className="mb-3">
+              <div className="flex items-center justify-between mb-1 text-xs">
+                <span className="text-gray-400">Win rate</span>
+                <span className="font-semibold text-gray-700">{winRate}%</span>
+              </div>
+              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${winRate}%` }} />
+              </div>
             </div>
-          )}
-        </div>
-      ))}
+
+            {/* Stats row */}
+            <div className="flex gap-3 text-xs text-gray-500 mb-3">
+              <span><strong className="text-gray-800">{c.acceptedCases}</strong> {t("arena.stat_won")}</span>
+              <span><strong className="text-gray-800">{c.totalApps}</strong> {t("arena.stat_apps")}</span>
+              <span><strong className="text-gray-800">{c.years_experience ?? 0}y</strong> exp</span>
+            </div>
+
+            {/* Skills */}
+            {c.skills?.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {c.skills.slice(0, 4).map(s => (
+                  <span key={s} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">{s}</span>
+                ))}
+                {c.skills.length > 4 && (
+                  <span className="px-2 py-0.5 bg-gray-50 text-gray-400 rounded text-xs">+{c.skills.length - 4}</span>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 
   const renderCompare = () => {
-    const top3 = leaderboard.slice(0, 3);
+    const selected = compareSet.length >= 2
+      ? leaderboard.filter(c => compareSet.includes(c.id))
+      : leaderboard.slice(0, Math.min(3, leaderboard.length));
+
+    if (selected.length < 2) return (
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
+        <p className="text-gray-400 text-sm mb-3">Select at least 2 consultants from Cards or Leaderboard to compare.</p>
+        <button onClick={() => setArenaTab("cards")}
+          className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">
+          Go to Cards →
+        </button>
+      </div>
+    );
+
+    // Compute "best" values per metric for highlighting
+    const bestRating  = Math.max(...selected.map(c => c.avgRating  ?? 0));
+    const bestWon     = Math.max(...selected.map(c => c.acceptedCases ?? 0));
+    const bestWinRate = Math.max(...selected.map(c => c.totalApps > 0 ? c.acceptedCases / c.totalApps : 0));
+    const bestExp     = Math.max(...selected.map(c => c.years_experience ?? 0));
+    const bestRate    = Math.max(...selected.map(c => c.hourly_rate ?? 0));
+
+    const colCount = selected.length;
+    const gridCols = colCount === 2 ? "md:grid-cols-2" : colCount === 3 ? "md:grid-cols-3" : "md:grid-cols-4";
+
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {top3.map((c, i) => {
-          const appRate = c.totalApps > 0 ? Math.round((c.acceptedCases / c.totalApps) * 100) : 0;
-          return (
-            <div key={c.id} className={`bg-white rounded-2xl border-2 shadow-sm p-6 ${
-              i === 0 ? "border-yellow-300" : i === 1 ? "border-gray-300" : "border-orange-300"}`}>
-              <div className="text-center mb-4">
-                <div className="mb-2 flex justify-center">
-                  {i === 0 ? <span className="font-bold text-2xl text-yellow-500">#1</span>
-                    : i === 1 ? <span className="font-bold text-2xl text-gray-400">#2</span>
-                    : <span className="font-bold text-2xl text-amber-600">#3</span>}
+      <div>
+        {/* Selection info bar */}
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-sm text-gray-500">
+            Comparing <strong>{selected.length}</strong> consultants
+            {compareSet.length < 2 && <span className="text-gray-400"> (showing top {selected.length} by default)</span>}
+          </p>
+          {compareSet.length >= 2 && (
+            <button onClick={() => setCompareSet([])}
+              className="text-xs text-gray-400 hover:text-gray-600 underline">Clear selection</button>
+          )}
+        </div>
+
+        <div className={`grid grid-cols-1 ${gridCols} gap-4`}>
+          {selected.map((c) => {
+            const winRate   = c.totalApps > 0 ? Math.round((c.acceptedCases / c.totalApps) * 100) : 0;
+            const isBestRating  = c.avgRating   > 0 && c.avgRating   === bestRating;
+            const isBestWon     = c.acceptedCases > 0 && c.acceptedCases === bestWon;
+            const isBestWinRate = c.totalApps > 0 && (c.acceptedCases / c.totalApps) === bestWinRate;
+            const isBestExp     = (c.years_experience ?? 0) > 0 && (c.years_experience ?? 0) === bestExp;
+            const isCheapest    = (c.hourly_rate ?? 0) > 0 && (c.hourly_rate ?? 0) < bestRate;
+
+            const rank = leaderboard.findIndex(l => l.id === c.id);
+            const rankColor = rank === 0 ? "border-yellow-300" : rank === 1 ? "border-gray-300" : rank === 2 ? "border-orange-300" : "border-gray-100";
+
+            return (
+              <div key={c.id} className={`bg-white rounded-2xl border-2 shadow-sm p-5 ${rankColor}`}>
+                {/* Header */}
+                <div className="text-center mb-4">
+                  <div className="w-14 h-14 rounded-2xl bg-blue-100 text-blue-700 font-bold text-2xl flex items-center justify-center mx-auto mb-2">
+                    {c.user?.full_name?.[0]}
+                  </div>
+                  <div className="font-bold text-gray-900">{c.user?.full_name}</div>
+                  {c.headline && <div className="text-xs text-gray-400 mt-0.5 line-clamp-1">{c.headline}</div>}
+                  {rank < 3 && (
+                    <div className={`text-sm font-bold mt-1 ${rank === 0 ? "text-yellow-500" : rank === 1 ? "text-gray-400" : "text-amber-600"}`}>
+                      #{rank + 1} Ranked
+                    </div>
+                  )}
+                  <button onClick={() => setProfileView(c.id)}
+                    className="mt-2 text-xs text-blue-600 hover:underline">View full profile →</button>
                 </div>
-                <div className="text-3xl font-bold bg-blue-100 text-blue-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto text-2xl mb-2">
-                  {c.user?.full_name?.[0]}
+
+                {/* Rating */}
+                <div className={`rounded-xl p-3 mb-3 ${isBestRating ? "bg-green-50 border border-green-200" : "bg-gray-50"}`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Rating</span>
+                    {isBestRating && <span className="text-[10px] font-bold text-green-600 bg-green-100 px-1.5 py-0.5 rounded">BEST</span>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl font-black text-gray-900">{c.avgRating > 0 ? c.avgRating : "—"}</span>
+                    {c.avgRating > 0 && <span className="text-yellow-400 text-sm">{stars(c.avgRating)}</span>}
+                  </div>
+                  <span className="text-xs text-gray-400">{c.ratingCount} rating{c.ratingCount !== 1 ? 's' : ''}</span>
+                  {c.avgRating > 0 && (
+                    <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all"
+                        style={{ width: `${(c.avgRating / 5) * 100}%`, backgroundColor: isBestRating ? "#22c55e" : "#3b82f6" }} />
+                    </div>
+                  )}
                 </div>
-                <div className="font-bold text-gray-900">{c.user?.full_name}</div>
-              </div>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">{t("arena.compare_rating")}</span>
-                  <span className="font-semibold">{c.avgRating || "—"} / 5</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">{t("arena.compare_win_rate")}</span>
-                  <span className="font-semibold">{appRate}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">{t("arena.compare_won")}</span>
-                  <span className="font-semibold">{c.acceptedCases}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">{t("arena.compare_exp")}</span>
-                  <span className="font-semibold">{c.years_experience ?? 0}y</span>
-                </div>
-                {/* Bar: avg rating */}
-                <div className="pt-1">
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500 rounded-full transition-all"
-                      style={{ width: `${(c.avgRating / 5) * 100}%` }} />
+
+                {/* Win rate */}
+                <div className={`rounded-xl p-3 mb-3 ${isBestWinRate ? "bg-green-50 border border-green-200" : "bg-gray-50"}`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Win Rate</span>
+                    {isBestWinRate && <span className="text-[10px] font-bold text-green-600 bg-green-100 px-1.5 py-0.5 rounded">BEST</span>}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl font-black text-gray-900">{winRate}%</span>
+                    <span className="text-xs text-gray-400">{c.acceptedCases}/{c.totalApps} apps</span>
+                  </div>
+                  <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all"
+                      style={{ width: `${winRate}%`, backgroundColor: isBestWinRate ? "#22c55e" : "#3b82f6" }} />
                   </div>
                 </div>
+
+                {/* Stats grid */}
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <div className={`rounded-xl p-2.5 ${isBestWon ? "bg-green-50 border border-green-200" : "bg-gray-50"}`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-semibold text-gray-400 uppercase">Won</span>
+                      {isBestWon && <span className="text-[10px] font-bold text-green-600">BEST</span>}
+                    </div>
+                    <div className="font-black text-gray-900 text-lg">{c.acceptedCases}</div>
+                    <div className="text-[10px] text-gray-400">cases</div>
+                  </div>
+                  <div className={`rounded-xl p-2.5 ${isBestExp ? "bg-green-50 border border-green-200" : "bg-gray-50"}`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-semibold text-gray-400 uppercase">Exp</span>
+                      {isBestExp && <span className="text-[10px] font-bold text-green-600">BEST</span>}
+                    </div>
+                    <div className="font-black text-gray-900 text-lg">{c.years_experience ?? 0}<span className="text-xs font-normal">y</span></div>
+                    <div className="text-[10px] text-gray-400">experience</div>
+                  </div>
+                  {c.hourly_rate != null && (
+                    <div className={`rounded-xl p-2.5 ${isCheapest ? "bg-green-50 border border-green-200" : "bg-gray-50"}`}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-semibold text-gray-400 uppercase">Rate</span>
+                        {isCheapest && <span className="text-[10px] font-bold text-green-600">LOWEST</span>}
+                      </div>
+                      <div className="font-black text-gray-900 text-base">${c.hourly_rate}<span className="text-xs font-normal text-gray-400">/h</span></div>
+                    </div>
+                  )}
+                  <div className="bg-gray-50 rounded-xl p-2.5">
+                    <div className="text-[10px] font-semibold text-gray-400 uppercase mb-0.5">Level</div>
+                    <div className="font-semibold text-gray-900 text-sm capitalize">{c.expertise_level ?? "—"}</div>
+                  </div>
+                </div>
+
+                {/* Availability */}
+                {c.availability_type && (
+                  <div className="mb-3">
+                    <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg text-xs font-semibold capitalize">
+                      {c.availability_type.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                )}
+
+                {/* Skills */}
+                {c.skills?.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Skills</p>
+                    <div className="flex flex-wrap gap-1">
+                      {c.skills.map(s => (
+                        <span key={s} className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs font-medium">{s}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          );
-        })}
-        {top3.length < 3 && (
-          <div className="col-span-full text-center text-gray-400 py-8 text-sm">
-            {t("arena.compare_need")}
-          </div>
-        )}
+            );
+          })}
+        </div>
       </div>
     );
   };
@@ -21947,6 +22353,34 @@ function ArenaView({ auth }) {
       {arenaTab === "leaderboard" && renderLeaderboard()}
       {arenaTab === "cards"       && renderCards()}
       {arenaTab === "compare"     && renderCompare()}
+
+      {/* Floating compare bar */}
+      {compareSet.length >= 2 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-gray-900 text-white px-5 py-3 rounded-2xl shadow-2xl">
+          <span className="text-sm font-semibold">{compareSet.length} consultants selected</span>
+          <button onClick={() => { setArenaTab("compare"); }}
+            className="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold rounded-xl transition-colors">
+            Compare →
+          </button>
+          <button onClick={() => setCompareSet([])}
+            className="text-gray-400 hover:text-white transition-colors ml-1">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
+      {/* Consultant profile drawer */}
+      {profileView && (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="flex-1 bg-black/40" onClick={() => setProfileView(null)} />
+          <ConsultantProfilePanel
+            consultantId={profileView}
+            onClose={() => setProfileView(null)}
+            onAddToCompare={() => toggleCompare(profileView)}
+            inCompare={compareSet.includes(profileView)}
+          />
+        </div>
+      )}
     </div>
   );
 }
