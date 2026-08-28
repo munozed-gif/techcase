@@ -66,8 +66,10 @@ const ROLE_PERMISSIONS_DEFAULTS = {
   manage_invoices:   { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:false },
   view_lifecycle:    { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:true  },
   submit_specs:        { admin:true,  manager:true,  consultant:true,  client:true,  key_user:true,  headhunter:false, final_user:false },
-  generate_dev_plan:   { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false },
-  require_team_signup: { admin:false, manager:false, consultant:false, client:false, key_user:true,  headhunter:false, final_user:true  },
+  generate_dev_plan:          { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false },
+  require_team_signup:        { admin:false, manager:false, consultant:false, client:false, key_user:true,  headhunter:false, final_user:true  },
+  edit_activity_phase:        { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false },
+  edit_activity_predecessors: { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false },
 };
 
 // ============================================================
@@ -992,8 +994,10 @@ const TRANSLATIONS = {
     "roles.cap.manage_invoices":   "Manage invoices",
     "roles.cap.view_lifecycle":    "View lifecycle tab",
     "roles.cap.submit_specs":      "Submit specs for approval",
-    "roles.cap.generate_dev_plan":   "Generate dev & design plan",
-    "roles.cap.require_team_signup": "Require pre-registration to sign up",
+    "roles.cap.generate_dev_plan":          "Generate dev & design plan",
+    "roles.cap.require_team_signup":        "Require pre-registration to sign up",
+    "roles.cap.edit_activity_phase":        "Edit activity phase",
+    "roles.cap.edit_activity_predecessors": "Edit activity predecessors",
     // System Settings inner tabs
     "sys.search_users":         "Search users…",
     "sys.add_user":             "Add User",
@@ -3929,8 +3933,10 @@ const TRANSLATIONS = {
     "roles.cap.manage_invoices":   "Gestionar facturas",
     "roles.cap.view_lifecycle":    "Ver pestaña de ciclo de vida",
     "roles.cap.submit_specs":      "Enviar especificaciones a aprobación",
-    "roles.cap.generate_dev_plan":   "Generar plan de diseño y desarrollo",
-    "roles.cap.require_team_signup": "Requerir pre-registro para registrarse",
+    "roles.cap.generate_dev_plan":          "Generar plan de diseño y desarrollo",
+    "roles.cap.require_team_signup":        "Requerir pre-registro para registrarse",
+    "roles.cap.edit_activity_phase":        "Editar fase de actividad",
+    "roles.cap.edit_activity_predecessors": "Editar predecesores de actividad",
     // System Settings inner tabs
     "sys.search_users":         "Buscar usuarios…",
     "sys.add_user":             "Agregar Usuario",
@@ -17268,6 +17274,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
     ?? ["completed","cancelled"].includes(caseData.status);
   const currentStage = lifecycleStages.find(s => s.key === caseData.status);
   const stageRules   = getStageRules(currentStage, auth);
+  const perms        = usePermissions(auth);
   const canEditCase  = onUpdate && !isTerminalStatus && stageRules.editable
     && (auth.isAdmin || auth.isManager || (auth.isClient && caseData.client_id === auth.user?.id));
 
@@ -20271,20 +20278,22 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                           onChange={e => setActForm(p => ({ ...p, detail: e.target.value }))}
                           placeholder={t("cd.ph_task_detail")} />
                       </div>
-                      {/* Phase */}
-                      <div>
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("case.phase_label")}</label>
-                        <select value={actForm.phase}
-                          onChange={e => setActForm(p => ({ ...p, phase: e.target.value }))}
-                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                          <option value="">{t("case.no_phase")}</option>
-                          {resolvedPhases.map(ph => (
-                            <option key={ph.key} value={ph.key}>{ph.label}{ph.required_status ? ` (needs ${ph.required_status.replace(/_/g, " ")})` : ""}</option>
-                          ))}
-                        </select>
-                      </div>
-                      {/* Predecessors */}
-                      {activities.length > 0 && (
+                      {/* Phase — hidden if user lacks edit_activity_phase permission */}
+                      {perms.can('edit_activity_phase') && (
+                        <div>
+                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("case.phase_label")}</label>
+                          <select value={actForm.phase}
+                            onChange={e => setActForm(p => ({ ...p, phase: e.target.value }))}
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">{t("case.no_phase")}</option>
+                            {resolvedPhases.map(ph => (
+                              <option key={ph.key} value={ph.key}>{ph.label}{ph.required_status ? ` (needs ${ph.required_status.replace(/_/g, " ")})` : ""}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      {/* Predecessors — hidden if user lacks edit_activity_predecessors permission */}
+                      {perms.can('edit_activity_predecessors') && activities.length > 0 && (
                         <div>
                           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("case.predecessors")}</label>
                           <div className="space-y-1 max-h-28 overflow-y-auto border border-gray-200 rounded-xl p-2 bg-white">
