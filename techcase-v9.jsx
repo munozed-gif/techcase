@@ -11558,9 +11558,10 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
 
   const isLast = step === PROJECT_STEPS.length - 1;
   const stepId = PROJECT_STEPS[step]?.id ?? '';
-  const [stepError, setStepError] = useState(null);
+  const [stepError, setStepError]   = useState(null);
   const [skipPending, setSkipPending] = useState(false);
-  useEffect(() => { setStepError(null); setSkipPending(false); }, [step]);
+  const [createError, setCreateError] = useState(null);
+  useEffect(() => { setStepError(null); setSkipPending(false); setCreateError(null); }, [step]);
 
   function validateStep() {
     if (stepId === 'basics' && !basics.name.trim())
@@ -11591,6 +11592,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
   }
 
   async function handleCreate() {
+    setCreateError(null);
     setCreating(true);
     try {
       const payload = {
@@ -11635,7 +11637,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
         }
       }
       onComplete();
-    } catch (e) { alert(e.message); }
+    } catch (e) { setCreateError(e.message || "Failed to create project. Please try again."); }
     setCreating(false);
   }
 
@@ -12154,14 +12156,16 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
 
       {/* ── Navigation ── */}
       <div className="sticky bottom-0 bg-white border-t-2 border-gray-100 shadow-xl rounded-2xl px-6 py-4 mt-4 space-y-3">
-        {stepError && (
+        {(stepError || createError) && (
           <div className={`flex items-start gap-2 px-4 py-3 rounded-xl text-xs border ${
-            skipPending
-              ? "bg-amber-50 border-amber-200 text-amber-800"
-              : "bg-red-50 border-red-200 text-red-700"
+            createError
+              ? "bg-red-50 border-red-300 text-red-700"
+              : skipPending
+                ? "bg-amber-50 border-amber-200 text-amber-800"
+                : "bg-red-50 border-red-200 text-red-700"
           }`}>
-            <AlertTriangle size={13} className={`flex-shrink-0 mt-0.5 ${skipPending ? "text-amber-500" : "text-red-500"}`} />
-            <span>{stepError}</span>
+            <AlertTriangle size={13} className={`flex-shrink-0 mt-0.5 ${createError || !skipPending ? "text-red-500" : "text-amber-500"}`} />
+            <span>{createError ?? stepError}</span>
           </div>
         )}
         <div className="flex items-center justify-between">
@@ -12184,13 +12188,26 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
             )}
             {!isLast ? (
               <button onClick={handleContinue}
-                className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-colors shadow-md">
+                className={`px-7 py-2.5 text-white text-sm font-bold rounded-xl transition-colors shadow-md ${
+                  stepError && !skipPending
+                    ? "bg-red-500 hover:bg-red-600 ring-2 ring-red-300"
+                    : "bg-blue-600 hover:bg-blue-700"
+                }`}>
                 {stepId === 'import_plan' && extractedCases?.length ? `Continue with ${extractedCases.length} case${extractedCases.length !== 1 ? 's' : ''}` : t("action.continue")}
               </button>
             ) : (
               <button onClick={handleCreate} disabled={creating}
-                className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md">
-                {creating ? (isEdit ? t("state.saving") : (extractedCases?.length ? `Creating project + ${extractedCases.length} cases…` : t("state.creating"))) : (isEdit ? <><Check size={13} className="mr-1 inline" />{t("action.save_changes")}</> : <><Check size={13} className="mr-1 inline" />{t("proj.create")}</>)}
+                className={`px-7 py-2.5 text-white text-sm font-bold rounded-xl disabled:opacity-40 transition-colors shadow-md ${
+                  createError
+                    ? "bg-red-500 hover:bg-red-600 ring-2 ring-red-300"
+                    : "bg-blue-600 hover:bg-blue-700"
+                }`}>
+                {creating
+                  ? (isEdit ? t("state.saving") : (extractedCases?.length ? `Creating project + ${extractedCases.length} cases…` : t("state.creating")))
+                  : createError
+                    ? <><AlertTriangle size={13} className="mr-1 inline" />Try again</>
+                    : (isEdit ? <><Check size={13} className="mr-1 inline" />{t("action.save_changes")}</> : <><Check size={13} className="mr-1 inline" />{t("proj.create")}</>)
+                }
               </button>
             )}
           </div>
