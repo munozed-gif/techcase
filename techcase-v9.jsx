@@ -38,6 +38,7 @@ import {
   GripVertical, Pencil, Timer, Link2, ExternalLink, Upload, Code2, Lock,
   Plus, Tag, RefreshCw, Shield,
   LayoutTemplate, Copy,
+  Bookmark, BookmarkCheck, Send, Crosshair,
 } from "lucide-react";
 
 // ============================================================
@@ -21591,9 +21592,30 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
 }
 
 // ============================================================
+// SHORTLIST HOOK (localStorage-persisted)
+// ============================================================
+function useConsultantShortlist() {
+  const [shortlist, setShortlist] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('consultant_shortlist') || '[]')); }
+    catch { return new Set(); }
+  });
+
+  function toggle(id) {
+    setShortlist(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      try { localStorage.setItem('consultant_shortlist', JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  }
+
+  return { shortlist, toggle, isShortlisted: id => shortlist.has(id) };
+}
+
+// ============================================================
 // CONSULTANT PROFILE PANEL (drawer used inside Arena)
 // ============================================================
-function ConsultantProfilePanel({ consultantId, onClose, onAddToCompare, inCompare }) {
+function ConsultantProfilePanel({ consultantId, onClose, onAddToCompare, inCompare, auth, isShortlisted, onToggleShortlist, openCases }) {
   const { t } = useT();
   const { profile, availability, loading } = useConsultantProfile(consultantId);
   const { ratings, avgRating } = useRatings(consultantId);
@@ -21609,12 +21631,37 @@ function ConsultantProfilePanel({ consultantId, onClose, onAddToCompare, inCompa
     ? Math.round((ratings.filter(r => r.score >= 4).length / ratings.length) * 100)
     : null;
 
+  const [assignCaseId, setAssignCaseId] = useState('');
+  const [assigning, setAssigning]       = useState(false);
+  const [assignDone, setAssignDone]     = useState(false);
+  const canAssign = auth && (auth.isAdmin || auth.isManager || auth.isHeadhunter);
+
+  async function handleAssign() {
+    if (!assignCaseId || !consultantId) return;
+    setAssigning(true);
+    try {
+      await supabase.from('case_assignments').upsert({
+        case_id: assignCaseId, consultant_id: consultantId, time_commitment: 100,
+      }, { onConflict: 'case_id,consultant_id' });
+      setAssignDone(true);
+      setTimeout(() => setAssignDone(false), 3000);
+    } catch(e) { alert(e.message); }
+    finally { setAssigning(false); }
+  }
+
   return (
     <div className="w-full max-w-md bg-white h-full flex flex-col shadow-2xl overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
         <h2 className="font-bold text-gray-900 text-base">Consultant Profile</h2>
         <div className="flex items-center gap-2">
+          {onToggleShortlist && (
+            <button onClick={onToggleShortlist}
+              title={isShortlisted ? "Remove from shortlist" : "Add to shortlist"}
+              className={`transition-colors ${isShortlisted ? "text-amber-500 hover:text-amber-600" : "text-gray-400 hover:text-amber-400"}`}>
+              {isShortlisted ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
+            </button>
+          )}
           {onAddToCompare && (
             <button onClick={onAddToCompare}
               className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-colors ${
@@ -21809,6 +21856,28 @@ function ConsultantProfilePanel({ consultantId, onClose, onAddToCompare, inCompa
                 <ExternalLink size={14} />View LinkedIn Profile
               </a>
             )}
+
+            {/* Assign to case */}
+            {canAssign && openCases?.length > 0 && (
+              <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                  <Send size={12} />Assign to Case
+                </p>
+                <select value={assignCaseId} onChange={e => setAssignCaseId(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">Select a case…</option>
+                  {openCases.map(c => (
+                    <option key={c.id} value={c.id}>{c.title}</option>
+                  ))}
+                </select>
+                <button
+                  disabled={!assignCaseId || assigning}
+                  onClick={handleAssign}
+                  className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white text-sm font-semibold rounded-xl transition-colors">
+                  {assigning ? "Assigning…" : assignDone ? "✓ Assigned!" : "Assign Consultant"}
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -21828,6 +21897,7 @@ function ArenaView({ auth }) {
   const [compareSet, setCompareSet]         = useState([]);    // ids selected for compare
   const { leaderboard, loading: lbLoading } = useLeaderboard();
   const { cases, loading: casesLoading, updateCase } = useCases();
+  const { shortlist, toggle: toggleShortlist, isShortlisted } = useConsultantShortlist();
   const { applications, reviewApplication, refetch: refetchApps } = useApplications();
   const { templates: arenaLcTemplates } = useLifecycleTemplates();
 
@@ -22383,6 +22453,10 @@ function ArenaView({ auth }) {
             onClose={() => setProfileView(null)}
             onAddToCompare={() => toggleCompare(profileView)}
             inCompare={compareSet.includes(profileView)}
+            auth={auth}
+            isShortlisted={isShortlisted(profileView)}
+            onToggleShortlist={() => toggleShortlist(profileView)}
+            openCases={cases.filter(c => c.status === 'estimated' || c.status === 'open')}
           />
         </div>
       )}
@@ -22870,33 +22944,86 @@ function ProfileView({ auth, compact = false }) {
 // ============================================================
 function ConsultantsView({ auth }) {
   const { t } = useT();
-  const [search, setSearch]       = useState("");
-  const [profileView, setProfileView] = useState(null); // consultant id for drawer
-  const { leaderboard, loading }  = useLeaderboard();
+  const [search, setSearch]           = useState("");
+  const [profileView, setProfileView] = useState(null);
+  const [matchCaseId, setMatchCaseId] = useState('');
+  const [showShortlist, setShowShortlist] = useState(false);
+  const { leaderboard, loading }      = useLeaderboard();
+  const { cases: allCases }           = useCases({});
+  const { shortlist, toggle: toggleShortlist, isShortlisted } = useConsultantShortlist();
 
-  const filtered = leaderboard.filter(c =>
+  const openCases = allCases.filter(c => c.status === 'estimated' || c.status === 'open');
+  const matchCase = openCases.find(c => c.id === matchCaseId) ?? null;
+
+  function matchScore(c) {
+    if (!matchCase) return null;
+    const caseSkills = matchCase.skills_required ?? [];
+    const consultSkills = c.skills ?? [];
+    const skillScore = caseSkills.length
+      ? Math.min(consultSkills.filter(s => caseSkills.includes(s)).length / caseSkills.length, 1) * 50
+      : 25;
+    const minExp = matchCase.min_years_experience ?? 0;
+    const expScore = minExp
+      ? Math.min((c.years_experience ?? 0) / minExp, 1) * 35
+      : 35;
+    const ratingScore = c.avgRating ? (c.avgRating / 5) * 15 : 7.5;
+    return Math.round(skillScore + expScore + ratingScore);
+  }
+
+  let filtered = leaderboard.filter(c =>
     !search || c.user?.full_name?.toLowerCase().includes(search.toLowerCase()) ||
     c.skills?.some(s => s.toLowerCase().includes(search.toLowerCase()))
   );
+  if (showShortlist) filtered = filtered.filter(c => isShortlisted(c.id));
+  if (matchCase) filtered = [...filtered].sort((a, b) => (matchScore(b) ?? 0) - (matchScore(a) ?? 0));
 
   if (loading) return <Spinner />;
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">{t("nav.consultants")}</h1>
-        <p className="text-gray-500 text-sm mt-1">{filtered.length} consultant{filtered.length !== 1 ? 's' : ''}</p>
+      <div className="mb-4 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{t("nav.consultants")}</h1>
+          <p className="text-gray-500 text-sm mt-1">{filtered.length} consultant{filtered.length !== 1 ? 's' : ''}</p>
+        </div>
+        <button onClick={() => setShowShortlist(p => !p)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-xl border transition-colors ${
+            showShortlist
+              ? "bg-amber-500 text-white border-amber-500"
+              : "border-gray-300 text-gray-600 hover:border-amber-400 hover:text-amber-500"
+          }`}>
+          {showShortlist ? <BookmarkCheck size={15} /> : <Bookmark size={15} />}
+          Shortlist {showShortlist && shortlist.size > 0 ? `(${shortlist.size})` : ''}
+        </button>
       </div>
-      <input value={search} onChange={e => setSearch(e.target.value)}
-        placeholder={t("consultant.search_ph")}
-        className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+
+      {/* Toolbar: search + match case */}
+      <div className="flex gap-3 mb-6 flex-wrap">
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          placeholder={t("consultant.search_ph")}
+          className="flex-1 min-w-[180px] border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        {openCases.length > 0 && (
+          <div className="relative">
+            <Crosshair size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <select value={matchCaseId} onChange={e => setMatchCaseId(e.target.value)}
+              className="pl-8 pr-4 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[190px]">
+              <option value="">Match score: select case…</option>
+              {openCases.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+            </select>
+          </div>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map(c => {
           const winRate = c.totalApps > 0 ? Math.round((c.acceptedCases / c.totalApps) * 100) : 0;
+          const score   = matchScore(c);
+          const pinned  = isShortlisted(c.id);
           return (
             <div key={c.id} onClick={() => setProfileView(c.id)}
-              className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 cursor-pointer hover:shadow-md hover:border-blue-200 transition-all">
+              className={`bg-white rounded-2xl border shadow-sm p-5 cursor-pointer hover:shadow-md transition-all ${
+                pinned ? "border-amber-300 ring-1 ring-amber-200" : "border-gray-100 hover:border-blue-200"
+              }`}>
               {/* Header */}
               <div className="flex items-start gap-3 mb-3">
                 <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg flex-shrink-0">
@@ -22911,6 +23038,20 @@ function ConsultantsView({ auth }) {
                       <span className="text-xs text-gray-500 font-semibold">{c.avgRating}</span>
                       <span className="text-xs text-gray-400">({c.ratingCount})</span>
                     </div>
+                  )}
+                </div>
+                <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                  <button
+                    onClick={e => { e.stopPropagation(); toggleShortlist(c.id); }}
+                    className={`transition-colors ${pinned ? "text-amber-500" : "text-gray-300 hover:text-amber-400"}`}>
+                    {pinned ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
+                  </button>
+                  {score != null && (
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-lg ${
+                      score >= 80 ? "bg-green-100 text-green-700"
+                      : score >= 55 ? "bg-yellow-100 text-yellow-700"
+                      : "bg-red-100 text-red-500"
+                    }`}>{score}% match</span>
                   )}
                 </div>
               </div>
@@ -22944,9 +23085,12 @@ function ConsultantsView({ auth }) {
               {/* Skills */}
               {c.skills?.length > 0 && (
                 <div className="flex flex-wrap gap-1">
-                  {c.skills.slice(0, 4).map(s => (
-                    <span key={s} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">{s}</span>
-                  ))}
+                  {c.skills.slice(0, 4).map(s => {
+                    const matched = matchCase?.skills_required?.includes(s);
+                    return (
+                      <span key={s} className={`px-2 py-0.5 rounded text-xs ${matched ? "bg-green-100 text-green-700 font-semibold" : "bg-blue-50 text-blue-600"}`}>{s}</span>
+                    );
+                  })}
                   {c.skills.length > 4 && (
                     <span className="px-2 py-0.5 bg-gray-50 text-gray-400 rounded text-xs">+{c.skills.length - 4}</span>
                   )}
@@ -22957,7 +23101,8 @@ function ConsultantsView({ auth }) {
         })}
         {filtered.length === 0 && (
           <div className="col-span-full">
-            <EmptyState Icon={UserCheck} title={t("consultant.none_found")} subtitle={t("consultant.try_search")} />
+            <EmptyState Icon={UserCheck} title={showShortlist ? "No shortlisted consultants" : t("consultant.none_found")}
+              subtitle={showShortlist ? "Bookmark consultants to build your shortlist" : t("consultant.try_search")} />
           </div>
         )}
       </div>
@@ -22969,6 +23114,10 @@ function ConsultantsView({ auth }) {
           <ConsultantProfilePanel
             consultantId={profileView}
             onClose={() => setProfileView(null)}
+            auth={auth}
+            isShortlisted={isShortlisted(profileView)}
+            onToggleShortlist={() => toggleShortlist(profileView)}
+            openCases={openCases}
           />
         </div>
       )}
