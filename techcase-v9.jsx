@@ -2012,6 +2012,9 @@ const TRANSLATIONS = {
     "catalog.expertise_levels":     "Expertise Levels",
     "catalog.priorities":           "Priorities",
     "catalog.connection_types":     "Connection Types",
+    "catalog.skills":               "Skills",
+    "catalog.certifications":       "Certifications",
+    "catalog.languages":            "Languages",
     // Expertise level options
     "exp.any":                      "Any Level",
     "exp.junior":                   "Junior",
@@ -4293,6 +4296,9 @@ const TRANSLATIONS = {
     "catalog.expertise_levels":     "Niveles de Experiencia",
     "catalog.priorities":           "Prioridades",
     "catalog.connection_types":     "Tipos de Conexión",
+    "catalog.skills":               "Habilidades",
+    "catalog.certifications":       "Certificaciones",
+    "catalog.languages":            "Idiomas",
     // Expertise level options
     "exp.any":                      "Cualquier Nivel",
     "exp.junior":                   "Junior",
@@ -10007,6 +10013,54 @@ const SLA_PRESETS = [
 
 const EXPRESS_STEP_IDS = [0, 1, 2, 4, 8];
 
+function CatalogMultiSelect({ options = [], selected = [], onChange, color = "blue", placeholder = "Search…" }) {
+  const [filter, setFilter] = React.useState("");
+  const visible = filter.trim()
+    ? options.filter(o => o.toLowerCase().includes(filter.toLowerCase()))
+    : options;
+  function toggle(val) {
+    onChange(selected.includes(val) ? selected.filter(v => v !== val) : [...selected, val]);
+  }
+  const colorMap = {
+    blue:   { chip: "bg-blue-50 text-blue-700 border border-blue-200",   btn: "hover:bg-blue-100 text-blue-400 hover:text-blue-700" },
+    green:  { chip: "bg-green-50 text-green-700 border border-green-200", btn: "hover:bg-green-100 text-green-400 hover:text-green-700" },
+    violet: { chip: "bg-violet-50 text-violet-700 border border-violet-200", btn: "hover:bg-violet-100 text-violet-400 hover:text-violet-700" },
+  };
+  const c = colorMap[color] ?? colorMap.blue;
+  return (
+    <div className="space-y-2">
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selected.map(v => (
+            <span key={v} className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-semibold ${c.chip}`}>
+              {v}
+              <button type="button" onClick={() => toggle(v)} className={`ml-0.5 ${c.btn} rounded`}>×</button>
+            </span>
+          ))}
+        </div>
+      )}
+      {options.length > 8 && (
+        <input value={filter} onChange={e => setFilter(e.target.value)} placeholder={placeholder}
+          className="w-full border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
+      )}
+      <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+        {visible.map(opt => {
+          const sel = selected.includes(opt);
+          return (
+            <button key={opt} type="button" onClick={() => toggle(opt)}
+              className={`px-2.5 py-0.5 rounded-lg text-xs font-medium border transition-colors ${
+                sel ? c.chip : "bg-white border-gray-200 text-gray-600 hover:border-gray-400"
+              }`}>
+              {opt}
+            </button>
+          );
+        })}
+        {visible.length === 0 && <p className="text-xs text-gray-400 py-1">No matches</p>}
+      </div>
+    </div>
+  );
+}
+
 function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, initialData = null, initialProjectId = null, presetData = null }) {
   const { t } = useT();
   const isEdit = !!initialData;
@@ -10030,7 +10084,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   const [wizardProjects, setWizardProjects]         = useState([]);
 
   const [basics, setBasics] = useState({ title: initialData?.title ?? "", description: initialData?.description ?? "", priority: initialData?.priority ?? "medium", area_sap: initialData?.area_sap ?? "", area_industry: initialData?.area_industry ?? "", is_confidential: initialData?.is_confidential ?? false, nda_required: initialData?.nda_required ?? false, min_trust_level: initialData?.min_trust_level ?? null });
-  const [scope, setScope]   = useState({ budget: initialData?.budget ?? "", start_date: initialData?.start_date ?? "", due_date: initialData?.due_date ?? daysFromNow(30), sla: "standard", _skills: (initialData?.skills_required ?? []).join(", "), client_id: auth.isClient ? auth.user?.id : (initialData?.client_id ?? "") });
+  const [scope, setScope]   = useState({ budget: initialData?.budget ?? "", start_date: initialData?.start_date ?? "", due_date: initialData?.due_date ?? daysFromNow(30), sla: "standard", _skills: initialData?.skills_required ?? [], client_id: auth.isClient ? auth.user?.id : (initialData?.client_id ?? "") });
 
   // Step 3: Work Arrangement
   const [arrangement, setArr] = useState({ work_mode: initialData?.work_mode ?? "remote", work_location: initialData?.work_location ?? "", travel_required: initialData?.travel_required ?? false });
@@ -10128,7 +10182,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
     setScope(p => ({
       ...p,
       budget:   presetData.budget ?? p.budget,
-      _skills:  presetData.skills_required ? presetData.skills_required.join(", ") : p._skills,
+      _skills:  presetData.skills_required ?? p._skills,
     }));
     if (presetData.work_mode) setArr(p => ({ ...p, work_mode: presetData.work_mode }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -10274,7 +10328,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         start_date: rest.start_date || null,
         due_date: rest.due_date || null,
         budget: scope.budget ? Number(scope.budget) : null,
-        skills_required: _skills.split(",").map(s => s.trim()).filter(Boolean),
+        skills_required: _skills,
         client_id:  auth.isClient  ? auth.user?.id : auth.isKeyUser ? keyUserClientId : client_id || null,
         manager_id: auth.isManager ? auth.user?.id : null,
         project_id: selectedProjectId || null,
@@ -10325,7 +10379,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               ...arrangement,
               ...quals,
               ...interview,
-              skills_required: _skills.split(",").map(s => s.trim()).filter(Boolean),
+              skills_required: _skills,
             };
             await supabase.from("case_templates").insert({
               name: templateName.trim(),
@@ -10600,9 +10654,16 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
             })()}
             {mode === "express" ? (
               <>
-                <Input label={t("case.skills_label")} value={scope._skills}
-                  onChange={e => setScope(p => ({ ...p, _skills: e.target.value }))}
-                  placeholder={t("label.ph_skills")} />
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t("case.skills_label")}</label>
+                  <CatalogMultiSelect
+                    options={catalogSkills}
+                    selected={scope._skills}
+                    onChange={val => setScope(p => ({ ...p, _skills: val }))}
+                    color="blue"
+                    placeholder="Search skills…"
+                  />
+                </div>
                 <div className="mt-2 mb-1">
                   <p className="text-sm font-medium text-gray-700 mb-2">{t("proj.work_mode")}</p>
                   <div className="grid grid-cols-3 gap-3">
@@ -10659,9 +10720,16 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                 )}
                 <Input label={t("case.start_date_label")} type="date" value={scope.start_date}
                   onChange={e => setScope(p => ({ ...p, start_date: e.target.value }))} />
-                <Input label={t("case.skills_label")} value={scope._skills}
-                  onChange={e => setScope(p => ({ ...p, _skills: e.target.value }))}
-                  placeholder={t("label.ph_skills")} />
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t("case.skills_label")}</label>
+                  <CatalogMultiSelect
+                    options={catalogSkills}
+                    selected={scope._skills}
+                    onChange={val => setScope(p => ({ ...p, _skills: val }))}
+                    color="blue"
+                    placeholder="Search skills…"
+                  />
+                </div>
               </>
             )}
           </>
@@ -11033,9 +11101,9 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                     </div>
                   )}
                 </div>
-                {scope._skills && (
+                {scope._skills && scope._skills.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-3">
-                    {scope._skills.split(",").map(s => s.trim()).filter(Boolean).map(s => (
+                    {scope._skills.map(s => (
                       <span key={s} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-lg text-xs">{s}</span>
                     ))}
                   </div>
@@ -27539,6 +27607,9 @@ function SettingsCatalogTab({ ssCtx }) {
     expertise_levels: ["junior", "mid", "senior", "lead", "expert"],
     priorities:       ["low", "medium", "high", "critical"],
     connection_types: ["sap_gui", "sap_hana", "sap_rfc", "sap_odata", "rest", "soap", "jdbc", "sftp", "smtp", "ldap"],
+    skills:         ["ABAP Development", "SAP Basis Administration", "SAP FICO Configuration", "SAP MM Configuration", "SAP SD Configuration", "SAP HCM", "SAP Fiori / UI5", "SAP BW / Analytics", "SAP Integration (CPI/PI)", "S/4HANA Migration", "SAP GRC", "SAP PM / QM", "HANA DB Administration", "SAP Security / Roles", "SAP PS (Project Systems)"],
+    certifications: ["SAP Certified Associate - ABAP with SAP NetWeaver", "SAP Certified Application Associate - SAP S/4HANA Finance", "SAP Certified Application Associate - SAP S/4HANA Sourcing and Procurement", "SAP Certified Application Associate - SAP SuccessFactors", "SAP Certified Technology Associate - SAP HANA", "SAP Certified Technology Associate - SAP Basis", "SAP Certified Application Associate - SAP MM", "SAP Certified Application Associate - SAP SD", "SAP Certified Application Associate - SAP HCM"],
+    languages:      ["English", "Spanish", "German", "French", "Portuguese", "Italian", "Dutch", "Polish", "Mandarin", "Japanese", "Arabic", "Russian", "Hindi"],
   };
 
   const [selectedCat, setSelectedCat] = useState("sap_areas");
@@ -27557,6 +27628,9 @@ function SettingsCatalogTab({ ssCtx }) {
     expertise_levels: t("catalog.expertise_levels"),
     priorities:       t("catalog.priorities"),
     connection_types: t("catalog.connection_types"),
+    skills:         t("catalog.skills"),
+    certifications: t("catalog.certifications"),
+    languages:      t("catalog.languages"),
   };
 
   useEffect(() => {
