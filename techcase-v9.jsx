@@ -11617,7 +11617,8 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
         await onSave(payload);
       } else {
         const newProject = await createProject({ ...payload, created_by: auth.user?.id });
-        if (newProject && extractedCases && extractedCases.length > 0) {
+        if (!newProject?.id) throw new Error("Project was saved but its ID could not be confirmed — cases were not imported. Open the project and add cases manually.");
+        if (extractedCases && extractedCases.length > 0) {
           const clientId = auth.isClient ? auth.user?.id : (scopeData.client_id || null);
           const caseRows = extractedCases.map(c => ({
             title:           String(c.title ?? 'Untitled case'),
@@ -11632,8 +11633,12 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
             case_type:       caseMode,
             created_by:      auth.user?.id,
           }));
-          const { error: casesError } = await supabase.from('cases').insert(caseRows);
-          if (casesError) throw new Error(`Project created, but cases failed to import: ${casesError.message}`);
+          const { data: inserted, error: casesError } = await supabase
+            .from('cases')
+            .insert(caseRows)
+            .select('id');
+          if (casesError) throw new Error(`Project created (id: ${newProject.id}), but cases failed: ${casesError.message}`);
+          if (!inserted?.length) throw new Error(`Project created (id: ${newProject.id}), but 0 cases were linked — the cases table may be blocking inserts via RLS. Try creating a case manually from the project.`);
         }
       }
       onComplete();
