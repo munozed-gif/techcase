@@ -11631,7 +11631,6 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
             project_id:      newProject.id,
             client_id:       clientId,
             status:          'open',
-            case_type:       caseMode,
             created_by:      auth.user?.id,
           }));
           const { data: inserted, error: casesError } = await supabase
