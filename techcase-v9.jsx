@@ -10021,7 +10021,7 @@ const SLA_PRESETS = [
 const EXPRESS_STEP_IDS = [0, 1, 2, 4, 8];
 
 function CatalogMultiSelect({ options = [], selected = [], onChange, color = "blue", placeholder = "Search…" }) {
-  const [filter, setFilter] = React.useState("");
+  const [filter, setFilter] = useState("");
   const visible = filter.trim()
     ? options.filter(o => o.toLowerCase().includes(filter.toLowerCase()))
     : options;
