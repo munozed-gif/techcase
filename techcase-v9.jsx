@@ -11615,6 +11615,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
       };
       if (isEdit) {
         await onSave(payload);
+        onComplete(null, 0);
       } else {
         const newProject = await createProject({ ...payload, created_by: auth.user?.id });
         if (!newProject?.id) throw new Error("Project was saved but its ID could not be confirmed — cases were not imported. Open the project and add cases manually.");
@@ -11640,10 +11641,10 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
           if (casesError) throw new Error(`Project created, but cases failed: ${casesError.message}`);
           if (!inserted?.length) throw new Error(`Project created, but 0 cases were linked — the database may be blocking the insert. Try adding cases manually from the project.`);
           onComplete(newProject, inserted.length);
-          return;
+        } else {
+          onComplete(newProject, 0);
         }
       }
-      onComplete(newProject, 0);
     } catch (e) { setCreateError(e.message || "Failed to create project. Please try again."); }
     setCreating(false);
   }
