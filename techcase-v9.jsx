@@ -35,7 +35,7 @@ import {
   BadgeCheck, XCircle,
   Wand2, Download, Sparkles, Loader2,
   ListChecks, ChevronDown, ChevronRight, AlertTriangle, CircleSlash,
-  GripVertical, Pencil, Timer, Link2, ExternalLink, Upload, Code2, Lock,
+  GripVertical, Pencil, Timer, Link2, ExternalLink, Upload, Code2, Lock, Camera,
   Plus, Tag, RefreshCw, Shield,
   LayoutTemplate, Copy,
   Bookmark, BookmarkCheck, Send, Crosshair,
@@ -5031,7 +5031,7 @@ function useProjects(filters = {}) {
     if (!background) setLoading(true);
     let q = supabase
       .from("projects")
-      .select(`*, client:client_id(id, full_name, client_profiles(company_name)), cases(id, status)`)
+      .select(`*, client:client_id(id, full_name, avatar_url, client_profiles(company_name)), cases(id, status)`)
       .order("created_at", { ascending: false });
     if (filters.client_id) q = q.eq("client_id", filters.client_id);
     if (filters.status)    q = q.eq("status", filters.status);
@@ -5393,12 +5393,13 @@ function useCases(filters = {}) {
       .from("cases")
       .select(`
         *,
-        client:client_id(id, full_name, email, client_profiles(company_name)),
+        client:client_id(id, full_name, email, avatar_url, client_profiles(company_name)),
         manager:manager_id(id, full_name, email),
         case_assignments(consultant_id, time_commitment,
           users:consultant_id(id, full_name, avatar_url)),
         case_key_users(user_id, area, users:user_id(full_name, email)),
-        applications(count)
+        applications(count),
+        project:project_id(id, name, avatar_url, client:client_id(id, avatar_url))
       `)
       .order("created_at", { ascending: false });
 
@@ -9169,12 +9170,14 @@ function Dashboard({ auth }) {
             {activeStat.type === "cases" && activeStat.items.map(c => (
               <div key={c.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 font-bold text-sm flex-shrink-0">
-                    {c.title?.[0]}
-                  </div>
+                  {c.project
+                    ? <ProjectAvatar project={c.project} size={36} />
+                    : <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 font-bold text-sm flex-shrink-0">{c.title?.[0]}</div>
+                  }
                   <div className="min-w-0">
                     <div className="font-medium text-gray-900 text-sm truncate">{c.title}</div>
                     <div className="text-xs text-gray-400 mt-0.5 flex gap-2 flex-wrap">
+                      {c.project?.name && <span className="font-medium text-gray-500">{c.project.name}</span>}
                       {c.due_date && <span>{t("label.due_colon")} {fmtDate(c.due_date)}</span>}
                       {c.budget && <span>${Number(c.budget).toLocaleString()}</span>}
                     </div>
@@ -9390,12 +9393,17 @@ function Dashboard({ auth }) {
               {(auth.isConsultant ? assignedCases : cases.slice(0, 8)).map(c => (
                 <div key={c.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 font-bold text-xs flex-shrink-0">
-                      {c.title?.[0]}
-                    </div>
+                    {c.project
+                      ? <ProjectAvatar project={c.project} size={32} />
+                      : <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 font-bold text-xs flex-shrink-0">{c.title?.[0]}</div>
+                    }
                     <div className="min-w-0">
                       <div className="font-medium text-gray-900 text-sm truncate">{c.title}</div>
-                      <div className="text-xs text-gray-400">{fmtDate(c.created_at)}</div>
+                      <div className="text-xs text-gray-400 flex gap-1.5">
+                        {c.project?.name && <span className="font-medium text-gray-500 truncate max-w-[120px]">{c.project.name}</span>}
+                        {c.project?.name && <span>·</span>}
+                        <span>{fmtDate(c.created_at)}</span>
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0 ml-2">
@@ -12241,6 +12249,27 @@ function UserAvatar({ name, size = 36, title: tooltipTitle }) {
   );
 }
 
+function ProjectAvatar({ project, size = 44, className = "" }) {
+  const src = project?.avatar_url || project?.client?.avatar_url || null;
+  const name = project?.name || '?';
+  if (src) {
+    return (
+      <img src={src} alt={name}
+        style={{ width: size, height: size }}
+        className={`rounded-xl object-cover flex-shrink-0 ${className}`} />
+    );
+  }
+  const c = AVATAR_PALETTE[Math.abs(name.charCodeAt(0)) % AVATAR_PALETTE.length];
+  const initials = name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+  return (
+    <div title={name}
+      style={{ width: size, height: size, background: c.bg, color: c.fg, borderRadius: 12, fontSize: Math.round(size * 0.36), fontWeight: 700, flexShrink: 0, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      className={className}>
+      {initials}
+    </div>
+  );
+}
+
 function ProjectConnectionsTab({ projectId, clientId, auth }) {
   const { t } = useT();
   const { projectConns, clientConns, addConnection, deleteConnection } = useProjectDbConnections(projectId, clientId);
@@ -12410,6 +12439,24 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
   const [expandedConsultant, setExpandedConsultant] = useState(null);
   const [projSelectedCase, setProjSelectedCase] = useState(null);
   const { templates: lcTemplates2, getTemplateStages: getProjTmplStages } = useLifecycleTemplates();
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef(null);
+
+  async function handleAvatarUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      const ext = file.name.split('.').pop().toLowerCase();
+      const path = `project-avatars/${project.id}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('project-avatars').upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: { publicUrl } } = supabase.storage.from('project-avatars').getPublicUrl(path);
+      await onUpdate(project.id, { avatar_url: publicUrl });
+    } catch (err) { alert(`Avatar upload failed: ${err.message}`); }
+    setUploadingAvatar(false);
+    e.target.value = '';
+  }
 
   const loadProjCases = useCallback(async () => {
     if (!project?.id) return;
@@ -12537,9 +12584,23 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
         </button>
         <div className="flex items-start justify-between gap-4 mb-3">
           <div className="flex items-center gap-3 min-w-0">
-            {project.client && (
-              <UserAvatar name={project.client?.client_profiles?.company_name ?? project.client?.full_name} size={44} />
-            )}
+            <div className="relative flex-shrink-0" style={{ width: 44, height: 44 }}>
+              <ProjectAvatar project={project} size={44} />
+              {canEdit && (
+                <>
+                  <button
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={uploadingAvatar}
+                    title="Change project photo"
+                    className="absolute inset-0 rounded-xl bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                    {uploadingAvatar
+                      ? <Loader2 size={16} className="text-white animate-spin" />
+                      : <Camera size={16} className="text-white" />}
+                  </button>
+                  <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+                </>
+              )}
+            </div>
             <div className="min-w-0">
               <h1 className="text-2xl font-bold text-gray-900 leading-tight">{project.name}</h1>
               {(auth.isAdmin || auth.isManager) && project.client?.client_profiles?.company_name && (
