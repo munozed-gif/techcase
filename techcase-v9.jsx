@@ -5027,8 +5027,8 @@ function useProjects(filters = {}) {
   const [loading, setLoading]   = useState(true);
   const filterKey = JSON.stringify(filters);
 
-  const fetchProjects = useCallback(async () => {
-    setLoading(true);
+  const fetchProjects = useCallback(async (background = false) => {
+    if (!background) setLoading(true);
     let q = supabase
       .from("projects")
       .select(`*, client:client_id(id, full_name, client_profiles(company_name)), cases(id, status)`)
@@ -5047,14 +5047,14 @@ function useProjects(filters = {}) {
     const { data: row, error } = await supabase.from("projects").insert(data).select().single();
     if (error) throw error;
     logEvent('project.created', { entityType: 'project', entityId: row.id, entityName: row.name ?? row.title });
-    await fetchProjects();
+    await fetchProjects(true);
     return row;
   }
 
   async function updateProject(id, updates) {
     const { data: row, error } = await supabase.from("projects").update(updates).eq("id", id).select().single();
     if (error) throw error;
-    await fetchProjects();
+    await fetchProjects(true);
     return row;
   }
 
@@ -5067,14 +5067,14 @@ function useProjects(filters = {}) {
       .neq("status", "cancelled");
     const { data: row, error } = await supabase.from("projects").update({ status: newStatus }).eq("id", id).select().single();
     if (error) throw error;
-    await fetchProjects();
+    await fetchProjects(true);
     return row;
   }
 
   async function deleteProject(id) {
     const { error } = await supabase.from("projects").delete().eq("id", id);
     if (error) throw error;
-    await fetchProjects();
+    await fetchProjects(true);
   }
 
   return { projects, loading, createProject, updateProject, closeProject, deleteProject, refetch: fetchProjects };
