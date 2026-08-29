@@ -11619,21 +11619,21 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
         const newProject = await createProject({ ...payload, created_by: auth.user?.id });
         if (newProject && extractedCases && extractedCases.length > 0) {
           const clientId = auth.isClient ? auth.user?.id : (scopeData.client_id || null);
-          for (const c of extractedCases) {
-            await supabase.from('cases').insert({
-              title:           c.title,
-              description:     c.description || null,
-              priority:        c.priority || 'medium',
-              area_sap:        c.area_sap || null,
-              skills_required: c.skills?.length ? c.skills : null,
-              estimated_hours: c.est_hours ? Number(c.est_hours) : null,
-              project_id:      newProject.id,
-              client_id:       clientId,
-              status:          'open',
-              case_type:       caseMode,
-              created_by:      auth.user?.id,
-            });
-          }
+          const caseRows = extractedCases.map(c => ({
+            title:           String(c.title ?? 'Untitled case'),
+            description:     c.description || null,
+            priority:        ['low','medium','high','urgent'].includes(c.priority) ? c.priority : 'medium',
+            area_sap:        c.area_sap || null,
+            skills_required: c.skills?.length ? c.skills : null,
+            estimated_hours: c.est_hours ? Number(c.est_hours) : null,
+            project_id:      newProject.id,
+            client_id:       clientId,
+            status:          'open',
+            case_type:       caseMode,
+            created_by:      auth.user?.id,
+          }));
+          const { error: casesError } = await supabase.from('cases').insert(caseRows);
+          if (casesError) throw new Error(`Project created, but cases failed to import: ${casesError.message}`);
         }
       }
       onComplete();
