@@ -11637,11 +11637,13 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
             .from('cases')
             .insert(caseRows)
             .select('id');
-          if (casesError) throw new Error(`Project created (id: ${newProject.id}), but cases failed: ${casesError.message}`);
-          if (!inserted?.length) throw new Error(`Project created (id: ${newProject.id}), but 0 cases were linked — the cases table may be blocking inserts via RLS. Try creating a case manually from the project.`);
+          if (casesError) throw new Error(`Project created, but cases failed: ${casesError.message}`);
+          if (!inserted?.length) throw new Error(`Project created, but 0 cases were linked — the database may be blocking the insert. Try adding cases manually from the project.`);
+          onComplete(newProject, inserted.length);
+          return;
         }
       }
-      onComplete();
+      onComplete(newProject, 0);
     } catch (e) { setCreateError(e.message || "Failed to create project. Please try again."); }
     setCreating(false);
   }
@@ -12392,7 +12394,7 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
   );
 }
 
-function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] }) {
+function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [], importedCasesCount = 0 }) {
   const { t } = useT();
   const { createCase, updateCase, deleteCase } = useCases({});
   const [projCases, setProjCases] = useState([]);
@@ -12515,6 +12517,18 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [] 
 
   return (
     <div className="space-y-6">
+      {/* Import success banner */}
+      {importedCasesCount > 0 && (
+        <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-3.5">
+          <CheckCircle2 size={18} className="text-emerald-500 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-emerald-800">
+              Project created with {importedCasesCount} imported case{importedCasesCount !== 1 ? 's' : ''}
+            </p>
+            <p className="text-xs text-emerald-600 mt-0.5">Cases are linked to this project and ready to review below.</p>
+          </div>
+        </div>
+      )}
       {/* Header card */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <button onClick={onBack}
@@ -13210,6 +13224,7 @@ function ProjectsView({ auth, initialProjectId }) {
   const [statusFilter, setStatusFilter] = useState("");
   const [showCreate, setShowCreate]     = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [importBanner, setImportBanner] = useState(null);
   const [clients, setClients]           = useState([]);
 
   useEffect(() => {
@@ -13245,7 +13260,8 @@ function ProjectsView({ auth, initialProjectId }) {
         project={selectedProject}
         auth={auth}
         clients={clients}
-        onBack={() => setSelectedProject(null)}
+        importedCasesCount={importBanner?.projectId === selectedProject?.id ? importBanner.count : 0}
+        onBack={() => { setSelectedProject(null); setImportBanner(null); }}
         onUpdate={async (id, updates) => {
           const updated = await updateProject(id, updates);
           setSelectedProject(updated);
@@ -13266,7 +13282,13 @@ function ProjectsView({ auth, initialProjectId }) {
           auth={auth}
           createProject={createProject}
           clients={clients}
-          onComplete={() => setShowCreate(false)}
+          onComplete={(newProj, caseCount) => {
+            setShowCreate(false);
+            if (newProj?.id) {
+              setSelectedProject(newProj);
+              if (caseCount > 0) setImportBanner({ projectId: newProj.id, count: caseCount });
+            }
+          }}
           onCancel={() => setShowCreate(false)}
         />
       </div>
