@@ -17765,6 +17765,8 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [editingActId, setEditingActId] = useState(null);
   const [editActForm, setEditActForm]   = useState({});
   const [expandedActId, setExpandedActId] = useState(null);
+  const [selectedActIds, setSelectedActIds] = useState(new Set());
+  const [deletingBulkActs, setDeletingBulkActs] = useState(false);
   const [actType, setActType]             = useState("task");       // "task" | "sub_case"
   const [subCaseMode, setSubCaseMode]     = useState("create");     // "create" | "link"
   const [caseSearchQuery, setCaseSearchQuery]   = useState("");
@@ -17989,6 +17991,20 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
       setCommentForm({ body: "", hoursLogged: 0, progressUpdate: "", isInternal: false });
     } catch (e) { alert(e.message); }
     setSendingComment(false);
+  }
+
+  async function handleBulkDeleteActs() {
+    if (!selectedActIds.size) return;
+    if (!window.confirm(`Delete ${selectedActIds.size} activit${selectedActIds.size === 1 ? 'y' : 'ies'}? This cannot be undone.`)) return;
+    setDeletingBulkActs(true);
+    try {
+      const ids = [...selectedActIds];
+      const { error } = await supabase.from('case_activities').delete().in('id', ids);
+      if (error) throw error;
+      setSelectedActIds(new Set());
+      setActRefreshKey(k => k + 1);
+    } catch (e) { alert('Failed to delete: ' + e.message); }
+    setDeletingBulkActs(false);
   }
 
   async function handleCreateSubCase() {
@@ -21273,6 +21289,33 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               </div>
             ) : (
               <div className="space-y-4">
+                {/* Bulk-select toolbar */}
+                {canManage && activities.length > 0 && (
+                  <div className="flex items-center gap-3 py-2 px-1">
+                    <button
+                      onClick={() => {
+                        const allIds = activities.map(a => a.id);
+                        setSelectedActIds(prev => prev.size === allIds.length ? new Set() : new Set(allIds));
+                      }}
+                      className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors">
+                      <div className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-colors ${selectedActIds.size === activities.length && activities.length > 0 ? 'bg-red-500 border-red-500' : selectedActIds.size > 0 ? 'bg-red-300 border-red-300' : 'border-gray-400'}`}>
+                        {selectedActIds.size > 0 && <Check size={8} className="text-white" />}
+                      </div>
+                      {selectedActIds.size > 0 ? `${selectedActIds.size} selected` : 'Select all'}
+                    </button>
+                    {selectedActIds.size > 0 && (
+                      <button onClick={handleBulkDeleteActs} disabled={deletingBulkActs}
+                        className="flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-800 disabled:opacity-50 transition-colors">
+                        {deletingBulkActs ? <><Spinner size={10} /> Deleting…</> : <><Trash2 size={12} /> Delete {selectedActIds.size}</>}
+                      </button>
+                    )}
+                    {selectedActIds.size > 0 && (
+                      <button onClick={() => setSelectedActIds(new Set())} className="text-xs text-gray-400 hover:text-gray-600 ml-auto transition-colors">
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                )}
                 {groupedActs.map(({ phase, acts }) => {
                   if (acts.length === 0) return null;
                   const isLockedPhase = phase.required_status && caseData.status !== phase.required_status;
@@ -21467,8 +21510,14 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                     const scAdh    = activityAdherence({ ...act, progress_pct: subPct });
                     const scAdhInfo = scAdh ? ADHERENCE[scAdh] : null;
                     return (
-                      <div key={act.id} className="border border-violet-200 rounded-xl overflow-hidden">
+                      <div key={act.id} className={`border rounded-xl overflow-hidden transition-colors ${selectedActIds.has(act.id) ? 'border-red-300 bg-red-50' : 'border-violet-200'}`}>
                         <div className="flex items-center gap-3 px-4 py-3 bg-white hover:bg-violet-50">
+                          {canManage && (
+                            <button onClick={e => { e.stopPropagation(); setSelectedActIds(prev => { const n = new Set(prev); n.has(act.id) ? n.delete(act.id) : n.add(act.id); return n; }); }}
+                              className={`flex-shrink-0 w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-colors ${selectedActIds.has(act.id) ? 'bg-red-500 border-red-500' : 'border-gray-300 hover:border-red-400'}`}>
+                              {selectedActIds.has(act.id) && <Check size={8} className="text-white" />}
+                            </button>
+                          )}
                           <span className="text-xs font-bold text-gray-400 w-6 flex-shrink-0 text-center">#{act.task_no}</span>
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 bg-violet-100 text-violet-700 flex items-center gap-1">
                             <Link2 size={9} /> {t("case.badge_subcase")}
@@ -21550,9 +21599,16 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
 
                   // ── Regular task row ─────────────────────────────────
                   return (
-                    <div key={act.id} className="border border-gray-200 rounded-xl overflow-hidden">
+                    <div key={act.id} className={`border rounded-xl overflow-hidden transition-colors ${selectedActIds.has(act.id) ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}>
                       {/* Main row */}
                       <div className="flex items-center gap-3 px-4 py-3 bg-white hover:bg-gray-50">
+                        {/* Bulk-select checkbox */}
+                        {canManage && (
+                          <button onClick={e => { e.stopPropagation(); setSelectedActIds(prev => { const n = new Set(prev); n.has(act.id) ? n.delete(act.id) : n.add(act.id); return n; }); }}
+                            className={`flex-shrink-0 w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-colors ${selectedActIds.has(act.id) ? 'bg-red-500 border-red-500' : 'border-gray-300 hover:border-red-400'}`}>
+                            {selectedActIds.has(act.id) && <Check size={8} className="text-white" />}
+                          </button>
+                        )}
                         {/* Task # */}
                         <span className="text-xs font-bold text-gray-400 w-6 flex-shrink-0 text-center">#{act.task_no}</span>
                         {/* Status chip */}
