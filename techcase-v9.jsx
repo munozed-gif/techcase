@@ -14461,6 +14461,14 @@ function GenerationProfileModal({ onConfirm, onClose, title, outputMode, onOutpu
   );
 }
 
+function openHtmlInNewTab(htmlString) {
+  const blob = new Blob([htmlString], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank');
+  if (win) setTimeout(() => URL.revokeObjectURL(url), 60000);
+  else { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.click(); }
+}
+
 function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocument, refetchDocuments, onUpdate }) {
   const { t } = useT();
   const ssCtx = useSystemSettings();
@@ -15171,14 +15179,6 @@ ${mdToHtml(markdownContent)}
     }
     lines.push('---\n');
     return lines.join('\n');
-  }
-
-  function openHtmlInNewTab(htmlString) {
-    const blob = new Blob([htmlString], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const win = window.open(url, '_blank');
-    if (win) setTimeout(() => URL.revokeObjectURL(url), 60000);
-    else { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.click(); }
   }
 
   async function saveSpecAsDocument(markdown, filePrefix, docNote) {
