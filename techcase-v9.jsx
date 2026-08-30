@@ -34,7 +34,7 @@ import {
   Play, Pause, PauseCircle, RotateCcw, Archive, Search,
   BadgeCheck, XCircle,
   Wand2, Download, Sparkles, Loader2,
-  ListChecks, ChevronDown, ChevronRight, AlertTriangle, CircleSlash,
+  ListChecks, ChevronDown, ChevronUp, ChevronRight, AlertTriangle, CircleSlash,
   GripVertical, Pencil, Timer, Link2, ExternalLink, Upload, Code2, Lock, Camera,
   Plus, Tag, RefreshCw, Shield,
   LayoutTemplate, Copy,
