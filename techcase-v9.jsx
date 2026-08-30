@@ -13415,12 +13415,10 @@ function ProjectsView({ auth, initialProjectId }) {
                 className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer p-5"
                 onClick={() => setSelectedProject(p)}>
                 <div className="flex items-start gap-4">
-                  {/* Client avatar */}
-                  {p.client && (
-                    <div className="flex-shrink-0 mt-0.5">
-                      <UserAvatar name={company ?? '?'} size={44} />
-                    </div>
-                  )}
+                  {/* Project avatar (falls back to client avatar → initials) */}
+                  <div className="flex-shrink-0 mt-0.5">
+                    <ProjectAvatar project={p} size={44} />
+                  </div>
 
                   <div className="flex-1 min-w-0">
                     {/* Title row */}
