@@ -5207,6 +5207,41 @@ function useCaseActivities(caseId, refreshKey = 0) {
   return { activities, loading, addActivity, updateActivity, deleteActivity, refetch: fetchActivities };
 }
 
+function useProjectTemplates() {
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading]   = useState(true);
+
+  const fetchTemplates = useCallback(async () => {
+    const { data } = await supabase.from('project_templates').select('*').order('created_at');
+    setTemplates(data ?? []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchTemplates(); }, [fetchTemplates]);
+
+  async function createTemplate(data) {
+    const { data: row, error } = await supabase.from('project_templates').insert(data).select().single();
+    if (error) throw error;
+    await fetchTemplates();
+    return row;
+  }
+
+  async function updateTemplate(id, updates) {
+    const { error } = await supabase.from('project_templates')
+      .update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id);
+    if (error) throw error;
+    await fetchTemplates();
+  }
+
+  async function deleteTemplate(id) {
+    const { error } = await supabase.from('project_templates').delete().eq('id', id);
+    if (error) throw error;
+    await fetchTemplates();
+  }
+
+  return { templates, loading, createTemplate, updateTemplate, deleteTemplate, refetch: fetchTemplates };
+}
+
 // ── Stage access rules ───────────────────────────────────────
 // Returns effective permissions for the current user + lifecycle stage.
 // bypass_roles always get the fully-open set regardless of rules.
@@ -9645,6 +9680,69 @@ function Dashboard({ auth }) {
 // CASE TEMPLATES
 // ============================================================
 
+// ── Built-in project templates (in-memory, no DB row required) ───────────────
+const BUILT_IN_PROJECT_TEMPLATES = [
+  {
+    id: 'builtin-sap-full',
+    name: 'SAP Full Implementation',
+    description: 'End-to-end SAP project covering all ASAP methodology phases — from project prep through hypercare.',
+    category: 'SAP Implementation',
+    is_builtin: true,
+    items: [
+      { id: 'sfi-1',  title: 'Project Preparation & Planning',      description: 'Define scope, governance, team structure, tools, and project standards.',                          priority: 'high',   area_sap: 'BASIS', est_hours: 40,  sort_order: 0 },
+      { id: 'sfi-2',  title: 'System Landscape Setup',              description: 'Install and configure DEV/QAS/PRD systems and transport management.',                              priority: 'medium', area_sap: 'BASIS', est_hours: 24,  sort_order: 1 },
+      { id: 'sfi-3',  title: 'AS-IS Business Process Analysis',     description: 'Document current processes, pain points, and improvement opportunities.',                          priority: 'high',   area_sap: '',      est_hours: 80,  sort_order: 2 },
+      { id: 'sfi-4',  title: 'Business Blueprint & GAP Analysis',   description: 'Map business requirements to SAP functionality; identify gaps and workarounds.',                   priority: 'high',   area_sap: '',      est_hours: 60,  sort_order: 3 },
+      { id: 'sfi-5',  title: 'Functional Specifications (FS)',       description: 'Write functional specs for all custom developments, forms and reports.',                           priority: 'high',   area_sap: '',      est_hours: 80,  sort_order: 4 },
+      { id: 'sfi-6',  title: 'Technical Specifications (TS)',        description: 'Translate functional specs into detailed technical specs for developers.',                          priority: 'medium', area_sap: 'ABAP',  est_hours: 60,  sort_order: 5 },
+      { id: 'sfi-7',  title: 'System Configuration',                description: 'Configure SAP modules per the approved business blueprint.',                                       priority: 'high',   area_sap: '',      est_hours: 120, sort_order: 6 },
+      { id: 'sfi-8',  title: 'Custom Development (ABAP)',            description: 'Develop custom reports, forms, enhancements, and interfaces.',                                     priority: 'medium', area_sap: 'ABAP',  est_hours: 80,  sort_order: 7 },
+      { id: 'sfi-9',  title: 'Master Data Migration & Cleansing',   description: 'Extract, cleanse, map and load legacy master data into SAP.',                                      priority: 'high',   area_sap: '',      est_hours: 60,  sort_order: 8 },
+      { id: 'sfi-10', title: 'Integration & Unit Testing',           description: 'Run unit and integration tests across all configured modules.',                                    priority: 'high',   area_sap: '',      est_hours: 40,  sort_order: 9 },
+      { id: 'sfi-11', title: 'User Acceptance Testing (UAT)',        description: 'Business users validate end-to-end scenarios in QAS environment.',                                 priority: 'high',   area_sap: '',      est_hours: 40,  sort_order: 10 },
+      { id: 'sfi-12', title: 'End-User Training',                   description: 'Train key users and end users on relevant SAP transactions and processes.',                        priority: 'medium', area_sap: '',      est_hours: 32,  sort_order: 11 },
+      { id: 'sfi-13', title: 'Go-Live Preparation & Cutover Plan',  description: 'Finalize cutover plan, rehearsals, Go/No-Go decision, and go-live checklist.',                    priority: 'high',   area_sap: '',      est_hours: 24,  sort_order: 12 },
+      { id: 'sfi-14', title: 'Go-Live Support & Hypercare',         description: 'Provide intensive support post go-live to stabilize the system.',                                  priority: 'high',   area_sap: '',      est_hours: 32,  sort_order: 13 },
+    ],
+  },
+  {
+    id: 'builtin-hana-migration',
+    name: 'HANA Migration',
+    description: 'Technical migration from any DB to SAP HANA — assessment through production go-live.',
+    category: 'HANA Migration',
+    is_builtin: true,
+    items: [
+      { id: 'hm-1', title: 'System Assessment & Sizing',           description: 'Analyze current system, DB size, custom code, and HANA hardware requirements.',   priority: 'high',   area_sap: 'BASIS', est_hours: 24, sort_order: 0 },
+      { id: 'hm-2', title: 'Hardware & Infrastructure Setup',      description: 'Provision and configure HANA-certified hardware or cloud infrastructure.',          priority: 'high',   area_sap: 'BASIS', est_hours: 24, sort_order: 1 },
+      { id: 'hm-3', title: 'HANA Installation & Configuration',    description: 'Install HANA DB, SAP HANA Studio, and configure system parameters.',               priority: 'high',   area_sap: 'BASIS', est_hours: 16, sort_order: 2 },
+      { id: 'hm-4', title: 'Custom Code Adaptation',               description: 'Analyze ABAP code for HANA compatibility; optimize SQL and queries.',               priority: 'medium', area_sap: 'ABAP',  est_hours: 40, sort_order: 3 },
+      { id: 'hm-5', title: 'Pre-Migration Data Cleanup',           description: 'Archive old data, run consistency checks, and eliminate data quality issues.',      priority: 'medium', area_sap: '',      est_hours: 32, sort_order: 4 },
+      { id: 'hm-6', title: 'Database Migration Execution',         description: 'Execute the technical migration using SUM or DMO tools in non-production.',         priority: 'high',   area_sap: 'BASIS', est_hours: 80, sort_order: 5 },
+      { id: 'hm-7', title: 'Post-Migration Validation & Testing',  description: 'Validate data completeness, run regression tests, and verify performance.',         priority: 'high',   area_sap: '',      est_hours: 40, sort_order: 6 },
+      { id: 'hm-8', title: 'Performance Tuning & Optimization',    description: 'Leverage HANA in-memory capabilities; tune views, indexes, and queries.',           priority: 'medium', area_sap: 'BASIS', est_hours: 32, sort_order: 7 },
+      { id: 'hm-9', title: 'Production Go-Live & Stabilization',   description: 'Migrate production system, validate, and provide hypercare support.',               priority: 'high',   area_sap: '',      est_hours: 24, sort_order: 8 },
+    ],
+  },
+  {
+    id: 'builtin-rollout',
+    name: 'SAP Roll-out',
+    description: 'Template roll-out to additional countries or sites using an established SAP template.',
+    category: 'Roll-out',
+    is_builtin: true,
+    items: [
+      { id: 'ro-1', title: 'Country / Site Scoping & Requirements', description: 'Define country-specific legal, tax, language, and process requirements.',         priority: 'high',   area_sap: '',      est_hours: 24, sort_order: 0 },
+      { id: 'ro-2', title: 'Template Fit-Gap & Delta Configuration', description: 'Identify delta requirements vs the global template; configure locally.',          priority: 'high',   area_sap: '',      est_hours: 40, sort_order: 1 },
+      { id: 'ro-3', title: 'Legal & Compliance Review',             description: 'Validate local statutory, tax, and payroll compliance requirements.',              priority: 'high',   area_sap: '',      est_hours: 24, sort_order: 2 },
+      { id: 'ro-4', title: 'Data Migration (Local)',                description: 'Extract, cleanse and load local master and transactional data.',                   priority: 'high',   area_sap: '',      est_hours: 40, sort_order: 3 },
+      { id: 'ro-5', title: 'Integration & Regression Testing',      description: 'Verify local processes and integrations with global systems.',                     priority: 'high',   area_sap: '',      est_hours: 32, sort_order: 4 },
+      { id: 'ro-6', title: 'Key User Training',                     description: 'Train power users on SAP processes tailored to the local site.',                  priority: 'medium', area_sap: '',      est_hours: 24, sort_order: 5 },
+      { id: 'ro-7', title: 'End User Training',                     description: 'Deliver role-based training to all end users at the local site.',                  priority: 'medium', area_sap: '',      est_hours: 24, sort_order: 6 },
+      { id: 'ro-8', title: 'Go-Live Preparation & Cutover',         description: 'Final checks, cutover rehearsal, and Go/No-Go decision.',                         priority: 'high',   area_sap: '',      est_hours: 16, sort_order: 7 },
+      { id: 'ro-9', title: 'Go-Live Support & Hypercare',           description: 'On-site and remote support during the post-go-live stabilization period.',         priority: 'high',   area_sap: '',      est_hours: 16, sort_order: 8 },
+    ],
+  },
+];
+
 const SAP_TEMPLATES = [
   {
     name: "S/4HANA Migration Assessment",
@@ -9846,6 +9944,7 @@ function SaveCaseAsTemplateModal({ caseData, onClose }) {
 
 function CaseTemplatesView({ auth }) {
   const { t } = useT();
+  const [templateTab, setTemplateTab] = useState('case');
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -9928,13 +10027,28 @@ function CaseTemplatesView({ auth }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t("template.title")}</h1>
-          <p className="text-gray-500 text-sm mt-1">{filtered.length} {filtered.length === 1 ? "template" : "templates"}</p>
+          <p className="text-gray-500 text-sm mt-1">Manage reusable templates for cases and projects</p>
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200 mb-6">
+        <button onClick={() => setTemplateTab('case')}
+          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold whitespace-nowrap transition-colors border-b-2 -mb-px ${templateTab === 'case' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+          <FileText size={14} /> Case Templates
+        </button>
+        <button onClick={() => setTemplateTab('project')}
+          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold whitespace-nowrap transition-colors border-b-2 -mb-px ${templateTab === 'project' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+          <LayoutTemplate size={14} /> Project Templates
+        </button>
+      </div>
+
+      {templateTab === 'project' && <ProjectTemplatesSection auth={auth} />}
+
+      {templateTab === 'case' && <>
       <div className="mb-5">
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder={t("template.search")}
@@ -10035,6 +10149,457 @@ function CaseTemplatesView({ auth }) {
           ))}
         </div>
       )}
+      </>}
+    </div>
+  );
+}
+
+// ============================================================
+// PROJECT TEMPLATES — Section, Apply Modal, Save Modal
+// ============================================================
+
+function ProjectTemplatesSection({ auth }) {
+  const { templates: customTemplates, loading, createTemplate, updateTemplate, deleteTemplate } = useProjectTemplates();
+  const ALL = [...BUILT_IN_PROJECT_TEMPLATES, ...customTemplates];
+  const [expanded, setExpanded]     = useState(null);
+  const [confirmDel, setConfirmDel] = useState(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [editingId, setEditingId]   = useState(null);
+  const [editForm, setEditForm]     = useState({});
+  const [saving, setSaving]         = useState(false);
+  const [error, setError]           = useState(null);
+  // create form
+  const [createForm, setCreateForm]   = useState({ name: '', description: '', category: '' });
+  const [createItems, setCreateItems] = useState([{ title: '', description: '', est_hours: '', area_sap: '', priority: 'medium' }]);
+
+  function addItem() { setCreateItems(p => [...p, { title: '', description: '', est_hours: '', area_sap: '', priority: 'medium' }]); }
+  function removeItem(i) { setCreateItems(p => p.filter((_, idx) => idx !== i)); }
+  function updateItem(i, field, val) { setCreateItems(p => p.map((it, idx) => idx === i ? { ...it, [field]: val } : it)); }
+
+  async function handleCreate() {
+    if (!createForm.name.trim()) { setError('Template name is required.'); return; }
+    setSaving(true); setError(null);
+    try {
+      const items = createItems
+        .filter(it => it.title.trim())
+        .map((it, idx) => ({ id: `item-${Date.now()}-${idx}`, ...it, est_hours: it.est_hours ? Number(it.est_hours) : null, sort_order: idx }));
+      await createTemplate({ ...createForm, items, created_by: auth.user?.id, is_public: true });
+      setShowCreate(false);
+      setCreateForm({ name: '', description: '', category: '' });
+      setCreateItems([{ title: '', description: '', est_hours: '', area_sap: '', priority: 'medium' }]);
+    } catch (e) { setError(e.message); }
+    setSaving(false);
+  }
+
+  async function handleSaveEdit() {
+    setSaving(true); setError(null);
+    try {
+      await updateTemplate(editingId, { name: editForm.name, description: editForm.description, category: editForm.category });
+      setEditingId(null);
+    } catch (e) { setError(e.message); }
+    setSaving(false);
+  }
+
+  const canManage = auth.isAdmin || auth.isManager;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-500">{ALL.length} template{ALL.length !== 1 ? 's' : ''} available</p>
+        {canManage && (
+          <button onClick={() => setShowCreate(p => !p)}
+            className="flex items-center gap-1.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl">
+            <Plus size={14} /> New Template
+          </button>
+        )}
+      </div>
+
+      {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2">{error}</p>}
+
+      {/* Create form */}
+      {showCreate && canManage && (
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 space-y-4">
+          <h3 className="font-bold text-blue-900 text-sm">New Project Template</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Name *</label>
+              <input value={createForm.name} onChange={e => setCreateForm(p => ({ ...p, name: e.target.value }))}
+                placeholder="e.g. SAP Finance Implementation"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 bg-white" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Category</label>
+              <input value={createForm.category} onChange={e => setCreateForm(p => ({ ...p, category: e.target.value }))}
+                placeholder="e.g. SAP Implementation"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 bg-white" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Description</label>
+            <textarea value={createForm.description} onChange={e => setCreateForm(p => ({ ...p, description: e.target.value }))}
+              rows={2} placeholder="Brief description of when to use this template…"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 bg-white resize-none" />
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-semibold text-gray-600">Items (Cases)</label>
+              <button onClick={addItem} className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"><Plus size={12} /> Add item</button>
+            </div>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {createItems.map((it, i) => (
+                <div key={i} className="flex gap-2 items-start bg-white border border-gray-100 rounded-xl p-2">
+                  <div className="flex-1 grid grid-cols-3 gap-2">
+                    <input value={it.title} onChange={e => updateItem(i, 'title', e.target.value)}
+                      placeholder="Case title *" className="col-span-2 border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-blue-400" />
+                    <input value={it.est_hours} onChange={e => updateItem(i, 'est_hours', e.target.value)}
+                      placeholder="Hours" type="number" min="0"
+                      className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-blue-400" />
+                    <input value={it.area_sap} onChange={e => updateItem(i, 'area_sap', e.target.value)}
+                      placeholder="SAP area" className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-blue-400" />
+                    <select value={it.priority} onChange={e => updateItem(i, 'priority', e.target.value)}
+                      className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-blue-400">
+                      {['low','medium','high','urgent'].map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                    <input value={it.description} onChange={e => updateItem(i, 'description', e.target.value)}
+                      placeholder="Description (optional)" className="col-span-3 border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-blue-400" />
+                  </div>
+                  <button onClick={() => removeItem(i)} className="text-gray-300 hover:text-red-500 mt-1 flex-shrink-0"><X size={14} /></button>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 justify-end">
+            <button onClick={() => { setShowCreate(false); setError(null); }}
+              className="px-4 py-2 text-sm text-gray-600 hover:bg-white rounded-xl border border-gray-200">Cancel</button>
+            <button onClick={handleCreate} disabled={saving}
+              className="px-4 py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl flex items-center gap-2">
+              {saving ? <><Spinner size={12} /> Saving…</> : 'Create Template'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {loading && <div className="text-center py-8"><Spinner /></div>}
+
+      {/* Template list */}
+      {ALL.map(tmpl => (
+        <div key={tmpl.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          {editingId === tmpl.id ? (
+            <div className="p-5 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Name</label>
+                  <input value={editForm.name ?? ''} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Category</label>
+                  <input value={editForm.category ?? ''} onChange={e => setEditForm(p => ({ ...p, category: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Description</label>
+                <textarea value={editForm.description ?? ''} onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))}
+                  rows={2} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 resize-none" />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={handleSaveEdit} disabled={saving}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-40">
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+                <button onClick={() => setEditingId(null)} className="px-4 py-2 border border-gray-200 text-gray-600 text-sm rounded-xl hover:bg-gray-50">Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-start gap-4 p-5">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <h3 className="font-semibold text-gray-900">{tmpl.name}</h3>
+                    {tmpl.category && <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium">{tmpl.category}</span>}
+                    {tmpl.is_builtin && <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-lg text-xs">Built-in</span>}
+                    {!tmpl.is_builtin && <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-lg text-xs font-medium">Custom</span>}
+                  </div>
+                  {tmpl.description && <p className="text-sm text-gray-500 mb-2">{tmpl.description}</p>}
+                  <p className="text-xs text-gray-400">{(tmpl.items ?? []).length} item{(tmpl.items ?? []).length !== 1 ? 's' : ''}</p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button onClick={() => setExpanded(expanded === tmpl.id ? null : tmpl.id)}
+                    className="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 flex items-center gap-1">
+                    {expanded === tmpl.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    {expanded === tmpl.id ? 'Hide' : 'Preview'}
+                  </button>
+                  {canManage && !tmpl.is_builtin && (
+                    <>
+                      <button onClick={() => { setEditingId(tmpl.id); setEditForm({ name: tmpl.name, category: tmpl.category ?? '', description: tmpl.description ?? '' }); setError(null); }}
+                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                        <Pencil size={15} />
+                      </button>
+                      {confirmDel === tmpl.id ? (
+                        <div className="flex items-center gap-1">
+                          <button onClick={async () => { await deleteTemplate(tmpl.id); setConfirmDel(null); }}
+                            className="px-2 py-1 text-xs text-white bg-red-500 hover:bg-red-600 rounded-lg">Delete</button>
+                          <button onClick={() => setConfirmDel(null)}
+                            className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setConfirmDel(tmpl.id)}
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                          <Trash2 size={15} />
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+              {expanded === tmpl.id && (
+                <div className="border-t border-gray-100 bg-gray-50 px-5 py-4">
+                  <div className="space-y-2">
+                    {(tmpl.items ?? []).map((item, idx) => (
+                      <div key={item.id ?? idx} className="flex items-start gap-3 bg-white rounded-xl border border-gray-100 p-3">
+                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center mt-0.5">{idx + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-900">{item.title}</p>
+                          {item.description && <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>}
+                          <div className="flex items-center gap-3 mt-1">
+                            {item.area_sap && <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">{item.area_sap}</span>}
+                            {item.est_hours && <span className="text-xs text-gray-400">{item.est_hours}h</span>}
+                            {item.priority && item.priority !== 'medium' && (
+                              <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${['high','urgent'].includes(item.priority) ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>{item.priority}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ApplyTemplateModal({ projectId, clientId, userId, onClose, onDone }) {
+  const { templates: customTemplates, loading } = useProjectTemplates();
+  const ALL = [...BUILT_IN_PROJECT_TEMPLATES, ...customTemplates];
+  const categories = ['All', ...[...new Set(ALL.map(t => t.category).filter(Boolean))]];
+
+  const [catFilter, setCatFilter]           = useState('All');
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [items, setItems]                   = useState([]);
+  const [applying, setApplying]             = useState(false);
+  const [error, setError]                   = useState(null);
+
+  const filtered = catFilter === 'All' ? ALL : ALL.filter(t => t.category === catFilter);
+
+  function selectTemplate(tmpl) {
+    setSelectedTemplate(tmpl);
+    setItems((tmpl.items ?? []).map(it => ({ ...it, _selected: true })));
+  }
+
+  function toggleItem(id) { setItems(prev => prev.map(it => it.id === id ? { ...it, _selected: !it._selected } : it)); }
+  function toggleAll() {
+    const allOn = items.every(it => it._selected);
+    setItems(prev => prev.map(it => ({ ...it, _selected: !allOn })));
+  }
+
+  async function handleApply() {
+    const selected = items.filter(it => it._selected);
+    if (!selected.length) { setError('Select at least one item to apply.'); return; }
+    setApplying(true); setError(null);
+    try {
+      const rows = selected.map(item => ({
+        title:           item.title,
+        description:     item.description || null,
+        priority:        ['low','medium','high','urgent'].includes(item.priority) ? item.priority : 'medium',
+        area_sap:        item.area_sap || null,
+        estimated_hours: item.est_hours ? Number(item.est_hours) : null,
+        project_id:      projectId,
+        client_id:       clientId ?? null,
+        status:          'open',
+        created_by:      userId,
+      }));
+      const { error: dbErr } = await supabase.from('cases').insert(rows);
+      if (dbErr) throw new Error(dbErr.message);
+      onDone();
+    } catch (e) { setError(e.message); setApplying(false); }
+  }
+
+  const selCount = items.filter(it => it._selected).length;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-blue-50"><LayoutTemplate size={18} className="text-blue-600" /></div>
+            <div>
+              <h2 className="text-base font-bold text-gray-900">Apply Project Template</h2>
+              <p className="text-xs text-gray-500">Select a template to create cases in this project</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-600"><X size={18} /></button>
+        </div>
+
+        <div className="flex flex-1 overflow-hidden">
+          {/* Left: template list */}
+          <div className="w-72 border-r border-gray-100 flex flex-col overflow-hidden flex-shrink-0">
+            <div className="p-3 border-b border-gray-100 flex flex-wrap gap-1">
+              {categories.map(cat => (
+                <button key={cat} onClick={() => setCatFilter(cat)}
+                  className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-colors ${catFilter === cat ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  {cat}
+                </button>
+              ))}
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              {loading && <div className="p-4 text-center text-xs text-gray-400">Loading…</div>}
+              {filtered.map(tmpl => (
+                <button key={tmpl.id} onClick={() => selectTemplate(tmpl)}
+                  className={`w-full text-left px-3 py-3 rounded-xl transition-colors ${selectedTemplate?.id === tmpl.id ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50 border border-transparent'}`}>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    {tmpl.is_builtin
+                      ? <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-semibold">Built-in</span>
+                      : <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-semibold">Custom</span>}
+                    {tmpl.category && <span className="text-xs text-gray-400">{tmpl.category}</span>}
+                  </div>
+                  <p className="text-sm font-semibold text-gray-900 leading-tight">{tmpl.name}</p>
+                  <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{tmpl.description}</p>
+                  <p className="text-xs text-gray-400 mt-1">{(tmpl.items ?? []).length} items</p>
+                </button>
+              ))}
+              {!loading && filtered.length === 0 && (
+                <div className="p-4 text-center text-xs text-gray-400">No templates in this category</div>
+              )}
+            </div>
+          </div>
+
+          {/* Right: items preview */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {!selectedTemplate ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <LayoutTemplate size={40} className="text-gray-200 mx-auto mb-3" />
+                  <p className="text-sm text-gray-400">Select a template from the left to preview its items</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="px-5 py-4 border-b border-gray-100">
+                  <h3 className="font-bold text-gray-900">{selectedTemplate.name}</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">{selectedTemplate.description}</p>
+                  <div className="flex items-center gap-3 mt-2">
+                    <button onClick={toggleAll} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                      {items.every(it => it._selected) ? 'Deselect all' : 'Select all'}
+                    </button>
+                    <span className="text-xs text-gray-400">{selCount} of {items.length} selected</span>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                  {items.map(item => (
+                    <button key={item.id} onClick={() => toggleItem(item.id)}
+                      className={`w-full text-left flex items-start gap-3 p-3 rounded-xl border transition-colors ${item._selected ? 'border-blue-200 bg-blue-50' : 'border-gray-100 hover:bg-gray-50'}`}>
+                      <div className={`mt-0.5 flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${item._selected ? 'bg-blue-500 border-blue-500' : 'border-gray-300'}`}>
+                        {item._selected && <Check size={9} className="text-white" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900">{item.title}</p>
+                        {item.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{item.description}</p>}
+                        <div className="flex items-center gap-3 mt-1.5">
+                          {item.area_sap && <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">{item.area_sap}</span>}
+                          {item.est_hours && <span className="text-xs text-gray-400">{item.est_hours}h</span>}
+                          {item.priority && item.priority !== 'medium' && (
+                            <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${['high','urgent'].includes(item.priority) ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>{item.priority}</span>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+          <p className={`text-sm ${error ? 'text-red-600' : 'text-gray-500'}`}>
+            {error ?? (selCount > 0 ? `${selCount} case${selCount === 1 ? '' : 's'} will be created in this project` : 'Select items to apply')}
+          </p>
+          <div className="flex items-center gap-3">
+            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl">Cancel</button>
+            <button onClick={handleApply} disabled={applying || !selCount || !selectedTemplate}
+              className="px-5 py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl flex items-center gap-2">
+              {applying ? <><Spinner size={12} /> Applying…</> : <><Check size={14} /> Apply {selCount > 0 ? selCount : ''} Cases</>}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SaveTemplateModal({ cases, auth, onClose, onSaved }) {
+  const { createTemplate } = useProjectTemplates();
+  const [name, setName]           = useState('');
+  const [description, setDesc]    = useState('');
+  const [category, setCategory]   = useState('');
+  const [saving, setSaving]       = useState(false);
+  const [error, setError]         = useState(null);
+
+  async function handleSave() {
+    if (!name.trim()) { setError('Template name is required.'); return; }
+    setSaving(true); setError(null);
+    try {
+      const items = cases.map((c, i) => ({
+        id: `item-${i}`,
+        title: c.title,
+        description: c.description ?? '',
+        priority: c.priority ?? 'medium',
+        area_sap: c.area_sap ?? '',
+        est_hours: c.estimated_hours ?? null,
+        sort_order: i,
+      }));
+      await createTemplate({ name: name.trim(), description: description.trim() || null, category: category.trim() || 'Custom', is_public: true, created_by: auth.user?.id, items });
+      onSaved();
+    } catch (e) { setError(e.message); setSaving(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+        <h2 className="text-base font-bold text-gray-900 mb-1">Save as Template</h2>
+        <p className="text-sm text-gray-500 mb-4">{cases.length} case{cases.length !== 1 ? 's' : ''} will be saved as template items.</p>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Template Name *</label>
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. My SAP Finance Project"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Category</label>
+            <input value={category} onChange={e => setCategory(e.target.value)} placeholder="e.g. SAP Implementation"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Description</label>
+            <textarea value={description} onChange={e => setDesc(e.target.value)} rows={2}
+              placeholder="Briefly describe this template…"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 resize-none" />
+          </div>
+        </div>
+        {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
+        <div className="flex items-center justify-end gap-3 mt-5">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl">Cancel</button>
+          <button onClick={handleSave} disabled={saving}
+            className="px-5 py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl flex items-center gap-2">
+            {saving ? <><Spinner size={12} /> Saving…</> : 'Save Template'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -12505,6 +13070,9 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
   const [importError, setImportError] = useState(null);
   const [confirmingImport, setConfirmingImport] = useState(false);
   const importFileRef = useRef(null);
+  // Project templates
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [showSaveTmplModal, setShowSaveTmplModal] = useState(false);
 
   async function handleImportExtract() {
     if (!importFile) return;
@@ -13071,6 +13639,16 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                     className={`text-sm border font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 transition-colors ${showImportPanel ? 'border-violet-400 text-violet-700 bg-violet-50' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
                     <Upload size={13} /> Import from doc
                   </button>
+                  <button onClick={() => setShowTemplateModal(true)}
+                    className="text-sm border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 transition-colors">
+                    <LayoutTemplate size={13} /> Apply Template
+                  </button>
+                  {(auth.isAdmin || auth.isManager) && projCases.length > 0 && (
+                    <button onClick={() => setShowSaveTmplModal(true)}
+                      className="text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-4 py-2 flex items-center gap-1.5 transition-colors">
+                      <Copy size={13} /> Save as Template
+                    </button>
+                  )}
                   <button onClick={() => setShowCreateCase(true)}
                     className="text-sm bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl px-4 py-2">
                     + New Case
@@ -13154,6 +13732,23 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                   </div>
                 )}
               </div>
+            )}
+            {showTemplateModal && (
+              <ApplyTemplateModal
+                projectId={project.id}
+                clientId={project.client_id ?? null}
+                userId={auth.user?.id}
+                onClose={() => setShowTemplateModal(false)}
+                onDone={async () => { await loadProjCases(); setShowTemplateModal(false); }}
+              />
+            )}
+            {showSaveTmplModal && (
+              <SaveTemplateModal
+                cases={projCases}
+                auth={auth}
+                onClose={() => setShowSaveTmplModal(false)}
+                onSaved={() => { setShowSaveTmplModal(false); }}
+              />
             )}
             {projCases.length === 0 ? (
               <EmptyState Icon={FolderOpen} title={t("project.no_proj_cases")} subtitle={t("project.no_proj_cases_hint")} />
