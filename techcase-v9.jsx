@@ -13761,6 +13761,7 @@ function CasesView({ auth, initialCaseId }) {
                       className="w-4 h-4 rounded border-gray-300 text-blue-600 cursor-pointer accent-blue-600" />
                   </div>
                 )}
+                <ProjectAvatar project={c.project ?? { name: c.client?.client_profiles?.company_name || c.client?.full_name || c.title, client: c.client }} size={40} className="mt-0.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
@@ -22126,15 +22127,20 @@ function ArenaView({ auth }) {
           return (
             <div key={c.id} className={`bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow ${canViewRanking ? "cursor-pointer" : ""}`}
               onClick={canViewRanking ? () => setArenaSelected(c) : undefined}>
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <h3 className="font-semibold text-gray-900 text-sm leading-snug">{c.title}</h3>
-                <Badge className={PRIORITY_COLORS[c.priority]}>{PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}</Badge>
+              <div className="flex items-start gap-3 mb-2">
+                <ProjectAvatar project={c.project ?? { name: companyName || c.title, client: c.client }} size={40} className="flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-semibold text-gray-900 text-sm leading-snug">{c.title}</h3>
+                    <Badge className={PRIORITY_COLORS[c.priority]}>{PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}</Badge>
+                  </div>
+                  {companyName && <p className="text-xs text-blue-600 font-medium mt-0.5">{companyName}</p>}
+                </div>
               </div>
               <div className="flex flex-wrap gap-1 mb-2">
                 {c.area_sap      && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{c.area_sap}</span>}
                 {c.area_industry && <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg text-xs font-medium">{c.area_industry}</span>}
               </div>
-              {companyName && <p className="text-xs text-blue-600 font-medium mb-1">{companyName}</p>}
               {c.description && <p className="text-xs text-gray-400 line-clamp-2 mb-3">{c.description}</p>}
               <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 mb-3">
                 {c.start_date && <span>{t("arena.label_starts")}{fmtDate(c.start_date)}</span>}
