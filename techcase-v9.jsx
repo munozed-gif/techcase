@@ -22251,9 +22251,7 @@ function ArenaView({ auth }) {
             onClick={() => setProfileView(c.id)}>
             {/* Header */}
             <div className="flex items-start gap-3 mb-3">
-              <div className="w-12 h-12 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-lg flex-shrink-0">
-                {c.user?.full_name?.[0]}
-              </div>
+              <PersonAvatar name={c.user?.full_name} avatarUrl={c.user?.avatar_url} size={48} className="rounded-2xl flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-gray-900 truncate">{c.user?.full_name}</div>
                 <div className="text-xs text-gray-500 truncate">{c.headline ?? t("arena.default_headline")}</div>
@@ -27201,13 +27199,18 @@ function KanbanView({ auth }) {
                   <div key={c.id}
                     className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 cursor-pointer hover:shadow-md transition-shadow"
                     onClick={() => setSelectedCase(c)}>
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <span className="font-medium text-sm text-gray-900 line-clamp-2 flex-1">{c.title}</span>
-                      <Badge className={`${PRIORITY_COLORS[c.priority]} flex-shrink-0 text-xs`}>{cap(c.priority)?.[0]}</Badge>
+                    <div className="flex items-start gap-2 mb-1">
+                      <ProjectAvatar project={c.project ?? { name: c.client?.client_profiles?.company_name || c.client?.full_name || c.title, client: c.client }} size={32} className="flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-1">
+                          <span className="font-medium text-sm text-gray-900 line-clamp-2 flex-1">{c.title}</span>
+                          <Badge className={`${PRIORITY_COLORS[c.priority]} flex-shrink-0 text-xs`}>{cap(c.priority)?.[0]}</Badge>
+                        </div>
+                        {c.client?.client_profiles?.company_name && (
+                          <div className="text-xs text-gray-400 mt-0.5">{c.client.client_profiles.company_name}</div>
+                        )}
+                      </div>
                     </div>
-                    {c.client?.client_profiles?.company_name && (
-                      <div className="text-xs text-gray-400 mb-2">{c.client.client_profiles.company_name}</div>
-                    )}
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex -space-x-1">
                         {(c.case_assignments ?? []).slice(0, 3).map((a, i) => (
