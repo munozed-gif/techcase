@@ -9339,6 +9339,7 @@ function Dashboard({ auth }) {
                     return (
                       <div key={c.id} className="p-4 hover:bg-gray-50 transition-colors">
                         <div className="flex items-start justify-between gap-4">
+                          <ProjectAvatar project={c.project ?? { name: companyName || c.title, client: c.client }} size={40} className="mt-0.5 flex-shrink-0" />
                           <div className="flex-1 min-w-0">
                             {/* Title + badges */}
                             <div className="flex items-center gap-2 mb-1 flex-wrap">
