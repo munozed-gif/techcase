@@ -17720,14 +17720,10 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const { settings: cdSettings } = useSystemSettings();
   const genModel      = cdSettings["ai_model"]       ?? 'claude-haiku-4-5-20251001';
   const analysisModel = cdSettings["analysis_model"] ?? 'claude-haiku-4-5-20251001';
-  const canEditPhase        = perms.can('edit_activity_phase');
-  const canEditPredecessors = perms.can('edit_activity_predecessors');
-  const canBulkDeleteActs   = perms.can('bulk_delete_activities');
-  const canBulkDeleteSubs   = perms.can('bulk_delete_subcases');
   const { applications, apply, reviewApplication } = useApplications(caseData.id);
   const { milestones, toggleMilestone, addMilestone } = useMilestones(caseData.id);
   const { comments, addComment } = useCaseComments(caseData.id);
-  const { subCases, createSubCase } = useSubCases(caseData.id);
+  const { subCases, createSubCase, refetch: refetchSubCases } = useSubCases(caseData.id);
   const { documents, addDocument, deleteDocument, refetch: refetchDocuments } = useCaseDocuments(caseData.id);
   const { entries: timeEntries, addTimeEntry, approveEntry } = useTimeEntries(caseData.id);
   const [actRefreshKey, setActRefreshKey] = useState(0);
@@ -17895,6 +17891,10 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const currentStage = lifecycleStages.find(s => s.key === caseData.status);
   const stageRules   = getStageRules(currentStage, auth);
   const perms        = usePermissions(auth);
+  const canEditPhase        = perms.can('edit_activity_phase');
+  const canEditPredecessors = perms.can('edit_activity_predecessors');
+  const canBulkDeleteActs   = perms.can('bulk_delete_activities');
+  const canBulkDeleteSubs   = perms.can('bulk_delete_subcases');
   const canEditCase  = onUpdate && !isTerminalStatus && stageRules.editable
     && (auth.isAdmin || auth.isManager || (auth.isClient && caseData.client_id === auth.user?.id));
 
@@ -18030,6 +18030,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
       const { error } = await supabase.from('cases').delete().in('id', ids);
       if (error) throw error;
       setSelectedSubIds(new Set());
+      await refetchSubCases();
       setActRefreshKey(k => k + 1);
     } catch (e) { alert('Failed to delete sub-cases: ' + e.message); }
     setDeletingBulkSubs(false);
