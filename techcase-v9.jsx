@@ -25962,10 +25962,10 @@ function ClientProfileView({ auth }) {
     setUploadingAvatar(true);
     try {
       const ext = file.name.split('.').pop().toLowerCase();
-      const path = `avatars/client-${auth.user?.id}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('profiles').upload(path, file, { upsert: true });
+      const path = `client-avatars/${auth.user?.id}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('project-avatars').upload(path, file, { upsert: true });
       if (upErr) throw upErr;
-      const { data: { publicUrl } } = supabase.storage.from('profiles').getPublicUrl(path);
+      const { data: { publicUrl } } = supabase.storage.from('project-avatars').getPublicUrl(path);
       const { error: updateErr } = await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', auth.user?.id);
       if (updateErr) throw updateErr;
       setClientAvatarUrl(publicUrl);
