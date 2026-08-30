@@ -12489,6 +12489,87 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
   const { templates: lcTemplates2, getTemplateStages: getProjTmplStages } = useLifecycleTemplates();
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarInputRef = useRef(null);
+  // Import cases from document
+  const { settings: _importSS } = useSystemSettings();
+  const importGenModel = _importSS["ai_model"] ?? 'claude-haiku-4-5-20251001';
+  const [showImportPanel, setShowImportPanel] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [extractingImport, setExtractingImport] = useState(false);
+  const [importPreview, setImportPreview] = useState(null);
+  const [importError, setImportError] = useState(null);
+  const [confirmingImport, setConfirmingImport] = useState(false);
+  const importFileRef = useRef(null);
+
+  async function handleImportExtract() {
+    if (!importFile) return;
+    setExtractingImport(true);
+    setImportError(null);
+    try {
+      const systemPrompt = `You are an expert SAP project analyst. Extract all tasks or cases from the provided project plan document.
+Return ONLY a valid JSON array with no markdown, no explanation, no code fences. Use this structure for each item:
+{"title":"...","description":"...","priority":"medium","area_sap":"","skills":[],"est_hours":null}
+Priority must be one of: low, medium, high, urgent. est_hours is a number or null. If no tasks found, return [].`;
+      let messages;
+      const isPdf = importFile.name.toLowerCase().endsWith('.pdf');
+      if (isPdf) {
+        const buf = await importFile.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        let binary = ''; for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        const b64 = btoa(binary);
+        messages = [{ role: 'user', content: [
+          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } },
+          { type: 'text', text: 'Extract all tasks/cases from this project plan. Return JSON array only.' }
+        ]}];
+      } else {
+        const text = await importFile.text();
+        messages = [{ role: 'user', content: `Project plan document:\n\n${text.slice(0, 30000)}\n\nExtract all tasks/cases. Return JSON array only.` }];
+      }
+      const raw = await callClaude({ model: importGenModel, system: systemPrompt, messages, max_tokens: 4096 });
+      const jsonMatch = raw.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) throw new Error('No structured data found. Try a text or PDF file with a clear task list.');
+      const extracted = JSON.parse(jsonMatch[0]);
+      if (!Array.isArray(extracted) || extracted.length === 0) throw new Error('No cases found in the document.');
+      setImportPreview(extracted.map(c => ({
+        _selected: true,
+        title:       String(c.title ?? 'Untitled case'),
+        description: String(c.description ?? ''),
+        priority:    ['low','medium','high','urgent'].includes(c.priority) ? c.priority : 'medium',
+        area_sap:    c.area_sap ?? '',
+        skills:      Array.isArray(c.skills) ? c.skills : [],
+        est_hours:   c.est_hours ? Number(c.est_hours) : null,
+      })));
+    } catch (e) { setImportError(e.message); }
+    setExtractingImport(false);
+  }
+
+  async function handleImportConfirm() {
+    if (!importPreview) return;
+    const selected = importPreview.filter(c => c._selected);
+    if (!selected.length) { setImportError('No cases selected.'); return; }
+    setConfirmingImport(true);
+    setImportError(null);
+    try {
+      const caseRows = selected.map(c => ({
+        title:           String(c.title ?? 'Untitled case'),
+        description:     c.description || null,
+        priority:        ['low','medium','high','urgent'].includes(c.priority) ? c.priority : 'medium',
+        area_sap:        c.area_sap || null,
+        skills_required: c.skills?.length ? c.skills : null,
+        estimated_hours: c.est_hours ? Number(c.est_hours) : null,
+        project_id:      project.id,
+        client_id:       project.client_id ?? null,
+        status:          'open',
+        created_by:      auth.user?.id,
+      }));
+      const { error: casesError } = await supabase.from('cases').insert(caseRows).select('id');
+      if (casesError) throw new Error(casesError.message);
+      await loadProjCases();
+      setImportPreview(null);
+      setImportFile(null);
+      setShowImportPanel(false);
+    } catch (e) { setImportError(e.message); }
+    setConfirmingImport(false);
+  }
 
   async function handleAvatarUpload(e) {
     const file = e.target.files?.[0];
@@ -12980,6 +13061,10 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
                     className="text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-4 py-2">
                     {t("project.assign_existing")}
                   </button>
+                  <button onClick={() => { setShowImportPanel(p => !p); setImportPreview(null); setImportFile(null); setImportError(null); }}
+                    className={`text-sm border font-semibold rounded-xl px-4 py-2 flex items-center gap-1.5 transition-colors ${showImportPanel ? 'border-violet-400 text-violet-700 bg-violet-50' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                    <Upload size={13} /> Import from doc
+                  </button>
                   <button onClick={() => setShowCreateCase(true)}
                     className="text-sm bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl px-4 py-2">
                     + New Case
@@ -12987,6 +13072,83 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
                 </div>
               )}
             </div>
+
+            {/* Import from document panel */}
+            {showImportPanel && canEdit && (
+              <div className="mb-5 border border-violet-200 rounded-xl overflow-hidden">
+                <div className="bg-violet-600 px-4 py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Upload size={14} className="text-white" />
+                    <span className="text-sm font-bold text-white">Import Cases from Document</span>
+                  </div>
+                  <button onClick={() => setShowImportPanel(false)} className="text-violet-200 hover:text-white"><X size={15} /></button>
+                </div>
+                {!importPreview ? (
+                  <div className="bg-white p-5">
+                    <p className="text-xs text-gray-500 mb-3">Upload a project plan (PDF, DOCX, TXT, CSV). The AI will extract cases and show them for review before creating anything.</p>
+                    <div
+                      className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer hover:border-violet-400 hover:bg-violet-50 transition-colors"
+                      onClick={() => importFileRef.current?.click()}
+                      onDragOver={e => e.preventDefault()}
+                      onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) setImportFile(f); }}>
+                      <Upload size={24} className="mx-auto text-gray-400 mb-2" />
+                      {importFile
+                        ? <p className="text-sm font-semibold text-violet-700">{importFile.name}</p>
+                        : <><p className="text-sm font-medium text-gray-600">Drop a file or click to browse</p><p className="text-xs text-gray-400 mt-1">PDF, DOCX, TXT, CSV — max 10 MB</p></>}
+                      <input ref={importFileRef} type="file" accept=".pdf,.docx,.txt,.csv,.md" className="hidden"
+                        onChange={e => { const f = e.target.files?.[0]; if (f) setImportFile(f); e.target.value = ''; }} />
+                    </div>
+                    {importError && <p className="mt-3 text-xs text-red-600">{importError}</p>}
+                    <button onClick={handleImportExtract} disabled={!importFile || extractingImport}
+                      className="mt-4 w-full py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors">
+                      {extractingImport ? <><Spinner size={13} /> Extracting cases…</> : <><Sparkles size={13} /> Extract Cases</>}
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="bg-white divide-y divide-gray-100">
+                      <div className="px-4 py-2 flex items-center gap-2 bg-gray-50 border-b border-gray-200">
+                        <span className="text-xs font-semibold text-gray-500">{importPreview.filter(c => c._selected).length} of {importPreview.length} cases selected</span>
+                        <button onClick={() => setImportPreview(null)} className="ml-auto text-xs text-gray-400 hover:text-gray-600 underline">← change file</button>
+                      </div>
+                      {importPreview.map((c, idx) => (
+                        <div key={idx} className={`flex items-start gap-3 px-4 py-3 transition-colors ${c._selected ? '' : 'opacity-50 bg-gray-50'}`}>
+                          <button
+                            onClick={() => setImportPreview(p => p.map((it, i) => i === idx ? { ...it, _selected: !it._selected } : it))}
+                            className={`mt-0.5 flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${c._selected ? 'bg-violet-600 border-violet-600' : 'border-gray-300'}`}>
+                            {c._selected && <Check size={10} className="text-white" />}
+                          </button>
+                          <select value={c.priority}
+                            onChange={e => setImportPreview(p => p.map((it, i) => i === idx ? { ...it, priority: e.target.value } : it))}
+                            className="flex-shrink-0 text-[10px] font-bold rounded border border-gray-200 bg-transparent py-0.5 px-1 mt-0.5">
+                            {['low','medium','high','urgent'].map(p => <option key={p} value={p}>{p}</option>)}
+                          </select>
+                          <input value={c.title}
+                            onChange={e => setImportPreview(p => p.map((it, i) => i === idx ? { ...it, title: e.target.value } : it))}
+                            className="flex-1 min-w-0 text-sm text-gray-800 font-medium bg-transparent border-b border-transparent hover:border-gray-300 focus:border-violet-400 focus:outline-none py-0.5 transition-colors" />
+                          {c.area_sap && <span className="flex-shrink-0 text-[10px] text-gray-400 bg-gray-100 rounded px-1.5 py-0.5 mt-0.5">{c.area_sap}</span>}
+                          {c.est_hours && <span className="flex-shrink-0 text-[10px] text-gray-500 mt-0.5">{c.est_hours}h</span>}
+                        </div>
+                      ))}
+                    </div>
+                    {importError && <div className="px-4 py-2 bg-red-50"><p className="text-xs text-red-600">{importError}</p></div>}
+                    <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200">
+                      <span className="text-xs text-gray-500">{importPreview.filter(c => c._selected).length} cases will be created in this project</span>
+                      <div className="flex gap-2">
+                        <button onClick={() => { setImportPreview(null); setImportFile(null); }}
+                          className="px-3 py-1.5 text-xs font-semibold text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">
+                          Discard
+                        </button>
+                        <button onClick={handleImportConfirm} disabled={confirmingImport || !importPreview.some(c => c._selected)}
+                          className="px-4 py-1.5 text-xs font-semibold bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-50 flex items-center gap-1.5 transition-colors">
+                          {confirmingImport ? <><Spinner size={10} /> Creating…</> : <><Check size={12} /> Create {importPreview.filter(c => c._selected).length} Cases</>}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             {projCases.length === 0 ? (
               <EmptyState Icon={FolderOpen} title={t("project.no_proj_cases")} subtitle={t("project.no_proj_cases_hint")} />
             ) : (
@@ -18968,11 +19130,12 @@ Keep each section concise.${buildSectionConstraint('dev_plan', genProfile)}${bui
         await createSubCase({
           title: a.title,
           description: `${a.description}${a.acceptance_criteria ? '\n\nAcceptance criteria: ' + a.acceptance_criteria : ''}`,
-          est_hours: a.est_hours,
+          priority: 'medium',
           status: 'open',
           area_sap: caseData.area_sap ?? null,
           area_industry: caseData.area_industry ?? null,
           client_id: caseData.client_id ?? null,
+          manager_id: caseData.manager_id ?? null,
           project_id: caseData.project_id ?? null,
         });
       }
