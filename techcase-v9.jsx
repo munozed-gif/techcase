@@ -14374,7 +14374,7 @@ async function htmlStringToPdfBlob(htmlString) {
   }
 }
 
-function GenerationProfileModal({ onConfirm, onClose, title }) {
+function GenerationProfileModal({ onConfirm, onClose, title, outputMode, onOutputModeChange }) {
   const { t } = useT();
   const { settings } = useSystemSettings();
   const stored = settings["generation_profiles"] ?? {};
@@ -14431,11 +14431,27 @@ function GenerationProfileModal({ onConfirm, onClose, title }) {
             );
           })}
         </div>
+        {onOutputModeChange && (
+          <div className="px-6 pb-4">
+            <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Create items as</p>
+            <div className="flex gap-2">
+              {[
+                { key: 'activities', label: 'Activities', icon: ListChecks },
+                { key: 'subcases',   label: 'Sub-cases',  icon: FolderOpen },
+              ].map(({ key, label, icon: Icon }) => (
+                <button key={key} onClick={() => onOutputModeChange(key)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${outputMode === key ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-blue-200 hover:bg-gray-50'}`}>
+                  <Icon size={14} /> {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="flex gap-3 px-6 pb-6">
           <button onClick={onClose} className="flex-1 py-2.5 border border-gray-200 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-50">
             {t("action.cancel")}
           </button>
-          <button onClick={() => { onConfirm(selected, resolveProfile(selected)); onClose(); }}
+          <button onClick={() => { onConfirm(selected, resolveProfile(selected), outputMode); onClose(); }}
             className="flex-1 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 flex items-center justify-center gap-2">
             <Sparkles size={14} /> {t("gen.generate_btn")}
           </button>
@@ -17623,6 +17639,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [generatingDevPlan, setGeneratingDevPlan] = useState(false);
   const [devPlanPreview, setDevPlanPreview]   = useState(null);
   const [confirmingDevPlan, setConfirmingDevPlan] = useState(false);
+  const [devPlanOutputMode, setDevPlanOutputMode] = useState('activities');
   const [devPlanGenerated, setDevPlanGenerated] = useState(false);
   const [showDevPlanModal, setShowDevPlanModal] = useState(false);
   const [pendingDevPlanIsRegen, setPendingDevPlanIsRegen] = useState(false);
@@ -18792,7 +18809,7 @@ canvas{display:block;width:100%}
     return buildContextString(caseData, genCtx, extra);
   }
 
-  async function generateDevelopmentPlan(genProfile = null) {
+  async function generateDevelopmentPlan(genProfile = null, outputMode = 'activities') {
     if (!genProfile) {
       setPendingDevPlanIsRegen(false);
       setShowDevPlanModal(true);
@@ -18840,6 +18857,7 @@ Rules: phase must be exactly "design" or "development". Return ONLY the JSON, no
         est_hours: Math.max(0.5, Math.min(40, Number(a.est_hours) || 4)),
         phase: ['design', 'development'].includes(a.phase) ? a.phase : 'development',
         _selected: true,
+        _type: outputMode === 'subcases' ? 'subcase' : 'activity',
       });
       const tryParse = str => {
         try {
@@ -18888,8 +18906,30 @@ Keep each section concise.${buildSectionConstraint('dev_plan', genProfile)}${bui
         max_tokens: 3000,
       });
 
-      // Build styled HTML plan, convert to PDF and upload as document
+      // Build HTML plan preview (PDF will be generated at confirm time)
       const planHtml = buildDevPlanHtml(caseData, parsedActivities, markdown);
+
+      // Show preview step — user can edit, reorder type, deselect before confirming
+      setDevPlanPreview({ items: parsedActivities, defaultMode: outputMode, markdown, planHtml });
+    } catch (e) {
+      alert(t("alert.devplan_failed") + e.message);
+    } finally {
+      setGeneratingDevPlan(false);
+    }
+  }
+
+  async function confirmDevPlan() {
+    if (!devPlanPreview) return;
+    setConfirmingDevPlan(true);
+    try {
+      const { items, markdown, planHtml } = devPlanPreview;
+      const selected = items.filter(a => a._selected);
+      if (!selected.length) { alert('No items selected.'); return; }
+
+      const actItems = selected.filter(a => a._type === 'activity');
+      const subItems = selected.filter(a => a._type === 'subcase');
+
+      // Upload PDF document
       const safeName = (caseData.title ?? 'Case').replace(/[^a-z0-9]/gi, '_');
       const dateStr = new Date().toISOString().slice(0, 10);
       const pdfBlob = await htmlStringToPdfBlob(planHtml);
@@ -18897,15 +18937,13 @@ Keep each section concise.${buildSectionConstraint('dev_plan', genProfile)}${bui
       const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
       await addDocument(pdfFile, 'Design & Development Plan — auto-generated from approved spec');
       if (refetchDocuments) await refetchDocuments();
-
-      // Also open the HTML version in new tab for reviewing
       openHtmlInNewTab(planHtml);
 
-      // Insert activities directly into the Activities tab
+      // Insert activities
       const maxNo = activities.reduce((m, a) => Math.max(m, a.task_no ?? 0), 0);
       const insertedIds = [];
-      for (let i = 0; i < parsedActivities.length; i++) {
-        const a = parsedActivities[i];
+      for (let i = 0; i < actItems.length; i++) {
+        const a = actItems[i];
         const row = {
           case_id: caseData.id,
           task_no: maxNo + i + 1,
@@ -18924,20 +18962,37 @@ Keep each section concise.${buildSectionConstraint('dev_plan', genProfile)}${bui
         if (error) throw error;
         insertedIds.push(data.id);
       }
-      logEvent('devplan.generated', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, metadata: { model: genModel, activity_count: insertedIds.length } });
 
+      // Insert sub-cases
+      for (const a of subItems) {
+        await createSubCase({
+          title: a.title,
+          description: `${a.description}${a.acceptance_criteria ? '\n\nAcceptance criteria: ' + a.acceptance_criteria : ''}`,
+          est_hours: a.est_hours,
+          status: 'open',
+          area_sap: caseData.area_sap ?? null,
+          area_industry: caseData.area_industry ?? null,
+          client_id: caseData.client_id ?? null,
+          project_id: caseData.project_id ?? null,
+        });
+      }
+
+      logEvent('devplan.confirmed', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, metadata: { activities: actItems.length, subcases: subItems.length } });
       setActRefreshKey(k => k + 1);
       setDevPlanGenerated(true);
-      const designCount = parsedActivities.filter(a => a.phase === 'design').length;
-      const devCount = parsedActivities.filter(a => a.phase === 'development').length;
+      setDevPlanPreview(null);
+
+      const parts = [];
+      if (actItems.length) parts.push(`${actItems.length} activit${actItems.length === 1 ? 'y' : 'ies'}`);
+      if (subItems.length) parts.push(`${subItems.length} sub-case${subItems.length === 1 ? '' : 's'}`);
       await addComment({
-        body: `Design & Development Plan generated from approved spec: ${designCount} Design + ${devCount} Development activities added with sequential dependencies.`,
+        body: `Design & Development Plan confirmed: ${parts.join(' and ')} created from approved spec.`,
         isInternal: true,
       });
     } catch (e) {
-      alert(t("alert.devplan_failed") + e.message);
+      alert('Failed to confirm plan: ' + e.message);
     } finally {
-      setGeneratingDevPlan(false);
+      setConfirmingDevPlan(false);
     }
   }
 
@@ -20550,6 +20605,84 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               </div>
             )}
 
+            {/* Dev plan preview — shown after generation, before confirm */}
+            {devPlanPreview && (
+              <div className="border border-blue-200 rounded-xl overflow-hidden">
+                <div className="bg-blue-600 px-4 py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={15} className="text-white" />
+                    <span className="text-sm font-bold text-white">Review Generated Plan</span>
+                    <span className="text-xs text-blue-200 ml-1">· {devPlanPreview.items.filter(a => a._selected).length} of {devPlanPreview.items.length} items selected</span>
+                  </div>
+                  <button onClick={() => setDevPlanPreview(null)} className="text-blue-200 hover:text-white transition-colors">
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="bg-white divide-y divide-gray-100">
+                  {devPlanPreview.items.map((item, idx) => (
+                    <div key={idx} className={`flex items-start gap-3 px-4 py-3 transition-colors ${item._selected ? '' : 'opacity-50 bg-gray-50'}`}>
+                      {/* Checkbox */}
+                      <button
+                        onClick={() => setDevPlanPreview(p => ({ ...p, items: p.items.map((it, i) => i === idx ? { ...it, _selected: !it._selected } : it) }))}
+                        className={`mt-0.5 flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${item._selected ? 'bg-blue-600 border-blue-600' : 'border-gray-300'}`}>
+                        {item._selected && <Check size={10} className="text-white" />}
+                      </button>
+                      {/* Type toggle pill */}
+                      <div className="flex-shrink-0 flex rounded-lg border border-gray-200 overflow-hidden text-[10px] font-bold mt-0.5">
+                        <button
+                          onClick={() => setDevPlanPreview(p => ({ ...p, items: p.items.map((it, i) => i === idx ? { ...it, _type: 'activity' } : it) }))}
+                          className={`px-2 py-1 transition-colors ${item._type === 'activity' ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>
+                          Activity
+                        </button>
+                        <button
+                          onClick={() => setDevPlanPreview(p => ({ ...p, items: p.items.map((it, i) => i === idx ? { ...it, _type: 'subcase' } : it) }))}
+                          className={`px-2 py-1 transition-colors ${item._type === 'subcase' ? 'bg-violet-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}>
+                          Sub-case
+                        </button>
+                      </div>
+                      {/* Phase badge */}
+                      <span className={`flex-shrink-0 mt-0.5 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${item.phase === 'design' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                        {item.phase}
+                      </span>
+                      {/* Editable title */}
+                      <input
+                        value={item.title}
+                        onChange={e => setDevPlanPreview(p => ({ ...p, items: p.items.map((it, i) => i === idx ? { ...it, title: e.target.value } : it) }))}
+                        className="flex-1 min-w-0 text-sm text-gray-800 font-medium bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-400 focus:outline-none py-0.5 transition-colors"
+                      />
+                      {/* Editable hours */}
+                      <div className="flex-shrink-0 flex items-center gap-1">
+                        <input
+                          type="number" min="0.5" max="40" step="0.5"
+                          value={item.est_hours}
+                          onChange={e => setDevPlanPreview(p => ({ ...p, items: p.items.map((it, i) => i === idx ? { ...it, est_hours: Math.max(0.5, Math.min(40, Number(e.target.value) || 0.5)) } : it) }))}
+                          className="w-14 text-xs text-gray-600 text-right bg-gray-100 hover:bg-gray-200 focus:bg-white border border-transparent focus:border-blue-400 rounded px-1.5 py-1 focus:outline-none transition-colors"
+                        />
+                        <span className="text-[10px] text-gray-400">h</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200">
+                  <div className="text-xs text-gray-500">
+                    {devPlanPreview.items.filter(a => a._selected && a._type === 'activity').length} activities ·{' '}
+                    {devPlanPreview.items.filter(a => a._selected && a._type === 'subcase').length} sub-cases ·{' '}
+                    {devPlanPreview.items.filter(a => a._selected).reduce((s, a) => s + a.est_hours, 0).toFixed(1)}h total
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setDevPlanPreview(null)}
+                      className="px-3 py-1.5 text-xs font-semibold text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">
+                      Discard
+                    </button>
+                    <button onClick={confirmDevPlan} disabled={confirmingDevPlan || !devPlanPreview.items.some(a => a._selected)}
+                      className="px-4 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5 transition-colors">
+                      {confirmingDevPlan ? <><Spinner size={10} /> Creating…</> : <><Check size={12} /> Confirm & Create</>}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Phase-completion → generate test plan (all passed) OR adjustment plan (any failed) */}
             {hasPhaseActivities && canManage && (() => {
               const TEST_PHASES = ['technical_test', 'functional_test', 'user_test'];
@@ -21748,7 +21881,9 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
       {showDevPlanModal && (
         <GenerationProfileModal
           title={t("gen.modal_title")}
-          onConfirm={(profileKey, resolvedProfile) => { setShowDevPlanModal(false); generateDevelopmentPlan(resolvedProfile); }}
+          outputMode={devPlanOutputMode}
+          onOutputModeChange={setDevPlanOutputMode}
+          onConfirm={(profileKey, resolvedProfile, om) => { setShowDevPlanModal(false); generateDevelopmentPlan(resolvedProfile, om ?? devPlanOutputMode); }}
           onClose={() => setShowDevPlanModal(false)}
         />
       )}
