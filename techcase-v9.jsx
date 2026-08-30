@@ -25952,6 +25952,27 @@ function ClientProfileView({ auth }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm]       = useState({});
   const [saving, setSaving]   = useState(false);
+  const [clientAvatarUrl, setClientAvatarUrl] = useState(auth.profile?.avatar_url ?? null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef(null);
+
+  async function handleAvatarUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      const ext = file.name.split('.').pop().toLowerCase();
+      const path = `avatars/client-${auth.user?.id}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('profiles').upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: { publicUrl } } = supabase.storage.from('profiles').getPublicUrl(path);
+      const { error: updateErr } = await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', auth.user?.id);
+      if (updateErr) throw updateErr;
+      setClientAvatarUrl(publicUrl);
+    } catch (err) { alert(`Avatar upload failed: ${err.message}`); }
+    setUploadingAvatar(false);
+    e.target.value = '';
+  }
 
   // DB connection form
   const [showAddConn, setShowAddConn] = useState(false);
@@ -26143,8 +26164,23 @@ function ClientProfileView({ auth }) {
       {/* Header card */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
         <div className="flex items-start gap-5">
-          <div className="w-16 h-16 rounded-2xl bg-blue-600 flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
-            {profile?.company_name?.[0] ?? auth.profile?.full_name?.[0] ?? "C"}
+          <div className="relative flex-shrink-0">
+            {clientAvatarUrl
+              ? <img src={clientAvatarUrl} alt="" className="w-16 h-16 rounded-2xl object-cover" />
+              : <div className="w-16 h-16 rounded-2xl bg-blue-600 flex items-center justify-center text-white text-2xl font-bold">
+                  {profile?.company_name?.[0] ?? auth.profile?.full_name?.[0] ?? "C"}
+                </div>
+            }
+            <button
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={uploadingAvatar}
+              title="Change avatar"
+              className="absolute inset-0 rounded-2xl bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+              {uploadingAvatar
+                ? <Loader2 size={20} className="text-white animate-spin" />
+                : <Camera size={20} className="text-white" />}
+            </button>
+            <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold text-gray-900">
@@ -30974,9 +31010,12 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
               <div className="p-4 space-y-4">
                 {/* Avatar + name */}
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center text-lg font-bold flex-shrink-0">
-                    {detailUser.full_name?.[0] ?? "?"}
-                  </div>
+                  {detailUser.avatar_url
+                    ? <img src={detailUser.avatar_url} alt="" className="w-12 h-12 rounded-2xl object-cover flex-shrink-0" />
+                    : <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center text-lg font-bold flex-shrink-0">
+                        {detailUser.full_name?.[0] ?? "?"}
+                      </div>
+                  }
                   <div>
                     <div className="font-semibold text-gray-900 text-sm">{detailUser.full_name ?? "—"}</div>
                     <div className="text-xs text-gray-500">{detailUser.email}</div>
