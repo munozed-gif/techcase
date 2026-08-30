@@ -9170,10 +9170,7 @@ function Dashboard({ auth }) {
             {activeStat.type === "cases" && activeStat.items.map(c => (
               <div key={c.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  {c.project
-                    ? <ProjectAvatar project={c.project} size={36} />
-                    : <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 font-bold text-sm flex-shrink-0">{c.title?.[0]}</div>
-                  }
+                  <ProjectAvatar project={c.project ?? { name: c.title }} size={36} />
                   <div className="min-w-0">
                     <div className="font-medium text-gray-900 text-sm truncate">{c.title}</div>
                     <div className="text-xs text-gray-400 mt-0.5 flex gap-2 flex-wrap">
@@ -9393,10 +9390,7 @@ function Dashboard({ auth }) {
               {(auth.isConsultant ? assignedCases : cases.slice(0, 8)).map(c => (
                 <div key={c.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center gap-3">
-                    {c.project
-                      ? <ProjectAvatar project={c.project} size={32} />
-                      : <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 font-bold text-xs flex-shrink-0">{c.title?.[0]}</div>
-                    }
+                    <ProjectAvatar project={c.project ?? { name: c.title }} size={32} />
                     <div className="min-w-0">
                       <div className="font-medium text-gray-900 text-sm truncate">{c.title}</div>
                       <div className="text-xs text-gray-400 flex gap-1.5">
@@ -9438,9 +9432,7 @@ function Dashboard({ auth }) {
                     return (
                       <div key={c.id} className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50" onClick={() => setSelectedCase(c)}>
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs flex-shrink-0 ${late ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"}`}>
-                            {c.title?.[0]}
-                          </div>
+                          <ProjectAvatar project={c.project ?? { name: c.title }} size={32} />
                           <div className="min-w-0">
                             <div className="font-medium text-gray-900 text-sm truncate">{c.title}</div>
                             <div className="text-xs text-gray-400">{consultant}</div>
@@ -9539,7 +9531,7 @@ function Dashboard({ auth }) {
         <div className="divide-y divide-gray-50">
           {(auth.isConsultant ? assignedCases : auth.isClient ? myCases : cases.slice(0, 6)).slice(0, 6).map(c => (
             <div key={c.id} className="flex items-center gap-2.5 px-4 py-3 hover:bg-gray-50 cursor-pointer" onClick={() => setSelectedCase(c)}>
-              <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center text-blue-700 font-bold text-xs flex-shrink-0">{c.title?.[0]}</div>
+              <ProjectAvatar project={c.project ?? { name: c.title }} size={28} />
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-medium text-gray-900 truncate">{c.title}</div>
                 <Badge className={`mt-0.5 ${STATUS_COLORS[c.status] ?? 'bg-gray-100 text-gray-600'}`}>{STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(fmt(c.status))}</Badge>
@@ -12809,7 +12801,10 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
                 <div>
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("label.client")}</p>
                   <div className="flex items-center gap-3 border border-gray-100 rounded-xl px-4 py-3">
-                    <UserAvatar name={clientName} size={40} />
+                    {project.client?.avatar_url
+                      ? <img src={project.client.avatar_url} alt="" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+                      : <UserAvatar name={clientName} size={40} />
+                    }
                     <div>
                       <p className="font-semibold text-gray-900">{clientName}</p>
                       {project.client.full_name && project.client.client_profiles?.company_name && (
@@ -21923,9 +21918,7 @@ function ConsultantProfilePanel({ consultantId, onClose, onAddToCompare, inCompa
                 <div className="space-y-2">
                   {profile.consultant_customers.map((cu, i) => (
                     <div key={i} className="flex items-start gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 text-xs font-bold flex items-center justify-center flex-shrink-0">
-                        {cu.company_name?.[0] ?? '?'}
-                      </div>
+                      <UserAvatar name={cu.company_name ?? '?'} size={32} />
                       <div>
                         <div className="font-medium text-sm text-gray-900">{cu.company_name}</div>
                         <div className="text-xs text-gray-400">{cu.role}{cu.start_year ? ` · ${cu.start_year}` : ''}</div>
