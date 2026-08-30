@@ -7541,6 +7541,26 @@ function ConsultantProfileView({ userId }) {
   const [thresholds, setThresholds]     = useState(DEFAULT_THRESHOLDS);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarFileRef = useRef(null);
+
+  async function handleAvatarUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      const ext = file.name.split('.').pop().toLowerCase();
+      const path = `consultant-avatars/${targetUserId}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('project-avatars').upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: { publicUrl } } = supabase.storage.from('project-avatars').getPublicUrl(path);
+      await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', targetUserId);
+      await supabase.from('consultant_profiles').update({ photo_url: publicUrl }).eq('id', targetUserId);
+      setProfileData(p => p ? { ...p, avatar_url: publicUrl } : p);
+    } catch (err) { alert(`Avatar upload failed: ${err.message}`); }
+    setUploadingAvatar(false);
+    e.target.value = '';
+  }
 
   useEffect(() => {
     if (!targetUserId) return;
@@ -7642,7 +7662,19 @@ function ConsultantProfileView({ userId }) {
       {/* Header */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
         <div className="flex items-center gap-4 flex-wrap">
-          <PersonAvatar name={profileData?.full_name} avatarUrl={profileData?.avatar_url} size={64} className="rounded-2xl" />
+          {isOwnProfile ? (
+            <div className="relative group cursor-pointer flex-shrink-0" onClick={() => !uploadingAvatar && avatarFileRef.current?.click()}>
+              <PersonAvatar name={profileData?.full_name} avatarUrl={profileData?.avatar_url} size={64} className="rounded-2xl" />
+              <div className="absolute inset-0 rounded-2xl bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                {uploadingAvatar
+                  ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  : <Camera className="w-5 h-5 text-white" />}
+              </div>
+              <input ref={avatarFileRef} type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+            </div>
+          ) : (
+            <PersonAvatar name={profileData?.full_name} avatarUrl={profileData?.avatar_url} size={64} className="rounded-2xl" />
+          )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-bold text-gray-900">{profileData?.full_name ?? '—'}</h1>
