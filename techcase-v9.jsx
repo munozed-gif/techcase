@@ -71,6 +71,8 @@ const ROLE_PERMISSIONS_DEFAULTS = {
   require_team_signup:        { admin:false, manager:false, consultant:false, client:false, key_user:true,  headhunter:false, final_user:true  },
   edit_activity_phase:        { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false },
   edit_activity_predecessors: { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false },
+  bulk_delete_activities:     { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false },
+  bulk_delete_subcases:       { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false },
 };
 
 // ============================================================
@@ -999,6 +1001,8 @@ const TRANSLATIONS = {
     "roles.cap.require_team_signup":        "Require pre-registration to sign up",
     "roles.cap.edit_activity_phase":        "Edit activity phase",
     "roles.cap.edit_activity_predecessors": "Edit activity predecessors",
+    "roles.cap.bulk_delete_activities":     "Bulk-delete activities",
+    "roles.cap.bulk_delete_subcases":       "Bulk-delete sub-cases",
     // System Settings inner tabs
     "sys.search_users":         "Search users…",
     "sys.add_user":             "Add User",
@@ -3945,6 +3949,8 @@ const TRANSLATIONS = {
     "roles.cap.require_team_signup":        "Requerir pre-registro para registrarse",
     "roles.cap.edit_activity_phase":        "Editar fase de actividad",
     "roles.cap.edit_activity_predecessors": "Editar predecesores de actividad",
+    "roles.cap.bulk_delete_activities":     "Eliminación masiva de actividades",
+    "roles.cap.bulk_delete_subcases":       "Eliminación masiva de sub-casos",
     // System Settings inner tabs
     "sys.search_users":         "Buscar usuarios…",
     "sys.add_user":             "Agregar Usuario",
@@ -17714,11 +17720,10 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const { settings: cdSettings } = useSystemSettings();
   const genModel      = cdSettings["ai_model"]       ?? 'claude-haiku-4-5-20251001';
   const analysisModel = cdSettings["analysis_model"] ?? 'claude-haiku-4-5-20251001';
-  const _actPerms = cdSettings["activity_permissions"] ?? {};
-  const canEditPhase         = auth.isAdmin || auth.isManager || _actPerms.edit_phase        === 'all';
-  const canEditPredecessors  = auth.isAdmin || auth.isManager || _actPerms.edit_predecessors === 'all';
-  const canBulkDeleteActs    = auth.isAdmin || auth.isManager || _actPerms.bulk_delete_activities === 'all';
-  const canBulkDeleteSubs    = auth.isAdmin || auth.isManager || _actPerms.bulk_delete_subcases   === 'all';
+  const canEditPhase        = perms.can('edit_activity_phase');
+  const canEditPredecessors = perms.can('edit_activity_predecessors');
+  const canBulkDeleteActs   = perms.can('bulk_delete_activities');
+  const canBulkDeleteSubs   = perms.can('bulk_delete_subcases');
   const { applications, apply, reviewApplication } = useApplications(caseData.id);
   const { milestones, toggleMilestone, addMilestone } = useMilestones(caseData.id);
   const { comments, addComment } = useCaseComments(caseData.id);
@@ -21095,7 +21100,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                           placeholder={t("cd.ph_task_detail")} />
                       </div>
                       {/* Phase */}
-                      {canEditPhase && perms.can('edit_activity_phase') && stageRules.can_edit_activity_phase && (
+                      {canEditPhase && stageRules.can_edit_activity_phase && (
                         <div>
                           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("case.phase_label")}</label>
                           <select value={actForm.phase}
@@ -21109,7 +21114,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                         </div>
                       )}
                       {/* Predecessors */}
-                      {canEditPredecessors && perms.can('edit_activity_predecessors') && stageRules.can_edit_activity_predecessors && activities.length > 0 && (
+                      {canEditPredecessors && stageRules.can_edit_activity_predecessors && activities.length > 0 && (
                         <div>
                           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("case.predecessors")}</label>
                           <div className="space-y-1 max-h-28 overflow-y-auto border border-gray-200 rounded-xl p-2 bg-white">
@@ -29889,7 +29894,6 @@ function SettingsGenerationTab({ ssCtx }) {
         default_profile: stored.default_profile ?? GENERATION_PROFILE_DEFAULTS.default_profile,
         context: { ...GENERATION_CONTEXT_DEFAULTS, ...storedCtx },
         profiles: {},
-        activity_permissions: ssCtx.settings["activity_permissions"] ?? {},
       };
       for (const pk of ["basic", "standard", "full"]) {
         const def = GENERATION_PROFILE_DEFAULTS.profiles[pk] ?? {};
@@ -29926,13 +29930,12 @@ function SettingsGenerationTab({ ssCtx }) {
   async function handleSave() {
     setSaving(true);
     try {
-      const { ai_model, analysis_model, context, activity_permissions, ...genProfiles } = form;
+      const { ai_model, analysis_model, context, ...genProfiles } = form;
       await Promise.all([
-        ssCtx.setSetting("ai_model",               ai_model),
-        ssCtx.setSetting("analysis_model",         analysis_model),
-        ssCtx.setSetting("generation_context",     context),
-        ssCtx.setSetting("generation_profiles",    genProfiles),
-        ssCtx.setSetting("activity_permissions",   activity_permissions),
+        ssCtx.setSetting("ai_model",            ai_model),
+        ssCtx.setSetting("analysis_model",      analysis_model),
+        ssCtx.setSetting("generation_context",  context),
+        ssCtx.setSetting("generation_profiles", genProfiles),
       ]);
       setToast(t("gen.saved"));
       setTimeout(() => setToast(null), 3000);
@@ -30088,45 +30091,6 @@ function SettingsGenerationTab({ ssCtx }) {
               </div>
             ))}
           </div>
-        </div>
-      </div>
-
-      {/* Activity Permissions */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-5">
-        <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
-          <Shield size={16} className="text-orange-500" /> Activity Permissions
-        </h3>
-        <p className="text-xs text-gray-400 mb-4">Control which roles can access each activity feature. "Manager / Admin only" means consultants, key users, and clients cannot use the feature.</p>
-        <div className="space-y-4">
-          {[
-            { key: "edit_phase",              label: "Edit activity phase",       desc: "Who can assign or change the phase (Design, Development, etc.) on an activity." },
-            { key: "edit_predecessors",       label: "Edit predecessors",         desc: "Who can set predecessor dependencies between activities." },
-            { key: "bulk_delete_activities",  label: "Bulk-delete activities",    desc: "Who can select multiple activities and delete them at once." },
-            { key: "bulk_delete_subcases",    label: "Bulk-delete sub-cases",     desc: "Who can select multiple sub-cases and delete them at once." },
-          ].map(({ key, label, desc }) => {
-            const stored = form.activity_permissions?.[key] ?? "manager_admin";
-            const isAll = stored === "all";
-            return (
-              <div key={key} className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-700">{label}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{desc}</p>
-                </div>
-                <div className="flex-shrink-0 flex rounded-lg border border-gray-200 overflow-hidden text-xs font-semibold">
-                  <button
-                    onClick={() => setForm(p => ({ ...p, activity_permissions: { ...(p.activity_permissions ?? {}), [key]: "manager_admin" } }))}
-                    className={`px-3 py-1.5 transition-colors ${!isAll ? 'bg-orange-500 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
-                    Manager / Admin only
-                  </button>
-                  <button
-                    onClick={() => setForm(p => ({ ...p, activity_permissions: { ...(p.activity_permissions ?? {}), [key]: "all" } }))}
-                    className={`px-3 py-1.5 transition-colors ${isAll ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
-                    All roles
-                  </button>
-                </div>
-              </div>
-            );
-          })}
         </div>
       </div>
 
