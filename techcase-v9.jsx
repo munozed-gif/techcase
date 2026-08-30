@@ -6213,11 +6213,13 @@ function useConsultantProfile(consultantId, profileId) {
   }
 
   async function uploadPhoto(file) {
-    const ext = file.name.split(".").pop();
-    const path = `avatars/${consultantId}.${ext}`;
-    await supabase.storage.from("profiles").upload(path, file, { upsert: true });
-    const { data: { publicUrl } } = supabase.storage.from("profiles").getPublicUrl(path);
+    const ext = file.name.split(".").pop().toLowerCase();
+    const path = `consultant-avatars/${consultantId}.${ext}`;
+    const { error: upErr } = await supabase.storage.from("project-avatars").upload(path, file, { upsert: true });
+    if (upErr) throw upErr;
+    const { data: { publicUrl } } = supabase.storage.from("project-avatars").getPublicUrl(path);
     await updateProfile({ photo_url: publicUrl });
+    await supabase.from("users").update({ avatar_url: publicUrl }).eq("id", consultantId);
     return publicUrl;
   }
 
@@ -22652,9 +22654,13 @@ function ProfileView({ auth, compact = false }) {
   async function handlePhotoUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    try { await uploadPhoto(file); } catch (e) { alert(e.message); }
+    setUploadingPhoto(true);
+    try { await uploadPhoto(file); } catch (err) { alert(err.message); }
+    setUploadingPhoto(false);
+    e.target.value = '';
   }
 
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [custForm, setCustForm] = useState({ company_name: "", role_held: "", start_date: "", end_date: "", description: "" });
   const [projForm, setProjForm] = useState({ title: "", client_name: "", url: "", description: "", _tech: "" });
   const [authForm, setAuthForm] = useState({ country_name: "", country_code: "", auth_type: "citizen" });
@@ -22706,16 +22712,17 @@ function ProfileView({ auth, compact = false }) {
       {!compact && (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
         <div className="flex items-start gap-5">
-          <div className="relative">
+          <div className="relative group cursor-pointer" onClick={() => !uploadingPhoto && fileRef.current?.click()}>
             <div className="w-20 h-20 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 text-2xl font-bold overflow-hidden">
               {profile?.photo_url
                 ? <img src={profile.photo_url} alt="avatar" className="w-full h-full object-cover" />
                 : auth.profile?.full_name?.[0]}
             </div>
-            <button onClick={() => fileRef.current?.click()}
-              className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-600 text-white rounded-full text-xs flex items-center justify-center hover:bg-blue-700">
-              +
-            </button>
+            <div className="absolute inset-0 rounded-2xl bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              {uploadingPhoto
+                ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                : <Camera className="w-5 h-5 text-white" />}
+            </div>
             <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
           </div>
           <div className="flex-1">
