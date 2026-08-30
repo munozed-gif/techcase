@@ -19141,11 +19141,14 @@ Keep each section concise.${buildSectionConstraint('dev_plan', genProfile)}${bui
         insertedIds.push(data.id);
       }
 
-      // Insert sub-cases
-      for (const a of subItems) {
-        await createSubCase({
+      // Insert sub-cases + linked activity rows so they appear in the list and count toward progress
+      const subTaskNoBase = maxNo + actItems.length;
+      for (let i = 0; i < subItems.length; i++) {
+        const a = subItems[i];
+        const desc = `${a.description}${a.acceptance_criteria ? '\n\nAcceptance criteria: ' + a.acceptance_criteria : ''}`;
+        const newSubCase = await createSubCase({
           title: a.title,
-          description: `${a.description}${a.acceptance_criteria ? '\n\nAcceptance criteria: ' + a.acceptance_criteria : ''}`,
+          description: desc,
           priority: 'medium',
           status: 'open',
           area_sap: caseData.area_sap ?? null,
@@ -19154,6 +19157,21 @@ Keep each section concise.${buildSectionConstraint('dev_plan', genProfile)}${bui
           manager_id: caseData.manager_id ?? null,
           project_id: caseData.project_id ?? null,
         });
+        // Create the linked activity so it appears in the activities list and contributes to progress
+        const { error: actErr } = await supabase.from('case_activities').insert({
+          case_id: caseData.id,
+          task_no: subTaskNoBase + i + 1,
+          sort_order: subTaskNoBase + i + 1,
+          title: a.title,
+          description: desc,
+          activity_type: 'sub_case',
+          linked_case_id: newSubCase.id,
+          est_hours: a.est_hours,
+          status: 'pending',
+          progress_pct: 0,
+          phase: a.phase,
+        });
+        if (actErr) throw actErr;
       }
 
       logEvent('devplan.confirmed', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, metadata: { activities: actItems.length, subcases: subItems.length } });
@@ -21025,8 +21043,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                           onChange={e => setActForm(p => ({ ...p, detail: e.target.value }))}
                           placeholder={t("cd.ph_task_detail")} />
                       </div>
-                      {/* Phase — hidden if user lacks role permission or stage disables it */}
-                      {perms.can('edit_activity_phase') && stageRules.can_edit_activity_phase && (
+                      {/* Phase — managers/admins only */}
+                      {(auth.isAdmin || auth.isManager) && perms.can('edit_activity_phase') && stageRules.can_edit_activity_phase && (
                         <div>
                           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("case.phase_label")}</label>
                           <select value={actForm.phase}
@@ -21039,8 +21057,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                           </select>
                         </div>
                       )}
-                      {/* Predecessors — hidden if user lacks role permission or stage disables it */}
-                      {perms.can('edit_activity_predecessors') && stageRules.can_edit_activity_predecessors && activities.length > 0 && (
+                      {/* Predecessors — managers/admins only */}
+                      {(auth.isAdmin || auth.isManager) && perms.can('edit_activity_predecessors') && stageRules.can_edit_activity_predecessors && activities.length > 0 && (
                         <div>
                           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("case.predecessors")}</label>
                           <div className="space-y-1 max-h-28 overflow-y-auto border border-gray-200 rounded-xl p-2 bg-white">
@@ -21403,7 +21421,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                               <Textarea label={t("case.milestone_criteria")} value={editActForm.detail ?? ""}
                                 onChange={e => setEditActForm(p => ({ ...p, detail: e.target.value }))} />
                             </div>
-                            {/* Phase */}
+                            {/* Phase — managers/admins only */}
+                            {(auth.isAdmin || auth.isManager) && (
                             <div>
                               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("case.phase_label")}</label>
                               <select value={editActForm.phase ?? ""}
@@ -21415,8 +21434,9 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                                 ))}
                               </select>
                             </div>
-                            {/* Predecessors */}
-                            {activities.filter(a => a.id !== act.id && a.activity_type !== "sub_case").length > 0 && (
+                            )}
+                            {/* Predecessors — managers/admins only */}
+                            {(auth.isAdmin || auth.isManager) && activities.filter(a => a.id !== act.id && a.activity_type !== "sub_case").length > 0 && (
                               <div>
                                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("case.predecessors")}</label>
                                 <div className="space-y-1 max-h-28 overflow-y-auto border border-gray-200 rounded-xl p-2 bg-white">
