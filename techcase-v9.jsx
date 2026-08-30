@@ -17714,6 +17714,11 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const { settings: cdSettings } = useSystemSettings();
   const genModel      = cdSettings["ai_model"]       ?? 'claude-haiku-4-5-20251001';
   const analysisModel = cdSettings["analysis_model"] ?? 'claude-haiku-4-5-20251001';
+  const _actPerms = cdSettings["activity_permissions"] ?? {};
+  const canEditPhase         = auth.isAdmin || auth.isManager || _actPerms.edit_phase        === 'all';
+  const canEditPredecessors  = auth.isAdmin || auth.isManager || _actPerms.edit_predecessors === 'all';
+  const canBulkDeleteActs    = auth.isAdmin || auth.isManager || _actPerms.bulk_delete_activities === 'all';
+  const canBulkDeleteSubs    = auth.isAdmin || auth.isManager || _actPerms.bulk_delete_subcases   === 'all';
   const { applications, apply, reviewApplication } = useApplications(caseData.id);
   const { milestones, toggleMilestone, addMilestone } = useMilestones(caseData.id);
   const { comments, addComment } = useCaseComments(caseData.id);
@@ -17767,6 +17772,8 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [expandedActId, setExpandedActId] = useState(null);
   const [selectedActIds, setSelectedActIds] = useState(new Set());
   const [deletingBulkActs, setDeletingBulkActs] = useState(false);
+  const [selectedSubIds, setSelectedSubIds] = useState(new Set());
+  const [deletingBulkSubs, setDeletingBulkSubs] = useState(false);
   const [actType, setActType]             = useState("task");       // "task" | "sub_case"
   const [subCaseMode, setSubCaseMode]     = useState("create");     // "create" | "link"
   const [caseSearchQuery, setCaseSearchQuery]   = useState("");
@@ -18005,6 +18012,22 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
       setActRefreshKey(k => k + 1);
     } catch (e) { alert('Failed to delete: ' + e.message); }
     setDeletingBulkActs(false);
+  }
+
+  async function handleBulkDeleteSubs() {
+    if (!selectedSubIds.size) return;
+    if (!window.confirm(`Delete ${selectedSubIds.size} sub-case${selectedSubIds.size === 1 ? '' : 's'}? This cannot be undone.`)) return;
+    setDeletingBulkSubs(true);
+    try {
+      const ids = [...selectedSubIds];
+      // Delete sub-cases + any linked activity rows in parent case
+      await supabase.from('case_activities').delete().in('linked_case_id', ids);
+      const { error } = await supabase.from('cases').delete().in('id', ids);
+      if (error) throw error;
+      setSelectedSubIds(new Set());
+      setActRefreshKey(k => k + 1);
+    } catch (e) { alert('Failed to delete sub-cases: ' + e.message); }
+    setDeletingBulkSubs(false);
   }
 
   async function handleCreateSubCase() {
@@ -20318,19 +20341,42 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
       {/* Sub-cases Tab */}
       {activeTab === "subcases" && (
         <div className="space-y-3">
-          {/* Header row with add button */}
-          <div className="flex items-center justify-between">
+          {/* Header row with add + bulk-delete */}
+          <div className="flex items-center justify-between gap-3">
             <p className="text-sm text-gray-500">
               {subCases.length === 0
                 ? t("case.no_subcases")
                 : `${subCases.length} ${subCases.length !== 1 ? t("cd.subcase_plural") : t("cd.subcase_single")}`}
             </p>
-            {canAddSubCase && !showSubCaseForm && (
-              <button onClick={() => setShowSubCaseForm(true)}
-                className="px-4 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">
-                {t("case.new_subcase")}
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {canBulkDeleteSubs && subCases.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSelectedSubIds(prev => prev.size === subCases.length ? new Set() : new Set(subCases.map(s => s.id)))}
+                    className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors">
+                    <div className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-colors ${selectedSubIds.size === subCases.length && subCases.length > 0 ? 'bg-red-500 border-red-500' : selectedSubIds.size > 0 ? 'bg-red-300 border-red-300' : 'border-gray-400'}`}>
+                      {selectedSubIds.size > 0 && <Check size={8} className="text-white" />}
+                    </div>
+                    {selectedSubIds.size > 0 ? `${selectedSubIds.size} selected` : 'Select'}
+                  </button>
+                  {selectedSubIds.size > 0 && (
+                    <button onClick={handleBulkDeleteSubs} disabled={deletingBulkSubs}
+                      className="flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-800 disabled:opacity-50 transition-colors">
+                      {deletingBulkSubs ? <><Spinner size={10} /> Deleting…</> : <><Trash2 size={12} /> Delete {selectedSubIds.size}</>}
+                    </button>
+                  )}
+                  {selectedSubIds.size > 0 && (
+                    <button onClick={() => setSelectedSubIds(new Set())} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Clear</button>
+                  )}
+                </div>
+              )}
+              {canAddSubCase && !showSubCaseForm && (
+                <button onClick={() => setShowSubCaseForm(true)}
+                  className="px-4 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">
+                  {t("case.new_subcase")}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Create sub-case form */}
@@ -20366,10 +20412,15 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           <div className="space-y-2">
             {subCases.map(sc => (
               <div key={sc.id}
-                className="border border-gray-100 rounded-xl p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-                onClick={() => setSelectedSubCase(sc)}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
+                className={`border rounded-xl p-4 hover:bg-gray-50 transition-colors ${selectedSubIds.has(sc.id) ? 'border-red-300 bg-red-50' : 'border-gray-100'}`}>
+                <div className="flex items-start gap-3">
+                  {canBulkDeleteSubs && (
+                    <button onClick={e => { e.stopPropagation(); setSelectedSubIds(prev => { const n = new Set(prev); n.has(sc.id) ? n.delete(sc.id) : n.add(sc.id); return n; }); }}
+                      className={`flex-shrink-0 mt-0.5 w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-colors ${selectedSubIds.has(sc.id) ? 'bg-red-500 border-red-500' : 'border-gray-300 hover:border-red-400'}`}>
+                      {selectedSubIds.has(sc.id) && <Check size={8} className="text-white" />}
+                    </button>
+                  )}
+                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedSubCase(sc)}>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-gray-900 text-sm">{sc.title}</span>
                       <Badge className={STATUS_COLORS[sc.status]}>{STATUS_LABEL_KEYS[sc.status] ? t(STATUS_LABEL_KEYS[sc.status]) : cap(fmt(sc.status))}</Badge>
@@ -21043,8 +21094,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                           onChange={e => setActForm(p => ({ ...p, detail: e.target.value }))}
                           placeholder={t("cd.ph_task_detail")} />
                       </div>
-                      {/* Phase — managers/admins only */}
-                      {(auth.isAdmin || auth.isManager) && perms.can('edit_activity_phase') && stageRules.can_edit_activity_phase && (
+                      {/* Phase */}
+                      {canEditPhase && perms.can('edit_activity_phase') && stageRules.can_edit_activity_phase && (
                         <div>
                           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("case.phase_label")}</label>
                           <select value={actForm.phase}
@@ -21057,8 +21108,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                           </select>
                         </div>
                       )}
-                      {/* Predecessors — managers/admins only */}
-                      {(auth.isAdmin || auth.isManager) && perms.can('edit_activity_predecessors') && stageRules.can_edit_activity_predecessors && activities.length > 0 && (
+                      {/* Predecessors */}
+                      {canEditPredecessors && perms.can('edit_activity_predecessors') && stageRules.can_edit_activity_predecessors && activities.length > 0 && (
                         <div>
                           <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("case.predecessors")}</label>
                           <div className="space-y-1 max-h-28 overflow-y-auto border border-gray-200 rounded-xl p-2 bg-white">
@@ -21308,7 +21359,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             ) : (
               <div className="space-y-4">
                 {/* Bulk-select toolbar */}
-                {canManage && activities.length > 0 && (
+                {canBulkDeleteActs && activities.length > 0 && (
                   <div className="flex items-center gap-3 py-2 px-1">
                     <button
                       onClick={() => {
@@ -21421,8 +21472,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                               <Textarea label={t("case.milestone_criteria")} value={editActForm.detail ?? ""}
                                 onChange={e => setEditActForm(p => ({ ...p, detail: e.target.value }))} />
                             </div>
-                            {/* Phase — managers/admins only */}
-                            {(auth.isAdmin || auth.isManager) && (
+                            {/* Phase */}
+                            {canEditPhase && (
                             <div>
                               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("case.phase_label")}</label>
                               <select value={editActForm.phase ?? ""}
@@ -21435,8 +21486,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                               </select>
                             </div>
                             )}
-                            {/* Predecessors — managers/admins only */}
-                            {(auth.isAdmin || auth.isManager) && activities.filter(a => a.id !== act.id && a.activity_type !== "sub_case").length > 0 && (
+                            {/* Predecessors */}
+                            {canEditPredecessors && activities.filter(a => a.id !== act.id && a.activity_type !== "sub_case").length > 0 && (
                               <div>
                                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">{t("case.predecessors")}</label>
                                 <div className="space-y-1 max-h-28 overflow-y-auto border border-gray-200 rounded-xl p-2 bg-white">
@@ -21532,7 +21583,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                     return (
                       <div key={act.id} className={`border rounded-xl overflow-hidden transition-colors ${selectedActIds.has(act.id) ? 'border-red-300 bg-red-50' : 'border-violet-200'}`}>
                         <div className="flex items-center gap-3 px-4 py-3 bg-white hover:bg-violet-50">
-                          {canManage && (
+                          {canBulkDeleteActs && (
                             <button onClick={e => { e.stopPropagation(); setSelectedActIds(prev => { const n = new Set(prev); n.has(act.id) ? n.delete(act.id) : n.add(act.id); return n; }); }}
                               className={`flex-shrink-0 w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-colors ${selectedActIds.has(act.id) ? 'bg-red-500 border-red-500' : 'border-gray-300 hover:border-red-400'}`}>
                               {selectedActIds.has(act.id) && <Check size={8} className="text-white" />}
@@ -29838,6 +29889,7 @@ function SettingsGenerationTab({ ssCtx }) {
         default_profile: stored.default_profile ?? GENERATION_PROFILE_DEFAULTS.default_profile,
         context: { ...GENERATION_CONTEXT_DEFAULTS, ...storedCtx },
         profiles: {},
+        activity_permissions: ssCtx.settings["activity_permissions"] ?? {},
       };
       for (const pk of ["basic", "standard", "full"]) {
         const def = GENERATION_PROFILE_DEFAULTS.profiles[pk] ?? {};
@@ -29874,12 +29926,13 @@ function SettingsGenerationTab({ ssCtx }) {
   async function handleSave() {
     setSaving(true);
     try {
-      const { ai_model, analysis_model, context, ...genProfiles } = form;
+      const { ai_model, analysis_model, context, activity_permissions, ...genProfiles } = form;
       await Promise.all([
-        ssCtx.setSetting("ai_model",            ai_model),
-        ssCtx.setSetting("analysis_model",      analysis_model),
-        ssCtx.setSetting("generation_context",  context),
-        ssCtx.setSetting("generation_profiles", genProfiles),
+        ssCtx.setSetting("ai_model",               ai_model),
+        ssCtx.setSetting("analysis_model",         analysis_model),
+        ssCtx.setSetting("generation_context",     context),
+        ssCtx.setSetting("generation_profiles",    genProfiles),
+        ssCtx.setSetting("activity_permissions",   activity_permissions),
       ]);
       setToast(t("gen.saved"));
       setTimeout(() => setToast(null), 3000);
@@ -30035,6 +30088,45 @@ function SettingsGenerationTab({ ssCtx }) {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* Activity Permissions */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+          <Shield size={16} className="text-orange-500" /> Activity Permissions
+        </h3>
+        <p className="text-xs text-gray-400 mb-4">Control which roles can access each activity feature. "Manager / Admin only" means consultants, key users, and clients cannot use the feature.</p>
+        <div className="space-y-4">
+          {[
+            { key: "edit_phase",              label: "Edit activity phase",       desc: "Who can assign or change the phase (Design, Development, etc.) on an activity." },
+            { key: "edit_predecessors",       label: "Edit predecessors",         desc: "Who can set predecessor dependencies between activities." },
+            { key: "bulk_delete_activities",  label: "Bulk-delete activities",    desc: "Who can select multiple activities and delete them at once." },
+            { key: "bulk_delete_subcases",    label: "Bulk-delete sub-cases",     desc: "Who can select multiple sub-cases and delete them at once." },
+          ].map(({ key, label, desc }) => {
+            const stored = form.activity_permissions?.[key] ?? "manager_admin";
+            const isAll = stored === "all";
+            return (
+              <div key={key} className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-700">{label}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{desc}</p>
+                </div>
+                <div className="flex-shrink-0 flex rounded-lg border border-gray-200 overflow-hidden text-xs font-semibold">
+                  <button
+                    onClick={() => setForm(p => ({ ...p, activity_permissions: { ...(p.activity_permissions ?? {}), [key]: "manager_admin" } }))}
+                    className={`px-3 py-1.5 transition-colors ${!isAll ? 'bg-orange-500 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                    Manager / Admin only
+                  </button>
+                  <button
+                    onClick={() => setForm(p => ({ ...p, activity_permissions: { ...(p.activity_permissions ?? {}), [key]: "all" } }))}
+                    className={`px-3 py-1.5 transition-colors ${isAll ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                    All roles
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
