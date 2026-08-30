@@ -5486,7 +5486,7 @@ function useApplications(caseId = null) {
         consultant:consultant_id(id, full_name, email, avatar_url,
           consultant_profiles(headline, skills, hourly_rate, years_experience,
             external_occupancy_pct, travel_available)),
-        case:case_id(id, title, status)
+        case:case_id(id, title, status, project:project_id(id, name, avatar_url, client:client_id(id, avatar_url)), client:client_id(id, avatar_url, client_profiles(company_name)))
       `)
       .order("submitted_at", { ascending: false });
     if (caseId) query = query.eq("case_id", caseId);
@@ -9234,9 +9234,7 @@ function Dashboard({ auth }) {
             {activeStat.type === "applications" && activeStat.items.map(a => (
               <div key={a.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-9 h-9 bg-violet-100 rounded-xl flex items-center justify-center text-blue-600 font-bold text-sm flex-shrink-0">
-                    {(a.case?.title ?? a.consultant?.full_name ?? "?")?.[0]}
-                  </div>
+                  <ProjectAvatar project={a.case?.project ?? { name: a.case?.client?.client_profiles?.company_name || a.case?.title || '?', client: a.case?.client }} size={36} />
                   <div className="min-w-0">
                     <div className="font-medium text-gray-900 text-sm truncate">
                       {a.case?.title ?? t("reports.unknown")}
