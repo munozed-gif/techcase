@@ -19398,23 +19398,33 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             {t("case.back")}
           </button>
           <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <h1 className="text-2xl font-bold text-gray-900 leading-tight">{caseData.title}</h1>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {(() => {
-                  const stage = lifecycleStages.find(s => s.key === caseData.status);
-                  return stage
-                    ? <span className="px-2 py-0.5 text-xs font-semibold rounded-lg" style={{ backgroundColor: stage.color + "22", color: stage.color }}>{stage.label}</span>
-                    : <Badge className={STATUS_COLORS[caseData.status] ?? "bg-gray-100 text-gray-600"}>{STATUS_LABEL_KEYS[caseData.status] ? t(STATUS_LABEL_KEYS[caseData.status]) : cap(fmt(caseData.status))}</Badge>;
-                })()}
-                <Badge className={PRIORITY_COLORS[caseData.priority]}>{PRIORITY_LABEL_KEYS[caseData.priority] ? t(PRIORITY_LABEL_KEYS[caseData.priority]) : cap(caseData.priority)}</Badge>
-                {caseData.is_confidential && <span className="px-2 py-0.5 bg-gray-800 text-white rounded-lg text-xs font-semibold">{t("case.badge_private")}</span>}
-                {caseData.nda_required && <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">{t("case.badge_nda")}</span>}
-                {caseData.status === "standby" && caseData.standby_reason && (
-                  <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-lg text-xs font-semibold flex items-center gap-1">
-                    ⏸ {caseData.standby_reason}
-                  </span>
+            <div className="flex items-start gap-4 min-w-0 flex-1">
+              <ProjectAvatar
+                project={caseData.project ?? { name: caseData.client?.client_profiles?.company_name || caseData.client?.full_name || caseData.title, client: caseData.client }}
+                size={52}
+                className="flex-shrink-0 mt-0.5"
+              />
+              <div className="min-w-0 flex-1">
+                <h1 className="text-2xl font-bold text-gray-900 leading-tight">{caseData.title}</h1>
+                {caseData.project?.name && (
+                  <p className="text-sm text-gray-500 font-medium mt-0.5">{caseData.project.name}</p>
                 )}
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {(() => {
+                    const stage = lifecycleStages.find(s => s.key === caseData.status);
+                    return stage
+                      ? <span className="px-2 py-0.5 text-xs font-semibold rounded-lg" style={{ backgroundColor: stage.color + "22", color: stage.color }}>{stage.label}</span>
+                      : <Badge className={STATUS_COLORS[caseData.status] ?? "bg-gray-100 text-gray-600"}>{STATUS_LABEL_KEYS[caseData.status] ? t(STATUS_LABEL_KEYS[caseData.status]) : cap(fmt(caseData.status))}</Badge>;
+                  })()}
+                  <Badge className={PRIORITY_COLORS[caseData.priority]}>{PRIORITY_LABEL_KEYS[caseData.priority] ? t(PRIORITY_LABEL_KEYS[caseData.priority]) : cap(caseData.priority)}</Badge>
+                  {caseData.is_confidential && <span className="px-2 py-0.5 bg-gray-800 text-white rounded-lg text-xs font-semibold">{t("case.badge_private")}</span>}
+                  {caseData.nda_required && <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">{t("case.badge_nda")}</span>}
+                  {caseData.status === "standby" && caseData.standby_reason && (
+                    <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-lg text-xs font-semibold flex items-center gap-1">
+                      ⏸ {caseData.standby_reason}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
