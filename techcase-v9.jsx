@@ -4931,7 +4931,7 @@ function useSubCases(parentCaseId) {
       .select(`
         *,
         client:client_id(id, full_name, client_profiles(company_name)),
-        manager:manager_id(id, full_name)
+        manager:manager_id(id, full_name, avatar_url)
       `)
       .eq("parent_case_id", parentCaseId)
       .order("created_at");
@@ -5394,7 +5394,7 @@ function useCases(filters = {}) {
       .select(`
         *,
         client:client_id(id, full_name, email, avatar_url, client_profiles(company_name)),
-        manager:manager_id(id, full_name, email),
+        manager:manager_id(id, full_name, email, avatar_url),
         case_assignments(consultant_id, time_commitment,
           users:consultant_id(id, full_name, avatar_url)),
         case_key_users(user_id, area, users:user_id(full_name, email)),
@@ -5946,9 +5946,7 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
           </div>
           <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-5">
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 rounded-full bg-blue-200 flex items-center justify-center text-blue-800 font-bold text-lg flex-shrink-0">
-                {best.consultant?.full_name?.[0]}
-              </div>
+              <PersonAvatar name={best.consultant?.full_name} avatarUrl={best.consultant?.avatar_url} size={48} />
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-gray-900">{best.consultant?.full_name}</div>
                 <div className="text-xs text-gray-500">
@@ -7551,7 +7549,7 @@ function ConsultantProfileView({ userId }) {
       try {
         const [profRes, ratingsRes, dimsRes, assignRes, logsRes, ssRes, cpRes] = await Promise.all([
           supabase.from('users')
-            .select('id, full_name, email, role, trust_level, avg_rating, created_at')
+            .select('id, full_name, email, role, trust_level, avg_rating, avatar_url, created_at')
             .eq('id', targetUserId).single(),
           supabase.from('case_ratings')
             .select('id, case_id, scores, created_at, cases(title)')
@@ -7642,9 +7640,7 @@ function ConsultantProfileView({ userId }) {
       {/* Header */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
         <div className="flex items-center gap-4 flex-wrap">
-          <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 text-2xl font-bold flex-shrink-0">
-            {profileData?.full_name?.[0] ?? '?'}
-          </div>
+          <PersonAvatar name={profileData?.full_name} avatarUrl={profileData?.avatar_url} size={64} className="rounded-2xl" />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-bold text-gray-900">{profileData?.full_name ?? '—'}</h1>
@@ -8666,9 +8662,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
         </div>
 
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold">
-            {profile?.full_name?.[0] ?? "?"}
-          </div>
+          <PersonAvatar name={profile?.full_name} avatarUrl={profile?.avatar_url} size={36} />
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium text-white truncate">{profile?.full_name ?? t("fallback.user")}</div>
             <div className="text-xs text-blue-300 truncate">{profile?.email}</div>
@@ -8803,6 +8797,7 @@ function Dashboard({ auth }) {
         id: c.client_id, name: company,
         initials: ws.length >= 2 ? (ws[0][0] + ws[1][0]).toUpperCase() : company.slice(0, 2).toUpperCase(),
         color: STRIP_PALETTE[map.size % STRIP_PALETTE.length],
+        avatarUrl: c.client?.avatar_url || null,
         activeCases: 0, pastCases: 0, isFollowed: false,
       });
     }
@@ -8961,9 +8956,11 @@ function Dashboard({ auth }) {
                       title={t("dash.view_cases").replace("{name}", cl.name)}>
                       {/* spinning ring wrapper */}
                       <div style={{ padding:3, borderRadius:'50%', background:'conic-gradient(#1A4B8C 0%, #5B9BD5 55%, #10b981 100%)', animation:'_stripSpin 4s linear infinite' }}>
-                        {/* counter-rotating avatar keeps initials still */}
-                        <div style={{ width:52, height:52, borderRadius:'50%', background:cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid #ffffff', position:'relative', animation:'_stripStill 4s linear infinite' }}>
-                          {cl.initials}
+                        {/* counter-rotating avatar keeps avatar still */}
+                        <div style={{ width:52, height:52, borderRadius:'50%', background:cl.avatarUrl ? 'transparent' : cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid #ffffff', position:'relative', animation:'_stripStill 4s linear infinite', overflow:'hidden' }}>
+                          {cl.avatarUrl
+                            ? <img src={cl.avatarUrl} alt={cl.name} style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:'50%' }} />
+                            : cl.initials}
                           <div style={{ width:9, height:9, background:'#10b981', border:'1.5px solid #ffffff', borderRadius:'50%', position:'absolute', bottom:1, right:1 }} />
                         </div>
                       </div>
@@ -8991,8 +8988,10 @@ function Dashboard({ auth }) {
                                outline: clientFilter?.id === cl.id ? '2px solid #3b82f6' : 'none', borderRadius:8, padding:2 }}
                       title={t("dash.view_cases").replace("{name}", cl.name)}>
                       <div style={{ padding:3, borderRadius:'50%', background:'conic-gradient(#93c5fd 0%, #5B9BD5 50%, #bfdbfe 100%)', animation:'_stripSpin 5s linear infinite' }}>
-                        <div style={{ width:52, height:52, borderRadius:'50%', background:cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid #ffffff', position:'relative', animation:'_stripStill 5s linear infinite' }}>
-                          {cl.initials}
+                        <div style={{ width:52, height:52, borderRadius:'50%', background:cl.avatarUrl ? 'transparent' : cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid #ffffff', position:'relative', animation:'_stripStill 5s linear infinite', overflow:'hidden' }}>
+                          {cl.avatarUrl
+                            ? <img src={cl.avatarUrl} alt={cl.name} style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:'50%' }} />
+                            : cl.initials}
                           <div style={{ fontSize:9, position:'absolute', bottom:0, right:-1, lineHeight:1 }}><Heart size={7} className="fill-current" /></div>
                         </div>
                       </div>
@@ -9020,8 +9019,10 @@ function Dashboard({ auth }) {
                                outline: clientFilter?.id === cl.id ? '2px solid #3b82f6' : 'none', borderRadius:8, padding:2 }}
                       title={t("dash.view_cases").replace("{name}", cl.name)}>
                       <div style={{ padding:3, borderRadius:'50%', background:'#e2e8f0' }}>
-                        <div style={{ width:52, height:52, borderRadius:'50%', background:cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid #ffffff' }}>
-                          {cl.initials}
+                        <div style={{ width:52, height:52, borderRadius:'50%', background:cl.avatarUrl ? 'transparent' : cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid #ffffff', overflow:'hidden' }}>
+                          {cl.avatarUrl
+                            ? <img src={cl.avatarUrl} alt={cl.name} style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:'50%' }} />
+                            : cl.initials}
                         </div>
                       </div>
                       <div style={{ fontSize:10.5, fontWeight:600, color:'#5b7a9b', maxWidth:66, textAlign:'center', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{cl.name}</div>
@@ -9048,8 +9049,10 @@ function Dashboard({ auth }) {
                                outline: clientFilter?.id === cl.id ? '2px solid #3b82f6' : 'none', borderRadius:8, padding:2 }}
                       title={t("dash.view_cases").replace("{name}", cl.name)}>
                       <div style={{ padding:3, borderRadius:'50%', background:'#d4e6f5' }}>
-                        <div style={{ width:52, height:52, borderRadius:'50%', background:cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid #ffffff' }}>
-                          {cl.initials}
+                        <div style={{ width:52, height:52, borderRadius:'50%', background:cl.avatarUrl ? 'transparent' : cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid #ffffff', overflow:'hidden' }}>
+                          {cl.avatarUrl
+                            ? <img src={cl.avatarUrl} alt={cl.name} style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:'50%' }} />
+                            : cl.initials}
                         </div>
                       </div>
                       <div style={{ fontSize:10.5, fontWeight:600, color:'#5b7a9b', maxWidth:66, textAlign:'center', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{cl.name}</div>
@@ -12240,6 +12243,26 @@ function UserAvatar({ name, size = 36, title: tooltipTitle }) {
     </div>
   );
 }
+function PersonAvatar({ name, avatarUrl, photoUrl, size = 36, title: tooltipTitle, className = "" }) {
+  const src = photoUrl || avatarUrl || null;
+  const displayName = name ?? '?';
+  if (src) {
+    return (
+      <img src={src} alt={displayName} title={tooltipTitle ?? displayName}
+        style={{ width: size, height: size }}
+        className={`rounded-full object-cover flex-shrink-0 ${className}`} />
+    );
+  }
+  const c = AVATAR_PALETTE[Math.abs(displayName.charCodeAt(0)) % AVATAR_PALETTE.length];
+  const initials = displayName.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+  return (
+    <div title={tooltipTitle ?? displayName}
+      style={{ width: size, height: size, borderRadius: '50%', background: c.bg, color: c.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: Math.round(size * 0.36), fontWeight: 700, flexShrink: 0, letterSpacing: '-0.02em' }}
+      className={className}>
+      {initials}
+    </div>
+  );
+}
 
 function ProjectAvatar({ project, size = 44, className = "" }) {
   const src = project?.avatar_url || project?.client?.avatar_url || null;
@@ -12453,7 +12476,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
   const loadProjCases = useCallback(async () => {
     if (!project?.id) return;
     const { data } = await supabase.from("cases")
-      .select("*, manager:manager_id(id, full_name, email), case_assignments(consultant_id, time_commitment, users:consultant_id(id, full_name, email))")
+      .select("*, manager:manager_id(id, full_name, email, avatar_url), case_assignments(consultant_id, time_commitment, users:consultant_id(id, full_name, email, avatar_url))")
       .eq("project_id", project.id)
       .order("created_at", { ascending: false });
     setProjCases(data ?? []);
@@ -12516,7 +12539,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
     (c.case_assignments ?? []).forEach(a => {
       const uid = a.consultant_id;
       if (!uid) return;
-      if (!consultantMap.has(uid)) consultantMap.set(uid, { id: uid, name: a.users?.full_name ?? "Unknown", cases: [] });
+      if (!consultantMap.has(uid)) consultantMap.set(uid, { id: uid, name: a.users?.full_name ?? "Unknown", avatarUrl: a.users?.avatar_url ?? null, cases: [] });
       consultantMap.get(uid).cases.push({ ...c, time_commitment: a.time_commitment });
     });
   });
@@ -12962,7 +12985,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
                           {assignees.length > 0 && (
                             <div className="flex -space-x-2 hidden sm:flex">
                               {assignees.slice(0, 3).map(a => (
-                                <UserAvatar key={a.consultant_id} name={a.users?.full_name ?? '?'} size={24} title={a.users?.full_name} />
+                                <PersonAvatar key={a.consultant_id} name={a.users?.full_name ?? '?'} avatarUrl={a.users?.avatar_url} size={24} title={a.users?.full_name} />
                               ))}
                               {assignees.length > 3 && (
                                 <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[9px] font-bold text-gray-500 border-2 border-white">
@@ -13001,7 +13024,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
                               <div className="space-y-1.5">
                                 {assignees.map(a => (
                                   <div key={a.consultant_id} className="flex items-center gap-2.5">
-                                    <UserAvatar name={a.users?.full_name ?? '?'} size={28} />
+                                    <PersonAvatar name={a.users?.full_name ?? '?'} avatarUrl={a.users?.avatar_url} size={28} />
                                     <span className="text-sm font-medium text-gray-800">{a.users?.full_name ?? t("user.unknown")}</span>
                                     {a.time_commitment && (
                                       <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{a.time_commitment}%</span>
@@ -19937,9 +19960,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               <div key={c.id} className={`rounded-xl p-4 text-sm border ${c.is_internal ? "bg-amber-50 border-amber-200" : "bg-gray-50 border-gray-100"}`}>
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-blue-200 text-blue-700 text-xs flex items-center justify-center font-bold">
-                      {c.author?.full_name?.[0] ?? "?"}
-                    </div>
+                    <PersonAvatar name={c.author?.full_name} avatarUrl={c.author?.avatar_url} size={24} />
                     <span className="font-medium text-gray-900">{c.author?.full_name ?? t("reports.unknown")}</span>
                     {c.is_internal && <Badge className="bg-amber-200 text-amber-800">{t("case.badge_internal")}</Badge>}
                   </div>
@@ -22137,9 +22158,7 @@ function ArenaView({ auth }) {
                 </td>
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm">
-                      {c.user?.full_name?.[0]}
-                    </div>
+                    <PersonAvatar name={c.user?.full_name} avatarUrl={c.user?.avatar_url} size={36} />
                     <div>
                       <div className="font-medium text-gray-900">{c.user?.full_name}</div>
                       <div className="text-xs text-gray-400">{c.headline ?? t("arena.years_exp").replace("{n}", c.years_experience ?? 0)}</div>
@@ -22327,9 +22346,7 @@ function ArenaView({ auth }) {
               <div key={c.id} className={`bg-white rounded-2xl border-2 shadow-sm p-5 ${rankColor}`}>
                 {/* Header */}
                 <div className="text-center mb-4">
-                  <div className="w-14 h-14 rounded-2xl bg-blue-100 text-blue-700 font-bold text-2xl flex items-center justify-center mx-auto mb-2">
-                    {c.user?.full_name?.[0]}
-                  </div>
+                  <PersonAvatar name={c.user?.full_name} avatarUrl={c.user?.avatar_url} size={56} className="mx-auto mb-2 rounded-2xl" />
                   <div className="font-bold text-gray-900">{c.user?.full_name}</div>
                   {c.headline && <div className="text-xs text-gray-400 mt-0.5 line-clamp-1">{c.headline}</div>}
                   {rank < 3 && (
@@ -23039,9 +23056,7 @@ function ProfileView({ auth, compact = false }) {
                 <div key={r.id} className="border border-gray-100 rounded-xl p-4">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold">
-                        {r.rater?.full_name?.[0]}
-                      </div>
+                      <PersonAvatar name={r.rater?.full_name} avatarUrl={r.rater?.avatar_url} size={32} />
                       <span className="text-sm font-medium">{r.rater?.full_name}</span>
                     </div>
                     <div className="flex text-yellow-400">{stars(r.score)}</div>
@@ -23146,9 +23161,7 @@ function ConsultantsView({ auth }) {
               }`}>
               {/* Header */}
               <div className="flex items-start gap-3 mb-3">
-                <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg flex-shrink-0">
-                  {c.user?.full_name?.[0]}
-                </div>
+                <PersonAvatar name={c.user?.full_name} avatarUrl={c.user?.avatar_url} size={48} className="rounded-2xl" />
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-gray-900 truncate">{c.user?.full_name}</div>
                   <div className="text-xs text-gray-500 truncate">{c.headline ?? `${c.years_experience ?? 0}y exp`}</div>
@@ -23913,9 +23926,7 @@ function UsersView() {
                 <tr key={u.id} className="hover:bg-gray-50">
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
-                        {u.full_name?.[0]}
-                      </div>
+                      <PersonAvatar name={u.full_name} avatarUrl={u.avatar_url} size={36} />
                       <div>
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="font-medium text-gray-900">{u.full_name}</span>
@@ -27156,9 +27167,7 @@ function KanbanView({ auth }) {
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex -space-x-1">
                         {(c.case_assignments ?? []).slice(0, 3).map((a, i) => (
-                          <div key={i} className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs flex items-center justify-center border-2 border-white font-bold">
-                            {a.users?.full_name?.[0] ?? "?"}
-                          </div>
+                          <PersonAvatar key={i} name={a.users?.full_name} avatarUrl={a.users?.avatar_url} size={24} className="border-2 border-white" />
                         ))}
                       </div>
                       {c.due_date && <span className="text-xs text-gray-400">{fmtDate(c.due_date)}</span>}
@@ -27277,7 +27286,7 @@ function TimeEntriesView({ auth }) {
   const byConsultant = {};
   filtered.forEach(e => {
     const cid = e.consultant_id ?? 'unknown';
-    if (!byConsultant[cid]) byConsultant[cid] = { id: cid, name: e.consultant?.full_name ?? 'Unknown', rate: consultantRates[cid], entries: [] };
+    if (!byConsultant[cid]) byConsultant[cid] = { id: cid, name: e.consultant?.full_name ?? 'Unknown', avatarUrl: e.consultant?.avatar_url ?? null, rate: consultantRates[cid], entries: [] };
     byConsultant[cid].entries.push(e);
   });
   const consultantGroups = Object.values(byConsultant);
@@ -27361,7 +27370,7 @@ function TimeEntriesView({ auth }) {
                   {!auth.isConsultant && (
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-600 text-xs flex items-center justify-center font-bold">{e.consultant?.full_name?.[0]}</div>
+                        <PersonAvatar name={e.consultant?.full_name} avatarUrl={e.consultant?.avatar_url} size={28} />
                         <span className="text-gray-700">{e.consultant?.full_name}</span>
                       </div>
                     </td>
@@ -27477,9 +27486,7 @@ function TimeEntriesView({ auth }) {
             }`}>
               {/* Consultant header row */}
               <div className="p-5 flex items-center gap-4 cursor-pointer select-none" onClick={() => setExpandedConsultant(isOpen ? null : g.id)}>
-                <div className="w-10 h-10 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-base flex-shrink-0">
-                  {g.name?.[0] ?? '?'}
-                </div>
+                <PersonAvatar name={g.name} avatarUrl={g.avatarUrl} size={40} className="rounded-2xl" />
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-gray-900">{g.name}</div>
                   <div className="text-xs text-gray-400 mt-0.5">
@@ -30163,7 +30170,7 @@ function AuditEntityPanel({ log, onClose, onNavigate }) {
           setEntity(data);
         } else if (log.entity_type === 'user') {
           const { data } = await supabase.from('users').select(
-            'id, full_name, email, role, verification_status, created_at'
+            'id, full_name, email, role, verification_status, avatar_url, created_at'
           ).eq('id', log.entity_id).maybeSingle();
           setEntity(data);
         }
@@ -30324,9 +30331,7 @@ function AuditEntityPanel({ log, onClose, onNavigate }) {
           ) : log.entity_type === 'user' ? (
             <div className="space-y-3">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg flex-shrink-0">
-                  {entity.full_name?.[0] ?? '?'}
-                </div>
+                <PersonAvatar name={entity.full_name} avatarUrl={entity.avatar_url} size={48} className="rounded-2xl" />
                 <div>
                   <div className="font-semibold text-gray-900">{entity.full_name}</div>
                   <div className="text-xs text-gray-500">{entity.email}</div>
@@ -30919,9 +30924,7 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
                         <td className="px-4 py-3">
                           <button onClick={() => drillDown(u)}
                             className="flex items-center gap-2 text-left group w-full">
-                            <div className="w-7 h-7 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                              {u.full_name?.[0] ?? "?"}
-                            </div>
+                            <PersonAvatar name={u.full_name} avatarUrl={u.avatar_url} size={28} className="rounded-xl" />
                             <div className="min-w-0">
                               <div className={`font-medium truncate text-sm flex items-center gap-1 ${isNavigable ? "text-blue-700 group-hover:text-blue-900" : "text-gray-900"}`}>
                                 {u.full_name ?? "—"}
