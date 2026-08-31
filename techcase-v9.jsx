@@ -22832,12 +22832,13 @@ function ConsultantProfilePanel({ consultantId, onClose, onAddToCompare, inCompa
   const { t } = useT();
   const { profile, availability, loading } = useConsultantProfile(consultantId);
   const { ratings, avgRating } = useRatings(consultantId);
-  const [userName, setUserName] = useState('');
+  const [userName, setUserName]   = useState('');
+  const [avatarUrl, setAvatarUrl] = useState(null);
 
   useEffect(() => {
     if (!consultantId) return;
-    supabase.from('users').select('full_name').eq('id', consultantId).maybeSingle()
-      .then(({ data }) => setUserName(data?.full_name ?? ''));
+    supabase.from('users').select('full_name, avatar_url').eq('id', consultantId).maybeSingle()
+      .then(({ data }) => { setUserName(data?.full_name ?? ''); setAvatarUrl(data?.avatar_url ?? null); });
   }, [consultantId]);
 
   const winRate = ratings.length > 0
@@ -22896,9 +22897,7 @@ function ConsultantProfilePanel({ consultantId, onClose, onAddToCompare, inCompa
           <>
             {/* Avatar + identity */}
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-blue-100 text-blue-700 font-bold text-2xl flex items-center justify-center flex-shrink-0">
-                {userName?.[0] ?? '?'}
-              </div>
+              <PersonAvatar name={userName} avatarUrl={avatarUrl} size={64} />
               <div className="min-w-0">
                 <h3 className="font-bold text-gray-900 text-lg leading-tight">{userName}</h3>
                 {profile?.headline && <p className="text-sm text-gray-500 mt-0.5">{profile.headline}</p>}
