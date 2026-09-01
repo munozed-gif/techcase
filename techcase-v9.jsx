@@ -14366,12 +14366,12 @@ function ProjectsView({ auth, initialProjectId }) {
             const isTerminated   = TERM_S.includes(p.status);
             const isOverdue      = !isTerminated && p.end_date && new Date(p.end_date) < new Date();
             const PRIORITY_STYLES = { critical: "bg-red-100 text-red-700", high: "bg-orange-100 text-orange-700", medium: "bg-yellow-100 text-yellow-700", low: "bg-gray-100 text-gray-500" };
-            const PROJ_CARD_COLORS = { draft: { border: "#d1d5db" }, active: { border: "#86efac" }, on_hold: { border: "#fcd34d" }, completed: { border: "#5eead4" }, cancelled: { border: "#fca5a5" } };
-            const cardColors = isOverdue ? { border: "#fca5a5" } : (PROJ_CARD_COLORS[p.status] ?? { border: "#e5e7eb" });
+            const PROJ_CARD_COLORS = { draft: { border: "#d1d5db", bg: "#f9fafb" }, active: { border: "#86efac", bg: "#f0fdf4" }, on_hold: { border: "#fcd34d", bg: "#fffbeb" }, completed: { border: "#5eead4", bg: "#f0fdfa" }, cancelled: { border: "#fca5a5", bg: "#fef2f2" } };
+            const cardColors = isOverdue ? { border: "#fca5a5", bg: "#fef2f2" } : (PROJ_CARD_COLORS[p.status] ?? { border: "#e5e7eb", bg: "#ffffff" });
             return (
               <div key={p.id}
                 className="rounded-2xl cursor-pointer transition-all hover:shadow-md p-5"
-                style={{ border: `1.5px solid ${cardColors.border}` }}
+                style={{ border: `1.5px solid ${cardColors.border}`, backgroundColor: cardColors.bg }}
                 onClick={() => setSelectedProject(p)}>
                 <div className="flex items-start gap-4">
                   {/* Project avatar (falls back to client avatar → initials) */}
