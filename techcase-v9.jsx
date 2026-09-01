@@ -26024,10 +26024,13 @@ function ClientTeamView({ auth }) {
 
 function ClientTeamList({ client, auth }) {
   const { t } = useT();
-  const { members, addMember } = useClientTeamMembers(client.id);
-  const [showAdd, setShowAdd]  = useState(false);
-  const [form, setForm]        = useState({ full_name: "", email: "", role_title: "", phone: "", is_primary: false });
-  const [saving, setSaving]    = useState(false);
+  const { members, addMember, updateMember, removeMember } = useClientTeamMembers(client.id);
+  const [showAdd, setShowAdd]      = useState(false);
+  const [form, setForm]            = useState({ full_name: "", email: "", role_title: "", phone: "", is_primary: false });
+  const [saving, setSaving]        = useState(false);
+  const [editingId, setEditingId]  = useState(null);
+  const [editForm, setEditForm]    = useState({});
+  const [savingEdit, setSavingEdit] = useState(false);
 
   async function handleAdd() {
     if (!form.full_name || !form.email) return;
@@ -26038,6 +26041,25 @@ function ClientTeamList({ client, auth }) {
       setShowAdd(false);
     } catch (e) { alert(e.message); }
     setSaving(false);
+  }
+
+  function startEdit(m) {
+    setEditingId(m.id);
+    setEditForm({ full_name: m.full_name ?? "", email: m.email ?? "", role_title: m.role_title ?? "", phone: m.phone ?? "", is_primary: m.is_primary ?? false });
+    setShowAdd(false);
+  }
+
+  async function handleSaveEdit() {
+    if (!editForm.full_name || !editForm.email) return;
+    setSavingEdit(true);
+    try { await updateMember(editingId, editForm); setEditingId(null); }
+    catch (e) { alert(e.message); }
+    setSavingEdit(false);
+  }
+
+  async function handleRemove(id) {
+    if (!confirm("Remove this team member?")) return;
+    try { await removeMember(id); } catch (e) { alert(e.message); }
   }
 
   return (
@@ -26088,22 +26110,66 @@ function ClientTeamList({ client, auth }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {members.map(m => (
           <div key={m.id} className="border border-gray-100 rounded-xl p-4">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
-                {m.full_name?.[0]}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-900 truncate">{m.full_name}</span>
-                  {m.is_primary && <Badge className="bg-blue-100 text-blue-700">{t("team.primary_badge")}</Badge>}
+            {editingId === m.id ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <Input label={t("team.name_label")} value={editForm.full_name}
+                    onChange={e => setEditForm(p => ({ ...p, full_name: e.target.value }))} placeholder={t("contact.ph_name")} />
+                  <Input label={t("team.email_label")} type="email" value={editForm.email}
+                    onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))} placeholder={t("contact.ph_email")} />
                 </div>
-                {m.role_title && <div className="text-xs text-gray-500">{m.role_title}</div>}
+                <div className="grid grid-cols-2 gap-2">
+                  <Input label={t("team.role_label")} value={editForm.role_title}
+                    onChange={e => setEditForm(p => ({ ...p, role_title: e.target.value }))} placeholder={t("contact.ph_role_title")} />
+                  <Input label={t("team.phone_label")} value={editForm.phone}
+                    onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))} placeholder={t("contact.ph_phone")} />
+                </div>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={editForm.is_primary}
+                    onChange={e => setEditForm(p => ({ ...p, is_primary: e.target.checked }))}
+                    className="rounded accent-blue-600" />
+                  {t("team.primary_label")}
+                </label>
+                <div className="flex justify-end gap-2">
+                  <button onClick={() => setEditingId(null)} className="px-3 py-1.5 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50">{t("action.cancel")}</button>
+                  <button onClick={handleSaveEdit} disabled={savingEdit}
+                    className="px-3 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                    {savingEdit ? t("action.saving") : t("action.save")}
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="text-xs text-gray-400 space-y-0.5">
-              {m.email && <div className="flex items-center gap-1"><Mail className="w-3 h-3 text-gray-400" />{m.email}</div>}
-              {m.phone && <div className="flex items-center gap-1"><Phone className="w-3 h-3 text-gray-400" />{m.phone}</div>}
-            </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm flex-shrink-0">
+                    {m.full_name?.[0]}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-900 truncate">{m.full_name}</span>
+                      {m.is_primary && <Badge className="bg-blue-100 text-blue-700">{t("team.primary_badge")}</Badge>}
+                    </div>
+                    {m.role_title && <div className="text-xs text-gray-500">{m.role_title}</div>}
+                  </div>
+                  {(auth.isAdmin || auth.isManager) && (
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button onClick={() => startEdit(m)}
+                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                        <Pencil size={13} />
+                      </button>
+                      <button onClick={() => handleRemove(m.id)}
+                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="text-xs text-gray-400 space-y-0.5">
+                  {m.email && <div className="flex items-center gap-1"><Mail className="w-3 h-3 text-gray-400" />{m.email}</div>}
+                  {m.phone && <div className="flex items-center gap-1"><Phone className="w-3 h-3 text-gray-400" />{m.phone}</div>}
+                </div>
+              </>
+            )}
           </div>
         ))}
         {members.length === 0 && (
