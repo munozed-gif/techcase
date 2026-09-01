@@ -262,6 +262,8 @@ const TRANSLATIONS = {
     "auth.code_placeholder": "Enter code from email",
     "auth.what_brings":      "What brings you here?",
     "auth.choose_type":      "Choose your account type to get the right experience.",
+    "auth.build_headhunter": "Join as Headhunter",
+    "auth.help_headhunter":  "Find and refer top candidates to clients.",
     "auth.build_consultant": "Build your consultant profile",
     "auth.build_key_user":   "Complete your Key User account",
     "auth.build_client":     "Set up your company profile",
@@ -3210,6 +3212,8 @@ const TRANSLATIONS = {
     "auth.code_placeholder": "Ingresa el código del correo",
     "auth.what_brings":      "¿Qué te trae por aquí?",
     "auth.choose_type":      "Elige el tipo de cuenta para obtener la experiencia correcta.",
+    "auth.build_headhunter": "Únete como Headhunter",
+    "auth.help_headhunter":  "Encuentra y refiere candidatos destacados a clientes.",
     "auth.build_consultant": "Crea tu perfil de consultor",
     "auth.build_key_user":   "Completa tu cuenta de Usuario Clave",
     "auth.build_client":     "Configura el perfil de tu empresa",
@@ -8476,8 +8480,8 @@ function AuthScreen({ onAuth }) {
                   const visibleSignup = ssSettings["signup_roles_visible"] ?? ["consultant", "headhunter", "client", "key_user", "final_user"];
                   const generalRoles = [
                     { role: "consultant", Icon: Briefcase, label: t("auth.build_consultant"), desc: t("auth.help_clients") },
-                    { role: "headhunter", Icon: Crosshair, label: t("auth.build_headhunter") || "Join as Headhunter", desc: t("auth.help_headhunter") || "Find and refer top candidates" },
                     { role: "client",     Icon: Building2, label: t("auth.build_client"),     desc: t("auth.tell_consultants") },
+                    { role: "headhunter", Icon: Crosshair, label: t("auth.build_headhunter"), desc: t("auth.help_headhunter") },
                   ].filter(o => visibleSignup.includes(o.role));
                   return generalRoles.length > 0 ? (
                     <div className={`grid gap-3 ${generalRoles.length === 1 ? "grid-cols-1" : generalRoles.length === 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
