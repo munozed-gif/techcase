@@ -6544,6 +6544,19 @@ const STATUS_COLORS = {
   cancelled:   "bg-red-100 text-red-800",
 };
 
+const CASE_CARD_COLORS = {
+  open:            { bar: "#34d399", border: "#a7f3d0" },
+  estimated:       { bar: "#2dd4bf", border: "#99f6e4" },
+  assigned:        { bar: "#a78bfa", border: "#ddd6fe" },
+  in_progress:     { bar: "#60a5fa", border: "#bfdbfe" },
+  on_hold:         { bar: "#facc15", border: "#fef08a" },
+  completed:       { bar: "#9ca3af", border: "#e5e7eb" },
+  cancelled:       { bar: "#f87171", border: "#fecaca" },
+  technical_test:  { bar: "#22d3ee", border: "#a5f3fc" },
+  functional_test: { bar: "#fbbf24", border: "#fde68a" },
+  user_test:       { bar: "#fb923c", border: "#fed7aa" },
+};
+
 const PRIORITY_COLORS = {
   low:      "bg-slate-100 text-slate-600",
   medium:   "bg-yellow-100 text-yellow-700",
@@ -9245,23 +9258,12 @@ function Dashboard({ auth }) {
           functional_test: "bg-amber-100 text-amber-700",
           user_test:       "bg-orange-100 text-orange-700",
         };
-        const CASE_ROW_BG = {
-          open:           "bg-emerald-50  border-l-emerald-400",
-          estimated:      "bg-teal-50     border-l-teal-400",
-          assigned:       "bg-violet-50   border-l-violet-400",
-          in_progress:    "bg-blue-50     border-l-blue-400",
-          on_hold:        "bg-yellow-50   border-l-yellow-400",
-          completed:      "bg-gray-50     border-l-gray-300",
-          cancelled:      "bg-red-50      border-l-red-400",
-          technical_test: "bg-cyan-50     border-l-cyan-400",
-          functional_test:"bg-amber-50    border-l-amber-400",
-          user_test:      "bg-orange-50   border-l-orange-400",
-        };
         const CaseRow = ({ c }) => {
-          const rowBg = CASE_ROW_BG[c.status] ?? "bg-white border-l-gray-200";
+          const rc = CASE_CARD_COLORS[c.status] ?? { bar: "#9ca3af", border: "#e5e7eb" };
           return (
             <div onClick={() => setSelectedCase(c)}
-              className={`flex items-center justify-between px-4 py-3 border-l-4 cursor-pointer transition-colors group ${rowBg}`}>
+              className="flex items-center justify-between px-4 py-3 bg-white cursor-pointer transition-colors group"
+              style={{ borderLeft: `4px solid ${rc.bar}`, borderBottom: `1px solid ${rc.border}` }}>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-gray-900 text-sm truncate group-hover:text-blue-700">{c.title}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{[c.area_sap, c.area_industry].filter(Boolean).join(" · ") || t("dashboard.no_area")}</p>
@@ -14481,7 +14483,6 @@ function CasesView({ auth, initialCaseId }) {
   }, [auth.user?.id]);
 
   const { cases, loading, createCase, updateCase, deleteCase, refetch } = useCases({
-    status: statusFilter || undefined,
     search: search || undefined,
     client_id: auth.isClient ? auth.user?.id : undefined,
   });
@@ -14504,9 +14505,10 @@ function CasesView({ auth, initialCaseId }) {
     : auth.isKeyUser
     ? cases.filter(c => c.case_key_users?.some(ku => ku.user_id === auth.user?.id))
     : cases;
+  const statusFiltered = statusFilter ? visibleCases.filter(c => c.status === statusFilter) : visibleCases;
   const projectFiltered = projectFilter
-    ? visibleCases.filter(c => c.project_id === projectFilter)
-    : visibleCases;
+    ? statusFiltered.filter(c => c.project_id === projectFilter)
+    : statusFiltered;
   const displayed = showFavOnly ? projectFiltered.filter(c => isFavorite(c.id)) : projectFiltered;
 
   async function handleStatusChange(caseId, status, extras = {}) {
@@ -14624,17 +14626,10 @@ function CasesView({ auth, initialCaseId }) {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-6">
+      <div className="flex flex-wrap gap-3 mb-4">
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder={t("cases.search")}
           className="border border-gray-200 rounded-xl px-4 py-2 text-sm flex-1 min-w-48 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-        <select value={statusFilter} onChange={e => setStatus(e.target.value)}
-          className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <option value="">{t("cases.all_statuses")}</option>
-          {["open","in_progress","on_hold","completed","cancelled"].map(s => (
-            <option key={s} value={s}>{STATUS_LABEL_KEYS[s] ? t(STATUS_LABEL_KEYS[s]) : cap(fmt(s))}</option>
-          ))}
-        </select>
         {filterProjects.length > 0 && (
           <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)}
             className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -14654,6 +14649,50 @@ function CasesView({ auth, initialCaseId }) {
         )}
       </div>
 
+      {/* Status stat tiles */}
+      {(() => {
+        const caseTiles = [
+          { val: "",            label: t("cases.all_statuses"), Icon: FolderOpen,    color: "gray"   },
+          { val: "open",        label: t("status.open"),        Icon: Inbox,         color: "green"  },
+          { val: "in_progress", label: t("status.in_progress"), Icon: Activity,      color: "blue"   },
+          { val: "on_hold",     label: t("status.on_hold"),     Icon: PauseCircle,   color: "yellow" },
+          { val: "completed",   label: t("dashboard.completed"),Icon: CheckCircle2,  color: "teal"   },
+          { val: "cancelled",   label: t("status.cancelled"),   Icon: XCircle,       color: "red"    },
+        ].map(s => ({ ...s, count: s.val === "" ? visibleCases.length : visibleCases.filter(c => c.status === s.val).length }))
+         .filter(s => s.val === "" || s.count > 0);
+        const colorMap = {
+          blue:   { icon: "bg-blue-100 text-blue-600",    active: "bg-blue-50 border-blue-400",    num: "text-blue-700"   },
+          green:  { icon: "bg-green-100 text-green-600",  active: "bg-green-50 border-green-400",  num: "text-green-700"  },
+          teal:   { icon: "bg-teal-100 text-teal-600",    active: "bg-teal-50 border-teal-400",    num: "text-teal-700"   },
+          yellow: { icon: "bg-yellow-100 text-yellow-600",active: "bg-yellow-50 border-yellow-400",num: "text-yellow-700" },
+          red:    { icon: "bg-red-100 text-red-600",      active: "bg-red-50 border-red-400",      num: "text-red-700"    },
+          gray:   { icon: "bg-gray-100 text-gray-500",    active: "bg-gray-50 border-gray-400",    num: "text-gray-700"   },
+        };
+        return (
+          <div className="flex gap-3 mb-6 overflow-x-auto px-1 py-1 -mx-1 -mt-1" style={{ scrollbarWidth: "none" }}>
+            {caseTiles.map(s => {
+              const isActive = statusFilter === s.val;
+              const cm = colorMap[s.color];
+              return (
+                <button key={s.val}
+                  onClick={() => setStatus(f => f === s.val ? "" : s.val)}
+                  className={`text-left rounded-xl px-4 py-3 shadow-sm border-2 transition-all flex items-center gap-3 flex-shrink-0 ${
+                    isActive ? `${cm.active} shadow-none` : "bg-white border-gray-100 hover:shadow-md hover:border-gray-200"
+                  }`}>
+                  <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 ${cm.icon}`}>
+                    <s.Icon className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className={`text-xl font-bold leading-none ${isActive ? cm.num : "text-gray-900"}`}>{s.count}</div>
+                    <div className="text-xs text-gray-500 mt-0.5 whitespace-nowrap">{s.label}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
+
       {/* Cases Grid */}
       {(auth.isAdmin || auth.isManager) && displayed.length > 0 && (
         <div className="flex items-center gap-2 mb-2 px-1">
@@ -14671,7 +14710,19 @@ function CasesView({ auth, initialCaseId }) {
         <div className="grid gap-4">
           {displayed.map(c => (
             <div key={c.id}
-              className={`rounded-2xl border shadow-sm hover:shadow-md transition-all cursor-pointer p-5 ${selectedCases.has(c.id) ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-100'}`}
+              className="bg-white shadow-sm hover:shadow-md transition-all cursor-pointer p-5"
+              style={(() => {
+                const cc = selectedCases.has(c.id)
+                  ? { bar: "#3b82f6", border: "#bfdbfe" }
+                  : (CASE_CARD_COLORS[c.status] ?? { bar: "#9ca3af", border: "#e5e7eb" });
+                return {
+                  borderTop: `1.5px solid ${cc.border}`,
+                  borderRight: `1.5px solid ${cc.border}`,
+                  borderBottom: `1.5px solid ${cc.border}`,
+                  borderLeft: `4px solid ${cc.bar}`,
+                  borderRadius: '0 14px 14px 0',
+                };
+              })()}
               onClick={() => setSelected(c)}>
               <div className="flex items-start gap-3">
                 {(auth.isAdmin || auth.isManager) && (
