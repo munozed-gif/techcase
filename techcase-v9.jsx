@@ -39,6 +39,7 @@ import {
   Plus, Tag, RefreshCw, Shield,
   LayoutTemplate, Copy,
   Bookmark, BookmarkCheck, Send, Crosshair,
+  FileEdit, AlertCircle,
 } from "lucide-react";
 
 // ============================================================
@@ -14194,7 +14195,9 @@ function ProjectsView({ auth, initialProjectId }) {
     }
   }, []);
 
-  const displayed = statusFilter
+  const displayed = statusFilter === "__overdue__"
+    ? projects.filter(p => !["completed","cancelled","terminated","closed","approved"].includes(p.status) && p.end_date && new Date(p.end_date) < new Date())
+    : statusFilter
     ? projects.filter(p => p.status === statusFilter)
     : projects;
 
@@ -14269,19 +14272,50 @@ function ProjectsView({ auth, initialProjectId }) {
         )}
       </div>
 
-      {/* Status filter tabs */}
-      <div className="flex gap-2 mb-6 flex-wrap">
-        {[["", t("projects.all")], ["draft", t("projects.draft")], ["active", t("label.active")], ["on_hold", t("projects.on_hold")], ["completed", t("dashboard.completed")], ["cancelled", t("projects.cancelled")]].map(([val, label]) => (
-          <button key={val} onClick={() => setStatusFilter(val)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
-              statusFilter === val
-                ? "bg-blue-600 text-white border-blue-600"
-                : "border-gray-200 text-gray-600 hover:bg-gray-50"
-            }`}>
-            {label}
-          </button>
-        ))}
-      </div>
+      {/* Status stat tiles */}
+      {(() => {
+        const TERM_ALL = ["completed","cancelled","terminated","closed","approved"];
+        const overdueProjects = projects.filter(p => !TERM_ALL.includes(p.status) && p.end_date && new Date(p.end_date) < new Date());
+        const statTiles = [
+          { val: "",          label: t("projects.all"),         Icon: Layers,       color: "blue",   count: projects.length },
+          { val: "draft",     label: t("projects.draft"),       Icon: FileEdit,     color: "gray",   count: projects.filter(p => p.status === "draft").length },
+          { val: "active",    label: t("label.active"),         Icon: Activity,     color: "green",  count: projects.filter(p => p.status === "active").length },
+          { val: "on_hold",   label: t("projects.on_hold"),     Icon: PauseCircle,  color: "yellow", count: projects.filter(p => p.status === "on_hold").length },
+          { val: "completed", label: t("dashboard.completed"),  Icon: CheckCircle2, color: "green",  count: projects.filter(p => p.status === "completed").length },
+          { val: "cancelled", label: t("projects.cancelled"),   Icon: XCircle,      color: "red",    count: projects.filter(p => p.status === "cancelled").length },
+          ...(overdueProjects.length > 0 ? [{ val: "__overdue__", label: "Overdue", Icon: AlertCircle, color: "red", count: overdueProjects.length }] : []),
+        ].filter(s => s.val === "" || s.count > 0);
+        const colorMap = {
+          blue:   { icon: "bg-blue-50 text-blue-600",     ring: "ring-2 ring-blue-400 bg-blue-50",   num: "text-blue-700" },
+          green:  { icon: "bg-green-50 text-green-600",   ring: "ring-2 ring-green-400 bg-green-50", num: "text-green-700" },
+          yellow: { icon: "bg-yellow-50 text-yellow-600", ring: "ring-2 ring-yellow-400 bg-yellow-50",num: "text-yellow-700" },
+          red:    { icon: "bg-red-50 text-red-600",       ring: "ring-2 ring-red-400 bg-red-50",     num: "text-red-700" },
+          gray:   { icon: "bg-gray-100 text-gray-500",    ring: "ring-2 ring-gray-400 bg-gray-50",   num: "text-gray-700" },
+        };
+        return (
+          <div className="flex gap-3 mb-6 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+            {statTiles.map(s => {
+              const isActive = statusFilter === s.val;
+              const cm = colorMap[s.color];
+              return (
+                <button key={s.val}
+                  onClick={() => setStatusFilter(f => f === s.val ? "" : s.val)}
+                  className={`text-left bg-white rounded-xl px-4 py-3 shadow-sm border transition-all flex items-center gap-3 flex-shrink-0 ${
+                    isActive ? `${cm.ring} border-transparent` : "border-gray-100 hover:shadow-md hover:border-gray-200"
+                  }`}>
+                  <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 ${cm.icon}`}>
+                    <s.Icon className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className={`text-xl font-bold leading-none ${isActive ? cm.num : "text-gray-900"}`}>{s.count}</div>
+                    <div className="text-xs text-gray-500 mt-0.5 whitespace-nowrap">{s.label}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* Project list */}
       {displayed.length === 0 ? (
