@@ -8472,20 +8472,27 @@ function AuthScreen({ onAuth }) {
                   onBlur={e => { if (e.target.value.trim()) checkEmailPreReg(e.target.value); }}
                   placeholder={t("auth.ph_email")} />
                 <p className="text-xs font-medium text-gray-700 mb-3 mt-1">{t("auth.choose_type")}</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
+                {(() => {
+                  const visibleSignup = ssSettings["signup_roles_visible"] ?? ["consultant", "headhunter", "client", "key_user", "final_user"];
+                  const generalRoles = [
                     { role: "consultant", Icon: Briefcase, label: t("auth.build_consultant"), desc: t("auth.help_clients") },
+                    { role: "headhunter", Icon: Crosshair, label: t("auth.build_headhunter") || "Join as Headhunter", desc: t("auth.help_headhunter") || "Find and refer top candidates" },
                     { role: "client",     Icon: Building2, label: t("auth.build_client"),     desc: t("auth.tell_consultants") },
-                  ].map(opt => (
-                    <button key={opt.role} onClick={() => handleRoleSelect(opt.role)} disabled={loading}
-                      className="flex flex-col items-center gap-2 p-4 border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 rounded-2xl transition-all text-center group disabled:opacity-50">
-                      <opt.Icon className="w-7 h-7 text-blue-600 group-hover:text-blue-700" />
-                      <span className="font-semibold text-gray-900 text-sm group-hover:text-blue-700">{opt.label}</span>
-                      <span className="text-xs text-gray-500 leading-snug">{opt.desc}</span>
-                    </button>
-                  ))}
-                </div>
-                <button
+                  ].filter(o => visibleSignup.includes(o.role));
+                  return generalRoles.length > 0 ? (
+                    <div className={`grid gap-3 ${generalRoles.length === 1 ? "grid-cols-1" : generalRoles.length === 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
+                      {generalRoles.map(opt => (
+                        <button key={opt.role} onClick={() => handleRoleSelect(opt.role)} disabled={loading}
+                          className="flex flex-col items-center gap-2 p-4 border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 rounded-2xl transition-all text-center group disabled:opacity-50">
+                          <opt.Icon className="w-7 h-7 text-blue-600 group-hover:text-blue-700" />
+                          <span className="font-semibold text-gray-900 text-sm group-hover:text-blue-700">{opt.label}</span>
+                          <span className="text-xs text-gray-500 leading-snug">{opt.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null;
+                })()}
+                {(ssSettings["signup_roles_visible"] ?? ["consultant","headhunter","client","key_user","final_user"]).includes("key_user") && <button
                   onClick={() => (!requiresTeamFor("key_user") || keyUserCompany) && handleRoleSelect("key_user")}
                   disabled={loading || (requiresTeamFor("key_user") && !keyUserCompany)}
                   className={`w-full mt-3 flex items-center gap-4 p-4 border-2 rounded-2xl transition-all text-left
@@ -8502,15 +8509,15 @@ function AuthScreen({ onAuth }) {
                       ? <div className="text-xs text-amber-600 mt-1">{t("auth.key_user_not_registered")}</div>
                       : null}
                   </div>
-                </button>
-                <button
+                </button>}
+                {(ssSettings["signup_roles_visible"] ?? ["consultant","headhunter","client","key_user","final_user"]).includes("final_user") && <button
                   onClick={() => (!requiresTeamFor("final_user") || finalUserClient) && handleRoleSelect("final_user")}
                   disabled={loading || (requiresTeamFor("final_user") && !finalUserClient)}
                   className={`w-full mt-3 flex items-center gap-4 p-4 border-2 rounded-2xl transition-all text-left
                     ${(!requiresTeamFor("final_user") || finalUserClient)
                       ? "border-teal-300 bg-teal-50 hover:border-teal-500 hover:bg-teal-100 cursor-pointer"
                       : "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed"}`}>
-                  <Globe className={`w-7 h-7 flex-shrink-0 ${(!requiresTeamFor("final_user") || finalUserClient) ? "text-teal-600" : "text-gray-400"}`} />
+                  <Globe className={`w-7 h-7 flex-shrink-0 ${(!requiresTeamFor("final_user") || finalUserClient) ? "teal-600" : "text-gray-400"}`} />
                   <div className="min-w-0">
                     <div className={`font-semibold text-sm ${(!requiresTeamFor("final_user") || finalUserClient) ? "text-teal-700" : "text-gray-500"}`}>{t("auth.role_final_user")}</div>
                     <div className="text-xs text-gray-500 mt-0.5">{t("auth.final_user_desc")}</div>
@@ -8520,7 +8527,7 @@ function AuthScreen({ onAuth }) {
                       ? <div className="text-xs text-amber-600 mt-1">{t("auth.final_user_not_registered")}</div>
                       : null}
                   </div>
-                </button>
+                </button>}
                 {loading && <p className="text-xs text-center text-gray-400 mt-3">Checking…</p>}
               </div>
             )}
@@ -32611,6 +32618,8 @@ function SettingsWorkflowTab({ auth, ssCtx }) {
 function SettingsSignupFlowTab({ ssCtx }) {
   const { settings, setSetting } = ssCtx;
   const perRole = settings["signup_flow_per_role"] ?? {};
+  const ALL_ROLE_KEYS = ["consultant", "headhunter", "client", "key_user", "final_user"];
+  const visibleRoles = settings["signup_roles_visible"] ?? ALL_ROLE_KEYS;
   const [saving, setSaving] = useState(null);
 
   const ROLES = [
@@ -32633,6 +32642,13 @@ function SettingsSignupFlowTab({ ssCtx }) {
     setSaving(null);
   }
 
+  async function toggleRoleVisible(roleKey) {
+    const next = visibleRoles.includes(roleKey)
+      ? visibleRoles.filter(k => k !== roleKey)
+      : [...visibleRoles, roleKey];
+    await setSetting("signup_roles_visible", next);
+  }
+
   return (
     <div className="mt-4">
       <p className="text-sm text-gray-500 mb-1">Configure how each role's sign-up is processed.</p>
@@ -32652,10 +32668,19 @@ function SettingsSignupFlowTab({ ssCtx }) {
                 <Ic size={14} className="text-gray-500 flex-shrink-0" />
                 <span className="font-medium text-sm text-gray-800">{label}</span>
                 {note && (
-                  <span className="ml-auto text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 whitespace-nowrap">
+                  <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 whitespace-nowrap">
                     {note}
                   </span>
                 )}
+                <button onClick={() => toggleRoleVisible(key)}
+                  className={`ml-auto flex items-center gap-1.5 text-[10px] font-medium px-2 py-0.5 rounded-full border transition-all ${
+                    visibleRoles.includes(key)
+                      ? "bg-green-50 border-green-200 text-green-700"
+                      : "bg-gray-100 border-gray-200 text-gray-400"
+                  }`}>
+                  <span className={`w-3 h-3 rounded-full ${visibleRoles.includes(key) ? "bg-green-500" : "bg-gray-300"}`} />
+                  {visibleRoles.includes(key) ? "In signup" : "Hidden"}
+                </button>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {MODES.map(({ value, label: mLabel, desc, Icon: MIc }) => {
