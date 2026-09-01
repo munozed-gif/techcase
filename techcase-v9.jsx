@@ -9030,10 +9030,10 @@ function Dashboard({ auth }) {
   const activeStat = myStats.find(s => s.id === activeTab);
 
   const colorMap = {
-    blue:   { icon: "bg-blue-50 text-blue-600",     ring: "ring-blue-400 bg-blue-50" },
-    green:  { icon: "bg-green-50 text-green-600",   ring: "ring-green-400 bg-green-50" },
-    purple: { icon: "bg-purple-50 text-purple-600", ring: "ring-purple-400 bg-purple-50" },
-    yellow: { icon: "bg-yellow-50 text-yellow-600", ring: "ring-yellow-400 bg-yellow-50" },
+    blue:   { icon: "bg-blue-100 text-blue-600",     active: "bg-blue-50 border-blue-400",   num: "text-blue-700" },
+    green:  { icon: "bg-green-100 text-green-600",   active: "bg-green-50 border-green-400", num: "text-green-700" },
+    purple: { icon: "bg-purple-100 text-purple-600", active: "bg-purple-50 border-purple-400", num: "text-purple-700" },
+    yellow: { icon: "bg-yellow-100 text-yellow-600", active: "bg-yellow-50 border-yellow-400", num: "text-yellow-700" },
   };
 
   if (casesLoading) return <Spinner />;
@@ -9101,7 +9101,7 @@ function Dashboard({ auth }) {
             <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">{t("dashboard.clients")}</span>
           </div>
 
-          <div style={{ display:'flex', alignItems:'flex-start', gap:0, overflowX:'auto', paddingBottom:2, scrollbarWidth:'none' }}>
+          <div style={{ display:'flex', alignItems:'flex-start', gap:0, overflowX:'auto', padding:'4px 4px 6px 4px', margin:'-4px -4px 0 -4px', scrollbarWidth:'none' }}>
 
             {/* Working now */}
             {activeClients.length > 0 && (
@@ -9296,14 +9296,14 @@ function Dashboard({ auth }) {
           return (
             <button key={s.id}
               onClick={() => setActiveTab(t => t === s.id ? null : s.id)}
-              className={`text-left bg-white rounded-xl px-4 py-3 shadow-sm border transition-all flex items-center gap-3 flex-shrink-0 ${
-                isActive ? `ring-2 ${colorMap[s.color].ring} border-transparent` : "border-gray-100 hover:shadow-md hover:border-gray-200"
+              className={`text-left rounded-xl px-4 py-3 shadow-sm border-2 transition-all flex items-center gap-3 flex-shrink-0 ${
+                isActive ? `${colorMap[s.color].active} shadow-none` : "bg-white border-gray-100 hover:shadow-md hover:border-gray-200"
               }`}>
               <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 ${colorMap[s.color].icon}`}>
                 <s.Icon className="w-4 h-4" />
               </div>
               <div className="min-w-0">
-                <div className="text-xl font-bold text-gray-900 leading-none">{s.items.length}</div>
+                <div className={`text-xl font-bold leading-none ${isActive ? colorMap[s.color].num : "text-gray-900"}`}>{s.items.length}</div>
                 <div className="text-xs text-gray-500 mt-0.5 whitespace-nowrap">{s.label}</div>
                 {isActive && <div className="text-xs text-gray-400 mt-0.5 font-medium">▲ list</div>}
               </div>
@@ -14286,11 +14286,11 @@ function ProjectsView({ auth, initialProjectId }) {
           ...(overdueProjects.length > 0 ? [{ val: "__overdue__", label: "Overdue", Icon: AlertCircle, color: "red", count: overdueProjects.length }] : []),
         ].filter(s => s.val === "" || s.count > 0);
         const colorMap = {
-          blue:   { icon: "bg-blue-50 text-blue-600",     ring: "ring-2 ring-blue-400 bg-blue-50",   num: "text-blue-700" },
-          green:  { icon: "bg-green-50 text-green-600",   ring: "ring-2 ring-green-400 bg-green-50", num: "text-green-700" },
-          yellow: { icon: "bg-yellow-50 text-yellow-600", ring: "ring-2 ring-yellow-400 bg-yellow-50",num: "text-yellow-700" },
-          red:    { icon: "bg-red-50 text-red-600",       ring: "ring-2 ring-red-400 bg-red-50",     num: "text-red-700" },
-          gray:   { icon: "bg-gray-100 text-gray-500",    ring: "ring-2 ring-gray-400 bg-gray-50",   num: "text-gray-700" },
+          blue:   { icon: "bg-blue-100 text-blue-600",   active: "bg-blue-50 border-blue-400",   num: "text-blue-700" },
+          green:  { icon: "bg-green-100 text-green-600", active: "bg-green-50 border-green-400", num: "text-green-700" },
+          yellow: { icon: "bg-yellow-100 text-yellow-600",active: "bg-yellow-50 border-yellow-400",num: "text-yellow-700" },
+          red:    { icon: "bg-red-100 text-red-600",     active: "bg-red-50 border-red-400",     num: "text-red-700" },
+          gray:   { icon: "bg-gray-100 text-gray-500",   active: "bg-gray-50 border-gray-400",   num: "text-gray-700" },
         };
         return (
           <div className="flex gap-3 mb-6 overflow-x-auto px-1 py-1 -mx-1 -mt-1" style={{ scrollbarWidth: "none" }}>
@@ -14300,8 +14300,8 @@ function ProjectsView({ auth, initialProjectId }) {
               return (
                 <button key={s.val}
                   onClick={() => setStatusFilter(f => f === s.val ? "" : s.val)}
-                  className={`text-left bg-white rounded-xl px-4 py-3 shadow-sm border transition-all flex items-center gap-3 flex-shrink-0 ${
-                    isActive ? `${cm.ring} border-transparent` : "border-gray-100 hover:shadow-md hover:border-gray-200"
+                  className={`text-left rounded-xl px-4 py-3 shadow-sm border-2 transition-all flex items-center gap-3 flex-shrink-0 ${
+                    isActive ? `${cm.active} shadow-none` : "bg-white border-gray-100 hover:shadow-md hover:border-gray-200"
                   }`}>
                   <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 ${cm.icon}`}>
                     <s.Icon className="w-4 h-4" />
