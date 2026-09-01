@@ -31793,9 +31793,10 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
     final_user: { pill: "bg-teal-100 text-teal-700 border-teal-200",    active: "bg-teal-600 text-white border-teal-600"     },
   };
 
-  const [personaTab, setPersonaTab]     = useState("consultants");
-  const [selectedRole, setSelectedRole] = useState("consultant");
-  const [detailUser, setDetailUser]     = useState(null);
+  const [personaTab, setPersonaTab]       = useState("consultants");
+  const [selectedRole, setSelectedRole]   = useState("consultant");
+  const [detailUser, setDetailUser]       = useState(null);
+  const [panelConsultantId, setPanelConsultantId] = useState(null);
   const [users, setUsers]               = useState([]);
   const [loading, setLoading]           = useState(true);
   const [pendingUsers, setPendingUsers] = useState([]);
@@ -31890,8 +31891,8 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
   }
 
   function drillDown(u) {
-    if ((u.role === "consultant" || u.role === "headhunter") && onNavigate) {
-      onNavigate({ view: "profile", userId: u.id });
+    if (u.role === "consultant" || u.role === "headhunter") {
+      setPanelConsultantId(u.id);
     } else {
       setDetailUser(prev => prev?.id === u.id ? null : u);
       setDetailEditOpen(false);
@@ -31906,7 +31907,7 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
   const displayed      = roleFiltered.filter(u =>
     !search || u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase())
   );
-  const isNavigable    = personaTab === "consultants" || personaTab === "headhunters";
+  const isNavigable    = false; // consultant/headhunter cards open as a drawer panel now
 
   return (
     <div className="space-y-4">
@@ -32264,6 +32265,18 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Consultant / headhunter profile drawer */}
+      {panelConsultantId && (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="flex-1 bg-black/40" onClick={() => setPanelConsultantId(null)} />
+          <ConsultantProfilePanel
+            consultantId={panelConsultantId}
+            onClose={() => setPanelConsultantId(null)}
+            auth={auth}
+          />
         </div>
       )}
     </div>
