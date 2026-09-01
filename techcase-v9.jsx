@@ -8293,10 +8293,12 @@ function AuthScreen({ onAuth }) {
         data: { full_name: name.trim(), role },
       });
       const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("users").upsert(
-        { id: user.id, email: user.email, full_name: name.trim(), role },
-        { onConflict: "id" }
-      );
+      const { data: flowSetting } = await supabase
+        .from("system_settings").select("value").eq("key", "signup_flow").maybeSingle();
+      const signupFlow = flowSetting?.value ?? "auto_approve";
+      const userRow = { id: user.id, email: user.email, full_name: name.trim(), role };
+      if (signupFlow === "auto_approve") userRow.verification_status = "approved";
+      await supabase.from("users").upsert(userRow, { onConflict: "id" });
       if (role === "consultant") {
         const skillsArr = skills.split(",").map(s => s.trim()).filter(Boolean);
         await supabase.from("consultant_profiles").upsert({
@@ -32365,14 +32367,75 @@ function SettingsWorkflowTab({ auth, ssCtx }) {
   );
 }
 
+// ── Sign-up Flow settings ─────────────────────────────────────
+function SettingsSignupFlowTab({ ssCtx }) {
+  const { settings, setSetting } = ssCtx;
+  const current = settings["signup_flow"] ?? "auto_approve";
+  const [saving, setSaving] = useState(false);
+
+  async function choose(val) {
+    if (val === current) return;
+    setSaving(true);
+    await setSetting("signup_flow", val);
+    setSaving(false);
+  }
+
+  const options = [
+    {
+      value: "auto_approve",
+      label: "Email Verification",
+      description: "New users are approved automatically after confirming their email. They can log in right away.",
+      icon: Mail,
+    },
+    {
+      value: "require_approval",
+      label: "Admin Approval",
+      description: "New registrations go to a pending queue. An admin must approve each account before the user can log in.",
+      icon: Shield,
+    },
+  ];
+
+  return (
+    <div className="mt-4 space-y-3">
+      <p className="text-sm text-gray-500 mb-4">Choose how new user sign-ups are processed.</p>
+      {options.map(({ value, label, description, icon: Ic }) => {
+        const active = current === value;
+        return (
+          <button
+            key={value}
+            onClick={() => choose(value)}
+            disabled={saving}
+            className={`w-full text-left flex items-start gap-4 p-4 rounded-xl border-2 transition-all ${
+              active
+                ? "border-blue-500 bg-blue-50"
+                : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
+            }`}>
+            <div className={`mt-0.5 flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${active ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-500"}`}>
+              <Ic size={17} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className={`font-semibold text-sm ${active ? "text-blue-700" : "text-gray-800"}`}>{label}</span>
+                {active && <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full font-medium">Active</span>}
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{description}</p>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Platform tab — Platform + Invoice + Trust stacked ─────────
 function SettingsPlatformCombinedTab({ ssCtx }) {
   const SECTIONS = [
+    { id: "signup",   label: "Sign-up Flow",        Icon: Shield,    Component: SettingsSignupFlowTab },
     { id: "platform", label: "Platform Defaults",   Icon: Sparkles,  Component: SettingsPlatformTab },
     { id: "invoice",  label: "Invoice Defaults",    Icon: Receipt,   Component: SettingsInvoiceTab },
     { id: "trust",    label: "Trust & Ratings",     Icon: BadgeCheck, Component: SettingsTrustTab },
   ];
-  const [open, setOpen] = useState({ platform: true, invoice: true, trust: true });
+  const [open, setOpen] = useState({ signup: true, platform: true, invoice: true, trust: true });
   return (
     <div className="space-y-4">
       {SECTIONS.map(({ id, label, Icon: Ic, Component }) => (
