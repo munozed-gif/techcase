@@ -14367,11 +14367,15 @@ function ProjectsView({ auth, initialProjectId }) {
             const cardColors = isOverdue ? { bar: "#dc2626", border: "#fca5a5" } : (PROJ_CARD_COLORS[p.status] ?? { bar: "#9ca3af", border: "#e5e7eb" });
             return (
               <div key={p.id}
-                className="rounded-2xl border bg-white shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden"
-                style={{ borderColor: cardColors.border }}
+                className="bg-white shadow-sm hover:shadow-md transition-all cursor-pointer p-5"
+                style={{
+                  borderTop: `1.5px solid ${cardColors.border}`,
+                  borderRight: `1.5px solid ${cardColors.border}`,
+                  borderBottom: `1.5px solid ${cardColors.border}`,
+                  borderLeft: `4px solid ${cardColors.bar}`,
+                  borderRadius: '0 14px 14px 0',
+                }}
                 onClick={() => setSelectedProject(p)}>
-                <div style={{ height: 5, background: cardColors.bar }} />
-                <div className="p-5">
                 <div className="flex items-start gap-4">
                   {/* Project avatar (falls back to client avatar → initials) */}
                   <div className="flex-shrink-0 mt-0.5">
@@ -14440,7 +14444,6 @@ function ProjectsView({ auth, initialProjectId }) {
                       </div>
                     )}
                   </div>
-                </div>
                 </div>
               </div>
             );
