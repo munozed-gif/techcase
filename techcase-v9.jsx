@@ -26026,7 +26026,7 @@ function ClientTeamList({ client, auth }) {
   const { t } = useT();
   const { members, addMember, updateMember, removeMember } = useClientTeamMembers(client.id);
   const [showAdd, setShowAdd]      = useState(false);
-  const [form, setForm]            = useState({ full_name: "", email: "", role_title: "", phone: "", is_primary: false });
+  const [form, setForm]            = useState({ full_name: "", email: "", role_title: "", phone: "", is_primary: false, system_role: "" });
   const [saving, setSaving]        = useState(false);
   const [editingId, setEditingId]  = useState(null);
   const [editForm, setEditForm]    = useState({});
@@ -26045,7 +26045,7 @@ function ClientTeamList({ client, auth }) {
 
   function startEdit(m) {
     setEditingId(m.id);
-    setEditForm({ full_name: m.full_name ?? "", email: m.email ?? "", role_title: m.role_title ?? "", phone: m.phone ?? "", is_primary: m.is_primary ?? false });
+    setEditForm({ full_name: m.full_name ?? "", email: m.email ?? "", role_title: m.role_title ?? "", phone: m.phone ?? "", is_primary: m.is_primary ?? false, system_role: m.system_role ?? "" });
     setShowAdd(false);
   }
 
@@ -26086,10 +26086,20 @@ function ClientTeamList({ client, auth }) {
               onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder={t("contact.ph_email")} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label={t("team.role_label")} value={form.role_title}
+            <Input label="Job Title" value={form.role_title}
               onChange={e => setForm(p => ({ ...p, role_title: e.target.value }))} placeholder={t("contact.ph_role_title")} />
             <Input label={t("team.phone_label")} value={form.phone}
               onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder={t("contact.ph_phone")} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">System Role</label>
+            <select value={form.system_role}
+              onChange={e => setForm(p => ({ ...p, system_role: e.target.value }))}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              <option value="">— No system role —</option>
+              <option value="key_user">Key User</option>
+              <option value="final_user">Final User</option>
+            </select>
           </div>
           <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
             <input type="checkbox" checked={form.is_primary}
@@ -26119,10 +26129,20 @@ function ClientTeamList({ client, auth }) {
                     onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))} placeholder={t("contact.ph_email")} />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <Input label={t("team.role_label")} value={editForm.role_title}
+                  <Input label="Job Title" value={editForm.role_title}
                     onChange={e => setEditForm(p => ({ ...p, role_title: e.target.value }))} placeholder={t("contact.ph_role_title")} />
                   <Input label={t("team.phone_label")} value={editForm.phone}
                     onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))} placeholder={t("contact.ph_phone")} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">System Role</label>
+                  <select value={editForm.system_role ?? ""}
+                    onChange={e => setEditForm(p => ({ ...p, system_role: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    <option value="">— No system role —</option>
+                    <option value="key_user">Key User</option>
+                    <option value="final_user">Final User</option>
+                  </select>
                 </div>
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                   <input type="checkbox" checked={editForm.is_primary}
@@ -26145,9 +26165,11 @@ function ClientTeamList({ client, auth }) {
                     {m.full_name?.[0]}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-medium text-gray-900 truncate">{m.full_name}</span>
                       {m.is_primary && <Badge className="bg-blue-100 text-blue-700">{t("team.primary_badge")}</Badge>}
+                      {m.system_role === "key_user"   && <Badge className="bg-indigo-100 text-indigo-700">Key User</Badge>}
+                      {m.system_role === "final_user" && <Badge className="bg-teal-100 text-teal-700">Final User</Badge>}
                     </div>
                     {m.role_title && <div className="text-xs text-gray-500">{m.role_title}</div>}
                   </div>
@@ -27254,7 +27276,7 @@ function ClientProfileView({ auth }) {
 
   // Team member form
   const [showAddMember, setShowAddMember] = useState(false);
-  const [memberForm, setMemberForm] = useState({ full_name: "", email: "", role_title: "", phone: "", is_primary: false });
+  const [memberForm, setMemberForm] = useState({ full_name: "", email: "", role_title: "", phone: "", is_primary: false, system_role: "" });
   const [savingMember, setSavingMember] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState(null);
   const [editMemberForm, setEditMemberForm] = useState({});
@@ -27388,7 +27410,7 @@ function ClientProfileView({ auth }) {
 
   function startEditMember(m) {
     setEditingMemberId(m.id);
-    setEditMemberForm({ full_name: m.full_name ?? "", email: m.email ?? "", role_title: m.role_title ?? "", phone: m.phone ?? "", is_primary: m.is_primary ?? false });
+    setEditMemberForm({ full_name: m.full_name ?? "", email: m.email ?? "", role_title: m.role_title ?? "", phone: m.phone ?? "", is_primary: m.is_primary ?? false, system_role: m.system_role ?? "" });
     setShowAddMember(false);
   }
 
@@ -27925,10 +27947,20 @@ function ClientProfileView({ auth }) {
                   onChange={e => setMemberForm(p => ({ ...p, email: e.target.value }))} placeholder={t("contact.ph_email")} />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <Input label={t("team.role_label")} value={memberForm.role_title}
+                <Input label="Job Title" value={memberForm.role_title}
                   onChange={e => setMemberForm(p => ({ ...p, role_title: e.target.value }))} placeholder={t("contact.ph_role_title")} />
                 <Input label={t("team.phone_label")} value={memberForm.phone}
                   onChange={e => setMemberForm(p => ({ ...p, phone: e.target.value }))} placeholder={t("contact.ph_phone")} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">System Role</label>
+                <select value={memberForm.system_role}
+                  onChange={e => setMemberForm(p => ({ ...p, system_role: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                  <option value="">— No system role —</option>
+                  <option value="key_user">Key User</option>
+                  <option value="final_user">Final User</option>
+                </select>
               </div>
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <input type="checkbox" checked={memberForm.is_primary}
@@ -27958,10 +27990,20 @@ function ClientProfileView({ auth }) {
                         onChange={e => setEditMemberForm(p => ({ ...p, email: e.target.value }))} placeholder={t("contact.ph_email")} />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      <Input label={t("team.role_label")} value={editMemberForm.role_title}
+                      <Input label="Job Title" value={editMemberForm.role_title}
                         onChange={e => setEditMemberForm(p => ({ ...p, role_title: e.target.value }))} placeholder={t("contact.ph_role_title")} />
                       <Input label={t("team.phone_label")} value={editMemberForm.phone}
                         onChange={e => setEditMemberForm(p => ({ ...p, phone: e.target.value }))} placeholder={t("contact.ph_phone")} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">System Role</label>
+                      <select value={editMemberForm.system_role ?? ""}
+                        onChange={e => setEditMemberForm(p => ({ ...p, system_role: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                        <option value="">— No system role —</option>
+                        <option value="key_user">Key User</option>
+                        <option value="final_user">Final User</option>
+                      </select>
                     </div>
                     <label className="flex items-center gap-2 text-sm cursor-pointer">
                       <input type="checkbox" checked={editMemberForm.is_primary}
@@ -27984,9 +28026,11 @@ function ClientProfileView({ auth }) {
                         {m.full_name?.[0]}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="font-medium text-gray-900 truncate">{m.full_name}</span>
                           {m.is_primary && <Badge className="bg-blue-100 text-blue-700">{t("team.primary_badge")}</Badge>}
+                          {m.system_role === "key_user"   && <Badge className="bg-indigo-100 text-indigo-700">Key User</Badge>}
+                          {m.system_role === "final_user" && <Badge className="bg-teal-100 text-teal-700">Final User</Badge>}
                         </div>
                         {m.role_title && <div className="text-xs text-gray-500">{m.role_title}</div>}
                       </div>
