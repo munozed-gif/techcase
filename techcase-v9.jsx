@@ -4974,7 +4974,17 @@ function useClientTeamMembers(clientId) {
     if (error) throw error;
     await fetchMembers();
   }
-  return { members, addMember, refetch: fetchMembers };
+  async function updateMember(id, updates) {
+    const { error } = await supabase.from("client_team_members").update(updates).eq("id", id);
+    if (error) throw error;
+    await fetchMembers();
+  }
+  async function removeMember(id) {
+    const { error } = await supabase.from("client_team_members").delete().eq("id", id);
+    if (error) throw error;
+    await fetchMembers();
+  }
+  return { members, addMember, updateMember, removeMember, refetch: fetchMembers };
 }
 
 
@@ -27142,7 +27152,7 @@ function ClientProfileView({ auth }) {
   const { profile, loading, updateProfile } = useClientProfile(auth.user?.id);
   const { sla, updateSla }                  = useSlaConfig(auth.user?.id);
   const { connections, addConnection, deleteConnection } = useDbConnections(auth.user?.id);
-  const { members, addMember }              = useClientTeamMembers(auth.user?.id);
+  const { members, addMember, updateMember, removeMember } = useClientTeamMembers(auth.user?.id);
 
   const [tab, setTab]         = useState("overview");
   const [editing, setEditing] = useState(false);
@@ -27180,6 +27190,9 @@ function ClientProfileView({ auth }) {
   const [showAddMember, setShowAddMember] = useState(false);
   const [memberForm, setMemberForm] = useState({ full_name: "", email: "", role_title: "", phone: "", is_primary: false });
   const [savingMember, setSavingMember] = useState(false);
+  const [editingMemberId, setEditingMemberId] = useState(null);
+  const [editMemberForm, setEditMemberForm] = useState({});
+  const [savingEditMember, setSavingEditMember] = useState(false);
 
   // SLA edit
   const [slaEditing, setSlaEditing]   = useState(false);
@@ -27305,6 +27318,27 @@ function ClientProfileView({ auth }) {
       setShowAddMember(false);
     } catch (e) { alert(e.message); }
     setSavingMember(false);
+  }
+
+  function startEditMember(m) {
+    setEditingMemberId(m.id);
+    setEditMemberForm({ full_name: m.full_name ?? "", email: m.email ?? "", role_title: m.role_title ?? "", phone: m.phone ?? "", is_primary: m.is_primary ?? false });
+    setShowAddMember(false);
+  }
+
+  async function handleSaveMember() {
+    if (!editMemberForm.full_name || !editMemberForm.email) return;
+    setSavingEditMember(true);
+    try {
+      await updateMember(editingMemberId, editMemberForm);
+      setEditingMemberId(null);
+    } catch (e) { alert(e.message); }
+    setSavingEditMember(false);
+  }
+
+  async function handleRemoveMember(id) {
+    if (!confirm("Remove this team member?")) return;
+    try { await removeMember(id); } catch (e) { alert(e.message); }
   }
 
   // Activity phases config — hooks must be before early returns
@@ -27849,22 +27883,64 @@ function ClientProfileView({ auth }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {members.map(m => (
               <div key={m.id} className="border border-gray-100 rounded-xl p-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
-                    {m.full_name?.[0]}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-gray-900 truncate">{m.full_name}</span>
-                      {m.is_primary && <Badge className="bg-blue-100 text-blue-700">{t("team.primary_badge")}</Badge>}
+                {editingMemberId === m.id ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input label={t("team.name_label")} value={editMemberForm.full_name}
+                        onChange={e => setEditMemberForm(p => ({ ...p, full_name: e.target.value }))} placeholder={t("contact.ph_name")} />
+                      <Input label={t("team.email_label")} type="email" value={editMemberForm.email}
+                        onChange={e => setEditMemberForm(p => ({ ...p, email: e.target.value }))} placeholder={t("contact.ph_email")} />
                     </div>
-                    {m.role_title && <div className="text-xs text-gray-500">{m.role_title}</div>}
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input label={t("team.role_label")} value={editMemberForm.role_title}
+                        onChange={e => setEditMemberForm(p => ({ ...p, role_title: e.target.value }))} placeholder={t("contact.ph_role_title")} />
+                      <Input label={t("team.phone_label")} value={editMemberForm.phone}
+                        onChange={e => setEditMemberForm(p => ({ ...p, phone: e.target.value }))} placeholder={t("contact.ph_phone")} />
+                    </div>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input type="checkbox" checked={editMemberForm.is_primary}
+                        onChange={e => setEditMemberForm(p => ({ ...p, is_primary: e.target.checked }))}
+                        className="rounded accent-blue-600" />
+                      {t("team.primary_label")}
+                    </label>
+                    <div className="flex justify-end gap-2">
+                      <button onClick={() => setEditingMemberId(null)} className="px-3 py-1.5 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50">{t("action.cancel")}</button>
+                      <button onClick={handleSaveMember} disabled={savingEditMember}
+                        className="px-3 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                        {savingEditMember ? t("action.saving") : t("action.save")}
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <div className="text-xs text-gray-400 space-y-0.5">
-                  {m.email && <div className="flex items-center gap-1"><Mail className="w-3 h-3 text-gray-400" />{m.email}</div>}
-                  {m.phone && <div className="flex items-center gap-1"><Phone className="w-3 h-3 text-gray-400" />{m.phone}</div>}
-                </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm flex-shrink-0">
+                        {m.full_name?.[0]}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900 truncate">{m.full_name}</span>
+                          {m.is_primary && <Badge className="bg-blue-100 text-blue-700">{t("team.primary_badge")}</Badge>}
+                        </div>
+                        {m.role_title && <div className="text-xs text-gray-500">{m.role_title}</div>}
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button onClick={() => startEditMember(m)}
+                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                          <Pencil size={13} />
+                        </button>
+                        <button onClick={() => handleRemoveMember(m.id)}
+                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-400 space-y-0.5">
+                      {m.email && <div className="flex items-center gap-1"><Mail className="w-3 h-3 text-gray-400" />{m.email}</div>}
+                      {m.phone && <div className="flex items-center gap-1"><Phone className="w-3 h-3 text-gray-400" />{m.phone}</div>}
+                    </div>
+                  </>
+                )}
               </div>
             ))}
             {members.length === 0 && (
