@@ -22854,6 +22854,7 @@ function ConsultantProfilePanel({ consultantId, onClose, onAddToCompare, inCompa
   const [assignCaseId, setAssignCaseId] = useState('');
   const [assigning, setAssigning]       = useState(false);
   const [assignDone, setAssignDone]     = useState(false);
+  const [panelTab, setPanelTab]         = useState('profile');
   const canAssign = auth && (auth.isAdmin || auth.isManager || auth.isHeadhunter);
 
   async function handleAssign() {
@@ -22898,8 +22899,62 @@ function ConsultantProfilePanel({ consultantId, onClose, onAddToCompare, inCompa
         </div>
       </div>
 
+      {/* Tab bar */}
+      <div className="flex border-b border-gray-100 flex-shrink-0">
+        {[
+          { id: 'profile', label: 'Profile' },
+          { id: 'ratings', label: `Ratings${ratings.length > 0 ? ` (${ratings.length})` : ''}` },
+        ].map(tab => (
+          <button key={tab.id} onClick={() => setPanelTab(tab.id)}
+            className={`flex-1 py-2.5 text-sm font-semibold transition-colors border-b-2 -mb-px ${panelTab === tab.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
-        {loading ? <Spinner /> : (
+        {loading ? <Spinner /> : panelTab === 'ratings' ? (
+          /* ── Ratings tab ── */
+          ratings.length === 0 ? (
+            <div className="text-center py-10">
+              <Star size={32} className="text-gray-200 mx-auto mb-2" />
+              <p className="text-sm text-gray-400">No ratings yet</p>
+            </div>
+          ) : (
+            <>
+              {/* Summary */}
+              <div className="flex items-center gap-3 bg-yellow-50 border border-yellow-100 rounded-xl p-4">
+                <div className="text-3xl font-bold text-gray-900">{avgRating}</div>
+                <div>
+                  <div className="text-yellow-400 text-lg">{stars(avgRating)}</div>
+                  <p className="text-xs text-gray-500 mt-0.5">{ratings.length} rating{ratings.length !== 1 ? 's' : ''}</p>
+                </div>
+                {winRate != null && (
+                  <div className="ml-auto text-right">
+                    <div className="text-lg font-bold text-green-600">{winRate}%</div>
+                    <p className="text-xs text-gray-400">win rate</p>
+                  </div>
+                )}
+              </div>
+              {/* Individual ratings */}
+              <div className="space-y-3">
+                {ratings.map((r, i) => (
+                  <div key={i} className="border border-gray-100 rounded-xl p-3 bg-white">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-yellow-400 text-sm">{stars(r.score)}</span>
+                        <span className="text-sm font-bold text-gray-800">{r.score}/5</span>
+                      </div>
+                      <span className="text-xs text-gray-400">{fmtDate(r.created_at)}</span>
+                    </div>
+                    {r.case?.title && <p className="text-xs text-blue-600 font-medium mb-1">{r.case.title}</p>}
+                    {r.comment && <p className="text-sm text-gray-600 italic">"{r.comment}"</p>}
+                  </div>
+                ))}
+              </div>
+            </>
+          )
+        ) : (
           <>
             {/* Avatar + identity */}
             <div className="flex items-center gap-4">
