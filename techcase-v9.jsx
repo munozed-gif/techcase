@@ -9262,8 +9262,8 @@ function Dashboard({ auth }) {
           const rc = CASE_CARD_COLORS[c.status] ?? { bar: "#9ca3af", border: "#e5e7eb" };
           return (
             <div onClick={() => setSelectedCase(c)}
-              className="flex items-center justify-between px-4 py-3 bg-white cursor-pointer transition-colors group"
-              style={{ borderLeft: `4px solid ${rc.bar}`, borderBottom: `1px solid ${rc.border}` }}>
+              className="flex items-center justify-between px-4 py-3 bg-white cursor-pointer transition-all hover:shadow-sm rounded-xl mx-3 my-1.5"
+              style={{ border: `1.5px solid ${rc.border}` }}>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-gray-900 text-sm truncate group-hover:text-blue-700">{c.title}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{[c.area_sap, c.area_industry].filter(Boolean).join(" · ") || t("dashboard.no_area")}</p>
@@ -9343,14 +9343,15 @@ function Dashboard({ auth }) {
             </div>
             <button onClick={() => setActiveTab(null)} className="text-gray-400 hover:text-gray-600 text-sm"><X size={13} className="mr-1 inline" />{t("action.close")}</button>
           </div>
-          <div className="divide-y divide-gray-50 max-h-96 overflow-y-auto">
+          <div className="flex flex-col gap-2 p-3 max-h-96 overflow-y-auto">
             {activeStat.items.length === 0 && (
               <div className="p-8 text-center text-gray-400 text-sm">{t("dashboard.nothing_yet")}</div>
             )}
 
             {/* Case rows */}
             {activeStat.type === "cases" && activeStat.items.map(c => (
-              <div key={c.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
+              <div key={c.id} className="flex items-center justify-between p-4 bg-white rounded-xl transition-all hover:shadow-sm"
+                style={{ border: `1.5px solid ${(CASE_CARD_COLORS[c.status] ?? { border: '#e5e7eb' }).border}` }}>
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <ProjectAvatar project={c.project ?? { name: c.title }} size={36} />
                   <div className="min-w-0">
@@ -9377,7 +9378,7 @@ function Dashboard({ auth }) {
 
             {/* Application rows */}
             {activeStat.type === "applications" && activeStat.items.map(a => (
-              <div key={a.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
+              <div key={a.id} className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 transition-all hover:shadow-sm">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <ProjectAvatar project={a.case?.project ?? { name: a.case?.client?.client_profiles?.company_name || a.case?.title || '?', client: a.case?.client }} size={36} />
                   <div className="min-w-0">
@@ -14354,7 +14355,7 @@ function ProjectsView({ auth, initialProjectId }) {
           }
         />
       ) : (
-        <div className="space-y-3">
+        <div className="bg-white rounded-2xl shadow-sm p-4 space-y-3">
           {displayed.map(p => {
             const TERM_S = ["completed","cancelled","terminated","closed","approved"];
             const totalCases     = p.cases?.length ?? 0;
@@ -14365,18 +14366,12 @@ function ProjectsView({ auth, initialProjectId }) {
             const isTerminated   = TERM_S.includes(p.status);
             const isOverdue      = !isTerminated && p.end_date && new Date(p.end_date) < new Date();
             const PRIORITY_STYLES = { critical: "bg-red-100 text-red-700", high: "bg-orange-100 text-orange-700", medium: "bg-yellow-100 text-yellow-700", low: "bg-gray-100 text-gray-500" };
-            const PROJ_CARD_COLORS = { draft: { bar: "#9ca3af", border: "#d1d5db" }, active: { bar: "#16a34a", border: "#86efac" }, on_hold: { bar: "#b45309", border: "#fcd34d" }, completed: { bar: "#0d9488", border: "#5eead4" }, cancelled: { bar: "#dc2626", border: "#fca5a5" } };
-            const cardColors = isOverdue ? { bar: "#dc2626", border: "#fca5a5" } : (PROJ_CARD_COLORS[p.status] ?? { bar: "#9ca3af", border: "#e5e7eb" });
+            const PROJ_CARD_COLORS = { draft: { border: "#d1d5db" }, active: { border: "#86efac" }, on_hold: { border: "#fcd34d" }, completed: { border: "#5eead4" }, cancelled: { border: "#fca5a5" } };
+            const cardColors = isOverdue ? { border: "#fca5a5" } : (PROJ_CARD_COLORS[p.status] ?? { border: "#e5e7eb" });
             return (
               <div key={p.id}
-                className="bg-white shadow-sm hover:shadow-md transition-all cursor-pointer p-5"
-                style={{
-                  borderTop: `1.5px solid ${cardColors.border}`,
-                  borderRight: `1.5px solid ${cardColors.border}`,
-                  borderBottom: `1.5px solid ${cardColors.border}`,
-                  borderLeft: `4px solid ${cardColors.bar}`,
-                  borderRadius: '0 14px 14px 0',
-                }}
+                className="rounded-2xl cursor-pointer transition-all hover:shadow-md p-5"
+                style={{ border: `1.5px solid ${cardColors.border}` }}
                 onClick={() => setSelectedProject(p)}>
                 <div className="flex items-start gap-4">
                   {/* Project avatar (falls back to client avatar → initials) */}
@@ -14707,22 +14702,11 @@ function CasesView({ auth, initialCaseId }) {
       {displayed.length === 0 ? (
         <EmptyState Icon={FolderOpen} title={t("cases.no_cases")} subtitle={t("cases.no_cases_hint")} />
       ) : (
-        <div className="grid gap-4">
+        <div className="bg-white rounded-2xl shadow-sm p-4 grid gap-3">
           {displayed.map(c => (
             <div key={c.id}
-              className="bg-white shadow-sm hover:shadow-md transition-all cursor-pointer p-5"
-              style={(() => {
-                const cc = selectedCases.has(c.id)
-                  ? { bar: "#3b82f6", border: "#bfdbfe" }
-                  : (CASE_CARD_COLORS[c.status] ?? { bar: "#9ca3af", border: "#e5e7eb" });
-                return {
-                  borderTop: `1.5px solid ${cc.border}`,
-                  borderRight: `1.5px solid ${cc.border}`,
-                  borderBottom: `1.5px solid ${cc.border}`,
-                  borderLeft: `4px solid ${cc.bar}`,
-                  borderRadius: '0 14px 14px 0',
-                };
-              })()}
+              className="rounded-2xl cursor-pointer transition-all hover:shadow-md p-5"
+              style={{ border: `1.5px solid ${selectedCases.has(c.id) ? '#bfdbfe' : (CASE_CARD_COLORS[c.status]?.border ?? '#e5e7eb')}` }}
               onClick={() => setSelected(c)}>
               <div className="flex items-start gap-3">
                 {(auth.isAdmin || auth.isManager) && (
