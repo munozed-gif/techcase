@@ -8152,29 +8152,40 @@ function AuthScreen({ onAuth }) {
   // Client-specific
   const [companyName, setCompany]     = useState("");
   const [industry, setIndustry]       = useState("");
-  // Key-user detection (set after OTP verify)
+  // Key-user detection (set after email lookup)
   const [keyUserCompany, setKeyUserCompany] = useState(null);
-  // Final-user detection (set after OTP verify, like key user)
+  // Final-user detection (set after email lookup)
   const [finalUserClient, setFinalUserClient] = useState(null); // { clientId, companyName } | null
+  const [otpVerified, setOtpVerified]   = useState(false);
+  const [approvalDone, setApprovalDone] = useState(false); // admin_approval success screen
 
   const [error, setError]   = useState("");
   const [loading, setLoad]  = useState(false);
   const auth = useAuth();
   const { settings: ssSettings } = useSystemSettings();
   const rolePermMatrix = ssSettings["role_permissions"] ?? {};
-  function requiresTeamFor(role) {
+  function requiresTeamFor(r) {
     const defaults = ROLE_PERMISSIONS_DEFAULTS["require_team_signup"] ?? {};
     const stored   = rolePermMatrix["require_team_signup"] ?? {};
-    return ({ ...defaults, ...stored })[role] === true;
+    return ({ ...defaults, ...stored })[r] === true;
+  }
+  function getRoleFlow(r) {
+    const perRole = ssSettings["signup_flow_per_role"] ?? {};
+    return perRole[r] ?? "email_verify";
   }
 
-  const SIGNUP_STEPS = [
-    { id: "verify",  label: t("auth.step_verify"),  Icon: Mail },
-    { id: "role",    label: t("auth.step_role"),    Icon: User },
-    { id: "profile", label: t("auth.step_profile"), Icon: FileText },
-  ];
+  // Dynamic progress steps based on whether OTP is needed for selected role
+  const roleFlow = role ? getRoleFlow(role) : "email_verify";
+  const needsOTP = roleFlow !== "admin_approval";
+  const SIGNUP_STEPS = needsOTP
+    ? [{ id: "setup", label: "Setup" }, { id: "verify", label: "Verify" }, { id: "profile", label: "Profile" }]
+    : [{ id: "setup", label: "Setup" }, { id: "profile", label: "Profile" }];
+  const displayStep = needsOTP ? step : (step === 2 ? 1 : 0);
 
-  function switchMode(m) { setMode(m); setError(""); setStep(0); setCodeSent(false); setCode(""); }
+  function switchMode(m) {
+    setMode(m); setError(""); setStep(0); setCodeSent(false); setCode("");
+    setRole(""); setOtpVerified(false); setApprovalDone(false);
+  }
 
   // ── Sign in ──────────────────────────────────────────────────
   async function handleSignIn() {
@@ -8184,8 +8195,45 @@ function AuthScreen({ onAuth }) {
     setLoad(false);
   }
 
-  // ── Step 0a: send OTP ─────────────────────────────────────────
-  async function sendCode() {
+  // ── Look up pre-registered key/final user by email ────────────
+  async function checkEmailPreReg(em) {
+    const { data: kuCases } = await supabase.from("cases")
+      .select("key_user_email, client:client_id(client_profiles(company_name))")
+      .eq("key_user_email", em.trim()).limit(1);
+    if (kuCases?.length > 0) {
+      const cp = kuCases[0].client?.client_profiles;
+      setKeyUserCompany((Array.isArray(cp) ? cp[0]?.company_name : cp?.company_name) ?? "a company");
+    } else setKeyUserCompany(null);
+    const { data: fuRows } = await supabase.from("client_team_members")
+      .select("client_id, client:client_id(client_profiles(company_name))")
+      .eq("email", em.trim()).limit(1);
+    if (fuRows?.length > 0) {
+      const cp = fuRows[0].client?.client_profiles;
+      const cName = (Array.isArray(cp) ? cp[0]?.company_name : cp?.company_name) ?? "a company";
+      setFinalUserClient({ clientId: fuRows[0].client_id, companyName: cName });
+    } else setFinalUserClient(null);
+  }
+
+  // ── Step 0: role chosen → decide OTP or skip ─────────────────
+  async function handleRoleSelect(r) {
+    if (!email.trim()) { setError(t("auth.error_email_first")); return; }
+    setError(""); setRole(r); setLoad(true);
+    try {
+      await checkEmailPreReg(email);
+      const flow = getRoleFlow(r);
+      if (flow === "admin_approval") {
+        setOtpVerified(false);
+        setStep(2);
+      } else {
+        // Send OTP then go to step 1 (Verify)
+        await doSendOtp();
+      }
+    } catch (e) { setError(e.message); }
+    setLoad(false);
+  }
+
+  // ── Step 0a: send OTP internally ─────────────────────────────
+  async function doSendOtp() {
     if (!email.trim()) { setError(t("auth.error_email_first")); return; }
     setError(""); setLoad(true);
     try {
@@ -8220,6 +8268,7 @@ function AuthScreen({ onAuth }) {
       } else {
         setCodeSent(true);
         setCode("");
+        setStep(1); // move to Verify step after sending
       }
     } catch (e) {
       setError(e?.message || e?.toString() || t("auth.error_unexpected"));
@@ -8227,54 +8276,27 @@ function AuthScreen({ onAuth }) {
     setLoad(false);
   }
 
-  // ── Step 0b: verify OTP ───────────────────────────────────────
-  async function verifyCode() {
-    if (code.length < 4) { setError(t("auth.error_verify_code")); return; }
+  async function resendOtp() {
     setError(""); setLoad(true);
-    // type:'signup' matches the token sent by signUp
-    const { data, error: err } = await supabase.auth.verifyOtp({
-      email: email.trim(), token: code, type: "signup",
-    });
-    if (err) {
-      setError(err.message || t("auth.error_invalid_code"));
-      setLoad(false);
-      return;
-    }
-    // Check if this user already completed their profile
-    const { data: existing } = await supabase
-      .from("users").select("role").eq("id", data.user?.id).maybeSingle();
-    if (existing?.role) { onAuth(null); return; } // returning user → dashboard
-    // Detect if this email is pre-registered as a key user on any case
-    const { data: kuCases } = await supabase
-      .from("cases")
-      .select("key_user_email, client:client_id(client_profiles(company_name))")
-      .eq("key_user_email", email.trim())
-      .limit(1);
-    if (kuCases?.length > 0) {
-      const cp = kuCases[0].client?.client_profiles;
-      setKeyUserCompany((Array.isArray(cp) ? cp[0]?.company_name : cp?.company_name) ?? "a company");
-    } else {
-      setKeyUserCompany(null);
-    }
-    // Detect if this email is pre-registered as a final user on any client team
-    const { data: fuRows } = await supabase
-      .from("client_team_members")
-      .select("client_id, client:client_id(client_profiles(company_name))")
-      .eq("email", email.trim())
-      .limit(1);
-    if (fuRows?.length > 0) {
-      const cp = fuRows[0].client?.client_profiles;
-      const companyName = (Array.isArray(cp) ? cp[0]?.company_name : cp?.company_name) ?? "a company";
-      setFinalUserClient({ clientId: fuRows[0].client_id, companyName });
-    } else {
-      setFinalUserClient(null);
-    }
-    setStep(1);
+    await doSendOtp();
     setLoad(false);
   }
 
-  // ── Step 1: role chosen ───────────────────────────────────────
-  function selectRole(r) { setRole(r); setError(""); setStep(2); }
+  // ── Step 1: verify OTP ────────────────────────────────────────
+  async function verifyCode() {
+    if (code.length < 4) { setError(t("auth.error_verify_code")); return; }
+    setError(""); setLoad(true);
+    const { data, error: err } = await supabase.auth.verifyOtp({
+      email: email.trim(), token: code, type: "signup",
+    });
+    if (err) { setError(err.message || t("auth.error_invalid_code")); setLoad(false); return; }
+    const { data: existing } = await supabase
+      .from("users").select("role").eq("id", data.user?.id).maybeSingle();
+    if (existing?.role) { onAuth(null); return; }
+    setOtpVerified(true);
+    setStep(2);
+    setLoad(false);
+  }
 
   // ── Step 2: create account ────────────────────────────────────
   async function createAccount() {
@@ -8283,28 +8305,40 @@ function AuthScreen({ onAuth }) {
     if (password !== confirmPass) { setError(t("auth.error_password_match")); return; }
     if (role === "consultant" && !headline.trim()) { setError(t("auth.error_headline")); return; }
     if (role === "client" && !companyName.trim()) { setError(t("auth.error_company")); return; }
-    if (role === "key_user" && !keyUserCompany) { setError(t("auth.error_key_user")); return; }
-    if (role === "final_user" && requiresTeamFor("final_user") && !finalUserClient) { setError(t("auth.error_team_code")); return; }
     if (role === "key_user"   && requiresTeamFor("key_user")   && !keyUserCompany)  { setError(t("auth.error_key_user"));  return; }
+    if (role === "final_user" && requiresTeamFor("final_user") && !finalUserClient) { setError(t("auth.error_team_code")); return; }
     setError(""); setLoad(true);
     try {
-      await supabase.auth.updateUser({
-        password,
-        data: { full_name: name.trim(), role },
-      });
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: flowSetting } = await supabase
-        .from("system_settings").select("value").eq("key", "signup_flow").maybeSingle();
-      const signupFlow = flowSetting?.value ?? "auto_approve";
-      const verificationStatus = signupFlow === "require_approval" ? "pending" : "approved";
-      const userRow = { id: user.id, email: user.email, full_name: name.trim(), role, verification_status: verificationStatus };
+      const flow = getRoleFlow(role);
+      const verificationStatus = (flow === "admin_approval" || flow === "email_and_approval") ? "pending" : "approved";
+
+      let userId, userEmail;
+      if (otpVerified) {
+        // OTP path: user is already authenticated, just set password
+        await supabase.auth.updateUser({ password, data: { full_name: name.trim(), role } });
+        const { data: { user } } = await supabase.auth.getUser();
+        userId = user.id; userEmail = user.email;
+      } else {
+        // Admin-approval path: sign up with email+password directly
+        const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+          email: email.trim(), password,
+          options: { data: { full_name: name.trim(), role } },
+        });
+        if (signUpErr) { setError(signUpErr.message); setLoad(false); return; }
+        if (!signUpData.user) { setError("Registration failed — please try again."); setLoad(false); return; }
+        userId = signUpData.user.id; userEmail = signUpData.user.email;
+        if (!signUpData.session) {
+          // No session yet (Supabase email confirmation required) — show pending screen
+          setApprovalDone(true); setLoad(false); return;
+        }
+      }
+
+      const userRow = { id: userId, email: userEmail, full_name: name.trim(), role, verification_status: verificationStatus };
       await supabase.from("users").upsert(userRow, { onConflict: "id" });
       if (role === "consultant") {
         const skillsArr = skills.split(",").map(s => s.trim()).filter(Boolean);
         await supabase.from("consultant_profiles").upsert({
-          id: user.id,
-          headline: headline.trim(),
-          skills: skillsArr,
+          id: userId, headline: headline.trim(), skills: skillsArr,
           years_experience: yearsExp ? parseInt(yearsExp, 10) : null,
           hourly_rate: hourlyRate ? parseFloat(hourlyRate) : null,
           expertise_level: expertiseLevel,
@@ -8312,18 +8346,15 @@ function AuthScreen({ onAuth }) {
       }
       if (role === "client") {
         await supabase.from("client_profiles").upsert({
-          id: user.id,
-          company_name: companyName.trim(),
-          industry: industry || null,
+          id: userId, company_name: companyName.trim(), industry: industry || null,
         }, { onConflict: "id" });
       }
       if (role === "key_user") {
-        // Link this user to all cases where their email was pre-registered as key user
         const { data: matchingCases } = await supabase.from("cases")
-          .select("id").eq("key_user_email", user.email);
+          .select("id").eq("key_user_email", userEmail);
         if (matchingCases?.length) {
           await supabase.from("case_key_users").insert(
-            matchingCases.map(c => ({ case_id: c.id, user_id: user.id }))
+            matchingCases.map(c => ({ case_id: c.id, user_id: userId }))
           ).onConflict("case_id,user_id").ignore();
         }
       }
@@ -8390,80 +8421,66 @@ function AuthScreen({ onAuth }) {
               {SIGNUP_STEPS.map((s, i) => (
                 <div key={s.id} className="relative z-10 flex flex-col items-center flex-1 gap-1.5">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ring-2 transition-all ${
-                    i < step  ? "bg-emerald-500 text-white ring-emerald-100"
-                    : i === step ? "bg-[#1C3557] text-white ring-blue-200"
-                                 : "bg-gray-100 text-gray-400 ring-gray-200"}`}>
-                    {i < step ? <Check size={11} /> : i + 1}
+                    i < displayStep  ? "bg-emerald-500 text-white ring-emerald-100"
+                    : i === displayStep ? "bg-[#1C3557] text-white ring-blue-200"
+                                       : "bg-gray-100 text-gray-400 ring-gray-200"}`}>
+                    {i < displayStep ? <Check size={11} /> : i + 1}
                   </div>
-                  <span className={`text-xs font-medium ${i === step ? "text-[#1C3557]" : i < step ? "text-emerald-600" : "text-gray-400"}`}>
+                  <span className={`text-xs font-medium ${i === displayStep ? "text-[#1C3557]" : i < displayStep ? "text-emerald-600" : "text-gray-400"}`}>
                     {s.label}
                   </span>
                 </div>
               ))}
             </div>
 
-            {/* Step 0 — Email verification */}
-            {step === 0 && (
-              <div>
-                <h2 className="text-lg font-bold text-gray-900 mb-1">{t("auth.verify_heading")}</h2>
-                <p className="text-sm text-gray-500 mb-5">{t("auth.verify_subtitle")}</p>
-                <Input label={t("auth.email")} type="email" value={email}
-                  onChange={e => setEmail(e.target.value)} placeholder={t("auth.ph_email")} />
-                {!codeSent ? (
-                  <button onClick={sendCode} disabled={loading}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50">
-                    {loading ? t("auth.sending") : t("auth.send_code")}
-                  </button>
-                ) : (
-                  <>
-                    <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-xl text-sm text-blue-700">
-                      <Mail className="w-4 h-4 inline-block mr-1" />{t("auth.code_sent").replace("{n}", email)}
-                    </div>
-                    <Input label={t("auth.code_label")} value={code}
-                      onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                      placeholder={t("auth.code_placeholder")} />
-                    <div className="flex gap-2 mt-2">
-                      <button onClick={sendCode} disabled={loading}
-                        className="flex-1 border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium py-2.5 rounded-xl text-sm transition-colors">
-                        {t("action.resend")}
-                      </button>
-                      <button onClick={verifyCode} disabled={loading || code.length < 4}
-                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors disabled:opacity-50">
-                        {loading ? t("auth.verifying") : t("auth.verify_btn")}
-                      </button>
-                    </div>
-                  </>
-                )}
+            {/* approvalDone — admin_approval success when Supabase requires email confirm */}
+            {approvalDone && (
+              <div className="text-center space-y-4">
+                <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mx-auto">
+                  <BadgeCheck size={30} className="text-blue-500" />
+                </div>
+                <h2 className="text-lg font-bold text-gray-900">Registration submitted!</h2>
+                <p className="text-sm text-gray-500">
+                  Your account has been created and is pending admin review. You may receive a confirmation email — please confirm it. An admin will then approve your account.
+                </p>
+                <button onClick={() => switchMode("signin")}
+                  className="w-full py-2.5 text-sm font-medium text-blue-600 border border-blue-200 rounded-xl hover:bg-blue-50 transition-colors">
+                  Back to Sign In
+                </button>
               </div>
             )}
 
-            {/* Step 1 — Role selection */}
-            {step === 1 && (
+            {/* Step 0 — Email + Role selection */}
+            {!approvalDone && step === 0 && (
               <div>
-                <h2 className="text-lg font-bold text-gray-900 mb-1">{t("auth.what_brings")}</h2>
-                <p className="text-sm text-gray-500 mb-5">{t("auth.choose_type")}</p>
+                <h2 className="text-lg font-bold text-gray-900 mb-1">{t("auth.verify_heading")}</h2>
+                <p className="text-sm text-gray-500 mb-5">Enter your email and choose your role to get started.</p>
+                <Input label={t("auth.email")} type="email" value={email}
+                  onChange={e => { setEmail(e.target.value); setKeyUserCompany(null); setFinalUserClient(null); }}
+                  onBlur={e => { if (e.target.value.trim()) checkEmailPreReg(e.target.value); }}
+                  placeholder={t("auth.ph_email")} />
+                <p className="text-xs font-medium text-gray-700 mb-3 mt-1">{t("auth.choose_type")}</p>
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { role: "consultant", Icon: Briefcase, label: t("auth.build_consultant"), desc: t("auth.help_clients") },
                     { role: "client",     Icon: Building2, label: t("auth.build_client"),     desc: t("auth.tell_consultants") },
                   ].map(opt => (
-                    <button key={opt.role} onClick={() => selectRole(opt.role)}
-                      className="flex flex-col items-center gap-2 p-5 border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 rounded-2xl transition-all text-center group">
-                      <opt.Icon className="w-8 h-8 text-blue-600 group-hover:text-blue-700" />
+                    <button key={opt.role} onClick={() => handleRoleSelect(opt.role)} disabled={loading}
+                      className="flex flex-col items-center gap-2 p-4 border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 rounded-2xl transition-all text-center group disabled:opacity-50">
+                      <opt.Icon className="w-7 h-7 text-blue-600 group-hover:text-blue-700" />
                       <span className="font-semibold text-gray-900 text-sm group-hover:text-blue-700">{opt.label}</span>
                       <span className="text-xs text-gray-500 leading-snug">{opt.desc}</span>
                     </button>
                   ))}
                 </div>
-                {/* Key User — locked by matrix or email pre-registration */}
                 <button
-                  onClick={() => (!requiresTeamFor("key_user") || keyUserCompany) && selectRole("key_user")}
-                  disabled={requiresTeamFor("key_user") && !keyUserCompany}
+                  onClick={() => (!requiresTeamFor("key_user") || keyUserCompany) && handleRoleSelect("key_user")}
+                  disabled={loading || (requiresTeamFor("key_user") && !keyUserCompany)}
                   className={`w-full mt-3 flex items-center gap-4 p-4 border-2 rounded-2xl transition-all text-left
                     ${(!requiresTeamFor("key_user") || keyUserCompany)
                       ? "border-blue-300 bg-blue-50 hover:border-blue-500 hover:bg-blue-100 cursor-pointer"
                       : "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed"}`}>
-                  <UserCheck className={`w-8 h-8 flex-shrink-0 ${(!requiresTeamFor("key_user") || keyUserCompany) ? "text-blue-600" : "text-gray-400"}`} />
+                  <UserCheck className={`w-7 h-7 flex-shrink-0 ${(!requiresTeamFor("key_user") || keyUserCompany) ? "text-blue-600" : "text-gray-400"}`} />
                   <div className="min-w-0">
                     <div className={`font-semibold text-sm ${(!requiresTeamFor("key_user") || keyUserCompany) ? "text-blue-700" : "text-gray-500"}`}>{t("auth.role_key_user")}</div>
                     <div className="text-xs text-gray-500 mt-0.5">{t("auth.key_user_desc")}</div>
@@ -8471,19 +8488,17 @@ function AuthScreen({ onAuth }) {
                       ? <div className="text-xs text-blue-600 font-semibold mt-1">{t("auth.key_user_linked").replace("{n}", keyUserCompany)}</div>
                       : requiresTeamFor("key_user")
                       ? <div className="text-xs text-amber-600 mt-1">{t("auth.key_user_not_registered")}</div>
-                      : null
-                    }
+                      : null}
                   </div>
                 </button>
-                {/* Final User — only selectable if email is pre-registered on a client team */}
                 <button
-                  onClick={() => (!requiresTeamFor("final_user") || finalUserClient) && selectRole("final_user")}
-                  disabled={requiresTeamFor("final_user") && !finalUserClient}
+                  onClick={() => (!requiresTeamFor("final_user") || finalUserClient) && handleRoleSelect("final_user")}
+                  disabled={loading || (requiresTeamFor("final_user") && !finalUserClient)}
                   className={`w-full mt-3 flex items-center gap-4 p-4 border-2 rounded-2xl transition-all text-left
                     ${(!requiresTeamFor("final_user") || finalUserClient)
                       ? "border-teal-300 bg-teal-50 hover:border-teal-500 hover:bg-teal-100 cursor-pointer"
                       : "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed"}`}>
-                  <Globe className={`w-8 h-8 flex-shrink-0 ${(!requiresTeamFor("final_user") || finalUserClient) ? "text-teal-600" : "text-gray-400"}`} />
+                  <Globe className={`w-7 h-7 flex-shrink-0 ${(!requiresTeamFor("final_user") || finalUserClient) ? "text-teal-600" : "text-gray-400"}`} />
                   <div className="min-w-0">
                     <div className={`font-semibold text-sm ${(!requiresTeamFor("final_user") || finalUserClient) ? "text-teal-700" : "text-gray-500"}`}>{t("auth.role_final_user")}</div>
                     <div className="text-xs text-gray-500 mt-0.5">{t("auth.final_user_desc")}</div>
@@ -8491,15 +8506,42 @@ function AuthScreen({ onAuth }) {
                       ? <div className="text-xs text-teal-600 font-semibold mt-1">{t("auth.final_user_linked").replace("{n}", finalUserClient.companyName)}</div>
                       : requiresTeamFor("final_user")
                       ? <div className="text-xs text-amber-600 mt-1">{t("auth.final_user_not_registered")}</div>
-                      : null
-                    }
+                      : null}
                   </div>
+                </button>
+                {loading && <p className="text-xs text-center text-gray-400 mt-3">Checking…</p>}
+              </div>
+            )}
+
+            {/* Step 1 — OTP Verify (only for email_verify / email_and_approval) */}
+            {!approvalDone && step === 1 && (
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 mb-1">{t("auth.verify_heading")}</h2>
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-xl text-sm text-blue-700">
+                  <Mail className="w-4 h-4 inline-block mr-1" />{t("auth.code_sent").replace("{n}", email)}
+                </div>
+                <Input label={t("auth.code_label")} value={code}
+                  onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                  placeholder={t("auth.code_placeholder")} />
+                <div className="flex gap-2 mt-2">
+                  <button onClick={resendOtp} disabled={loading}
+                    className="flex-1 border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium py-2.5 rounded-xl text-sm transition-colors">
+                    {t("action.resend")}
+                  </button>
+                  <button onClick={verifyCode} disabled={loading || code.length < 4}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors disabled:opacity-50">
+                    {loading ? t("auth.verifying") : t("auth.verify_btn")}
+                  </button>
+                </div>
+                <button onClick={() => { setStep(0); setCodeSent(false); setCode(""); setRole(""); }}
+                  className="w-full mt-3 text-sm text-gray-400 hover:text-gray-600 transition-colors">
+                  {t("action.back")}
                 </button>
               </div>
             )}
 
             {/* Step 2 — Profile details */}
-            {step === 2 && (
+            {!approvalDone && step === 2 && (
               <div>
                 <h2 className="text-lg font-bold text-gray-900 mb-1">
                   {role === "consultant" ? t("auth.build_consultant")
@@ -8587,11 +8629,13 @@ function AuthScreen({ onAuth }) {
                   </div>
                 </>)}
 
-                {ssSettings["signup_flow"] === "require_approval" && (
+                {(roleFlow === "admin_approval" || roleFlow === "email_and_approval") && (
                   <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 mt-2">
                     <Shield size={14} className="text-amber-500 mt-0.5 flex-shrink-0" />
                     <p className="text-xs text-amber-700 leading-relaxed">
-                      Your account will be reviewed by an admin before you can log in. You'll be notified once it's approved.
+                      {roleFlow === "email_and_approval"
+                        ? "Your email has been verified. An admin will now review your account before you can log in."
+                        : "Your account will be reviewed by an admin before you can log in. You'll be notified once approved."}
                     </p>
                   </div>
                 )}
@@ -8599,7 +8643,7 @@ function AuthScreen({ onAuth }) {
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 mt-2">
                   {loading ? t("auth.creating") : t("action.create_account")}
                 </button>
-                <button onClick={() => setStep(1)}
+                <button onClick={() => { setStep(needsOTP ? 1 : 0); setRole(""); }}
                   className="w-full mt-3 text-sm text-gray-400 hover:text-gray-600 transition-colors">
                   {t("action.back")}
                 </button>
@@ -32375,62 +32419,78 @@ function SettingsWorkflowTab({ auth, ssCtx }) {
   );
 }
 
-// ── Sign-up Flow settings ─────────────────────────────────────
+// ── Sign-up Flow settings — per-role ─────────────────────────
 function SettingsSignupFlowTab({ ssCtx }) {
   const { settings, setSetting } = ssCtx;
-  const current = settings["signup_flow"] ?? "auto_approve";
-  const [saving, setSaving] = useState(false);
+  const perRole = settings["signup_flow_per_role"] ?? {};
+  const [saving, setSaving] = useState(null);
 
-  async function choose(val) {
-    if (val === current) return;
-    setSaving(true);
-    await setSetting("signup_flow", val);
-    setSaving(false);
-  }
-
-  const options = [
-    {
-      value: "auto_approve",
-      label: "Email Verification",
-      description: "New users are approved automatically after confirming their email. They can log in right away.",
-      icon: Mail,
-    },
-    {
-      value: "require_approval",
-      label: "Admin Approval",
-      description: "New registrations go to a pending queue. An admin must approve each account before the user can log in.",
-      icon: Shield,
-    },
+  const ROLES = [
+    { key: "consultant",  label: "Consultant",  Icon: Briefcase, note: null },
+    { key: "headhunter",  label: "Headhunter",  Icon: Crosshair, note: null },
+    { key: "client",      label: "Client",      Icon: Building2, note: null },
+    { key: "key_user",    label: "Key User",    Icon: UserCheck, note: "Team pre-registration enforced" },
+    { key: "final_user",  label: "Final User",  Icon: Globe,     note: "Team pre-registration enforced" },
   ];
 
+  const MODES = [
+    { value: "email_verify",       label: "Email Verify",   desc: "OTP → auto-approved",      Icon: Mail },
+    { value: "admin_approval",     label: "Admin Approval", desc: "No OTP → pending queue",   Icon: Shield },
+    { value: "email_and_approval", label: "Both",           desc: "OTP → pending queue",      Icon: BadgeCheck },
+  ];
+
+  async function setRoleFlow(roleKey, mode) {
+    setSaving(roleKey);
+    await setSetting("signup_flow_per_role", { ...perRole, [roleKey]: mode });
+    setSaving(null);
+  }
+
   return (
-    <div className="mt-4 space-y-3">
-      <p className="text-sm text-gray-500 mb-4">Choose how new user sign-ups are processed.</p>
-      {options.map(({ value, label, description, icon: Ic }) => {
-        const active = current === value;
-        return (
-          <button
-            key={value}
-            onClick={() => choose(value)}
-            disabled={saving}
-            className={`w-full text-left flex items-start gap-4 p-4 rounded-xl border-2 transition-all ${
-              active
-                ? "border-blue-500 bg-blue-50"
-                : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
-            }`}>
-            <div className={`mt-0.5 flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${active ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-500"}`}>
-              <Ic size={17} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className={`font-semibold text-sm ${active ? "text-blue-700" : "text-gray-800"}`}>{label}</span>
-                {active && <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full font-medium">Active</span>}
+    <div className="mt-4">
+      <p className="text-sm text-gray-500 mb-1">Configure how each role's sign-up is processed.</p>
+      <div className="flex gap-4 mb-4 mt-3">
+        {MODES.map(({ value, label, desc, Icon: Ic }) => (
+          <div key={value} className="flex items-center gap-1.5 text-xs text-gray-500">
+            <Ic size={12} className="text-gray-400" /><span className="font-medium text-gray-700">{label}</span> — {desc}
+          </div>
+        ))}
+      </div>
+      <div className="space-y-3">
+        {ROLES.map(({ key, label, Icon: Ic, note }) => {
+          const current = perRole[key] ?? "email_verify";
+          return (
+            <div key={key} className="border border-gray-100 rounded-xl p-4 bg-gray-50">
+              <div className="flex items-center gap-2 mb-3">
+                <Ic size={14} className="text-gray-500 flex-shrink-0" />
+                <span className="font-medium text-sm text-gray-800">{label}</span>
+                {note && (
+                  <span className="ml-auto text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 whitespace-nowrap">
+                    {note}
+                  </span>
+                )}
               </div>
-              <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{description}</p>
+              <div className="grid grid-cols-3 gap-2">
+                {MODES.map(({ value, label: mLabel, desc, Icon: MIc }) => {
+                  const active = current === value;
+                  return (
+                    <button key={value} onClick={() => setRoleFlow(key, value)}
+                      disabled={saving === key}
+                      className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 text-center transition-all ${
+                        active
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
+                      } disabled:opacity-50`}>
+                      <MIc size={13} className={active ? "text-blue-600" : "text-gray-400"} />
+                      <span className={`text-xs font-semibold ${active ? "text-blue-700" : "text-gray-700"}`}>{mLabel}</span>
+                      <span className={`text-[10px] leading-tight ${active ? "text-blue-500" : "text-gray-400"}`}>{desc}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </button>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
