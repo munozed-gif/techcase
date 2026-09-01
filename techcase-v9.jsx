@@ -32683,15 +32683,135 @@ function SettingsSignupFlowTab({ ssCtx }) {
   );
 }
 
+// ── SMTP settings ─────────────────────────────────────────────
+function SettingsSMTPTab({ ssCtx }) {
+  const { settings, setSetting } = ssCtx;
+  const stored = settings["smtp_config"] ?? {};
+  const EMPTY = { host: "", port: 587, username: "", password: "", from_email: "", from_name: "", encryption: "tls" };
+  const [form, setForm] = useState({ ...EMPTY, ...stored });
+  const [showPass, setShowPass] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+
+  const f = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));
+
+  async function handleSave() {
+    setSaving(true);
+    await setSetting("smtp_config", form);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  }
+
+  async function handleTest() {
+    if (!form.host || !form.from_email) { setTestResult({ ok: false, msg: "Fill in host and from email first." }); return; }
+    setTesting(true); setTestResult(null);
+    try {
+      const res = await supabase.functions.invoke("send-email", {
+        body: { to: form.from_email, subject: "TechCase SMTP Test", html: "<p>SMTP is working correctly.</p>", smtpConfig: form },
+      });
+      if (res.error) throw new Error(res.error.message ?? "Edge function error");
+      setTestResult({ ok: true, msg: `Test email sent to ${form.from_email}` });
+    } catch (e) {
+      setTestResult({ ok: false, msg: e.message || "Test failed" });
+    }
+    setTesting(false);
+  }
+
+  const field = (label, key, type = "text", placeholder = "") => (
+    <div>
+      <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
+      <input type={type} value={form[key]} onChange={f(key)} placeholder={placeholder}
+        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+    </div>
+  );
+
+  return (
+    <div className="mt-4 space-y-4">
+      <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5">
+        <AlertTriangle size={14} className="text-blue-500 mt-0.5 flex-shrink-0" />
+        <div className="text-xs text-blue-700 leading-relaxed">
+          <span className="font-semibold">Two places to configure SMTP:</span><br />
+          1. <span className="font-medium">Here</span> — used for platform notifications (approvals, rejections, alerts).<br />
+          2. <span className="font-medium">Supabase Dashboard → Authentication → SMTP Settings</span> — required for OTP / Email Verify flows.
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {field("SMTP Host", "host", "text", "smtp.gmail.com")}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Port</label>
+          <input type="number" value={form.port} onChange={f("port")}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {field("Username / Email", "username", "text", "you@domain.com")}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Password</label>
+          <div className="relative">
+            <input type={showPass ? "text" : "password"} value={form.password} onChange={f("password")}
+              placeholder="App password or SMTP key"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <button type="button" onClick={() => setShowPass(p => !p)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              {showPass ? <Lock size={13} /> : <Lock size={13} />}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {field("From Email", "from_email", "email", "noreply@yourdomain.com")}
+        {field("From Name", "from_name", "text", "TechCase")}
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Encryption</label>
+        <div className="flex gap-2">
+          {[["tls", "TLS (587)"], ["ssl", "SSL (465)"], ["none", "None (25)"]].map(([v, l]) => (
+            <button key={v} onClick={() => setForm(p => ({ ...p, encryption: v }))}
+              className={`flex-1 py-2 text-xs font-medium rounded-xl border-2 transition-all ${form.encryption === v ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}>
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {testResult && (
+        <div className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm ${testResult.ok ? "bg-emerald-50 border border-emerald-200 text-emerald-700" : "bg-red-50 border border-red-200 text-red-700"}`}>
+          {testResult.ok ? <BadgeCheck size={14} /> : <AlertTriangle size={14} />}
+          {testResult.msg}
+        </div>
+      )}
+
+      <div className="flex gap-3 pt-1">
+        <button onClick={handleTest} disabled={testing || saving}
+          className="px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50 text-gray-600 font-medium disabled:opacity-50">
+          {testing ? "Sending…" : "Send Test Email"}
+        </button>
+        <button onClick={handleSave} disabled={saving}
+          className="px-5 py-2 text-sm bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
+          {saved ? "Saved ✓" : saving ? "Saving…" : "Save Settings"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Platform tab — Platform + Invoice + Trust stacked ─────────
 function SettingsPlatformCombinedTab({ ssCtx }) {
   const SECTIONS = [
     { id: "signup",   label: "Sign-up Flow",        Icon: Shield,    Component: SettingsSignupFlowTab },
+    { id: "smtp",     label: "Email / SMTP",        Icon: Mail,      Component: SettingsSMTPTab },
     { id: "platform", label: "Platform Defaults",   Icon: Sparkles,  Component: SettingsPlatformTab },
     { id: "invoice",  label: "Invoice Defaults",    Icon: Receipt,   Component: SettingsInvoiceTab },
     { id: "trust",    label: "Trust & Ratings",     Icon: BadgeCheck, Component: SettingsTrustTab },
   ];
-  const [open, setOpen] = useState({ signup: true, platform: true, invoice: true, trust: true });
+  const [open, setOpen] = useState({ signup: true, smtp: false, platform: true, invoice: true, trust: true });
   return (
     <div className="space-y-4">
       {SECTIONS.map(({ id, label, Icon: Ic, Component }) => (
