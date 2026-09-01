@@ -14307,9 +14307,12 @@ function ProjectsView({ auth, initialProjectId }) {
             const activeCases    = p.cases?.filter(c => c.status === "in_progress").length ?? 0;
             const progress       = totalCases === 0 ? 0 : Math.round(doneCases / totalCases * 100);
             const company        = p.client?.client_profiles?.company_name ?? p.client?.full_name;
+            const isTerminated   = TERM_S.includes(p.status);
+            const isOverdue      = !isTerminated && p.end_date && new Date(p.end_date) < new Date();
+            const PRIORITY_STYLES = { critical: "bg-red-100 text-red-700", high: "bg-orange-100 text-orange-700", medium: "bg-yellow-100 text-yellow-700", low: "bg-gray-100 text-gray-500" };
             return (
               <div key={p.id}
-                className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer p-5"
+                className={`bg-white rounded-2xl border shadow-sm hover:shadow-md transition-all cursor-pointer p-5 ${isOverdue ? "border-red-200" : "border-gray-100"}`}
                 onClick={() => setSelectedProject(p)}>
                 <div className="flex items-start gap-4">
                   {/* Project avatar (falls back to client avatar → initials) */}
@@ -14326,9 +14329,17 @@ function ProjectsView({ auth, initialProjectId }) {
                           <p className="text-xs text-gray-500 mt-0.5">{company}</p>
                         )}
                       </div>
-                      <span className={`flex-shrink-0 px-2 py-0.5 text-xs font-semibold rounded-lg ${PROJECT_STATUS_COLORS[p.status] ?? "bg-gray-100 text-gray-600"}`}>
-                        {STATUS_LABEL_KEYS[p.status] ? t(STATUS_LABEL_KEYS[p.status]) : cap(fmt(p.status))}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {isOverdue && (
+                          <span className="px-2 py-0.5 text-xs font-semibold rounded-lg bg-red-100 text-red-700">Overdue</span>
+                        )}
+                        {p.priority && p.priority !== "medium" && (
+                          <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg capitalize ${PRIORITY_STYLES[p.priority] ?? "bg-gray-100 text-gray-600"}`}>{p.priority}</span>
+                        )}
+                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${PROJECT_STATUS_COLORS[p.status] ?? "bg-gray-100 text-gray-600"}`}>
+                          {STATUS_LABEL_KEYS[p.status] ? t(STATUS_LABEL_KEYS[p.status]) : cap(fmt(p.status))}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Description */}
