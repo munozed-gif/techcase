@@ -9030,10 +9030,13 @@ function Dashboard({ auth }) {
   const activeStat = myStats.find(s => s.id === activeTab);
 
   const colorMap = {
-    blue:   { icon: "bg-blue-100 text-blue-600",     active: "bg-blue-50 border-blue-400",   num: "text-blue-700" },
-    green:  { icon: "bg-green-100 text-green-600",   active: "bg-green-50 border-green-400", num: "text-green-700" },
+    blue:   { icon: "bg-blue-100 text-blue-600",     active: "bg-blue-50 border-blue-400",     num: "text-blue-700" },
+    green:  { icon: "bg-green-100 text-green-600",   active: "bg-green-50 border-green-400",   num: "text-green-700" },
+    teal:   { icon: "bg-teal-100 text-teal-600",     active: "bg-teal-50 border-teal-400",     num: "text-teal-700" },
     purple: { icon: "bg-purple-100 text-purple-600", active: "bg-purple-50 border-purple-400", num: "text-purple-700" },
     yellow: { icon: "bg-yellow-100 text-yellow-600", active: "bg-yellow-50 border-yellow-400", num: "text-yellow-700" },
+    red:    { icon: "bg-red-100 text-red-600",       active: "bg-red-50 border-red-400",       num: "text-red-700" },
+    gray:   { icon: "bg-gray-100 text-gray-500",     active: "bg-gray-50 border-gray-400",     num: "text-gray-700" },
   };
 
   if (casesLoading) return <Spinner />;
