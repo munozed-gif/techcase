@@ -8296,8 +8296,8 @@ function AuthScreen({ onAuth }) {
       const { data: flowSetting } = await supabase
         .from("system_settings").select("value").eq("key", "signup_flow").maybeSingle();
       const signupFlow = flowSetting?.value ?? "auto_approve";
-      const userRow = { id: user.id, email: user.email, full_name: name.trim(), role };
-      if (signupFlow === "auto_approve") userRow.verification_status = "approved";
+      const verificationStatus = signupFlow === "require_approval" ? "pending" : "approved";
+      const userRow = { id: user.id, email: user.email, full_name: name.trim(), role, verification_status: verificationStatus };
       await supabase.from("users").upsert(userRow, { onConflict: "id" });
       if (role === "consultant") {
         const skillsArr = skills.split(",").map(s => s.trim()).filter(Boolean);
@@ -8587,6 +8587,14 @@ function AuthScreen({ onAuth }) {
                   </div>
                 </>)}
 
+                {ssSettings["signup_flow"] === "require_approval" && (
+                  <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 mt-2">
+                    <Shield size={14} className="text-amber-500 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-amber-700 leading-relaxed">
+                      Your account will be reviewed by an admin before you can log in. You'll be notified once it's approved.
+                    </p>
+                  </div>
+                )}
                 <button onClick={createAccount} disabled={loading}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 mt-2">
                   {loading ? t("auth.creating") : t("action.create_account")}
