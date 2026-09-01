@@ -6545,16 +6545,16 @@ const STATUS_COLORS = {
 };
 
 const CASE_CARD_COLORS = {
-  open:            { bar: "#34d399", border: "#a7f3d0" },
-  estimated:       { bar: "#2dd4bf", border: "#99f6e4" },
-  assigned:        { bar: "#a78bfa", border: "#ddd6fe" },
-  in_progress:     { bar: "#60a5fa", border: "#bfdbfe" },
-  on_hold:         { bar: "#facc15", border: "#fef08a" },
-  completed:       { bar: "#9ca3af", border: "#e5e7eb" },
-  cancelled:       { bar: "#f87171", border: "#fecaca" },
-  technical_test:  { bar: "#22d3ee", border: "#a5f3fc" },
-  functional_test: { bar: "#fbbf24", border: "#fde68a" },
-  user_test:       { bar: "#fb923c", border: "#fed7aa" },
+  open:            { bar: "#34d399", border: "#a7f3d0", bg: "#f0fdf4" },
+  estimated:       { bar: "#2dd4bf", border: "#99f6e4", bg: "#f0fdfa" },
+  assigned:        { bar: "#a78bfa", border: "#ddd6fe", bg: "#faf5ff" },
+  in_progress:     { bar: "#60a5fa", border: "#bfdbfe", bg: "#eff6ff" },
+  on_hold:         { bar: "#facc15", border: "#fef08a", bg: "#fffbeb" },
+  completed:       { bar: "#9ca3af", border: "#e5e7eb", bg: "#f9fafb" },
+  cancelled:       { bar: "#f87171", border: "#fecaca", bg: "#fef2f2" },
+  technical_test:  { bar: "#22d3ee", border: "#a5f3fc", bg: "#ecfeff" },
+  functional_test: { bar: "#fbbf24", border: "#fde68a", bg: "#fffbeb" },
+  user_test:       { bar: "#fb923c", border: "#fed7aa", bg: "#fff7ed" },
 };
 
 const PRIORITY_COLORS = {
@@ -14706,7 +14706,7 @@ function CasesView({ auth, initialCaseId }) {
           {displayed.map(c => (
             <div key={c.id}
               className="rounded-2xl cursor-pointer transition-all hover:shadow-md p-5"
-              style={{ border: `1.5px solid ${selectedCases.has(c.id) ? '#bfdbfe' : (CASE_CARD_COLORS[c.status]?.border ?? '#e5e7eb')}` }}
+              style={(() => { const cc = selectedCases.has(c.id) ? { border: '#bfdbfe', bg: '#eff6ff' } : (CASE_CARD_COLORS[c.status] ?? { border: '#e5e7eb', bg: '#ffffff' }); return { border: `1.5px solid ${cc.border}`, backgroundColor: cc.bg }; })()}
               onClick={() => setSelected(c)}>
               <div className="flex items-start gap-3">
                 {(auth.isAdmin || auth.isManager) && (
