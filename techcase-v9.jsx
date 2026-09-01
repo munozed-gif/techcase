@@ -8216,6 +8216,7 @@ function AuthScreen({ onAuth }) {
     } else {
       setFinalUserClient(null);
     }
+    if (data.member_name) setName(data.member_name);
   }
 
   // ── Step 0: role chosen → decide OTP or skip ─────────────────
