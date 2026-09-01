@@ -34,7 +34,7 @@ import {
   Play, Pause, PauseCircle, RotateCcw, Archive, Search,
   BadgeCheck, XCircle,
   Wand2, Download, Sparkles, Loader2,
-  ListChecks, ChevronDown, ChevronUp, ChevronRight, AlertTriangle, CircleSlash,
+  ListChecks, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, AlertTriangle, CircleSlash,
   GripVertical, Pencil, Timer, Link2, ExternalLink, Upload, Code2, Lock, Camera,
   Plus, Tag, RefreshCw, Shield,
   LayoutTemplate, Copy,
@@ -7560,7 +7560,7 @@ function VouchingPanel({ targetUserId, targetName }) {
 // ============================================================
 // CONSULTANT PROFILE VIEW
 // ============================================================
-function ConsultantProfileView({ userId }) {
+function ConsultantProfileView({ userId, onBack }) {
   const auth = useAuth();
   const { t } = useT();
   const targetUserId = userId ?? auth.profile?.id ?? auth.user?.id;
@@ -7700,6 +7700,12 @@ function ConsultantProfileView({ userId }) {
 
   return (
     <div className="space-y-6">
+      {onBack && (
+        <button onClick={onBack}
+          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 font-medium transition-colors -mb-2">
+          <ChevronLeft size={16} /> Back to People
+        </button>
+      )}
       {/* Header */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
         <div className="flex items-center gap-4 flex-wrap">
@@ -32676,7 +32682,7 @@ export default function App() {
       case "my-cases":       return <CasesView auth={auth} initialCaseId={pendingCaseId} />;
       case "arena":          return <ArenaView auth={auth} />;
       case "profile":        return pendingUserId
-                               ? <ConsultantProfileView userId={pendingUserId} />
+                               ? <ConsultantProfileView userId={pendingUserId} onBack={() => { setActiveView("settings"); setPendingUserId(null); }} />
                                : auth.isConsultant ? <ConsultantProfileView /> : <ProfileView auth={auth} />;
       case "consultants":    return <ConsultantsView auth={auth} />;
       case "users":          return auth.isAdmin ? <UsersView /> : <Dashboard auth={auth} />;
