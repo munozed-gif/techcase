@@ -8206,22 +8206,16 @@ function AuthScreen({ onAuth }) {
   }
 
   // ── Look up pre-registered key/final user by email ────────────
+  // Uses a SECURITY DEFINER RPC to bypass RLS (safe for unauthenticated callers)
   async function checkEmailPreReg(em) {
-    const { data: kuCases } = await supabase.from("cases")
-      .select("key_user_email, client:client_id(client_profiles(company_name))")
-      .eq("key_user_email", em.trim()).limit(1);
-    if (kuCases?.length > 0) {
-      const cp = kuCases[0].client?.client_profiles;
-      setKeyUserCompany((Array.isArray(cp) ? cp[0]?.company_name : cp?.company_name) ?? "a company");
-    } else setKeyUserCompany(null);
-    const { data: fuRows } = await supabase.from("client_team_members")
-      .select("client_id, client:client_id(client_profiles(company_name))")
-      .eq("email", em.trim()).limit(1);
-    if (fuRows?.length > 0) {
-      const cp = fuRows[0].client?.client_profiles;
-      const cName = (Array.isArray(cp) ? cp[0]?.company_name : cp?.company_name) ?? "a company";
-      setFinalUserClient({ clientId: fuRows[0].client_id, companyName: cName });
-    } else setFinalUserClient(null);
+    const { data } = await supabase.rpc("check_team_registration", { email_to_check: em.trim() });
+    if (!data) { setKeyUserCompany(null); setFinalUserClient(null); return; }
+    setKeyUserCompany(data.key_user_company ?? null);
+    if (data.final_user_client_id) {
+      setFinalUserClient({ clientId: data.final_user_client_id, companyName: data.final_user_company ?? "a company" });
+    } else {
+      setFinalUserClient(null);
+    }
   }
 
   // ── Step 0: role chosen → decide OTP or skip ─────────────────
