@@ -8357,8 +8357,11 @@ function AuthScreen({ onAuth }) {
         }
         if (!signUpData.user) { setError("Registration failed — please try again."); setLoad(false); return; }
         userId = signUpData.user.id; userEmail = signUpData.user.email;
+        // Write the user row now even if email confirmation is still pending,
+        // so the admin approval tab can see them regardless of Supabase confirmation settings.
+        const earlyRow = { id: userId, email: userEmail, full_name: name.trim(), role, verification_status: verificationStatus };
+        await supabase.from("users").upsert(earlyRow, { onConflict: "id" });
         if (!signUpData.session) {
-          // No session yet (Supabase email confirmation required) — show pending screen
           setApprovalDone(true); setLoad(false); return;
         }
       }
