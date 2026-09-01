@@ -9242,21 +9242,36 @@ function Dashboard({ auth }) {
           functional_test: "bg-amber-100 text-amber-700",
           user_test:       "bg-orange-100 text-orange-700",
         };
-        const CaseRow = ({ c }) => (
-          <div onClick={() => setSelectedCase(c)}
-            className="flex items-center justify-between px-4 py-3 hover:bg-blue-50 cursor-pointer transition-colors group">
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-gray-900 text-sm truncate group-hover:text-blue-700">{c.title}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{[c.area_sap, c.area_industry].filter(Boolean).join(" · ") || t("dashboard.no_area")}</p>
+        const CASE_ROW_BG = {
+          open:           "bg-emerald-50  border-l-emerald-400",
+          estimated:      "bg-teal-50     border-l-teal-400",
+          assigned:       "bg-violet-50   border-l-violet-400",
+          in_progress:    "bg-blue-50     border-l-blue-400",
+          on_hold:        "bg-yellow-50   border-l-yellow-400",
+          completed:      "bg-gray-50     border-l-gray-300",
+          cancelled:      "bg-red-50      border-l-red-400",
+          technical_test: "bg-cyan-50     border-l-cyan-400",
+          functional_test:"bg-amber-50    border-l-amber-400",
+          user_test:      "bg-orange-50   border-l-orange-400",
+        };
+        const CaseRow = ({ c }) => {
+          const rowBg = CASE_ROW_BG[c.status] ?? "bg-white border-l-gray-200";
+          return (
+            <div onClick={() => setSelectedCase(c)}
+              className={`flex items-center justify-between px-4 py-3 border-l-4 cursor-pointer transition-colors group ${rowBg}`}>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-gray-900 text-sm truncate group-hover:text-blue-700">{c.title}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{[c.area_sap, c.area_industry].filter(Boolean).join(" · ") || t("dashboard.no_area")}</p>
+              </div>
+              <div className="flex items-center gap-3 ml-4 flex-shrink-0">
+                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
+                  {c.status?.replace(/_/g, " ")}
+                </span>
+                <ChevronRight size={14} className="text-gray-300 group-hover:text-blue-500" />
+              </div>
             </div>
-            <div className="flex items-center gap-3 ml-4 flex-shrink-0">
-              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
-                {c.status?.replace(/_/g, " ")}
-              </span>
-              <ChevronRight size={14} className="text-gray-300 group-hover:text-blue-500" />
-            </div>
-          </div>
-        );
+          );
+        };
         return (
           <div className="bg-white rounded-2xl shadow-sm border border-blue-200 mb-6 overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-blue-50/60">
@@ -14344,9 +14359,11 @@ function ProjectsView({ auth, initialProjectId }) {
             const isTerminated   = TERM_S.includes(p.status);
             const isOverdue      = !isTerminated && p.end_date && new Date(p.end_date) < new Date();
             const PRIORITY_STYLES = { critical: "bg-red-100 text-red-700", high: "bg-orange-100 text-orange-700", medium: "bg-yellow-100 text-yellow-700", low: "bg-gray-100 text-gray-500" };
+            const PROJ_CARD_BG = { draft: "bg-gray-50 border-gray-200", active: "bg-blue-50 border-blue-200", on_hold: "bg-yellow-50 border-yellow-200", completed: "bg-green-50 border-green-200", cancelled: "bg-red-50 border-red-200" };
+            const cardBg = isOverdue ? "bg-red-50 border-red-300" : (PROJ_CARD_BG[p.status] ?? "bg-white border-gray-100");
             return (
               <div key={p.id}
-                className={`bg-white rounded-2xl border shadow-sm hover:shadow-md transition-all cursor-pointer p-5 ${isOverdue ? "border-red-200" : "border-gray-100"}`}
+                className={`rounded-2xl border shadow-sm hover:shadow-md transition-all cursor-pointer p-5 ${cardBg}`}
                 onClick={() => setSelectedProject(p)}>
                 <div className="flex items-start gap-4">
                   {/* Project avatar (falls back to client avatar → initials) */}
