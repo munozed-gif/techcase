@@ -8329,7 +8329,14 @@ function AuthScreen({ onAuth }) {
           email: email.trim(), password,
           options: { data: { full_name: name.trim(), role } },
         });
-        if (signUpErr) { setError(signUpErr.message); setLoad(false); return; }
+        if (signUpErr) {
+          const raw = signUpErr.message ?? "";
+          const isUseless = !raw || raw === "{}" || raw === "[object Object]";
+          setError(isUseless
+            ? "Registration failed. If you are using Admin Approval mode, go to Supabase → Authentication → Providers → Email and disable \"Confirm email\"."
+            : raw);
+          setLoad(false); return;
+        }
         if (!signUpData.user) { setError("Registration failed — please try again."); setLoad(false); return; }
         userId = signUpData.user.id; userEmail = signUpData.user.email;
         if (!signUpData.session) {
