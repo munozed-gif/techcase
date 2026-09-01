@@ -14363,12 +14363,15 @@ function ProjectsView({ auth, initialProjectId }) {
             const isTerminated   = TERM_S.includes(p.status);
             const isOverdue      = !isTerminated && p.end_date && new Date(p.end_date) < new Date();
             const PRIORITY_STYLES = { critical: "bg-red-100 text-red-700", high: "bg-orange-100 text-orange-700", medium: "bg-yellow-100 text-yellow-700", low: "bg-gray-100 text-gray-500" };
-            const PROJ_CARD_BG = { draft: "bg-gray-50 border-gray-200", active: "bg-green-50 border-green-200", on_hold: "bg-yellow-50 border-yellow-200", completed: "bg-teal-50 border-teal-200", cancelled: "bg-red-50 border-red-200" };
-            const cardBg = isOverdue ? "bg-red-50 border-red-300" : (PROJ_CARD_BG[p.status] ?? "bg-white border-gray-100");
+            const PROJ_CARD_COLORS = { draft: { bar: "#9ca3af", border: "#d1d5db" }, active: { bar: "#16a34a", border: "#86efac" }, on_hold: { bar: "#b45309", border: "#fcd34d" }, completed: { bar: "#0d9488", border: "#5eead4" }, cancelled: { bar: "#dc2626", border: "#fca5a5" } };
+            const cardColors = isOverdue ? { bar: "#dc2626", border: "#fca5a5" } : (PROJ_CARD_COLORS[p.status] ?? { bar: "#9ca3af", border: "#e5e7eb" });
             return (
               <div key={p.id}
-                className={`rounded-2xl border shadow-sm hover:shadow-md transition-all cursor-pointer p-5 ${cardBg}`}
+                className="rounded-2xl border bg-white shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden"
+                style={{ borderColor: cardColors.border }}
                 onClick={() => setSelectedProject(p)}>
+                <div style={{ height: 5, background: cardColors.bar }} />
+                <div className="p-5">
                 <div className="flex items-start gap-4">
                   {/* Project avatar (falls back to client avatar → initials) */}
                   <div className="flex-shrink-0 mt-0.5">
@@ -14437,6 +14440,7 @@ function ProjectsView({ auth, initialProjectId }) {
                       </div>
                     )}
                   </div>
+                </div>
                 </div>
               </div>
             );
