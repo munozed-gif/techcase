@@ -14331,6 +14331,11 @@ function ProjectsView({ auth, initialProjectId }) {
                       </span>
                     </div>
 
+                    {/* Description */}
+                    {p.description && (
+                      <p className="text-sm text-gray-500 leading-snug mb-2 line-clamp-2">{p.description}</p>
+                    )}
+
                     {/* Meta row */}
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-400 mb-3">
                       {totalCases > 0 && (
