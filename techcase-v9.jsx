@@ -6545,16 +6545,16 @@ const STATUS_COLORS = {
 };
 
 const CASE_CARD_COLORS = {
-  open:            { bar: "#34d399", border: "#a7f3d0", bg: "#f0fdf4" },
-  estimated:       { bar: "#2dd4bf", border: "#99f6e4", bg: "#f0fdfa" },
-  assigned:        { bar: "#a78bfa", border: "#ddd6fe", bg: "#faf5ff" },
-  in_progress:     { bar: "#60a5fa", border: "#bfdbfe", bg: "#eff6ff" },
-  on_hold:         { bar: "#facc15", border: "#fef08a", bg: "#fffbeb" },
-  completed:       { bar: "#9ca3af", border: "#e5e7eb", bg: "#f9fafb" },
-  cancelled:       { bar: "#f87171", border: "#fecaca", bg: "#fef2f2" },
-  technical_test:  { bar: "#22d3ee", border: "#a5f3fc", bg: "#ecfeff" },
-  functional_test: { bar: "#fbbf24", border: "#fde68a", bg: "#fffbeb" },
-  user_test:       { bar: "#fb923c", border: "#fed7aa", bg: "#fff7ed" },
+  open:            { bar: "#34d399", border: "#a7f3d0", bg: "#f8fefa" },
+  estimated:       { bar: "#2dd4bf", border: "#99f6e4", bg: "#f8fefd" },
+  assigned:        { bar: "#a78bfa", border: "#ddd6fe", bg: "#fdfaff" },
+  in_progress:     { bar: "#60a5fa", border: "#bfdbfe", bg: "#f7fbff" },
+  on_hold:         { bar: "#facc15", border: "#fef08a", bg: "#fffdf5" },
+  completed:       { bar: "#9ca3af", border: "#e5e7eb", bg: "#fcfdfd" },
+  cancelled:       { bar: "#f87171", border: "#fecaca", bg: "#fff9f9" },
+  technical_test:  { bar: "#22d3ee", border: "#a5f3fc", bg: "#f6ffff" },
+  functional_test: { bar: "#fbbf24", border: "#fde68a", bg: "#fffdf5" },
+  user_test:       { bar: "#fb923c", border: "#fed7aa", bg: "#fffbf6" },
 };
 
 const PRIORITY_COLORS = {
@@ -14366,8 +14366,8 @@ function ProjectsView({ auth, initialProjectId }) {
             const isTerminated   = TERM_S.includes(p.status);
             const isOverdue      = !isTerminated && p.end_date && new Date(p.end_date) < new Date();
             const PRIORITY_STYLES = { critical: "bg-red-100 text-red-700", high: "bg-orange-100 text-orange-700", medium: "bg-yellow-100 text-yellow-700", low: "bg-gray-100 text-gray-500" };
-            const PROJ_CARD_COLORS = { draft: { border: "#d1d5db", bg: "#f9fafb" }, active: { border: "#86efac", bg: "#f0fdf4" }, on_hold: { border: "#fcd34d", bg: "#fffbeb" }, completed: { border: "#5eead4", bg: "#f0fdfa" }, cancelled: { border: "#fca5a5", bg: "#fef2f2" } };
-            const cardColors = isOverdue ? { border: "#fca5a5", bg: "#fef2f2" } : (PROJ_CARD_COLORS[p.status] ?? { border: "#e5e7eb", bg: "#ffffff" });
+            const PROJ_CARD_COLORS = { draft: { border: "#d1d5db", bg: "#fcfdfd" }, active: { border: "#86efac", bg: "#f8fefa" }, on_hold: { border: "#fcd34d", bg: "#fffdf5" }, completed: { border: "#5eead4", bg: "#f8fefd" }, cancelled: { border: "#fca5a5", bg: "#fff9f9" } };
+            const cardColors = isOverdue ? { border: "#fca5a5", bg: "#fff9f9" } : (PROJ_CARD_COLORS[p.status] ?? { border: "#e5e7eb", bg: "#ffffff" });
             return (
               <div key={p.id}
                 className="rounded-2xl cursor-pointer transition-all hover:shadow-md p-5"
