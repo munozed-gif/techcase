@@ -8996,30 +8996,30 @@ function Dashboard({ auth }) {
   // Stat tiles — each carries its pre-filtered items and type for the list panel
   const statDefs = {
     admin: [
-      { id: "total",    label: t("dashboard.total_cases"),     Icon: FolderOpen,    color: "blue",   type: "cases",        items: cases },
+      { id: "total",    label: t("dashboard.total_cases"),     Icon: FolderOpen,    color: "gray",   type: "cases",        items: cases },
       { id: "open",     label: t("dashboard.open_cases"),      Icon: Inbox,         color: "green",  type: "cases",        items: cases.filter(c => c.status === "open") },
       { id: "progress", label: t("dashboard.in_progress"),     Icon: Activity,      color: "blue",   type: "cases",        items: cases.filter(c => c.status === "in_progress") },
       { id: "apps",     label: t("label.applications"),        Icon: ClipboardList, color: "purple", type: "applications", items: applications },
     ],
     manager: [
-      { id: "mycases",  label: t("dashboard.my_cases"),        Icon: FolderOpen,    color: "blue",   type: "cases",        items: managedCases },
+      { id: "mycases",  label: t("dashboard.my_cases"),        Icon: FolderOpen,    color: "gray",   type: "cases",        items: managedCases },
       { id: "open",     label: t("dashboard.open_cases"),      Icon: Inbox,         color: "green",  type: "cases",        items: cases.filter(c => c.status === "open") },
       { id: "pending",  label: t("dashboard.pending_reviews"), Icon: Clock,         color: "yellow", type: "applications", items: applications.filter(a => a.status === "pending") },
     ],
     consultant: [
-      { id: "myapps",   label: t("dashboard.my_applications"), Icon: ClipboardList, color: "blue",  type: "applications", items: myApplications },
+      { id: "myapps",   label: t("dashboard.my_applications"), Icon: ClipboardList, color: "gray",  type: "applications", items: myApplications },
       { id: "accepted", label: t("dashboard.accepted"),        Icon: CheckCircle2,  color: "green", type: "applications", items: myApplications.filter(a => a.status === "accepted") },
-      { id: "open",     label: t("dashboard.open_cases"),      Icon: Inbox,         color: "blue",  type: "cases",        items: availableCases },
+      { id: "open",     label: t("dashboard.open_cases"),      Icon: Inbox,         color: "green", type: "cases",        items: availableCases },
     ],
     client: [
-      { id: "mycases",   label: t("dashboard.my_cases"),   Icon: FolderOpen,   color: "blue",  type: "cases", items: myCases },
+      { id: "mycases",   label: t("dashboard.my_cases"),   Icon: FolderOpen,   color: "gray",  type: "cases", items: myCases },
       { id: "active",    label: t("label.active"),          Icon: Activity,     color: "blue",  type: "cases", items: myCases.filter(c => c.status === "in_progress") },
       { id: "completed", label: t("dashboard.completed"),   Icon: CheckCircle2, color: "green", type: "cases", items: myCases.filter(c => c.status === "completed") },
     ],
     key_user: (() => {
       const kuCases = cases.filter(c => c.case_key_users?.some(ku => ku.user_id === auth.user?.id));
       return [
-        { id: "mycases",   label: t("dashboard.my_cases"),   Icon: FolderOpen,   color: "blue",  type: "cases", items: kuCases },
+        { id: "mycases",   label: t("dashboard.my_cases"),   Icon: FolderOpen,   color: "gray",  type: "cases", items: kuCases },
         { id: "active",    label: t("label.active"),          Icon: Activity,     color: "blue",  type: "cases", items: kuCases.filter(c => c.status === "in_progress") },
         { id: "completed", label: t("dashboard.completed"),   Icon: CheckCircle2, color: "green", type: "cases", items: kuCases.filter(c => c.status === "completed") },
       ];
@@ -12202,9 +12202,9 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
 
 const PROJECT_STATUS_COLORS = {
   draft:     "bg-gray-100 text-gray-600",
-  active:    "bg-blue-100 text-blue-700",
+  active:    "bg-green-100 text-green-700",
   on_hold:   "bg-yellow-100 text-yellow-700",
-  completed: "bg-green-100 text-green-700",
+  completed: "bg-teal-100 text-teal-700",
   cancelled: "bg-red-100 text-red-700",
 };
 
@@ -14292,17 +14292,18 @@ function ProjectsView({ auth, initialProjectId }) {
         const TERM_ALL = ["completed","cancelled","terminated","closed","approved"];
         const overdueProjects = projects.filter(p => !TERM_ALL.includes(p.status) && p.end_date && new Date(p.end_date) < new Date());
         const statTiles = [
-          { val: "",          label: t("projects.all"),         Icon: Layers,       color: "blue",   count: projects.length },
+          { val: "",          label: t("projects.all"),         Icon: Layers,       color: "gray",   count: projects.length },
           { val: "draft",     label: t("projects.draft"),       Icon: FileEdit,     color: "gray",   count: projects.filter(p => p.status === "draft").length },
-          { val: "active",    label: t("label.active"),         Icon: Activity,     color: "green",  count: projects.filter(p => p.status === "active").length },
+          { val: "active",    label: t("label.active"),         Icon: Activity,     color: "green",  count: projects.filter(p => p.status === "active").length  },
           { val: "on_hold",   label: t("projects.on_hold"),     Icon: PauseCircle,  color: "yellow", count: projects.filter(p => p.status === "on_hold").length },
-          { val: "completed", label: t("dashboard.completed"),  Icon: CheckCircle2, color: "green",  count: projects.filter(p => p.status === "completed").length },
+          { val: "completed", label: t("dashboard.completed"),  Icon: CheckCircle2, color: "teal",   count: projects.filter(p => p.status === "completed").length },
           { val: "cancelled", label: t("projects.cancelled"),   Icon: XCircle,      color: "red",    count: projects.filter(p => p.status === "cancelled").length },
           ...(overdueProjects.length > 0 ? [{ val: "__overdue__", label: "Overdue", Icon: AlertCircle, color: "red", count: overdueProjects.length }] : []),
         ].filter(s => s.val === "" || s.count > 0);
         const colorMap = {
           blue:   { icon: "bg-blue-100 text-blue-600",   active: "bg-blue-50 border-blue-400",   num: "text-blue-700" },
           green:  { icon: "bg-green-100 text-green-600", active: "bg-green-50 border-green-400", num: "text-green-700" },
+          teal:   { icon: "bg-teal-100 text-teal-600",   active: "bg-teal-50 border-teal-400",   num: "text-teal-700" },
           yellow: { icon: "bg-yellow-100 text-yellow-600",active: "bg-yellow-50 border-yellow-400",num: "text-yellow-700" },
           red:    { icon: "bg-red-100 text-red-600",     active: "bg-red-50 border-red-400",     num: "text-red-700" },
           gray:   { icon: "bg-gray-100 text-gray-500",   active: "bg-gray-50 border-gray-400",   num: "text-gray-700" },
@@ -14359,7 +14360,7 @@ function ProjectsView({ auth, initialProjectId }) {
             const isTerminated   = TERM_S.includes(p.status);
             const isOverdue      = !isTerminated && p.end_date && new Date(p.end_date) < new Date();
             const PRIORITY_STYLES = { critical: "bg-red-100 text-red-700", high: "bg-orange-100 text-orange-700", medium: "bg-yellow-100 text-yellow-700", low: "bg-gray-100 text-gray-500" };
-            const PROJ_CARD_BG = { draft: "bg-gray-50 border-gray-200", active: "bg-blue-50 border-blue-200", on_hold: "bg-yellow-50 border-yellow-200", completed: "bg-green-50 border-green-200", cancelled: "bg-red-50 border-red-200" };
+            const PROJ_CARD_BG = { draft: "bg-gray-50 border-gray-200", active: "bg-green-50 border-green-200", on_hold: "bg-yellow-50 border-yellow-200", completed: "bg-teal-50 border-teal-200", cancelled: "bg-red-50 border-red-200" };
             const cardBg = isOverdue ? "bg-red-50 border-red-300" : (PROJ_CARD_BG[p.status] ?? "bg-white border-gray-100");
             return (
               <div key={p.id}
