@@ -9290,7 +9290,7 @@ function Dashboard({ auth }) {
       })()}
 
       {/* Clickable stat tiles */}
-      <div className="flex gap-3 mb-6 overflow-x-auto pb-1" style={{scrollbarWidth:'none'}}>
+      <div className="flex gap-3 mb-6 overflow-x-auto px-1 py-1 -mx-1 -mt-1" style={{scrollbarWidth:'none'}}>
         {myStats.map(s => {
           const isActive = activeTab === s.id;
           return (
@@ -14293,7 +14293,7 @@ function ProjectsView({ auth, initialProjectId }) {
           gray:   { icon: "bg-gray-100 text-gray-500",    ring: "ring-2 ring-gray-400 bg-gray-50",   num: "text-gray-700" },
         };
         return (
-          <div className="flex gap-3 mb-6 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+          <div className="flex gap-3 mb-6 overflow-x-auto px-1 py-1 -mx-1 -mt-1" style={{ scrollbarWidth: "none" }}>
             {statTiles.map(s => {
               const isActive = statusFilter === s.val;
               const cm = colorMap[s.color];
