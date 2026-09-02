@@ -40,6 +40,7 @@ import {
   LayoutTemplate, Copy,
   Bookmark, BookmarkCheck, Send, Crosshair,
   FileEdit, AlertCircle,
+  Calendar, CalendarDays, CalendarRange, FolderKanban,
 } from "lucide-react";
 
 // ============================================================
@@ -15070,68 +15071,75 @@ function CasesView({ auth, initialCaseId }) {
         )}
       </div>
 
-      {/* ── Status filter pills ── */}
+      {/* ── Status + Period filter buttons ── */}
       {(() => {
-        const ALL_STATUSES = [
-          { val: "open",           label: t("status.open"),           color: "#16a34a", bg: "#f0fdf4", border: "#86efac" },
-          { val: "estimated",      label: t("status.estimated"),      color: "#0d9488", bg: "#f0fdfa", border: "#5eead4" },
-          { val: "assigned",       label: t("status.assigned"),       color: "#7c3aed", bg: "#faf5ff", border: "#c4b5fd" },
-          { val: "in_progress",    label: t("status.in_progress"),    color: "#2563eb", bg: "#eff6ff", border: "#93c5fd" },
-          { val: "on_hold",        label: t("status.on_hold"),        color: "#b45309", bg: "#fffbeb", border: "#fcd34d" },
-          { val: "technical_test", label: t("status.technical_test"), color: "#0891b2", bg: "#ecfeff", border: "#67e8f9" },
-          { val: "functional_test",label: t("status.functional_test"),color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
-          { val: "user_test",      label: t("status.user_test"),      color: "#ea580c", bg: "#fff7ed", border: "#fed7aa" },
-          { val: "completed",      label: t("status.completed"),      color: "#0d9488", bg: "#f0fdfa", border: "#5eead4" },
-          { val: "cancelled",      label: t("status.cancelled"),      color: "#dc2626", bg: "#fef2f2", border: "#fca5a5" },
+        const STATUS_DEFS = [
+          { val: "open",           label: t("status.open"),           color: "#16a34a", bg: "#f0fdf4", border: "#86efac", Icon: Inbox },
+          { val: "estimated",      label: t("status.estimated"),      color: "#0d9488", bg: "#f0fdfa", border: "#5eead4", Icon: ClipboardList },
+          { val: "assigned",       label: t("status.assigned"),       color: "#7c3aed", bg: "#faf5ff", border: "#c4b5fd", Icon: UserCheck },
+          { val: "in_progress",    label: t("status.in_progress"),    color: "#2563eb", bg: "#eff6ff", border: "#93c5fd", Icon: Zap },
+          { val: "on_hold",        label: t("status.on_hold"),        color: "#b45309", bg: "#fffbeb", border: "#fcd34d", Icon: PauseCircle },
+          { val: "technical_test", label: t("status.technical_test"), color: "#0891b2", bg: "#ecfeff", border: "#67e8f9", Icon: Code2 },
+          { val: "functional_test",label: t("status.functional_test"),color: "#d97706", bg: "#fffbeb", border: "#fde68a", Icon: ListChecks },
+          { val: "user_test",      label: t("status.user_test"),      color: "#ea580c", bg: "#fff7ed", border: "#fed7aa", Icon: Users },
+          { val: "completed",      label: t("status.completed"),      color: "#0d9488", bg: "#f0fdfa", border: "#5eead4", Icon: CheckCircle2 },
+          { val: "cancelled",      label: t("status.cancelled"),      color: "#dc2626", bg: "#fef2f2", border: "#fca5a5", Icon: XCircle },
         ]
           .map(s => ({ ...s, count: visibleCases.filter(c => c.status === s.val).length }))
           .filter(s => s.count > 0);
 
-        const periods = [
-          { val: "",             label: "All time" },
-          { val: "this_month",   label: "This month" },
-          { val: "last_month",   label: "Last month" },
-          { val: "last_3_months",label: "Last 3 months" },
+        const PERIODS = [
+          { val: "",             label: "All time",     Icon: Layers },
+          { val: "this_month",   label: "This month",   Icon: CalendarDays },
+          { val: "last_month",   label: "Last month",   Icon: Calendar },
+          { val: "last_3_months",label: "Last 3 months",Icon: CalendarRange },
         ];
 
         return (
-          <div className="space-y-2 mb-5">
-            {/* Status pills */}
-            {ALL_STATUSES.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
+          <div className="space-y-2.5 mb-5">
+            {/* Status buttons */}
+            {STATUS_DEFS.length > 0 && (
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setStatus("")}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
-                    statusFilter === "" ? "bg-gray-800 text-white border-gray-800" : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${
+                    statusFilter === "" ? "bg-gray-800 text-white border-gray-800 shadow-sm" : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
                   }`}>
-                  All <span className="ml-1 opacity-70">{visibleCases.length}</span>
+                  <Layers size={14} />
+                  All
+                  <span className="ml-0.5 opacity-70 text-xs">{visibleCases.length}</span>
                 </button>
-                {ALL_STATUSES.map(s => {
+                {STATUS_DEFS.map(s => {
                   const active = statusFilter === s.val;
+                  const { Icon } = s;
                   return (
                     <button key={s.val}
                       onClick={() => setStatus(f => f === s.val ? "" : s.val)}
-                      className="px-3 py-1 rounded-full text-xs font-semibold border transition-all"
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border transition-all"
                       style={active
-                        ? { background: s.color, color: "#fff", borderColor: s.color }
+                        ? { background: s.color, color: "#fff", borderColor: s.color, boxShadow: "0 1px 3px 0 rgba(0,0,0,.12)" }
                         : { background: s.bg, color: s.color, borderColor: s.border }}>
-                      {s.label} <span className="ml-1 opacity-70">{s.count}</span>
+                      <Icon size={14} />
+                      {s.label}
+                      <span className="ml-0.5 opacity-70 text-xs">{s.count}</span>
                     </button>
                   );
                 })}
               </div>
             )}
 
-            {/* Period pills */}
-            <div className="flex flex-wrap gap-1.5">
-              {periods.map(p => {
+            {/* Period buttons */}
+            <div className="flex flex-wrap gap-2">
+              {PERIODS.map(p => {
                 const active = periodFilter === p.val;
+                const { Icon } = p;
                 return (
                   <button key={p.val}
                     onClick={() => setPeriod(f => f === p.val ? "" : p.val)}
-                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
-                      active ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-500 border-gray-200 hover:border-blue-300 hover:text-blue-600"
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${
+                      active ? "bg-blue-600 text-white border-blue-600 shadow-sm" : "bg-white text-gray-500 border-gray-200 hover:border-blue-300 hover:text-blue-600"
                     }`}>
+                    <Icon size={14} />
                     {p.label}
                   </button>
                 );
@@ -29033,9 +29041,10 @@ function KanbanView({ auth }) {
   const { t } = useT();
   const { cases, loading, updateCase } = useCases();
   const { templates: lcTemplates } = useLifecycleTemplates();
-  const [selectedCase, setSelectedCase] = useState(null);
-  const [movingId, setMovingId]         = useState(null);
-  const [cardSize, setCardSize]         = useState("m"); // "s" | "m" | "l"
+  const [selectedCase, setSelectedCase]       = useState(null);
+  const [movingId, setMovingId]               = useState(null);
+  const [cardSize, setCardSize]               = useState("m"); // "s" | "m" | "l"
+  const [kanbanProject, setKanbanProject]     = useState(""); // "" = all
 
   const filteredCases = cases.filter(c => {
     if (auth.isClient)     return c.client_id === auth.user?.id;
@@ -29043,6 +29052,21 @@ function KanbanView({ auth }) {
     if (auth.isKeyUser)    return c.case_key_users?.some(ku => ku.user_id === auth.user?.id);
     return true;
   });
+
+  // Unique projects for the filter bar
+  const kanbanProjects = (() => {
+    const seen = new Set();
+    const list = [];
+    filteredCases.forEach(c => {
+      if (c.project_id && !seen.has(c.project_id)) {
+        seen.add(c.project_id);
+        list.push({ id: c.project_id, name: c.project?.name || c.client?.client_profiles?.company_name || "Project" });
+      }
+    });
+    return list.sort((a, b) => a.name.localeCompare(b.name));
+  })();
+
+  const boardCases = kanbanProject ? filteredCases.filter(c => c.project_id === kanbanProject) : filteredCases;
 
   // Build a stage catalog from all known presets + custom DB templates
   const stageCatalog = {};
@@ -29053,8 +29077,8 @@ function KanbanView({ auth }) {
     (tpl.stages ?? []).forEach(s => { stageCatalog[s.key] = s; })
   );
 
-  // Derive columns from statuses actually present in visible cases
-  const usedKeys = [...new Set(filteredCases.map(c => c.status).filter(Boolean))];
+  // Derive columns from statuses actually present in visible (project-filtered) cases
+  const usedKeys = [...new Set(boardCases.map(c => c.status).filter(Boolean))];
   const kanbanCols = usedKeys
     .map(key => stageCatalog[key] ?? { key, label: cap(key.replace(/_/g, " ")), color: "#9ca3af", is_terminal: false })
     .sort((a, b) => (a.is_terminal ? 1 : 0) - (b.is_terminal ? 1 : 0));
@@ -29192,10 +29216,10 @@ function KanbanView({ auth }) {
 
   return (
     <div>
-      <div className="mb-5 flex items-end justify-between gap-4 flex-wrap">
+      <div className="mb-4 flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t("kanban.title")}</h1>
-          <p className="text-gray-500 text-sm mt-1">{t("kanban.subtitle")} · {t("kanban.case_count").replace("{n}", filteredCases.length)}</p>
+          <p className="text-gray-500 text-sm mt-1">{t("kanban.subtitle")} · {t("kanban.case_count").replace("{n}", boardCases.length)}</p>
         </div>
         {/* Size toggle */}
         <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
@@ -29209,6 +29233,34 @@ function KanbanView({ auth }) {
         </div>
       </div>
 
+      {/* ── Project filter bar ── */}
+      {kanbanProjects.length > 1 && (
+        <div className="mb-4 -mx-1 px-1 overflow-x-auto">
+          <div className="flex gap-2 pb-1" style={{ width: "max-content" }}>
+            <button
+              onClick={() => setKanbanProject("")}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border whitespace-nowrap transition-all flex-shrink-0 ${
+                kanbanProject === "" ? "bg-gray-800 text-white border-gray-800 shadow-sm" : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
+              }`}>
+              <FolderKanban size={14} />
+              All projects
+              <span className="opacity-60 text-xs ml-0.5">{filteredCases.length}</span>
+            </button>
+            {kanbanProjects.map(p => (
+              <button key={p.id}
+                onClick={() => setKanbanProject(id => id === p.id ? "" : p.id)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border whitespace-nowrap transition-all flex-shrink-0 ${
+                  kanbanProject === p.id ? "bg-blue-600 text-white border-blue-600 shadow-sm" : "bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600"
+                }`}>
+                <FolderOpen size={14} />
+                {p.name}
+                <span className="opacity-60 text-xs ml-0.5">{filteredCases.filter(c => c.project_id === p.id).length}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {kanbanCols.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center text-gray-400 text-sm">
           {t("kanban.no_cases")}
@@ -29220,7 +29272,7 @@ function KanbanView({ auth }) {
             gridTemplateColumns: `repeat(${kanbanCols.length}, minmax(0, 1fr))`,
           }}>
           {kanbanCols.map(col => {
-            const colCases = filteredCases.filter(c => c.status === col.key);
+            const colCases = boardCases.filter(c => c.status === col.key);
             return (
               <div key={col.key} className={`${colRadius} border border-gray-100 shadow-sm overflow-hidden`}
                 style={{ borderTop: `${borderTop} solid ${col.color}`, background: col.color + "0d" }}>
