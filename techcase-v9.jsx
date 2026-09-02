@@ -7364,7 +7364,7 @@ function ProfileOnboardingScreen({ auth }) {
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">You're all set!</h2>
           <p className="text-gray-500 mb-7">Your profile is complete. Welcome to TechCase.</p>
-          <button onClick={() => window.location.reload()}
+          <button onClick={() => auth.refreshProfile()}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors">
             Go to Dashboard →
           </button>
@@ -7438,11 +7438,19 @@ function ProfileOnboardingScreen({ auth }) {
   );
 }
 
+const ROLE_LABELS = {
+  consultant: "Consultant",
+  client:     "Client / Company",
+  headhunter: "Headhunter",
+  key_user:   "Key User",
+  final_user: "Final User",
+};
+
 function ProfileCompleteWizard({ auth, onDone, onClose }) {
-  const role = auth.profile?.role;
-  const [step, setStep] = useState(1);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [role,          setRole]          = useState(auth.profile?.role ?? "consultant");
+  const [step,          setStep]          = useState(1);
+  const [saving,        setSaving]        = useState(false);
+  const [error,         setError]         = useState("");
 
   const cpConsRaw = auth.profile?.consultant_profiles;
   const cpCons = Array.isArray(cpConsRaw) ? cpConsRaw[0] : cpConsRaw;
@@ -7450,6 +7458,8 @@ function ProfileCompleteWizard({ auth, onDone, onClose }) {
   const cpCli = Array.isArray(cpCliRaw) ? cpCliRaw[0] : cpCliRaw;
 
   const [fullName,      setFullName]      = useState(auth.profile?.full_name ?? "");
+  const [password,      setPassword]      = useState("");
+  const [confirmPwd,    setConfirmPwd]    = useState("");
   const [headline,      setHeadline]      = useState(cpCons?.headline ?? "");
   const [bio,           setBio]           = useState(cpCons?.bio ?? "");
   const [skills,        setSkills]        = useState((cpCons?.skills ?? []).join(", "));
@@ -7464,37 +7474,49 @@ function ProfileCompleteWizard({ auth, onDone, onClose }) {
 
   const totalSteps = role === "consultant" ? 2 : 1;
 
+  const pwdOk = password.length >= 6 && password === confirmPwd;
   const canProceed = step === 1
-    ? fullName.trim().length > 0 && (role !== "client" || companyName.trim().length > 0)
+    ? fullName.trim().length > 0 && (role !== "client" || companyName.trim().length > 0) && pwdOk
     : role === "consultant" ? headline.trim().length > 0 : true;
 
   async function handleFinish() {
+    if (!pwdOk) { setError("Passwords don't match or are too short (min 6 characters)."); return; }
     setSaving(true); setError("");
-    try {
-      await supabase.from("users").update({ full_name: fullName.trim(), profile_complete: true }).eq("id", auth.user.id);
-      if (role === "consultant") {
-        await supabase.from("consultant_profiles").upsert({
-          id: auth.user.id,
-          headline: headline.trim(),
-          bio: bio.trim() || null,
-          skills: skills.split(",").map(s => s.trim()).filter(Boolean),
-          years_experience: yearsExp ? parseInt(yearsExp, 10) : null,
-          hourly_rate: hourlyRate ? parseFloat(hourlyRate) : null,
-          expertise_level: expertiseLvl,
-        }, { onConflict: "id" });
-      } else if (role === "client") {
-        await supabase.from("client_profiles").upsert({
-          id: auth.user.id,
-          company_name: companyName.trim(),
-          industry: industry || null,
-          website: website.trim() || null,
-        }, { onConflict: "id" });
-      }
-      onDone();
-    } catch (e) {
-      setError(e.message ?? "Something went wrong. Please try again.");
-      setSaving(false);
+
+    // Set password (required step — user may have signed up via magic link with no password)
+    const { error: pwdErr } = await supabase.auth.updateUser({ password });
+    if (pwdErr) { setError(pwdErr.message); setSaving(false); return; }
+
+    // Update users table: name + role
+    const { error: userErr } = await supabase
+      .from("users")
+      .update({ full_name: fullName.trim(), role })
+      .eq("id", auth.user.id);
+    if (userErr) { setError(userErr.message); setSaving(false); return; }
+
+    // Upsert role-specific profile
+    if (role === "consultant") {
+      const { error: cpErr } = await supabase.from("consultant_profiles").upsert({
+        id: auth.user.id,
+        headline: headline.trim(),
+        bio: bio.trim() || null,
+        skills: skills.split(",").map(s => s.trim()).filter(Boolean),
+        years_experience: yearsExp ? parseInt(yearsExp, 10) : null,
+        hourly_rate: hourlyRate ? parseFloat(hourlyRate) : null,
+        expertise_level: expertiseLvl,
+      }, { onConflict: "id" });
+      if (cpErr) { setError(cpErr.message); setSaving(false); return; }
+    } else if (role === "client") {
+      const { error: cpErr } = await supabase.from("client_profiles").upsert({
+        id: auth.user.id,
+        company_name: companyName.trim(),
+        industry: industry || null,
+        website: website.trim() || null,
+      }, { onConflict: "id" });
+      if (cpErr) { setError(cpErr.message); setSaving(false); return; }
     }
+
+    onDone();
   }
 
   return (
@@ -7524,6 +7546,16 @@ function ProfileCompleteWizard({ auth, onDone, onClose }) {
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Your full name" />
               </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Account type</label>
+                <select value={role} onChange={e => setRole(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {Object.entries(ROLE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+                <p className="text-xs text-gray-400 mt-1">Correct this if your account type was set incorrectly.</p>
+              </div>
+
               {role === "client" && (<>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Company name</label>
@@ -7563,6 +7595,21 @@ function ProfileCompleteWizard({ auth, onDone, onClose }) {
               {(role === "key_user" || role === "final_user") && (
                 <p className="text-sm text-gray-500 bg-gray-50 rounded-xl p-4">Confirm your name above and you're good to go.</p>
               )}
+
+              {/* Password — required so user can log back in after logout */}
+              <div className="border-t border-gray-100 pt-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-0.5">Set your password</label>
+                <p className="text-xs text-gray-400 mb-2">Required to log in after you sign out. Minimum 6 characters.</p>
+                <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+                  placeholder="Password (min 6 characters)" />
+                <input type="password" value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)}
+                  className={`w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${confirmPwd && confirmPwd !== password ? "border-red-300 bg-red-50" : "border-gray-200"}`}
+                  placeholder="Confirm password" />
+                {confirmPwd && confirmPwd !== password && (
+                  <p className="text-xs text-red-500 mt-1">Passwords don't match</p>
+                )}
+              </div>
             </>
           )}
 
@@ -7614,7 +7661,7 @@ function ProfileCompleteWizard({ auth, onDone, onClose }) {
             </>
           )}
 
-          {error && <p className="text-red-600 text-sm">{error}</p>}
+          {error && <p className="text-red-600 text-sm bg-red-50 rounded-xl px-4 py-3">{error}</p>}
         </div>
 
         {/* Footer */}
@@ -33655,8 +33702,15 @@ export default function App() {
     return <PendingApprovalScreen auth={auth} />;
   }
 
-  if (auth.profile?.verification_status === 'approved' && !auth.profile?.profile_complete) {
-    return <ProfileOnboardingScreen auth={auth} />;
+  {/* Profile gate: consultant needs headline, client needs company_name */}
+  if (auth.profile?.verification_status === 'approved') {
+    const _role = auth.profile.role;
+    const _cpC  = Array.isArray(auth.profile.consultant_profiles) ? auth.profile.consultant_profiles[0] : auth.profile.consultant_profiles;
+    const _cpCl = Array.isArray(auth.profile.client_profiles)    ? auth.profile.client_profiles[0]    : auth.profile.client_profiles;
+    const _done = (_role === "consultant" && !!_cpC?.headline) ||
+                  (_role === "client"     && !!_cpCl?.company_name) ||
+                  (_role !== "consultant" && _role !== "client");
+    if (!_done) return <ProfileOnboardingScreen auth={auth} />;
   }
 
   return (
