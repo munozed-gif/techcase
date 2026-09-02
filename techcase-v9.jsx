@@ -8522,7 +8522,8 @@ function AuthScreen({ onAuth }) {
   const [otpVerified, setOtpVerified]   = useState(false);
   const [approvalDone, setApprovalDone] = useState(false); // admin_approval success screen
 
-  const [error, setError]   = useState("");
+  const [error, setError]       = useState("");
+  const [emailTaken, setEmailTaken] = useState(false);
   const [loading, setLoad]  = useState(false);
   const auth = useAuth();
   const { settings: ssSettings } = useSystemSettings();
@@ -8546,7 +8547,7 @@ function AuthScreen({ onAuth }) {
   const displayStep = needsOTP ? step : (step === 2 ? 1 : 0);
 
   function switchMode(m) {
-    setMode(m); setError(""); setStep(0); setCodeSent(false); setCode("");
+    setMode(m); setError(""); setEmailTaken(false); setStep(0); setCodeSent(false); setCode("");
     setRole(""); setOtpVerified(false); setApprovalDone(false);
   }
 
@@ -8611,7 +8612,7 @@ function AuthScreen({ onAuth }) {
           ? (err.status ? t("auth.error_status").replace("{n}", err.status) : t("auth.error_send_code"))
           : raw;
         if (msg.toLowerCase().includes("already registered") || msg.toLowerCase().includes("already exists"))
-          setError(t("auth.error_email_taken"));
+          { setError(t("auth.error_email_taken")); setEmailTaken(true); }
         else if (msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("too many"))
           setError(t("auth.error_rate_limit"));
         else if (msg.toLowerCase().includes("signup") || msg.toLowerCase().includes("disabled"))
@@ -8622,7 +8623,7 @@ function AuthScreen({ onAuth }) {
           setError(msg);
       } else if (!data?.user || data.user.identities?.length === 0) {
         // Supabase returns an empty identities array when the email already exists
-        setError(t("auth.error_email_taken"));
+        setError(t("auth.error_email_taken")); setEmailTaken(true);
       } else {
         setCodeSent(true);
         setCode("");
@@ -8754,7 +8755,16 @@ function AuthScreen({ onAuth }) {
   );
 
   const errorBox = error && (
-    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{error}</div>
+    <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 space-y-3">
+      <p>{error}</p>
+      {emailTaken && (
+        <button
+          onClick={() => { setSiEmail(email); switchMode("signin"); }}
+          className="w-full py-2.5 text-sm font-semibold text-blue-700 bg-white border border-blue-300 rounded-xl hover:bg-blue-50 transition-colors">
+          Sign in to continue setup →
+        </button>
+      )}
+    </div>
   );
 
   return (
