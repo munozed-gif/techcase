@@ -8788,14 +8788,14 @@ function AuthScreen({ onAuth }) {
               <Mail className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-semibold text-blue-800">Code sent — check your inbox</p>
-                <p className="text-xs text-blue-600 mt-0.5">Enter the 6-digit code from the email to continue your profile setup.</p>
+                <p className="text-xs text-blue-600 mt-0.5">Enter the code from the email to continue your profile setup.</p>
               </div>
             </div>
             <div className="flex gap-2">
               <input
                 value={magicCode}
-                onChange={e => setMagicCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                placeholder="6-digit code"
+                onChange={e => setMagicCode(e.target.value.replace(/\D/g, ""))}
+                placeholder="Code from email"
                 className="flex-1 border border-blue-200 rounded-xl px-4 py-2.5 text-sm text-center tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
               />
               <button onClick={verifyMagicCode} disabled={magicVerifying || magicCode.length < 4}
