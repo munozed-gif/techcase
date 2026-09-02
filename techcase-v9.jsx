@@ -6566,6 +6566,19 @@ const PRIORITY_COLORS = {
   critical: "bg-red-100 text-red-700",
 };
 
+const STATUS_CARD_ICONS = {
+  open:            Inbox,
+  estimated:       ClipboardList,
+  assigned:        UserCheck,
+  in_progress:     Zap,
+  on_hold:         PauseCircle,
+  technical_test:  Code2,
+  functional_test: ListChecks,
+  user_test:       Users,
+  completed:       CheckCircle2,
+  cancelled:       XCircle,
+};
+
 // Activity phases — default set; override per customer in client_profiles.activity_phases
 // required_status: if set, activities in this phase can only log progress when the case is in that status
 const DEFAULT_ACTIVITY_PHASES = [
@@ -15169,24 +15182,25 @@ function CasesView({ auth, initialCaseId }) {
               className="rounded-2xl cursor-pointer transition-all hover:shadow-md p-5"
               style={(() => { const cc = selectedCases.has(c.id) ? { border: '#bfdbfe', bg: '#eff6ff' } : (CASE_CARD_COLORS[c.status] ?? { border: '#e5e7eb', bg: '#ffffff' }); return { border: `1.5px solid ${cc.border}`, backgroundColor: cc.bg }; })()}
               onClick={() => setSelected(c)}>
-              <div className="flex items-start gap-3">
-                {(auth.isAdmin || auth.isManager) && (
-                  <div className="pt-0.5 shrink-0">
-                    <input type="checkbox"
-                      checked={selectedCases.has(c.id)}
-                      onChange={() => {}}
-                      onClick={e => toggleCaseSelect(c.id, e)}
-                      className="w-4 h-4 rounded border-gray-300 text-blue-600 cursor-pointer accent-blue-600" />
-                  </div>
-                )}
-                <ProjectAvatar project={c.project ?? { name: c.client?.client_profiles?.company_name || c.client?.full_name || c.title, client: c.client }} size={40} className="mt-0.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-4">
+              {(() => {
+                const StatusIcon = STATUS_CARD_ICONS[c.status] ?? Tag;
+                const cc = CASE_CARD_COLORS[c.status] ?? { bar: "#9ca3af", bg: "#f9fafb" };
+                return (
+                  <div className="flex items-center gap-3">
+                    {(auth.isAdmin || auth.isManager) && (
+                      <div className="self-start pt-1 shrink-0">
+                        <input type="checkbox"
+                          checked={selectedCases.has(c.id)}
+                          onChange={() => {}}
+                          onClick={e => toggleCaseSelect(c.id, e)}
+                          className="w-4 h-4 rounded border-gray-300 text-blue-600 cursor-pointer accent-blue-600" />
+                      </div>
+                    )}
+                    <ProjectAvatar project={c.project ?? { name: c.client?.client_profiles?.company_name || c.client?.full_name || c.title, client: c.client }} size={40} className="flex-shrink-0 self-start mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <div className="flex items-baseline gap-2 mb-1 flex-wrap">
                         <h3 className="font-semibold text-gray-900 truncate">{c.title}</h3>
-                        <Badge className={STATUS_COLORS[c.status]}>{STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(fmt(c.status))}</Badge>
-                        <Badge className={PRIORITY_COLORS[c.priority]}>{PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}</Badge>
+                        {c.priority && <span className="text-xs text-gray-400 font-medium capitalize flex-shrink-0">{PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}</span>}
                       </div>
                       <p className="text-sm text-gray-500 line-clamp-2">{c.description}</p>
                       <div className="flex items-center gap-4 mt-3 text-xs text-gray-400 flex-wrap">
@@ -15205,15 +15219,22 @@ function CasesView({ auth, initialCaseId }) {
                         })()}
                       </div>
                     </div>
-                    {auth.isConsultant && (
-                      <button onClick={e => { e.stopPropagation(); toggle(c.id); }}
-                        className="text-xl text-yellow-400 hover:text-yellow-500 transition-colors flex-shrink-0">
-                        <Star className={`w-4 h-4 ${isFavorite(c.id) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`} />
-                      </button>
-                    )}
+                    {/* Right: status square + star */}
+                    <div className="flex flex-col items-center gap-2 flex-shrink-0 self-center ml-1">
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center"
+                        style={{ background: cc.bar + "28", color: cc.bar }}>
+                        <StatusIcon size={22} strokeWidth={2} />
+                      </div>
+                      {auth.isConsultant && (
+                        <button onClick={e => { e.stopPropagation(); toggle(c.id); }}
+                          className="transition-colors">
+                          <Star className={`w-4 h-4 ${isFavorite(c.id) ? "fill-yellow-400 text-yellow-400" : "text-gray-300 hover:text-yellow-400"}`} />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </div>
+                );
+              })()}
             </div>
           ))}
         </div>
