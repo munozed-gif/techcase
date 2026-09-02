@@ -8522,9 +8522,11 @@ function AuthScreen({ onAuth }) {
   const [otpVerified, setOtpVerified]   = useState(false);
   const [approvalDone, setApprovalDone] = useState(false); // admin_approval success screen
 
-  const [error, setError]       = useState("");
+  const [error, setError]           = useState("");
   const [emailTaken, setEmailTaken] = useState(false);
-  const [loading, setLoad]  = useState(false);
+  const [magicSent, setMagicSent]   = useState(false);
+  const [magicLoad, setMagicLoad]   = useState(false);
+  const [loading, setLoad]          = useState(false);
   const auth = useAuth();
   const { settings: ssSettings } = useSystemSettings();
   const rolePermMatrix = ssSettings["role_permissions"] ?? {};
@@ -8547,8 +8549,16 @@ function AuthScreen({ onAuth }) {
   const displayStep = needsOTP ? step : (step === 2 ? 1 : 0);
 
   function switchMode(m) {
-    setMode(m); setError(""); setEmailTaken(false); setStep(0); setCodeSent(false); setCode("");
-    setRole(""); setOtpVerified(false); setApprovalDone(false);
+    setMode(m); setError(""); setEmailTaken(false); setMagicSent(false); setStep(0);
+    setCodeSent(false); setCode(""); setRole(""); setOtpVerified(false); setApprovalDone(false);
+  }
+
+  async function sendMagicLink() {
+    setMagicLoad(true);
+    const { error: err } = await supabase.auth.signInWithOtp({ email: email.trim() });
+    setMagicLoad(false);
+    if (err) { setError(err.message); return; }
+    setMagicSent(true);
   }
 
   // ── Sign in ──────────────────────────────────────────────────
@@ -8755,14 +8765,26 @@ function AuthScreen({ onAuth }) {
   );
 
   const errorBox = error && (
-    <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 space-y-3">
-      <p>{error}</p>
+    <div className="mt-4 rounded-xl overflow-hidden border border-red-200">
+      <div className="p-4 bg-red-50 text-sm text-red-700">{error}</div>
       {emailTaken && (
-        <button
-          onClick={() => { setSiEmail(email); switchMode("signin"); }}
-          className="w-full py-2.5 text-sm font-semibold text-blue-700 bg-white border border-blue-300 rounded-xl hover:bg-blue-50 transition-colors">
-          Sign in to continue setup →
-        </button>
+        magicSent ? (
+          <div className="p-4 bg-blue-50 border-t border-blue-200 flex items-start gap-3">
+            <Mail className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-blue-800">Login link sent — check your inbox</p>
+              <p className="text-xs text-blue-600 mt-0.5">Click the link in the email to continue your profile setup. No password needed.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="p-4 bg-amber-50 border-t border-amber-200">
+            <p className="text-xs text-amber-700 mb-3">Haven't set a password yet? We'll email you a one-time login link so you can finish your profile setup.</p>
+            <button onClick={sendMagicLink} disabled={magicLoad}
+              className="w-full py-2.5 text-sm font-semibold text-blue-700 bg-white border border-blue-300 rounded-xl hover:bg-blue-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+              {magicLoad ? <><Loader2 className="w-4 h-4 animate-spin" />Sending…</> : <><Mail className="w-4 h-4" />Send me a login link</>}
+            </button>
+          </div>
+        )
       )}
     </div>
   );
