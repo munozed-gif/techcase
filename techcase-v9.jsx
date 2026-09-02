@@ -5427,6 +5427,7 @@ function useAuth() {
     user, profile, loading,
     role: profile?.role ?? null,
     signIn, signUp, signOut,
+    refreshProfile: () => { if (user) fetchProfile(user.id); },
     isAdmin:      profile?.role === "admin",
     isManager:    profile?.role === "manager",
     isConsultant: profile?.role === "consultant",
@@ -7344,6 +7345,293 @@ function PendingApprovalScreen({ auth }) {
           className="w-full py-2.5 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
           Sign out
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Profile onboarding gate (approved but profile not complete) ───────────────
+function ProfileOnboardingScreen({ auth }) {
+  const [showWizard, setShowWizard] = useState(false);
+  const [allDone, setAllDone] = useState(false);
+
+  if (allDone) {
+    return (
+      <div className="min-h-screen bg-[#EAF4FD] flex items-center justify-center p-6">
+        <div className="bg-white rounded-3xl shadow-lg p-10 max-w-sm w-full text-center">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5">
+            <CheckCircle2 className="w-9 h-9 text-green-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">You're all set!</h2>
+          <p className="text-gray-500 mb-7">Your profile is complete. Welcome to TechCase.</p>
+          <button onClick={() => window.location.reload()}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors">
+            Go to Dashboard →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#EAF4FD]">
+      <div className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+        <span className="font-bold text-gray-900 text-lg">TechCase</span>
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">
+            {(auth.profile?.full_name ?? "?")[0].toUpperCase()}
+          </div>
+          <span className="text-sm text-gray-600 hidden sm:block">{auth.profile?.full_name}</span>
+          <button onClick={() => supabase.auth.signOut()} className="ml-3 text-xs text-gray-400 hover:text-gray-600">Sign out</button>
+        </div>
+      </div>
+
+      <div className="max-w-lg mx-auto px-6 py-10 space-y-5">
+        {/* Approval alert */}
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-start gap-3">
+          <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold text-green-800">Account approved</p>
+            <p className="text-sm text-green-700 mt-0.5">
+              Welcome, {auth.profile?.full_name?.split(" ")[0] ?? "there"}! Your account has been approved by the team.
+            </p>
+          </div>
+        </div>
+
+        {/* Profile completion card */}
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center flex-shrink-0">
+              <User className="w-7 h-7 text-blue-500" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Complete your profile</h2>
+              <p className="text-sm text-gray-500 mt-0.5">Takes ~2 min · Required to access the platform</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 mb-7">
+            {(auth.profile?.role === "consultant" ? ["Basic info","Professional details"] : ["Basic info"]).map((label, i, arr) => (
+              <div key={i} className="flex items-center gap-2 flex-1">
+                <div className="w-7 h-7 rounded-full border-2 border-gray-200 flex items-center justify-center text-xs font-bold text-gray-400 flex-shrink-0">{i + 1}</div>
+                <span className="text-xs text-gray-400 whitespace-nowrap">{label}</span>
+                {i < arr.length - 1 && <div className="flex-1 h-px bg-gray-200 mx-1" />}
+              </div>
+            ))}
+          </div>
+
+          <button onClick={() => setShowWizard(true)}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors">
+            Set up my profile →
+          </button>
+        </div>
+      </div>
+
+      {showWizard && (
+        <ProfileCompleteWizard
+          auth={auth}
+          onDone={() => { setShowWizard(false); setAllDone(true); }}
+          onClose={() => setShowWizard(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ProfileCompleteWizard({ auth, onDone, onClose }) {
+  const role = auth.profile?.role;
+  const [step, setStep] = useState(1);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const cpConsRaw = auth.profile?.consultant_profiles;
+  const cpCons = Array.isArray(cpConsRaw) ? cpConsRaw[0] : cpConsRaw;
+  const cpCliRaw = auth.profile?.client_profiles;
+  const cpCli = Array.isArray(cpCliRaw) ? cpCliRaw[0] : cpCliRaw;
+
+  const [fullName,      setFullName]      = useState(auth.profile?.full_name ?? "");
+  const [headline,      setHeadline]      = useState(cpCons?.headline ?? "");
+  const [bio,           setBio]           = useState(cpCons?.bio ?? "");
+  const [skills,        setSkills]        = useState((cpCons?.skills ?? []).join(", "));
+  const [yearsExp,      setYearsExp]      = useState(cpCons?.years_experience ?? "");
+  const [hourlyRate,    setHourlyRate]    = useState(cpCons?.hourly_rate ?? "");
+  const [expertiseLvl,  setExpertiseLvl]  = useState(cpCons?.expertise_level ?? "intermediate");
+  const [companyName,   setCompanyName]   = useState(cpCli?.company_name ?? "");
+  const [industry,      setIndustry]      = useState(cpCli?.industry ?? "");
+  const [website,       setWebsite]       = useState(cpCli?.website ?? "");
+  const [specialty,     setSpecialty]     = useState("");
+  const [region,        setRegion]        = useState("");
+
+  const totalSteps = role === "consultant" ? 2 : 1;
+
+  const canProceed = step === 1
+    ? fullName.trim().length > 0 && (role !== "client" || companyName.trim().length > 0)
+    : role === "consultant" ? headline.trim().length > 0 : true;
+
+  async function handleFinish() {
+    setSaving(true); setError("");
+    try {
+      await supabase.from("users").update({ full_name: fullName.trim(), profile_complete: true }).eq("id", auth.user.id);
+      if (role === "consultant") {
+        await supabase.from("consultant_profiles").upsert({
+          id: auth.user.id,
+          headline: headline.trim(),
+          bio: bio.trim() || null,
+          skills: skills.split(",").map(s => s.trim()).filter(Boolean),
+          years_experience: yearsExp ? parseInt(yearsExp, 10) : null,
+          hourly_rate: hourlyRate ? parseFloat(hourlyRate) : null,
+          expertise_level: expertiseLvl,
+        }, { onConflict: "id" });
+      } else if (role === "client") {
+        await supabase.from("client_profiles").upsert({
+          id: auth.user.id,
+          company_name: companyName.trim(),
+          industry: industry || null,
+          website: website.trim() || null,
+        }, { onConflict: "id" });
+      }
+      onDone();
+    } catch (e) {
+      setError(e.message ?? "Something went wrong. Please try again.");
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
+        {/* Header */}
+        <div className="px-7 pt-7 pb-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-900">Complete your profile</h2>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+          </div>
+          <div className="flex gap-1.5">
+            {Array.from({ length: totalSteps }).map((_, i) => (
+              <div key={i} className={`h-1.5 rounded-full flex-1 transition-all ${i < step ? "bg-blue-500" : "bg-gray-200"}`} />
+            ))}
+          </div>
+          <p className="text-xs text-gray-400 mt-2">Step {step} of {totalSteps}</p>
+        </div>
+
+        {/* Step content */}
+        <div className="px-7 pb-2 space-y-4 max-h-[60vh] overflow-y-auto">
+          {step === 1 && (
+            <>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Full name</label>
+                <input value={fullName} onChange={e => setFullName(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Your full name" />
+              </div>
+              {role === "client" && (<>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Company name</label>
+                  <input value={companyName} onChange={e => setCompanyName(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Your company" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Industry</label>
+                  <select value={industry} onChange={e => setIndustry(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Select industry</option>
+                    {["Technology","Finance & Banking","Healthcare","Legal","Manufacturing","Retail & Commerce","Energy & Utilities","Public Sector","Other"].map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Website <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <input value={website} onChange={e => setWebsite(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="https://yourcompany.com" />
+                </div>
+              </>)}
+              {role === "headhunter" && (<>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Specialty</label>
+                  <input value={specialty} onChange={e => setSpecialty(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g. SAP talent, Tech recruiting" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Region</label>
+                  <input value={region} onChange={e => setRegion(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g. LATAM, North America" />
+                </div>
+              </>)}
+              {(role === "key_user" || role === "final_user") && (
+                <p className="text-sm text-gray-500 bg-gray-50 rounded-xl p-4">Confirm your name above and you're good to go.</p>
+              )}
+            </>
+          )}
+
+          {step === 2 && role === "consultant" && (
+            <>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Professional headline</label>
+                <input value={headline} onChange={e => setHeadline(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g. SAP FICO Consultant · 10 years" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Skills <span className="text-gray-400 font-normal">(comma-separated)</span></label>
+                <input value={skills} onChange={e => setSkills(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="SAP FICO, S/4HANA, Fiori" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Years experience</label>
+                  <input type="number" min="0" max="50" value={yearsExp} onChange={e => setYearsExp(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="8" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Hourly rate (USD)</label>
+                  <input type="number" min="0" value={hourlyRate} onChange={e => setHourlyRate(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="150" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Expertise level</label>
+                <div className="flex gap-2">
+                  {["beginner","intermediate","expert"].map(l => (
+                    <button key={l} onClick={() => setExpertiseLvl(l)}
+                      className={`flex-1 py-2 rounded-xl text-xs font-semibold border-2 transition-all capitalize ${expertiseLvl === l ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Bio <span className="text-gray-400 font-normal">(optional)</span></label>
+                <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  placeholder="Brief professional summary…" />
+              </div>
+            </>
+          )}
+
+          {error && <p className="text-red-600 text-sm">{error}</p>}
+        </div>
+
+        {/* Footer */}
+        <div className="px-7 py-5 flex gap-3 border-t border-gray-100 mt-4">
+          {step > 1
+            ? <button onClick={() => setStep(s => s - 1)} className="px-5 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">← Back</button>
+            : <button onClick={onClose} className="px-5 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-500 hover:bg-gray-50 transition-colors">Later</button>
+          }
+          {step < totalSteps
+            ? <button onClick={() => setStep(s => s + 1)} disabled={!canProceed}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold py-2.5 rounded-xl text-sm transition-colors">Continue →</button>
+            : <button onClick={handleFinish} disabled={saving || !canProceed}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+                {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : "Finish →"}
+              </button>
+          }
+        </div>
       </div>
     </div>
   );
@@ -33365,6 +33653,10 @@ export default function App() {
 
   if (auth.profile && auth.profile.verification_status !== 'approved') {
     return <PendingApprovalScreen auth={auth} />;
+  }
+
+  if (auth.profile?.verification_status === 'approved' && !auth.profile?.profile_complete) {
+    return <ProfileOnboardingScreen auth={auth} />;
   }
 
   return (
