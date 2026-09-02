@@ -9989,24 +9989,30 @@ function Dashboard({ auth }) {
               </h2>
             </div>
             <div className="divide-y divide-gray-50">
-              {(auth.isConsultant ? assignedCases : cases.slice(0, 8)).map(c => (
-                <div key={c.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <ProjectAvatar project={c.project ?? { name: c.title }} size={32} />
-                    <div className="min-w-0">
+              {(auth.isConsultant ? assignedCases : cases.slice(0, 8)).map(c => {
+                const cc = CASE_CARD_COLORS[c.status] ?? { bar: "#9ca3af" };
+                const StatusIcon = STATUS_CARD_ICONS[c.status] ?? Tag;
+                return (
+                  <div key={c.id} className="flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => setSelectedCase(c)}>
+                    <ProjectAvatar project={c.project ?? { name: c.title }} size={32} className="flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
                       <div className="font-medium text-gray-900 text-sm truncate">{c.title}</div>
-                      <div className="text-xs text-gray-400 flex gap-1.5">
+                      <div className="text-xs text-gray-400 flex gap-1.5 mt-0.5">
                         {c.project?.name && <span className="font-medium text-gray-500 truncate max-w-[120px]">{c.project.name}</span>}
                         {c.project?.name && <span>·</span>}
                         <span>{fmtDate(c.created_at)}</span>
                       </div>
                     </div>
+                    <div className="flex-shrink-0 w-12 flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl border-2"
+                      style={{ borderColor: cc.bar, color: cc.bar }}>
+                      <StatusIcon size={14} strokeWidth={2} />
+                      <span className="text-[8px] font-semibold leading-none text-center px-0.5 w-full truncate">
+                        {STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(fmt(c.status))}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                    <Badge className={STATUS_COLORS[c.status]}>{STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(fmt(c.status))}</Badge>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
               {cases.length === 0 && <div className="p-8 text-center text-gray-400 text-sm">{t("cases.no_cases")}</div>}
             </div>
           </div>
@@ -15331,14 +15337,11 @@ function CasesView({ auth, initialCaseId }) {
                         })()}
                       </div>
                     </div>
-                    {/* Right: status tile (bordered, no fill) + star */}
+                    {/* Right: status square (tinted bg, icon only) + star */}
                     <div className="flex flex-col items-center gap-2 flex-shrink-0 self-center ml-1">
-                      <div className="w-14 flex flex-col items-center justify-center gap-1 py-2 rounded-xl border-2"
-                        style={{ borderColor: cc.bar, color: cc.bar }}>
-                        <StatusIcon size={18} strokeWidth={2} />
-                        <span className="text-[9px] font-semibold leading-none text-center px-1 w-full truncate" style={{ color: cc.bar }}>
-                          {STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(fmt(c.status))}
-                        </span>
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center"
+                        style={{ background: cc.bar + "28", color: cc.bar }}>
+                        <StatusIcon size={22} strokeWidth={2} />
                       </div>
                       {auth.isConsultant && (
                         <button onClick={e => { e.stopPropagation(); toggle(c.id); }}
