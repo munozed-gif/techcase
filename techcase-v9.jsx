@@ -8523,9 +8523,11 @@ function AuthScreen({ onAuth }) {
   const [approvalDone, setApprovalDone] = useState(false); // admin_approval success screen
 
   const [error, setError]           = useState("");
-  const [emailTaken, setEmailTaken] = useState(false);
-  const [magicSent, setMagicSent]   = useState(false);
-  const [magicLoad, setMagicLoad]   = useState(false);
+  const [emailTaken, setEmailTaken]   = useState(false);
+  const [magicSent, setMagicSent]     = useState(false);
+  const [magicLoad, setMagicLoad]     = useState(false);
+  const [magicCode, setMagicCode]     = useState("");
+  const [magicVerifying, setMagicVerifying] = useState(false);
   const [loading, setLoad]          = useState(false);
   const auth = useAuth();
   const { settings: ssSettings } = useSystemSettings();
@@ -8558,7 +8560,19 @@ function AuthScreen({ onAuth }) {
     const { error: err } = await supabase.auth.signInWithOtp({ email: email.trim() });
     setMagicLoad(false);
     if (err) { setError(err.message); return; }
-    setMagicSent(true);
+    setMagicSent(true); setMagicCode("");
+  }
+
+  async function verifyMagicCode() {
+    if (magicCode.length < 4) return;
+    setMagicVerifying(true);
+    const { error: err } = await supabase.auth.verifyOtp({
+      email: email.trim(), token: magicCode.trim(), type: "email",
+    });
+    setMagicVerifying(false);
+    if (err) { setError(err.message); return; }
+    // Session is now active — App gate will route to profile completion screen
+    onAuth(null);
   }
 
   // ── Sign in ──────────────────────────────────────────────────
@@ -8769,19 +8783,36 @@ function AuthScreen({ onAuth }) {
       <div className="p-4 bg-red-50 text-sm text-red-700">{error}</div>
       {emailTaken && (
         magicSent ? (
-          <div className="p-4 bg-blue-50 border-t border-blue-200 flex items-start gap-3">
-            <Mail className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold text-blue-800">Login link sent — check your inbox</p>
-              <p className="text-xs text-blue-600 mt-0.5">Click the link in the email to continue your profile setup. No password needed.</p>
+          <div className="p-4 bg-blue-50 border-t border-blue-200 space-y-3">
+            <div className="flex items-start gap-3">
+              <Mail className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-blue-800">Code sent — check your inbox</p>
+                <p className="text-xs text-blue-600 mt-0.5">Enter the 6-digit code from the email to continue your profile setup.</p>
+              </div>
             </div>
+            <div className="flex gap-2">
+              <input
+                value={magicCode}
+                onChange={e => setMagicCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="6-digit code"
+                className="flex-1 border border-blue-200 rounded-xl px-4 py-2.5 text-sm text-center tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+              />
+              <button onClick={verifyMagicCode} disabled={magicVerifying || magicCode.length < 4}
+                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-colors flex items-center gap-1.5">
+                {magicVerifying ? <Loader2 className="w-4 h-4 animate-spin" /> : "Verify →"}
+              </button>
+            </div>
+            <button onClick={sendMagicLink} disabled={magicLoad} className="w-full text-xs text-blue-500 hover:text-blue-700 transition-colors">
+              {magicLoad ? "Sending…" : "Resend code"}
+            </button>
           </div>
         ) : (
           <div className="p-4 bg-amber-50 border-t border-amber-200">
-            <p className="text-xs text-amber-700 mb-3">Haven't set a password yet? We'll email you a one-time login link so you can finish your profile setup.</p>
+            <p className="text-xs text-amber-700 mb-3">Haven't set a password yet? We'll email you a one-time code so you can finish your profile setup.</p>
             <button onClick={sendMagicLink} disabled={magicLoad}
               className="w-full py-2.5 text-sm font-semibold text-blue-700 bg-white border border-blue-300 rounded-xl hover:bg-blue-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-              {magicLoad ? <><Loader2 className="w-4 h-4 animate-spin" />Sending…</> : <><Mail className="w-4 h-4" />Send me a login link</>}
+              {magicLoad ? <><Loader2 className="w-4 h-4 animate-spin" />Sending…</> : <><Mail className="w-4 h-4" />Send me a login code</>}
             </button>
           </div>
         )
