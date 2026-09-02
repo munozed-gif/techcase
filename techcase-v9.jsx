@@ -15331,11 +15331,14 @@ function CasesView({ auth, initialCaseId }) {
                         })()}
                       </div>
                     </div>
-                    {/* Right: status square + star */}
+                    {/* Right: status tile (bordered, no fill) + star */}
                     <div className="flex flex-col items-center gap-2 flex-shrink-0 self-center ml-1">
-                      <div className="w-12 h-12 rounded-xl flex items-center justify-center"
-                        style={{ background: cc.bar + "28", color: cc.bar }}>
-                        <StatusIcon size={22} strokeWidth={2} />
+                      <div className="w-14 flex flex-col items-center justify-center gap-1 py-2 rounded-xl border-2"
+                        style={{ borderColor: cc.bar, color: cc.bar }}>
+                        <StatusIcon size={18} strokeWidth={2} />
+                        <span className="text-[9px] font-semibold leading-none text-center px-1 w-full truncate" style={{ color: cc.bar }}>
+                          {STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(fmt(c.status))}
+                        </span>
                       </div>
                       {auth.isConsultant && (
                         <button onClick={e => { e.stopPropagation(); toggle(c.id); }}
