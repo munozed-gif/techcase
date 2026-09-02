@@ -29035,6 +29035,7 @@ function KanbanView({ auth }) {
   const { templates: lcTemplates } = useLifecycleTemplates();
   const [selectedCase, setSelectedCase] = useState(null);
   const [movingId, setMovingId]         = useState(null);
+  const [cardSize, setCardSize]         = useState("m"); // "s" | "m" | "l"
 
   const filteredCases = cases.filter(c => {
     if (auth.isClient)     return c.client_id === auth.user?.id;
@@ -29087,11 +29088,125 @@ function KanbanView({ auth }) {
     );
   }
 
+  // Card renderer by size
+  function KanbanCard({ c }) {
+    const priority1 = cap(c.priority)?.[0] ?? "?";
+    const company   = c.client?.client_profiles?.company_name;
+
+    if (cardSize === "s") {
+      return (
+        <div className="bg-white rounded-lg border border-gray-100 shadow-sm px-2 py-1.5 cursor-pointer hover:shadow-md transition-shadow flex items-center gap-1.5 min-w-0"
+          onClick={() => setSelectedCase(c)}>
+          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: PRIORITY_COLORS[c.priority]?.includes("red") ? "#ef4444" : PRIORITY_COLORS[c.priority]?.includes("orange") ? "#f97316" : PRIORITY_COLORS[c.priority]?.includes("yellow") ? "#eab308" : "#6b7280" }} />
+          <span className="text-xs text-gray-800 font-medium truncate flex-1 min-w-0">{c.title}</span>
+        </div>
+      );
+    }
+
+    if (cardSize === "l") {
+      return (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => setSelectedCase(c)}>
+          <div className="flex items-start gap-2 mb-2">
+            <ProjectAvatar project={c.project ?? { name: company || c.client?.full_name || c.title, client: c.client }} size={36} className="flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-1">
+                <span className="font-semibold text-sm text-gray-900 line-clamp-3 flex-1 break-words">{c.title}</span>
+                <Badge className={`${PRIORITY_COLORS[c.priority]} flex-shrink-0 text-xs ml-1`}>{priority1}</Badge>
+              </div>
+              {company && <div className="text-xs text-gray-400 mt-0.5 truncate">{company}</div>}
+            </div>
+          </div>
+          {c.description && (
+            <p className="text-xs text-gray-500 line-clamp-2 mb-2 leading-relaxed">{c.description}</p>
+          )}
+          <div className="flex items-center justify-between">
+            <div className="flex -space-x-1">
+              {(c.case_assignments ?? []).slice(0, 4).map((a, i) => (
+                <PersonAvatar key={i} name={a.users?.full_name} avatarUrl={a.users?.avatar_url} size={26} className="border-2 border-white" />
+              ))}
+            </div>
+            {c.due_date && <span className="text-xs text-gray-400">{fmtDate(c.due_date)}</span>}
+          </div>
+          {(auth.isAdmin || auth.isManager) && (
+            <div className="mt-3 pt-2 border-t border-gray-50" onClick={e => e.stopPropagation()}>
+              <select disabled={movingId === c.id}
+                value={c.status}
+                onChange={e => handleMove(c.id, e.target.value)}
+                className="w-full text-xs border border-gray-100 rounded-lg px-2 py-1 bg-gray-50 text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50">
+                {kanbanCols.map(col2 => (
+                  <option key={col2.key} value={col2.key}>{col2.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Medium (default)
+    return (
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 cursor-pointer hover:shadow-md transition-shadow"
+        onClick={() => setSelectedCase(c)}>
+        <div className="flex items-start gap-2 mb-1">
+          <ProjectAvatar project={c.project ?? { name: company || c.client?.full_name || c.title, client: c.client }} size={32} className="flex-shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-1">
+              <span className="font-medium text-sm text-gray-900 line-clamp-2 flex-1 break-words">{c.title}</span>
+              <Badge className={`${PRIORITY_COLORS[c.priority]} flex-shrink-0 text-xs`}>{priority1}</Badge>
+            </div>
+            {company && <div className="text-xs text-gray-400 mt-0.5 truncate">{company}</div>}
+          </div>
+        </div>
+        <div className="flex items-center justify-between mt-2">
+          <div className="flex -space-x-1">
+            {(c.case_assignments ?? []).slice(0, 3).map((a, i) => (
+              <PersonAvatar key={i} name={a.users?.full_name} avatarUrl={a.users?.avatar_url} size={24} className="border-2 border-white" />
+            ))}
+          </div>
+          {c.due_date && <span className="text-xs text-gray-400">{fmtDate(c.due_date)}</span>}
+        </div>
+        {(auth.isAdmin || auth.isManager) && (
+          <div className="mt-2 pt-2 border-t border-gray-50" onClick={e => e.stopPropagation()}>
+            <select disabled={movingId === c.id}
+              value={c.status}
+              onChange={e => handleMove(c.id, e.target.value)}
+              className="w-full text-xs border border-gray-100 rounded-lg px-2 py-1 bg-gray-50 text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50">
+              {kanbanCols.map(col2 => (
+                <option key={col2.key} value={col2.key}>{col2.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Column header height varies by size
+  const colHeaderPy = cardSize === "s" ? "pt-2 pb-1" : "pt-4 pb-2";
+  const colPadding  = cardSize === "s" ? "p-1.5" : "p-3";
+  const colGap      = cardSize === "s" ? "space-y-1" : "space-y-2";
+  const colMinH     = cardSize === "s" ? "min-h-12" : "min-h-20";
+  const colRadius   = cardSize === "s" ? "rounded-xl" : "rounded-2xl";
+  const borderTop   = cardSize === "s" ? "3px" : "4px";
+
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">{t("kanban.title")}</h1>
-        <p className="text-gray-500 text-sm mt-1">{t("kanban.subtitle")} · {t("kanban.case_count").replace("{n}", filteredCases.length)}</p>
+      <div className="mb-5 flex items-end justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{t("kanban.title")}</h1>
+          <p className="text-gray-500 text-sm mt-1">{t("kanban.subtitle")} · {t("kanban.case_count").replace("{n}", filteredCases.length)}</p>
+        </div>
+        {/* Size toggle */}
+        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+          {[["s","S"],["m","M"],["l","L"]].map(([val, label]) => (
+            <button key={val}
+              onClick={() => setCardSize(val)}
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${cardSize === val ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {kanbanCols.length === 0 ? (
@@ -29099,65 +29214,31 @@ function KanbanView({ auth }) {
           {t("kanban.no_cases")}
         </div>
       ) : (
-      <div className={`grid gap-4 items-start grid-cols-1 ${kanbanCols.length <= 2 ? "md:grid-cols-2" : kanbanCols.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2 xl:grid-cols-4"}`}>
-        {kanbanCols.map(col => {
-          const colCases = filteredCases.filter(c => c.status === col.key);
-          return (
-            <div key={col.key} className="rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
-              style={{ borderTop: `4px solid ${col.color}`, background: col.color + "0d" }}>
-              <div className="px-4 pt-4 pb-2 flex items-center justify-between">
-                <span className="font-semibold text-sm" style={{ color: col.color }}>{col.label}</span>
-                <span className="text-xs text-gray-400 bg-white rounded-full px-2 py-0.5 border border-gray-100">{colCases.length}</span>
+        <div className="grid items-start"
+          style={{
+            gap: cardSize === "s" ? "8px" : "12px",
+            gridTemplateColumns: `repeat(${kanbanCols.length}, minmax(0, 1fr))`,
+          }}>
+          {kanbanCols.map(col => {
+            const colCases = filteredCases.filter(c => c.status === col.key);
+            return (
+              <div key={col.key} className={`${colRadius} border border-gray-100 shadow-sm overflow-hidden`}
+                style={{ borderTop: `${borderTop} solid ${col.color}`, background: col.color + "0d" }}>
+                <div className={`px-3 ${colHeaderPy} flex items-center justify-between`}>
+                  <span className={`font-semibold ${cardSize === "s" ? "text-xs" : "text-sm"} truncate`} style={{ color: col.color }}>{col.label}</span>
+                  <span className={`${cardSize === "s" ? "text-[10px]" : "text-xs"} text-gray-400 bg-white rounded-full px-1.5 py-0.5 border border-gray-100 flex-shrink-0 ml-1`}>{colCases.length}</span>
+                </div>
+                <div className={`${colPadding} ${colGap} ${colMinH} flex flex-col`}>
+                  {colCases.map(c => <KanbanCard key={c.id} c={c} />)}
+                  {colCases.length === 0 && (
+                    <div className="text-center py-4 text-gray-300 text-xs">{t("kanban.empty_col")}</div>
+                  )}
+                </div>
               </div>
-              <div className="p-3 space-y-2 min-h-20">
-                {colCases.map(c => (
-                  <div key={c.id}
-                    className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => setSelectedCase(c)}>
-                    <div className="flex items-start gap-2 mb-1">
-                      <ProjectAvatar project={c.project ?? { name: c.client?.client_profiles?.company_name || c.client?.full_name || c.title, client: c.client }} size={32} className="flex-shrink-0 mt-0.5" />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-1">
-                          <span className="font-medium text-sm text-gray-900 line-clamp-2 flex-1">{c.title}</span>
-                          <Badge className={`${PRIORITY_COLORS[c.priority]} flex-shrink-0 text-xs`}>{cap(c.priority)?.[0]}</Badge>
-                        </div>
-                        {c.client?.client_profiles?.company_name && (
-                          <div className="text-xs text-gray-400 mt-0.5">{c.client.client_profiles.company_name}</div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="flex -space-x-1">
-                        {(c.case_assignments ?? []).slice(0, 3).map((a, i) => (
-                          <PersonAvatar key={i} name={a.users?.full_name} avatarUrl={a.users?.avatar_url} size={24} className="border-2 border-white" />
-                        ))}
-                      </div>
-                      {c.due_date && <span className="text-xs text-gray-400">{fmtDate(c.due_date)}</span>}
-                    </div>
-                    {(auth.isAdmin || auth.isManager) && (
-                      <div className="mt-2 pt-2 border-t border-gray-50" onClick={e => e.stopPropagation()}>
-                        <select disabled={movingId === c.id}
-                          value={c.status}
-                          onChange={e => handleMove(c.id, e.target.value)}
-                          className="w-full text-xs border border-gray-100 rounded-lg px-2 py-1 bg-gray-50 text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50">
-                          {kanbanCols.map(col2 => (
-                            <option key={col2.key} value={col2.key}>{col2.label}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {colCases.length === 0 && (
-                  <div className="text-center py-6 text-gray-300 text-xs">{t("kanban.empty_col")}</div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
       )}
-
     </div>
   );
 }
