@@ -7365,6 +7365,123 @@ function PendingApprovalScreen({ auth }) {
 }
 
 // ── Profile onboarding gate (approved but profile not complete) ───────────────
+// ── Resume / LinkedIn AI importer ────────────────────────────
+function ResumeImporter({ onExtracted }) {
+  const [mode, setMode]       = useState("upload"); // "upload" | "paste"
+  const [pasted, setPasted]   = useState("");
+  const [loading, setLoading] = useState(false);
+  const [done, setDone]       = useState(false);
+  const [error, setError]     = useState("");
+  const fileRef               = useRef(null);
+
+  const SYSTEM = `You are a professional profile data extractor.
+Extract structured information from the provided resume or profile text.
+Return ONLY valid JSON — no markdown fences, no explanation — matching exactly:
+{
+  "full_name": "string or null",
+  "headline": "one-line professional title or null",
+  "bio": "2-3 sentence professional summary or null",
+  "skills": ["array of specific technical skills, tools, methodologies"],
+  "years_experience": integer or null,
+  "linkedin_url": "URL string or null",
+  "company_name": "current or most recent employer or null",
+  "industry": "primary industry vertical or null",
+  "hourly_rate": integer or null
+}
+Only populate fields where clear evidence exists in the source.`;
+
+  async function runExtraction(messages) {
+    setLoading(true); setError(""); setDone(false);
+    try {
+      const raw = await callClaude({ system: SYSTEM, messages, max_tokens: 1024, model: "claude-haiku-4-5-20251001" });
+      const json = raw.trim().replace(/^```json\s*/i, "").replace(/\s*```$/, "");
+      const data = JSON.parse(json);
+      onExtracted(data);
+      setDone(true);
+    } catch (e) {
+      setError("Could not read the content. Try the paste option or fill in manually.");
+    }
+    setLoading(false);
+  }
+
+  async function handleFile(file) {
+    if (!file || file.type !== "application/pdf") { setError("Please select a PDF file."); return; }
+    const base64 = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload  = () => res(r.result.split(",")[1]);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+    runExtraction([{
+      role: "user",
+      content: [
+        { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } },
+        { type: "text", text: "Extract all relevant profile information from this resume." }
+      ]
+    }]);
+  }
+
+  function handlePaste() {
+    if (!pasted.trim()) return;
+    runExtraction([{ role: "user", content: pasted.trim() }]);
+  }
+
+  return (
+    <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-4 mb-2">
+      <div className="flex items-center gap-2 mb-3">
+        <Sparkles className="w-4 h-4 text-blue-600 flex-shrink-0" />
+        <span className="text-sm font-semibold text-blue-900">Fill with AI</span>
+        <span className="text-xs text-blue-400 ml-1">optional · takes ~5 sec</span>
+      </div>
+
+      <div className="flex gap-1 bg-blue-100/60 rounded-lg p-0.5 mb-3 w-fit">
+        {[["upload","Upload PDF"],["paste","Paste text"]].map(([m,l]) => (
+          <button key={m} onClick={() => { setMode(m); setError(""); setDone(false); }}
+            className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${mode===m?"bg-white text-blue-700 shadow-sm":"text-blue-600 hover:bg-white/50"}`}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {mode === "upload" && (
+        <>
+          <input ref={fileRef} type="file" accept="application/pdf" className="hidden"
+            onChange={e => { const f=e.target.files?.[0]; if(f) handleFile(f); e.target.value=""; }} />
+          <button onClick={() => fileRef.current?.click()} disabled={loading}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-blue-300 text-sm text-blue-600 font-medium hover:border-blue-400 hover:bg-white/50 transition-all disabled:opacity-50">
+            {loading
+              ? <><Loader2 className="w-4 h-4 animate-spin" />Reading resume…</>
+              : <><Upload className="w-4 h-4" />Choose PDF resume</>}
+          </button>
+          <p className="text-[10px] text-blue-400 mt-1.5 text-center">PDF only · never stored · read in your browser</p>
+        </>
+      )}
+
+      {mode === "paste" && (
+        <div className="space-y-2">
+          <textarea value={pasted} onChange={e => setPasted(e.target.value)} rows={4}
+            className="w-full bg-white border border-blue-200 rounded-xl px-3 py-2 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+            placeholder="Paste your LinkedIn About section, bio, CV text, or any professional description…" />
+          <button onClick={handlePaste} disabled={loading || !pasted.trim()}
+            className="w-full py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
+            {loading
+              ? <><Loader2 className="w-3 h-3 animate-spin" />Extracting…</>
+              : <><Sparkles className="w-3 h-3" />Extract profile info</>}
+          </button>
+        </div>
+      )}
+
+      {done && !error && (
+        <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mt-2 flex items-center gap-1.5">
+          <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+          Fields pre-filled — review and adjust below before saving.
+        </p>
+      )}
+      {error && <p className="text-xs text-red-600 mt-2">{error}</p>}
+    </div>
+  );
+}
+
 function ProfileOnboardingScreen({ auth }) {
   const [showWizard, setShowWizard] = useState(false);
   const [allDone, setAllDone] = useState(false);
@@ -7487,6 +7604,22 @@ function ProfileCompleteWizard({ auth, onDone, onClose }) {
   const [specialty,     setSpecialty]     = useState("");
   const [region,        setRegion]        = useState("");
 
+  const [aiFields, setAiFields] = useState(new Set());
+
+  function handleAiExtracted(data) {
+    const filled = new Set();
+    if (data.full_name)        { setFullName(data.full_name); filled.add("full_name"); }
+    if (data.headline)         { setHeadline(data.headline); filled.add("headline"); }
+    if (data.bio)              { setBio(data.bio); filled.add("bio"); }
+    if (data.skills?.length)   { setSkills(data.skills.join(", ")); filled.add("skills"); }
+    if (data.years_experience) { setYearsExp(String(data.years_experience)); filled.add("years_experience"); }
+    if (data.hourly_rate)      { setHourlyRate(String(data.hourly_rate)); filled.add("hourly_rate"); }
+    if (data.company_name)     { setCompanyName(data.company_name); filled.add("company_name"); }
+    if (data.industry)         { setIndustry(data.industry); filled.add("industry"); }
+    if (data.linkedin_url)     { /* stored in consultant profile, no direct state here */ }
+    setAiFields(filled);
+  }
+
   const totalSteps = role === "consultant" ? 2 : 1;
 
   const pwdOk = password.length >= 6 && password === confirmPwd;
@@ -7576,6 +7709,7 @@ function ProfileCompleteWizard({ auth, onDone, onClose }) {
               </div>
 
               {role === "client" && (<>
+                <ResumeImporter onExtracted={handleAiExtracted} />
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Company name</label>
                   <input value={companyName} onChange={e => setCompanyName(e.target.value)}
@@ -7634,6 +7768,7 @@ function ProfileCompleteWizard({ auth, onDone, onClose }) {
 
           {step === 2 && role === "consultant" && (
             <>
+              <ResumeImporter onExtracted={handleAiExtracted} />
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Professional headline</label>
                 <input value={headline} onChange={e => setHeadline(e.target.value)}
@@ -24713,6 +24848,17 @@ function ProfileView({ auth, compact = false }) {
       {editing && (
         <div className="bg-white rounded-2xl border border-blue-200 shadow-sm p-6 mb-6">
           <h3 className="font-semibold text-gray-900 mb-4">{t("profile.edit")}</h3>
+          <ResumeImporter onExtracted={data => {
+            setForm(p => ({
+              ...p,
+              ...(data.headline         ? { headline: data.headline } : {}),
+              ...(data.bio              ? { bio: data.bio } : {}),
+              ...(data.linkedin_url     ? { linkedin_url: data.linkedin_url } : {}),
+              ...(data.hourly_rate      ? { hourly_rate: String(data.hourly_rate) } : {}),
+              ...(data.years_experience ? { years_experience: String(data.years_experience) } : {}),
+              ...(data.skills?.length   ? { _skills: data.skills.join(", ") } : {}),
+            }));
+          }} />
           <Input label={t("label.headline")} value={form.headline} onChange={e => setForm(p => ({ ...p, headline: e.target.value }))}
             placeholder={t("profile.ph_headline_eg")} />
           <Textarea label={t("profile.bio_label")} value={form.bio} onChange={e => setForm(p => ({ ...p, bio: e.target.value }))}
