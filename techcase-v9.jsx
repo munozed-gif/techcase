@@ -15199,16 +15199,16 @@ function CasesView({ auth, initialCaseId }) {
       {/* ── Status + Period filter buttons ── */}
       {(() => {
         const STATUS_DEFS = [
-          { val: "open",           label: t("status.open"),           color: "#16a34a", bg: "#f0fdf4", border: "#86efac", Icon: Inbox },
-          { val: "estimated",      label: t("status.estimated"),      color: "#0d9488", bg: "#f0fdfa", border: "#5eead4", Icon: ClipboardList },
-          { val: "assigned",       label: t("status.assigned"),       color: "#7c3aed", bg: "#faf5ff", border: "#c4b5fd", Icon: UserCheck },
-          { val: "in_progress",    label: t("status.in_progress"),    color: "#2563eb", bg: "#eff6ff", border: "#93c5fd", Icon: Zap },
-          { val: "on_hold",        label: t("status.on_hold"),        color: "#b45309", bg: "#fffbeb", border: "#fcd34d", Icon: PauseCircle },
-          { val: "technical_test", label: t("status.technical_test"), color: "#0891b2", bg: "#ecfeff", border: "#67e8f9", Icon: Code2 },
-          { val: "functional_test",label: t("status.functional_test"),color: "#d97706", bg: "#fffbeb", border: "#fde68a", Icon: ListChecks },
-          { val: "user_test",      label: t("status.user_test"),      color: "#ea580c", bg: "#fff7ed", border: "#fed7aa", Icon: Users },
-          { val: "completed",      label: t("status.completed"),      color: "#0d9488", bg: "#f0fdfa", border: "#5eead4", Icon: CheckCircle2 },
-          { val: "cancelled",      label: t("status.cancelled"),      color: "#dc2626", bg: "#fef2f2", border: "#fca5a5", Icon: XCircle },
+          { val: "open",           label: t("status.open"),           color: "#16a34a", dark: "#15803d", bg: "#f0fdf4", border: "#86efac", Icon: Inbox },
+          { val: "estimated",      label: t("status.estimated"),      color: "#0d9488", dark: "#0f766e", bg: "#f0fdfa", border: "#5eead4", Icon: ClipboardList },
+          { val: "assigned",       label: t("status.assigned"),       color: "#7c3aed", dark: "#6d28d9", bg: "#faf5ff", border: "#c4b5fd", Icon: UserCheck },
+          { val: "in_progress",    label: t("status.in_progress"),    color: "#2563eb", dark: "#1d4ed8", bg: "#eff6ff", border: "#93c5fd", Icon: Zap },
+          { val: "on_hold",        label: t("status.on_hold"),        color: "#b45309", dark: "#92400e", bg: "#fffbeb", border: "#fcd34d", Icon: PauseCircle },
+          { val: "technical_test", label: t("status.technical_test"), color: "#0891b2", dark: "#0e7490", bg: "#ecfeff", border: "#67e8f9", Icon: Code2 },
+          { val: "functional_test",label: t("status.functional_test"),color: "#d97706", dark: "#b45309", bg: "#fffbeb", border: "#fde68a", Icon: ListChecks },
+          { val: "user_test",      label: t("status.user_test"),      color: "#ea580c", dark: "#c2410c", bg: "#fff7ed", border: "#fed7aa", Icon: Users },
+          { val: "completed",      label: t("status.completed"),      color: "#0d9488", dark: "#0f766e", bg: "#f0fdfa", border: "#5eead4", Icon: CheckCircle2 },
+          { val: "cancelled",      label: t("status.cancelled"),      color: "#dc2626", dark: "#b91c1c", bg: "#fef2f2", border: "#fca5a5", Icon: XCircle },
         ]
           .map(s => ({ ...s, count: visibleCases.filter(c => c.status === s.val).length }))
           .filter(s => s.count > 0);
@@ -15229,7 +15229,7 @@ function CasesView({ auth, initialCaseId }) {
                   onClick={() => setStatus("")}
                   className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl border font-semibold transition-all"
                   style={statusFilter === ""
-                    ? { background: "#1C3557", color: "#fff", borderColor: "#1C3557", boxShadow: "0 2px 6px 0 rgba(28,53,87,.25)" }
+                    ? { background: "#1e40af", color: "#fff", borderColor: "#1e40af", boxShadow: "0 2px 6px 0 rgba(30,64,175,.25)" }
                     : { background: "#f8fafc", color: "#64748b", borderColor: "#e2e8f0" }}>
                   <Layers size={16} />
                   <span className="text-xs leading-none">All <span className="opacity-70">{visibleCases.length}</span></span>
@@ -15242,7 +15242,7 @@ function CasesView({ auth, initialCaseId }) {
                       onClick={() => setStatus(f => f === s.val ? "" : s.val)}
                       className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl border font-semibold transition-all"
                       style={active
-                        ? { background: "#1C3557", color: "#fff", borderColor: "#1C3557", boxShadow: "0 2px 6px 0 rgba(28,53,87,.25)" }
+                        ? { background: s.dark, color: "#fff", borderColor: s.dark, boxShadow: `0 2px 6px 0 ${s.dark}44` }
                         : { background: s.bg, color: s.color, borderColor: s.border }}>
                       <Icon size={16} />
                       <span className="text-xs leading-none text-center px-1 truncate w-full">{s.label} <span className="opacity-70">{s.count}</span></span>
@@ -15252,7 +15252,7 @@ function CasesView({ auth, initialCaseId }) {
               </div>
             )}
 
-            {/* Period buttons — full-width, always 4 cols, same 2-line height */}
+            {/* Period buttons — full-width, always 4 cols */}
             <div className="grid grid-cols-4 gap-1.5">
               {PERIODS.map(p => {
                 const active = periodFilter === p.val;
@@ -15262,7 +15262,7 @@ function CasesView({ auth, initialCaseId }) {
                     onClick={() => setPeriod(f => f === p.val ? "" : p.val)}
                     className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl border font-semibold transition-all"
                     style={active
-                      ? { background: "#1C3557", color: "#fff", borderColor: "#1C3557", boxShadow: "0 2px 6px 0 rgba(28,53,87,.25)" }
+                      ? { background: "#2563eb", color: "#fff", borderColor: "#2563eb", boxShadow: "0 2px 6px 0 rgba(37,99,235,.25)" }
                       : { background: "#f8fafc", color: "#64748b", borderColor: "#e2e8f0" }}>
                     <Icon size={16} />
                     <span className="text-xs leading-none text-center px-1">{p.label}</span>
