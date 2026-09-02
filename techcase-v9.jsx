@@ -14865,6 +14865,7 @@ function CasesView({ auth, initialCaseId }) {
   const { t } = useT();
   const [search, setSearch]           = useState("");
   const [statusFilter, setStatus]     = useState("");
+  const [periodFilter, setPeriod]     = useState("");
   const [projectFilter, setProjectFilter] = useState("");
   const [selectedCase, setSelected]   = useState(null);
   const [showCreate, setShowCreate]   = useState(false);
@@ -14907,9 +14908,28 @@ function CasesView({ auth, initialCaseId }) {
     ? cases.filter(c => c.case_key_users?.some(ku => ku.user_id === auth.user?.id))
     : cases;
   const statusFiltered = statusFilter ? visibleCases.filter(c => c.status === statusFilter) : visibleCases;
+  const periodFiltered = (() => {
+    if (!periodFilter) return statusFiltered;
+    const now = new Date();
+    const startOfMonth = (y, m) => new Date(y, m, 1);
+    if (periodFilter === "this_month") {
+      const start = startOfMonth(now.getFullYear(), now.getMonth());
+      return statusFiltered.filter(c => new Date(c.created_at) >= start);
+    }
+    if (periodFilter === "last_month") {
+      const start = startOfMonth(now.getFullYear(), now.getMonth() - 1);
+      const end   = startOfMonth(now.getFullYear(), now.getMonth());
+      return statusFiltered.filter(c => { const d = new Date(c.created_at); return d >= start && d < end; });
+    }
+    if (periodFilter === "last_3_months") {
+      const start = startOfMonth(now.getFullYear(), now.getMonth() - 2);
+      return statusFiltered.filter(c => new Date(c.created_at) >= start);
+    }
+    return statusFiltered;
+  })();
   const projectFiltered = projectFilter
-    ? statusFiltered.filter(c => c.project_id === projectFilter)
-    : statusFiltered;
+    ? periodFiltered.filter(c => c.project_id === projectFilter)
+    : periodFiltered;
   const displayed = showFavOnly ? projectFiltered.filter(c => isFavorite(c.id)) : projectFiltered;
 
   async function handleStatusChange(caseId, status, extras = {}) {
@@ -15050,46 +15070,73 @@ function CasesView({ auth, initialCaseId }) {
         )}
       </div>
 
-      {/* Status stat tiles */}
+      {/* ── Status filter pills ── */}
       {(() => {
-        const caseTiles = [
-          { val: "",            label: t("cases.all_statuses"), Icon: FolderOpen,    color: "gray"   },
-          { val: "open",        label: t("status.open"),        Icon: Inbox,         color: "green"  },
-          { val: "in_progress", label: t("status.in_progress"), Icon: Activity,      color: "blue"   },
-          { val: "on_hold",     label: t("status.on_hold"),     Icon: PauseCircle,   color: "yellow" },
-          { val: "completed",   label: t("dashboard.completed"),Icon: CheckCircle2,  color: "teal"   },
-          { val: "cancelled",   label: t("status.cancelled"),   Icon: XCircle,       color: "red"    },
-        ].map(s => ({ ...s, count: s.val === "" ? visibleCases.length : visibleCases.filter(c => c.status === s.val).length }))
-         .filter(s => s.val === "" || s.count > 0);
-        const colorMap = {
-          blue:   { icon: "bg-blue-100 text-blue-600",    active: "bg-blue-50 border-blue-400",    num: "text-blue-700"   },
-          green:  { icon: "bg-green-100 text-green-600",  active: "bg-green-50 border-green-400",  num: "text-green-700"  },
-          teal:   { icon: "bg-teal-100 text-teal-600",    active: "bg-teal-50 border-teal-400",    num: "text-teal-700"   },
-          yellow: { icon: "bg-yellow-100 text-yellow-600",active: "bg-yellow-50 border-yellow-400",num: "text-yellow-700" },
-          red:    { icon: "bg-red-100 text-red-600",      active: "bg-red-50 border-red-400",      num: "text-red-700"    },
-          gray:   { icon: "bg-gray-100 text-gray-500",    active: "bg-gray-50 border-gray-400",    num: "text-gray-700"   },
-        };
+        const ALL_STATUSES = [
+          { val: "open",           label: t("status.open"),           color: "#16a34a", bg: "#f0fdf4", border: "#86efac" },
+          { val: "estimated",      label: t("status.estimated"),      color: "#0d9488", bg: "#f0fdfa", border: "#5eead4" },
+          { val: "assigned",       label: t("status.assigned"),       color: "#7c3aed", bg: "#faf5ff", border: "#c4b5fd" },
+          { val: "in_progress",    label: t("status.in_progress"),    color: "#2563eb", bg: "#eff6ff", border: "#93c5fd" },
+          { val: "on_hold",        label: t("status.on_hold"),        color: "#b45309", bg: "#fffbeb", border: "#fcd34d" },
+          { val: "technical_test", label: t("status.technical_test"), color: "#0891b2", bg: "#ecfeff", border: "#67e8f9" },
+          { val: "functional_test",label: t("status.functional_test"),color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
+          { val: "user_test",      label: t("status.user_test"),      color: "#ea580c", bg: "#fff7ed", border: "#fed7aa" },
+          { val: "completed",      label: t("status.completed"),      color: "#0d9488", bg: "#f0fdfa", border: "#5eead4" },
+          { val: "cancelled",      label: t("status.cancelled"),      color: "#dc2626", bg: "#fef2f2", border: "#fca5a5" },
+        ]
+          .map(s => ({ ...s, count: visibleCases.filter(c => c.status === s.val).length }))
+          .filter(s => s.count > 0);
+
+        const periods = [
+          { val: "",             label: "All time" },
+          { val: "this_month",   label: "This month" },
+          { val: "last_month",   label: "Last month" },
+          { val: "last_3_months",label: "Last 3 months" },
+        ];
+
         return (
-          <div className="flex gap-3 mb-6 overflow-x-auto px-1 py-1 -mx-1 -mt-1" style={{ scrollbarWidth: "none" }}>
-            {caseTiles.map(s => {
-              const isActive = statusFilter === s.val;
-              const cm = colorMap[s.color];
-              return (
-                <button key={s.val}
-                  onClick={() => setStatus(f => f === s.val ? "" : s.val)}
-                  className={`text-left rounded-xl px-4 py-3 shadow-sm border-2 transition-all flex items-center gap-3 flex-shrink-0 ${
-                    isActive ? `${cm.active} shadow-none` : "bg-white border-gray-100 hover:shadow-md hover:border-gray-200"
+          <div className="space-y-2 mb-5">
+            {/* Status pills */}
+            {ALL_STATUSES.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  onClick={() => setStatus("")}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                    statusFilter === "" ? "bg-gray-800 text-white border-gray-800" : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
                   }`}>
-                  <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 ${cm.icon}`}>
-                    <s.Icon className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className={`text-xl font-bold leading-none ${isActive ? cm.num : "text-gray-900"}`}>{s.count}</div>
-                    <div className="text-xs text-gray-500 mt-0.5 whitespace-nowrap">{s.label}</div>
-                  </div>
+                  All <span className="ml-1 opacity-70">{visibleCases.length}</span>
                 </button>
-              );
-            })}
+                {ALL_STATUSES.map(s => {
+                  const active = statusFilter === s.val;
+                  return (
+                    <button key={s.val}
+                      onClick={() => setStatus(f => f === s.val ? "" : s.val)}
+                      className="px-3 py-1 rounded-full text-xs font-semibold border transition-all"
+                      style={active
+                        ? { background: s.color, color: "#fff", borderColor: s.color }
+                        : { background: s.bg, color: s.color, borderColor: s.border }}>
+                      {s.label} <span className="ml-1 opacity-70">{s.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Period pills */}
+            <div className="flex flex-wrap gap-1.5">
+              {periods.map(p => {
+                const active = periodFilter === p.val;
+                return (
+                  <button key={p.val}
+                    onClick={() => setPeriod(f => f === p.val ? "" : p.val)}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                      active ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-500 border-gray-200 hover:border-blue-300 hover:text-blue-600"
+                    }`}>
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         );
       })()}
