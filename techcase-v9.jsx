@@ -15096,58 +15096,56 @@ function CasesView({ auth, initialCaseId }) {
         ];
 
         return (
-          <div className="space-y-2 mb-5">
-            {/* Status buttons — single scrolling row */}
+          <div className="space-y-2.5 mb-5">
+            {/* Status buttons — full-width grid */}
             {STATUS_DEFS.length > 0 && (
-              <div className="-mx-1 px-1 overflow-x-auto">
-                <div className="flex gap-2 pb-1" style={{ width: "max-content" }}>
-                  <button
-                    onClick={() => setStatus("")}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border whitespace-nowrap transition-all flex-shrink-0 ${
-                      statusFilter === "" ? "bg-gray-800 text-white border-gray-800 shadow-sm" : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
-                    }`}>
-                    <Layers size={14} />
-                    All
-                    <span className="ml-0.5 opacity-70 text-xs">{visibleCases.length}</span>
-                  </button>
-                  {STATUS_DEFS.map(s => {
-                    const active = statusFilter === s.val;
-                    const { Icon } = s;
-                    return (
-                      <button key={s.val}
-                        onClick={() => setStatus(f => f === s.val ? "" : s.val)}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border whitespace-nowrap transition-all flex-shrink-0"
-                        style={active
-                          ? { background: s.color, color: "#fff", borderColor: s.color, boxShadow: "0 1px 3px 0 rgba(0,0,0,.12)" }
-                          : { background: s.bg, color: s.color, borderColor: s.border }}>
-                        <Icon size={14} />
-                        {s.label}
-                        <span className="ml-0.5 opacity-70 text-xs">{s.count}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Period buttons — single scrolling row */}
-            <div className="-mx-1 px-1 overflow-x-auto">
-              <div className="flex gap-2 pb-1" style={{ width: "max-content" }}>
-                {PERIODS.map(p => {
-                  const active = periodFilter === p.val;
-                  const { Icon } = p;
+              <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${STATUS_DEFS.length + 1}, minmax(0, 1fr))` }}>
+                <button
+                  onClick={() => setStatus("")}
+                  className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl border font-semibold transition-all"
+                  style={statusFilter === ""
+                    ? { background: "#1C3557", color: "#fff", borderColor: "#1C3557", boxShadow: "0 2px 6px 0 rgba(28,53,87,.25)" }
+                    : { background: "#f8fafc", color: "#64748b", borderColor: "#e2e8f0" }}>
+                  <Layers size={16} />
+                  <span className="text-xs leading-none">All</span>
+                  <span className="text-[10px] leading-none opacity-70">{visibleCases.length}</span>
+                </button>
+                {STATUS_DEFS.map(s => {
+                  const active = statusFilter === s.val;
+                  const { Icon } = s;
                   return (
-                    <button key={p.val}
-                      onClick={() => setPeriod(f => f === p.val ? "" : p.val)}
-                      className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border whitespace-nowrap transition-all flex-shrink-0 ${
-                        active ? "bg-blue-600 text-white border-blue-600 shadow-sm" : "bg-white text-gray-500 border-gray-200 hover:border-blue-300 hover:text-blue-600"
-                      }`}>
-                      <Icon size={14} />
-                      {p.label}
+                    <button key={s.val}
+                      onClick={() => setStatus(f => f === s.val ? "" : s.val)}
+                      className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl border font-semibold transition-all"
+                      style={active
+                        ? { background: "#1C3557", color: "#fff", borderColor: "#1C3557", boxShadow: "0 2px 6px 0 rgba(28,53,87,.25)" }
+                        : { background: s.bg, color: s.color, borderColor: s.border }}>
+                      <Icon size={16} />
+                      <span className="text-xs leading-none text-center px-0.5 line-clamp-1">{s.label}</span>
+                      <span className="text-[10px] leading-none opacity-70">{s.count}</span>
                     </button>
                   );
                 })}
               </div>
+            )}
+
+            {/* Period buttons — full-width grid, always 4 cols */}
+            <div className="grid grid-cols-4 gap-1.5">
+              {PERIODS.map(p => {
+                const active = periodFilter === p.val;
+                const { Icon } = p;
+                return (
+                  <button key={p.val}
+                    onClick={() => setPeriod(f => f === p.val ? "" : p.val)}
+                    className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl border font-semibold transition-all"
+                    style={active
+                      ? { background: "#1C3557", color: "#fff", borderColor: "#1C3557", boxShadow: "0 2px 6px 0 rgba(28,53,87,.25)" }
+                      : { background: "#f8fafc", color: "#64748b", borderColor: "#e2e8f0" }}>
+                    <Icon size={16} />
+                    <span className="text-xs leading-none text-center px-0.5">{p.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         );
