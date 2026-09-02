@@ -10121,57 +10121,169 @@ function Dashboard({ auth }) {
       </div>
     </div>
 
-    {/* Right sidebar — compact case list */}
+    {/* Right sidebar */}
     <div className="w-72 flex-shrink-0 self-start sticky top-6 space-y-4">
-      {/* Recent cases mini list */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-        <div className="p-4 border-b border-gray-100">
-          <span className="text-sm font-bold text-gray-900">
-            {auth.isConsultant ? t("dashboard.my_cases") : auth.isClient ? t("dashboard.my_cases") : t("dashboard.recent_cases")}
-          </span>
-        </div>
-        <div className="divide-y divide-gray-50">
-          {(auth.isConsultant ? assignedCases : auth.isClient ? myCases : cases.slice(0, 6)).slice(0, 6).map(c => (
-            <div key={c.id} className="flex items-center gap-2.5 px-4 py-3 hover:bg-gray-50 cursor-pointer" onClick={() => setSelectedCase(c)}>
-              <ProjectAvatar project={c.project ?? { name: c.title }} size={28} />
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium text-gray-900 truncate">{c.title}</div>
-                <Badge className={`mt-0.5 ${STATUS_COLORS[c.status] ?? 'bg-gray-100 text-gray-600'}`}>{STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(fmt(c.status))}</Badge>
-              </div>
-            </div>
-          ))}
-          {(auth.isConsultant ? assignedCases : auth.isClient ? myCases : cases).length === 0 && (
-            <div className="px-4 py-6 text-center text-xs text-gray-400">{t("dashboard.no_cases")}</div>
-          )}
-        </div>
-      </div>
+      {(() => {
+        const scopedCases = auth.isConsultant ? assignedCases : auth.isClient ? myCases : cases;
+        const now = new Date();
 
-      {/* Starting Soon — compact, right sidebar */}
-      {(auth.isAdmin || auth.isManager) && (() => {
-        const soon = cases.filter(c => {
+        // 1 — Status Snapshot
+        const SNAP_STATUSES = [
+          { key: "open",            Icon: Inbox,         color: "#16a34a", bg: "#f0fdf4" },
+          { key: "estimated",       Icon: ClipboardList, color: "#0d9488", bg: "#f0fdfa" },
+          { key: "assigned",        Icon: UserCheck,     color: "#7c3aed", bg: "#faf5ff" },
+          { key: "in_progress",     Icon: Zap,           color: "#2563eb", bg: "#eff6ff" },
+          { key: "on_hold",         Icon: PauseCircle,   color: "#b45309", bg: "#fffbeb" },
+          { key: "technical_test",  Icon: Code2,         color: "#0891b2", bg: "#ecfeff" },
+          { key: "functional_test", Icon: ListChecks,    color: "#d97706", bg: "#fffbeb" },
+          { key: "user_test",       Icon: Users,         color: "#ea580c", bg: "#fff7ed" },
+          { key: "completed",       Icon: CheckCircle2,  color: "#4b5563", bg: "#f9fafb" },
+          { key: "cancelled",       Icon: XCircle,       color: "#dc2626", bg: "#fef2f2" },
+        ].map(s => ({ ...s, label: STATUS_LABEL_KEYS[s.key] ? t(STATUS_LABEL_KEYS[s.key]) : cap(fmt(s.key)), count: scopedCases.filter(c => c.status === s.key).length }))
+         .filter(s => s.count > 0);
+
+        // 2 — Due Soon (next 14 days)
+        const in14 = new Date(now.getTime() + 14 * 86400000);
+        const dueSoon = scopedCases
+          .filter(c => c.due_date && !["completed","cancelled"].includes(c.status))
+          .filter(c => { const d = new Date(c.due_date + "T00:00:00"); return d >= now && d <= in14; })
+          .sort((a, b) => (a.due_date < b.due_date ? -1 : 1))
+          .slice(0, 6);
+
+        // 3 — Pending Attention (role-aware)
+        let attentionItems = [];
+        let attentionTitle = "";
+        let attentionEmpty = "";
+        if (auth.isAdmin || auth.isManager) {
+          const pendingApps = applications.filter(a => a.status === "pending");
+          attentionTitle = t("dashboard.pending_applications") || "Pending Applications";
+          attentionEmpty = "No pending applications";
+          attentionItems = pendingApps.slice(0, 6).map(a => ({
+            id: a.id,
+            label: a.users?.full_name || "Consultant",
+            sub: cases.find(c => c.id === a.case_id)?.title ?? "—",
+            onClick: () => {},
+          }));
+        } else if (auth.isConsultant) {
+          const onHold = assignedCases.filter(c => c.status === "on_hold");
+          attentionTitle = "Cases On Hold";
+          attentionEmpty = "No cases on hold";
+          attentionItems = onHold.slice(0, 6).map(c => ({
+            id: c.id, label: c.title, sub: c.client?.client_profiles?.company_name || "", onClick: () => setSelectedCase(c),
+          }));
+        } else if (auth.isClient) {
+          const waiting = myCases.filter(c => c.status === "estimated");
+          attentionTitle = "Awaiting Estimation";
+          attentionEmpty = "No cases awaiting action";
+          attentionItems = waiting.slice(0, 6).map(c => ({
+            id: c.id, label: c.title, sub: fmtDate(c.created_at), onClick: () => setSelectedCase(c),
+          }));
+        } else {
+          const needsAction = scopedCases.filter(c => ["on_hold","estimated"].includes(c.status));
+          attentionTitle = "Needs Attention";
+          attentionEmpty = "Nothing needs attention";
+          attentionItems = needsAction.slice(0, 6).map(c => ({
+            id: c.id, label: c.title, sub: STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : c.status, onClick: () => setSelectedCase(c),
+          }));
+        }
+
+        // 4 — Starting Soon (admin/manager only)
+        const startingSoon = (auth.isAdmin || auth.isManager) ? cases.filter(c => {
           if (!c.start_date) return false;
           const d = Math.ceil((new Date(c.start_date + "T00:00:00") - Date.now()) / 86400000);
           return d >= 0 && d <= 7;
-        }).slice(0, 4);
-        if (!soon.length) return null;
+        }).sort((a, b) => (a.start_date < b.start_date ? -1 : 1)).slice(0, 5) : [];
+
         return (
-          <div className="bg-white rounded-2xl border border-amber-100 shadow-sm">
-            <div className="p-4 border-b border-amber-100 flex items-center gap-2">
-              <Clock className="w-3.5 h-3.5 text-amber-500" />
-              <span className="text-sm font-bold text-gray-900">{t("dashboard.starting_soon")}</span>
-            </div>
-            <div className="divide-y divide-gray-50">
-              {soon.map(c => {
-                const d = Math.ceil((new Date(c.start_date + "T00:00:00") - Date.now()) / 86400000);
-                return (
-                  <div key={c.id} className="px-4 py-3 flex items-center justify-between gap-2 cursor-pointer hover:bg-gray-50" onClick={() => setSelectedCase(c)}>
-                    <span className="text-xs font-medium text-gray-800 truncate">{c.title}</span>
-                    <span className="text-xs text-amber-600 font-semibold flex-shrink-0">{d === 0 ? t("dashboard.today") : `${d}d`}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <>
+            {/* ── 1. Status Snapshot ── */}
+            {SNAP_STATUSES.length > 0 && (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="px-4 pt-4 pb-3 border-b border-gray-100 flex items-center gap-2">
+                  <Layers className="w-3.5 h-3.5 text-gray-400" />
+                  <span className="text-sm font-bold text-gray-900">Pipeline</span>
+                  <span className="ml-auto text-xs text-gray-400">{scopedCases.length} total</span>
+                </div>
+                <div className="p-3 grid grid-cols-3 gap-1.5">
+                  {SNAP_STATUSES.map(s => {
+                    const { Icon } = s;
+                    return (
+                      <div key={s.key} className="rounded-xl p-2 flex flex-col items-center gap-1 text-center"
+                        style={{ background: s.bg }}>
+                        <Icon size={14} style={{ color: s.color }} />
+                        <span className="text-lg font-bold leading-none" style={{ color: s.color }}>{s.count}</span>
+                        <span className="text-[9px] leading-none text-gray-500 truncate w-full text-center">{s.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ── 2. Due Soon ── */}
+            {dueSoon.length > 0 && (
+              <div className="bg-white rounded-2xl border border-rose-100 shadow-sm">
+                <div className="px-4 pt-4 pb-3 border-b border-rose-100 flex items-center gap-2">
+                  <CalendarDays className="w-3.5 h-3.5 text-rose-400" />
+                  <span className="text-sm font-bold text-gray-900">Due Soon</span>
+                  <span className="ml-auto px-1.5 py-0.5 bg-rose-100 text-rose-600 text-[10px] font-bold rounded-md">{dueSoon.length}</span>
+                </div>
+                <div className="divide-y divide-gray-50">
+                  {dueSoon.map(c => {
+                    const daysLeft = Math.ceil((new Date(c.due_date + "T00:00:00") - now) / 86400000);
+                    return (
+                      <div key={c.id} className="px-4 py-2.5 flex items-center justify-between gap-2 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setSelectedCase(c)}>
+                        <span className="text-xs font-medium text-gray-800 truncate">{c.title}</span>
+                        <span className={`text-xs font-semibold flex-shrink-0 ${daysLeft <= 2 ? "text-rose-600" : daysLeft <= 5 ? "text-orange-500" : "text-amber-500"}`}>
+                          {daysLeft === 0 ? "Today" : daysLeft === 1 ? "Tomorrow" : `${daysLeft}d`}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ── 3. Pending Attention ── */}
+            {attentionItems.length > 0 && (
+              <div className="bg-white rounded-2xl border border-amber-100 shadow-sm">
+                <div className="px-4 pt-4 pb-3 border-b border-amber-100 flex items-center gap-2">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                  <span className="text-sm font-bold text-gray-900">{attentionTitle}</span>
+                  <span className="ml-auto px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-md">{attentionItems.length}</span>
+                </div>
+                <div className="divide-y divide-gray-50">
+                  {attentionItems.map(item => (
+                    <div key={item.id} className="px-4 py-2.5 cursor-pointer hover:bg-gray-50 transition-colors" onClick={item.onClick}>
+                      <div className="text-xs font-medium text-gray-800 truncate">{item.label}</div>
+                      {item.sub && <div className="text-[10px] text-gray-400 truncate mt-0.5">{item.sub}</div>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── 4. Starting Soon (admin/manager) ── */}
+            {startingSoon.length > 0 && (
+              <div className="bg-white rounded-2xl border border-amber-100 shadow-sm">
+                <div className="px-4 pt-4 pb-3 border-b border-amber-100 flex items-center gap-2">
+                  <Clock className="w-3.5 h-3.5 text-amber-500" />
+                  <span className="text-sm font-bold text-gray-900">{t("dashboard.starting_soon")}</span>
+                </div>
+                <div className="divide-y divide-gray-50">
+                  {startingSoon.map(c => {
+                    const d = Math.ceil((new Date(c.start_date + "T00:00:00") - Date.now()) / 86400000);
+                    return (
+                      <div key={c.id} className="px-4 py-2.5 flex items-center justify-between gap-2 cursor-pointer hover:bg-gray-50" onClick={() => setSelectedCase(c)}>
+                        <span className="text-xs font-medium text-gray-800 truncate">{c.title}</span>
+                        <span className="text-xs text-amber-600 font-semibold flex-shrink-0">{d === 0 ? t("dashboard.today") : `${d}d`}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
         );
       })()}
     </div>
