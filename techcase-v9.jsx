@@ -7081,14 +7081,14 @@ function FeedCard({ item, caseData, onOpenCase, onMarkRead }) {
         <div className="flex-1 min-w-0">
           {/* Header */}
           <div className="flex items-start justify-between gap-2 mb-1">
-            <p className="text-sm text-gray-900 leading-snug">
+            <p className="text-sm text-gray-900 leading-snug break-words min-w-0">
               {item._type === 'comment' && <><span className="font-semibold">{item.actor_name}</span>{t("feed.commented_on")}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span></>}
               {item._type === 'progress' && <><span className="font-semibold">{item.actor_name}</span>{t("feed.updated")}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span>{t("feed.to")}<span className="font-semibold text-green-600">{item.progress_update}%</span></>}
               {item._type === 'assignment' && <><span className="font-semibold">{item.actor_name}</span>{t("feed.joined_case")}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span>{item.time_commitment ? <span className="text-gray-500"> · {item.time_commitment}{t("feed.pct_commitment")}</span> : null}</>}
               {item._type === 'status_change' && <>{t("feed.status_changed_on")}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span>{': '}<span className="font-semibold text-indigo-600">{(item.title ?? '').replace('Status → ', '')}</span></>}
-              {item._type === 'milestone' && <span className="font-semibold text-gray-900">{item.title}</span>}
-              {item._type === 'document' && <span className="font-semibold text-gray-900">{item.title}</span>}
-              {item._type === 'alert' && <span className="font-semibold text-amber-800">{item.title}</span>}
+              {item._type === 'milestone' && <span className="font-semibold text-gray-900 break-all">{item.title}</span>}
+              {item._type === 'document' && <span className="font-semibold text-gray-900 break-all">{item.title}</span>}
+              {item._type === 'alert' && <span className="font-semibold text-amber-800 break-all">{item.title}</span>}
             </p>
             <div className="flex items-center gap-1.5 flex-shrink-0">
               {item.is_unread && <div className="w-2 h-2 bg-blue-500 rounded-full" />}
