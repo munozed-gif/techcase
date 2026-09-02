@@ -15096,10 +15096,10 @@ function CasesView({ auth, initialCaseId }) {
         ];
 
         return (
-          <div className="space-y-2.5 mb-5">
-            {/* Status buttons — full-width grid */}
+          <div className="space-y-2 mb-5">
+            {/* Status buttons — auto-wrap grid, min 110px per button */}
             {STATUS_DEFS.length > 0 && (
-              <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${STATUS_DEFS.length + 1}, minmax(0, 1fr))` }}>
+              <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))" }}>
                 <button
                   onClick={() => setStatus("")}
                   className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl border font-semibold transition-all"
@@ -15107,8 +15107,7 @@ function CasesView({ auth, initialCaseId }) {
                     ? { background: "#1C3557", color: "#fff", borderColor: "#1C3557", boxShadow: "0 2px 6px 0 rgba(28,53,87,.25)" }
                     : { background: "#f8fafc", color: "#64748b", borderColor: "#e2e8f0" }}>
                   <Layers size={16} />
-                  <span className="text-xs leading-none">All</span>
-                  <span className="text-[10px] leading-none opacity-70">{visibleCases.length}</span>
+                  <span className="text-xs leading-none">All <span className="opacity-70">{visibleCases.length}</span></span>
                 </button>
                 {STATUS_DEFS.map(s => {
                   const active = statusFilter === s.val;
@@ -15121,15 +15120,14 @@ function CasesView({ auth, initialCaseId }) {
                         ? { background: "#1C3557", color: "#fff", borderColor: "#1C3557", boxShadow: "0 2px 6px 0 rgba(28,53,87,.25)" }
                         : { background: s.bg, color: s.color, borderColor: s.border }}>
                       <Icon size={16} />
-                      <span className="text-xs leading-none text-center px-0.5 line-clamp-1">{s.label}</span>
-                      <span className="text-[10px] leading-none opacity-70">{s.count}</span>
+                      <span className="text-xs leading-none text-center px-1 truncate w-full">{s.label} <span className="opacity-70">{s.count}</span></span>
                     </button>
                   );
                 })}
               </div>
             )}
 
-            {/* Period buttons — full-width grid, always 4 cols */}
+            {/* Period buttons — full-width, always 4 cols, same 2-line height */}
             <div className="grid grid-cols-4 gap-1.5">
               {PERIODS.map(p => {
                 const active = periodFilter === p.val;
@@ -15142,7 +15140,7 @@ function CasesView({ auth, initialCaseId }) {
                       ? { background: "#1C3557", color: "#fff", borderColor: "#1C3557", boxShadow: "0 2px 6px 0 rgba(28,53,87,.25)" }
                       : { background: "#f8fafc", color: "#64748b", borderColor: "#e2e8f0" }}>
                     <Icon size={16} />
-                    <span className="text-xs leading-none text-center px-0.5">{p.label}</span>
+                    <span className="text-xs leading-none text-center px-1">{p.label}</span>
                   </button>
                 );
               })}
