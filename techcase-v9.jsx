@@ -7448,6 +7448,7 @@ const ROLE_LABELS = {
 
 function ProfileCompleteWizard({ auth, onDone, onClose }) {
   const [role,          setRole]          = useState(auth.profile?.role ?? "consultant");
+  const [showRolePicker, setShowRolePicker] = useState(false);
   const [step,          setStep]          = useState(1);
   const [saving,        setSaving]        = useState(false);
   const [error,         setError]         = useState("");
@@ -7548,12 +7549,16 @@ function ProfileCompleteWizard({ auth, onDone, onClose }) {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Account type</label>
-                <select value={role} onChange={e => setRole(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  {Object.entries(ROLE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                </select>
-                <p className="text-xs text-gray-400 mt-1">Correct this if your account type was set incorrectly.</p>
+                <button type="button" onClick={() => setShowRolePicker(v => !v)}
+                  className="text-xs text-gray-400 hover:text-blue-600 transition-colors">
+                  {showRolePicker ? "▲ Hide" : "Wrong account type? Change it"}
+                </button>
+                {showRolePicker && (
+                  <select value={role} onChange={e => setRole(e.target.value)}
+                    className="mt-2 w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    {Object.entries(ROLE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                )}
               </div>
 
               {role === "client" && (<>
