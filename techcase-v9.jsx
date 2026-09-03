@@ -7386,14 +7386,32 @@ Return ONLY valid JSON — no markdown fences, no explanation — matching exact
   "linkedin_url": "URL string or null",
   "company_name": "current or most recent employer or null",
   "industry": "primary industry vertical or null",
-  "hourly_rate": integer or null
+  "hourly_rate": integer or null,
+  "work_experience": [
+    {
+      "company_name": "employer name",
+      "role_held": "job title",
+      "start_date": "YYYY-MM or null",
+      "end_date": "YYYY-MM or null (null if current)",
+      "description": "brief role description or null"
+    }
+  ],
+  "projects": [
+    {
+      "title": "project name",
+      "client_name": "client or company name or null",
+      "description": "what the project was about",
+      "tech_stack": ["technologies used"],
+      "url": "project URL or null"
+    }
+  ]
 }
-Only populate fields where clear evidence exists in the source.`;
+work_experience should list all past and current jobs. projects should list notable professional or personal projects. Only populate fields where clear evidence exists in the source.`;
 
   async function runExtraction(messages) {
     setLoading(true); setError(""); setDone(false);
     try {
-      const raw = await callClaude({ system: SYSTEM, messages, max_tokens: 1024, model: "claude-haiku-4-5-20251001" });
+      const raw = await callClaude({ system: SYSTEM, messages, max_tokens: 4096, model: "claude-haiku-4-5-20251001" });
       const json = raw.trim().replace(/^```json\s*/i, "").replace(/\s*```$/, "");
       const data = JSON.parse(json);
       onExtracted(data);
@@ -7604,19 +7622,22 @@ function ProfileCompleteWizard({ auth, onDone, onClose }) {
   const [specialty,     setSpecialty]     = useState("");
   const [region,        setRegion]        = useState("");
 
-  const [aiFields, setAiFields] = useState(new Set());
+  const [aiFields, setAiFields]           = useState(new Set());
+  const [aiExperiences, setAiExperiences] = useState([]);
+  const [aiProjects, setAiProjects]       = useState([]);
 
   function handleAiExtracted(data) {
     const filled = new Set();
-    if (data.full_name)        { setFullName(data.full_name); filled.add("full_name"); }
-    if (data.headline)         { setHeadline(data.headline); filled.add("headline"); }
-    if (data.bio)              { setBio(data.bio); filled.add("bio"); }
-    if (data.skills?.length)   { setSkills(data.skills.join(", ")); filled.add("skills"); }
-    if (data.years_experience) { setYearsExp(String(data.years_experience)); filled.add("years_experience"); }
-    if (data.hourly_rate)      { setHourlyRate(String(data.hourly_rate)); filled.add("hourly_rate"); }
-    if (data.company_name)     { setCompanyName(data.company_name); filled.add("company_name"); }
-    if (data.industry)         { setIndustry(data.industry); filled.add("industry"); }
-    if (data.linkedin_url)     { /* stored in consultant profile, no direct state here */ }
+    if (data.full_name)          { setFullName(data.full_name); filled.add("full_name"); }
+    if (data.headline)           { setHeadline(data.headline); filled.add("headline"); }
+    if (data.bio)                { setBio(data.bio); filled.add("bio"); }
+    if (data.skills?.length)     { setSkills(data.skills.join(", ")); filled.add("skills"); }
+    if (data.years_experience)   { setYearsExp(String(data.years_experience)); filled.add("years_experience"); }
+    if (data.hourly_rate)        { setHourlyRate(String(data.hourly_rate)); filled.add("hourly_rate"); }
+    if (data.company_name)       { setCompanyName(data.company_name); filled.add("company_name"); }
+    if (data.industry)           { setIndustry(data.industry); filled.add("industry"); }
+    if (data.work_experience?.length) { setAiExperiences(data.work_experience); filled.add("work_experience"); }
+    if (data.projects?.length)        { setAiProjects(data.projects); filled.add("projects"); }
     setAiFields(filled);
   }
 
@@ -7654,6 +7675,27 @@ function ProfileCompleteWizard({ auth, onDone, onClose }) {
         expertise_level: expertiseLvl,
       }, { onConflict: "id" });
       if (cpErr) { setError(cpErr.message); setSaving(false); return; }
+      // Insert AI-extracted work experience and projects
+      for (const exp of aiExperiences) {
+        await supabase.from("consultant_customers").insert({
+          consultant_id: auth.user.id,
+          company_name: exp.company_name || "",
+          role_held:    exp.role_held    || null,
+          start_date:   exp.start_date   || null,
+          end_date:     exp.end_date     || null,
+          description:  exp.description  || null,
+        });
+      }
+      for (const proj of aiProjects) {
+        await supabase.from("consultant_projects").insert({
+          consultant_id: auth.user.id,
+          title:       proj.title        || "",
+          client_name: proj.client_name  || null,
+          description: proj.description  || null,
+          tech_stack:  proj.tech_stack   || [],
+          url:         proj.url          || null,
+        });
+      }
     } else if (role === "client") {
       const { error: cpErr } = await supabase.from("client_profiles").upsert({
         id: auth.user.id,
@@ -24847,7 +24889,7 @@ function ProfileView({ auth, compact = false }) {
       {editing && (
         <div className="bg-white rounded-2xl border border-blue-200 shadow-sm p-6 mb-6">
           <h3 className="font-semibold text-gray-900 mb-4">{t("profile.edit")}</h3>
-          <ResumeImporter onExtracted={data => {
+          <ResumeImporter onExtracted={async data => {
             setForm(p => ({
               ...p,
               ...(data.headline         ? { headline: data.headline } : {}),
@@ -24857,6 +24899,12 @@ function ProfileView({ auth, compact = false }) {
               ...(data.years_experience ? { years_experience: String(data.years_experience) } : {}),
               ...(data.skills?.length   ? { _skills: data.skills.join(", ") } : {}),
             }));
+            for (const exp of (data.work_experience ?? [])) {
+              try { await addCustomer({ company_name: exp.company_name || "", role_held: exp.role_held || null, start_date: exp.start_date || null, end_date: exp.end_date || null, description: exp.description || null }); } catch (_) {}
+            }
+            for (const proj of (data.projects ?? [])) {
+              try { await addProject({ title: proj.title || "", client_name: proj.client_name || null, description: proj.description || null, tech_stack: proj.tech_stack || [], url: proj.url || null }); } catch (_) {}
+            }
           }} />
           <Input label={t("label.headline")} value={form.headline} onChange={e => setForm(p => ({ ...p, headline: e.target.value }))}
             placeholder={t("profile.ph_headline_eg")} />
