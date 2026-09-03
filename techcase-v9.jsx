@@ -15369,7 +15369,7 @@ function CasesView({ auth, initialCaseId }) {
                   onClick={() => setStatus("")}
                   className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl border font-semibold transition-all"
                   style={statusFilter === ""
-                    ? { background: "#1e40af", color: "#fff", borderColor: "#1e40af", boxShadow: "0 2px 6px 0 rgba(30,64,175,.25)" }
+                    ? { background: "#dbeafe", color: "#1d4ed8", borderColor: "#2563eb" }
                     : { background: "#f8fafc", color: "#64748b", borderColor: "#e2e8f0" }}>
                   <Layers size={16} />
                   <span className="text-xs leading-none">All <span className="opacity-70">{visibleCases.length}</span></span>
@@ -15382,7 +15382,7 @@ function CasesView({ auth, initialCaseId }) {
                       onClick={() => setStatus(f => f === s.val ? "" : s.val)}
                       className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl border font-semibold transition-all"
                       style={active
-                        ? { background: s.dark, color: "#fff", borderColor: s.dark, boxShadow: `0 2px 6px 0 ${s.dark}44` }
+                        ? { background: s.color + "22", color: s.dark, borderColor: s.color }
                         : { background: s.bg, color: s.color, borderColor: s.border }}>
                       <Icon size={16} />
                       <span className="text-xs leading-none text-center px-1 truncate w-full">{s.label} <span className="opacity-70">{s.count}</span></span>
@@ -15402,7 +15402,7 @@ function CasesView({ auth, initialCaseId }) {
                     onClick={() => setPeriod(f => f === p.val ? "" : p.val)}
                     className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl border font-semibold transition-all"
                     style={active
-                      ? { background: "#2563eb", color: "#fff", borderColor: "#2563eb", boxShadow: "0 2px 6px 0 rgba(37,99,235,.25)" }
+                      ? { background: "#dbeafe", color: "#1d4ed8", borderColor: "#2563eb" }
                       : { background: "#f8fafc", color: "#64748b", borderColor: "#e2e8f0" }}>
                     <Icon size={16} />
                     <span className="text-xs leading-none text-center px-1">{p.label}</span>
