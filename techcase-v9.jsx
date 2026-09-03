@@ -7411,12 +7411,16 @@ work_experience should list all past and current jobs. projects should list nota
   async function runExtraction(messages) {
     setLoading(true); setError(""); setDone(false);
     try {
-      const raw = await callClaude({ system: SYSTEM, messages, max_tokens: 4096, model: "claude-haiku-4-5-20251001" });
-      const json = raw.trim().replace(/^```json\s*/i, "").replace(/\s*```$/, "");
-      const data = JSON.parse(json);
+      const raw = await callClaude({ system: SYSTEM, messages, max_tokens: 8192, model: "claude-haiku-4-5-20251001" });
+      // Extract JSON object regardless of surrounding markdown or explanation text
+      const start = raw.indexOf("{");
+      const end   = raw.lastIndexOf("}");
+      if (start === -1 || end === -1) throw new Error("No JSON object in response");
+      const data = JSON.parse(raw.slice(start, end + 1));
       onExtracted(data);
       setDone(true);
     } catch (e) {
+      console.error("ResumeImporter extraction error:", e);
       setError("Could not read the content. Try the paste option or fill in manually.");
     }
     setLoading(false);
