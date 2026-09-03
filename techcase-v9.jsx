@@ -10123,12 +10123,14 @@ function Dashboard({ auth }) {
                 {auth.isConsultant ? t("dashboard.assigned_cases") : t("dashboard.recent_cases")}
               </h2>
             </div>
-            <div className="divide-y divide-gray-50">
+            <div className="flex flex-col gap-2 p-3">
               {(auth.isConsultant ? assignedCases : cases.slice(0, 8)).map(c => {
-                const cc = CASE_CARD_COLORS[c.status] ?? { bar: "#9ca3af" };
+                const cc = CASE_CARD_COLORS[c.status] ?? { bar: "#9ca3af", border: "#e5e7eb", bg: "#ffffff" };
                 const StatusIcon = STATUS_CARD_ICONS[c.status] ?? Tag;
                 return (
-                  <div key={c.id} className="flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => setSelectedCase(c)}>
+                  <div key={c.id} className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all hover:shadow-sm"
+                    style={{ backgroundColor: cc.bg, border: `1.5px solid ${cc.border}` }}
+                    onClick={() => setSelectedCase(c)}>
                     <ProjectAvatar project={c.project ?? { name: c.title }} size={32} className="flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-gray-900 text-sm truncate">{c.title}</div>
