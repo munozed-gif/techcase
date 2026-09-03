@@ -10139,7 +10139,7 @@ function Dashboard({ auth }) {
                       </div>
                     </div>
                     <div className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center"
-                      style={{ background: cc.bar + "28", color: cc.bar }}>
+                      style={{ background: cc.bar, color: "#fff" }}>
                       <StatusIcon size={22} strokeWidth={2} />
                     </div>
                   </div>
@@ -15469,10 +15469,10 @@ function CasesView({ auth, initialCaseId }) {
                         })()}
                       </div>
                     </div>
-                    {/* Right: status square (tinted bg, icon only) + star */}
+                    {/* Right: status square (solid status color, white icon) + star */}
                     <div className="flex flex-col items-center gap-2 flex-shrink-0 self-center ml-1">
                       <div className="w-12 h-12 rounded-xl flex items-center justify-center"
-                        style={{ background: cc.bar + "28", color: cc.bar }}>
+                        style={{ background: cc.bar, color: "#fff" }}>
                         <StatusIcon size={22} strokeWidth={2} />
                       </div>
                       {auth.isConsultant && (
