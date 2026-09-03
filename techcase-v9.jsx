@@ -10158,40 +10158,6 @@ function Dashboard({ auth }) {
             );
           })()}
 
-          {/* Recent / Assigned Cases */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-            <div className="p-5 border-b border-gray-100">
-              <h2 className="text-base font-bold text-gray-900">
-                {auth.isConsultant ? t("dashboard.assigned_cases") : t("dashboard.recent_cases")}
-              </h2>
-            </div>
-            <div className="flex flex-col gap-2 p-3">
-              {(auth.isConsultant ? assignedCases : cases.slice(0, 8)).map(c => {
-                const cc = CASE_CARD_COLORS[c.status] ?? { bar: "#9ca3af", border: "#e5e7eb", bg: "#ffffff" };
-                const StatusIcon = STATUS_CARD_ICONS[c.status] ?? Tag;
-                return (
-                  <div key={c.id} className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all hover:shadow-sm"
-                    style={{ backgroundColor: cc.bg, border: `1.5px solid ${cc.border}` }}
-                    onClick={() => setSelectedCase(c)}>
-                    <ProjectAvatar project={c.project ?? { name: c.title }} size={32} className="flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-gray-900 text-sm truncate">{c.title}</div>
-                      <div className="text-xs text-gray-400 flex gap-1.5 mt-0.5">
-                        {c.project?.name && <span className="font-medium text-gray-500 truncate max-w-[120px]">{c.project.name}</span>}
-                        {c.project?.name && <span>·</span>}
-                        <span>{fmtDate(c.created_at)}</span>
-                      </div>
-                    </div>
-                    <div className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center"
-                      style={{ background: cc.bar + "33", color: cc.bar }}>
-                      <StatusIcon size={22} strokeWidth={2} />
-                    </div>
-                  </div>
-                );
-              })}
-              {cases.length === 0 && <div className="p-8 text-center text-gray-400 text-sm">{t("cases.no_cases")}</div>}
-            </div>
-          </div>
 
           {/* Starting Soon — managers and admins */}
           {(auth.isAdmin || auth.isManager) && (() => {
@@ -10425,6 +10391,45 @@ function Dashboard({ auth }) {
                 </div>
               </div>
             )}
+
+            {/* ── 2b. Assigned / Recent Cases ── */}
+            {(() => {
+              const caseList = auth.isConsultant ? assignedCases : cases.slice(0, 8);
+              if (!caseList.length) return null;
+              return (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                  <div className="px-4 pt-4 pb-3 border-b border-gray-100 flex items-center gap-2">
+                    <Briefcase className="w-3.5 h-3.5 text-gray-400" />
+                    <span className="text-sm font-bold text-gray-900">
+                      {auth.isConsultant ? t("dashboard.assigned_cases") : t("dashboard.recent_cases")}
+                    </span>
+                    <span className="ml-auto text-xs text-gray-400">{caseList.length}</span>
+                  </div>
+                  <div className="flex flex-col gap-1.5 p-2">
+                    {caseList.map(c => {
+                      const cc = CASE_CARD_COLORS[c.status] ?? { bar: "#9ca3af", border: "#e5e7eb", bg: "#ffffff" };
+                      const StatusIcon = STATUS_CARD_ICONS[c.status] ?? Tag;
+                      return (
+                        <div key={c.id} className="flex items-center gap-2 p-2 rounded-xl cursor-pointer transition-all hover:shadow-sm"
+                          style={{ backgroundColor: cc.bg, border: `1.5px solid ${cc.border}` }}
+                          onClick={() => setSelectedCase(c)}>
+                          <div className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
+                            style={{ background: cc.bar + "33", color: cc.bar }}>
+                            <StatusIcon size={16} strokeWidth={2} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-gray-900 text-xs truncate">{c.title}</div>
+                            <div className="text-[10px] text-gray-400 truncate mt-0.5">
+                              {c.project?.name ?? fmtDate(c.created_at)}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* ── 3. Pending Attention ── */}
             {attentionItems.length > 0 && (
