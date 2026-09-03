@@ -10138,12 +10138,9 @@ function Dashboard({ auth }) {
                         <span>{fmtDate(c.created_at)}</span>
                       </div>
                     </div>
-                    <div className="flex-shrink-0 w-12 flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl border-2"
-                      style={{ borderColor: cc.bar, color: cc.bar }}>
-                      <StatusIcon size={14} strokeWidth={2} />
-                      <span className="text-[8px] font-semibold leading-none text-center px-0.5 w-full truncate">
-                        {STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(fmt(c.status))}
-                      </span>
+                    <div className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center"
+                      style={{ background: cc.bar + "28", color: cc.bar }}>
+                      <StatusIcon size={22} strokeWidth={2} />
                     </div>
                   </div>
                 );
