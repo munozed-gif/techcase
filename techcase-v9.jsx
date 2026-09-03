@@ -7366,58 +7366,87 @@ function PendingApprovalScreen({ auth }) {
 
 // ── Profile onboarding gate (approved but profile not complete) ───────────────
 // ── Resume / LinkedIn AI importer ────────────────────────────
+const RESUME_SECTIONS = [
+  {
+    key: "bio",
+    label: "Bio & Headline",
+    icon: "User",
+    fields: ["full_name", "headline", "bio"],
+    schema: `  "full_name": "string or null",\n  "headline": "one-line professional title or null",\n  "bio": "2-3 sentence professional summary or null"`,
+  },
+  {
+    key: "skills",
+    label: "Skills",
+    icon: "Zap",
+    fields: ["skills", "years_experience", "industry", "company_name"],
+    schema: `  "skills": ["array of specific technical skills, tools, methodologies"],\n  "years_experience": integer or null,\n  "company_name": "current or most recent employer or null",\n  "industry": "primary industry vertical or null"`,
+  },
+  {
+    key: "experience",
+    label: "Work Experience",
+    icon: "Briefcase",
+    fields: ["work_experience"],
+    schema: `  "work_experience": [\n    {\n      "company_name": "employer name",\n      "role_held": "job title",\n      "start_date": "YYYY-MM or null",\n      "end_date": "YYYY-MM or null (null if current)",\n      "description": "brief role description or null"\n    }\n  ]`,
+  },
+  {
+    key: "projects",
+    label: "Projects",
+    icon: "FolderOpen",
+    fields: ["projects"],
+    schema: `  "projects": [\n    {\n      "title": "project name",\n      "client_name": "client or company name or null",\n      "description": "what the project was about",\n      "tech_stack": ["technologies used"],\n      "url": "project URL or null"\n    }\n  ]`,
+  },
+  {
+    key: "contact",
+    label: "Contact & Rates",
+    icon: "Link",
+    fields: ["linkedin_url", "hourly_rate"],
+    schema: `  "linkedin_url": "URL string or null",\n  "hourly_rate": integer or null`,
+  },
+];
+
 function ResumeImporter({ onExtracted }) {
-  const [mode, setMode]       = useState("upload"); // "upload" | "paste"
+  const [mode, setMode]       = useState("upload");
   const [pasted, setPasted]   = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone]       = useState(false);
   const [error, setError]     = useState("");
+  const [selected, setSelected] = useState(new Set(RESUME_SECTIONS.map(s => s.key)));
   const fileRef               = useRef(null);
 
-  const SYSTEM = `You are a professional profile data extractor.
-Extract structured information from the provided resume or profile text.
-Return ONLY valid JSON — no markdown fences, no explanation — matching exactly:
-{
-  "full_name": "string or null",
-  "headline": "one-line professional title or null",
-  "bio": "2-3 sentence professional summary or null",
-  "skills": ["array of specific technical skills, tools, methodologies"],
-  "years_experience": integer or null,
-  "linkedin_url": "URL string or null",
-  "company_name": "current or most recent employer or null",
-  "industry": "primary industry vertical or null",
-  "hourly_rate": integer or null,
-  "work_experience": [
-    {
-      "company_name": "employer name",
-      "role_held": "job title",
-      "start_date": "YYYY-MM or null",
-      "end_date": "YYYY-MM or null (null if current)",
-      "description": "brief role description or null"
-    }
-  ],
-  "projects": [
-    {
-      "title": "project name",
-      "client_name": "client or company name or null",
-      "description": "what the project was about",
-      "tech_stack": ["technologies used"],
-      "url": "project URL or null"
-    }
-  ]
-}
-work_experience should list all past and current jobs. projects should list notable professional or personal projects. Only populate fields where clear evidence exists in the source.`;
+  function toggleSection(key) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) { if (next.size > 1) next.delete(key); }
+      else next.add(key);
+      return next;
+    });
+    setDone(false); setError("");
+  }
+
+  function buildSystem() {
+    const active = RESUME_SECTIONS.filter(s => selected.has(s.key));
+    const schemaLines = active.map(s => s.schema).join(",\n");
+    const notes = [];
+    if (selected.has("experience")) notes.push("work_experience should list all past and current jobs.");
+    if (selected.has("projects"))   notes.push("projects should list notable professional or personal projects.");
+    notes.push("Only populate fields where clear evidence exists in the source.");
+    return `You are a professional profile data extractor.\nExtract structured information from the provided resume or profile text.\nReturn ONLY valid JSON — no markdown fences, no explanation — matching exactly:\n{\n${schemaLines}\n}\n${notes.join(" ")}`;
+  }
 
   async function runExtraction(messages) {
+    if (selected.size === 0) { setError("Select at least one section to extract."); return; }
     setLoading(true); setError(""); setDone(false);
     try {
-      const raw = await callClaude({ system: SYSTEM, messages, max_tokens: 8192, model: "claude-haiku-4-5-20251001" });
-      // Extract JSON object regardless of surrounding markdown or explanation text
+      const system = buildSystem();
+      const raw = await callClaude({ system, messages, max_tokens: 8192, model: "claude-haiku-4-5-20251001" });
       const start = raw.indexOf("{");
       const end   = raw.lastIndexOf("}");
       if (start === -1 || end === -1) throw new Error("No JSON object in response");
-      const data = JSON.parse(raw.slice(start, end + 1));
-      onExtracted(data);
+      const full = JSON.parse(raw.slice(start, end + 1));
+      // Strip out fields that belong to unselected sections
+      const allowed = new Set(RESUME_SECTIONS.filter(s => selected.has(s.key)).flatMap(s => s.fields));
+      const filtered = Object.fromEntries(Object.entries(full).filter(([k]) => allowed.has(k)));
+      onExtracted(filtered);
       setDone(true);
     } catch (e) {
       console.error("ResumeImporter extraction error:", e);
@@ -7438,7 +7467,7 @@ work_experience should list all past and current jobs. projects should list nota
       role: "user",
       content: [
         { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } },
-        { type: "text", text: "Extract all relevant profile information from this resume." }
+        { type: "text", text: "Extract the requested profile information from this resume." }
       ]
     }]);
   }
@@ -7448,6 +7477,8 @@ work_experience should list all past and current jobs. projects should list nota
     runExtraction([{ role: "user", content: pasted.trim() }]);
   }
 
+  const SectionIcons = { User, Zap, Briefcase, FolderOpen, Link };
+
   return (
     <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-4 mb-2">
       <div className="flex items-center gap-2 mb-3">
@@ -7456,6 +7487,27 @@ work_experience should list all past and current jobs. projects should list nota
         <span className="text-xs text-blue-400 ml-1">optional · takes ~5 sec</span>
       </div>
 
+      {/* Section selector */}
+      <p className="text-[11px] font-semibold text-blue-700 mb-1.5 uppercase tracking-wide">What to extract</p>
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        {RESUME_SECTIONS.map(s => {
+          const Icon = SectionIcons[s.icon] ?? Sparkles;
+          const active = selected.has(s.key);
+          return (
+            <button key={s.key} onClick={() => toggleSection(s.key)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                active
+                  ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                  : "bg-white text-blue-500 border-blue-200 hover:border-blue-400"
+              }`}>
+              <Icon className="w-3 h-3" />
+              {s.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Upload / Paste toggle */}
       <div className="flex gap-1 bg-blue-100/60 rounded-lg p-0.5 mb-3 w-fit">
         {[["upload","Upload PDF"],["paste","Paste text"]].map(([m,l]) => (
           <button key={m} onClick={() => { setMode(m); setError(""); setDone(false); }}
