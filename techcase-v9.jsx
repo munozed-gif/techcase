@@ -25009,7 +25009,7 @@ function ProfileView({ auth, compact = false }) {
   const { profile, availability, loading, profileError, updateProfile, uploadPhoto, addCustomer, updateCustomer, deleteCustomer, addProject, updateProject, deleteProject, addWorkAuth } =
     useConsultantProfile(auth.user?.id, realProfileId);
   const { ratings, avgRating } = useRatings(auth.user?.id);
-  const [profileTab, setProfileTab] = useState("overview");
+  const [profileTab, setProfileTab] = useState("experience");
   const [editing, setEditing]       = useState(false);
   const [form, setForm]             = useState({});
   const [saving, setSaving]         = useState(false);
@@ -25073,7 +25073,6 @@ function ProfileView({ auth, compact = false }) {
   const freeAvail = Math.max(0, 100 - totalUsed);
 
   const tabs = [
-    { id: "overview",   label: t("profile.tab_overview"),   icon: User },
     { id: "experience", label: t("profile.tab_experience"), icon: Briefcase },
     { id: "skills",     label: t("profile.tab_skills"),     icon: GraduationCap },
     { id: "ratings",    label: t("profile.tab_ratings"),    icon: Star },
@@ -25391,38 +25390,6 @@ function ProfileView({ auth, compact = false }) {
       </div>
 
       {/* Tab Content */}
-      {profileTab === "overview" && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <h3 className="font-semibold text-gray-900 mb-3">{t("label.about")}</h3>
-          <p className="text-gray-600 text-sm leading-relaxed">{profile?.bio || t("profile.no_bio")}</p>
-          {profile?.linkedin_url && (
-            <a href={profile.linkedin_url} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-2 mt-4 text-sm text-blue-600 hover:underline">
-              <Link className="w-3.5 h-3.5 mr-1" /> {t("profile.linkedin")}
-            </a>
-          )}
-          {/* Active cases */}
-          {profile?.case_assignments?.length > 0 && (
-            <div className="mt-5">
-              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("profile.active_cases")}</h4>
-              <div className="space-y-2">
-                {profile.case_assignments
-                  .filter(a => ["open","in_progress"].includes(a.case?.status))
-                  .map(a => (
-                    <div key={a.case?.id} className="flex items-center justify-between text-sm border border-gray-100 rounded-xl px-4 py-2">
-                      <span className="font-medium text-gray-800">{a.case?.title}</span>
-                      <div className="flex items-center gap-2">
-                        <Badge className={STATUS_COLORS[a.case?.status]}>{STATUS_LABEL_KEYS[a.case?.status] ? t(STATUS_LABEL_KEYS[a.case?.status]) : cap(fmt(a.case?.status))}</Badge>
-                        <span className="text-gray-400 text-xs">{a.time_commitment}%</span>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
       {profileTab === "experience" && (
         <div className="space-y-6">
           {/* Projects */}
