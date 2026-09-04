@@ -29525,6 +29525,8 @@ function ClientProfileView({ auth }) {
                   <option value="">— No system role —</option>
                   <option value="key_user">Key User</option>
                   <option value="final_user">Final User</option>
+                  <option value="internal_consultant">Internal Consultant</option>
+                  <option value="project_manager">Project Manager</option>
                 </select>
               </div>
               <label className="flex items-center gap-2 text-sm cursor-pointer">
@@ -29568,6 +29570,8 @@ function ClientProfileView({ auth }) {
                         <option value="">— No system role —</option>
                         <option value="key_user">Key User</option>
                         <option value="final_user">Final User</option>
+                        <option value="internal_consultant">Internal Consultant</option>
+                        <option value="project_manager">Project Manager</option>
                       </select>
                     </div>
                     <label className="flex items-center gap-2 text-sm cursor-pointer">
@@ -29594,8 +29598,10 @@ function ClientProfileView({ auth }) {
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="font-medium text-gray-900 truncate">{m.full_name}</span>
                           {m.is_primary && <Badge className="bg-blue-100 text-blue-700">{t("team.primary_badge")}</Badge>}
-                          {m.system_role === "key_user"   && <Badge className="bg-indigo-100 text-indigo-700">Key User</Badge>}
-                          {m.system_role === "final_user" && <Badge className="bg-teal-100 text-teal-700">Final User</Badge>}
+                          {m.system_role === "key_user"            && <Badge className="bg-indigo-100 text-indigo-700">Key User</Badge>}
+                          {m.system_role === "final_user"          && <Badge className="bg-teal-100 text-teal-700">Final User</Badge>}
+                          {m.system_role === "internal_consultant" && <Badge className="bg-indigo-100 text-indigo-700">Internal Consultant</Badge>}
+                          {m.system_role === "project_manager"     && <Badge className="bg-rose-100 text-rose-700">Project Manager</Badge>}
                         </div>
                         {m.role_title && <div className="text-xs text-gray-500">{m.role_title}</div>}
                       </div>
