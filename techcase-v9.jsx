@@ -12186,15 +12186,16 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               ...interview,
               skills_required: _skills,
             };
-            await supabase.from("case_templates").insert({
+            const { error: tplErr } = await supabase.from("case_templates").insert({
               name: templateName.trim(),
               description: basics.description || null,
               template_data: tplData,
               created_by: user?.id ?? null,
-              is_global: false,
+              is_global: true,
             });
-            logEvent('template.created', { entityType: 'case_template', metadata: { name: templateName.trim() } });
-          } catch {}
+            if (tplErr) console.error("Template save error:", tplErr.message);
+            else logEvent('template.created', { entityType: 'case_template', metadata: { name: templateName.trim() } });
+          } catch (e) { console.error("Template save failed:", e.message); }
         }
         onComplete(newCase?.id);
       }
