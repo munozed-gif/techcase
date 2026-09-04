@@ -7559,13 +7559,14 @@ const RESUME_SECTIONS = [
 ];
 
 function ResumeImporter({ onExtracted }) {
-  const [mode, setMode]       = useState("upload");
-  const [pasted, setPasted]   = useState("");
-  const [loading, setLoading] = useState(false);
-  const [done, setDone]       = useState(false);
-  const [error, setError]     = useState("");
+  const [mode, setMode]         = useState("upload");
+  const [pasted, setPasted]     = useState("");
+  const [loading, setLoading]   = useState(false);
+  const [done, setDone]         = useState(false);
+  const [error, setError]       = useState("");
   const [selected, setSelected] = useState(new Set(RESUME_SECTIONS.map(s => s.key)));
-  const fileRef               = useRef(null);
+  const [pending, setPending]   = useState(null); // extracted data waiting for user confirmation
+  const fileRef                 = useRef(null);
 
   function toggleSection(key) {
     setSelected(prev => {
@@ -7574,7 +7575,7 @@ function ResumeImporter({ onExtracted }) {
       else next.add(key);
       return next;
     });
-    setDone(false); setError("");
+    setDone(false); setError(""); setPending(null);
   }
 
   function buildSystem() {
@@ -7589,7 +7590,7 @@ function ResumeImporter({ onExtracted }) {
 
   async function runExtraction(messages) {
     if (selected.size === 0) { setError("Select at least one section to extract."); return; }
-    setLoading(true); setError(""); setDone(false);
+    setLoading(true); setError(""); setDone(false); setPending(null);
     try {
       const system = buildSystem();
       const raw = await callClaude({ system, messages, max_tokens: 8192, model: "claude-haiku-4-5-20251001" });
@@ -7597,16 +7598,26 @@ function ResumeImporter({ onExtracted }) {
       const end   = raw.lastIndexOf("}");
       if (start === -1 || end === -1) throw new Error("No JSON object in response");
       const full = JSON.parse(raw.slice(start, end + 1));
-      // Strip out fields that belong to unselected sections
       const allowed = new Set(RESUME_SECTIONS.filter(s => selected.has(s.key)).flatMap(s => s.fields));
       const filtered = Object.fromEntries(Object.entries(full).filter(([k]) => allowed.has(k)));
-      onExtracted(filtered);
-      setDone(true);
+      setPending(filtered); // show preview instead of saving immediately
     } catch (e) {
       console.error("ResumeImporter extraction error:", e);
       setError("Could not read the content. Try the paste option or fill in manually.");
     }
     setLoading(false);
+  }
+
+  function handleConfirm() {
+    if (!pending) return;
+    onExtracted(pending);
+    setPending(null);
+    setDone(true);
+  }
+
+  function handleDiscard() {
+    setPending(null);
+    setError("");
   }
 
   async function handleFile(file) {
@@ -7633,6 +7644,33 @@ function ResumeImporter({ onExtracted }) {
 
   const SectionIcons = { User, Zap, Briefcase, FolderOpen, Link };
 
+  // Build preview rows from extracted data
+  function buildPreviewRows(data) {
+    const rows = [];
+    if (data.full_name || data.headline || data.bio) {
+      const parts = [];
+      if (data.headline) parts.push(data.headline);
+      if (data.bio)      parts.push(`"${data.bio.slice(0, 80)}${data.bio.length > 80 ? "…" : ""}"`);
+      rows.push({ label: "Bio & Headline", count: null, detail: parts });
+    }
+    if (data.skills?.length) {
+      rows.push({ label: "Skills", count: data.skills.length, detail: [data.skills.slice(0, 5).join(", ") + (data.skills.length > 5 ? ` +${data.skills.length - 5} more` : "")] });
+    }
+    if (data.work_experience?.length) {
+      rows.push({ label: "Work Experience", count: data.work_experience.length, detail: data.work_experience.slice(0, 4).map(e => `· ${e.company_name}${e.role_held ? ` — ${e.role_held}` : ""}`).concat(data.work_experience.length > 4 ? [`· …${data.work_experience.length - 4} more`] : []) });
+    }
+    if (data.projects?.length) {
+      rows.push({ label: "Projects", count: data.projects.length, detail: data.projects.slice(0, 4).map(p => `· ${p.title}${p.client_name ? ` — ${p.client_name}` : ""}`).concat(data.projects.length > 4 ? [`· …${data.projects.length - 4} more`] : []) });
+    }
+    if (data.linkedin_url || data.hourly_rate) {
+      const parts = [];
+      if (data.linkedin_url) parts.push("LinkedIn URL");
+      if (data.hourly_rate)  parts.push(`$${data.hourly_rate}/hr`);
+      rows.push({ label: "Contact & Rates", count: null, detail: parts });
+    }
+    return rows;
+  }
+
   return (
     <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-4 mb-2">
       <div className="flex items-center gap-2 mb-3">
@@ -7641,68 +7679,111 @@ function ResumeImporter({ onExtracted }) {
         <span className="text-xs text-blue-400 ml-1">optional · takes ~5 sec</span>
       </div>
 
-      {/* Section selector */}
-      <p className="text-[11px] font-semibold text-blue-700 mb-1.5 uppercase tracking-wide">What to extract</p>
-      <div className="flex flex-wrap gap-1.5 mb-3">
-        {RESUME_SECTIONS.map(s => {
-          const Icon = SectionIcons[s.icon] ?? Sparkles;
-          const active = selected.has(s.key);
-          return (
-            <button key={s.key} onClick={() => toggleSection(s.key)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
-                active
-                  ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                  : "bg-white text-blue-500 border-blue-200 hover:border-blue-400"
-              }`}>
-              <Icon className="w-3 h-3" />
-              {s.label}
+      {/* Preview / confirm step */}
+      {pending ? (
+        <div className="bg-white rounded-2xl border border-blue-200 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
+            <span className="text-sm font-semibold text-blue-900">Found in your resume</span>
+          </div>
+          <div className="space-y-3 mb-4">
+            {buildPreviewRows(pending).map(row => (
+              <div key={row.label} className="flex gap-3">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-gray-800">{row.label}</span>
+                    {row.count !== null && (
+                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-md">{row.count}</span>
+                    )}
+                  </div>
+                  {row.detail.map((d, i) => (
+                    <p key={i} className="text-[11px] text-gray-500 mt-0.5 truncate">{d}</p>
+                  ))}
+                </div>
+              </div>
+            ))}
+            {buildPreviewRows(pending).length === 0 && (
+              <p className="text-xs text-gray-400">Nothing useful was found — try pasting the text instead.</p>
+            )}
+          </div>
+          <div className="flex gap-2 pt-3 border-t border-gray-100">
+            <button onClick={handleConfirm}
+              className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5" />Apply to profile
             </button>
-          );
-        })}
-      </div>
-
-      {/* Upload / Paste toggle */}
-      <div className="flex gap-1 bg-blue-100/60 rounded-lg p-0.5 mb-3 w-fit">
-        {[["upload","Upload PDF"],["paste","Paste text"]].map(([m,l]) => (
-          <button key={m} onClick={() => { setMode(m); setError(""); setDone(false); }}
-            className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${mode===m?"bg-white text-blue-700 shadow-sm":"text-blue-600 hover:bg-white/50"}`}>
-            {l}
-          </button>
-        ))}
-      </div>
-
-      {mode === "upload" && (
+            <button onClick={handleDiscard}
+              className="px-4 py-2 border border-gray-200 text-xs font-semibold text-gray-600 rounded-xl hover:bg-gray-50 transition-colors">
+              Discard
+            </button>
+          </div>
+        </div>
+      ) : (
         <>
-          <input ref={fileRef} type="file" accept="application/pdf" className="hidden"
-            onChange={e => { const f=e.target.files?.[0]; if(f) handleFile(f); e.target.value=""; }} />
-          <button onClick={() => fileRef.current?.click()} disabled={loading}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-blue-300 text-sm text-blue-600 font-medium hover:border-blue-400 hover:bg-white/50 transition-all disabled:opacity-50">
-            {loading
-              ? <><Loader2 className="w-4 h-4 animate-spin" />Reading resume…</>
-              : <><Upload className="w-4 h-4" />Choose PDF resume</>}
-          </button>
-          <p className="text-[10px] text-blue-400 mt-1.5 text-center">PDF only · never stored · read in your browser</p>
+          {/* Section selector */}
+          <p className="text-[11px] font-semibold text-blue-700 mb-1.5 uppercase tracking-wide">What to extract</p>
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {RESUME_SECTIONS.map(s => {
+              const Icon = SectionIcons[s.icon] ?? Sparkles;
+              const active = selected.has(s.key);
+              return (
+                <button key={s.key} onClick={() => toggleSection(s.key)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                    active
+                      ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                      : "bg-white text-blue-500 border-blue-200 hover:border-blue-400"
+                  }`}>
+                  <Icon className="w-3 h-3" />
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Upload / Paste toggle */}
+          <div className="flex gap-1 bg-blue-100/60 rounded-lg p-0.5 mb-3 w-fit">
+            {[["upload","Upload PDF"],["paste","Paste text"]].map(([m,l]) => (
+              <button key={m} onClick={() => { setMode(m); setError(""); setDone(false); }}
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${mode===m?"bg-white text-blue-700 shadow-sm":"text-blue-600 hover:bg-white/50"}`}>
+                {l}
+              </button>
+            ))}
+          </div>
+
+          {mode === "upload" && (
+            <>
+              <input ref={fileRef} type="file" accept="application/pdf" className="hidden"
+                onChange={e => { const f=e.target.files?.[0]; if(f) handleFile(f); e.target.value=""; }} />
+              <button onClick={() => fileRef.current?.click()} disabled={loading}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-blue-300 text-sm text-blue-600 font-medium hover:border-blue-400 hover:bg-white/50 transition-all disabled:opacity-50">
+                {loading
+                  ? <><Loader2 className="w-4 h-4 animate-spin" />Reading resume…</>
+                  : <><Upload className="w-4 h-4" />Choose PDF resume</>}
+              </button>
+              <p className="text-[10px] text-blue-400 mt-1.5 text-center">PDF only · never stored · read in your browser</p>
+            </>
+          )}
+
+          {mode === "paste" && (
+            <div className="space-y-2">
+              <textarea value={pasted} onChange={e => setPasted(e.target.value)} rows={4}
+                className="w-full bg-white border border-blue-200 rounded-xl px-3 py-2 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                placeholder="Paste your LinkedIn About section, bio, CV text, or any professional description…" />
+              <button onClick={handlePaste} disabled={loading || !pasted.trim()}
+                className="w-full py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
+                {loading
+                  ? <><Loader2 className="w-3 h-3 animate-spin" />Extracting…</>
+                  : <><Sparkles className="w-3 h-3" />Extract profile info</>}
+              </button>
+            </div>
+          )}
         </>
       )}
 
-      {mode === "paste" && (
-        <div className="space-y-2">
-          <textarea value={pasted} onChange={e => setPasted(e.target.value)} rows={4}
-            className="w-full bg-white border border-blue-200 rounded-xl px-3 py-2 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
-            placeholder="Paste your LinkedIn About section, bio, CV text, or any professional description…" />
-          <button onClick={handlePaste} disabled={loading || !pasted.trim()}
-            className="w-full py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
-            {loading
-              ? <><Loader2 className="w-3 h-3 animate-spin" />Extracting…</>
-              : <><Sparkles className="w-3 h-3" />Extract profile info</>}
-          </button>
-        </div>
-      )}
-
-      {done && !error && (
+      {done && !error && !pending && (
         <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mt-2 flex items-center gap-1.5">
           <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-          Fields pre-filled — review and adjust below before saving.
+          Fields applied — review and adjust below before saving.
         </p>
       )}
       {error && <p className="text-xs text-red-600 mt-2">{error}</p>}
