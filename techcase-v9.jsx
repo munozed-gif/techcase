@@ -8503,7 +8503,7 @@ function ConsultantProfileView({ userId, onBack }) {
           supabase.from('system_settings')
             .select('key, value').eq('key', 'trust_thresholds').maybeSingle(),
           supabase.from('consultant_profiles')
-            .select('headline, bio, linkedin_url, hourly_rate, years_experience, expertise_level, availability_type, travel_available, skills, external_occupancy_pct')
+            .select('headline, bio, linkedin_url, hourly_rate, years_experience, expertise_level, availability_type, travel_available, skills, external_occupancy_pct, featured_skills, consultant_projects(id, title, role, client_name, tech_stack, featured), consultant_customers(id)')
             .eq('id', targetUserId).maybeSingle(),
         ]);
         if (cancelled) return;
@@ -8768,6 +8768,63 @@ function ConsultantProfileView({ userId, onBack }) {
               />
             </div>
           </div>
+
+          {/* Stats + Featured highlights */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
+              <div className="text-3xl font-bold text-blue-700">{cpData?.consultant_projects?.length ?? 0}</div>
+              <div className="text-xs text-gray-500 mt-1 font-medium uppercase tracking-wide">{t("profile.projects")}</div>
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
+              <div className="text-3xl font-bold text-teal-600">{cpData?.skills?.length ?? 0}</div>
+              <div className="text-xs text-gray-500 mt-1 font-medium uppercase tracking-wide">{t("label.skills")}</div>
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
+              <div className="text-3xl font-bold text-violet-600">{cpData?.consultant_customers?.length ?? 0}</div>
+              <div className="text-xs text-gray-500 mt-1 font-medium uppercase tracking-wide">Clients</div>
+            </div>
+          </div>
+
+          {(cpData?.featured_skills?.length ?? 0) > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Top Skills</p>
+              <div className="flex flex-wrap gap-2">
+                {cpData.featured_skills.map(s => (
+                  <span key={s} className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-xl text-sm font-medium">{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(() => {
+            const featured = (cpData?.consultant_projects ?? []).filter(p => p.featured);
+            return featured.length > 0 ? (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Featured Projects</p>
+                <div className="space-y-3">
+                  {featured.map(proj => (
+                    <div key={proj.id} className="border border-gray-100 rounded-xl p-3">
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm text-gray-900">{proj.title}</div>
+                          {proj.role && <div className="text-xs text-blue-600 font-medium mt-0.5">{proj.role}</div>}
+                          {proj.client_name && <div className="text-xs text-gray-500">{proj.client_name}</div>}
+                          {proj.tech_stack?.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {proj.tech_stack.slice(0, 5).map(s => (
+                                <span key={s} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px]">{s}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <Star className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" fill="currentColor" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null;
+          })()}
         </div>
       )}
 
@@ -25016,7 +25073,7 @@ function ProfileView({ auth, compact = false }) {
   const { profile, availability, loading, profileError, updateProfile, uploadPhoto, addCustomer, updateCustomer, deleteCustomer, addProject, updateProject, deleteProject, addWorkAuth } =
     useConsultantProfile(auth.user?.id, realProfileId);
   const { ratings, avgRating } = useRatings(auth.user?.id);
-  const [profileTab, setProfileTab] = useState("overview");
+  const [profileTab, setProfileTab] = useState("experience");
   const [editing, setEditing]       = useState(false);
   const [form, setForm]             = useState({});
   const [saving, setSaving]         = useState(false);
@@ -25080,7 +25137,6 @@ function ProfileView({ auth, compact = false }) {
   const freeAvail = Math.max(0, 100 - totalUsed);
 
   const tabs = [
-    { id: "overview",   label: t("profile.tab_overview"),   icon: User },
     { id: "experience", label: t("profile.tab_experience"), icon: Briefcase },
     { id: "skills",     label: t("profile.tab_skills"),     icon: GraduationCap },
     { id: "ratings",    label: t("profile.tab_ratings"),    icon: Star },
@@ -25478,69 +25534,6 @@ function ProfileView({ auth, compact = false }) {
       </div>
 
       {/* Tab Content */}
-      {profileTab === "overview" && (
-        <div className="space-y-4">
-          {/* Stat tiles */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
-              <div className="text-3xl font-bold text-blue-700">{profile?.consultant_projects?.length ?? 0}</div>
-              <div className="text-xs text-gray-500 mt-1 font-medium uppercase tracking-wide">{t("profile.projects")}</div>
-            </div>
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
-              <div className="text-3xl font-bold text-teal-600">{profile?.skills?.length ?? 0}</div>
-              <div className="text-xs text-gray-500 mt-1 font-medium uppercase tracking-wide">{t("label.skills")}</div>
-            </div>
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
-              <div className="text-3xl font-bold text-violet-600">{profile?.consultant_customers?.length ?? 0}</div>
-              <div className="text-xs text-gray-500 mt-1 font-medium uppercase tracking-wide">Clients</div>
-            </div>
-          </div>
-
-          {/* Featured skills */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Top Skills</p>
-            {(profile?.featured_skills?.length ?? 0) > 0
-              ? <div className="flex flex-wrap gap-2">
-                  {profile.featured_skills.map(s => (
-                    <span key={s} className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-xl text-sm font-medium">{s}</span>
-                  ))}
-                </div>
-              : <p className="text-sm text-gray-400">Star skills in the Skills tab to highlight them here.</p>}
-          </div>
-
-          {/* Featured projects */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Featured Projects</p>
-            {(() => {
-              const featured = (profile?.consultant_projects ?? []).filter(p => p.featured);
-              return featured.length > 0
-                ? <div className="space-y-3">
-                    {featured.map(proj => (
-                      <div key={proj.id} className="border border-gray-100 rounded-xl p-3">
-                        <div className="flex items-start gap-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-sm text-gray-900">{proj.title}</div>
-                            {proj.role && <div className="text-xs text-blue-600 font-medium mt-0.5">{proj.role}</div>}
-                            {proj.client_name && <div className="text-xs text-gray-500">{proj.client_name}</div>}
-                            {proj.tech_stack?.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1.5">
-                                {proj.tech_stack.slice(0, 5).map(s => (
-                                  <span key={s} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px]">{s}</span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          <Star className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" fill="currentColor" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                : <p className="text-sm text-gray-400">Star projects in Edit Profile to highlight them here.</p>;
-            })()}
-          </div>
-        </div>
-      )}
-
       {profileTab === "experience" && (
         <div className="space-y-6">
           {/* Projects — read-only hierarchy; edit/add available in Edit Profile mode */}
