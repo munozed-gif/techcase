@@ -9324,8 +9324,10 @@ function AuthScreen({ onAuth }) {
     if (password !== confirmPass) { setError(t("auth.error_password_match")); return; }
     if (role === "consultant" && !headline.trim()) { setError(t("auth.error_headline")); return; }
     if (role === "client" && !companyName.trim()) { setError(t("auth.error_company")); return; }
-    if (role === "key_user"   && requiresTeamFor("key_user")   && !keyUserCompany)  { setError(t("auth.error_key_user"));  return; }
-    if (role === "final_user" && requiresTeamFor("final_user") && !finalUserClient) { setError(t("auth.error_team_code")); return; }
+    if (role === "key_user"            && requiresTeamFor("key_user")            && !keyUserCompany)                         { setError(t("auth.error_key_user"));  return; }
+    if (role === "final_user"          && requiresTeamFor("final_user")          && !finalUserClient)                        { setError(t("auth.error_team_code")); return; }
+    if (role === "internal_consultant" && requiresTeamFor("internal_consultant") && !finalUserClient && !keyUserCompany)     { setError(t("auth.error_team_code")); return; }
+    if (role === "project_manager"     && requiresTeamFor("project_manager")     && !finalUserClient && !keyUserCompany)     { setError(t("auth.error_team_code")); return; }
     setError(""); setLoad(true);
     try {
       const flow = getRoleFlow(role);
@@ -9587,23 +9589,39 @@ function AuthScreen({ onAuth }) {
                   </div>
                 </button>}
                 {(ssSettings["signup_roles_visible"] ?? ["consultant","headhunter","client","key_user","final_user","internal_consultant","project_manager"]).includes("internal_consultant") && <button
-                  onClick={() => handleRoleSelect("internal_consultant")}
-                  disabled={loading}
-                  className="w-full mt-3 flex items-center gap-4 p-4 border-2 border-indigo-300 bg-indigo-50 hover:border-indigo-500 hover:bg-indigo-100 rounded-2xl transition-all text-left disabled:opacity-50 cursor-pointer">
-                  <UserCog className="w-7 h-7 flex-shrink-0 text-indigo-600" />
+                  onClick={() => (!requiresTeamFor("internal_consultant") || finalUserClient || keyUserCompany) && handleRoleSelect("internal_consultant")}
+                  disabled={loading || (requiresTeamFor("internal_consultant") && !finalUserClient && !keyUserCompany)}
+                  className={`w-full mt-3 flex items-center gap-4 p-4 border-2 rounded-2xl transition-all text-left
+                    ${(!requiresTeamFor("internal_consultant") || finalUserClient || keyUserCompany)
+                      ? "border-indigo-300 bg-indigo-50 hover:border-indigo-500 hover:bg-indigo-100 cursor-pointer"
+                      : "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed"}`}>
+                  <UserCog className={`w-7 h-7 flex-shrink-0 ${(!requiresTeamFor("internal_consultant") || finalUserClient || keyUserCompany) ? "text-indigo-600" : "text-gray-400"}`} />
                   <div className="min-w-0">
-                    <div className="font-semibold text-sm text-indigo-700">{t("auth.role_internal_consultant")}</div>
+                    <div className={`font-semibold text-sm ${(!requiresTeamFor("internal_consultant") || finalUserClient || keyUserCompany) ? "text-indigo-700" : "text-gray-500"}`}>{t("auth.role_internal_consultant")}</div>
                     <div className="text-xs text-gray-500 mt-0.5">{t("auth.internal_consultant_desc")}</div>
+                    {(finalUserClient || keyUserCompany)
+                      ? <div className="text-xs text-indigo-600 font-semibold mt-1">{t("auth.final_user_linked").replace("{n}", finalUserClient?.companyName ?? keyUserCompany)}</div>
+                      : requiresTeamFor("internal_consultant")
+                      ? <div className="text-xs text-amber-600 mt-1">{t("auth.final_user_not_registered")}</div>
+                      : null}
                   </div>
                 </button>}
                 {(ssSettings["signup_roles_visible"] ?? ["consultant","headhunter","client","key_user","final_user","internal_consultant","project_manager"]).includes("project_manager") && <button
-                  onClick={() => handleRoleSelect("project_manager")}
-                  disabled={loading}
-                  className="w-full mt-3 flex items-center gap-4 p-4 border-2 border-rose-300 bg-rose-50 hover:border-rose-500 hover:bg-rose-100 rounded-2xl transition-all text-left disabled:opacity-50 cursor-pointer">
-                  <FolderKanban className="w-7 h-7 flex-shrink-0 text-rose-600" />
+                  onClick={() => (!requiresTeamFor("project_manager") || finalUserClient || keyUserCompany) && handleRoleSelect("project_manager")}
+                  disabled={loading || (requiresTeamFor("project_manager") && !finalUserClient && !keyUserCompany)}
+                  className={`w-full mt-3 flex items-center gap-4 p-4 border-2 rounded-2xl transition-all text-left
+                    ${(!requiresTeamFor("project_manager") || finalUserClient || keyUserCompany)
+                      ? "border-rose-300 bg-rose-50 hover:border-rose-500 hover:bg-rose-100 cursor-pointer"
+                      : "border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed"}`}>
+                  <FolderKanban className={`w-7 h-7 flex-shrink-0 ${(!requiresTeamFor("project_manager") || finalUserClient || keyUserCompany) ? "text-rose-600" : "text-gray-400"}`} />
                   <div className="min-w-0">
-                    <div className="font-semibold text-sm text-rose-700">{t("auth.role_project_manager")}</div>
+                    <div className={`font-semibold text-sm ${(!requiresTeamFor("project_manager") || finalUserClient || keyUserCompany) ? "text-rose-700" : "text-gray-500"}`}>{t("auth.role_project_manager")}</div>
                     <div className="text-xs text-gray-500 mt-0.5">{t("auth.project_manager_desc")}</div>
+                    {(finalUserClient || keyUserCompany)
+                      ? <div className="text-xs text-rose-600 font-semibold mt-1">{t("auth.final_user_linked").replace("{n}", finalUserClient?.companyName ?? keyUserCompany)}</div>
+                      : requiresTeamFor("project_manager")
+                      ? <div className="text-xs text-amber-600 mt-1">{t("auth.final_user_not_registered")}</div>
+                      : null}
                   </div>
                 </button>}
                 {loading && <p className="text-xs text-center text-gray-400 mt-3">Checking…</p>}
