@@ -25630,17 +25630,31 @@ function ProfileView({ auth, compact = false }) {
               : <div className="flex flex-wrap gap-2 mb-4">{profile.skills.map(s => {
                   const isFeatured = (profile?.featured_skills ?? []).includes(s);
                   return (
-                    <button key={s} onClick={async () => {
-                      const cur = profile?.featured_skills ?? [];
-                      const next = isFeatured ? cur.filter(f => f !== s) : [...cur, s];
-                      try { await updateProfile({ featured_skills: next }); } catch (e) { alert(e.message); }
-                    }} title={isFeatured ? "Remove from highlights" : "Add to highlights"}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${
-                        isFeatured ? "bg-amber-50 text-amber-700 border border-amber-200" : "bg-blue-50 text-blue-700 hover:bg-amber-50 hover:text-amber-700"
-                      }`}>
-                      <Star className="w-3 h-3 flex-shrink-0" fill={isFeatured ? "currentColor" : "none"} />
-                      {s}
-                    </button>
+                    <div key={s} className={`flex items-center rounded-xl text-sm font-medium border ${
+                      isFeatured ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-blue-50 text-blue-700 border-blue-100"
+                    }`}>
+                      <button onClick={async () => {
+                        const cur = profile?.featured_skills ?? [];
+                        const next = isFeatured ? cur.filter(f => f !== s) : [...cur, s];
+                        try { await updateProfile({ featured_skills: next }); } catch (e) { alert(e.message); }
+                      }} title={isFeatured ? "Remove from highlights" : "Add to highlights"}
+                        className="flex items-center gap-1.5 px-3 py-1.5 transition-colors hover:opacity-80">
+                        <Star className="w-3 h-3 flex-shrink-0" fill={isFeatured ? "currentColor" : "none"} />
+                        {s}
+                      </button>
+                      <button onClick={async () => {
+                        setSavingExp(true);
+                        try {
+                          const nextSkills = (profile?.skills ?? []).filter(sk => sk !== s);
+                          const nextFeatured = (profile?.featured_skills ?? []).filter(f => f !== s);
+                          await updateProfile({ skills: nextSkills, featured_skills: nextFeatured });
+                        } catch (e) { alert(e.message); }
+                        setSavingExp(false);
+                      }} title="Remove skill"
+                        className="pr-2 pl-0.5 py-1.5 hover:text-red-500 transition-colors">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
                   );
                 })}</div>}
             <p className="text-xs text-gray-400 mb-3">Tap a skill to highlight it in your overview.</p>
