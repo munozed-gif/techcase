@@ -27601,6 +27601,19 @@ function ClientTeamList({ client, auth }) {
   const [editingId, setEditingId]  = useState(null);
   const [editForm, setEditForm]    = useState({});
   const [savingEdit, setSavingEdit] = useState(false);
+  const [memberStatusMap, setMemberStatusMap] = useState({});
+
+  useEffect(() => {
+    if (!members.length) { setMemberStatusMap({}); return; }
+    const emails = members.map(m => m.email).filter(Boolean);
+    if (!emails.length) return;
+    supabase.from("users").select("email, verification_status").in("email", emails)
+      .then(({ data }) => {
+        const map = {};
+        (data ?? []).forEach(u => { map[u.email.toLowerCase()] = u.verification_status; });
+        setMemberStatusMap(map);
+      });
+  }, [members]);
 
   async function handleAdd() {
     if (!form.full_name || !form.email) return;
@@ -27630,6 +27643,40 @@ function ClientTeamList({ client, auth }) {
   async function handleRemove(id) {
     if (!confirm("Remove this team member?")) return;
     try { await removeMember(id); } catch (e) { alert(e.message); }
+  }
+
+  function SignupStatusIcon({ email }) {
+    if (!email) return null;
+    const status = memberStatusMap[email.toLowerCase()];
+    if (status === undefined) {
+      return (
+        <span title="Not signed up yet" className="text-gray-300 flex-shrink-0">
+          <Clock size={14} />
+        </span>
+      );
+    }
+    if (status === "approved") {
+      return (
+        <span title="Approved" className="text-green-500 flex-shrink-0">
+          <CheckCircle2 size={14} />
+        </span>
+      );
+    }
+    if (status === "pending") {
+      return (
+        <span title="Pending approval" className="text-amber-400 flex-shrink-0">
+          <Clock size={14} />
+        </span>
+      );
+    }
+    if (status === "rejected") {
+      return (
+        <span title="Rejected" className="text-red-400 flex-shrink-0">
+          <XCircle size={14} />
+        </span>
+      );
+    }
+    return null;
   }
 
   return (
@@ -27741,6 +27788,7 @@ function ClientTeamList({ client, auth }) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-medium text-gray-900 truncate">{m.full_name}</span>
+                      <SignupStatusIcon email={m.email} />
                       {m.is_primary && <Badge className="bg-blue-100 text-blue-700">{t("team.primary_badge")}</Badge>}
                       {m.system_role === "key_user"            && <Badge className="bg-indigo-100 text-indigo-700">Key User</Badge>}
                       {m.system_role === "final_user"          && <Badge className="bg-teal-100 text-teal-700">Final User</Badge>}
@@ -28817,6 +28865,29 @@ function ClientProfileView({ auth }) {
   const { sla, updateSla }                  = useSlaConfig(auth.user?.id);
   const { connections, addConnection, deleteConnection } = useDbConnections(auth.user?.id);
   const { members, addMember, updateMember, removeMember } = useClientTeamMembers(auth.user?.id);
+  const [memberStatusMap, setMemberStatusMap] = useState({});
+
+  useEffect(() => {
+    if (!members.length) { setMemberStatusMap({}); return; }
+    const emails = members.map(m => m.email).filter(Boolean);
+    if (!emails.length) return;
+    supabase.from("users").select("email, verification_status").in("email", emails)
+      .then(({ data }) => {
+        const map = {};
+        (data ?? []).forEach(u => { map[u.email.toLowerCase()] = u.verification_status; });
+        setMemberStatusMap(map);
+      });
+  }, [members]);
+
+  function MemberStatusIcon({ email }) {
+    if (!email) return null;
+    const status = memberStatusMap[email.toLowerCase()];
+    if (status === undefined) return <span title="Not signed up yet" className="text-gray-300 flex-shrink-0"><Clock size={14} /></span>;
+    if (status === "approved")  return <span title="Approved"         className="text-green-500 flex-shrink-0"><CheckCircle2 size={14} /></span>;
+    if (status === "pending")   return <span title="Pending approval" className="text-amber-400 flex-shrink-0"><Clock size={14} /></span>;
+    if (status === "rejected")  return <span title="Rejected"         className="text-red-400 flex-shrink-0"><XCircle size={14} /></span>;
+    return null;
+  }
 
   const [tab, setTab]         = useState("overview");
   const [editing, setEditing] = useState(false);
@@ -29608,6 +29679,7 @@ function ClientProfileView({ auth }) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="font-medium text-gray-900 truncate">{m.full_name}</span>
+                          <MemberStatusIcon email={m.email} />
                           {m.is_primary && <Badge className="bg-blue-100 text-blue-700">{t("team.primary_badge")}</Badge>}
                           {m.system_role === "key_user"            && <Badge className="bg-indigo-100 text-indigo-700">Key User</Badge>}
                           {m.system_role === "final_user"          && <Badge className="bg-teal-100 text-teal-700">Final User</Badge>}
