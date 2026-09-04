@@ -15321,7 +15321,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
             onComplete={async () => {
               setShowCreateCase(false);
               const { data } = await supabase.from("cases")
-                .select("*, case_assignments(consultant_id, users(full_name))")
+                .select("*, case_assignments(consultant_id)")
                 .eq("project_id", project.id)
                 .order("created_at", { ascending: false });
               setProjCases(data ?? []);
@@ -19091,7 +19091,7 @@ function TimeLogPanel({ caseId, caseTitle, auth }) {
     try {
       const { data, error } = await supabase
         .from('time_logs')
-        .select('*, users(full_name)')
+        .select('*')
         .eq('case_id', caseId)
         .order('log_date', { ascending: false });
       if (error) throw error;
@@ -19271,7 +19271,7 @@ function CaseFilesPanel({ caseId, auth, embedded = false }) {
     try {
       const { data, error } = await supabase
         .from('case_files')
-        .select('*, users(full_name)')
+        .select('*')
         .eq('case_id', caseId)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -19476,7 +19476,7 @@ function InvoiceModal({ isOpen, onClose, caseData, auth }) {
       setDefaultRate(dr);
 
       const [{ data: logs, error: logsErr }, { data: assignment }] = await Promise.all([
-        supabase.from('time_logs').select('*, users(full_name)').eq('case_id', caseData.id).order('log_date', { ascending: true }),
+        supabase.from('time_logs').select('*').eq('case_id', caseData.id).order('log_date', { ascending: true }),
         supabase.from('case_assignments').select('*, users:consultant_id(id, full_name, email)').eq('case_id', caseData.id).limit(1).maybeSingle(),
       ]);
       if (logsErr) throw logsErr;
