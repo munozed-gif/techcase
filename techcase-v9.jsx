@@ -24,7 +24,7 @@ import { createClient } from "@supabase/supabase-js";
 import DOMPurify from "dompurify";
 import {
   LayoutDashboard, FolderOpen, LayoutGrid, Target, Receipt, Clock,
-  Users, UserCheck, Settings, Database, Handshake, BarChart2, User,
+  Users, UserCheck, UserCog, Settings, Database, Handshake, BarChart2, User,
   Building2, Bell, FileText, DollarSign, Flag, CheckCircle2, PenLine,
   Briefcase, Globe, Rocket, Zap, Phone, SlidersHorizontal, Check,
   Activity, Inbox, ClipboardList,
@@ -1982,6 +1982,10 @@ const TRANSLATIONS = {
     "auth.error_team_code":          "Your email is not registered on any client team. Ask your administrator to add you first.",
     "auth.role_final_user":          "Final User",
     "auth.final_user_desc":          "I'm a collaborator or stakeholder with access to specific cases",
+    "auth.role_internal_consultant": "Internal Consultant",
+    "auth.internal_consultant_desc": "I'm an internal SAP consultant working within the client organization",
+    "auth.role_project_manager":     "Project Manager",
+    "auth.project_manager_desc":     "I'm a leader or project manager overseeing case delivery",
     "auth.final_user_team_required": "Must be pre-registered on a client team by your administrator",
     "auth.final_user_linked":        "Linked to {n}",
     "auth.final_user_not_registered":"Your email is not registered on any client team",
@@ -4300,6 +4304,10 @@ const TRANSLATIONS = {
     "auth.error_team_code":          "Tu correo no está registrado en ningún equipo cliente. Pide a tu administrador que te agregue primero.",
     "auth.role_final_user":          "Usuario Final",
     "auth.final_user_desc":          "Soy un colaborador o interesado con acceso a casos específicos",
+    "auth.role_internal_consultant": "Consultor Interno",
+    "auth.internal_consultant_desc": "Soy un consultor SAP interno que trabaja dentro de la organización del cliente",
+    "auth.role_project_manager":     "Project Manager",
+    "auth.project_manager_desc":     "Soy un líder o gerente de proyecto que supervisa la entrega de casos",
     "auth.final_user_team_required": "Debes ser pre-registrado en un equipo cliente por tu administrador",
     "auth.final_user_linked":        "Vinculado a {n}",
     "auth.final_user_not_registered":"Tu correo no está registrado en ningún equipo cliente",
@@ -5515,7 +5523,7 @@ function useCases(filters = {}) {
         manager:manager_id(id, full_name, email, avatar_url),
         case_assignments(consultant_id, time_commitment,
           users:consultant_id(id, full_name, avatar_url)),
-        case_key_users(user_id, area, users:user_id(full_name, email)),
+        case_key_users(user_id, area, users:user_id(full_name, email, role)),
         applications(count),
         project:project_id(id, name, avatar_url, client:client_id(id, avatar_url))
       `)
@@ -6604,10 +6612,14 @@ function useLeaderboard() {
 // UTILITIES
 // ============================================================
 const ROLE_COLORS = {
-  admin:      { bg: "bg-violet-100", text: "text-violet-800", dot: "bg-violet-500" },
-  manager:    { bg: "bg-blue-100",   text: "text-blue-800",   dot: "bg-blue-500" },
-  consultant: { bg: "bg-green-100",  text: "text-green-800",  dot: "bg-green-500" },
-  client:     { bg: "bg-orange-100", text: "text-orange-800", dot: "bg-orange-500" },
+  admin:               { bg: "bg-violet-100", text: "text-violet-800", dot: "bg-violet-500" },
+  manager:             { bg: "bg-blue-100",   text: "text-blue-800",   dot: "bg-blue-500" },
+  consultant:          { bg: "bg-green-100",  text: "text-green-800",  dot: "bg-green-500" },
+  client:              { bg: "bg-orange-100", text: "text-orange-800", dot: "bg-orange-500" },
+  key_user:            { bg: "bg-amber-100",  text: "text-amber-800",  dot: "bg-amber-500" },
+  final_user:          { bg: "bg-teal-100",   text: "text-teal-800",   dot: "bg-teal-500" },
+  internal_consultant: { bg: "bg-indigo-100", text: "text-indigo-800", dot: "bg-indigo-500" },
+  project_manager:     { bg: "bg-rose-100",   text: "text-rose-800",   dot: "bg-rose-500" },
 };
 
 const SAP_AREAS = [
@@ -7947,11 +7959,13 @@ function ProfileOnboardingScreen({ auth }) {
 }
 
 const ROLE_LABELS = {
-  consultant: "Consultant",
-  client:     "Client / Company",
-  headhunter: "Headhunter",
-  key_user:   "Key User",
-  final_user: "Final User",
+  consultant:           "Consultant",
+  client:               "Client / Company",
+  headhunter:           "Headhunter",
+  key_user:             "Key User",
+  final_user:           "Final User",
+  internal_consultant:  "Internal Consultant",
+  project_manager:      "Project Manager",
 };
 
 function ProfileCompleteWizard({ auth, onDone, onClose }) {
@@ -9566,6 +9580,26 @@ function AuthScreen({ onAuth }) {
                       : requiresTeamFor("final_user")
                       ? <div className="text-xs text-amber-600 mt-1">{t("auth.final_user_not_registered")}</div>
                       : null}
+                  </div>
+                </button>}
+                {(ssSettings["signup_roles_visible"] ?? ["consultant","headhunter","client","key_user","final_user","internal_consultant","project_manager"]).includes("internal_consultant") && <button
+                  onClick={() => handleRoleSelect("internal_consultant")}
+                  disabled={loading}
+                  className="w-full mt-3 flex items-center gap-4 p-4 border-2 border-indigo-300 bg-indigo-50 hover:border-indigo-500 hover:bg-indigo-100 rounded-2xl transition-all text-left disabled:opacity-50 cursor-pointer">
+                  <UserCog className="w-7 h-7 flex-shrink-0 text-indigo-600" />
+                  <div className="min-w-0">
+                    <div className="font-semibold text-sm text-indigo-700">{t("auth.role_internal_consultant")}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">{t("auth.internal_consultant_desc")}</div>
+                  </div>
+                </button>}
+                {(ssSettings["signup_roles_visible"] ?? ["consultant","headhunter","client","key_user","final_user","internal_consultant","project_manager"]).includes("project_manager") && <button
+                  onClick={() => handleRoleSelect("project_manager")}
+                  disabled={loading}
+                  className="w-full mt-3 flex items-center gap-4 p-4 border-2 border-rose-300 bg-rose-50 hover:border-rose-500 hover:bg-rose-100 rounded-2xl transition-all text-left disabled:opacity-50 cursor-pointer">
+                  <FolderKanban className="w-7 h-7 flex-shrink-0 text-rose-600" />
+                  <div className="min-w-0">
+                    <div className="font-semibold text-sm text-rose-700">{t("auth.role_project_manager")}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">{t("auth.project_manager_desc")}</div>
                   </div>
                 </button>}
                 {loading && <p className="text-xs text-center text-gray-400 mt-3">Checking…</p>}
@@ -15655,7 +15689,7 @@ function CasesView({ auth, initialCaseId }) {
     const match = cases.find(c => c.id === initialCaseId);
     if (match) { setSelected(match); setInitialCaseOpened(true); return; }
     if (cases.length > 0) {
-      supabase.from('cases').select(`*, client:client_id(id, full_name, email, client_profiles(company_name)), manager:manager_id(id, full_name, email), case_assignments(consultant_id, time_commitment, users:consultant_id(id, full_name, avatar_url)), case_key_users(user_id, area, users:user_id(full_name, email)), applications(count)`).eq('id', initialCaseId).single()
+      supabase.from('cases').select(`*, client:client_id(id, full_name, email, client_profiles(company_name)), manager:manager_id(id, full_name, email), case_assignments(consultant_id, time_commitment, users:consultant_id(id, full_name, avatar_url)), case_key_users(user_id, area, users:user_id(full_name, email, role)), applications(count)`).eq('id', initialCaseId).single()
         .then(({ data }) => { if (data) { setSelected(data); setInitialCaseOpened(true); } });
     }
   }, [initialCaseId, initialCaseOpened, loading, cases]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -22083,45 +22117,74 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             </div>
           )}
 
-          {/* Roles & Contacts card */}
-          {((caseData.case_key_users?.length > 0) || caseData.key_user_email || caseData.is_head_hunter) && (
-            <div className="border border-gray-100 rounded-xl p-4">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("case.roles_contacts")}</p>
-              <div className="space-y-3 text-sm">
-                {caseData.case_key_users?.length > 0 && (
-                  <div>
-                    <div className="text-xs text-gray-400 mb-1.5">{t("case.key_users")}</div>
-                    <div className="space-y-1.5">
-                      {caseData.case_key_users.map(ku => (
-                        <div key={ku.user_id} className="flex items-center gap-2 bg-violet-50 border border-violet-100 rounded-lg px-2.5 py-1.5">
-                          <UserCheck className="w-3.5 h-3.5 text-violet-500 flex-shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <div className="font-medium text-gray-900 text-xs truncate">{ku.users?.full_name ?? "—"}</div>
-                            <div className="text-[10px] text-gray-400 truncate">{ku.users?.email}</div>
-                          </div>
-                          {ku.area && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-violet-100 text-violet-700 rounded flex-shrink-0">{ku.area}</span>
-                          )}
-                        </div>
-                      ))}
+          {/* Case Team card */}
+          {(() => {
+            const consultant = caseData.case_assignments?.[0];
+            const teamMembers = caseData.case_key_users ?? [];
+            const hasTeam = consultant || teamMembers.length > 0 || caseData.key_user_email || caseData.is_head_hunter;
+            if (!hasTeam) return null;
+            const ROLE_BADGE = {
+              consultant:          "bg-green-100 text-green-700",
+              key_user:            "bg-amber-100 text-amber-700",
+              final_user:          "bg-teal-100 text-teal-700",
+              internal_consultant: "bg-indigo-100 text-indigo-700",
+              project_manager:     "bg-rose-100 text-rose-700",
+            };
+            const ROLE_NAME = {
+              consultant:          ROLE_LABELS.consultant,
+              key_user:            ROLE_LABELS.key_user,
+              final_user:          ROLE_LABELS.final_user,
+              internal_consultant: ROLE_LABELS.internal_consultant,
+              project_manager:     ROLE_LABELS.project_manager,
+            };
+            return (
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Case Team</p>
+                <div className="space-y-1.5">
+                  {consultant && (
+                    <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-lg px-2.5 py-1.5">
+                      <Briefcase className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-gray-900 text-xs truncate">{consultant.users?.full_name ?? "—"}</div>
+                        <div className="text-[10px] text-gray-400 truncate">{consultant.users?.email}</div>
+                      </div>
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-green-100 text-green-700 rounded flex-shrink-0">Consultant</span>
                     </div>
-                  </div>
-                )}
-                {caseData.key_user_email && !caseData.case_key_users?.length && (
-                  <div>
-                    <div className="text-xs text-gray-400 mb-0.5">{t("case.key_user_invited")}</div>
-                    <div className="text-xs text-gray-500">{caseData.key_user_email}</div>
-                  </div>
-                )}
-                {caseData.is_head_hunter && (
-                  <div>
-                    <div className="text-xs text-gray-400 mb-0.5">{t("case.head_hunter")}</div>
-                    <div className="font-medium">{caseData.head_hunter_name || t("case.head_hunter_yes")}</div>
-                  </div>
-                )}
+                  )}
+                  {teamMembers.map(ku => {
+                    const role = ku.users?.role ?? "key_user";
+                    const badge = ROLE_BADGE[role] ?? "bg-gray-100 text-gray-600";
+                    const roleName = ROLE_NAME[role] ?? role;
+                    return (
+                      <div key={ku.user_id} className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-1.5">
+                        <UserCheck className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-gray-900 text-xs truncate">{ku.users?.full_name ?? "—"}</div>
+                          <div className="text-[10px] text-gray-400 truncate">{ku.users?.email}</div>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {ku.area && <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-violet-100 text-violet-700 rounded">{ku.area}</span>}
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${badge}`}>{roleName}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {caseData.key_user_email && !teamMembers.length && (
+                    <div className="text-xs text-gray-500 px-1">{t("case.key_user_invited")}: {caseData.key_user_email}</div>
+                  )}
+                  {caseData.is_head_hunter && (
+                    <div className="flex items-center gap-2 bg-pink-50 border border-pink-100 rounded-lg px-2.5 py-1.5">
+                      <Handshake className="w-3.5 h-3.5 text-pink-500 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-gray-900 text-xs truncate">{caseData.head_hunter_name || t("case.head_hunter_yes")}</div>
+                      </div>
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-pink-100 text-pink-700 rounded flex-shrink-0">Headhunter</span>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Qualifications card */}
           {(caseData.certifications_required?.length > 0 || caseData.languages_required?.length > 0 ||
@@ -32282,13 +32345,15 @@ function SettingsRolesTab({ ssCtx }) {
   if (ssCtx.loading || !matrix) return <Spinner />;
 
   const ROLE_COLORS = {
-    admin: 'bg-red-100 text-red-700',
-    manager: 'bg-purple-100 text-purple-700',
-    consultant: 'bg-blue-100 text-blue-700',
-    client: 'bg-green-100 text-green-700',
-    key_user: 'bg-amber-100 text-amber-700',
-    headhunter: 'bg-pink-100 text-pink-700',
-    final_user: 'bg-teal-100 text-teal-700',
+    admin:               'bg-red-100 text-red-700',
+    manager:             'bg-purple-100 text-purple-700',
+    consultant:          'bg-blue-100 text-blue-700',
+    client:              'bg-green-100 text-green-700',
+    key_user:            'bg-amber-100 text-amber-700',
+    headhunter:          'bg-pink-100 text-pink-700',
+    final_user:          'bg-teal-100 text-teal-700',
+    internal_consultant: 'bg-indigo-100 text-indigo-700',
+    project_manager:     'bg-rose-100 text-rose-700',
   };
 
   return (
@@ -33690,7 +33755,7 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
   const PERSONA_TABS = [
     { id: "internal",    label: "Internal",    roles: ["admin", "manager"],                  Icon: Shield,    accent: "purple", border: "border-purple-500", activeBg: "bg-purple-600", accentTxt: "text-purple-600", lightBg: "bg-purple-50" },
     { id: "consultants", label: "Consultants", roles: ["consultant"],                        Icon: Briefcase, accent: "blue",   border: "border-blue-500",   activeBg: "bg-blue-600",   accentTxt: "text-blue-600",   lightBg: "bg-blue-50"   },
-    { id: "client_team", label: "Client Team", roles: ["client", "key_user", "final_user"], Icon: Building2, accent: "green",  border: "border-green-500",  activeBg: "bg-green-600",  accentTxt: "text-green-600",  lightBg: "bg-green-50"  },
+    { id: "client_team", label: "Client Team", roles: ["client", "key_user", "final_user", "internal_consultant", "project_manager"], Icon: Building2, accent: "green",  border: "border-green-500",  activeBg: "bg-green-600",  accentTxt: "text-green-600",  lightBg: "bg-green-50"  },
     { id: "headhunters", label: "Headhunters", roles: ["headhunter"],                       Icon: Handshake, accent: "pink",   border: "border-pink-500",   activeBg: "bg-pink-600",   accentTxt: "text-pink-600",   lightBg: "bg-pink-50"   },
   ];
 
@@ -33700,8 +33765,10 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
     consultant: { pill: "bg-blue-100 text-blue-700 border-blue-200",    active: "bg-blue-600 text-white border-blue-600"     },
     client:     { pill: "bg-green-100 text-green-700 border-green-200", active: "bg-green-600 text-white border-green-600"   },
     key_user:   { pill: "bg-amber-100 text-amber-700 border-amber-200", active: "bg-amber-500 text-white border-amber-500"   },
-    headhunter: { pill: "bg-pink-100 text-pink-700 border-pink-200",    active: "bg-pink-600 text-white border-pink-600"     },
-    final_user: { pill: "bg-teal-100 text-teal-700 border-teal-200",    active: "bg-teal-600 text-white border-teal-600"     },
+    headhunter:          { pill: "bg-pink-100 text-pink-700 border-pink-200",     active: "bg-pink-600 text-white border-pink-600"      },
+    final_user:          { pill: "bg-teal-100 text-teal-700 border-teal-200",     active: "bg-teal-600 text-white border-teal-600"      },
+    internal_consultant: { pill: "bg-indigo-100 text-indigo-700 border-indigo-200", active: "bg-indigo-600 text-white border-indigo-600" },
+    project_manager:     { pill: "bg-rose-100 text-rose-700 border-rose-200",     active: "bg-rose-600 text-white border-rose-600"      },
   };
 
   const [personaTab, setPersonaTab]       = useState("consultants");
@@ -34226,16 +34293,18 @@ function SettingsSignupFlowTab({ ssCtx }) {
   const { t } = useT();
   const { settings, setSetting } = ssCtx;
   const perRole = settings["signup_flow_per_role"] ?? {};
-  const ALL_ROLE_KEYS = ["consultant", "headhunter", "client", "key_user", "final_user"];
+  const ALL_ROLE_KEYS = ["consultant", "headhunter", "client", "key_user", "final_user", "internal_consultant", "project_manager"];
   const visibleRoles = settings["signup_roles_visible"] ?? ALL_ROLE_KEYS;
   const [saving, setSaving] = useState(null);
 
   const ROLES = [
-    { key: "consultant",  label: "Consultant",  Icon: Briefcase, note: null },
-    { key: "headhunter",  label: "Headhunter",  Icon: Crosshair, note: null },
-    { key: "client",      label: "Client",      Icon: Building2, note: null },
-    { key: "key_user",    label: "Key User",    Icon: UserCheck, note: "Team pre-registration enforced" },
-    { key: "final_user",  label: "Final User",  Icon: Globe,     note: "Team pre-registration enforced" },
+    { key: "consultant",          label: "Consultant",           Icon: Briefcase,  note: null },
+    { key: "headhunter",          label: "Headhunter",           Icon: Crosshair,  note: null },
+    { key: "client",              label: "Client",               Icon: Building2,  note: null },
+    { key: "key_user",            label: "Key User",             Icon: UserCheck,  note: "Team pre-registration enforced" },
+    { key: "final_user",          label: "Final User",           Icon: Globe,      note: "Team pre-registration enforced" },
+    { key: "internal_consultant", label: "Internal Consultant",  Icon: UserCog,    note: null },
+    { key: "project_manager",     label: "Project Manager",      Icon: FolderKanban, note: null },
   ];
 
   const MODES = [
