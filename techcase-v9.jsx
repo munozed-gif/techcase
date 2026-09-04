@@ -26530,44 +26530,142 @@ function ConsultantDetailModal({ consultantId, auth }) {
 function NotificationsView() {
   const { t } = useT();
   const { notifications, unreadCount, loading, markRead, markAllRead } = useNotifications();
+  const [filter, setFilter] = useState("all");
+  const [showPrefs, setShowPrefs] = useState(false);
+  const [hiddenTypes, setHiddenTypes] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("notif_hidden_types") ?? "[]"); }
+    catch { return []; }
+  });
+
+  function toggleHideType(type) {
+    setHiddenTypes(prev => {
+      const next = prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type];
+      try { localStorage.setItem("notif_hidden_types", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }
+
+  const NOTIF_TABS = [
+    { id: "all",         label: t("feed.all") },
+    { id: "comment",     label: t("feed.comments") },
+    { id: "progress",    label: t("feed.progress") },
+    { id: "status_change", label: t("feed.status") },
+    { id: "assignment",  label: t("feed.assignments") },
+    { id: "alert",       label: t("feed.alerts") },
+  ];
+
+  const NOTIF_PREF_TYPES = [
+    { key: "comment",      label: t("feed.pref_comments") },
+    { key: "progress",     label: t("feed.pref_progress") },
+    { key: "status_change",label: t("feed.pref_status") },
+    { key: "assignment",   label: t("feed.pref_assignments") },
+    { key: "alert",        label: t("feed.pref_alerts") },
+    { key: "time_log",     label: "Time Logs" },
+    { key: "milestone",    label: "Milestones" },
+  ];
+
+  const filtered = notifications.filter(n => {
+    if (hiddenTypes.includes(n.event_type)) return false;
+    if (filter !== "all" && n.event_type !== filter) return false;
+    return true;
+  });
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t("notif.title")}</h1>
-          {unreadCount > 0 && <p className="text-sm text-gray-500 mt-1">{unreadCount} unread</p>}
-        </div>
-        {unreadCount > 0 && (
-          <button onClick={markAllRead}
-            className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-            {t("notif.mark_read")}
-          </button>
-        )}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">{t("notif.title")}</h1>
       </div>
 
-      {loading ? (
-        <Spinner />
-      ) : notifications.length === 0 ? (
-        <EmptyState Icon={Bell} title={t("notif.none")} subtitle={t("notif.none_hint")} />
-      ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-          <div className="space-y-2">
-            {notifications.map(n => (
-              <div key={n.id} onClick={() => !n.is_read && markRead(n.id)}
-                className={`flex items-start gap-4 p-4 rounded-2xl border cursor-pointer transition-colors ${
-                  n.is_read ? "bg-white border-gray-100" : "bg-blue-50 border-blue-100 hover:bg-blue-100"}`}>
-                <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${n.is_read ? "bg-gray-200" : "bg-blue-500"}`} />
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm text-gray-900">{n.title}</div>
-                  {n.body && <div className="text-sm text-gray-500 mt-0.5">{n.body}</div>}
-                  <div className="text-xs text-gray-400 mt-1">{fmtDate(n.created_at)}</div>
-                </div>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+        {/* Header */}
+        <div className="px-5 pt-5 pb-0">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-gray-400" />
+              <span className="font-bold text-gray-900">{t("notif.title")}</span>
+              {unreadCount > 0 && (
+                <span className="px-2 py-0.5 bg-blue-600 text-white text-xs font-bold rounded-full">{unreadCount}</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {unreadCount > 0 && (
+                <button onClick={markAllRead}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-medium px-3 py-1.5 rounded-lg border border-blue-100 hover:border-blue-300 transition-colors">
+                  {t("notif.mark_read")}
+                </button>
+              )}
+              <button onClick={() => setShowPrefs(p => !p)}
+                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                {t("dashboard.preferences")}
+              </button>
+            </div>
+          </div>
+
+          {/* Preferences panel */}
+          {showPrefs && (
+            <div className="mb-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">{t("feed.show_in_feed")}</p>
+              <div className="grid grid-cols-2 gap-2">
+                {NOTIF_PREF_TYPES.map(({ key, label }) => (
+                  <label key={key} className="flex items-center justify-between gap-3 cursor-pointer py-1">
+                    <span className="text-sm text-gray-700">{label}</span>
+                    <button
+                      onClick={() => toggleHideType(key)}
+                      className={`relative rounded-full transition-colors flex-shrink-0 ${!hiddenTypes.includes(key) ? "bg-blue-600" : "bg-gray-200"}`}
+                      style={{ width: 40, height: 22 }}>
+                      <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${!hiddenTypes.includes(key) ? "translate-x-5" : "translate-x-0.5"}`} style={{ transitionProperty: "transform" }} />
+                    </button>
+                  </label>
+                ))}
               </div>
+            </div>
+          )}
+
+          {/* Filter tabs */}
+          <div className="flex gap-1 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+            {NOTIF_TABS.map(tab => (
+              <button key={tab.id} onClick={() => setFilter(tab.id)}
+                className={`px-3 py-2 text-xs font-semibold rounded-t-lg whitespace-nowrap border-b-2 transition-colors ${
+                  filter === tab.id ? "text-blue-600 border-blue-600" : "text-gray-500 border-transparent hover:text-gray-700"
+                }`}>
+                {tab.label}
+                {tab.id === "all" && notifications.length > 0 && (
+                  <span className="ml-1 text-gray-400 font-normal">{notifications.length}</span>
+                )}
+              </button>
             ))}
           </div>
+          <div className="border-b border-gray-100 -mx-5" />
         </div>
-      )}
+
+        {/* Items */}
+        <div className="p-4 space-y-2">
+          {loading ? (
+            <div className="flex items-center justify-center py-10 gap-2 text-gray-400">
+              <div className="w-5 h-5 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+              <span className="text-sm">{t("dashboard.loading_feed")}</span>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="py-12 text-center text-gray-400">
+              <Bell className="w-8 h-8 mx-auto mb-3 text-gray-200" />
+              <p className="text-sm font-medium">{t("notif.none")}</p>
+              <p className="text-xs mt-1">{t("notif.none_hint")}</p>
+            </div>
+          ) : filtered.map(n => (
+            <div key={n.id} onClick={() => !n.is_read && markRead(n.id)}
+              className={`flex items-start gap-4 p-4 rounded-2xl border cursor-pointer transition-colors ${
+                n.is_read ? "bg-white border-gray-100 hover:bg-gray-50" : "bg-blue-50 border-blue-100 hover:bg-blue-100"}`}>
+              <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${n.is_read ? "bg-gray-200" : "bg-blue-500"}`} />
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-sm text-gray-900">{n.title}</div>
+                {n.body && <div className="text-sm text-gray-500 mt-0.5">{n.body}</div>}
+                <div className="text-xs text-gray-400 mt-1">{fmtDate(n.created_at)}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
