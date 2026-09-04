@@ -187,6 +187,7 @@ const TRANSLATIONS = {
     "nav.my_cases_short": "My Cases",
     // Common actions
     "action.save":           "Save",
+    "action.saving":         "Saving…",
     "action.cancel":         "Cancel",
     "action.delete":         "Delete",
     "action.edit":           "Edit",
@@ -2360,6 +2361,9 @@ const TRANSLATIONS = {
     "status.cancelled":    "Cancelled",
     "status.draft":        "Draft",
     "status.active":       "Active",
+    "status.technical_test": "Technical Test",
+    "status.functional_test": "Functional Test",
+    "status.user_test":    "User Test",
     // Application status labels
     "status.pending":      "Pending",
     "status.under_review": "Under Review",
@@ -2479,6 +2483,7 @@ const TRANSLATIONS = {
     "nav.my_cases_short": "Mis Casos",
     // Common actions
     "action.save":           "Guardar",
+    "action.saving":         "Guardando…",
     "action.cancel":         "Cancelar",
     "action.delete":         "Eliminar",
     "action.edit":           "Editar",
@@ -4650,6 +4655,9 @@ const TRANSLATIONS = {
     "status.cancelled":    "Cancelado",
     "status.draft":        "Borrador",
     "status.active":       "Activo",
+    "status.technical_test": "Prueba Técnica",
+    "status.functional_test": "Prueba Funcional",
+    "status.user_test":    "Prueba de Usuario",
     // Application status labels
     "status.pending":      "Pendiente",
     "status.under_review": "En Revisión",
@@ -11150,8 +11158,9 @@ function CaseTemplatesView({ auth }) {
         .from("case_templates")
         .select("*, creator:created_by(full_name, email)")
         .order("created_at", { ascending: false });
-      if (!error) setTemplates(data ?? []);
-    } catch {}
+      if (error) console.error("loadTemplates error:", error.message, error.code);
+      else setTemplates(data ?? []);
+    } catch (e) { console.error("loadTemplates exception:", e.message); }
     setLoading(false);
   }
 
@@ -12193,9 +12202,9 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               created_by: user?.id ?? null,
               is_global: true,
             });
-            if (tplErr) console.error("Template save error:", tplErr.message);
+            if (tplErr) { console.error("Template save error:", tplErr.message, tplErr.code); alert("Template could not be saved: " + tplErr.message); }
             else logEvent('template.created', { entityType: 'case_template', metadata: { name: templateName.trim() } });
-          } catch (e) { console.error("Template save failed:", e.message); }
+          } catch (e) { console.error("Template save failed:", e.message); alert("Template save failed: " + e.message); }
         }
         onComplete(newCase?.id);
       }
