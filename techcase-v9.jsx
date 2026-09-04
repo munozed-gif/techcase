@@ -25366,6 +25366,83 @@ function ProfileView({ auth, compact = false }) {
             </button>
           </div>
         </div>
+
+        {/* Projects management — only visible in edit mode */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h3 className="font-semibold text-gray-900 mb-4">{t("profile.projects")}</h3>
+          {editingProj && (
+            <div className="border border-blue-200 bg-blue-50 rounded-2xl p-4 mb-4">
+              <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-3">Edit Project</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Input label={t("label.title")} value={editingProj.title} onChange={e => setEditingProj(p => ({ ...p, title: e.target.value }))} />
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Consulting Company</label>
+                  <select value={editingProj.consulting_company ?? ""}
+                    onChange={e => setEditingProj(p => ({ ...p, consulting_company: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">— None —</option>
+                    {(profile?.consultant_customers ?? []).map(cu => (
+                      <option key={cu.id} value={cu.company_name}>{cu.company_name}</option>
+                    ))}
+                  </select>
+                </div>
+                <Input label={t("profile.client_name")} value={editingProj.client_name ?? ""} onChange={e => setEditingProj(p => ({ ...p, client_name: e.target.value }))} />
+                <Input label="Role" value={editingProj.role ?? ""} onChange={e => setEditingProj(p => ({ ...p, role: e.target.value }))} />
+                <Input label={t("profile.url")} value={editingProj.url ?? ""} onChange={e => setEditingProj(p => ({ ...p, url: e.target.value }))} />
+                <Input label={t("profile.tech_stack")} value={editingProj._tech} onChange={e => setEditingProj(p => ({ ...p, _tech: e.target.value }))} />
+              </div>
+              <Textarea label={t("label.description")} value={editingProj.description ?? ""} onChange={e => setEditingProj(p => ({ ...p, description: e.target.value }))} />
+              <div className="flex gap-2">
+                <button onClick={handleSaveProj} disabled={savingExp}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50">
+                  {savingExp ? t("profile.saving") : t("action.save")}
+                </button>
+                <button onClick={() => setEditingProj(null)}
+                  className="px-3 py-1.5 border border-gray-200 text-xs font-semibold text-gray-600 rounded-lg hover:bg-gray-50">
+                  {t("action.cancel")}
+                </button>
+              </div>
+            </div>
+          )}
+          {(profile?.consultant_projects?.length ?? 0) === 0
+            ? <p className="text-sm text-gray-400 mb-4">{t("profile.no_projects")}</p>
+            : <div className="mb-4"><ConsultantProjectsHierarchy projects={profile.consultant_projects}
+                onEdit={p => setEditingProj({ ...p, _tech: p.tech_stack?.join(", ") ?? "" })}
+                onDelete={id => deleteProject(id)}
+              /></div>}
+          <div className="border-t border-gray-100 pt-4">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("profile.add_project")}</p>
+            {(profile?.consultant_customers?.length ?? 0) === 0 && (
+              <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+                Add a company in <strong>Work Experience</strong> first — it will appear here as the Consulting Company.
+              </p>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <Input label={t("label.title")} value={projForm.title} onChange={e => setProjForm(p => ({ ...p, title: e.target.value }))} />
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Consulting Company</label>
+                <select value={projForm.consulting_company}
+                  onChange={e => setProjForm(p => ({ ...p, consulting_company: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={(profile?.consultant_customers?.length ?? 0) === 0}>
+                  <option value="">— Select company —</option>
+                  {(profile?.consultant_customers ?? []).map(cu => (
+                    <option key={cu.id} value={cu.company_name}>{cu.company_name}</option>
+                  ))}
+                </select>
+              </div>
+              <Input label={t("profile.client_name")} value={projForm.client_name} onChange={e => setProjForm(p => ({ ...p, client_name: e.target.value }))} />
+              <Input label="Role" value={projForm.role} onChange={e => setProjForm(p => ({ ...p, role: e.target.value }))} />
+              <Input label={t("profile.url")} value={projForm.url} onChange={e => setProjForm(p => ({ ...p, url: e.target.value }))} />
+              <Input label={t("profile.tech_stack")} value={projForm._tech} onChange={e => setProjForm(p => ({ ...p, _tech: e.target.value }))} />
+            </div>
+            <Textarea label={t("label.description")} value={projForm.description} onChange={e => setProjForm(p => ({ ...p, description: e.target.value }))} />
+            <button onClick={handleAddProject} disabled={savingExp || !projForm.title}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+              {savingExp ? t("profile.saving") : t("profile.add_project_btn")}
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Icon Tiles */}
@@ -25392,81 +25469,12 @@ function ProfileView({ auth, compact = false }) {
       {/* Tab Content */}
       {profileTab === "experience" && (
         <div className="space-y-6">
-          {/* Projects */}
+          {/* Projects — read-only hierarchy; edit/add available in Edit Profile mode */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <h3 className="font-semibold text-gray-900 mb-4">{t("profile.projects")}</h3>
-            {editingProj && (
-              <div className="border border-blue-200 bg-blue-50 rounded-2xl p-4 mb-4">
-                <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-3">Edit Project</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <Input label={t("label.title")} value={editingProj.title} onChange={e => setEditingProj(p => ({ ...p, title: e.target.value }))} />
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Consulting Company</label>
-                    <select value={editingProj.consulting_company ?? ""}
-                      onChange={e => setEditingProj(p => ({ ...p, consulting_company: e.target.value }))}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option value="">— None —</option>
-                      {(profile?.consultant_customers ?? []).map(cu => (
-                        <option key={cu.id} value={cu.company_name}>{cu.company_name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <Input label={t("profile.client_name")} value={editingProj.client_name ?? ""} onChange={e => setEditingProj(p => ({ ...p, client_name: e.target.value }))} />
-                  <Input label="Role" value={editingProj.role ?? ""} onChange={e => setEditingProj(p => ({ ...p, role: e.target.value }))} />
-                  <Input label={t("profile.url")} value={editingProj.url ?? ""} onChange={e => setEditingProj(p => ({ ...p, url: e.target.value }))} />
-                  <Input label={t("profile.tech_stack")} value={editingProj._tech} onChange={e => setEditingProj(p => ({ ...p, _tech: e.target.value }))} />
-                </div>
-                <Textarea label={t("label.description")} value={editingProj.description ?? ""} onChange={e => setEditingProj(p => ({ ...p, description: e.target.value }))} />
-                <div className="flex gap-2">
-                  <button onClick={handleSaveProj} disabled={savingExp}
-                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50">
-                    {savingExp ? t("profile.saving") : t("action.save")}
-                  </button>
-                  <button onClick={() => setEditingProj(null)}
-                    className="px-3 py-1.5 border border-gray-200 text-xs font-semibold text-gray-600 rounded-lg hover:bg-gray-50">
-                    {t("action.cancel")}
-                  </button>
-                </div>
-              </div>
-            )}
             {(profile?.consultant_projects?.length ?? 0) === 0
-              ? <p className="text-sm text-gray-400 mb-4">{t("profile.no_projects")}</p>
-              : <div className="mb-4"><ConsultantProjectsHierarchy projects={profile.consultant_projects}
-                  onEdit={p => setEditingProj({ ...p, _tech: p.tech_stack?.join(", ") ?? "" })}
-                  onDelete={id => deleteProject(id)}
-                /></div>}
-            <div className="border-t border-gray-100 pt-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("profile.add_project")}</p>
-              {(profile?.consultant_customers?.length ?? 0) === 0 && (
-                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
-                  Add a company in <strong>Work Experience</strong> first — it will appear here as the Consulting Company.
-                </p>
-              )}
-              <div className="grid grid-cols-2 gap-3">
-                <Input label={t("label.title")} value={projForm.title} onChange={e => setProjForm(p => ({ ...p, title: e.target.value }))} />
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Consulting Company</label>
-                  <select value={projForm.consulting_company}
-                    onChange={e => setProjForm(p => ({ ...p, consulting_company: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    disabled={(profile?.consultant_customers?.length ?? 0) === 0}>
-                    <option value="">— Select company —</option>
-                    {(profile?.consultant_customers ?? []).map(cu => (
-                      <option key={cu.id} value={cu.company_name}>{cu.company_name}</option>
-                    ))}
-                  </select>
-                </div>
-                <Input label={t("profile.client_name")} value={projForm.client_name} onChange={e => setProjForm(p => ({ ...p, client_name: e.target.value }))} />
-                <Input label="Role" value={projForm.role} onChange={e => setProjForm(p => ({ ...p, role: e.target.value }))} />
-                <Input label={t("profile.url")} value={projForm.url} onChange={e => setProjForm(p => ({ ...p, url: e.target.value }))} />
-                <Input label={t("profile.tech_stack")} value={projForm._tech} onChange={e => setProjForm(p => ({ ...p, _tech: e.target.value }))} />
-              </div>
-              <Textarea label={t("label.description")} value={projForm.description} onChange={e => setProjForm(p => ({ ...p, description: e.target.value }))} />
-              <button onClick={handleAddProject} disabled={savingExp || !projForm.title}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
-                {savingExp ? t("profile.saving") : t("profile.add_project_btn")}
-              </button>
-            </div>
+              ? <p className="text-sm text-gray-400">{t("profile.no_projects")}</p>
+              : <ConsultantProjectsHierarchy projects={profile.consultant_projects} />}
           </div>
         </div>
       )}
