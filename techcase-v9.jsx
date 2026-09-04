@@ -6263,6 +6263,30 @@ function useConsultantProfile(consultantId, profileId) {
     await fetchProfile();
   }
 
+  async function updateCustomer(id, data) {
+    const { error } = await supabase.from("consultant_customers").update(data).eq("id", id);
+    if (error) throw error;
+    await fetchProfile();
+  }
+
+  async function deleteCustomer(id) {
+    const { error } = await supabase.from("consultant_customers").delete().eq("id", id);
+    if (error) throw error;
+    await fetchProfile();
+  }
+
+  async function updateProject(id, data) {
+    const { error } = await supabase.from("consultant_projects").update(data).eq("id", id);
+    if (error) throw error;
+    await fetchProfile();
+  }
+
+  async function deleteProject(id) {
+    const { error } = await supabase.from("consultant_projects").delete().eq("id", id);
+    if (error) throw error;
+    await fetchProfile();
+  }
+
   async function addWorkAuth(data) {
     const { error } = await supabase.from("work_authorizations")
       .insert({ ...data, consultant_id: resolvedId });
@@ -6281,7 +6305,7 @@ function useConsultantProfile(consultantId, profileId) {
     return publicUrl;
   }
 
-  return { profile, availability, loading, profileError, updateProfile, uploadPhoto, addCustomer, addProject, addWorkAuth, refetch: fetchProfile };
+  return { profile, availability, loading, profileError, updateProfile, uploadPhoto, addCustomer, updateCustomer, deleteCustomer, addProject, updateProject, deleteProject, addWorkAuth, refetch: fetchProfile };
 }
 
 // ── Notification helpers ─────────────────────────────────────
@@ -7366,13 +7390,12 @@ function PendingApprovalScreen({ auth }) {
 
 // ── Profile onboarding gate (approved but profile not complete) ───────────────
 // ── Resume / LinkedIn AI importer ────────────────────────────
-function ConsultantProjectsHierarchy({ projects }) {
+function ConsultantProjectsHierarchy({ projects, onEdit, onDelete }) {
   const [openCompanies, setOpenCompanies] = useState(() => new Set());
   const [openClients,   setOpenClients]   = useState(() => new Set());
 
   if (!projects?.length) return null;
 
-  // Group: consulting_company → client_name → projects[]
   const byCompany = {};
   for (const p of projects) {
     const co = p.consulting_company || "Independent / Other";
@@ -7382,7 +7405,6 @@ function ConsultantProjectsHierarchy({ projects }) {
     byCompany[co][cl].push(p);
   }
 
-  // Open all companies by default on first render
   useEffect(() => {
     setOpenCompanies(new Set(Object.keys(byCompany)));
     setOpenClients(new Set(
@@ -7407,7 +7429,6 @@ function ConsultantProjectsHierarchy({ projects }) {
         const totalProj = Object.values(clients).reduce((s, arr) => s + arr.length, 0);
         return (
           <div key={co} className="border border-gray-200 rounded-2xl overflow-hidden">
-            {/* Level 1 — Consulting Company */}
             <button onClick={() => toggleCo(co)}
               className="w-full flex items-center gap-3 px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left">
               <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
@@ -7427,7 +7448,6 @@ function ConsultantProjectsHierarchy({ projects }) {
                   const clOpen = openClients.has(clKey);
                   return (
                     <div key={cl}>
-                      {/* Level 2 — Client */}
                       <button onClick={() => toggleCl(clKey)}
                         className="w-full flex items-center gap-3 px-4 py-2.5 pl-6 bg-white hover:bg-gray-50 transition-colors text-left">
                         <div className="w-6 h-6 rounded-md bg-teal-50 border border-teal-200 flex items-center justify-center flex-shrink-0">
@@ -7444,7 +7464,6 @@ function ConsultantProjectsHierarchy({ projects }) {
                         <div className="pl-8 pr-4 pb-2 space-y-2">
                           {projs.map(p => (
                             <div key={p.id ?? p.title} className="border border-gray-100 rounded-xl p-3 bg-white">
-                              {/* Level 3 — Project */}
                               <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center gap-2 flex-wrap">
@@ -7464,12 +7483,26 @@ function ConsultantProjectsHierarchy({ projects }) {
                                     </div>
                                   )}
                                 </div>
-                                {p.url && (
-                                  <a href={p.url} target="_blank" rel="noreferrer"
-                                    className="text-[11px] text-blue-500 hover:underline flex-shrink-0 mt-0.5">
-                                    View
-                                  </a>
-                                )}
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                  {p.url && (
+                                    <a href={p.url} target="_blank" rel="noreferrer"
+                                      className="text-[11px] text-blue-500 hover:underline mr-1">
+                                      View
+                                    </a>
+                                  )}
+                                  {onEdit && (
+                                    <button onClick={() => onEdit(p)}
+                                      className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-blue-600 transition-colors">
+                                      <Pencil className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                  {onDelete && (
+                                    <button onClick={() => { if (window.confirm(`Delete "${p.title}"?`)) onDelete(p.id); }}
+                                      className="p-1 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors">
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           ))}
@@ -24878,7 +24911,7 @@ function ProfileView({ auth, compact = false }) {
   // Extract the real consultant_profiles id from auth (useAuth already fetched it via FK join)
   const cpRaw = auth.profile?.consultant_profiles;
   const realProfileId = Array.isArray(cpRaw) ? cpRaw[0]?.id : cpRaw?.id;
-  const { profile, availability, loading, profileError, updateProfile, uploadPhoto, addCustomer, addProject, addWorkAuth } =
+  const { profile, availability, loading, profileError, updateProfile, uploadPhoto, addCustomer, updateCustomer, deleteCustomer, addProject, updateProject, deleteProject, addWorkAuth } =
     useConsultantProfile(auth.user?.id, realProfileId);
   const { ratings, avgRating } = useRatings(auth.user?.id);
   const [profileTab, setProfileTab] = useState("overview");
@@ -24928,7 +24961,9 @@ function ProfileView({ auth, compact = false }) {
   }
 
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [custForm, setCustForm] = useState({ company_name: "", role_held: "", start_date: "", end_date: "", description: "" });
+  const [custForm, setCustForm]     = useState({ company_name: "", role_held: "", start_date: "", end_date: "", description: "" });
+  const [editingCust, setEditingCust] = useState(null); // { id, company_name, role_held, start_date, end_date, description }
+  const [editingProj, setEditingProj] = useState(null); // { id, title, consulting_company, client_name, role, description, tech_stack, url, _tech }
   const [projForm, setProjForm] = useState({ title: "", consulting_company: "", client_name: "", role: "", url: "", description: "", _tech: "" });
   const [authForm, setAuthForm] = useState({ country_name: "", country_code: "", auth_type: "citizen" });
   const [savingExp, setSavingExp] = useState(false);
@@ -24962,6 +24997,28 @@ function ProfileView({ auth, compact = false }) {
       const { _tech, ...rest } = projForm;
       await addProject({ ...rest, tech_stack: _tech.split(",").map(s => s.trim()).filter(Boolean) });
       setProjForm({ title: "", consulting_company: "", client_name: "", role: "", url: "", description: "", _tech: "" });
+    } catch (e) { alert(e.message); }
+    setSavingExp(false);
+  }
+
+  async function handleSaveCust() {
+    if (!editingCust) return;
+    setSavingExp(true);
+    try {
+      const { id, ...data } = editingCust;
+      await updateCustomer(id, data);
+      setEditingCust(null);
+    } catch (e) { alert(e.message); }
+    setSavingExp(false);
+  }
+
+  async function handleSaveProj() {
+    if (!editingProj) return;
+    setSavingExp(true);
+    try {
+      const { id, _tech, ...data } = editingProj;
+      await updateProject(id, { ...data, tech_stack: _tech.split(",").map(s => s.trim()).filter(Boolean) });
+      setEditingProj(null);
     } catch (e) { alert(e.message); }
     setSavingExp(false);
   }
@@ -25198,14 +25255,52 @@ function ProfileView({ auth, compact = false }) {
               : <div className="space-y-3 mb-4">
                   {profile.consultant_customers.map(c => (
                     <div key={c.id} className="border border-gray-100 rounded-xl p-4">
-                      <div className="font-medium text-gray-900">{c.company_name}</div>
-                      {c.role_held && <div className="text-sm text-gray-500">{c.role_held}</div>}
-                      {(c.start_date || c.end_date) && (
-                        <div className="text-xs text-gray-400 mt-1">
-                          {fmtDate(c.start_date)} – {c.end_date ? fmtDate(c.end_date) : t("label.present")}
+                      {editingCust?.id === c.id ? (
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-2 gap-2">
+                            <Input label={t("profile.company_name")} value={editingCust.company_name} onChange={e => setEditingCust(p => ({ ...p, company_name: e.target.value }))} />
+                            <Input label={t("profile.role_held")} value={editingCust.role_held ?? ""} onChange={e => setEditingCust(p => ({ ...p, role_held: e.target.value }))} />
+                            <Input label={t("label.start_date")} type="date" value={editingCust.start_date ?? ""} onChange={e => setEditingCust(p => ({ ...p, start_date: e.target.value }))} />
+                            <Input label={t("label.end_date")} type="date" value={editingCust.end_date ?? ""} onChange={e => setEditingCust(p => ({ ...p, end_date: e.target.value }))} placeholder={t("profile.blank_if_curr")} />
+                          </div>
+                          <Textarea label={t("label.description")} value={editingCust.description ?? ""} onChange={e => setEditingCust(p => ({ ...p, description: e.target.value }))} />
+                          <div className="flex gap-2">
+                            <button onClick={handleSaveCust} disabled={savingExp}
+                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50">
+                              {savingExp ? t("profile.saving") : t("action.save")}
+                            </button>
+                            <button onClick={() => setEditingCust(null)}
+                              className="px-3 py-1.5 border border-gray-200 text-xs font-semibold text-gray-600 rounded-lg hover:bg-gray-50">
+                              {t("action.cancel")}
+                            </button>
+                          </div>
                         </div>
+                      ) : (
+                        <>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="font-medium text-gray-900">{c.company_name}</div>
+                              {c.role_held && <div className="text-sm text-gray-500">{c.role_held}</div>}
+                              {(c.start_date || c.end_date) && (
+                                <div className="text-xs text-gray-400 mt-1">
+                                  {fmtDate(c.start_date)} – {c.end_date ? fmtDate(c.end_date) : t("label.present")}
+                                </div>
+                              )}
+                              {c.description && <p className="text-sm text-gray-600 mt-2">{c.description}</p>}
+                            </div>
+                            <div className="flex gap-1 flex-shrink-0">
+                              <button onClick={() => setEditingCust({ ...c })}
+                                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-blue-600 transition-colors">
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button onClick={() => { if (window.confirm(`Delete "${c.company_name}"?`)) deleteCustomer(c.id); }}
+                                className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </>
                       )}
-                      {c.description && <p className="text-sm text-gray-600 mt-2">{c.description}</p>}
                     </div>
                   ))}
                 </div>}
@@ -25228,9 +25323,36 @@ function ProfileView({ auth, compact = false }) {
           {/* Projects */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <h3 className="font-semibold text-gray-900 mb-4">{t("profile.projects")}</h3>
+            {editingProj && (
+              <div className="border border-blue-200 bg-blue-50 rounded-2xl p-4 mb-4">
+                <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-3">Edit Project</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input label={t("label.title")} value={editingProj.title} onChange={e => setEditingProj(p => ({ ...p, title: e.target.value }))} />
+                  <Input label="Consulting Company" value={editingProj.consulting_company ?? ""} onChange={e => setEditingProj(p => ({ ...p, consulting_company: e.target.value }))} />
+                  <Input label={t("profile.client_name")} value={editingProj.client_name ?? ""} onChange={e => setEditingProj(p => ({ ...p, client_name: e.target.value }))} />
+                  <Input label="Role" value={editingProj.role ?? ""} onChange={e => setEditingProj(p => ({ ...p, role: e.target.value }))} />
+                  <Input label={t("profile.url")} value={editingProj.url ?? ""} onChange={e => setEditingProj(p => ({ ...p, url: e.target.value }))} />
+                  <Input label={t("profile.tech_stack")} value={editingProj._tech} onChange={e => setEditingProj(p => ({ ...p, _tech: e.target.value }))} />
+                </div>
+                <Textarea label={t("label.description")} value={editingProj.description ?? ""} onChange={e => setEditingProj(p => ({ ...p, description: e.target.value }))} />
+                <div className="flex gap-2">
+                  <button onClick={handleSaveProj} disabled={savingExp}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50">
+                    {savingExp ? t("profile.saving") : t("action.save")}
+                  </button>
+                  <button onClick={() => setEditingProj(null)}
+                    className="px-3 py-1.5 border border-gray-200 text-xs font-semibold text-gray-600 rounded-lg hover:bg-gray-50">
+                    {t("action.cancel")}
+                  </button>
+                </div>
+              </div>
+            )}
             {(profile?.consultant_projects?.length ?? 0) === 0
               ? <p className="text-sm text-gray-400 mb-4">{t("profile.no_projects")}</p>
-              : <div className="mb-4"><ConsultantProjectsHierarchy projects={profile.consultant_projects} /></div>}
+              : <div className="mb-4"><ConsultantProjectsHierarchy projects={profile.consultant_projects}
+                  onEdit={p => setEditingProj({ ...p, _tech: p.tech_stack?.join(", ") ?? "" })}
+                  onDelete={id => deleteProject(id)}
+                /></div>}
             <div className="border-t border-gray-100 pt-4">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("profile.add_project")}</p>
               <div className="grid grid-cols-2 gap-3">
