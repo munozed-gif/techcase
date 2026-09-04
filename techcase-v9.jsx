@@ -11601,9 +11601,9 @@ function ProjectTemplatesSection({ auth }) {
                       {confirmDel === tmpl.id ? (
                         <div className="flex items-center gap-1">
                           <button onClick={async () => { await deleteTemplate(tmpl.id); setConfirmDel(null); }}
-                            className="px-2 py-1 text-xs text-white bg-red-500 hover:bg-red-600 rounded-lg">Delete</button>
+                            className="px-2 py-1 text-xs text-white bg-red-500 hover:bg-red-600 rounded-lg">{t("action.delete")}</button>
                           <button onClick={() => setConfirmDel(null)}
-                            className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                            className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50">{t("action.cancel")}</button>
                         </div>
                       ) : (
                         <button onClick={() => setConfirmDel(tmpl.id)}
@@ -11646,6 +11646,7 @@ function ProjectTemplatesSection({ auth }) {
 }
 
 function ApplyTemplateModal({ projectId, clientId, userId, onClose, onDone }) {
+  const { t } = useT();
   const { templates: customTemplates, loading } = useProjectTemplates();
   const ALL = [...BUILT_IN_PROJECT_TEMPLATES, ...customTemplates];
   const categories = ['All', ...[...new Set(ALL.map(t => t.category).filter(Boolean))]];
@@ -11700,7 +11701,7 @@ function ApplyTemplateModal({ projectId, clientId, userId, onClose, onDone }) {
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-blue-50"><LayoutTemplate size={18} className="text-blue-600" /></div>
             <div>
-              <h2 className="text-base font-bold text-gray-900">Apply Project Template</h2>
+              <h2 className="text-base font-bold text-gray-900">{t("template.apply")}</h2>
               <p className="text-xs text-gray-500">Select a template to create cases in this project</p>
             </div>
           </div>
