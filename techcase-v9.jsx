@@ -8730,17 +8730,6 @@ function ConsultantProfileView({ userId, onBack }) {
                 </div>
               </div>
 
-              {/* Skills */}
-              {cpData?.skills?.length > 0 && (
-                <div className="border-t border-gray-100 pt-4 space-y-2">
-                  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Skills</h4>
-                  <div className="flex flex-wrap gap-1.5">
-                    {cpData.skills.map((s, i) => (
-                      <span key={i} className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full">{s}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* Avg rating by dimension */}
               {dimensions.length > 0 && (
