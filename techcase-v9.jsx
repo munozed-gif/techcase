@@ -25328,7 +25328,17 @@ function ProfileView({ auth, compact = false }) {
                 <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-3">Edit Project</p>
                 <div className="grid grid-cols-2 gap-2">
                   <Input label={t("label.title")} value={editingProj.title} onChange={e => setEditingProj(p => ({ ...p, title: e.target.value }))} />
-                  <Input label="Consulting Company" value={editingProj.consulting_company ?? ""} onChange={e => setEditingProj(p => ({ ...p, consulting_company: e.target.value }))} />
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Consulting Company</label>
+                    <select value={editingProj.consulting_company ?? ""}
+                      onChange={e => setEditingProj(p => ({ ...p, consulting_company: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="">— None —</option>
+                      {(profile?.consultant_customers ?? []).map(cu => (
+                        <option key={cu.id} value={cu.company_name}>{cu.company_name}</option>
+                      ))}
+                    </select>
+                  </div>
                   <Input label={t("profile.client_name")} value={editingProj.client_name ?? ""} onChange={e => setEditingProj(p => ({ ...p, client_name: e.target.value }))} />
                   <Input label="Role" value={editingProj.role ?? ""} onChange={e => setEditingProj(p => ({ ...p, role: e.target.value }))} />
                   <Input label={t("profile.url")} value={editingProj.url ?? ""} onChange={e => setEditingProj(p => ({ ...p, url: e.target.value }))} />
@@ -25355,9 +25365,25 @@ function ProfileView({ auth, compact = false }) {
                 /></div>}
             <div className="border-t border-gray-100 pt-4">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("profile.add_project")}</p>
+              {(profile?.consultant_customers?.length ?? 0) === 0 && (
+                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+                  Add a company in <strong>Work Experience</strong> first — it will appear here as the Consulting Company.
+                </p>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <Input label={t("label.title")} value={projForm.title} onChange={e => setProjForm(p => ({ ...p, title: e.target.value }))} />
-                <Input label="Consulting Company" value={projForm.consulting_company} onChange={e => setProjForm(p => ({ ...p, consulting_company: e.target.value }))} />
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Consulting Company</label>
+                  <select value={projForm.consulting_company}
+                    onChange={e => setProjForm(p => ({ ...p, consulting_company: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={(profile?.consultant_customers?.length ?? 0) === 0}>
+                    <option value="">— Select company —</option>
+                    {(profile?.consultant_customers ?? []).map(cu => (
+                      <option key={cu.id} value={cu.company_name}>{cu.company_name}</option>
+                    ))}
+                  </select>
+                </div>
                 <Input label={t("profile.client_name")} value={projForm.client_name} onChange={e => setProjForm(p => ({ ...p, client_name: e.target.value }))} />
                 <Input label="Role" value={projForm.role} onChange={e => setProjForm(p => ({ ...p, role: e.target.value }))} />
                 <Input label={t("profile.url")} value={projForm.url} onChange={e => setProjForm(p => ({ ...p, url: e.target.value }))} />
@@ -30849,11 +30875,26 @@ function ConsultantOnboardingView({ auth, onComplete }) {
             )}
             <div className={`${(profile?.consultant_projects?.length ?? 0) > 0 ? "border-t border-gray-100 pt-5" : ""}`}>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("ob.add_project")}</p>
+              {(profile?.consultant_customers?.length ?? 0) === 0 && (
+                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+                  Add a company in Work Experience (previous step) first — it will appear here as the Consulting Company.
+                </p>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <Input label={t("ob.title_label")} value={projForm.title}
                   onChange={e => setProjForm(p => ({ ...p, title: e.target.value }))} />
-                <Input label="Consulting Company" value={projForm.consulting_company}
-                  onChange={e => setProjForm(p => ({ ...p, consulting_company: e.target.value }))} />
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Consulting Company</label>
+                  <select value={projForm.consulting_company}
+                    onChange={e => setProjForm(p => ({ ...p, consulting_company: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={(profile?.consultant_customers?.length ?? 0) === 0}>
+                    <option value="">— Select company —</option>
+                    {(profile?.consultant_customers ?? []).map(cu => (
+                      <option key={cu.id} value={cu.company_name}>{cu.company_name}</option>
+                    ))}
+                  </select>
+                </div>
                 <Input label={t("ob.client_name_label")} value={projForm.client_name}
                   onChange={e => setProjForm(p => ({ ...p, client_name: e.target.value }))} />
                 <Input label="Role" value={projForm.role}
