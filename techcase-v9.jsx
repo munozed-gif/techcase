@@ -10302,7 +10302,7 @@ function Dashboard({ auth }) {
             </div>
             <button onClick={() => setActiveTab(null)} className="text-gray-400 hover:text-gray-600 text-sm"><X size={13} className="mr-1 inline" />{t("action.close")}</button>
           </div>
-          <div className="flex flex-col gap-2 p-3 max-h-96 overflow-y-auto">
+          <div className="flex flex-col gap-2 p-3 max-h-[70vh] overflow-y-auto">
             {activeStat.items.length === 0 && (
               <div className="p-8 text-center text-gray-400 text-sm">{t("dashboard.nothing_yet")}</div>
             )}
