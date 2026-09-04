@@ -7408,8 +7408,8 @@ function PendingApprovalScreen({ auth }) {
               <XCircle size={32} className="text-red-400" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Application not approved</h1>
-              <p className="text-sm text-gray-500 mt-1">Your account request could not be approved at this time.</p>
+              <h1 className="text-xl font-bold text-gray-900">{t("pending.rejected_title")}</h1>
+              <p className="text-sm text-gray-500 mt-1">{t("pending.rejected_body")}</p>
             </div>
             {rejectionReason && (
               <div className="bg-red-50 rounded-xl p-3 text-sm text-red-700 text-left">
@@ -7425,9 +7425,9 @@ function PendingApprovalScreen({ auth }) {
               <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Account under review</h1>
+              <h1 className="text-xl font-bold text-gray-900">{t("pending.title")}</h1>
               <p className="text-sm text-gray-500 mt-2">
-                Your account is being verified by our team. You'll be notified once it's approved.
+                {t("pending.subtitle")}
               </p>
             </div>
             <div className="bg-gray-50 rounded-xl p-4 text-left space-y-1">
@@ -7859,6 +7859,7 @@ function ResumeImporter({ onExtracted }) {
 }
 
 function ProfileOnboardingScreen({ auth }) {
+  const { t } = useT();
   const [showWizard, setShowWizard] = useState(false);
   const [allDone, setAllDone] = useState(false);
 
@@ -7869,7 +7870,7 @@ function ProfileOnboardingScreen({ auth }) {
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5">
             <CheckCircle2 className="w-9 h-9 text-green-600" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">You're all set!</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">{t("ob.all_set")}</h2>
           <p className="text-gray-500 mb-7">Your profile is complete. Welcome to TechCase.</p>
           <button onClick={() => auth.refreshProfile()}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors">
@@ -7954,6 +7955,7 @@ const ROLE_LABELS = {
 };
 
 function ProfileCompleteWizard({ auth, onDone, onClose }) {
+  const { t } = useT();
   const [role,          setRole]          = useState(auth.profile?.role ?? "consultant");
   const [showRolePicker, setShowRolePicker] = useState(false);
   const [step,          setStep]          = useState(1);
@@ -8238,14 +8240,14 @@ function ProfileCompleteWizard({ auth, onDone, onClose }) {
         <div className="px-7 py-5 flex gap-3 border-t border-gray-100 mt-4">
           {step > 1
             ? <button onClick={() => setStep(s => s - 1)} className="px-5 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">← Back</button>
-            : <button onClick={onClose} className="px-5 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-500 hover:bg-gray-50 transition-colors">Later</button>
+            : <button onClick={onClose} className="px-5 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-500 hover:bg-gray-50 transition-colors">{t("ob.later")}</button>
           }
           {step < totalSteps
             ? <button onClick={() => setStep(s => s + 1)} disabled={!canProceed}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold py-2.5 rounded-xl text-sm transition-colors">Continue →</button>
             : <button onClick={handleFinish} disabled={saving || !canProceed}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
-                {saving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : "Finish →"}
+                {saving ? <><Loader2 className="w-4 h-4 animate-spin" />{t("state.saving")}</> : t("ob.finish")}
               </button>
           }
         </div>
@@ -9486,7 +9488,7 @@ function AuthScreen({ onAuth }) {
                 <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mx-auto">
                   <BadgeCheck size={30} className="text-blue-500" />
                 </div>
-                <h2 className="text-lg font-bold text-gray-900">Registration submitted!</h2>
+                <h2 className="text-lg font-bold text-gray-900">{t("ob.registration_submitted")}</h2>
                 <p className="text-sm text-gray-500">
                   Your account has been created and is pending admin review. You may receive a confirmation email — please confirm it. An admin will then approve your account.
                 </p>
@@ -11208,7 +11210,7 @@ function CaseTemplatesView({ auth }) {
     try {
       const { data, error } = await supabase
         .from("case_templates")
-        .select("*, creator:created_by(full_name, email)")
+        .select("*")
         .order("created_at", { ascending: false });
       if (error) {
         console.error("loadTemplates error:", error.message, error.code);
@@ -11720,14 +11722,14 @@ function ApplyTemplateModal({ projectId, clientId, userId, onClose, onDone }) {
               ))}
             </div>
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
-              {loading && <div className="p-4 text-center text-xs text-gray-400">Loading…</div>}
+              {loading && <div className="p-4 text-center text-xs text-gray-400">{t("label.loading")}</div>}
               {filtered.map(tmpl => (
                 <button key={tmpl.id} onClick={() => selectTemplate(tmpl)}
                   className={`w-full text-left px-3 py-3 rounded-xl transition-colors ${selectedTemplate?.id === tmpl.id ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50 border border-transparent'}`}>
                   <div className="flex items-center gap-1.5 mb-1">
                     {tmpl.is_builtin
-                      ? <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-semibold">Built-in</span>
-                      : <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-semibold">Custom</span>}
+                      ? <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-semibold">{t("template.builtin")}</span>
+                      : <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-semibold">{t("template.custom")}</span>}
                     {tmpl.category && <span className="text-xs text-gray-400">{tmpl.category}</span>}
                   </div>
                   <p className="text-sm font-semibold text-gray-900 leading-tight">{tmpl.name}</p>
@@ -11793,7 +11795,7 @@ function ApplyTemplateModal({ projectId, clientId, userId, onClose, onDone }) {
             {error ?? (selCount > 0 ? `${selCount} case${selCount === 1 ? '' : 's'} will be created in this project` : 'Select items to apply')}
           </p>
           <div className="flex items-center gap-3">
-            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl">Cancel</button>
+            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl">{t("action.cancel")}</button>
             <button onClick={handleApply} disabled={applying || !selCount || !selectedTemplate}
               className="px-5 py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl flex items-center gap-2">
               {applying ? <><Spinner size={12} /> Applying…</> : <><Check size={14} /> Apply {selCount > 0 ? selCount : ''} Cases</>}
@@ -11806,6 +11808,7 @@ function ApplyTemplateModal({ projectId, clientId, userId, onClose, onDone }) {
 }
 
 function SaveTemplateModal({ cases, auth, onClose, onSaved }) {
+  const { t } = useT();
   const { createTemplate } = useProjectTemplates();
   const [name, setName]           = useState('');
   const [description, setDesc]    = useState('');
@@ -11834,21 +11837,21 @@ function SaveTemplateModal({ cases, auth, onClose, onSaved }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-        <h2 className="text-base font-bold text-gray-900 mb-1">Save as Template</h2>
+        <h2 className="text-base font-bold text-gray-900 mb-1">{t("template.save_as")}</h2>
         <p className="text-sm text-gray-500 mb-4">{cases.length} case{cases.length !== 1 ? 's' : ''} will be saved as template items.</p>
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Template Name *</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">{t("template.name")} *</label>
             <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. My SAP Finance Project"
               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Category</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">{t("template.category")}</label>
             <input value={category} onChange={e => setCategory(e.target.value)} placeholder="e.g. SAP Implementation"
               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Description</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">{t("label.description")}</label>
             <textarea value={description} onChange={e => setDesc(e.target.value)} rows={2}
               placeholder="Briefly describe this template…"
               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 resize-none" />
@@ -11856,10 +11859,10 @@ function SaveTemplateModal({ cases, auth, onClose, onSaved }) {
         </div>
         {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
         <div className="flex items-center justify-end gap-3 mt-5">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl">Cancel</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl">{t("action.cancel")}</button>
           <button onClick={handleSave} disabled={saving}
             className="px-5 py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl flex items-center gap-2">
-            {saving ? <><Spinner size={12} /> Saving…</> : 'Save Template'}
+            {saving ? <><Spinner size={12} /> {t("state.saving")}</> : t("template.save_as")}
           </button>
         </div>
       </div>
@@ -30526,15 +30529,15 @@ function TimeEntriesView({ auth }) {
                             <td className="py-2 pr-3 font-semibold text-blue-700 text-right tabular-nums whitespace-nowrap">{e.hours}h</td>
                             <td className="py-2 pr-3 text-center">
                               <span className={`px-1.5 py-0.5 rounded text-xs ${e.is_billable ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-400"}`}>
-                                {e.is_billable ? "Yes" : "No"}
+                                {e.is_billable ? t("label.yes") : t("label.no")}
                               </span>
                             </td>
                             <td className="py-2 pr-3 text-center">
                               {e.is_approved
                                 ? <span className="text-green-600 font-bold">✓</span>
                                 : (auth.isAdmin || auth.isManager)
-                                  ? <button onClick={() => approveEntry(e.id, true)} className="bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded text-xs hover:bg-amber-100">Approve</button>
-                                  : <span className="text-amber-500">Pending</span>
+                                  ? <button onClick={() => approveEntry(e.id, true)} className="bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded text-xs hover:bg-amber-100">{t("action.approve")}</button>
+                                  : <span className="text-amber-500">{t("label.pending")}</span>
                               }
                             </td>
                             {(auth.isAdmin || auth.isManager) && (
@@ -32824,15 +32827,15 @@ function UserApprovalQueue() {
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm space-y-4">
             <h3 className="font-semibold text-gray-900">Reject {rejectModal.full_name || rejectModal.email}?</h3>
             <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)}
-              placeholder="Reason for rejection (optional — shown to the user)"
+              placeholder={t("reject.reason_placeholder")}
               rows={3}
               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 resize-none" />
             <div className="flex gap-2 justify-end">
               <button onClick={() => { setRejectModal(null); setRejectReason(''); }}
-                className="px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50">Cancel</button>
+                className="px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50">{t("action.cancel")}</button>
               <button onClick={handleReject} disabled={processing === rejectModal.id}
                 className="px-4 py-2 text-sm bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-40">
-                Confirm Reject
+                {t("action.confirm_reject")}
               </button>
             </div>
           </div>
@@ -33776,8 +33779,8 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
     setMatrixSaving(true);
     try {
       await ssCtx.setSetting("role_permissions", matrix);
-      setMatrixToast("Saved!"); setTimeout(() => setMatrixToast(null), 3000);
-    } catch (e) { setMatrixToast("Error: " + e.message); }
+      setMatrixToast(t("sys.saved")); setTimeout(() => setMatrixToast(null), 3000);
+    } catch (e) { setMatrixToast(t("state.error_prefix") + e.message); }
     setMatrixSaving(false);
   }
 
@@ -34006,7 +34009,7 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
                   <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
                     detailUser.is_active !== false ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
                   }`}>
-                    {detailUser.is_active !== false ? "Active" : "Inactive"}
+                    {detailUser.is_active !== false ? t("label.active") : t("label.inactive")}
                   </span>
                   {detailUser.verification_status && (
                     <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
@@ -34029,7 +34032,7 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
                 {/* Role change */}
                 {detailEditOpen ? (
                   <div className="space-y-2">
-                    <label className="block text-xs font-medium text-gray-700">Change role</label>
+                    <label className="block text-xs font-medium text-gray-700">{t("settings.change_role")}</label>
                     <select value={detailEditRole} onChange={e => setDetailEditRole(e.target.value)}
                       className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs bg-white">
                       {ALL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
@@ -34037,17 +34040,17 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
                     <div className="flex gap-2">
                       <button onClick={() => saveRole(detailUser.id, detailEditRole)} disabled={saving}
                         className="flex-1 px-2 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg disabled:opacity-50">
-                        {saving ? "Saving…" : "Save role"}
+                        {saving ? t("state.saving") : t("settings.save_role")}
                       </button>
                       <button onClick={() => setDetailEditOpen(false)}
-                        className="px-2 py-1.5 bg-gray-100 text-gray-600 text-xs rounded-lg">Cancel</button>
+                        className="px-2 py-1.5 bg-gray-100 text-gray-600 text-xs rounded-lg">{t("action.cancel")}</button>
                     </div>
                   </div>
                 ) : (
                   <div className="flex gap-2">
                     <button onClick={() => { setDetailEditOpen(true); setDetailEditRole(detailUser.role); }}
                       className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 border border-gray-200 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors">
-                      <Pencil size={11} />Change role
+                      <Pencil size={11} />{t("settings.change_role")}
                     </button>
                     <button onClick={() => sendPasswordReset(detailUser.email)}
                       className={`flex items-center justify-center gap-1 px-3 py-1.5 border text-xs font-medium rounded-lg transition-colors ${
@@ -34065,7 +34068,7 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
                       ? "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
                       : "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
                   }`}>
-                  {detailUser.is_active !== false ? "Deactivate user" : "Activate user"}
+                  {detailUser.is_active !== false ? t("settings.deactivate_user") : t("settings.activate_user")}
                 </button>
               </div>
             </div>
@@ -34080,7 +34083,7 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
               {selectedRole !== "admin" && (
                 <button onClick={savePermissions} disabled={matrixSaving}
                   className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50 transition-colors">
-                  {matrixSaving ? "Saving…" : "Save"}
+                  {matrixSaving ? t("state.saving") : t("action.save")}
                 </button>
               )}
             </div>
@@ -34203,6 +34206,7 @@ function SettingsWorkflowTab({ auth, ssCtx }) {
 
 // ── Sign-up Flow settings — per-role ─────────────────────────
 function SettingsSignupFlowTab({ ssCtx }) {
+  const { t } = useT();
   const { settings, setSetting } = ssCtx;
   const perRole = settings["signup_flow_per_role"] ?? {};
   const ALL_ROLE_KEYS = ["consultant", "headhunter", "client", "key_user", "final_user"];
@@ -34266,7 +34270,7 @@ function SettingsSignupFlowTab({ ssCtx }) {
                       : "bg-gray-100 border-gray-200 text-gray-400"
                   }`}>
                   <span className={`w-3 h-3 rounded-full ${visibleRoles.includes(key) ? "bg-green-500" : "bg-gray-300"}`} />
-                  {visibleRoles.includes(key) ? "In signup" : "Hidden"}
+                  {visibleRoles.includes(key) ? t("settings.in_signup") : t("settings.hidden")}
                 </button>
               </div>
               <div className="grid grid-cols-3 gap-2">
@@ -34297,6 +34301,7 @@ function SettingsSignupFlowTab({ ssCtx }) {
 
 // ── SMTP settings ─────────────────────────────────────────────
 function SettingsSMTPTab({ ssCtx }) {
+  const { t } = useT();
   const { settings, setSetting } = ssCtx;
   const stored = settings["smtp_config"] ?? {};
   const EMPTY = { host: "", port: 587, username: "", password: "", from_email: "", from_name: "", encryption: "tls" };
@@ -34403,11 +34408,11 @@ function SettingsSMTPTab({ ssCtx }) {
       <div className="flex gap-3 pt-1">
         <button onClick={handleTest} disabled={testing || saving}
           className="px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50 text-gray-600 font-medium disabled:opacity-50">
-          {testing ? "Sending…" : "Send Test Email"}
+          {testing ? t("smtp.sending") : t("smtp.send_test")}
         </button>
         <button onClick={handleSave} disabled={saving}
           className="px-5 py-2 text-sm bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
-          {saved ? "Saved ✓" : saving ? "Saving…" : "Save Settings"}
+          {saved ? t("smtp.saved") : saving ? t("state.saving") : t("smtp.save_settings")}
         </button>
       </div>
     </div>
