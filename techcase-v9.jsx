@@ -9539,7 +9539,7 @@ function AuthScreen({ onAuth }) {
                 <h2 className="text-lg font-bold text-gray-900 mb-1">{t("auth.verify_heading")}</h2>
                 <p className="text-sm text-gray-500 mb-5">Enter your email and choose your role to get started.</p>
                 <Input label={t("auth.email")} type="email" value={email}
-                  onChange={e => { setEmail(e.target.value); setKeyUserCompany(null); setFinalUserClient(null); }}
+                  onChange={e => { setEmail(e.target.value); setKeyUserCompany(null); setFinalUserClient(null); setInternalConsultantClient(null); setProjectManagerClient(null); }}
                   onBlur={e => { if (e.target.value.trim()) checkEmailPreReg(e.target.value); }}
                   placeholder={t("auth.ph_email")} />
                 <p className="text-xs font-medium text-gray-700 mb-3 mt-1">{t("auth.choose_type")}</p>
@@ -9550,14 +9550,18 @@ function AuthScreen({ onAuth }) {
                     { role: "client",     Icon: Building2, label: t("auth.build_client"),     desc: t("auth.tell_consultants") },
                     { role: "headhunter", Icon: Crosshair, label: t("auth.build_headhunter"), desc: t("auth.help_headhunter") },
                   ].filter(o => visibleSignup.includes(o.role));
+                  const isLinkedToTeam = !!(keyUserCompany || finalUserClient || internalConsultantClient || projectManagerClient);
                   return generalRoles.length > 0 ? (
                     <div className={`grid gap-3 ${generalRoles.length === 1 ? "grid-cols-1" : generalRoles.length === 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
                       {generalRoles.map(opt => (
-                        <button key={opt.role} onClick={() => handleRoleSelect(opt.role)} disabled={loading}
-                          className="flex flex-col items-center gap-2 p-4 border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 rounded-2xl transition-all text-center group disabled:opacity-50">
-                          <opt.Icon className="w-7 h-7 text-blue-600 group-hover:text-blue-700" />
-                          <span className="font-semibold text-gray-900 text-sm group-hover:text-blue-700">{opt.label}</span>
-                          <span className="text-xs text-gray-500 leading-snug">{opt.desc}</span>
+                        <button key={opt.role} onClick={() => handleRoleSelect(opt.role)} disabled={loading || isLinkedToTeam}
+                          className={`flex flex-col items-center gap-2 p-4 border-2 rounded-2xl transition-all text-center group
+                            ${isLinkedToTeam
+                              ? "border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed"
+                              : "border-gray-200 hover:border-blue-400 hover:bg-blue-50 cursor-pointer"}`}>
+                          <opt.Icon className={`w-7 h-7 ${isLinkedToTeam ? "text-gray-400" : "text-blue-600 group-hover:text-blue-700"}`} />
+                          <span className={`font-semibold text-sm ${isLinkedToTeam ? "text-gray-400" : "text-gray-900 group-hover:text-blue-700"}`}>{opt.label}</span>
+                          <span className="text-xs text-gray-400 leading-snug">{opt.desc}</span>
                         </button>
                       ))}
                     </div>
