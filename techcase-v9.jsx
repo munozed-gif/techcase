@@ -25297,6 +25297,7 @@ function ProfileView({ auth, compact = false }) {
 
       {/* Past Customers — only visible in edit mode */}
       {editing && (
+        <>
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
           <h3 className="font-semibold text-gray-900 mb-4">{t("profile.past_customers")}</h3>
           {(profile?.consultant_customers?.length ?? 0) === 0
@@ -25443,6 +25444,7 @@ function ProfileView({ auth, compact = false }) {
             </button>
           </div>
         </div>
+        </>
       )}
 
       {/* Icon Tiles */}
