@@ -7366,6 +7366,127 @@ function PendingApprovalScreen({ auth }) {
 
 // ── Profile onboarding gate (approved but profile not complete) ───────────────
 // ── Resume / LinkedIn AI importer ────────────────────────────
+function ConsultantProjectsHierarchy({ projects }) {
+  const [openCompanies, setOpenCompanies] = useState(() => new Set());
+  const [openClients,   setOpenClients]   = useState(() => new Set());
+
+  if (!projects?.length) return null;
+
+  // Group: consulting_company → client_name → projects[]
+  const byCompany = {};
+  for (const p of projects) {
+    const co = p.consulting_company || "Independent / Other";
+    const cl = p.client_name        || "—";
+    if (!byCompany[co]) byCompany[co] = {};
+    if (!byCompany[co][cl]) byCompany[co][cl] = [];
+    byCompany[co][cl].push(p);
+  }
+
+  // Open all companies by default on first render
+  useEffect(() => {
+    setOpenCompanies(new Set(Object.keys(byCompany)));
+    setOpenClients(new Set(
+      Object.entries(byCompany).flatMap(([co, clients]) =>
+        Object.keys(clients).map(cl => `${co}__${cl}`)
+      )
+    ));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects.length]);
+
+  function toggleCo(co) {
+    setOpenCompanies(prev => { const n = new Set(prev); n.has(co) ? n.delete(co) : n.add(co); return n; });
+  }
+  function toggleCl(key) {
+    setOpenClients(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+  }
+
+  return (
+    <div className="space-y-2">
+      {Object.entries(byCompany).map(([co, clients]) => {
+        const coOpen = openCompanies.has(co);
+        const totalProj = Object.values(clients).reduce((s, arr) => s + arr.length, 0);
+        return (
+          <div key={co} className="border border-gray-200 rounded-2xl overflow-hidden">
+            {/* Level 1 — Consulting Company */}
+            <button onClick={() => toggleCo(co)}
+              className="w-full flex items-center gap-3 px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left">
+              <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
+                <Briefcase className="w-4 h-4 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-sm text-gray-900 truncate">{co}</div>
+                <div className="text-[11px] text-gray-400">{totalProj} project{totalProj !== 1 ? "s" : ""} · {Object.keys(clients).length} client{Object.keys(clients).length !== 1 ? "s" : ""}</div>
+              </div>
+              <ChevronDown className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${coOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {coOpen && (
+              <div className="divide-y divide-gray-100">
+                {Object.entries(clients).map(([cl, projs]) => {
+                  const clKey = `${co}__${cl}`;
+                  const clOpen = openClients.has(clKey);
+                  return (
+                    <div key={cl}>
+                      {/* Level 2 — Client */}
+                      <button onClick={() => toggleCl(clKey)}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 pl-6 bg-white hover:bg-gray-50 transition-colors text-left">
+                        <div className="w-6 h-6 rounded-md bg-teal-50 border border-teal-200 flex items-center justify-center flex-shrink-0">
+                          <Building2 className="w-3.5 h-3.5 text-teal-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-700 truncate">{cl}</div>
+                          <div className="text-[11px] text-gray-400">{projs.length} project{projs.length !== 1 ? "s" : ""}</div>
+                        </div>
+                        <ChevronDown className={`w-3.5 h-3.5 text-gray-400 flex-shrink-0 transition-transform ${clOpen ? "rotate-180" : ""}`} />
+                      </button>
+
+                      {clOpen && (
+                        <div className="pl-8 pr-4 pb-2 space-y-2">
+                          {projs.map(p => (
+                            <div key={p.id ?? p.title} className="border border-gray-100 rounded-xl p-3 bg-white">
+                              {/* Level 3 — Project */}
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-medium text-sm text-gray-900">{p.title}</span>
+                                    {p.role && (
+                                      <span className="px-2 py-0.5 bg-blue-50 border border-blue-100 text-blue-700 text-[11px] font-semibold rounded-full flex-shrink-0">
+                                        {p.role}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {p.description && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{p.description}</p>}
+                                  {p.tech_stack?.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1.5">
+                                      {p.tech_stack.map(s => (
+                                        <span key={s} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px]">{s}</span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                                {p.url && (
+                                  <a href={p.url} target="_blank" rel="noreferrer"
+                                    className="text-[11px] text-blue-500 hover:underline flex-shrink-0 mt-0.5">
+                                    View
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 const RESUME_SECTIONS = [
   {
     key: "bio",
@@ -7393,7 +7514,7 @@ const RESUME_SECTIONS = [
     label: "Projects",
     icon: "FolderOpen",
     fields: ["projects"],
-    schema: `  "projects": [\n    {\n      "title": "project name",\n      "client_name": "client or company name or null",\n      "description": "what the project was about",\n      "tech_stack": ["technologies used"],\n      "url": "project URL or null"\n    }\n  ]`,
+    schema: `  "projects": [\n    {\n      "title": "project name",\n      "consulting_company": "the consulting firm or employer through which this project was done or null",\n      "client_name": "end-client company name or null",\n      "role": "the consultant's role on this project or null",\n      "description": "what the project was about",\n      "tech_stack": ["technologies used"],\n      "url": "project URL or null"\n    }\n  ]`,
   },
   {
     key: "contact",
@@ -7744,12 +7865,14 @@ function ProfileCompleteWizard({ auth, onDone, onClose }) {
       }
       for (const proj of aiProjects) {
         await supabase.from("consultant_projects").insert({
-          consultant_id: auth.user.id,
-          title:       proj.title        || "",
-          client_name: proj.client_name  || null,
-          description: proj.description  || null,
-          tech_stack:  proj.tech_stack   || [],
-          url:         proj.url          || null,
+          consultant_id:      auth.user.id,
+          title:              proj.title              || "",
+          consulting_company: proj.consulting_company || null,
+          client_name:        proj.client_name        || null,
+          role:               proj.role               || null,
+          description:        proj.description        || null,
+          tech_stack:         proj.tech_stack         || [],
+          url:                proj.url                || null,
         });
       }
     } else if (role === "client") {
@@ -24111,21 +24234,7 @@ function ConsultantProfilePanel({ consultantId, onClose, onAddToCompare, inCompa
             {profile?.consultant_projects?.length > 0 && (
               <div>
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">SAP Projects</p>
-                <div className="space-y-2">
-                  {profile.consultant_projects.map((pr, i) => (
-                    <div key={i} className="border border-gray-100 rounded-xl p-3 bg-gray-50">
-                      <div className="font-medium text-sm text-gray-900">{pr.name}</div>
-                      {pr.description && <div className="text-xs text-gray-400 mt-0.5 line-clamp-2">{pr.description}</div>}
-                      {pr.sap_modules?.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1.5">
-                          {pr.sap_modules.map(m => (
-                            <span key={m} className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-xs rounded">{m}</span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                <ConsultantProjectsHierarchy projects={profile.consultant_projects} />
               </div>
             )}
 
@@ -24820,7 +24929,7 @@ function ProfileView({ auth, compact = false }) {
 
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [custForm, setCustForm] = useState({ company_name: "", role_held: "", start_date: "", end_date: "", description: "" });
-  const [projForm, setProjForm] = useState({ title: "", client_name: "", url: "", description: "", _tech: "" });
+  const [projForm, setProjForm] = useState({ title: "", consulting_company: "", client_name: "", role: "", url: "", description: "", _tech: "" });
   const [authForm, setAuthForm] = useState({ country_name: "", country_code: "", auth_type: "citizen" });
   const [savingExp, setSavingExp] = useState(false);
 
@@ -24852,7 +24961,7 @@ function ProfileView({ auth, compact = false }) {
     try {
       const { _tech, ...rest } = projForm;
       await addProject({ ...rest, tech_stack: _tech.split(",").map(s => s.trim()).filter(Boolean) });
-      setProjForm({ title: "", client_name: "", url: "", description: "", _tech: "" });
+      setProjForm({ title: "", consulting_company: "", client_name: "", role: "", url: "", description: "", _tech: "" });
     } catch (e) { alert(e.message); }
     setSavingExp(false);
   }
@@ -24964,7 +25073,7 @@ function ProfileView({ auth, compact = false }) {
               try { await addCustomer({ company_name: exp.company_name || "", role_held: exp.role_held || null, start_date: exp.start_date || null, end_date: exp.end_date || null, description: exp.description || null }); } catch (_) {}
             }
             for (const proj of (data.projects ?? [])) {
-              try { await addProject({ title: proj.title || "", client_name: proj.client_name || null, description: proj.description || null, tech_stack: proj.tech_stack || [], url: proj.url || null }); } catch (_) {}
+              try { await addProject({ title: proj.title || "", consulting_company: proj.consulting_company || null, client_name: proj.client_name || null, role: proj.role || null, description: proj.description || null, tech_stack: proj.tech_stack || [], url: proj.url || null }); } catch (_) {}
             }
           }} />
           <Input label={t("label.headline")} value={form.headline} onChange={e => setForm(p => ({ ...p, headline: e.target.value }))}
@@ -25121,30 +25230,14 @@ function ProfileView({ auth, compact = false }) {
             <h3 className="font-semibold text-gray-900 mb-4">{t("profile.projects")}</h3>
             {(profile?.consultant_projects?.length ?? 0) === 0
               ? <p className="text-sm text-gray-400 mb-4">{t("profile.no_projects")}</p>
-              : <div className="space-y-3 mb-4">
-                  {profile.consultant_projects.map(p => (
-                    <div key={p.id} className="border border-gray-100 rounded-xl p-4">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="font-medium text-gray-900">{p.title}</div>
-                          {p.client_name && <div className="text-xs text-gray-400">{p.client_name}</div>}
-                        </div>
-                        {p.url && <a href={p.url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">{t("action.view_arrow")}</a>}
-                      </div>
-                      {p.description && <p className="text-sm text-gray-600 mt-2">{p.description}</p>}
-                      {p.tech_stack?.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {p.tech_stack.map(s => <span key={s} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{s}</span>)}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>}
+              : <div className="mb-4"><ConsultantProjectsHierarchy projects={profile.consultant_projects} /></div>}
             <div className="border-t border-gray-100 pt-4">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("profile.add_project")}</p>
               <div className="grid grid-cols-2 gap-3">
                 <Input label={t("label.title")} value={projForm.title} onChange={e => setProjForm(p => ({ ...p, title: e.target.value }))} />
+                <Input label="Consulting Company" value={projForm.consulting_company} onChange={e => setProjForm(p => ({ ...p, consulting_company: e.target.value }))} />
                 <Input label={t("profile.client_name")} value={projForm.client_name} onChange={e => setProjForm(p => ({ ...p, client_name: e.target.value }))} />
+                <Input label="Role" value={projForm.role} onChange={e => setProjForm(p => ({ ...p, role: e.target.value }))} />
                 <Input label={t("profile.url")} value={projForm.url} onChange={e => setProjForm(p => ({ ...p, url: e.target.value }))} />
                 <Input label={t("profile.tech_stack")} value={projForm._tech} onChange={e => setProjForm(p => ({ ...p, _tech: e.target.value }))} />
               </div>
@@ -30379,7 +30472,7 @@ function ConsultantOnboardingView({ auth, onComplete }) {
   });
   const [authForm, setAuthForm]   = useState({ country_name: "", country_code: "", auth_type: "citizen" });
   const [custForm, setCustForm]   = useState({ company_name: "", role_held: "", start_date: "", end_date: "", description: "" });
-  const [projForm, setProjForm]   = useState({ title: "", client_name: "", url: "", description: "", _tech: "" });
+  const [projForm, setProjForm]   = useState({ title: "", consulting_company: "", client_name: "", role: "", url: "", description: "", _tech: "" });
   const [skillInput, setSkillInput] = useState("");
 
   useEffect(() => {
@@ -30450,7 +30543,7 @@ function ConsultantOnboardingView({ auth, onComplete }) {
     try {
       const { _tech, ...rest } = projForm;
       await addProject({ ...rest, tech_stack: _tech.split(",").map(s => s.trim()).filter(Boolean) });
-      setProjForm({ title: "", client_name: "", url: "", description: "", _tech: "" });
+      setProjForm({ title: "", consulting_company: "", client_name: "", role: "", url: "", description: "", _tech: "" });
     } catch (e) { alert(e.message); }
     setSaving(false);
   }
@@ -30628,23 +30721,8 @@ function ConsultantOnboardingView({ auth, onComplete }) {
             <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("ob.projects_title")}</h2>
             <p className="text-sm text-gray-500 mb-5">{t("ob.projects_subtitle")}</p>
             {(profile?.consultant_projects?.length ?? 0) > 0 && (
-              <div className="space-y-3 mb-5">
-                {profile.consultant_projects.map(p => (
-                  <div key={p.id} className="border border-gray-100 rounded-xl p-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="font-medium text-gray-900">{p.title}</div>
-                        {p.client_name && <div className="text-xs text-gray-400">{p.client_name}</div>}
-                      </div>
-                      {p.url && <a href={p.url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">{t("action.view_arrow")}</a>}
-                    </div>
-                    {p.tech_stack?.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {p.tech_stack.map(s => <span key={s} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{s}</span>)}
-                      </div>
-                    )}
-                  </div>
-                ))}
+              <div className="mb-5">
+                <ConsultantProjectsHierarchy projects={profile.consultant_projects} />
               </div>
             )}
             <div className={`${(profile?.consultant_projects?.length ?? 0) > 0 ? "border-t border-gray-100 pt-5" : ""}`}>
@@ -30652,8 +30730,12 @@ function ConsultantOnboardingView({ auth, onComplete }) {
               <div className="grid grid-cols-2 gap-3">
                 <Input label={t("ob.title_label")} value={projForm.title}
                   onChange={e => setProjForm(p => ({ ...p, title: e.target.value }))} />
+                <Input label="Consulting Company" value={projForm.consulting_company}
+                  onChange={e => setProjForm(p => ({ ...p, consulting_company: e.target.value }))} />
                 <Input label={t("ob.client_name_label")} value={projForm.client_name}
                   onChange={e => setProjForm(p => ({ ...p, client_name: e.target.value }))} />
+                <Input label="Role" value={projForm.role}
+                  onChange={e => setProjForm(p => ({ ...p, role: e.target.value }))} />
                 <Input label={t("ob.url_label")} value={projForm.url}
                   onChange={e => setProjForm(p => ({ ...p, url: e.target.value }))} />
                 <Input label={t("ob.tech_stack_label")} value={projForm._tech}
