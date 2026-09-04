@@ -25296,6 +25296,79 @@ function ProfileView({ auth, compact = false }) {
         </div>
       )}
 
+      {/* Past Customers — only visible in edit mode */}
+      {editing && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+          <h3 className="font-semibold text-gray-900 mb-4">{t("profile.past_customers")}</h3>
+          {(profile?.consultant_customers?.length ?? 0) === 0
+            ? <p className="text-sm text-gray-400 mb-4">{t("profile.no_customers")}</p>
+            : <div className="space-y-3 mb-4">
+                {profile.consultant_customers.map(c => (
+                  <div key={c.id} className="border border-gray-100 rounded-xl p-4">
+                    {editingCust?.id === c.id ? (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input label={t("profile.company_name")} value={editingCust.company_name} onChange={e => setEditingCust(p => ({ ...p, company_name: e.target.value }))} />
+                          <Input label={t("profile.role_held")} value={editingCust.role_held ?? ""} onChange={e => setEditingCust(p => ({ ...p, role_held: e.target.value }))} />
+                          <Input label={t("label.start_date")} type="date" value={editingCust.start_date ?? ""} onChange={e => setEditingCust(p => ({ ...p, start_date: e.target.value }))} />
+                          <Input label={t("label.end_date")} type="date" value={editingCust.end_date ?? ""} onChange={e => setEditingCust(p => ({ ...p, end_date: e.target.value }))} placeholder={t("profile.blank_if_curr")} />
+                        </div>
+                        <Textarea label={t("label.description")} value={editingCust.description ?? ""} onChange={e => setEditingCust(p => ({ ...p, description: e.target.value }))} />
+                        <div className="flex gap-2">
+                          <button onClick={handleSaveCust} disabled={savingExp}
+                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50">
+                            {savingExp ? t("profile.saving") : t("action.save")}
+                          </button>
+                          <button onClick={() => setEditingCust(null)}
+                            className="px-3 py-1.5 border border-gray-200 text-xs font-semibold text-gray-600 rounded-lg hover:bg-gray-50">
+                            {t("action.cancel")}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-medium text-gray-900">{c.company_name}</div>
+                          {c.role_held && <div className="text-sm text-gray-500">{c.role_held}</div>}
+                          {(c.start_date || c.end_date) && (
+                            <div className="text-xs text-gray-400 mt-1">
+                              {fmtDate(c.start_date)} – {c.end_date ? fmtDate(c.end_date) : t("label.present")}
+                            </div>
+                          )}
+                          {c.description && <p className="text-sm text-gray-600 mt-2">{c.description}</p>}
+                        </div>
+                        <div className="flex gap-1 flex-shrink-0">
+                          <button onClick={() => setEditingCust({ ...c })}
+                            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-blue-600 transition-colors">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => { if (window.confirm(`Delete "${c.company_name}"?`)) deleteCustomer(c.id); }}
+                            className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>}
+          <div className="border-t border-gray-100 pt-4">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("profile.add_customer")}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Input label={t("profile.company_name")} value={custForm.company_name} onChange={e => setCustForm(p => ({ ...p, company_name: e.target.value }))} />
+              <Input label={t("profile.role_held")} value={custForm.role_held} onChange={e => setCustForm(p => ({ ...p, role_held: e.target.value }))} />
+              <Input label={t("label.start_date")} type="date" value={custForm.start_date} onChange={e => setCustForm(p => ({ ...p, start_date: e.target.value }))} />
+              <Input label={t("label.end_date")} type="date" value={custForm.end_date} onChange={e => setCustForm(p => ({ ...p, end_date: e.target.value }))} placeholder={t("profile.blank_if_curr")} />
+            </div>
+            <Textarea label={t("label.description")} value={custForm.description} onChange={e => setCustForm(p => ({ ...p, description: e.target.value }))} />
+            <button onClick={handleAddCustomer} disabled={savingExp || !custForm.company_name}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+              {savingExp ? t("profile.saving") : t("profile.add_customer_btn")}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Icon Tiles */}
       <div className="flex flex-wrap gap-2 mb-6">
         {tabs.map(tab => {
@@ -25352,79 +25425,6 @@ function ProfileView({ auth, compact = false }) {
 
       {profileTab === "experience" && (
         <div className="space-y-6">
-          {/* Past Customers */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">{t("profile.past_customers")}</h3>
-            {(profile?.consultant_customers?.length ?? 0) === 0
-              ? <p className="text-sm text-gray-400 mb-4">{t("profile.no_customers")}</p>
-              : <div className="space-y-3 mb-4">
-                  {profile.consultant_customers.map(c => (
-                    <div key={c.id} className="border border-gray-100 rounded-xl p-4">
-                      {editingCust?.id === c.id ? (
-                        <div className="space-y-2">
-                          <div className="grid grid-cols-2 gap-2">
-                            <Input label={t("profile.company_name")} value={editingCust.company_name} onChange={e => setEditingCust(p => ({ ...p, company_name: e.target.value }))} />
-                            <Input label={t("profile.role_held")} value={editingCust.role_held ?? ""} onChange={e => setEditingCust(p => ({ ...p, role_held: e.target.value }))} />
-                            <Input label={t("label.start_date")} type="date" value={editingCust.start_date ?? ""} onChange={e => setEditingCust(p => ({ ...p, start_date: e.target.value }))} />
-                            <Input label={t("label.end_date")} type="date" value={editingCust.end_date ?? ""} onChange={e => setEditingCust(p => ({ ...p, end_date: e.target.value }))} placeholder={t("profile.blank_if_curr")} />
-                          </div>
-                          <Textarea label={t("label.description")} value={editingCust.description ?? ""} onChange={e => setEditingCust(p => ({ ...p, description: e.target.value }))} />
-                          <div className="flex gap-2">
-                            <button onClick={handleSaveCust} disabled={savingExp}
-                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50">
-                              {savingExp ? t("profile.saving") : t("action.save")}
-                            </button>
-                            <button onClick={() => setEditingCust(null)}
-                              className="px-3 py-1.5 border border-gray-200 text-xs font-semibold text-gray-600 rounded-lg hover:bg-gray-50">
-                              {t("action.cancel")}
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <div className="font-medium text-gray-900">{c.company_name}</div>
-                              {c.role_held && <div className="text-sm text-gray-500">{c.role_held}</div>}
-                              {(c.start_date || c.end_date) && (
-                                <div className="text-xs text-gray-400 mt-1">
-                                  {fmtDate(c.start_date)} – {c.end_date ? fmtDate(c.end_date) : t("label.present")}
-                                </div>
-                              )}
-                              {c.description && <p className="text-sm text-gray-600 mt-2">{c.description}</p>}
-                            </div>
-                            <div className="flex gap-1 flex-shrink-0">
-                              <button onClick={() => setEditingCust({ ...c })}
-                                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-blue-600 transition-colors">
-                                <Pencil className="w-3.5 h-3.5" />
-                              </button>
-                              <button onClick={() => { if (window.confirm(`Delete "${c.company_name}"?`)) deleteCustomer(c.id); }}
-                                className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors">
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>}
-            <div className="border-t border-gray-100 pt-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("profile.add_customer")}</p>
-              <div className="grid grid-cols-2 gap-3">
-                <Input label={t("profile.company_name")} value={custForm.company_name} onChange={e => setCustForm(p => ({ ...p, company_name: e.target.value }))} />
-                <Input label={t("profile.role_held")} value={custForm.role_held} onChange={e => setCustForm(p => ({ ...p, role_held: e.target.value }))} />
-                <Input label={t("label.start_date")} type="date" value={custForm.start_date} onChange={e => setCustForm(p => ({ ...p, start_date: e.target.value }))} />
-                <Input label={t("label.end_date")} type="date" value={custForm.end_date} onChange={e => setCustForm(p => ({ ...p, end_date: e.target.value }))} placeholder={t("profile.blank_if_curr")} />
-              </div>
-              <Textarea label={t("label.description")} value={custForm.description} onChange={e => setCustForm(p => ({ ...p, description: e.target.value }))} />
-              <button onClick={handleAddCustomer} disabled={savingExp || !custForm.company_name}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
-                {savingExp ? t("profile.saving") : t("profile.add_customer_btn")}
-              </button>
-            </div>
-          </div>
-
           {/* Projects */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <h3 className="font-semibold text-gray-900 mb-4">{t("profile.projects")}</h3>
