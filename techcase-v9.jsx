@@ -9311,7 +9311,10 @@ function AuthScreen({ onAuth }) {
     setError(""); setLoad(true);
     try {
       const flow = getRoleFlow(role);
-      const verificationStatus = (flow === "admin_approval" || flow === "email_and_approval") ? "pending" : "approved";
+      const autoApproveDomains = (ssSettings["auto_approve_domains"] ?? []).map(d => d.toLowerCase().trim()).filter(Boolean);
+      const emailDomain = (email.trim().split("@")[1] ?? "").toLowerCase();
+      const isDomainAutoApproved = autoApproveDomains.length > 0 && autoApproveDomains.includes(emailDomain);
+      const verificationStatus = (isDomainAutoApproved || flow === "email_verify") ? "approved" : "pending";
 
       let userId, userEmail;
       if (otpVerified) {
@@ -34308,6 +34311,64 @@ function SettingsSignupFlowTab({ ssCtx }) {
             </div>
           );
         })}
+      </div>
+
+      {/* Auto-approve domains */}
+      <AutoApproveDomainsSection settings={settings} setSetting={setSetting} />
+    </div>
+  );
+}
+
+function AutoApproveDomainsSection({ settings, setSetting }) {
+  const domains = settings["auto_approve_domains"] ?? [];
+  const [input, setInput] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function addDomain() {
+    const raw = input.trim().toLowerCase().replace(/^@/, "");
+    if (!raw || domains.includes(raw)) { setInput(""); return; }
+    setSaving(true);
+    await setSetting("auto_approve_domains", [...domains, raw]);
+    setInput("");
+    setSaving(false);
+  }
+
+  async function removeDomain(d) {
+    await setSetting("auto_approve_domains", domains.filter(x => x !== d));
+  }
+
+  return (
+    <div className="mt-6 border border-blue-100 rounded-xl p-4 bg-blue-50/40">
+      <div className="flex items-center gap-2 mb-1">
+        <Shield size={14} className="text-blue-600" />
+        <span className="text-sm font-semibold text-gray-800">Auto-approve domains</span>
+      </div>
+      <p className="text-xs text-gray-500 mb-3">
+        Users who sign up with an email from these domains are approved instantly, skipping the manual queue — regardless of their role's flow setting.
+      </p>
+      <div className="flex flex-wrap gap-2 mb-3">
+        {domains.length === 0 && <span className="text-xs text-gray-400 italic">No domains configured</span>}
+        {domains.map(d => (
+          <span key={d} className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-blue-200 rounded-lg text-xs font-medium text-blue-700">
+            @{d}
+            <button onClick={() => removeDomain(d)} className="text-blue-400 hover:text-red-500 transition-colors">
+              <X className="w-3 h-3" />
+            </button>
+          </span>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && addDomain()}
+          placeholder="company.com"
+          className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+        />
+        <button onClick={addDomain} disabled={saving || !input.trim()}
+          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg disabled:opacity-40 transition-colors">
+          Add
+        </button>
       </div>
     </div>
   );
