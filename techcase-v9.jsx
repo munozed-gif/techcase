@@ -1376,6 +1376,10 @@ const TRANSLATIONS = {
     "ob.avail_part_time":        "Part-Time",
     "ob.avail_contract":         "Contract",
     "ob.avail_project":          "Project-Based",
+    "ob.all_set":                "You're all set!",
+    "ob.later":                  "Later",
+    "ob.finish":                 "Finish →",
+    "ob.registration_submitted": "Registration submitted!",
     // Profile — auth type options
     "profile.auth_citizen":      "Citizen",
     "profile.auth_perm_resident":"Permanent Resident",
@@ -2220,6 +2224,9 @@ const TRANSLATIONS = {
     "action.import_many":           "Import {n} Activities",
     // Key-user area "All" button
     "action.all":                   "All",
+    "action.confirm_reject":        "Confirm Reject",
+    // Reject modal
+    "reject.reason_placeholder":    "Reason for rejection (optional — shown to the user)",
     // Review-hint body text
     "cd.adj_plan_hint":             "The PDF has been saved to Docs. Review the corrective activities below, deselect any that don't apply, then confirm to add them to the case.",
     "cd.test_plan_hint":            "The PDF has been saved to Docs. Review the generated test activities below, deselect any you don't need, then confirm to add them with sequential dependencies.",
@@ -2381,6 +2388,7 @@ const TRANSLATIONS = {
     "pending.title":         "Account under review",
     "pending.subtitle":      "Your account is being verified by our team.",
     "pending.rejected_title":"Application not approved",
+    "pending.rejected_body": "Your account request could not be approved at this time.",
     "pending.sign_out":      "Sign out",
     "case.min_trust_level_label": "Minimum Consultant Level",
     "case.min_trust_any":         "Any level (default)",
@@ -2435,6 +2443,12 @@ const TRANSLATIONS = {
     "invoice.saved":         "Invoice Saved",
     "invoice.default_rate":  "Default Rate",
     "settings.invoice":      "Invoice Settings",
+    "settings.change_role":  "Change role",
+    "settings.save_role":    "Save role",
+    "settings.deactivate_user": "Deactivate user",
+    "settings.activate_user":   "Activate user",
+    "settings.in_signup":    "In signup",
+    "settings.hidden":       "Hidden",
     "bulk.selected":         "{n} selected",
     "bulk.deselect":         "Deselect all",
     "bulk.change_status":    "Change Status",
@@ -2461,6 +2475,17 @@ const TRANSLATIONS = {
     "template.create_from":  "Create Case from Template",
     "template.none":         "No templates yet",
     "template.saved":        "Template saved",
+    "template.new_project_template": "New Project Template",
+    "template.items_cases":  "Items (Cases)",
+    "template.builtin":      "Built-in",
+    "template.custom":       "Custom",
+    "template.apply":        "Apply Project Template",
+    "template.create":       "Create Template",
+    // SMTP settings
+    "smtp.send_test":        "Send Test Email",
+    "smtp.save_settings":    "Save Settings",
+    "smtp.saved":            "Saved ✓",
+    "smtp.sending":          "Sending…",
   },
   es: {
     // Navigation
@@ -2630,6 +2655,10 @@ const TRANSLATIONS = {
     "ob.avail_part_time":        "Medio Tiempo",
     "ob.avail_contract":         "Contrato",
     "ob.avail_project":          "Por Proyecto",
+    "ob.all_set":                "¡Todo listo!",
+    "ob.later":                  "Más tarde",
+    "ob.finish":                 "Finalizar →",
+    "ob.registration_submitted": "¡Registro enviado!",
     // Profile — auth type options
     "profile.auth_citizen":      "Ciudadano",
     "profile.auth_perm_resident":"Residente Permanente",
@@ -4514,6 +4543,9 @@ const TRANSLATIONS = {
     "action.import_many":           "Importar {n} Actividades",
     // Key-user area "All" button
     "action.all":                   "Todos",
+    "action.confirm_reject":        "Confirmar Rechazo",
+    // Reject modal
+    "reject.reason_placeholder":    "Motivo del rechazo (opcional — se muestra al usuario)",
     // Review-hint body text
     "cd.adj_plan_hint":             "El PDF ha sido guardado en Docs. Revisa las actividades correctivas a continuación, deselecciona las que no apliquen y confirma para agregarlas al caso.",
     "cd.test_plan_hint":            "El PDF ha sido guardado en Docs. Revisa las actividades de prueba generadas, deselecciona las que no necesites y confirma para agregarlas con dependencias secuenciales.",
@@ -4675,6 +4707,7 @@ const TRANSLATIONS = {
     "pending.title":         "Cuenta en revisión",
     "pending.subtitle":      "Tu cuenta está siendo verificada por nuestro equipo.",
     "pending.rejected_title":"Solicitud no aprobada",
+    "pending.rejected_body": "Tu solicitud de cuenta no pudo ser aprobada en este momento.",
     "pending.sign_out":      "Cerrar sesión",
     "case.min_trust_level_label": "Nivel Mínimo de Consultor",
     "case.min_trust_any":         "Cualquier nivel (por defecto)",
@@ -4729,6 +4762,12 @@ const TRANSLATIONS = {
     "invoice.saved":         "Factura Guardada",
     "invoice.default_rate":  "Tarifa por Defecto",
     "settings.invoice":      "Config. Facturación",
+    "settings.change_role":  "Cambiar rol",
+    "settings.save_role":    "Guardar rol",
+    "settings.deactivate_user": "Desactivar usuario",
+    "settings.activate_user":   "Activar usuario",
+    "settings.in_signup":    "En registro",
+    "settings.hidden":       "Oculto",
     "bulk.selected":         "{n} seleccionados",
     "bulk.deselect":         "Deseleccionar todo",
     "bulk.change_status":    "Cambiar Estado",
@@ -4755,6 +4794,17 @@ const TRANSLATIONS = {
     "template.create_from":  "Crear Caso desde Plantilla",
     "template.none":         "Sin plantillas todavía",
     "template.saved":        "Plantilla guardada",
+    "template.new_project_template": "Nueva Plantilla de Proyecto",
+    "template.items_cases":  "Elementos (Casos)",
+    "template.builtin":      "Integrada",
+    "template.custom":       "Personalizada",
+    "template.apply":        "Aplicar Plantilla de Proyecto",
+    "template.create":       "Crear Plantilla",
+    // SMTP settings
+    "smtp.send_test":        "Enviar Email de Prueba",
+    "smtp.save_settings":    "Guardar Configuración",
+    "smtp.saved":            "Guardado ✓",
+    "smtp.sending":          "Enviando…",
   },
 };
 
@@ -11024,7 +11074,7 @@ function CaseTemplatePickerModal({ onClose, onSelect }) {
         </div>
         <div className="flex-1 overflow-y-auto p-4">
           {loading ? (
-            <div className="flex items-center justify-center py-12 text-gray-400 text-sm">Loading...</div>
+            <div className="flex items-center justify-center py-12 text-gray-400 text-sm">{t("label.loading")}</div>
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-gray-400">
               <LayoutTemplate className="w-10 h-10 mb-3 opacity-30" />
@@ -11141,6 +11191,7 @@ function CaseTemplatesView({ auth }) {
   const [templateTab, setTemplateTab] = useState('case');
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
@@ -11153,14 +11204,22 @@ function CaseTemplatesView({ auth }) {
 
   async function loadTemplates() {
     setLoading(true);
+    setLoadError(null);
     try {
       const { data, error } = await supabase
         .from("case_templates")
         .select("*, creator:created_by(full_name, email)")
         .order("created_at", { ascending: false });
-      if (error) console.error("loadTemplates error:", error.message, error.code);
-      else setTemplates(data ?? []);
-    } catch (e) { console.error("loadTemplates exception:", e.message); }
+      if (error) {
+        console.error("loadTemplates error:", error.message, error.code);
+        setLoadError(error.message);
+      } else {
+        setTemplates(data ?? []);
+      }
+    } catch (e) {
+      console.error("loadTemplates exception:", e.message);
+      setLoadError(e.message);
+    }
     setLoading(false);
   }
 
@@ -11250,6 +11309,13 @@ function CaseTemplatesView({ auth }) {
           className="border border-gray-200 rounded-xl px-4 py-2 text-sm w-full max-w-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
       </div>
 
+      {loadError && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+          <strong>Could not load templates:</strong> {loadError}
+          <button onClick={loadTemplates} className="ml-3 underline text-red-600 hover:text-red-800">Retry</button>
+        </div>
+      )}
+
       {loading ? (
         <Spinner />
       ) : filtered.length === 0 ? (
@@ -11271,7 +11337,7 @@ function CaseTemplatesView({ auth }) {
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">{t("label.description")}</label>
                     <textarea value={editForm.description ?? ""} onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))}
                       rows={3}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
@@ -11296,7 +11362,7 @@ function CaseTemplatesView({ auth }) {
                         <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium">{tpl.category}</span>
                       )}
                       {tpl.is_global && (
-                        <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-lg text-xs">Built-in</span>
+                        <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-lg text-xs">{t("template.builtin")}</span>
                       )}
                     </div>
                     {tpl.description && (
@@ -11354,6 +11420,7 @@ function CaseTemplatesView({ auth }) {
 // ============================================================
 
 function ProjectTemplatesSection({ auth }) {
+  const { t } = useT();
   const { templates: customTemplates, loading, createTemplate, updateTemplate, deleteTemplate } = useProjectTemplates();
   const ALL = [...BUILT_IN_PROJECT_TEMPLATES, ...customTemplates];
   const [expanded, setExpanded]     = useState(null);
@@ -11404,7 +11471,7 @@ function ProjectTemplatesSection({ auth }) {
         {canManage && (
           <button onClick={() => setShowCreate(p => !p)}
             className="flex items-center gap-1.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl">
-            <Plus size={14} /> New Template
+            <Plus size={14} /> {t("template.new")}
           </button>
         )}
       </div>
@@ -11414,30 +11481,30 @@ function ProjectTemplatesSection({ auth }) {
       {/* Create form */}
       {showCreate && canManage && (
         <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 space-y-4">
-          <h3 className="font-bold text-blue-900 text-sm">New Project Template</h3>
+          <h3 className="font-bold text-blue-900 text-sm">{t("template.new_project_template")}</h3>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Name *</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">{t("template.name")} *</label>
               <input value={createForm.name} onChange={e => setCreateForm(p => ({ ...p, name: e.target.value }))}
                 placeholder="e.g. SAP Finance Implementation"
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 bg-white" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Category</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">{t("template.category")}</label>
               <input value={createForm.category} onChange={e => setCreateForm(p => ({ ...p, category: e.target.value }))}
                 placeholder="e.g. SAP Implementation"
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 bg-white" />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Description</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">{t("label.description")}</label>
             <textarea value={createForm.description} onChange={e => setCreateForm(p => ({ ...p, description: e.target.value }))}
               rows={2} placeholder="Brief description of when to use this template…"
               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 bg-white resize-none" />
           </div>
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold text-gray-600">Items (Cases)</label>
+              <label className="text-xs font-semibold text-gray-600">{t("template.items_cases")}</label>
               <button onClick={addItem} className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"><Plus size={12} /> Add item</button>
             </div>
             <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -11465,10 +11532,10 @@ function ProjectTemplatesSection({ auth }) {
           </div>
           <div className="flex items-center gap-2 justify-end">
             <button onClick={() => { setShowCreate(false); setError(null); }}
-              className="px-4 py-2 text-sm text-gray-600 hover:bg-white rounded-xl border border-gray-200">Cancel</button>
+              className="px-4 py-2 text-sm text-gray-600 hover:bg-white rounded-xl border border-gray-200">{t("action.cancel")}</button>
             <button onClick={handleCreate} disabled={saving}
               className="px-4 py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl flex items-center gap-2">
-              {saving ? <><Spinner size={12} /> Saving…</> : 'Create Template'}
+              {saving ? <><Spinner size={12} /> {t("state.saving")}</> : t("template.create")}
             </button>
           </div>
         </div>
@@ -11483,27 +11550,27 @@ function ProjectTemplatesSection({ auth }) {
             <div className="p-5 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Name</label>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">{t("template.name")}</label>
                   <input value={editForm.name ?? ''} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Category</label>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">{t("template.category")}</label>
                   <input value={editForm.category ?? ''} onChange={e => setEditForm(p => ({ ...p, category: e.target.value }))}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Description</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">{t("label.description")}</label>
                 <textarea value={editForm.description ?? ''} onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))}
                   rows={2} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400 resize-none" />
               </div>
               <div className="flex gap-2">
                 <button onClick={handleSaveEdit} disabled={saving}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-40">
-                  {saving ? 'Saving…' : 'Save'}
+                  {saving ? t("state.saving") : t("action.save")}
                 </button>
-                <button onClick={() => setEditingId(null)} className="px-4 py-2 border border-gray-200 text-gray-600 text-sm rounded-xl hover:bg-gray-50">Cancel</button>
+                <button onClick={() => setEditingId(null)} className="px-4 py-2 border border-gray-200 text-gray-600 text-sm rounded-xl hover:bg-gray-50">{t("action.cancel")}</button>
               </div>
             </div>
           ) : (
@@ -11513,8 +11580,8 @@ function ProjectTemplatesSection({ auth }) {
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <h3 className="font-semibold text-gray-900">{tmpl.name}</h3>
                     {tmpl.category && <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium">{tmpl.category}</span>}
-                    {tmpl.is_builtin && <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-lg text-xs">Built-in</span>}
-                    {!tmpl.is_builtin && <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-lg text-xs font-medium">Custom</span>}
+                    {tmpl.is_builtin && <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-lg text-xs">{t("template.builtin")}</span>}
+                    {!tmpl.is_builtin && <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-lg text-xs font-medium">{t("template.custom")}</span>}
                   </div>
                   {tmpl.description && <p className="text-sm text-gray-500 mb-2">{tmpl.description}</p>}
                   <p className="text-xs text-gray-400">{(tmpl.items ?? []).length} item{(tmpl.items ?? []).length !== 1 ? 's' : ''}</p>
