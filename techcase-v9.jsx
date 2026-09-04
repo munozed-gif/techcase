@@ -372,6 +372,7 @@ const TRANSLATIONS = {
     "dashboard.my_cases":        "My Cases",
     "dashboard.pending_reviews": "Pending Reviews",
     "dashboard.my_applications": "My Applications",
+    "dashboard.pending_applications": "Pending Applications",
     "dashboard.accepted":        "Accepted",
     "dashboard.completed":       "Completed",
     "dashboard.nothing_yet":     "Nothing here yet.",
@@ -3322,6 +3323,7 @@ const TRANSLATIONS = {
     "dashboard.my_cases":        "Mis Casos",
     "dashboard.pending_reviews": "Revisiones Pendientes",
     "dashboard.my_applications": "Mis Postulaciones",
+    "dashboard.pending_applications": "Postulaciones Pendientes",
     "dashboard.accepted":        "Aceptados",
     "dashboard.completed":       "Completados",
     "dashboard.nothing_yet":     "Nada por aquí aún.",
@@ -10668,8 +10670,8 @@ function Dashboard({ auth }) {
           attentionEmpty = "No pending applications";
           attentionItems = pendingApps.slice(0, 6).map(a => ({
             id: a.id,
-            label: a.users?.full_name || "Consultant",
-            sub: cases.find(c => c.id === a.case_id)?.title ?? "—",
+            label: a.consultant?.full_name || a.case?.consultant?.full_name || "—",
+            sub: a.case?.title ?? cases.find(c => c.id === a.case_id)?.title ?? "—",
             onClick: () => {},
           }));
         } else if (auth.isConsultant) {
