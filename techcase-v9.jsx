@@ -26551,19 +26551,21 @@ function NotificationsView() {
       ) : notifications.length === 0 ? (
         <EmptyState Icon={Bell} title={t("notif.none")} subtitle={t("notif.none_hint")} />
       ) : (
-        <div className="space-y-2">
-          {notifications.map(n => (
-            <div key={n.id} onClick={() => !n.is_read && markRead(n.id)}
-              className={`flex items-start gap-4 p-4 rounded-2xl border cursor-pointer transition-colors ${
-                n.is_read ? "bg-white border-gray-100" : "bg-blue-50 border-blue-100 hover:bg-blue-100"}`}>
-              <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${n.is_read ? "bg-gray-200" : "bg-blue-500"}`} />
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm text-gray-900">{n.title}</div>
-                {n.body && <div className="text-sm text-gray-500 mt-0.5">{n.body}</div>}
-                <div className="text-xs text-gray-400 mt-1">{fmtDate(n.created_at)}</div>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+          <div className="space-y-2">
+            {notifications.map(n => (
+              <div key={n.id} onClick={() => !n.is_read && markRead(n.id)}
+                className={`flex items-start gap-4 p-4 rounded-2xl border cursor-pointer transition-colors ${
+                  n.is_read ? "bg-white border-gray-100" : "bg-blue-50 border-blue-100 hover:bg-blue-100"}`}>
+                <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${n.is_read ? "bg-gray-200" : "bg-blue-500"}`} />
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm text-gray-900">{n.title}</div>
+                  {n.body && <div className="text-sm text-gray-500 mt-0.5">{n.body}</div>}
+                  <div className="text-xs text-gray-400 mt-1">{fmtDate(n.created_at)}</div>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
     </div>
