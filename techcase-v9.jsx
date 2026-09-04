@@ -6502,7 +6502,7 @@ function useLeaderboard() {
       // 1. Fetch all consultant profiles
       const { data: profiles } = await supabase
         .from("consultant_profiles")
-        .select("id, headline, skills, years_experience, expertise_level, availability_type, hourly_rate");
+        .select("id, headline, skills, featured_skills, years_experience, expertise_level, availability_type, hourly_rate");
 
       if (!profiles?.length) { setLoading(false); return; }
 
@@ -24887,17 +24887,20 @@ function ArenaView({ auth }) {
                   </div>
                 )}
 
-                {/* Skills */}
-                {c.skills?.length > 0 && (
-                  <div>
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Skills</p>
-                    <div className="flex flex-wrap gap-1">
-                      {c.skills.map(s => (
-                        <span key={s} className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs font-medium">{s}</span>
-                      ))}
+                {/* Top Skills */}
+                {(() => {
+                  const topSkills = c.featured_skills?.length ? c.featured_skills : (c.skills ?? []).slice(0, 5);
+                  return topSkills.length > 0 ? (
+                    <div>
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Top Skills</p>
+                      <div className="flex flex-wrap gap-1">
+                        {topSkills.map(s => (
+                          <span key={s} className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs font-medium">{s}</span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  ) : null;
+                })()}
               </div>
             );
           })}
