@@ -7885,7 +7885,7 @@ function ProfileCompleteWizard({ auth, onDone, onClose }) {
         expertise_level: expertiseLvl,
       }, { onConflict: "id" });
       if (cpErr) { setError(cpErr.message); setSaving(false); return; }
-      // Insert AI-extracted work experience and projects
+      // Insert AI-extracted work experience
       for (const exp of aiExperiences) {
         await supabase.from("consultant_customers").insert({
           consultant_id: auth.user.id,
@@ -7896,6 +7896,20 @@ function ProfileCompleteWizard({ auth, onDone, onClose }) {
           description:  exp.description  || null,
         });
       }
+      // Auto-create consultant_customers for any consulting_company on projects not already in work experience
+      const expNames = new Set(aiExperiences.map(e => (e.company_name || "").toLowerCase()));
+      const seen = new Set();
+      for (const proj of aiProjects) {
+        const co = proj.consulting_company?.trim();
+        if (co && !expNames.has(co.toLowerCase()) && !seen.has(co.toLowerCase())) {
+          seen.add(co.toLowerCase());
+          await supabase.from("consultant_customers").insert({
+            consultant_id: auth.user.id,
+            company_name:  co,
+          });
+        }
+      }
+      // Insert projects
       for (const proj of aiProjects) {
         await supabase.from("consultant_projects").insert({
           consultant_id:      auth.user.id,
@@ -25128,6 +25142,16 @@ function ProfileView({ auth, compact = false }) {
             }));
             for (const exp of (data.work_experience ?? [])) {
               try { await addCustomer({ company_name: exp.company_name || "", role_held: exp.role_held || null, start_date: exp.start_date || null, end_date: exp.end_date || null, description: exp.description || null }); } catch (_) {}
+            }
+            // Auto-create consultant_customers for any consulting_company not already present
+            const existingCoNames = new Set((profile?.consultant_customers ?? []).map(c => c.company_name.toLowerCase()));
+            const seenCo = new Set();
+            for (const proj of (data.projects ?? [])) {
+              const co = proj.consulting_company?.trim();
+              if (co && !existingCoNames.has(co.toLowerCase()) && !seenCo.has(co.toLowerCase())) {
+                seenCo.add(co.toLowerCase());
+                try { await addCustomer({ company_name: co }); } catch (_) {}
+              }
             }
             for (const proj of (data.projects ?? [])) {
               try { await addProject({ title: proj.title || "", consulting_company: proj.consulting_company || null, client_name: proj.client_name || null, role: proj.role || null, description: proj.description || null, tech_stack: proj.tech_stack || [], url: proj.url || null }); } catch (_) {}
