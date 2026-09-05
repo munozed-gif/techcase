@@ -33175,11 +33175,13 @@ function UserApprovalQueue() {
 }
 
 function ApprovalHistory({ ROLE_COLORS }) {
-  const [history, setHistory] = useState([]);
+  const [history, setHistory]       = useState([]);
   const [approverMap, setApproverMap] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("all");
-  const [search, setSearch] = useState("");
+  const [loading, setLoading]       = useState(true);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [periodFilter, setPeriodFilter] = useState("all");
+  const [roleFilter, setRoleFilter]     = useState("all");
+  const [search, setSearch]             = useState("");
 
   useEffect(() => {
     (async () => {
@@ -33188,13 +33190,12 @@ function ApprovalHistory({ ROLE_COLORS }) {
         .select("id, full_name, email, role, verification_status, approved_at, approved_by, created_at, rejection_reason")
         .in("verification_status", ["approved", "rejected"])
         .order("approved_at", { ascending: false, nullsFirst: false })
-        .limit(100);
+        .limit(200);
       const rows = data ?? [];
       setHistory(rows);
       const approverIds = [...new Set(rows.map(u => u.approved_by).filter(Boolean))];
       if (approverIds.length) {
-        const { data: approvers } = await supabase.from("users")
-          .select("id, full_name").in("id", approverIds);
+        const { data: approvers } = await supabase.from("users").select("id, full_name").in("id", approverIds);
         const map = {};
         (approvers ?? []).forEach(a => { map[a.id] = a.full_name; });
         setApproverMap(map);
@@ -33203,8 +33204,54 @@ function ApprovalHistory({ ROLE_COLORS }) {
     })();
   }, []);
 
+  const PERIOD_OPTS = [
+    { id: "all",     label: "All time",    Icon: CalendarRange },
+    { id: "week",    label: "This week",   Icon: CalendarDays  },
+    { id: "month",   label: "This month",  Icon: Calendar      },
+    { id: "quarter", label: "This quarter",Icon: CalendarRange  },
+  ];
+
+  const ROLE_OPTS = [
+    { id: "all",                 label: "All roles",           Icon: Users      },
+    { id: "consultant",          label: "Consultant",          Icon: Briefcase  },
+    { id: "client",              label: "Client",              Icon: Building2  },
+    { id: "headhunter",          label: "Headhunter",          Icon: Crosshair  },
+    { id: "key_user",            label: "Key User",            Icon: UserCheck  },
+    { id: "final_user",          label: "Final User",          Icon: Globe      },
+    { id: "internal_consultant", label: "Internal Consultant", Icon: UserCog    },
+    { id: "project_manager",     label: "Project Manager",     Icon: FolderKanban },
+  ];
+
+  const STATUS_OPTS = [
+    { id: "all",      label: "All",      Icon: Users        },
+    { id: "approved", label: "Approved", Icon: CheckCircle2 },
+    { id: "rejected", label: "Rejected", Icon: XCircle      },
+  ];
+
+  function inPeriod(dateStr) {
+    if (periodFilter === "all" || !dateStr) return true;
+    const d = new Date(dateStr);
+    const now = new Date();
+    if (periodFilter === "week") {
+      const start = new Date(now); start.setDate(now.getDate() - now.getDay());
+      start.setHours(0,0,0,0);
+      return d >= start;
+    }
+    if (periodFilter === "month") {
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    }
+    if (periodFilter === "quarter") {
+      const q = Math.floor(now.getMonth() / 3);
+      const qStart = new Date(now.getFullYear(), q * 3, 1);
+      return d >= qStart;
+    }
+    return true;
+  }
+
   const filtered = history.filter(u => {
-    if (filter !== "all" && u.verification_status !== filter) return false;
+    if (statusFilter !== "all" && u.verification_status !== statusFilter) return false;
+    if (roleFilter !== "all" && u.role !== roleFilter) return false;
+    if (!inPeriod(u.approved_at)) return false;
     if (search) {
       const q = search.toLowerCase();
       if (!((u.full_name ?? "").toLowerCase().includes(q) || (u.email ?? "").toLowerCase().includes(q))) return false;
@@ -33212,39 +33259,66 @@ function ApprovalHistory({ ROLE_COLORS }) {
     return true;
   });
 
-  const counts = {
-    all: history.length,
-    approved: history.filter(u => u.verification_status === "approved").length,
-    rejected:  history.filter(u => u.verification_status === "rejected").length,
-  };
+  function FilterBtn({ active, onClick, Icon, label }) {
+    return (
+      <button onClick={onClick}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors whitespace-nowrap ${
+          active
+            ? "bg-blue-600 text-white border-blue-600"
+            : "bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600"}`}>
+        <Icon size={12} />
+        {label}
+      </button>
+    );
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mt-2">
       {/* Header */}
-      <div className="px-5 pt-5 pb-0">
-        <div className="flex items-center justify-between mb-4">
+      <div className="px-5 pt-5 pb-4 space-y-4">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BadgeCheck className="w-4 h-4 text-gray-400" />
             <span className="font-bold text-gray-900">Approval History</span>
-            <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs font-bold rounded-full">{counts.all}</span>
+            <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs font-bold rounded-full">{filtered.length}</span>
           </div>
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search name or email…"
             className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400 w-44" />
         </div>
-        {/* Filter tabs */}
-        <div className="flex gap-1">
-          {[["all","All"], ["approved","Approved"], ["rejected","Rejected"]].map(([id, label]) => (
-            <button key={id} onClick={() => setFilter(id)}
-              className={`px-3 py-2 text-xs font-semibold rounded-t-lg border-b-2 transition-colors ${
-                filter === id ? "text-blue-600 border-blue-600" : "text-gray-500 border-transparent hover:text-gray-700"}`}>
-              {label}
-              <span className="ml-1 font-normal text-gray-400">{counts[id]}</span>
-            </button>
-          ))}
+
+        {/* Period filter */}
+        <div>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Period</p>
+          <div className="flex gap-2 flex-wrap">
+            {PERIOD_OPTS.map(o => (
+              <FilterBtn key={o.id} active={periodFilter === o.id} onClick={() => setPeriodFilter(o.id)} Icon={o.Icon} label={o.label} />
+            ))}
+          </div>
         </div>
-        <div className="border-b border-gray-100 -mx-5" />
+
+        {/* Status filter */}
+        <div>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Status</p>
+          <div className="flex gap-2 flex-wrap">
+            {STATUS_OPTS.map(o => (
+              <FilterBtn key={o.id} active={statusFilter === o.id} onClick={() => setStatusFilter(o.id)} Icon={o.Icon} label={o.label} />
+            ))}
+          </div>
+        </div>
+
+        {/* Role filter */}
+        <div>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Role</p>
+          <div className="flex gap-2 flex-wrap">
+            {ROLE_OPTS.map(o => (
+              <FilterBtn key={o.id} active={roleFilter === o.id} onClick={() => setRoleFilter(o.id)} Icon={o.Icon} label={o.label} />
+            ))}
+          </div>
+        </div>
       </div>
+
+      <div className="border-t border-gray-100" />
 
       {/* Rows */}
       <div className="divide-y divide-gray-100">
@@ -33262,16 +33336,14 @@ function ApprovalHistory({ ROLE_COLORS }) {
                 <span className="text-sm font-semibold text-gray-900">{u.full_name || "—"}</span>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[u.role] ?? "bg-gray-100 text-gray-500"}`}>{u.role}</span>
                 {u.verification_status === "approved"
-                  ? <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-700">Approved</span>
-                  : <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-700">Rejected</span>}
+                  ? <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-700"><CheckCircle2 size={11} />Approved</span>
+                  : <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-700"><XCircle size={11} />Rejected</span>}
               </div>
               <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-2 flex-wrap">
                 <span>{u.email}</span>
                 {u.approved_at && <span>· {new Date(u.approved_at).toLocaleDateString()}</span>}
                 {u.approved_by && approverMap[u.approved_by] && (
-                  <span className="flex items-center gap-1">
-                    · <UserCheck className="w-3 h-3 text-gray-400" /> {approverMap[u.approved_by]}
-                  </span>
+                  <span className="flex items-center gap-1">· <UserCheck className="w-3 h-3" /> {approverMap[u.approved_by]}</span>
                 )}
                 {u.rejection_reason && <span className="text-red-400 italic">· "{u.rejection_reason}"</span>}
               </div>
