@@ -33176,6 +33176,7 @@ function UserApprovalQueue() {
 
 function ApprovalHistory({ ROLE_COLORS }) {
   const [history, setHistory] = useState([]);
+  const [approverMap, setApproverMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
@@ -33184,11 +33185,20 @@ function ApprovalHistory({ ROLE_COLORS }) {
     (async () => {
       setLoading(true);
       const { data } = await supabase.from("users")
-        .select("id, full_name, email, role, verification_status, approved_at, created_at, rejection_reason")
+        .select("id, full_name, email, role, verification_status, approved_at, approved_by, created_at, rejection_reason")
         .in("verification_status", ["approved", "rejected"])
         .order("approved_at", { ascending: false, nullsFirst: false })
         .limit(100);
-      setHistory(data ?? []);
+      const rows = data ?? [];
+      setHistory(rows);
+      const approverIds = [...new Set(rows.map(u => u.approved_by).filter(Boolean))];
+      if (approverIds.length) {
+        const { data: approvers } = await supabase.from("users")
+          .select("id, full_name").in("id", approverIds);
+        const map = {};
+        (approvers ?? []).forEach(a => { map[a.id] = a.full_name; });
+        setApproverMap(map);
+      }
       setLoading(false);
     })();
   }, []);
@@ -33258,6 +33268,11 @@ function ApprovalHistory({ ROLE_COLORS }) {
               <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-2 flex-wrap">
                 <span>{u.email}</span>
                 {u.approved_at && <span>· {new Date(u.approved_at).toLocaleDateString()}</span>}
+                {u.approved_by && approverMap[u.approved_by] && (
+                  <span className="flex items-center gap-1">
+                    · <UserCheck className="w-3 h-3 text-gray-400" /> {approverMap[u.approved_by]}
+                  </span>
+                )}
                 {u.rejection_reason && <span className="text-red-400 italic">· "{u.rejection_reason}"</span>}
               </div>
             </div>
