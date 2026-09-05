@@ -33167,6 +33167,103 @@ function UserApprovalQueue() {
           </div>
         </div>
       )}
+
+      {/* ── Approval History ── */}
+      <ApprovalHistory ROLE_COLORS={ROLE_COLORS} />
+    </div>
+  );
+}
+
+function ApprovalHistory({ ROLE_COLORS }) {
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const { data } = await supabase.from("users")
+        .select("id, full_name, email, role, verification_status, approved_at, created_at, rejection_reason")
+        .in("verification_status", ["approved", "rejected"])
+        .order("approved_at", { ascending: false, nullsFirst: false })
+        .limit(100);
+      setHistory(data ?? []);
+      setLoading(false);
+    })();
+  }, []);
+
+  const filtered = history.filter(u => {
+    if (filter !== "all" && u.verification_status !== filter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (!((u.full_name ?? "").toLowerCase().includes(q) || (u.email ?? "").toLowerCase().includes(q))) return false;
+    }
+    return true;
+  });
+
+  const counts = {
+    all: history.length,
+    approved: history.filter(u => u.verification_status === "approved").length,
+    rejected:  history.filter(u => u.verification_status === "rejected").length,
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mt-2">
+      {/* Header */}
+      <div className="px-5 pt-5 pb-0">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <BadgeCheck className="w-4 h-4 text-gray-400" />
+            <span className="font-bold text-gray-900">Approval History</span>
+            <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs font-bold rounded-full">{counts.all}</span>
+          </div>
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search name or email…"
+            className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400 w-44" />
+        </div>
+        {/* Filter tabs */}
+        <div className="flex gap-1">
+          {[["all","All"], ["approved","Approved"], ["rejected","Rejected"]].map(([id, label]) => (
+            <button key={id} onClick={() => setFilter(id)}
+              className={`px-3 py-2 text-xs font-semibold rounded-t-lg border-b-2 transition-colors ${
+                filter === id ? "text-blue-600 border-blue-600" : "text-gray-500 border-transparent hover:text-gray-700"}`}>
+              {label}
+              <span className="ml-1 font-normal text-gray-400">{counts[id]}</span>
+            </button>
+          ))}
+        </div>
+        <div className="border-b border-gray-100 -mx-5" />
+      </div>
+
+      {/* Rows */}
+      <div className="divide-y divide-gray-100">
+        {loading ? (
+          <div className="flex justify-center py-10"><Spinner /></div>
+        ) : filtered.length === 0 ? (
+          <div className="py-10 text-center text-sm text-gray-400">No records found.</div>
+        ) : filtered.map(u => (
+          <div key={u.id} className="flex items-center gap-4 px-5 py-3.5">
+            <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-500 shrink-0">
+              {(u.full_name || u.email || "?")[0].toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-semibold text-gray-900">{u.full_name || "—"}</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[u.role] ?? "bg-gray-100 text-gray-500"}`}>{u.role}</span>
+                {u.verification_status === "approved"
+                  ? <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-700">Approved</span>
+                  : <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-700">Rejected</span>}
+              </div>
+              <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-2 flex-wrap">
+                <span>{u.email}</span>
+                {u.approved_at && <span>· {new Date(u.approved_at).toLocaleDateString()}</span>}
+                {u.rejection_reason && <span className="text-red-400 italic">· "{u.rejection_reason}"</span>}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
