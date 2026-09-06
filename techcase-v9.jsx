@@ -34453,6 +34453,7 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
   const [panelConsultantId, setPanelConsultantId] = useState(null);
   const [panelUserRole, setPanelUserRole]         = useState('');
   const [users, setUsers]               = useState([]);
+  const [teamMembers, setTeamMembers]   = useState([]);
   const [loading, setLoading]           = useState(true);
   const [pendingUsers, setPendingUsers] = useState([]);
   const [showApprovals, setShowApprovals] = useState(false);
@@ -34481,8 +34482,31 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
   }, [personaTab]);
 
   async function loadUsers() {
-    const { data } = await supabase.from("users").select("*").order("created_at", { ascending: false });
-    setUsers(data ?? []);
+    const [{ data: authUsers }, { data: tmRows }] = await Promise.all([
+      supabase.from("users").select("*").order("created_at", { ascending: false }),
+      supabase.from("client_team_members").select("id, full_name, email, system_role, role_title, phone, client_id, is_primary, created_at"),
+    ]);
+    setUsers(authUsers ?? []);
+    // Build a synthetic user list from team members who have a system_role (sub-roles)
+    // Exclude any who already have an auth user with that email so we don't double-count
+    const authEmails = new Set((authUsers ?? []).map(u => u.email?.toLowerCase()));
+    const CLIENT_SUBROLES = ['key_user', 'final_user', 'internal_consultant', 'project_manager'];
+    const syntheticMembers = (tmRows ?? [])
+      .filter(m => m.system_role && CLIENT_SUBROLES.includes(m.system_role))
+      .filter(m => !authEmails.has(m.email?.toLowerCase()))
+      .map(m => ({
+        id: `tm_${m.id}`,
+        full_name: m.full_name,
+        email: m.email,
+        role: m.system_role,
+        role_title: m.role_title,
+        phone: m.phone,
+        client_id: m.client_id,
+        is_primary: m.is_primary,
+        created_at: m.created_at,
+        _isTeamMemberOnly: true,
+      }));
+    setTeamMembers(syntheticMembers);
     setLoading(false);
   }
   async function loadPending() {
@@ -34546,13 +34570,17 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
   }
 
   function drillDown(u) {
+    if (u._isTeamMemberOnly) return; // no auth user id — nothing to open
     setPanelConsultantId(u.id);
     setPanelUserRole(u.role ?? '');
   }
 
   const currentPersona = PERSONA_TABS.find(p => p.id === personaTab);
   const groupRoles     = currentPersona?.roles ?? [];
-  const groupUsers     = users.filter(u => groupRoles.includes(u.role));
+  const allGroupUsers  = personaTab === 'client_team'
+    ? [...users.filter(u => groupRoles.includes(u.role)), ...teamMembers]
+    : users.filter(u => groupRoles.includes(u.role));
+  const groupUsers     = allGroupUsers;
   const roleFiltered   = groupRoles.length > 1 ? groupUsers.filter(u => u.role === selectedRole) : groupUsers;
   const displayed      = roleFiltered.filter(u =>
     !search || u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase())
@@ -34565,7 +34593,9 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
       {/* Persona tab cards */}
       <div className="grid grid-cols-4 gap-3">
         {PERSONA_TABS.map(({ id, label, roles, Icon: Ic, border, activeBg, accentTxt, lightBg }) => {
-          const count = users.filter(u => roles.includes(u.role)).length;
+          const count = id === 'client_team'
+            ? users.filter(u => roles.includes(u.role)).length + teamMembers.filter(m => roles.includes(m.role)).length
+            : users.filter(u => roles.includes(u.role)).length;
           const isActive = personaTab === id;
           return (
             <button key={id} onClick={() => setPersonaTab(id)}
