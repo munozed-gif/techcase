@@ -6621,6 +6621,7 @@ const ROLE_COLORS = {
   consultant:          { bg: "bg-green-100",  text: "text-green-800",  dot: "bg-green-500" },
   client:              { bg: "bg-orange-100", text: "text-orange-800", dot: "bg-orange-500" },
   key_user:            { bg: "bg-amber-100",  text: "text-amber-800",  dot: "bg-amber-500" },
+  headhunter:          { bg: "bg-pink-100",   text: "text-pink-800",   dot: "bg-pink-500" },
   final_user:          { bg: "bg-teal-100",   text: "text-teal-800",   dot: "bg-teal-500" },
   internal_consultant: { bg: "bg-indigo-100", text: "text-indigo-800", dot: "bg-indigo-500" },
   project_manager:     { bg: "bg-rose-100",   text: "text-rose-800",   dot: "bg-rose-500" },
@@ -14179,7 +14180,7 @@ const AVATAR_PALETTE = [
   { bg:'#e0f2fe', fg:'#075985' }, { bg:'#fee2e2', fg:'#991b1b' },
 ];
 function UserAvatar({ name, size = 36, title: tooltipTitle }) {
-  const c = AVATAR_PALETTE[Math.abs((name ?? '?').charCodeAt(0)) % AVATAR_PALETTE.length];
+  const c = AVATAR_PALETTE[Math.abs((name || '?').charCodeAt(0)) % AVATAR_PALETTE.length];
   const initials = (name ?? '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
   return (
     <div title={tooltipTitle ?? name}
@@ -14190,7 +14191,7 @@ function UserAvatar({ name, size = 36, title: tooltipTitle }) {
 }
 function PersonAvatar({ name, avatarUrl, photoUrl, size = 36, title: tooltipTitle, className = "" }) {
   const src = photoUrl || avatarUrl || null;
-  const displayName = name ?? '?';
+  const displayName = name || '?';
   if (src) {
     return (
       <img src={src} alt={displayName} title={tooltipTitle ?? displayName}
