@@ -24388,6 +24388,7 @@ function ConsultantProfilePanel({ consultantId, onClose, onAddToCompare, inCompa
   const [panelTab, setPanelTab]         = useState('profile');
   const canAssign = auth && (auth.isAdmin || auth.isManager || auth.isHeadhunter);
   const canAdmin  = auth && (auth.isAdmin || auth.isManager);
+  const hasProfile = userRole === 'consultant' || userRole === 'headhunter';
 
   const PANEL_ROLE_COLORS = {
     consultant:          'bg-blue-100 text-blue-700',
@@ -24513,10 +24514,12 @@ function ConsultantProfilePanel({ consultantId, onClose, onAddToCompare, inCompa
 
           {/* Actions */}
           <div className="space-y-2">
-            <button onClick={() => setPanelView('profile')}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors">
-              <User size={14} /> View Profile
-            </button>
+            {hasProfile && (
+              <button onClick={() => setPanelView('profile')}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors">
+                <User size={14} /> View Profile
+              </button>
+            )}
             {canAdmin && userEmail && (
               <button onClick={handleResetPassword} disabled={resetting || resetSent}
                 className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl border transition-colors ${
@@ -24526,7 +24529,7 @@ function ConsultantProfilePanel({ consultantId, onClose, onAddToCompare, inCompa
                 {resetSent ? <><CheckCircle2 size={14} /> Reset email sent</> : resetting ? <>Sending…</> : <><Lock size={14} /> Reset Password</>}
               </button>
             )}
-            {canAssign && openCases?.length > 0 && (
+            {hasProfile && canAssign && openCases?.length > 0 && (
               <div className="border border-gray-200 rounded-xl p-4 bg-gray-50 space-y-2">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
                   <Send size={12} />Assign to Case
@@ -34341,13 +34344,7 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
   }
 
   function drillDown(u) {
-    if (u.role === "consultant" || u.role === "headhunter") {
-      setPanelConsultantId(u.id);
-    } else {
-      setDetailUser(prev => prev?.id === u.id ? null : u);
-      setDetailEditOpen(false);
-      setDetailEditRole(u.role);
-    }
+    setPanelConsultantId(u.id);
   }
 
   const currentPersona = PERSONA_TABS.find(p => p.id === personaTab);
