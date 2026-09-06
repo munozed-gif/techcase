@@ -12052,6 +12052,7 @@ function CatalogMultiSelect({ options = [], selected = [], onChange, color = "bl
 function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, initialData = null, initialProjectId = null, presetData = null }) {
   const { t } = useT();
   const { settings: catalogSettings } = useSystemSettings();
+  const planCfg = usePlanConfig();
   const SKILL_DEFAULTS = ["ABAP Development", "SAP Basis Administration", "SAP FICO Configuration", "SAP MM Configuration", "SAP SD Configuration", "SAP HCM", "SAP Fiori / UI5", "SAP BW / Analytics", "SAP Integration (CPI/PI)", "S/4HANA Migration", "SAP GRC", "SAP PM / QM", "HANA DB Administration", "SAP Security / Roles", "SAP PS (Project Systems)"];
   const CERT_DEFAULTS  = ["SAP Certified Associate - ABAP with SAP NetWeaver", "SAP Certified Application Associate - SAP S/4HANA Finance", "SAP Certified Application Associate - SAP S/4HANA Sourcing and Procurement", "SAP Certified Application Associate - SAP SuccessFactors", "SAP Certified Technology Associate - SAP HANA", "SAP Certified Technology Associate - SAP Basis", "SAP Certified Application Associate - SAP MM", "SAP Certified Application Associate - SAP SD", "SAP Certified Application Associate - SAP HCM"];
   const LANG_DEFAULTS  = ["English", "Spanish", "German", "French", "Portuguese", "Italian", "Dutch", "Polish", "Mandarin", "Japanese", "Arabic", "Russian", "Hindi"];
@@ -12345,6 +12346,21 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         }
         onComplete();
       } else {
+        // Check case creation limit for client role
+        if (auth.isClient && auth.user?.id) {
+          const planLimits = planCfg.getPlanLimits(auth.user.id, 'client');
+          if (planLimits.maxCases !== -1) {
+            const { count } = await supabase.from('cases')
+              .select('id', { count: 'exact', head: true })
+              .eq('client_id', auth.user.id)
+              .neq('status', 'closed').neq('status', 'completed').neq('status', 'cancelled');
+            if (count >= planLimits.maxCases) {
+              alert(`Your ${planCfg.getUserPlan(auth.user.id)} plan allows a maximum of ${planLimits.maxCases} active cases. Please upgrade your plan.`);
+              setCreating(false);
+              return;
+            }
+          }
+        }
         const newCase = await createCase(payload);
         if (newCase?.id) {
           const kuRows = [...keyUsers];
@@ -13206,6 +13222,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
 
 function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
   const { t } = useT();
+  const planCfg = usePlanConfig();
   const APPLY_STEPS = [
     { id: "brief",  label: t("apply.step0_label"), Icon: FileText,     desc: t("apply.step0_desc") },
     { id: "pitch",  label: t("apply.step1_label"), Icon: PenLine,      desc: t("apply.step1_desc") },
@@ -13252,6 +13269,21 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
     setSubmit(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      const consultantId = user.id;
+      // Check application limit
+      const planLimits = planCfg.getPlanLimits(consultantId, 'consultant');
+      if (planLimits.maxApps !== -1) {
+        const startOfMonth = new Date(); startOfMonth.setDate(1); startOfMonth.setHours(0,0,0,0);
+        const { count } = await supabase.from('applications')
+          .select('id', { count: 'exact', head: true })
+          .eq('consultant_id', consultantId)
+          .gte('created_at', startOfMonth.toISOString());
+        if (count >= planLimits.maxApps) {
+          alert(`Your plan allows ${planLimits.maxApps} applications per month. Upgrade to apply to more cases.`);
+          setSubmit(false);
+          return;
+        }
+      }
       const { error } = await supabase.from("applications").insert({
         case_id: caseData.id,
         consultant_id: user.id,
@@ -24421,6 +24453,10 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
   const [panelTab, setPanelTab]         = useState('profile');
   const canAssign = auth && (auth.isAdmin || auth.isManager || auth.isHeadhunter);
   const canAdmin  = auth && (auth.isAdmin || auth.isManager);
+  const planCfg = usePlanConfig();
+  const roleType = ROLE_TO_PLAN_TYPE[userRole] ?? null;
+  const userPlan = roleType ? planCfg.getUserPlan(consultantId) : null;
+  const [changingPlan, setChangingPlan] = useState(false);
   const CLIENT_ROLES = ['client', 'key_user', 'final_user', 'internal_consultant', 'project_manager'];
   const isConsultantRole = userRole === 'consultant';
   const isHeadhunterRole = userRole === 'headhunter';
@@ -24570,6 +24606,25 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
               {userEmail && <p className="text-xs text-gray-400 mt-1">{userEmail}</p>}
             </div>
           </div>
+
+          {canAdmin && userPlan && roleType && (
+            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+              <span className="text-xs text-gray-400 font-medium">Plan:</span>
+              <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${PLAN_BADGE[userPlan] ?? PLAN_BADGE.free}`}>{(planCfg.config[roleType]?.[userPlan] ?? DEFAULT_PLAN_CONFIG[roleType]?.[userPlan])?.label ?? userPlan}</span>
+              <select value={userPlan}
+                onChange={async e => {
+                  setChangingPlan(true);
+                  await planCfg.setUserPlan(consultantId, e.target.value, roleType);
+                  setChangingPlan(false);
+                }}
+                disabled={changingPlan}
+                className="ml-auto text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50">
+                {Object.keys(planCfg.config[roleType] ?? DEFAULT_PLAN_CONFIG[roleType] ?? {}).map(pk => (
+                  <option key={pk} value={pk}>{(planCfg.config[roleType]?.[pk] ?? DEFAULT_PLAN_CONFIG[roleType]?.[pk])?.label ?? pk}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Stats mini row */}
           {(profile?.years_experience != null || avgRating != null) && (
@@ -34503,6 +34558,8 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
     project_manager:     { pill: "bg-rose-100 text-rose-700 border-rose-200",     active: "bg-rose-600 text-white border-rose-600"      },
   };
 
+  const planCfg = usePlanConfig();
+
   const [personaTab, setPersonaTab]       = useState("consultants");
   const [selectedRole, setSelectedRole]   = useState("consultant");
   const [detailUser, setDetailUser]       = useState(null);
@@ -34752,6 +34809,7 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
                   <tr className="bg-gray-50 border-b border-gray-100">
                     <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">{t("label.name")}</th>
                     {groupRoles.length > 1 && <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Role</th>}
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Plan</th>
                     <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase">{t("label.status")}</th>
                     <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase">{t("sys.col_actions")}</th>
                   </tr>
@@ -34781,6 +34839,9 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
                             </span>
                           </td>
                         )}
+                        <td className="px-3 py-3">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PLAN_BADGE[planCfg.getUserPlan(u.id)] ?? PLAN_BADGE.free}`}>{planCfg.getUserPlan(u.id)}</span>
+                        </td>
                         <td className="px-4 py-3 text-center">
                           <button onClick={() => toggleActive(u.id, u.is_active)}
                             className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors ${
@@ -35109,6 +35170,176 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
                 <p className="text-xs text-amber-700">This contact does not have a platform account yet.</p>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Plans tab ─────────────────────────────────────────────────
+function SettingsPlansTab({ ssCtx, auth }) {
+  const { t } = useT();
+  const planCfg = usePlanConfig();
+  const [users, setUsers] = useState([]);
+  const [saving, setSaving] = useState({});
+  const [tab, setTab] = useState('users');
+  const [editConfig, setEditConfig] = useState(null);
+  const [configSaving, setConfigSaving] = useState(false);
+
+  useEffect(() => {
+    supabase.from('users').select('id, full_name, email, role, created_at')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => setUsers(data ?? []));
+  }, []);
+
+  useEffect(() => {
+    if (tab === 'config') setEditConfig(JSON.parse(JSON.stringify(planCfg.config)));
+  }, [tab]);
+
+  async function changePlan(userId, plan, role) {
+    setSaving(p => ({ ...p, [userId]: true }));
+    const roleType = ROLE_TO_PLAN_TYPE[role] ?? 'client';
+    await planCfg.setUserPlan(userId, plan, roleType);
+    setSaving(p => ({ ...p, [userId]: false }));
+  }
+
+  async function saveConfig() {
+    setConfigSaving(true);
+    await ssCtx.setSetting('plan_config', editConfig);
+    setConfigSaving(false);
+  }
+
+  const PLAN_TYPES = ['client', 'consultant', 'headhunter'];
+  const PLAN_KEYS  = { client: ['free','starter','professional','enterprise'], consultant: ['free','starter','professional'], headhunter: ['free','professional'] };
+  const LIMIT_LABELS = { maxCases: 'Max active cases', maxTeam: 'Max team members', maxApps: 'Max applications/mo', maxCandidates: 'Max candidates', ai: 'AI features', analytics: 'Analytics', priority: 'Priority listing' };
+
+  const relevantUsers = users.filter(u => ROLE_TO_PLAN_TYPE[u.role]);
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-lg font-bold text-gray-900">Plans & Membership</h2>
+        <p className="text-sm text-gray-500 mt-0.5">Manage subscription plans and assign them to users.</p>
+      </div>
+
+      {/* Sub-tabs */}
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+        {[{id:'users',label:'User Plans'},{id:'config',label:'Plan Limits'}].map(s => (
+          <button key={s.id} onClick={() => setTab(s.id)}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab === s.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'users' && (
+        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">User</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Role</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Plan</th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {relevantUsers.map(u => {
+                const roleType  = ROLE_TO_PLAN_TYPE[u.role] ?? 'client';
+                const planKeys  = PLAN_KEYS[roleType] ?? ['free'];
+                const curPlan   = planCfg.getUserPlan(u.id);
+                return (
+                  <tr key={u.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <PersonAvatar name={u.full_name || u.email} size={28} />
+                        <div>
+                          <p className="font-medium text-gray-800 text-sm">{u.full_name || '—'}</p>
+                          <p className="text-xs text-gray-400">{u.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 capitalize">{u.role?.replace(/_/g,' ')}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium capitalize ${PLAN_BADGE[curPlan] ?? PLAN_BADGE.free}`}>{curPlan}</span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <select value={curPlan}
+                        onChange={e => changePlan(u.id, e.target.value, u.role)}
+                        disabled={saving[u.id]}
+                        className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50">
+                        {planKeys.map(pk => (
+                          <option key={pk} value={pk}>{(planCfg.config[roleType]?.[pk] ?? DEFAULT_PLAN_CONFIG[roleType]?.[pk])?.label ?? pk}</option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                );
+              })}
+              {relevantUsers.length === 0 && (
+                <tr><td colSpan={4} className="px-4 py-10 text-center text-sm text-gray-400">No users yet</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {tab === 'config' && editConfig && (
+        <div className="space-y-6">
+          {PLAN_TYPES.map(rt => (
+            <div key={rt} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+              <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
+                <h3 className="font-semibold text-gray-800 capitalize">{rt} Plans</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      <th className="text-left px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">Limit</th>
+                      {(PLAN_KEYS[rt] ?? []).map(pk => (
+                        <th key={pk} className="px-4 py-2 text-center">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PLAN_BADGE[pk] ?? PLAN_BADGE.free}`}>{editConfig[rt]?.[pk]?.label ?? pk}</span>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {Object.entries(LIMIT_LABELS).filter(([k]) => Object.keys(DEFAULT_PLAN_CONFIG[rt]?.free ?? {}).includes(k)).map(([limitKey, limitLabel]) => (
+                      <tr key={limitKey} className="hover:bg-gray-50">
+                        <td className="px-4 py-2 text-gray-600 font-medium">{limitLabel}</td>
+                        {(PLAN_KEYS[rt] ?? []).map(pk => {
+                          const val = editConfig[rt]?.[pk]?.[limitKey];
+                          const isBoolean = typeof val === 'boolean';
+                          return (
+                            <td key={pk} className="px-4 py-2 text-center">
+                              {isBoolean ? (
+                                <button onClick={() => setEditConfig(p => ({ ...p, [rt]: { ...p[rt], [pk]: { ...p[rt][pk], [limitKey]: !val } } }))}
+                                  className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto transition-colors ${val ? 'bg-green-100 text-green-600 hover:bg-green-200' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>
+                                  {val ? <Check size={14} /> : <X size={14} />}
+                                </button>
+                              ) : (
+                                <input type="number" value={val ?? 0} min={-1}
+                                  onChange={e => setEditConfig(p => ({ ...p, [rt]: { ...p[rt], [pk]: { ...p[rt][pk], [limitKey]: Number(e.target.value) } } }))}
+                                  className="w-20 text-center border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+          <div className="flex justify-end">
+            <button onClick={saveConfig} disabled={configSaving}
+              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white text-sm font-semibold rounded-xl transition-colors">
+              {configSaving ? 'Saving…' : 'Save Plan Config'}
+            </button>
           </div>
         </div>
       )}
@@ -35458,6 +35689,7 @@ function SystemSettingsView({ auth, onNavigate }) {
 
   const TABS = [
     { id: "people",     label: "People",         Icon: Users },
+    { id: "plans",      label: "Plans",          Icon: CreditCard },
     { id: "workflow",   label: "Workflow",        Icon: TrendingUp },
     { id: "catalog",    label: "Catalog",         Icon: Tag },
     { id: "generation", label: "AI & Generation", Icon: Zap },
@@ -35485,6 +35717,7 @@ function SystemSettingsView({ auth, onNavigate }) {
       </div>
 
       {activeTab === "people"     && <SettingsPeopleTab ssCtx={ssCtx} auth={auth} onNavigate={onNavigate} />}
+      {activeTab === "plans"      && <SettingsPlansTab ssCtx={ssCtx} auth={auth} />}
       {activeTab === "workflow"   && <SettingsWorkflowTab auth={auth} ssCtx={ssCtx} />}
       {activeTab === "catalog"    && <SettingsCatalogTab ssCtx={ssCtx} />}
       {activeTab === "generation" && <SettingsGenerationTab ssCtx={ssCtx} />}
