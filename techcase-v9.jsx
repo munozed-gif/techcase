@@ -24395,25 +24395,46 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
   const hasProfile       = isConsultantRole || isHeadhunterRole || isClientRole;
 
   const [clientProfile, setClientProfile] = useState(null);
+  const [clientCaseStats, setClientCaseStats] = useState(null);
+  const [clientTeamMembers, setClientTeamMembers] = useState([]);
 
   useEffect(() => {
-    if (!isClientRole || !consultantId) { setClientProfile(null); return; }
-    setClientProfile(null);
+    if (!isClientRole || !consultantId) {
+      setClientProfile(null); setClientCaseStats(null); setClientTeamMembers([]);
+      return;
+    }
+    setClientProfile(null); setClientCaseStats(null); setClientTeamMembers([]);
     (async () => {
+      let companyId = null;
       if (userRole === 'client') {
         const { data } = await supabase.from('client_profiles')
           .select('id, company_name, industry, website, description, created_at')
           .eq('id', consultantId).maybeSingle();
         setClientProfile(data ? { type: 'client', company: data } : null);
+        companyId = consultantId;
       } else if (userEmail) {
         const { data: tm } = await supabase.from('client_team_members')
-          .select('role_title, system_role, phone, client_id, is_primary')
+          .select('role_title, system_role, phone, client_id, is_primary, full_name')
           .eq('email', userEmail).maybeSingle();
         if (tm?.client_id) {
           const { data: co } = await supabase.from('client_profiles')
-            .select('id, company_name, industry, website, description').eq('id', tm.client_id).maybeSingle();
+            .select('id, company_name, industry, website, description, created_at').eq('id', tm.client_id).maybeSingle();
           setClientProfile({ type: 'team', member: tm, company: co });
+          companyId = tm.client_id;
         }
+      }
+      if (companyId) {
+        const [{ data: cases }, { data: members }] = await Promise.all([
+          supabase.from('cases').select('id, status').eq('client_id', companyId),
+          supabase.from('client_team_members').select('full_name, email, role_title, system_role, phone, is_primary').eq('client_id', companyId),
+        ]);
+        if (cases) {
+          const total = cases.length;
+          const open  = cases.filter(c => !['closed','completed','cancelled'].includes(c.status)).length;
+          const closed = total - open;
+          setClientCaseStats({ total, open, closed });
+        }
+        setClientTeamMembers(members ?? []);
       }
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -24581,44 +24602,101 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
       {/* ── PROFILE VIEW ── */}
       {panelView === 'profile' && isClientRole && (
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          {/* Company card */}
           {clientProfile?.company ? (
             <>
+              {/* Company header */}
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-green-100 flex items-center justify-center flex-shrink-0">
-                  <Building2 size={20} className="text-green-600" />
+                <div className="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center flex-shrink-0">
+                  <Building2 size={22} className="text-green-600" />
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <h3 className="font-bold text-gray-900 text-base leading-tight">{clientProfile.company.company_name || clientProfile.company.name}</h3>
                   {clientProfile.company.industry && (
                     <p className="text-xs text-gray-500 mt-0.5 capitalize">{clientProfile.company.industry}</p>
                   )}
+                  {clientProfile.company.created_at && (
+                    <p className="text-xs text-gray-400 mt-0.5">Member since {new Date(clientProfile.company.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</p>
+                  )}
                 </div>
               </div>
+
+              {/* This user's role in the company (team members only) */}
+              {clientProfile.type === 'team' && clientProfile.member && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {clientProfile.member.role_title && (
+                    <span className="text-xs px-2.5 py-1 rounded-full bg-orange-100 text-orange-700 font-medium">{clientProfile.member.role_title}</span>
+                  )}
+                  {clientProfile.member.system_role && (
+                    <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 font-medium capitalize">{clientProfile.member.system_role.replace(/_/g,' ')}</span>
+                  )}
+                  {clientProfile.member.is_primary && (
+                    <span className="text-xs px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 font-medium">Primary contact</span>
+                  )}
+                </div>
+              )}
+
+              {/* Description */}
               {clientProfile.company.description && (
                 <p className="text-sm text-gray-600 leading-relaxed">{clientProfile.company.description}</p>
               )}
-              {clientProfile.company.website && (
-                <a href={clientProfile.company.website} target="_blank" rel="noreferrer"
-                  className="flex items-center gap-2 text-sm text-blue-600 hover:underline">
-                  <ExternalLink size={13} />{clientProfile.company.website}
-                </a>
+
+              {/* Contact info */}
+              <div className="space-y-2">
+                {userEmail && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Mail size={13} className="text-gray-400 flex-shrink-0" />{userEmail}
+                  </div>
+                )}
+                {clientProfile.type === 'team' && clientProfile.member?.phone && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Phone size={13} className="text-gray-400 flex-shrink-0" />{clientProfile.member.phone}
+                  </div>
+                )}
+                {clientProfile.company.website && (
+                  <a href={clientProfile.company.website} target="_blank" rel="noreferrer"
+                    className="flex items-center gap-2 text-sm text-blue-600 hover:underline">
+                    <ExternalLink size={13} />{clientProfile.company.website}
+                  </a>
+                )}
+              </div>
+
+              {/* Case stats */}
+              {clientCaseStats && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Cases</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { label: 'Total',  value: clientCaseStats.total,  color: 'bg-gray-50 border-gray-200 text-gray-700' },
+                      { label: 'Open',   value: clientCaseStats.open,   color: 'bg-blue-50 border-blue-100 text-blue-700' },
+                      { label: 'Closed', value: clientCaseStats.closed, color: 'bg-green-50 border-green-100 text-green-700' },
+                    ].map(s => (
+                      <div key={s.label} className={`border rounded-xl p-3 text-center ${s.color}`}>
+                        <p className="text-xl font-bold leading-none">{s.value}</p>
+                        <p className="text-xs mt-1 opacity-70">{s.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
-              {clientProfile.type === 'team' && clientProfile.member && (
-                <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-1.5">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Team Role</p>
-                  {clientProfile.member.role_title && (
-                    <p className="text-sm text-gray-700"><span className="font-medium">Title:</span> {clientProfile.member.role_title}</p>
-                  )}
-                  {clientProfile.member.system_role && (
-                    <p className="text-sm text-gray-700"><span className="font-medium">System role:</span> {clientProfile.member.system_role.replace(/_/g, ' ')}</p>
-                  )}
-                  {clientProfile.member.phone && (
-                    <p className="text-sm text-gray-700"><span className="font-medium">Phone:</span> {clientProfile.member.phone}</p>
-                  )}
-                  {clientProfile.member.is_primary && (
-                    <span className="inline-flex text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">Primary contact</span>
-                  )}
+
+              {/* Team members */}
+              {clientTeamMembers.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Team ({clientTeamMembers.length})</p>
+                  <div className="space-y-2">
+                    {clientTeamMembers.map((m, i) => (
+                      <div key={i} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
+                        <PersonAvatar name={m.full_name || m.email} size={32} />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-gray-800 truncate">{m.full_name || m.email}</p>
+                          <p className="text-xs text-gray-400 truncate">{m.role_title || (m.system_role ? m.system_role.replace(/_/g,' ') : m.email)}</p>
+                        </div>
+                        {m.is_primary && (
+                          <span className="text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600 font-medium flex-shrink-0">Primary</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </>
