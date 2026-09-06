@@ -8547,6 +8547,161 @@ function VouchingPanel({ targetUserId, targetName }) {
 // ============================================================
 // CONSULTANT PROFILE VIEW
 // ============================================================
+function PlanUsageCard({ auth }) {
+  const planCfg  = usePlanConfig();
+  const roleType = ROLE_TO_PLAN_TYPE[auth.profile?.role] ?? null;
+  const userId   = auth.user?.id;
+  const curPlan  = roleType ? planCfg.getUserPlan(userId) : null;
+  const limits   = roleType ? planCfg.getPlanLimits(userId, roleType) : {};
+
+  const [usage, setUsage]       = useState(null);
+  const [loading, setLoading]   = useState(true);
+  const [upgradeModal, setUpgradeModal] = useState(null);
+
+  useEffect(() => {
+    if (!userId || !roleType) { setLoading(false); return; }
+    (async () => {
+      setLoading(true);
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+      if (roleType === 'client') {
+        const [{ count: activeCases }, { count: teamCount }] = await Promise.all([
+          supabase.from('cases').select('id', { count: 'exact', head: true })
+            .eq('client_id', userId).not('status', 'in', '(closed,completed,cancelled)'),
+          supabase.from('client_team_members').select('id', { count: 'exact', head: true })
+            .eq('client_id', userId),
+        ]);
+        setUsage({ activeCases: activeCases ?? 0, teamCount: teamCount ?? 0 });
+      } else if (roleType === 'consultant') {
+        const { count: monthlyApps } = await supabase.from('applications')
+          .select('id', { count: 'exact', head: true })
+          .eq('consultant_id', userId)
+          .gte('created_at', startOfMonth);
+        const { count: totalApps } = await supabase.from('applications')
+          .select('id', { count: 'exact', head: true })
+          .eq('consultant_id', userId);
+        setUsage({ monthlyApps: monthlyApps ?? 0, totalApps: totalApps ?? 0 });
+      } else if (roleType === 'headhunter') {
+        const { count: candidates } = await supabase.from('users')
+          .select('id', { count: 'exact', head: true })
+          .eq('headhunter_id', userId);
+        setUsage({ candidates: candidates ?? 0 });
+      }
+      setLoading(false);
+    })();
+  }, [userId, roleType]);
+
+  if (!roleType || !curPlan) return null;
+
+  const planLabel = (planCfg.config[roleType]?.[curPlan] ?? DEFAULT_PLAN_CONFIG[roleType]?.[curPlan])?.label ?? curPlan;
+
+  function UsageBar({ label, used, max, icon: Icon }) {
+    if (max === undefined || max === null) return null;
+    const unlimited = max === -1;
+    const pct = unlimited ? 0 : Math.min(100, Math.round((used / max) * 100));
+    const nearLimit = !unlimited && pct >= 80;
+    const atLimit   = !unlimited && used >= max;
+    return (
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between text-sm">
+          <span className="flex items-center gap-1.5 text-gray-600 font-medium">
+            {Icon && <Icon size={13} className="text-gray-400" />}{label}
+          </span>
+          <span className={`text-xs font-semibold tabular-nums ${atLimit ? 'text-red-600' : nearLimit ? 'text-amber-600' : 'text-gray-500'}`}>
+            {unlimited ? <span className="text-green-600">Unlimited</span> : `${used} / ${max}`}
+          </span>
+        </div>
+        {!unlimited && (
+          <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+            <div className={`h-full rounded-full transition-all ${atLimit ? 'bg-red-500' : nearLimit ? 'bg-amber-400' : 'bg-blue-500'}`}
+              style={{ width: `${pct}%` }} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function FeatureChip({ label, enabled }) {
+    return (
+      <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${
+        enabled ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-400'
+      }`}>
+        {enabled ? <Check size={11} /> : <X size={11} />}{label}
+      </div>
+    );
+  }
+
+  const canUpgrade = curPlan !== 'enterprise';
+  const nextPlanKey = { free: 'starter', starter: 'professional', professional: 'enterprise' }[curPlan];
+
+  return (
+    <>
+      {upgradeModal && (
+        <UpgradeModal
+          title={upgradeModal.title}
+          message={upgradeModal.message}
+          roleType={roleType}
+          planKey={nextPlanKey ?? 'professional'}
+          auth={auth}
+          onClose={() => setUpgradeModal(null)}
+        />
+      )}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+        {/* Plan header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Your Plan</p>
+            <span className={`text-sm px-3 py-1 rounded-full font-semibold capitalize border ${PLAN_BADGE[curPlan] ?? PLAN_BADGE.free}`}>{planLabel}</span>
+          </div>
+          {canUpgrade && (
+            <button
+              onClick={() => setUpgradeModal({ title: `Upgrade from ${planLabel}`, message: 'Unlock higher limits and more features.' })}
+              className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-xl transition-colors">
+              <Zap size={13} />Upgrade
+            </button>
+          )}
+        </div>
+
+        {/* Usage bars */}
+        {loading ? (
+          <div className="space-y-3">
+            {[1,2].map(i => <div key={i} className="h-8 bg-gray-100 rounded-xl animate-pulse" />)}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {roleType === 'client' && usage && (
+              <>
+                <UsageBar label="Active cases"   used={usage.activeCases} max={limits.maxCases} icon={Briefcase} />
+                <UsageBar label="Team members"   used={usage.teamCount}   max={limits.maxTeam}  icon={Users} />
+              </>
+            )}
+            {roleType === 'consultant' && usage && (
+              <>
+                <UsageBar label="Applications this month" used={usage.monthlyApps} max={limits.maxApps}  icon={Send} />
+                <UsageBar label="Total applications"      used={usage.totalApps}   max={-1}              icon={Briefcase} />
+              </>
+            )}
+            {roleType === 'headhunter' && usage && (
+              <UsageBar label="Candidates managed" used={usage.candidates} max={limits.maxCandidates} icon={Users} />
+            )}
+          </div>
+        )}
+
+        {/* Feature flags */}
+        <div>
+          <p className="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-2">Features</p>
+          <div className="flex flex-wrap gap-2">
+            <FeatureChip label="AI features"   enabled={limits.ai} />
+            {roleType === 'client'     && <FeatureChip label="Analytics"       enabled={limits.analytics} />}
+            {roleType === 'consultant' && <FeatureChip label="Priority listing" enabled={limits.priority} />}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 function ConsultantProfileView({ userId, onBack }) {
   const auth = useAuth();
   const { t } = useT();
@@ -8677,7 +8832,7 @@ function ConsultantProfileView({ userId, onBack }) {
     { id: 'tier',      label: t('profile.tab_tier') },
     { id: 'activity',  label: t('profile.tab_activity') },
     { id: 'vouches',   label: t('vouch.tab') },
-    ...(isOwnProfile ? [{ id: 'edit', label: 'Profile' }] : []),
+    ...(isOwnProfile ? [{ id: 'plan', label: 'My Plan' }, { id: 'edit', label: 'Profile' }] : []),
   ];
 
   if (loading) return <Spinner />;
@@ -9023,6 +9178,11 @@ function ConsultantProfileView({ userId, onBack }) {
         <div className="space-y-4">
           <VouchingPanel targetUserId={targetUserId} targetName={profileData?.full_name} />
         </div>
+      )}
+
+      {/* My Plan */}
+      {section === 'plan' && isOwnProfile && (
+        <PlanUsageCard auth={auth} />
       )}
 
       {/* Edit profile */}
@@ -29602,6 +29762,7 @@ function ClientProfileView({ auth }) {
 
   const tabs = [
     { id: "overview",     label: t("client_tab.overview"),    icon: Building2,         count: null },
+    { id: "plan",         label: "My Plan",                   icon: CreditCard,        count: null },
     { id: "sla",          label: t("client_tab.sla"),         icon: SlidersHorizontal, count: null },
     { id: "connections",  label: t("client_tab.connections"), icon: Database,          count: connections.length },
     { id: "team",         label: t("client_tab.team"),        icon: Users,             count: members.length },
@@ -29834,6 +29995,9 @@ function ClientProfileView({ auth }) {
           )}
         </div>
       )}
+
+      {/* MY PLAN TAB */}
+      {tab === "plan" && <PlanUsageCard auth={auth} />}
 
       {/* SLA TAB */}
       {tab === "sla" && (
