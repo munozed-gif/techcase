@@ -24355,13 +24355,26 @@ function ConsultantProfilePanel({ consultantId, onClose, onAddToCompare, inCompa
   const { t } = useT();
   const { profile, availability, loading } = useConsultantProfile(consultantId);
   const { ratings, avgRating } = useRatings(consultantId);
-  const [userName, setUserName]   = useState('');
-  const [avatarUrl, setAvatarUrl] = useState(null);
+  const [userName, setUserName]         = useState('');
+  const [avatarUrl, setAvatarUrl]       = useState(null);
+  const [userEmail, setUserEmail]       = useState('');
+  const [userRole, setUserRole]         = useState('');
+  const [userStatus, setUserStatus]     = useState('');
+  const [panelView, setPanelView]       = useState('card'); // 'card' | 'profile'
+  const [resetSent, setResetSent]       = useState(false);
+  const [resetting, setResetting]       = useState(false);
 
   useEffect(() => {
     if (!consultantId) return;
-    supabase.from('users').select('full_name, avatar_url').eq('id', consultantId).maybeSingle()
-      .then(({ data }) => { setUserName(data?.full_name ?? ''); setAvatarUrl(data?.avatar_url ?? null); });
+    setPanelView('card');
+    supabase.from('users').select('full_name, avatar_url, email, role, verification_status').eq('id', consultantId).maybeSingle()
+      .then(({ data }) => {
+        setUserName(data?.full_name ?? '');
+        setAvatarUrl(data?.avatar_url ?? null);
+        setUserEmail(data?.email ?? '');
+        setUserRole(data?.role ?? '');
+        setUserStatus(data?.verification_status ?? '');
+      });
   }, [consultantId]);
 
   const winRate = ratings.length > 0
@@ -24373,6 +24386,33 @@ function ConsultantProfilePanel({ consultantId, onClose, onAddToCompare, inCompa
   const [assignDone, setAssignDone]     = useState(false);
   const [panelTab, setPanelTab]         = useState('profile');
   const canAssign = auth && (auth.isAdmin || auth.isManager || auth.isHeadhunter);
+  const canAdmin  = auth && (auth.isAdmin || auth.isManager);
+
+  const PANEL_ROLE_COLORS = {
+    consultant:          'bg-blue-100 text-blue-700',
+    client:              'bg-green-100 text-green-700',
+    headhunter:          'bg-purple-100 text-purple-700',
+    manager:             'bg-orange-100 text-orange-700',
+    key_user:            'bg-amber-100 text-amber-700',
+    final_user:          'bg-teal-100 text-teal-700',
+    internal_consultant: 'bg-indigo-100 text-indigo-700',
+    project_manager:     'bg-rose-100 text-rose-700',
+  };
+
+  const STATUS_BADGE = {
+    approved: 'bg-green-100 text-green-700',
+    pending:  'bg-amber-100 text-amber-700',
+    rejected: 'bg-red-100 text-red-700',
+  };
+
+  async function handleResetPassword() {
+    if (!userEmail) return;
+    setResetting(true);
+    await supabase.auth.resetPasswordForEmail(userEmail);
+    setResetting(false);
+    setResetSent(true);
+    setTimeout(() => setResetSent(false), 4000);
+  }
 
   async function handleAssign() {
     if (!assignCaseId || !consultantId) return;
@@ -24391,7 +24431,16 @@ function ConsultantProfilePanel({ consultantId, onClose, onAddToCompare, inCompa
     <div className="w-full max-w-md bg-white h-full flex flex-col shadow-2xl overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
-        <h2 className="font-bold text-gray-900 text-base">Consultant Profile</h2>
+        <div className="flex items-center gap-2">
+          {panelView === 'profile' && (
+            <button onClick={() => setPanelView('card')} className="text-gray-400 hover:text-gray-700 transition-colors mr-1">
+              <ChevronLeft size={18} />
+            </button>
+          )}
+          <h2 className="font-bold text-gray-900 text-base">
+            {panelView === 'card' ? 'User' : 'Profile'}
+          </h2>
+        </div>
         <div className="flex items-center gap-2">
           {onToggleShortlist && (
             <button onClick={onToggleShortlist}
@@ -24400,13 +24449,10 @@ function ConsultantProfilePanel({ consultantId, onClose, onAddToCompare, inCompa
               {isShortlisted ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
             </button>
           )}
-          {onAddToCompare && (
+          {panelView === 'profile' && onAddToCompare && (
             <button onClick={onAddToCompare}
               className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-colors ${
-                inCompare
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "border-gray-300 text-gray-600 hover:border-blue-400 hover:text-blue-600"
-              }`}>
+                inCompare ? "bg-blue-600 text-white border-blue-600" : "border-gray-300 text-gray-600 hover:border-blue-400 hover:text-blue-600"}`}>
               {inCompare ? "✓ In Compare" : "+ Compare"}
             </button>
           )}
@@ -24416,18 +24462,104 @@ function ConsultantProfilePanel({ consultantId, onClose, onAddToCompare, inCompa
         </div>
       </div>
 
-      {/* Tab bar */}
-      <div className="flex border-b border-gray-100 flex-shrink-0">
-        {[
-          { id: 'profile', label: 'Profile' },
-          { id: 'ratings', label: `Ratings${ratings.length > 0 ? ` (${ratings.length})` : ''}` },
-        ].map(tab => (
-          <button key={tab.id} onClick={() => setPanelTab(tab.id)}
-            className={`flex-1 py-2.5 text-sm font-semibold transition-colors border-b-2 -mb-px ${panelTab === tab.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      {/* ── CARD VIEW ── */}
+      {panelView === 'card' && (
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {/* Identity */}
+          <div className="flex items-center gap-4">
+            <PersonAvatar name={userName} avatarUrl={avatarUrl} size={64} />
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-gray-900 text-lg leading-tight">{userName || '—'}</h3>
+              <div className="flex items-center gap-2 flex-wrap mt-1">
+                {userRole && (
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PANEL_ROLE_COLORS[userRole] ?? 'bg-gray-100 text-gray-500'}`}>
+                    {userRole.replace(/_/g, ' ')}
+                  </span>
+                )}
+                {userStatus && (
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_BADGE[userStatus] ?? 'bg-gray-100 text-gray-500'}`}>
+                    {userStatus}
+                  </span>
+                )}
+              </div>
+              {userEmail && <p className="text-xs text-gray-400 mt-1">{userEmail}</p>}
+            </div>
+          </div>
+
+          {/* Stats mini row */}
+          {(profile?.years_experience != null || avgRating != null) && (
+            <div className="flex gap-3">
+              {profile?.years_experience != null && (
+                <div className="flex-1 bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
+                  <div className="font-bold text-gray-900">{profile.years_experience}<span className="text-xs font-normal text-gray-400">y</span></div>
+                  <div className="text-xs text-gray-400 mt-0.5">Experience</div>
+                </div>
+              )}
+              {avgRating != null && (
+                <div className="flex-1 bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
+                  <div className="font-bold text-gray-900">{avgRating} <span className="text-yellow-400 text-sm">★</span></div>
+                  <div className="text-xs text-gray-400 mt-0.5">{ratings.length} rating{ratings.length !== 1 ? 's' : ''}</div>
+                </div>
+              )}
+              {profile?.hourly_rate != null && (
+                <div className="flex-1 bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
+                  <div className="font-bold text-gray-900 text-sm">${profile.hourly_rate}<span className="text-[10px] font-normal text-gray-400">/h</span></div>
+                  <div className="text-xs text-gray-400 mt-0.5">Rate</div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="space-y-2">
+            <button onClick={() => setPanelView('profile')}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors">
+              <User size={14} /> View Profile
+            </button>
+            {canAdmin && userEmail && (
+              <button onClick={handleResetPassword} disabled={resetting || resetSent}
+                className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl border transition-colors ${
+                  resetSent
+                    ? 'bg-green-50 text-green-700 border-green-200'
+                    : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:text-blue-600'}`}>
+                {resetSent ? <><CheckCircle2 size={14} /> Reset email sent</> : resetting ? <>Sending…</> : <><Lock size={14} /> Reset Password</>}
+              </button>
+            )}
+            {canAssign && openCases?.length > 0 && (
+              <div className="border border-gray-200 rounded-xl p-4 bg-gray-50 space-y-2">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+                  <Send size={12} />Assign to Case
+                </p>
+                <select value={assignCaseId} onChange={e => setAssignCaseId(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">Select a case…</option>
+                  {openCases.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                </select>
+                <button disabled={!assignCaseId || assigning} onClick={handleAssign}
+                  className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white text-sm font-semibold rounded-xl transition-colors">
+                  {assigning ? "Assigning…" : assignDone ? "✓ Assigned!" : "Assign Consultant"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── PROFILE VIEW ── */}
+      {panelView === 'profile' && (
+        <>
+          {/* Tab bar */}
+          <div className="flex border-b border-gray-100 flex-shrink-0">
+            {[
+              { id: 'profile', label: 'Profile' },
+              { id: 'ratings', label: `Ratings${ratings.length > 0 ? ` (${ratings.length})` : ''}` },
+            ].map(tab => (
+              <button key={tab.id} onClick={() => setPanelTab(tab.id)}
+                className={`flex-1 py-2.5 text-sm font-semibold transition-colors border-b-2 -mb-px ${panelTab === tab.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
         {loading ? <Spinner /> : panelTab === 'ratings' ? (
@@ -24584,30 +24716,11 @@ function ConsultantProfilePanel({ consultantId, onClose, onAddToCompare, inCompa
               </a>
             )}
 
-            {/* Assign to case */}
-            {canAssign && openCases?.length > 0 && (
-              <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                  <Send size={12} />Assign to Case
-                </p>
-                <select value={assignCaseId} onChange={e => setAssignCaseId(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">Select a case…</option>
-                  {openCases.map(c => (
-                    <option key={c.id} value={c.id}>{c.title}</option>
-                  ))}
-                </select>
-                <button
-                  disabled={!assignCaseId || assigning}
-                  onClick={handleAssign}
-                  className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white text-sm font-semibold rounded-xl transition-colors">
-                  {assigning ? "Assigning…" : assignDone ? "✓ Assigned!" : "Assign Consultant"}
-                </button>
-              </div>
-            )}
           </>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }
