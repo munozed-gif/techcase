@@ -24489,11 +24489,6 @@ function ConsultantProfilePanel({ consultantId, onClose, onAddToCompare, inCompa
               </div>
             </div>
 
-            {/* Bio */}
-            {profile?.bio && (
-              <p className="text-sm text-gray-600 leading-relaxed bg-gray-50 rounded-xl p-3 border border-gray-100">{profile.bio}</p>
-            )}
-
             {/* Stats grid */}
             <div className="grid grid-cols-3 gap-2">
               {profile?.years_experience != null && (
@@ -24531,95 +24526,53 @@ function ConsultantProfilePanel({ consultantId, onClose, onAddToCompare, inCompa
               )}
             </div>
 
-            {/* Skills */}
-            {profile?.skills?.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Skills</p>
-                <div className="flex flex-wrap gap-1">
-                  {profile.skills.map(s => (
-                    <span key={s} className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{s}</span>
-                  ))}
+            {/* Top Skills — featured first, else first 5 */}
+            {(() => {
+              const featured = profile?.featured_skills ?? [];
+              const topSkills = featured.length > 0
+                ? featured.slice(0, 6)
+                : (profile?.skills ?? []).slice(0, 5);
+              return topSkills.length > 0 ? (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                    Top Skills {featured.length > 0 && <span className="normal-case text-gray-300 font-normal">· featured</span>}
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {topSkills.map(s => (
+                      <span key={s} className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">
+                        {featured.includes(s) && <Star size={9} className="text-amber-400 fill-amber-400" />}
+                        {s}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              ) : null;
+            })()}
 
-            {/* Certifications */}
-            {profile?.certifications?.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Certifications</p>
-                <div className="flex flex-wrap gap-1">
-                  {profile.certifications.map(s => (
-                    <span key={s} className="px-2 py-0.5 bg-green-50 text-green-700 rounded-lg text-xs font-medium">{s}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Languages */}
-            {profile?.languages?.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Languages</p>
-                <div className="flex flex-wrap gap-1">
-                  {profile.languages.map(s => (
-                    <span key={s} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-medium">{s}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Work Authorization */}
-            {profile?.work_authorizations?.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Work Authorization</p>
-                <div className="flex flex-wrap gap-1">
-                  {profile.work_authorizations.map((wa, i) => (
-                    <span key={i} className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium">{wa.country}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Past clients */}
-            {profile?.consultant_customers?.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Past Clients</p>
-                <div className="space-y-2">
-                  {profile.consultant_customers.map((cu, i) => (
-                    <div key={i} className="flex items-start gap-2.5">
-                      <UserAvatar name={cu.company_name ?? '?'} size={32} />
-                      <div>
-                        <div className="font-medium text-sm text-gray-900">{cu.company_name}</div>
-                        <div className="text-xs text-gray-400">{cu.role}{cu.start_year ? ` · ${cu.start_year}` : ''}</div>
-                      </div>
+            {/* Top Experience — top 3 clients + top 3 projects */}
+            {(profile?.consultant_customers?.length > 0 || profile?.consultant_projects?.length > 0) && (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Top Experience</p>
+                {profile?.consultant_customers?.slice(0, 3).map((cu, i) => (
+                  <div key={i} className="flex items-center gap-2.5">
+                    <UserAvatar name={cu.company_name ?? '?'} size={30} />
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm text-gray-900 truncate">{cu.company_name}</div>
+                      <div className="text-xs text-gray-400">{cu.role}{cu.start_year ? ` · ${cu.start_year}` : ''}</div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Past projects */}
-            {profile?.consultant_projects?.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">SAP Projects</p>
-                <ConsultantProjectsHierarchy projects={profile.consultant_projects} />
-              </div>
-            )}
-
-            {/* Recent ratings */}
-            {ratings.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Recent Ratings</p>
-                <div className="space-y-2">
-                  {ratings.slice(0, 4).map((r, i) => (
-                    <div key={i} className="border border-gray-100 rounded-xl p-3">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-gray-400">{fmtDate(r.created_at)}{r.case?.title ? ` · ${r.case.title}` : ''}</span>
-                        <span className="text-yellow-400 text-xs">{stars(r.score)}</span>
-                      </div>
-                      {r.comment && <p className="text-xs text-gray-600 italic">"{r.comment}"</p>}
+                  </div>
+                ))}
+                {profile?.consultant_projects?.slice(0, 3).map((p, i) => (
+                  <div key={i} className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                      <Briefcase size={12} className="text-blue-600" />
                     </div>
-                  ))}
-                </div>
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm text-gray-900 truncate">{p.project_name ?? p.name ?? "SAP Project"}</div>
+                      {p.module && <div className="text-xs text-gray-400">{p.module}{p.year ? ` · ${p.year}` : ''}</div>}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
 
