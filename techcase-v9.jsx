@@ -24388,7 +24388,35 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
   const [panelTab, setPanelTab]         = useState('profile');
   const canAssign = auth && (auth.isAdmin || auth.isManager || auth.isHeadhunter);
   const canAdmin  = auth && (auth.isAdmin || auth.isManager);
-  const hasProfile = userRole === 'consultant' || userRole === 'headhunter';
+  const CLIENT_ROLES = ['client', 'key_user', 'final_user', 'internal_consultant', 'project_manager'];
+  const isConsultantRole = userRole === 'consultant' || userRole === 'headhunter';
+  const isClientRole     = CLIENT_ROLES.includes(userRole);
+  const hasProfile       = isConsultantRole || isClientRole;
+
+  const [clientProfile, setClientProfile] = useState(null);
+
+  useEffect(() => {
+    if (!isClientRole || !consultantId) { setClientProfile(null); return; }
+    setClientProfile(null);
+    (async () => {
+      if (userRole === 'client') {
+        const { data } = await supabase.from('clients')
+          .select('id, name, industry, website, description, created_at')
+          .eq('user_id', consultantId).maybeSingle();
+        setClientProfile(data ? { type: 'client', company: data } : null);
+      } else if (userEmail) {
+        const { data: tm } = await supabase.from('client_team_members')
+          .select('role_title, system_role, phone, client_id, is_primary')
+          .eq('email', userEmail).maybeSingle();
+        if (tm?.client_id) {
+          const { data: co } = await supabase.from('clients')
+            .select('id, name, industry, website, description').eq('id', tm.client_id).maybeSingle();
+          setClientProfile({ type: 'team', member: tm, company: co });
+        }
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isClientRole, userRole, consultantId, userEmail]);
 
   const PANEL_ROLE_COLORS = {
     consultant:          'bg-blue-100 text-blue-700',
@@ -24550,7 +24578,59 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
       )}
 
       {/* ── PROFILE VIEW ── */}
-      {panelView === 'profile' && (
+      {panelView === 'profile' && isClientRole && (
+        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+          {/* Company card */}
+          {clientProfile?.company ? (
+            <>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-green-100 flex items-center justify-center flex-shrink-0">
+                  <Building2 size={20} className="text-green-600" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-gray-900 text-base leading-tight">{clientProfile.company.name}</h3>
+                  {clientProfile.company.industry && (
+                    <p className="text-xs text-gray-500 mt-0.5 capitalize">{clientProfile.company.industry}</p>
+                  )}
+                </div>
+              </div>
+              {clientProfile.company.description && (
+                <p className="text-sm text-gray-600 leading-relaxed">{clientProfile.company.description}</p>
+              )}
+              {clientProfile.company.website && (
+                <a href={clientProfile.company.website} target="_blank" rel="noreferrer"
+                  className="flex items-center gap-2 text-sm text-blue-600 hover:underline">
+                  <ExternalLink size={13} />{clientProfile.company.website}
+                </a>
+              )}
+              {clientProfile.type === 'team' && clientProfile.member && (
+                <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-1.5">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Team Role</p>
+                  {clientProfile.member.role_title && (
+                    <p className="text-sm text-gray-700"><span className="font-medium">Title:</span> {clientProfile.member.role_title}</p>
+                  )}
+                  {clientProfile.member.system_role && (
+                    <p className="text-sm text-gray-700"><span className="font-medium">System role:</span> {clientProfile.member.system_role.replace(/_/g, ' ')}</p>
+                  )}
+                  {clientProfile.member.phone && (
+                    <p className="text-sm text-gray-700"><span className="font-medium">Phone:</span> {clientProfile.member.phone}</p>
+                  )}
+                  {clientProfile.member.is_primary && (
+                    <span className="inline-flex text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">Primary contact</span>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-center py-10">
+              <Building2 size={32} className="text-gray-200 mx-auto mb-2" />
+              <p className="text-sm text-gray-400">No company profile found</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {panelView === 'profile' && isConsultantRole && (
         <>
           {/* Tab bar */}
           <div className="flex border-b border-gray-100 flex-shrink-0">
