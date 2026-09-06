@@ -24401,17 +24401,17 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
     setClientProfile(null);
     (async () => {
       if (userRole === 'client') {
-        const { data } = await supabase.from('clients')
-          .select('id, name, industry, website, description, created_at')
-          .eq('user_id', consultantId).maybeSingle();
+        const { data } = await supabase.from('client_profiles')
+          .select('id, company_name, industry, website, description, created_at')
+          .eq('id', consultantId).maybeSingle();
         setClientProfile(data ? { type: 'client', company: data } : null);
       } else if (userEmail) {
         const { data: tm } = await supabase.from('client_team_members')
           .select('role_title, system_role, phone, client_id, is_primary')
           .eq('email', userEmail).maybeSingle();
         if (tm?.client_id) {
-          const { data: co } = await supabase.from('clients')
-            .select('id, name, industry, website, description').eq('id', tm.client_id).maybeSingle();
+          const { data: co } = await supabase.from('client_profiles')
+            .select('id, company_name, industry, website, description').eq('id', tm.client_id).maybeSingle();
           setClientProfile({ type: 'team', member: tm, company: co });
         }
       }
@@ -24589,7 +24589,7 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
                   <Building2 size={20} className="text-green-600" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="font-bold text-gray-900 text-base leading-tight">{clientProfile.company.name}</h3>
+                  <h3 className="font-bold text-gray-900 text-base leading-tight">{clientProfile.company.company_name || clientProfile.company.name}</h3>
                   {clientProfile.company.industry && (
                     <p className="text-xs text-gray-500 mt-0.5 capitalize">{clientProfile.company.industry}</p>
                   )}
