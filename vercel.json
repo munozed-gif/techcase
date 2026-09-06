@@ -4,6 +4,9 @@
   "framework": "vite",
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
   "functions": {
-    "api/claude.js": { "maxDuration": 60 }
+    "api/claude.js":           { "maxDuration": 60 },
+    "api/stripe-checkout.js":  { "maxDuration": 10 },
+    "api/stripe-webhook.js":   { "maxDuration": 10 },
+    "api/stripe-setup.js":     { "maxDuration": 30 }
   }
 }

@@ -12075,6 +12075,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   const [mode, setMode]     = useState(isEdit ? "advanced" : null);
   const [step, setSt]       = useState(initialProjectId ? 1 : 0);
   const [creating, setCreating] = useState(false);
+  const [upgradeModal, setUpgradeModal] = useState(null);
 
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId);
   const [wizardProjects, setWizardProjects]         = useState([]);
@@ -12355,7 +12356,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               .eq('client_id', auth.user.id)
               .neq('status', 'closed').neq('status', 'completed').neq('status', 'cancelled');
             if (count >= planLimits.maxCases) {
-              alert(`Your ${planCfg.getUserPlan(auth.user.id)} plan allows a maximum of ${planLimits.maxCases} active cases. Please upgrade your plan.`);
+              setUpgradeModal({ roleType: 'client', planKey: 'professional', title: 'Case limit reached', message: `Your plan allows ${planLimits.maxCases} active case${planLimits.maxCases === 1 ? '' : 's'}. Upgrade to post more.` });
               setCreating(false);
               return;
             }
@@ -12415,6 +12416,16 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
 
   return (
     <>
+    {upgradeModal && (
+      <UpgradeModal
+        title={upgradeModal.title}
+        message={upgradeModal.message}
+        roleType={upgradeModal.roleType}
+        planKey={upgradeModal.planKey}
+        auth={auth}
+        onClose={() => setUpgradeModal(null)}
+      />
+    )}
     <div className="max-w-2xl mx-auto py-6">
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -13235,6 +13246,7 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
   const [terms, setTerms]       = useState({ proposed_rate: "", time_commitment: 20 });
   const [maxAvailable, setMaxAvailable] = useState(100);
   const [availLoading, setAvailLoading] = useState(true);
+  const [upgradeModal, setUpgradeModal] = useState(null);
 
   const TERMINAL = ["completed", "cancelled", "terminated", "closed", "approved"];
 
@@ -13279,7 +13291,7 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
           .eq('consultant_id', consultantId)
           .gte('created_at', startOfMonth.toISOString());
         if (count >= planLimits.maxApps) {
-          alert(`Your plan allows ${planLimits.maxApps} applications per month. Upgrade to apply to more cases.`);
+          setUpgradeModal({ roleType: 'consultant', planKey: 'professional', title: 'Application limit reached', message: `Your plan allows ${planLimits.maxApps} application${planLimits.maxApps === 1 ? '' : 's'} per month. Upgrade to apply to more cases.` });
           setSubmit(false);
           return;
         }
@@ -13299,6 +13311,17 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
   }
 
   return (
+    <>
+    {upgradeModal && (
+      <UpgradeModal
+        title={upgradeModal.title}
+        message={upgradeModal.message}
+        roleType={upgradeModal.roleType}
+        planKey={upgradeModal.planKey}
+        auth={auth}
+        onClose={() => setUpgradeModal(null)}
+      />
+    )}
     <div className="max-w-2xl mx-auto py-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
@@ -13501,6 +13524,7 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
         )}
       </div>
     </div>
+    </>
   );
 }
 
@@ -32136,7 +32160,77 @@ function usePlanConfig() {
     await ssCtx.setSetting('user_plans', updated);
   }
 
-  return { config, userPlans, getUserPlan, getPlanLimits, setUserPlan };
+  const priceIds = ssCtx.settings['stripe_price_ids'] ?? {};
+  const prices   = ssCtx.settings['plan_prices']      ?? DEFAULT_PLAN_PRICES;
+
+  async function startCheckout(userId, userEmail, roleType, planKey) {
+    const priceKey = `${roleType}_${planKey}`;
+    const priceId  = priceIds[priceKey];
+    if (!priceId) {
+      alert('Stripe is not configured yet. Please contact support.');
+      return;
+    }
+    try {
+      const res = await fetch('/api/stripe-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priceId, userId, userEmail, planKey, roleType }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Checkout failed');
+      window.location.href = data.url;
+    } catch (e) {
+      alert('Could not start checkout: ' + e.message);
+    }
+  }
+
+  return { config, userPlans, getUserPlan, getPlanLimits, setUserPlan, startCheckout, prices, priceIds };
+}
+
+function UpgradeModal({ onClose, title, message, roleType, planKey, auth }) {
+  const planCfg = usePlanConfig();
+  const [loading, setLoading] = useState(false);
+
+  async function handleUpgrade() {
+    setLoading(true);
+    await planCfg.startCheckout(auth.user.id, auth.user.email, roleType, planKey);
+    setLoading(false);
+  }
+
+  const priceCfg = planCfg.prices[`${roleType}_${planKey}`];
+
+  return (
+    <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/50">
+      <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full mx-4 space-y-4">
+        <div className="flex items-start justify-between">
+          <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
+            <Zap size={18} className="text-purple-600" />
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+        </div>
+        <div>
+          <h3 className="font-bold text-gray-900 text-base">{title}</h3>
+          <p className="text-sm text-gray-500 mt-1">{message}</p>
+        </div>
+        {priceCfg && (
+          <div className="bg-purple-50 border border-purple-100 rounded-xl p-3 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-purple-900">{priceCfg.label}</p>
+              <p className="text-xs text-purple-600">Monthly subscription</p>
+            </div>
+            <p className="text-xl font-bold text-purple-900">${priceCfg.amount}<span className="text-sm font-normal text-purple-500">/mo</span></p>
+          </div>
+        )}
+        <div className="flex gap-2">
+          <button onClick={onClose} className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition-colors">Maybe later</button>
+          <button onClick={handleUpgrade} disabled={loading}
+            className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 text-white text-sm font-semibold rounded-xl transition-colors">
+            {loading ? 'Loading…' : 'Upgrade now'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function SystemSettingsProvider({ children }) {
@@ -35347,6 +35441,153 @@ function SettingsPlansTab({ ssCtx, auth }) {
   );
 }
 
+// ── Pricing tab — Stripe prices + setup ──────────────────────
+const DEFAULT_PLAN_PRICES = {
+  client_starter:          { label: 'Client Starter',          amount: 49,  currency: 'usd', roleType: 'client',      planKey: 'starter'      },
+  client_professional:     { label: 'Client Professional',     amount: 149, currency: 'usd', roleType: 'client',      planKey: 'professional' },
+  client_enterprise:       { label: 'Client Enterprise',       amount: 399, currency: 'usd', roleType: 'client',      planKey: 'enterprise'   },
+  consultant_starter:      { label: 'Consultant Starter',      amount: 19,  currency: 'usd', roleType: 'consultant',  planKey: 'starter'      },
+  consultant_professional: { label: 'Consultant Professional', amount: 49,  currency: 'usd', roleType: 'consultant',  planKey: 'professional' },
+  headhunter_professional: { label: 'Headhunter Professional', amount: 79,  currency: 'usd', roleType: 'headhunter',  planKey: 'professional' },
+};
+
+function SettingsPricingTab({ ssCtx, auth }) {
+  const savedPrices  = ssCtx.settings['plan_prices']     ?? DEFAULT_PLAN_PRICES;
+  const savedPriceIds = ssCtx.settings['stripe_price_ids'] ?? {};
+  const [prices, setPrices]   = useState(() => JSON.parse(JSON.stringify(savedPrices)));
+  const [saving, setSaving]   = useState(false);
+  const [setting, setSetting] = useState(false);
+  const [toast, setToast]     = useState(null);
+  const [setupLog, setSetupLog] = useState(null);
+
+  useEffect(() => {
+    setPrices(JSON.parse(JSON.stringify(savedPrices)));
+  }, [ssCtx.settings]);
+
+  async function savePrices() {
+    setSaving(true);
+    await ssCtx.setSetting('plan_prices', prices);
+    setToast('Prices saved'); setTimeout(() => setToast(null), 3000);
+    setSaving(false);
+  }
+
+  async function runStripeSetup() {
+    setSetting(true); setSetupLog(null);
+    try {
+      const res = await fetch('/api/stripe-setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plans: prices }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Setup failed');
+      await ssCtx.setSetting('stripe_price_ids', data.priceIds);
+      setSetupLog({ ok: true, priceIds: data.priceIds });
+      setToast('Stripe products created ✓'); setTimeout(() => setToast(null), 4000);
+    } catch (e) {
+      setSetupLog({ ok: false, message: e.message });
+    }
+    setSetting(false);
+  }
+
+  const stripeReady = Boolean(Object.keys(savedPriceIds).length);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-start justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">Pricing & Stripe</h2>
+          <p className="text-sm text-gray-500 mt-0.5">Set monthly prices per plan. Click "Create Stripe Products" after editing.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {stripeReady && (
+            <span className="flex items-center gap-1.5 text-xs text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-full font-medium">
+              <Check size={12} />Stripe connected
+            </span>
+          )}
+          {toast && (
+            <span className="text-xs text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-full font-medium">{toast}</span>
+          )}
+        </div>
+      </div>
+
+      {/* Price table */}
+      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 border-b border-gray-100">
+            <tr>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Plan</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Monthly price (USD)</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Stripe Price ID</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {Object.entries(prices).map(([key, cfg]) => (
+              <tr key={key} className="hover:bg-gray-50">
+                <td className="px-4 py-3">
+                  <div>
+                    <p className="font-medium text-gray-800">{cfg.label}</p>
+                    <p className="text-xs text-gray-400 capitalize">{cfg.roleType} · {cfg.planKey}</p>
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-gray-400 text-sm">$</span>
+                    <input
+                      type="number" min={0} value={cfg.amount}
+                      onChange={e => setPrices(p => ({ ...p, [key]: { ...p[key], amount: Number(e.target.value) } }))}
+                      className="w-24 border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-xs text-gray-400">/mo</span>
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  {savedPriceIds[key]
+                    ? <span className="text-xs font-mono text-gray-500 bg-gray-50 border border-gray-200 px-2 py-1 rounded-lg">{savedPriceIds[key]}</span>
+                    : <span className="text-xs text-gray-300 italic">not set up</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-3">
+        <button onClick={savePrices} disabled={saving}
+          className="px-5 py-2 border border-gray-300 hover:bg-gray-50 disabled:opacity-50 text-gray-700 text-sm font-semibold rounded-xl transition-colors">
+          {saving ? 'Saving…' : 'Save Prices'}
+        </button>
+        <button onClick={runStripeSetup} disabled={setting}
+          className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white text-sm font-semibold rounded-xl transition-colors flex items-center gap-2">
+          {setting ? 'Creating…' : <><Zap size={14} />Create Stripe Products</>}
+        </button>
+      </div>
+
+      {/* Stripe setup result */}
+      {setupLog && (
+        <div className={`rounded-xl p-4 text-sm border ${setupLog.ok ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+          {setupLog.ok
+            ? <><span className="font-semibold">Products created.</span> Price IDs saved to system settings.</>
+            : <><span className="font-semibold">Error:</span> {setupLog.message}</>}
+        </div>
+      )}
+
+      {/* Env var instructions */}
+      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2">
+        <p className="text-sm font-semibold text-amber-800 flex items-center gap-2"><AlertTriangle size={14} />Required environment variables</p>
+        <p className="text-xs text-amber-700">Set these in your Vercel project settings under Environment Variables:</p>
+        <div className="space-y-1">
+          {['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'SUPABASE_SERVICE_ROLE_KEY'].map(v => (
+            <code key={v} className="block text-xs font-mono bg-amber-100 px-2 py-1 rounded text-amber-900">{v}</code>
+          ))}
+        </div>
+        <p className="text-xs text-amber-700 mt-2">Webhook endpoint to register in Stripe: <code className="font-mono bg-amber-100 px-1 rounded">https://your-domain.vercel.app/api/stripe-webhook</code></p>
+      </div>
+    </div>
+  );
+}
+
 // ── Workflow tab — Lifecycle + Phases + SLA ───────────────────
 function SettingsWorkflowTab({ auth, ssCtx }) {
   const [wTab, setWTab] = useState("lifecycle");
@@ -35690,6 +35931,7 @@ function SystemSettingsView({ auth, onNavigate }) {
   const TABS = [
     { id: "people",     label: "People",         Icon: Users },
     { id: "plans",      label: "Plans",          Icon: CreditCard },
+    { id: "pricing",    label: "Pricing",        Icon: DollarSign },
     { id: "workflow",   label: "Workflow",        Icon: TrendingUp },
     { id: "catalog",    label: "Catalog",         Icon: Tag },
     { id: "generation", label: "AI & Generation", Icon: Zap },
@@ -35718,6 +35960,7 @@ function SystemSettingsView({ auth, onNavigate }) {
 
       {activeTab === "people"     && <SettingsPeopleTab ssCtx={ssCtx} auth={auth} onNavigate={onNavigate} />}
       {activeTab === "plans"      && <SettingsPlansTab ssCtx={ssCtx} auth={auth} />}
+      {activeTab === "pricing"    && <SettingsPricingTab ssCtx={ssCtx} auth={auth} />}
       {activeTab === "workflow"   && <SettingsWorkflowTab auth={auth} ssCtx={ssCtx} />}
       {activeTab === "catalog"    && <SettingsCatalogTab ssCtx={ssCtx} />}
       {activeTab === "generation" && <SettingsGenerationTab ssCtx={ssCtx} />}
