@@ -24389,9 +24389,10 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
   const canAssign = auth && (auth.isAdmin || auth.isManager || auth.isHeadhunter);
   const canAdmin  = auth && (auth.isAdmin || auth.isManager);
   const CLIENT_ROLES = ['client', 'key_user', 'final_user', 'internal_consultant', 'project_manager'];
-  const isConsultantRole = userRole === 'consultant' || userRole === 'headhunter';
+  const isConsultantRole = userRole === 'consultant';
+  const isHeadhunterRole = userRole === 'headhunter';
   const isClientRole     = CLIENT_ROLES.includes(userRole);
-  const hasProfile       = isConsultantRole || isClientRole;
+  const hasProfile       = isConsultantRole || isHeadhunterRole || isClientRole;
 
   const [clientProfile, setClientProfile] = useState(null);
 
@@ -24625,6 +24626,44 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
             <div className="text-center py-10">
               <Building2 size={32} className="text-gray-200 mx-auto mb-2" />
               <p className="text-sm text-gray-400">No company profile found</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {panelView === 'profile' && isHeadhunterRole && (
+        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+          <div className="flex items-center gap-3">
+            <PersonAvatar name={userName} avatarUrl={avatarUrl} size={56} />
+            <div className="min-w-0">
+              <h3 className="font-bold text-gray-900 text-base leading-tight">{userName}</h3>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">Headhunter</span>
+            </div>
+          </div>
+          {profile?.headline && (
+            <p className="text-sm text-gray-600 italic leading-relaxed">"{profile.headline}"</p>
+          )}
+          {profile?.bio && (
+            <div className="bg-gray-50 border border-gray-100 rounded-xl p-4">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">About</p>
+              <p className="text-sm text-gray-600 leading-relaxed">{profile.bio}</p>
+            </div>
+          )}
+          {userEmail && (
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Mail size={13} className="text-gray-400 flex-shrink-0" />{userEmail}
+            </div>
+          )}
+          {profile?.linkedin_url && (
+            <a href={profile.linkedin_url} target="_blank" rel="noreferrer"
+              className="flex items-center gap-2 text-sm text-blue-600 hover:underline">
+              <ExternalLink size={13} />LinkedIn Profile
+            </a>
+          )}
+          {!profile?.headline && !profile?.bio && !profile?.linkedin_url && (
+            <div className="text-center py-8">
+              <Crosshair size={32} className="text-gray-200 mx-auto mb-2" />
+              <p className="text-sm text-gray-400">No profile details on record</p>
             </div>
           )}
         </div>
