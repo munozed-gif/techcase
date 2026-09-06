@@ -24604,13 +24604,22 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
           {clientProfile?.company ? (
             <>
-              {/* Company header */}
+              {/* Person avatar */}
               <div className="flex items-center gap-3">
-                <div className="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center flex-shrink-0">
-                  <Building2 size={22} className="text-green-600" />
+                <PersonAvatar name={userName} avatarUrl={avatarUrl} size={56} />
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-bold text-gray-900 text-base leading-tight">{userName}</h3>
+                  {userEmail && <p className="text-xs text-gray-400 truncate">{userEmail}</p>}
+                </div>
+              </div>
+
+              {/* Company header */}
+              <div className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-xl p-3">
+                <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
+                  <Building2 size={18} className="text-green-600" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="font-bold text-gray-900 text-base leading-tight">{clientProfile.company.company_name || clientProfile.company.name}</h3>
+                  <h4 className="font-semibold text-gray-800 text-sm leading-tight">{clientProfile.company.company_name || clientProfile.company.name}</h4>
                   {clientProfile.company.industry && (
                     <p className="text-xs text-gray-500 mt-0.5 capitalize">{clientProfile.company.industry}</p>
                   )}
@@ -24642,11 +24651,6 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
 
               {/* Contact info */}
               <div className="space-y-2">
-                {userEmail && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Mail size={13} className="text-gray-400 flex-shrink-0" />{userEmail}
-                  </div>
-                )}
                 {clientProfile.type === 'team' && clientProfile.member?.phone && (
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Phone size={13} className="text-gray-400 flex-shrink-0" />{clientProfile.member.phone}
