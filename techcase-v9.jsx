@@ -34450,9 +34450,10 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
   const [personaTab, setPersonaTab]       = useState("consultants");
   const [selectedRole, setSelectedRole]   = useState("consultant");
   const [detailUser, setDetailUser]       = useState(null);
-  const [panelConsultantId, setPanelConsultantId] = useState(null);
-  const [panelUserRole, setPanelUserRole]         = useState('');
-  const [panelTeamMember, setPanelTeamMember]     = useState(null);
+  const [panelConsultantId, setPanelConsultantId]       = useState(null);
+  const [panelUserRole, setPanelUserRole]               = useState('');
+  const [panelTeamMember, setPanelTeamMember]           = useState(null);
+  const [panelTeamMemberCompany, setPanelTeamMemberCompany] = useState(null);
   const [users, setUsers]               = useState([]);
   const [teamMembers, setTeamMembers]   = useState([]);
   const [loading, setLoading]           = useState(true);
@@ -34578,6 +34579,16 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
     setPanelConsultantId(u.id);
     setPanelUserRole(u.role ?? '');
   }
+
+  useEffect(() => {
+    if (!panelTeamMember?.client_id) { setPanelTeamMemberCompany(null); return; }
+    setPanelTeamMemberCompany(null);
+    supabase.from('client_profiles')
+      .select('id, company_name, industry, website, description')
+      .eq('id', panelTeamMember.client_id)
+      .maybeSingle()
+      .then(({ data }) => setPanelTeamMemberCompany(data ?? null));
+  }, [panelTeamMember]);
 
   const currentPersona = PERSONA_TABS.find(p => p.id === personaTab);
   const groupRoles     = currentPersona?.roles ?? [];
@@ -35015,6 +35026,27 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
                   </div>
                 )}
               </div>
+              {/* Company */}
+              {panelTeamMemberCompany && (
+                <div className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-xl p-3">
+                  <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
+                    <Building2 size={18} className="text-green-600" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-gray-800 truncate">{panelTeamMemberCompany.company_name}</p>
+                    {panelTeamMemberCompany.industry && (
+                      <p className="text-xs text-gray-500 capitalize">{panelTeamMemberCompany.industry}</p>
+                    )}
+                    {panelTeamMemberCompany.website && (
+                      <a href={panelTeamMemberCompany.website} target="_blank" rel="noreferrer"
+                        className="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-0.5">
+                        <ExternalLink size={11} />{panelTeamMemberCompany.website}
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Note: no auth account */}
               <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex items-start gap-2">
                 <AlertTriangle size={14} className="text-amber-500 flex-shrink-0 mt-0.5" />
