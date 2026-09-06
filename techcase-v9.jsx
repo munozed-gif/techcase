@@ -34452,6 +34452,7 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
   const [detailUser, setDetailUser]       = useState(null);
   const [panelConsultantId, setPanelConsultantId] = useState(null);
   const [panelUserRole, setPanelUserRole]         = useState('');
+  const [panelTeamMember, setPanelTeamMember]     = useState(null);
   const [users, setUsers]               = useState([]);
   const [teamMembers, setTeamMembers]   = useState([]);
   const [loading, setLoading]           = useState(true);
@@ -34570,7 +34571,10 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
   }
 
   function drillDown(u) {
-    if (u._isTeamMemberOnly) return; // no auth user id — nothing to open
+    if (u._isTeamMemberOnly) {
+      setPanelTeamMember(u);
+      return;
+    }
     setPanelConsultantId(u.id);
     setPanelUserRole(u.role ?? '');
   }
@@ -34948,7 +34952,7 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
         </div>
       )}
 
-      {/* Consultant / headhunter profile drawer */}
+      {/* Consultant / headhunter / client profile drawer */}
       {panelConsultantId && (
         <div className="fixed inset-0 z-50 flex">
           <div className="flex-1 bg-black/40" onClick={() => setPanelConsultantId(null)} />
@@ -34958,6 +34962,66 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
             onClose={() => setPanelConsultantId(null)}
             auth={auth}
           />
+        </div>
+      )}
+
+      {/* Team-member-only contact drawer (no auth account) */}
+      {panelTeamMember && (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="flex-1 bg-black/40" onClick={() => setPanelTeamMember(null)} />
+          <div className="w-full max-w-md bg-white h-full flex flex-col shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+              <h2 className="font-bold text-gray-900 text-base">Contact</h2>
+              <button onClick={() => setPanelTeamMember(null)} className="text-gray-400 hover:text-gray-700 transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-5">
+              {/* Avatar + name */}
+              <div className="flex items-center gap-3">
+                <PersonAvatar name={panelTeamMember.full_name || panelTeamMember.email} size={56} />
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-bold text-gray-900 text-base leading-tight">{panelTeamMember.full_name || '—'}</h3>
+                  <p className="text-xs text-gray-400 truncate">{panelTeamMember.email}</p>
+                </div>
+              </div>
+              {/* Role badges */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {panelTeamMember.role && (
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                    ROLE_COLORS[panelTeamMember.role]
+                      ? `${ROLE_COLORS[panelTeamMember.role].bg} ${ROLE_COLORS[panelTeamMember.role].text}`
+                      : 'bg-gray-100 text-gray-600'
+                  }`}>{panelTeamMember.role.replace(/_/g, ' ')}</span>
+                )}
+                {panelTeamMember.role_title && (
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-orange-100 text-orange-700 font-medium">{panelTeamMember.role_title}</span>
+                )}
+                {panelTeamMember.is_primary && (
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 font-medium">Primary contact</span>
+                )}
+              </div>
+              {/* Contact details */}
+              <div className="space-y-2">
+                {panelTeamMember.email && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Mail size={13} className="text-gray-400 flex-shrink-0" />{panelTeamMember.email}
+                  </div>
+                )}
+                {panelTeamMember.phone && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Phone size={13} className="text-gray-400 flex-shrink-0" />{panelTeamMember.phone}
+                  </div>
+                )}
+              </div>
+              {/* Note: no auth account */}
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex items-start gap-2">
+                <AlertTriangle size={14} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-700">This contact does not have a platform account yet.</p>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
