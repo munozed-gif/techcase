@@ -24352,14 +24352,14 @@ function useConsultantShortlist() {
 // ============================================================
 // CONSULTANT PROFILE PANEL (drawer used inside Arena)
 // ============================================================
-function ConsultantProfilePanel({ consultantId, onClose, onAddToCompare, inCompare, auth, isShortlisted, onToggleShortlist, openCases }) {
+function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCompare, inCompare, auth, isShortlisted, onToggleShortlist, openCases }) {
   const { t } = useT();
   const { profile, availability, loading } = useConsultantProfile(consultantId);
   const { ratings, avgRating } = useRatings(consultantId);
   const [userName, setUserName]         = useState('');
   const [avatarUrl, setAvatarUrl]       = useState(null);
   const [userEmail, setUserEmail]       = useState('');
-  const [userRole, setUserRole]         = useState('');
+  const [userRole, setUserRole]         = useState(initialRole ?? '');
   const [userStatus, setUserStatus]     = useState('');
   const [panelView, setPanelView]       = useState('card'); // 'card' | 'profile'
   const [resetSent, setResetSent]       = useState(false);
@@ -34250,6 +34250,7 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
   const [selectedRole, setSelectedRole]   = useState("consultant");
   const [detailUser, setDetailUser]       = useState(null);
   const [panelConsultantId, setPanelConsultantId] = useState(null);
+  const [panelUserRole, setPanelUserRole]         = useState('');
   const [users, setUsers]               = useState([]);
   const [loading, setLoading]           = useState(true);
   const [pendingUsers, setPendingUsers] = useState([]);
@@ -34345,6 +34346,7 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
 
   function drillDown(u) {
     setPanelConsultantId(u.id);
+    setPanelUserRole(u.role ?? '');
   }
 
   const currentPersona = PERSONA_TABS.find(p => p.id === personaTab);
@@ -34721,6 +34723,7 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
           <div className="flex-1 bg-black/40" onClick={() => setPanelConsultantId(null)} />
           <ConsultantProfilePanel
             consultantId={panelConsultantId}
+            initialRole={panelUserRole}
             onClose={() => setPanelConsultantId(null)}
             auth={auth}
           />
