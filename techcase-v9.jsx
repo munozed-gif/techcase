@@ -41,6 +41,7 @@ import {
   Bookmark, BookmarkCheck, Send, Crosshair,
   FileEdit, AlertCircle,
   Calendar, CalendarDays, CalendarRange, FolderKanban,
+  CreditCard,
 } from "lucide-react";
 
 // ============================================================
@@ -6625,6 +6626,38 @@ const ROLE_COLORS = {
   final_user:          { bg: "bg-teal-100",   text: "text-teal-800",   dot: "bg-teal-500" },
   internal_consultant: { bg: "bg-indigo-100", text: "text-indigo-800", dot: "bg-indigo-500" },
   project_manager:     { bg: "bg-rose-100",   text: "text-rose-800",   dot: "bg-rose-500" },
+};
+
+const DEFAULT_PLAN_CONFIG = {
+  client: {
+    free:         { label: 'Free',         maxCases: 1,  maxTeam: 2,  ai: false, analytics: false },
+    starter:      { label: 'Starter',      maxCases: 5,  maxTeam: 10, ai: false, analytics: false },
+    professional: { label: 'Professional', maxCases: 20, maxTeam: 50, ai: true,  analytics: true  },
+    enterprise:   { label: 'Enterprise',   maxCases: -1, maxTeam: -1, ai: true,  analytics: true  },
+  },
+  consultant: {
+    free:         { label: 'Free',         maxApps: 3,  ai: false, priority: false },
+    starter:      { label: 'Starter',      maxApps: 10, ai: false, priority: false },
+    professional: { label: 'Professional', maxApps: -1, ai: true,  priority: true  },
+  },
+  headhunter: {
+    free:         { label: 'Free',         maxCandidates: 5,  ai: false },
+    professional: { label: 'Professional', maxCandidates: -1, ai: true  },
+  },
+};
+
+const PLAN_BADGE = {
+  free:         'bg-gray-100 text-gray-500 border border-gray-200',
+  starter:      'bg-blue-100 text-blue-700 border border-blue-200',
+  professional: 'bg-purple-100 text-purple-700 border border-purple-200',
+  enterprise:   'bg-amber-100 text-amber-700 border border-amber-200',
+};
+
+const ROLE_TO_PLAN_TYPE = {
+  client: 'client', key_user: 'client', final_user: 'client',
+  internal_consultant: 'client', project_manager: 'client',
+  consultant: 'consultant',
+  headhunter: 'headhunter',
 };
 
 const SAP_AREAS = [
@@ -32027,6 +32060,29 @@ function ManagerAdminWelcomeView({ auth, onComplete }) {
 // SYSTEM SETTINGS (context-based — single Supabase query app-wide)
 // ============================================================
 const SystemSettingsContext = createContext(null);
+
+function usePlanConfig() {
+  const ssCtx = useSystemSettings();
+  const config  = ssCtx.settings['plan_config']  ?? DEFAULT_PLAN_CONFIG;
+  const userPlans = ssCtx.settings['user_plans'] ?? {};
+
+  function getUserPlan(userId) {
+    return userPlans[userId]?.plan ?? 'free';
+  }
+
+  function getPlanLimits(userId, roleType) {
+    const plan = getUserPlan(userId);
+    const rt = roleType ?? 'client';
+    return (config[rt] ?? {})[plan] ?? (DEFAULT_PLAN_CONFIG[rt] ?? {}).free ?? {};
+  }
+
+  async function setUserPlan(userId, plan, roleType) {
+    const updated = { ...userPlans, [userId]: { plan, roleType, updatedAt: new Date().toISOString() } };
+    await ssCtx.setSetting('user_plans', updated);
+  }
+
+  return { config, userPlans, getUserPlan, getPlanLimits, setUserPlan };
+}
 
 function SystemSettingsProvider({ children }) {
   const [settings, setSettings] = useState({});
