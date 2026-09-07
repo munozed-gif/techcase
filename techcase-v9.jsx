@@ -88,6 +88,7 @@ const GENERATION_CONTEXT_DEFAULTS = {
   include_project_ctx:   false,
   include_related_cases: false,
   related_cases_count:   3,
+  sap_live_check:        false,
 };
 
 // ============================================================
@@ -674,6 +675,64 @@ const TRANSLATIONS = {
     "client_tab.phases":      "Phases",
     "client_tab.defaults":    "Defaults",
     "client_tab.assignment":  "Assignment",
+    "client_tab.sap":         "SAP Integration",
+    // SAP Integration settings
+    "sap.integration_title":        "SAP System Integration",
+    "sap.integration_subtitle":     "Configure live SAP system access for spec generation and automated implementation.",
+    "sap.conn_host":                "Host URL",
+    "sap.conn_ph_host":             "https://my-system.example.com",
+    "sap.conn_client":              "Client (MANDT)",
+    "sap.conn_ph_client":           "100",
+    "sap.conn_username":            "Username",
+    "sap.conn_password":            "Password",
+    "sap.conn_type":                "System Type",
+    "sap.conn_proxy":               "Proxy URL (optional)",
+    "sap.conn_ph_proxy":            "Leave blank if SAP CORS is configured",
+    "sap.test_connection":          "Test Connection",
+    "sap.testing":                  "Testing…",
+    "sap.test_ok":                  "Connected",
+    "sap.test_fail":                "Connection failed",
+    "sap.save_config":              "Save SAP Config",
+    "sap.live_check_label":         "Live system check during generation",
+    "sap.live_check_desc":          "Connect to SAP before generating specs to read real system version, components, and existing object source.",
+    "sap.auto_impl_label":          "Enable auto-implementation",
+    "sap.auto_impl_desc":           "Allow applying generated code directly to the SAP dev system from the Implementation tab.",
+    "sap.transport_req":            "Transport Request",
+    "sap.ph_transport_req":         "DEVK900001",
+    "sap.impl_tab_title":           "SAP Implementation",
+    "sap.impl_tab_subtitle":        "Apply generated code to SAP and track activity progress.",
+    "sap.impl_no_config":           "No SAP connection configured for this client.",
+    "sap.impl_configure":           "Configure in Company Profile → SAP Integration",
+    "sap.impl_activity":            "Activity",
+    "sap.impl_object_type":         "Object Type",
+    "sap.impl_object_name":         "Object Name",
+    "sap.impl_check_sap":           "Check in SAP",
+    "sap.impl_checking":            "Checking…",
+    "sap.impl_not_found":           "Not found in SAP",
+    "sap.impl_found":               "Found in SAP",
+    "sap.impl_gen_code":            "Generate Code",
+    "sap.impl_generating":          "Generating…",
+    "sap.impl_apply":               "Apply to SAP",
+    "sap.impl_applying":            "Applying…",
+    "sap.impl_applied":             "Applied",
+    "sap.impl_apply_all":           "Apply All to SAP",
+    "sap.impl_progress_title":      "Implementation Progress",
+    "sap.impl_done_count":          "{n} of {total} activities applied",
+    "sap.impl_activity_done":       "Activity marked complete",
+    "sap.live_system":              "Live System Info",
+    "sap.live_version":             "Version",
+    "sap.live_components":          "Components",
+    "sap.live_existing_source":     "Existing Source in SAP",
+    "sap.obj_type_program":         "ABAP Program",
+    "sap.obj_type_class":           "ABAP Class",
+    "sap.obj_type_fm":              "Function Module",
+    "sap.obj_type_table":           "Database Table",
+    "sap.obj_type_enhancement":     "Enhancement",
+    "sap.obj_type_badi":            "BAdI",
+    "sap.obj_type_config":          "Config / Customizing",
+    "sap.obj_type_other":           "Other",
+    "gen.ctx_sap_live_check":       "Live SAP System Check",
+    "gen.ctx_sap_live_check_desc":  "Query the live SAP system for real version info and existing object source before generating.",
     // SLA
     "sla.title":              "SLA Configuration",
     "sla.subtitle":           "Service level targets by priority and case type",
@@ -3700,6 +3759,64 @@ const TRANSLATIONS = {
     "client_tab.phases":      "Fases",
     "client_tab.defaults":    "Valores por Defecto",
     "client_tab.assignment":  "Asignación",
+    "client_tab.sap":         "Integración SAP",
+    // SAP Integration settings (ES)
+    "sap.integration_title":        "Integración con Sistema SAP",
+    "sap.integration_subtitle":     "Configura el acceso en vivo al sistema SAP para generación de specs e implementación automatizada.",
+    "sap.conn_host":                "URL del Host",
+    "sap.conn_ph_host":             "https://mi-sistema.ejemplo.com",
+    "sap.conn_client":              "Mandante (MANDT)",
+    "sap.conn_ph_client":           "100",
+    "sap.conn_username":            "Usuario",
+    "sap.conn_password":            "Contraseña",
+    "sap.conn_type":                "Tipo de Sistema",
+    "sap.conn_proxy":               "URL de Proxy (opcional)",
+    "sap.conn_ph_proxy":            "Dejar en blanco si SAP CORS está configurado",
+    "sap.test_connection":          "Probar Conexión",
+    "sap.testing":                  "Probando…",
+    "sap.test_ok":                  "Conectado",
+    "sap.test_fail":                "Falló la conexión",
+    "sap.save_config":              "Guardar Config. SAP",
+    "sap.live_check_label":         "Verificación en vivo durante generación",
+    "sap.live_check_desc":          "Conectar a SAP antes de generar specs para leer la versión real, componentes y código fuente existente.",
+    "sap.auto_impl_label":          "Habilitar auto-implementación",
+    "sap.auto_impl_desc":           "Permitir aplicar código generado directamente al sistema de desarrollo SAP desde la pestaña Implementación.",
+    "sap.transport_req":            "Orden de Transporte",
+    "sap.ph_transport_req":         "DEVK900001",
+    "sap.impl_tab_title":           "Implementación SAP",
+    "sap.impl_tab_subtitle":        "Aplica el código generado a SAP y rastrea el progreso de actividades.",
+    "sap.impl_no_config":           "Sin conexión SAP configurada para este cliente.",
+    "sap.impl_configure":           "Configurar en Perfil de Empresa → Integración SAP",
+    "sap.impl_activity":            "Actividad",
+    "sap.impl_object_type":         "Tipo de Objeto",
+    "sap.impl_object_name":         "Nombre de Objeto",
+    "sap.impl_check_sap":           "Verificar en SAP",
+    "sap.impl_checking":            "Verificando…",
+    "sap.impl_not_found":           "No encontrado en SAP",
+    "sap.impl_found":               "Encontrado en SAP",
+    "sap.impl_gen_code":            "Generar Código",
+    "sap.impl_generating":          "Generando…",
+    "sap.impl_apply":               "Aplicar a SAP",
+    "sap.impl_applying":            "Aplicando…",
+    "sap.impl_applied":             "Aplicado",
+    "sap.impl_apply_all":           "Aplicar Todo a SAP",
+    "sap.impl_progress_title":      "Progreso de Implementación",
+    "sap.impl_done_count":          "{n} de {total} actividades aplicadas",
+    "sap.impl_activity_done":       "Actividad marcada completa",
+    "sap.live_system":              "Info del Sistema en Vivo",
+    "sap.live_version":             "Versión",
+    "sap.live_components":          "Componentes",
+    "sap.live_existing_source":     "Código Fuente Existente en SAP",
+    "sap.obj_type_program":         "Programa ABAP",
+    "sap.obj_type_class":           "Clase ABAP",
+    "sap.obj_type_fm":              "Módulo de Función",
+    "sap.obj_type_table":           "Tabla de Base de Datos",
+    "sap.obj_type_enhancement":     "Enhancement",
+    "sap.obj_type_badi":            "BAdI",
+    "sap.obj_type_config":          "Config. / Customizing",
+    "sap.obj_type_other":           "Otro",
+    "gen.ctx_sap_live_check":       "Verificación en Vivo SAP",
+    "gen.ctx_sap_live_check_desc":  "Consultar el sistema SAP en vivo para info de versión y código fuente existente antes de generar.",
     // SLA
     "sla.title":              "Configuración SLA",
     "sla.subtitle":           "Objetivos de nivel de servicio por prioridad y tipo de caso",
@@ -16889,6 +17006,16 @@ function buildContextString(caseData, genCtx = {}, extra = {}) {
     });
   }
 
+  if (extra.sapLiveData) {
+    const ld = extra.sapLiveData;
+    if (ld.systemInfo) lines.push(`SAP Live System: ${ld.systemInfo}`);
+    if (ld.components?.length) lines.push(`SAP Live Active Components: ${ld.components.join(', ')}`);
+    if (ld.existingSource) {
+      lines.push(`Existing ABAP Object Source (${ld.existingObjectName ?? 'current'}):\n\`\`\`abap\n${ld.existingSource.slice(0, 2000)}\n\`\`\``);
+    }
+    if (ld.existingObjectMissing) lines.push(`Note: Object "${ld.existingObjectName}" was NOT found in SAP — this is a new creation.`);
+  }
+
   return lines.length ? `\n${lines.join('\n')}` : '';
 }
 
@@ -18135,6 +18262,34 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
     }
 
     await Promise.all(fetches);
+
+    // Live SAP system check
+    if (genCtx.sap_live_check && caseData.client_id) {
+      try {
+        const { data: sapCfgRow } = await supabase.from('system_settings')
+          .select('value').eq('key', 'sap_integration').maybeSingle();
+        const sapCfgAll = sapCfgRow?.value ?? {};
+        const sapCfg = sapCfgAll[caseData.client_id];
+        if (sapCfg?.host && sapCfg?.username) {
+          const liveData = await sapLiveCheck(sapCfg);
+          if (liveData) extra.sapLiveData = liveData;
+          // For modification/update cases, try to find existing object in spec/description
+          const isModification = /modif|updat|enhanc|extend|fix|correct|adjust/i.test(caseData.title + ' ' + (caseData.description ?? ''));
+          if (isModification) {
+            const objMatch = (caseData.description ?? '').match(/\b(Z[A-Z0-9_]{1,30}|Y[A-Z0-9_]{1,30})/);
+            if (objMatch) {
+              const src = await sapFetchSource(sapCfg, 'program', objMatch[0]).catch(() => null);
+              if (src) {
+                extra.sapLiveData = { ...extra.sapLiveData, existingSource: src, existingObjectName: objMatch[0] };
+              } else {
+                extra.sapLiveData = { ...extra.sapLiveData, existingObjectMissing: true, existingObjectName: objMatch[0] };
+              }
+            }
+          }
+        }
+      } catch (_) { /* SAP unreachable — continue without live data */ }
+    }
+
     return buildContextString(caseData, genCtx, extra);
   }
 
@@ -21530,6 +21685,19 @@ canvas{display:block;width:100%}
     }
 
     await Promise.all(fetches);
+
+    if (genCtx.sap_live_check && caseData.client_id) {
+      try {
+        const { data: sapCfgRow } = await supabase.from('system_settings')
+          .select('value').eq('key', 'sap_integration').maybeSingle();
+        const sapCfg = (sapCfgRow?.value ?? {})[caseData.client_id];
+        if (sapCfg?.host && sapCfg?.username) {
+          const liveData = await sapLiveCheck(sapCfg);
+          if (liveData) extra.sapLiveData = liveData;
+        }
+      } catch (_) {}
+    }
+
     return buildContextString(caseData, genCtx, extra);
   }
 
@@ -22171,7 +22339,10 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
     { id: "time",       label: t("case.tab_time"),       icon: Clock,         count: `${totalTimeHours.toFixed(1)}h` },
     ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "applications", label: t("case.tab_applicants"), icon: Users, count: applications.length }] : []),
     ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "lifecycle", label: t("case.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
-    { id: "spec",  label: t("case.tab_spec"),  icon: FileText, count: null },
+    { id: "spec",           label: t("case.tab_spec"),         icon: FileText, count: null },
+    ...((auth.isAdmin || auth.isManager || auth.isConsultant) && caseData.status === 'in_progress'
+      ? [{ id: "implementation", label: t("sap.impl_tab_title"), icon: Code2, count: null }]
+      : []),
   ];
   const tabs = stageRules.visible_tabs
     ? allTabs.filter(t => stageRules.visible_tabs.includes(t.id))
@@ -24695,6 +24866,10 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         <SpecificationTab caseData={caseData} auth={auth} documents={documents} addDocument={addDocument} deleteDocument={deleteDocument} refetchDocuments={refetchDocuments} onUpdate={onUpdate} />
       )}
 
+      {activeTab === "implementation" && (auth.isAdmin || auth.isManager || auth.isConsultant) && (
+        <SapImplementationTab caseData={caseData} auth={auth} activities={activities} updateActivity={updateActivity} />
+      )}
+
       {activeTab === "lifecycle" && (auth.isAdmin || auth.isManager || auth.isClient) && (() => {
         if (lcMode === null) return <div className="flex justify-center py-10"><Spinner /></div>;
         const caseOverrideAllowed = clientLifecycle?.allow_case_override ?? true;
@@ -25245,6 +25420,17 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
                         );
                       })}
                     </div>
+                  </div>
+                );
+              })()}
+
+              {/* Admin: SAP Integration quick config */}
+              {canAdmin && (() => {
+                const companyId = clientProfile.type === 'client' ? consultantId : clientProfile.member?.client_id;
+                if (!companyId) return null;
+                return (
+                  <div className="border-t border-gray-100 pt-4">
+                    <SapIntegrationPanel clientId={companyId} auth={auth} />
                   </div>
                 );
               })()}
@@ -29799,6 +29985,581 @@ function useClientProfile(userId) {
   return { profile, loading, updateProfile, refetch: fetchProfile };
 }
 
+// ============================================================
+// SAP API UTILITIES
+// ============================================================
+
+async function sapApiRequest(config, path, opts = {}) {
+  const base = (config.proxyUrl?.trim() || config.host.trim()).replace(/\/$/, '');
+  const auth = btoa(`${config.username}:${config.password}`);
+  const headers = {
+    Authorization: `Basic ${auth}`,
+    Accept: 'application/xml, text/xml, text/plain',
+    'sap-client': String(config.client || '100'),
+    ...(opts.headers ?? {}),
+  };
+  const url = `${base}${path}`;
+  const res = await fetch(url, { ...opts, headers, credentials: 'omit' });
+  return res;
+}
+
+async function sapGetCsrfToken(config) {
+  const res = await sapApiRequest(config, '/sap/bc/adt/discovery', {
+    method: 'GET',
+    headers: { 'X-CSRF-Token': 'Fetch', Accept: 'application/atomsvc+xml' },
+  });
+  return res.headers.get('X-CSRF-Token') ?? '';
+}
+
+async function sapLiveCheck(config) {
+  try {
+    const res = await sapApiRequest(config, '/sap/bc/adt/discovery', {
+      headers: { Accept: 'application/atomsvc+xml' },
+    });
+    if (!res.ok) return null;
+    const xml = await res.text();
+    const title = xml.match(/<title[^>]*>([^<]+)/)?.[1]?.trim() ?? '';
+    const ver   = xml.match(/release="([^"]+)"/)?.[1] ?? xml.match(/version="([^"]+)"/)?.[1] ?? '';
+    const spVer = xml.match(/sp="([^"]+)"/)?.[1] ?? '';
+    const systemInfo = [title, ver && `Release ${ver}`, spVer && `SP ${spVer}`].filter(Boolean).join(' | ') || 'Connected';
+    return { systemInfo, components: [], raw: xml.slice(0, 300) };
+  } catch { return null; }
+}
+
+function sapObjectPath(objectType, objectName) {
+  const n = (objectName ?? '').toUpperCase();
+  switch (objectType) {
+    case 'program':     return `/sap/bc/adt/programs/programs/${n}/source/main`;
+    case 'class':       return `/sap/bc/adt/oo/classes/${n}/source/main`;
+    case 'function_module': {
+      const [fg, fm] = n.includes('/') ? n.split('/') : [n, n];
+      return `/sap/bc/adt/functions/groups/${fg}/fmodules/${fm}/source/main`;
+    }
+    case 'table':       return `/sap/bc/adt/ddic/dbtables/${n}/source/main`;
+    case 'enhancement': return `/sap/bc/adt/enhancements/${n}/source/main`;
+    default:            return `/sap/bc/adt/programs/programs/${n}/source/main`;
+  }
+}
+
+async function sapFetchSource(config, objectType, objectName) {
+  const path = sapObjectPath(objectType, objectName);
+  const res = await sapApiRequest(config, path, {
+    headers: { Accept: 'text/plain, application/vnd.sap.adt.abapsource+text, */*' },
+  });
+  if (!res.ok) return null;
+  return res.text();
+}
+
+async function sapWriteSource(config, objectType, objectName, source, transportRequest) {
+  const path = sapObjectPath(objectType, objectName);
+  const csrfToken = await sapGetCsrfToken(config);
+  const res = await sapApiRequest(config, path, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'X-CSRF-Token': csrfToken,
+      Accept: 'application/xml',
+      ...(transportRequest ? { corrNbr: transportRequest } : {}),
+    },
+    body: source,
+  });
+  return res.ok;
+}
+
+// ============================================================
+// SAP INTEGRATION PANEL (ClientProfileView tab)
+// ============================================================
+function SapIntegrationPanel({ clientId, auth }) {
+  const { t } = useT();
+  const ssCtx = useSystemSettings();
+  const allConfigs = ssCtx.settings['sap_integration'] ?? {};
+  const saved = allConfigs[clientId] ?? {};
+
+  const [form, setForm] = useState({
+    host: saved.host ?? '',
+    client: saved.client ?? '100',
+    username: saved.username ?? '',
+    password: saved.password ?? '',
+    proxyUrl: saved.proxyUrl ?? '',
+    type: saved.type ?? 's4hana',
+    liveCheckOnGenerate: saved.liveCheckOnGenerate ?? false,
+    autoImplementEnabled: saved.autoImplementEnabled ?? false,
+  });
+  const [testing, setTesting]   = useState(false);
+  const [testResult, setTestResult] = useState(null); // null | 'ok' | 'fail'
+  const [saving, setSaving]     = useState(false);
+  const [saved2, setSaved2]     = useState(false);
+
+  function set(k, v) { setForm(p => ({ ...p, [k]: v })); setTestResult(null); }
+
+  async function handleTest() {
+    setTesting(true); setTestResult(null);
+    try {
+      const result = await sapLiveCheck(form);
+      setTestResult(result ? 'ok' : 'fail');
+    } catch { setTestResult('fail'); }
+    setTesting(false);
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    await ssCtx.setSetting('sap_integration', { ...allConfigs, [clientId]: form });
+    setSaving(false); setSaved2(true);
+    setTimeout(() => setSaved2(false), 3000);
+  }
+
+  const canEdit = auth.isAdmin || auth.isManager || auth.isClient;
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
+      <div>
+        <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
+          <Code2 size={16} className="text-blue-600" />{t('sap.integration_title')}
+        </h3>
+        <p className="text-xs text-gray-400 mt-0.5">{t('sap.integration_subtitle')}</p>
+      </div>
+
+      {/* Connection fields */}
+      <div className="space-y-3">
+        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Connection</div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_host')}</label>
+            <input value={form.host} onChange={e => set('host', e.target.value)} disabled={!canEdit}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50"
+              placeholder={t('sap.conn_ph_host')} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_client')}</label>
+            <input value={form.client} onChange={e => set('client', e.target.value)} disabled={!canEdit}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50"
+              placeholder={t('sap.conn_ph_client')} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_username')}</label>
+            <input value={form.username} onChange={e => set('username', e.target.value)} disabled={!canEdit}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50"
+              autoComplete="off" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_password')}</label>
+            <input type="password" value={form.password} onChange={e => set('password', e.target.value)} disabled={!canEdit}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50"
+              autoComplete="new-password" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_type')}</label>
+            <select value={form.type} onChange={e => set('type', e.target.value)} disabled={!canEdit}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white">
+              <option value="s4hana">SAP S/4HANA</option>
+              <option value="ecc">SAP ECC / NetWeaver</option>
+              <option value="btp">SAP BTP</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_proxy')}</label>
+            <input value={form.proxyUrl} onChange={e => set('proxyUrl', e.target.value)} disabled={!canEdit}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50"
+              placeholder={t('sap.conn_ph_proxy')} />
+          </div>
+        </div>
+
+        {/* Test connection */}
+        {canEdit && (
+          <div className="flex items-center gap-3 pt-1">
+            <button onClick={handleTest} disabled={testing || !form.host || !form.username}
+              className="px-4 py-2 text-sm font-semibold bg-gray-100 hover:bg-gray-200 rounded-xl disabled:opacity-50 transition-colors">
+              {testing ? t('sap.testing') : t('sap.test_connection')}
+            </button>
+            {testResult === 'ok'   && <span className="text-sm text-green-600 font-medium flex items-center gap-1"><CheckCircle2 size={14} />{t('sap.test_ok')}</span>}
+            {testResult === 'fail' && <span className="text-sm text-red-500 font-medium flex items-center gap-1"><XCircle size={14} />{t('sap.test_fail')}</span>}
+          </div>
+        )}
+      </div>
+
+      {/* Feature toggles */}
+      <div className="space-y-3 border-t border-gray-100 pt-5">
+        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Features</div>
+        {[
+          { key: 'liveCheckOnGenerate', labelKey: 'sap.live_check_label', descKey: 'sap.live_check_desc', color: 'bg-blue-600' },
+          { key: 'autoImplementEnabled', labelKey: 'sap.auto_impl_label', descKey: 'sap.auto_impl_desc', color: 'bg-amber-500' },
+        ].map(({ key, labelKey, descKey, color }) => (
+          <div key={key} className="flex items-start gap-4 p-3 rounded-xl border border-gray-100 bg-gray-50">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-800">{t(labelKey)}</p>
+              <p className="text-xs text-gray-400 mt-0.5 leading-snug">{t(descKey)}</p>
+            </div>
+            <button disabled={!canEdit}
+              onClick={() => set(key, !form[key])}
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 disabled:opacity-50 ${form[key] ? color : 'bg-gray-200'}`}
+              role="switch" aria-checked={form[key]}>
+              <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${form[key] ? 'translate-x-5' : 'translate-x-0'}`} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Save */}
+      {canEdit && (
+        <div className="flex items-center gap-3 pt-1">
+          <button onClick={handleSave} disabled={saving}
+            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors">
+            {saving ? '…' : t('sap.save_config')}
+          </button>
+          {saved2 && <span className="text-sm text-green-600 font-medium flex items-center gap-1"><CheckCircle2 size={14} />Saved</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// SAP IMPLEMENTATION TAB
+// ============================================================
+const SAP_OBJECT_TYPES = [
+  { value: 'program',         labelKey: 'sap.obj_type_program' },
+  { value: 'class',           labelKey: 'sap.obj_type_class' },
+  { value: 'function_module', labelKey: 'sap.obj_type_fm' },
+  { value: 'table',           labelKey: 'sap.obj_type_table' },
+  { value: 'enhancement',     labelKey: 'sap.obj_type_enhancement' },
+  { value: 'badi',            labelKey: 'sap.obj_type_badi' },
+  { value: 'config',          labelKey: 'sap.obj_type_config' },
+  { value: 'other',           labelKey: 'sap.obj_type_other' },
+];
+
+function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
+  const { t } = useT();
+  const { settings } = useSystemSettings();
+  const ssCtx = useSystemSettings();
+
+  const allSapConfigs = settings['sap_integration'] ?? {};
+  const sapConfig = allSapConfigs[caseData.client_id] ?? null;
+  const autoImplEnabled = sapConfig?.autoImplementEnabled ?? false;
+
+  // Per-activity SAP object assignments: { [actId]: { objectType, objectName } }
+  const savedObjects = settings['sap_activity_objects'] ?? {};
+  const [objectMap, setObjectMap] = useState(savedObjects);
+  // Per-activity state: { [actId]: { checking, checkResult, generatedCode, applying, applied, expanded } }
+  const [actState, setActState] = useState({});
+
+  const [transportReq, setTransportReq] = useState(settings['sap_impl_transport']?.[caseData.id] ?? '');
+  const [savingTransport, setSavingTransport] = useState(false);
+
+  const genModel = settings["ai_model"] ?? 'claude-haiku-4-5-20251001';
+
+  // Only show development-phase activities
+  const implActivities = activities.filter(a =>
+    !['completed'].includes(a.phase) &&
+    (a.phase === 'development' || a.phase === 'design' || !a.phase || a.progress_pct < 100)
+  );
+
+  function setActField(actId, updates) {
+    setActState(p => ({ ...p, [actId]: { ...(p[actId] ?? {}), ...updates } }));
+  }
+
+  async function saveObjectMap(newMap) {
+    setObjectMap(newMap);
+    await ssCtx.setSetting('sap_activity_objects', newMap);
+  }
+
+  function setObjectField(actId, field, value) {
+    const updated = { ...objectMap, [actId]: { ...(objectMap[actId] ?? {}), [field]: value } };
+    saveObjectMap(updated);
+  }
+
+  async function saveTransport(val) {
+    setSavingTransport(true);
+    const cur = settings['sap_impl_transport'] ?? {};
+    await ssCtx.setSetting('sap_impl_transport', { ...cur, [caseData.id]: val });
+    setSavingTransport(false);
+  }
+
+  async function handleCheckSap(actId) {
+    if (!sapConfig?.host) return;
+    const obj = objectMap[actId];
+    if (!obj?.objectName) return;
+    setActField(actId, { checking: true, checkResult: null });
+    try {
+      const src = await sapFetchSource(sapConfig, obj.objectType ?? 'program', obj.objectName);
+      setActField(actId, { checking: false, checkResult: src ? { found: true, source: src } : { found: false } });
+    } catch (e) {
+      setActField(actId, { checking: false, checkResult: { found: false, error: e.message } });
+    }
+  }
+
+  async function handleGenerateCode(act) {
+    const obj = objectMap[act.id];
+    if (!obj?.objectName) return;
+    setActField(act.id, { generating: true });
+    try {
+      const existingSource = actState[act.id]?.checkResult?.source ?? '';
+      const specContent = ''; // could fetch from documents
+      const prompt = `You are an SAP ABAP developer. Generate ${obj.objectType ?? 'ABAP program'} code for SAP object ${obj.objectName}.
+
+Activity: ${act.title}
+Description: ${act.description ?? ''}
+Case: ${caseData.title}
+SAP Module: ${caseData.area_sap ?? 'general'}
+${existingSource ? `\nExisting source to MODIFY:\n\`\`\`abap\n${existingSource.slice(0, 3000)}\n\`\`\`` : '\nThis is a NEW object — generate complete source.'}
+
+Output ONLY the ABAP source code, no explanations. Include proper program header, selection screen if applicable, main logic, and all FORM/CLASS/METHOD definitions.`;
+      const resp = await callClaude({
+        model: genModel,
+        system: 'You are an expert SAP ABAP developer. Output only clean, compilable ABAP source code.',
+        messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
+        max_tokens: 4000,
+      });
+      const code = resp.content?.[0]?.text ?? '';
+      setActField(act.id, { generating: false, generatedCode: code });
+    } catch (e) {
+      setActField(act.id, { generating: false });
+      alert('Code generation failed: ' + e.message);
+    }
+  }
+
+  async function handleApplyToSap(act) {
+    if (!sapConfig?.host || !autoImplEnabled) return;
+    const obj = objectMap[act.id];
+    const code = actState[act.id]?.generatedCode;
+    if (!obj?.objectName || !code) return;
+    setActField(act.id, { applying: true });
+    try {
+      const ok = await sapWriteSource(sapConfig, obj.objectType ?? 'program', obj.objectName, code, transportReq || undefined);
+      if (ok) {
+        setActField(act.id, { applying: false, applied: true });
+        // Update activity progress to 100%
+        await updateActivity(act.id, { progress_pct: 100 });
+        // Log the implementation
+        const cur = settings['sap_impl_log'] ?? {};
+        const caseLog = cur[caseData.id] ?? [];
+        await ssCtx.setSetting('sap_impl_log', {
+          ...cur,
+          [caseData.id]: [...caseLog, {
+            activityId: act.id,
+            activityTitle: act.title,
+            objectName: obj.objectName,
+            objectType: obj.objectType,
+            appliedAt: new Date().toISOString(),
+            transport: transportReq,
+          }],
+        });
+      } else {
+        setActField(act.id, { applying: false });
+        alert('SAP write failed. Check connection and transport request.');
+      }
+    } catch (e) {
+      setActField(act.id, { applying: false });
+      alert('Apply failed: ' + e.message);
+    }
+  }
+
+  async function handleApplyAll() {
+    for (const act of implActivities) {
+      const obj = objectMap[act.id];
+      const code = actState[act.id]?.generatedCode;
+      if (obj?.objectName && code && !actState[act.id]?.applied) {
+        await handleApplyToSap(act);
+      }
+    }
+  }
+
+  const implLog = (settings['sap_impl_log'] ?? {})[caseData.id] ?? [];
+  const appliedCount = implLog.length;
+  const totalCount   = implActivities.length;
+
+  if (!sapConfig?.host) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center space-y-2">
+        <Code2 size={36} className="text-gray-200 mx-auto" />
+        <p className="text-sm font-semibold text-gray-700">{t('sap.impl_no_config')}</p>
+        <p className="text-xs text-gray-400">{t('sap.impl_configure')}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h3 className="font-bold text-gray-900 flex items-center gap-2">
+              <Code2 size={16} className="text-blue-600" />{t('sap.impl_tab_title')}
+            </h3>
+            <p className="text-xs text-gray-400 mt-0.5">{t('sap.impl_tab_subtitle')}</p>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Transport request */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-500 font-medium">{t('sap.transport_req')}:</label>
+              <input value={transportReq}
+                onChange={e => setTransportReq(e.target.value)}
+                onBlur={() => saveTransport(transportReq)}
+                placeholder={t('sap.ph_transport_req')}
+                className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm w-32 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            </div>
+            {autoImplEnabled && (
+              <button onClick={handleApplyAll}
+                className="px-4 py-2 text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-colors">
+                {t('sap.impl_apply_all')}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="mt-4">
+          <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+            <span>{t('sap.impl_progress_title')}</span>
+            <span>{t('sap.impl_done_count').replace('{n}', appliedCount).replace('{total}', totalCount)}</span>
+          </div>
+          <div className="w-full bg-gray-100 rounded-full h-2">
+            <div className="bg-green-500 h-2 rounded-full transition-all"
+              style={{ width: totalCount ? `${Math.round(appliedCount / totalCount * 100)}%` : '0%' }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Activity cards */}
+      {implActivities.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-sm text-gray-400">
+          No implementation activities found.
+        </div>
+      ) : implActivities.map(act => {
+        const obj  = objectMap[act.id] ?? {};
+        const as   = actState[act.id] ?? {};
+        const isApplied = as.applied || implLog.some(l => l.activityId === act.id);
+
+        return (
+          <div key={act.id} className={`bg-white rounded-2xl border shadow-sm transition-all ${isApplied ? 'border-green-200 bg-green-50/40' : 'border-gray-100'}`}>
+            {/* Card header */}
+            <div className="p-4 flex items-start gap-3 cursor-pointer"
+              onClick={() => setActField(act.id, { expanded: !as.expanded })}>
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${isApplied ? 'bg-green-100' : 'bg-blue-100'}`}>
+                {isApplied ? <CheckCircle2 size={14} className="text-green-600" /> : <Code2 size={14} className="text-blue-600" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm text-gray-900 leading-tight">{act.title}</p>
+                {act.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{act.description}</p>}
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  {act.phase && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 capitalize">{act.phase?.replace(/_/g,' ')}</span>}
+                  {obj.objectName && <span className="text-xs text-blue-600 font-mono">{obj.objectName}</span>}
+                  {isApplied && <span className="text-xs text-green-600 font-semibold flex items-center gap-1"><CheckCircle2 size={10} />{t('sap.impl_applied')}</span>}
+                </div>
+              </div>
+              <ChevronRight size={14} className={`text-gray-400 mt-1 transition-transform flex-shrink-0 ${as.expanded ? 'rotate-90' : ''}`} />
+            </div>
+
+            {as.expanded && (
+              <div className="border-t border-gray-100 p-4 space-y-4">
+                {/* Object configuration */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.impl_object_type')}</label>
+                    <select value={obj.objectType ?? 'program'}
+                      onChange={e => setObjectField(act.id, 'objectType', e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                      {SAP_OBJECT_TYPES.map(ot => (
+                        <option key={ot.value} value={ot.value}>{t(ot.labelKey)}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.impl_object_name')}</label>
+                    <input value={obj.objectName ?? ''}
+                      onChange={e => setObjectField(act.id, 'objectName', e.target.value.toUpperCase())}
+                      placeholder="ZFIN_PAYMENT_REP"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  </div>
+                </div>
+
+                {/* Actions row */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Check in SAP */}
+                  <button
+                    onClick={() => handleCheckSap(act.id)}
+                    disabled={as.checking || !obj.objectName || !sapConfig?.host}
+                    className="px-3 py-1.5 text-xs font-semibold border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors">
+                    {as.checking ? t('sap.impl_checking') : t('sap.impl_check_sap')}
+                  </button>
+                  {/* Check result badge */}
+                  {as.checkResult && (
+                    as.checkResult.found
+                      ? <span className="text-xs text-blue-600 font-medium flex items-center gap-1"><CheckCircle2 size={10} />{t('sap.impl_found')}</span>
+                      : <span className="text-xs text-gray-400 flex items-center gap-1"><XCircle size={10} />{t('sap.impl_not_found')}</span>
+                  )}
+                  {/* Generate code */}
+                  <button
+                    onClick={() => handleGenerateCode(act)}
+                    disabled={as.generating || !obj.objectName}
+                    className="px-3 py-1.5 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-xl hover:bg-blue-100 disabled:opacity-50 transition-colors">
+                    {as.generating ? t('sap.impl_generating') : t('sap.impl_gen_code')}
+                  </button>
+                  {/* Apply to SAP */}
+                  {autoImplEnabled && as.generatedCode && (
+                    <button
+                      onClick={() => handleApplyToSap(act)}
+                      disabled={as.applying || isApplied}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-xl disabled:opacity-50 transition-colors ${isApplied ? 'bg-green-100 text-green-700' : 'bg-amber-500 hover:bg-amber-600 text-white'}`}>
+                      {as.applying ? t('sap.impl_applying') : isApplied ? t('sap.impl_applied') : t('sap.impl_apply')}
+                    </button>
+                  )}
+                </div>
+
+                {/* Existing source (from SAP check) */}
+                {as.checkResult?.found && as.checkResult.source && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1">
+                      <Eye size={10} />{t('sap.live_existing_source')}
+                    </p>
+                    <pre className="bg-gray-900 text-green-300 text-xs rounded-xl p-4 overflow-x-auto max-h-48 leading-relaxed">
+                      {as.checkResult.source.slice(0, 2000)}
+                    </pre>
+                  </div>
+                )}
+
+                {/* Generated code */}
+                {as.generatedCode && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1">
+                      <Code2 size={10} />Generated ABAP
+                    </p>
+                    <textarea
+                      value={as.generatedCode}
+                      onChange={e => setActField(act.id, { generatedCode: e.target.value })}
+                      className="w-full bg-gray-900 text-green-300 text-xs rounded-xl p-4 font-mono leading-relaxed h-64 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-y"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Implementation log */}
+      {implLog.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <h4 className="font-semibold text-gray-800 text-sm mb-3 flex items-center gap-2">
+            <CheckCircle2 size={14} className="text-green-500" />Implementation Log
+          </h4>
+          <div className="space-y-2">
+            {implLog.map((entry, i) => (
+              <div key={i} className="flex items-center gap-3 text-xs text-gray-600 py-1.5 border-b border-gray-50 last:border-0">
+                <span className="font-mono text-blue-600 font-medium">{entry.objectName}</span>
+                <span className="text-gray-400">·</span>
+                <span className="truncate flex-1">{entry.activityTitle}</span>
+                {entry.transport && <span className="text-gray-400 font-mono">{entry.transport}</span>}
+                <span className="text-gray-300">{new Date(entry.appliedAt).toLocaleDateString()}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ClientProfileView({ auth }) {
   const { t } = useT();
   const visCfg = useVisibilitySettings();
@@ -30064,6 +30825,7 @@ function ClientProfileView({ auth }) {
     { id: "phases",       label: t("client_tab.phases"),      icon: Layers,            count: null },
     { id: "defaults",     label: t("client_tab.defaults"),    icon: ClipboardList,     count: null },
     { id: "assignment",   label: t("client_tab.assignment"),  icon: UserCheck,         count: null },
+    { id: "sap",          label: t("client_tab.sap"),         icon: Code2,             count: null },
   ];
 
   return (
@@ -30887,6 +31649,10 @@ function ClientProfileView({ auth }) {
 
       {tab === "assignment" && (
         <AssignmentSettingsPanel profile={profile} updateProfile={updateProfile} />
+      )}
+
+      {tab === "sap" && (
+        <SapIntegrationPanel clientId={auth.user?.id} auth={auth} />
       )}
     </div>
   );
@@ -33822,11 +34588,12 @@ function SettingsGenerationTab({ ssCtx }) {
         <p className="text-xs text-gray-400 mb-4">{t("gen.context_subtitle")}</p>
         <div className="space-y-3">
           {[
-            { key: "include_client_info",   labelKey: "gen.ctx_client_info",   descKey: "gen.ctx_client_info_desc" },
-            { key: "include_sap_profile",   labelKey: "gen.ctx_sap_profile",   descKey: "gen.ctx_sap_profile_desc" },
-            { key: "include_case_metadata", labelKey: "gen.ctx_case_metadata", descKey: "gen.ctx_case_metadata_desc" },
-            { key: "include_project_ctx",   labelKey: "gen.ctx_project_ctx",   descKey: "gen.ctx_project_ctx_desc" },
-            { key: "include_related_cases", labelKey: "gen.ctx_related_cases", descKey: "gen.ctx_related_cases_desc" },
+            { key: "include_client_info",   labelKey: "gen.ctx_client_info",      descKey: "gen.ctx_client_info_desc" },
+            { key: "include_sap_profile",   labelKey: "gen.ctx_sap_profile",      descKey: "gen.ctx_sap_profile_desc" },
+            { key: "include_case_metadata", labelKey: "gen.ctx_case_metadata",    descKey: "gen.ctx_case_metadata_desc" },
+            { key: "include_project_ctx",   labelKey: "gen.ctx_project_ctx",      descKey: "gen.ctx_project_ctx_desc" },
+            { key: "include_related_cases", labelKey: "gen.ctx_related_cases",    descKey: "gen.ctx_related_cases_desc" },
+            { key: "sap_live_check",        labelKey: "gen.ctx_sap_live_check",   descKey: "gen.ctx_sap_live_check_desc" },
           ].map(({ key, labelKey, descKey }) => (
             <label key={key} className="flex items-center justify-between gap-4 cursor-pointer select-none">
               <div className="flex-1 min-w-0">
