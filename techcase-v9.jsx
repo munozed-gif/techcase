@@ -41,7 +41,7 @@ import {
   Bookmark, BookmarkCheck, Send, Crosshair,
   FileEdit, AlertCircle,
   Calendar, CalendarDays, CalendarRange, FolderKanban,
-  CreditCard,
+  CreditCard, Eye, UserPlus,
 } from "lucide-react";
 
 // ============================================================
@@ -30229,8 +30229,8 @@ const SAP_OBJECT_TYPES = [
 
 function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   const { t } = useT();
-  const { settings } = useSystemSettings();
   const ssCtx = useSystemSettings();
+  const { settings } = ssCtx;
 
   const allSapConfigs = settings['sap_integration'] ?? {};
   const sapConfig = allSapConfigs[caseData.client_id] ?? null;
