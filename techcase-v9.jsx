@@ -693,6 +693,14 @@ const TRANSLATIONS = {
     "sap.test_ok":                  "Connected",
     "sap.test_fail":                "Connection failed",
     "sap.save_config":              "Save SAP Config",
+    "sap.add_environment":          "Add Environment",
+    "sap.env_name":                 "Environment Name",
+    "sap.env_type":                 "Environment Type",
+    "sap.no_environments":          "No environments configured. Add one to connect SAP.",
+    "sap.environments":             "Configured Environments",
+    "sap.delete_env":               "Delete",
+    "sap.project_env_label":        "SAP Environment for this Project",
+    "sap.project_env_none":         "None (use first available)",
     "sap.live_check_label":         "Live system check during generation",
     "sap.live_check_desc":          "Connect to SAP before generating specs to read real system version, components, and existing object source.",
     "sap.auto_impl_label":          "Enable auto-implementation",
@@ -1170,6 +1178,7 @@ const TRANSLATIONS = {
     "project.tab_cases":         "Cases",
     "project.tab_connections":   "Connections",
     "project.tab_lifecycle":     "Lifecycle",
+    "project.tab_sap":           "SAP Setup",
     // ProjectDetail labels & headings
     "project.sap_area":          "SAP Area",
     "project.work_mode":         "Work Mode",
@@ -3777,6 +3786,14 @@ const TRANSLATIONS = {
     "sap.test_ok":                  "Conectado",
     "sap.test_fail":                "Falló la conexión",
     "sap.save_config":              "Guardar Config. SAP",
+    "sap.add_environment":          "Agregar Ambiente",
+    "sap.env_name":                 "Nombre del Ambiente",
+    "sap.env_type":                 "Tipo de Ambiente",
+    "sap.no_environments":          "Sin ambientes configurados. Agrega uno para conectar SAP.",
+    "sap.environments":             "Ambientes Configurados",
+    "sap.delete_env":               "Eliminar",
+    "sap.project_env_label":        "Ambiente SAP para este Proyecto",
+    "sap.project_env_none":         "Ninguno (usar el primero disponible)",
     "sap.live_check_label":         "Verificación en vivo durante generación",
     "sap.live_check_desc":          "Conectar a SAP antes de generar specs para leer la versión real, componentes y código fuente existente.",
     "sap.auto_impl_label":          "Habilitar auto-implementación",
@@ -4254,6 +4271,7 @@ const TRANSLATIONS = {
     "project.tab_cases":         "Casos",
     "project.tab_connections":   "Conexiones",
     "project.tab_lifecycle":     "Ciclo de Vida",
+    "project.tab_sap":           "Config. SAP",
     // ProjectDetail labels & headings
     "project.sap_area":          "Área SAP",
     "project.work_mode":         "Modalidad de Trabajo",
@@ -15018,6 +15036,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
     { id: "cases",        label: t("project.tab_cases"),         icon: FolderOpen,        count: projCases.length },
     { id: "connections",  label: t("project.tab_connections"),   icon: Database,          count: null },
     ...(canEdit ? [{ id: "lifecycle", label: t("project.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
+    ...((auth.isAdmin || auth.isManager || auth.isClient) && project.client_id ? [{ id: "sap", label: t("project.tab_sap"), icon: Code2, count: null }] : []),
   ];
 
   if (projSelectedCase) {
@@ -15703,6 +15722,11 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         {/* Connections */}
         {activeTab === "connections" && (
           <ProjectConnectionsTab projectId={project.id} clientId={project.client_id} auth={auth} />
+        )}
+
+        {/* SAP Setup */}
+        {activeTab === "sap" && project.client_id && (
+          <ProjectSapEnvPanel projectId={project.id} clientId={project.client_id} auth={auth} />
         )}
 
         {/* Lifecycle */}
@@ -18266,10 +18290,16 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
     // Live SAP system check
     if (genCtx.sap_live_check && caseData.client_id) {
       try {
-        const { data: sapCfgRow } = await supabase.from('system_settings')
-          .select('value').eq('key', 'sap_integration').maybeSingle();
-        const sapCfgAll = sapCfgRow?.value ?? {};
-        const sapCfg = sapCfgAll[caseData.client_id];
+        const [{ data: sapCfgRow }, { data: sapProjEnvRow }] = await Promise.all([
+          supabase.from('system_settings').select('value').eq('key', 'sap_integration').maybeSingle(),
+          supabase.from('system_settings').select('value').eq('key', 'sap_project_env').maybeSingle(),
+        ]);
+        const clientSapData = (sapCfgRow?.value ?? {})[caseData.client_id] ?? {};
+        const sapEnvs = clientSapData.environments ?? (clientSapData.host ? [clientSapData] : []);
+        const selectedEnvId = (sapProjEnvRow?.value ?? {})[caseData.project_id];
+        const sapCfg = selectedEnvId
+          ? (sapEnvs.find(e => e.id === selectedEnvId) ?? sapEnvs[0] ?? null)
+          : (sapEnvs[0] ?? null);
         if (sapCfg?.host && sapCfg?.username) {
           const liveData = await sapLiveCheck(sapCfg);
           if (liveData) extra.sapLiveData = liveData;
@@ -21688,9 +21718,16 @@ canvas{display:block;width:100%}
 
     if (genCtx.sap_live_check && caseData.client_id) {
       try {
-        const { data: sapCfgRow } = await supabase.from('system_settings')
-          .select('value').eq('key', 'sap_integration').maybeSingle();
-        const sapCfg = (sapCfgRow?.value ?? {})[caseData.client_id];
+        const [{ data: sapCfgRow }, { data: sapProjEnvRow }] = await Promise.all([
+          supabase.from('system_settings').select('value').eq('key', 'sap_integration').maybeSingle(),
+          supabase.from('system_settings').select('value').eq('key', 'sap_project_env').maybeSingle(),
+        ]);
+        const clientSapData = (sapCfgRow?.value ?? {})[caseData.client_id] ?? {};
+        const sapEnvs = clientSapData.environments ?? (clientSapData.host ? [clientSapData] : []);
+        const selectedEnvId = (sapProjEnvRow?.value ?? {})[caseData.project_id];
+        const sapCfg = selectedEnvId
+          ? (sapEnvs.find(e => e.id === selectedEnvId) ?? sapEnvs[0] ?? null)
+          : (sapEnvs[0] ?? null);
         if (sapCfg?.host && sapCfg?.username) {
           const liveData = await sapLiveCheck(sapCfg);
           if (liveData) extra.sapLiveData = liveData;
@@ -30069,146 +30106,336 @@ async function sapWriteSource(config, objectType, objectName, source, transportR
 // ============================================================
 // SAP INTEGRATION PANEL (ClientProfileView tab)
 // ============================================================
+const SAP_ENV_TYPE_META = {
+  dev: { label: 'Development (DEV)', color: 'bg-blue-100 text-blue-700' },
+  qas: { label: 'Quality (QAS)',     color: 'bg-amber-100 text-amber-700' },
+  prd: { label: 'Production (PRD)', color: 'bg-red-100 text-red-700' },
+  snd: { label: 'Sandbox (SND)',    color: 'bg-green-100 text-green-700' },
+};
+
 function SapIntegrationPanel({ clientId, auth }) {
   const { t } = useT();
   const ssCtx = useSystemSettings();
   const allConfigs = ssCtx.settings['sap_integration'] ?? {};
-  const saved = allConfigs[clientId] ?? {};
+  const clientRaw = allConfigs[clientId] ?? {};
 
-  const [form, setForm] = useState({
-    host: saved.host ?? '',
-    client: saved.client ?? '100',
-    username: saved.username ?? '',
-    password: saved.password ?? '',
-    proxyUrl: saved.proxyUrl ?? '',
-    type: saved.type ?? 's4hana',
-    liveCheckOnGenerate: saved.liveCheckOnGenerate ?? false,
-    autoImplementEnabled: saved.autoImplementEnabled ?? false,
-  });
-  const [testing, setTesting]   = useState(false);
-  const [testResult, setTestResult] = useState(null); // null | 'ok' | 'fail'
-  const [saving, setSaving]     = useState(false);
-  const [saved2, setSaved2]     = useState(false);
+  // Backward compat: old format was flat { host, client, ... } — migrate to environments array
+  const initialEnvs = clientRaw.environments ?? (
+    clientRaw.host ? [{ id: 'default', name: 'Default', envType: 'dev', ...clientRaw }] : []
+  );
 
-  function set(k, v) { setForm(p => ({ ...p, [k]: v })); setTestResult(null); }
-
-  async function handleTest() {
-    setTesting(true); setTestResult(null);
-    try {
-      const result = await sapLiveCheck(form);
-      setTestResult(result ? 'ok' : 'fail');
-    } catch { setTestResult('fail'); }
-    setTesting(false);
-  }
-
-  async function handleSave() {
-    setSaving(true);
-    await ssCtx.setSetting('sap_integration', { ...allConfigs, [clientId]: form });
-    setSaving(false); setSaved2(true);
-    setTimeout(() => setSaved2(false), 3000);
-  }
+  const [environments, setEnvironments] = useState(initialEnvs);
+  const [expandedId, setExpandedId] = useState(null);
+  const [testStates, setTestStates] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const canEdit = auth.isAdmin || auth.isManager || auth.isClient;
 
+  async function saveEnvironments(envs) {
+    setSaving(true);
+    await ssCtx.setSetting('sap_integration', { ...allConfigs, [clientId]: { environments: envs } });
+    setSaving(false); setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  }
+
+  function addEnvironment() {
+    const newEnv = {
+      id: crypto.randomUUID(),
+      name: 'New Environment',
+      envType: 'dev',
+      host: '',
+      client: '100',
+      username: '',
+      password: '',
+      proxyUrl: '',
+      type: 's4hana',
+      liveCheckOnGenerate: false,
+      autoImplementEnabled: false,
+    };
+    const updated = [...environments, newEnv];
+    setEnvironments(updated);
+    setExpandedId(newEnv.id);
+  }
+
+  function updateEnvField(id, field, value) {
+    setEnvironments(prev => prev.map(e => e.id === id ? { ...e, [field]: value } : e));
+    setTestStates(p => ({ ...p, [id]: null }));
+  }
+
+  function deleteEnv(id) {
+    const updated = environments.filter(e => e.id !== id);
+    setEnvironments(updated);
+    if (expandedId === id) setExpandedId(null);
+    saveEnvironments(updated);
+  }
+
+  async function testConnection(env) {
+    setTestStates(p => ({ ...p, [env.id]: 'testing' }));
+    try {
+      const result = await sapLiveCheck(env);
+      setTestStates(p => ({ ...p, [env.id]: result ? 'ok' : 'fail' }));
+    } catch {
+      setTestStates(p => ({ ...p, [env.id]: 'fail' }));
+    }
+  }
+
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
-      <div>
-        <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
-          <Code2 size={16} className="text-blue-600" />{t('sap.integration_title')}
-        </h3>
-        <p className="text-xs text-gray-400 mt-0.5">{t('sap.integration_subtitle')}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
+            <Code2 size={16} className="text-blue-600" />{t('sap.integration_title')}
+          </h3>
+          <p className="text-xs text-gray-400 mt-0.5">{t('sap.integration_subtitle')}</p>
+        </div>
+        {canEdit && (
+          <button onClick={addEnvironment}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors">
+            <Plus size={13} />{t('sap.add_environment')}
+          </button>
+        )}
       </div>
 
-      {/* Connection fields */}
-      <div className="space-y-3">
-        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Connection</div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_host')}</label>
-            <input value={form.host} onChange={e => set('host', e.target.value)} disabled={!canEdit}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50"
-              placeholder={t('sap.conn_ph_host')} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_client')}</label>
-            <input value={form.client} onChange={e => set('client', e.target.value)} disabled={!canEdit}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50"
-              placeholder={t('sap.conn_ph_client')} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_username')}</label>
-            <input value={form.username} onChange={e => set('username', e.target.value)} disabled={!canEdit}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50"
-              autoComplete="off" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_password')}</label>
-            <input type="password" value={form.password} onChange={e => set('password', e.target.value)} disabled={!canEdit}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50"
-              autoComplete="new-password" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_type')}</label>
-            <select value={form.type} onChange={e => set('type', e.target.value)} disabled={!canEdit}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white">
-              <option value="s4hana">SAP S/4HANA</option>
-              <option value="ecc">SAP ECC / NetWeaver</option>
-              <option value="btp">SAP BTP</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_proxy')}</label>
-            <input value={form.proxyUrl} onChange={e => set('proxyUrl', e.target.value)} disabled={!canEdit}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50"
-              placeholder={t('sap.conn_ph_proxy')} />
-          </div>
+      {environments.length === 0 ? (
+        <div className="text-center py-10 border border-dashed border-gray-200 rounded-xl text-gray-400 text-sm">
+          {t('sap.no_environments')}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {environments.map(env => {
+            const isExpanded = expandedId === env.id;
+            const typeMeta = SAP_ENV_TYPE_META[env.envType] ?? SAP_ENV_TYPE_META.dev;
+            const testStatus = testStates[env.id];
+            return (
+              <div key={env.id} className={`border rounded-xl overflow-hidden transition-all ${isExpanded ? 'border-blue-200' : 'border-gray-100'}`}>
+                <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => setExpandedId(isExpanded ? null : env.id)}>
+                  <ChevronRight size={14} className={`flex-shrink-0 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${typeMeta.color}`}>{typeMeta.label}</span>
+                  <span className="font-semibold text-sm text-gray-800 flex-1 truncate">{env.name || 'Unnamed'}</span>
+                  {env.host && <span className="text-xs text-gray-400 truncate hidden sm:block max-w-[180px]">{env.host}</span>}
+                  {testStatus === 'ok'   && <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />}
+                  {testStatus === 'fail' && <XCircle size={13} className="text-red-400 flex-shrink-0" />}
+                  {canEdit && (
+                    <button onClick={e => { e.stopPropagation(); deleteEnv(env.id); }}
+                      className="text-xs text-red-400 hover:text-red-600 flex-shrink-0 ml-1 px-2 py-1 rounded hover:bg-red-50">
+                      {t('sap.delete_env')}
+                    </button>
+                  )}
+                </div>
+
+                {isExpanded && (
+                  <div className="px-4 pb-4 pt-2 border-t border-gray-100 bg-gray-50/40 space-y-4">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.env_name')}</label>
+                        <input value={env.name} onChange={e => updateEnvField(env.id, 'name', e.target.value)} disabled={!canEdit}
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.env_type')}</label>
+                        <select value={env.envType} onChange={e => updateEnvField(env.id, 'envType', e.target.value)} disabled={!canEdit}
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white">
+                          <option value="dev">Development (DEV)</option>
+                          <option value="qas">Quality / Testing (QAS)</option>
+                          <option value="prd">Production (PRD)</option>
+                          <option value="snd">Sandbox (SND)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Connection</div>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_host')}</label>
+                          <input value={env.host} onChange={e => updateEnvField(env.id, 'host', e.target.value)} disabled={!canEdit}
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white"
+                            placeholder={t('sap.conn_ph_host')} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_client')}</label>
+                          <input value={env.client} onChange={e => updateEnvField(env.id, 'client', e.target.value)} disabled={!canEdit}
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white"
+                            placeholder={t('sap.conn_ph_client')} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_username')}</label>
+                          <input value={env.username} onChange={e => updateEnvField(env.id, 'username', e.target.value)} disabled={!canEdit}
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white"
+                            autoComplete="off" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_password')}</label>
+                          <input type="password" value={env.password} onChange={e => updateEnvField(env.id, 'password', e.target.value)} disabled={!canEdit}
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white"
+                            autoComplete="new-password" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_type')}</label>
+                          <select value={env.type} onChange={e => updateEnvField(env.id, 'type', e.target.value)} disabled={!canEdit}
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white">
+                            <option value="s4hana">SAP S/4HANA</option>
+                            <option value="ecc">SAP ECC / NetWeaver</option>
+                            <option value="btp">SAP BTP</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_proxy')}</label>
+                          <input value={env.proxyUrl} onChange={e => updateEnvField(env.id, 'proxyUrl', e.target.value)} disabled={!canEdit}
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white"
+                            placeholder={t('sap.conn_ph_proxy')} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {canEdit && (
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => testConnection(env)} disabled={testStatus === 'testing' || !env.host || !env.username}
+                          className="px-4 py-2 text-sm font-semibold bg-gray-100 hover:bg-gray-200 rounded-xl disabled:opacity-50 transition-colors">
+                          {testStatus === 'testing' ? t('sap.testing') : t('sap.test_connection')}
+                        </button>
+                        {testStatus === 'ok'   && <span className="text-sm text-green-600 font-medium flex items-center gap-1"><CheckCircle2 size={14} />{t('sap.test_ok')}</span>}
+                        {testStatus === 'fail' && <span className="text-sm text-red-500 font-medium flex items-center gap-1"><XCircle size={14} />{t('sap.test_fail')}</span>}
+                      </div>
+                    )}
+
+                    <div className="space-y-2 border-t border-gray-100 pt-3">
+                      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Features</div>
+                      {[
+                        { key: 'liveCheckOnGenerate', labelKey: 'sap.live_check_label', descKey: 'sap.live_check_desc', color: 'bg-blue-600' },
+                        { key: 'autoImplementEnabled', labelKey: 'sap.auto_impl_label', descKey: 'sap.auto_impl_desc', color: 'bg-amber-500' },
+                      ].map(({ key, labelKey, descKey, color }) => (
+                        <div key={key} className="flex items-start gap-4 p-3 rounded-xl border border-gray-100 bg-white">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-gray-800">{t(labelKey)}</p>
+                            <p className="text-xs text-gray-400 mt-0.5 leading-snug">{t(descKey)}</p>
+                          </div>
+                          <button disabled={!canEdit}
+                            onClick={() => updateEnvField(env.id, key, !env[key])}
+                            className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 disabled:opacity-50 ${env[key] ? color : 'bg-gray-200'}`}
+                            role="switch" aria-checked={env[key]}>
+                            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${env[key] ? 'translate-x-5' : 'translate-x-0'}`} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {canEdit && (
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => saveEnvironments(environments)} disabled={saving}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors">
+                          {saving ? '…' : t('sap.save_config')}
+                        </button>
+                        {saved && <span className="text-sm text-green-600 font-medium flex items-center gap-1"><CheckCircle2 size={14} />Saved</span>}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// PROJECT SAP ENVIRONMENT SELECTOR
+// ============================================================
+function ProjectSapEnvPanel({ projectId, clientId, auth }) {
+  const { t } = useT();
+  const ssCtx = useSystemSettings();
+  const { settings } = ssCtx;
+  const clientSapData = (settings['sap_integration'] ?? {})[clientId] ?? {};
+  const rawEnvs = clientSapData.environments ?? (clientSapData.host ? [{ id: 'default', name: 'Default', envType: 'dev', ...clientSapData }] : []);
+  const sapProjectEnv = settings['sap_project_env'] ?? {};
+  const selectedEnvId = sapProjectEnv[projectId] ?? '';
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const selectedEnv = rawEnvs.find(e => e.id === selectedEnvId) ?? rawEnvs[0] ?? null;
+
+  async function handleSelect(envId) {
+    setSaving(true);
+    await ssCtx.setSetting('sap_project_env', { ...sapProjectEnv, [projectId]: envId || null });
+    setSaving(false); setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  if (!rawEnvs.length) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center space-y-2">
+        <Code2 size={36} className="text-gray-200 mx-auto" />
+        <p className="text-sm font-semibold text-gray-700">{t('sap.no_environments')}</p>
+        <p className="text-xs text-gray-400">{t('sap.integration_subtitle')}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+        <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
+          <Code2 size={16} className="text-blue-600" />{t('sap.project_env_label')}
+        </h3>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.project_env_label')}</label>
+          <select value={selectedEnvId} onChange={e => handleSelect(e.target.value)} disabled={saving}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
+            <option value="">{t('sap.project_env_none')}</option>
+            {rawEnvs.map(env => {
+              const meta = SAP_ENV_TYPE_META[env.envType] ?? SAP_ENV_TYPE_META.dev;
+              return (
+                <option key={env.id} value={env.id}>
+                  {env.name} — {env.host || t('sap.conn_ph_host')} ({meta.label})
+                </option>
+              );
+            })}
+          </select>
+          {saved && <span className="text-sm text-green-600 font-medium flex items-center gap-1 mt-2"><CheckCircle2 size={14} />Saved</span>}
         </div>
 
-        {/* Test connection */}
-        {canEdit && (
-          <div className="flex items-center gap-3 pt-1">
-            <button onClick={handleTest} disabled={testing || !form.host || !form.username}
-              className="px-4 py-2 text-sm font-semibold bg-gray-100 hover:bg-gray-200 rounded-xl disabled:opacity-50 transition-colors">
-              {testing ? t('sap.testing') : t('sap.test_connection')}
-            </button>
-            {testResult === 'ok'   && <span className="text-sm text-green-600 font-medium flex items-center gap-1"><CheckCircle2 size={14} />{t('sap.test_ok')}</span>}
-            {testResult === 'fail' && <span className="text-sm text-red-500 font-medium flex items-center gap-1"><XCircle size={14} />{t('sap.test_fail')}</span>}
+        {selectedEnv && (
+          <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+            <div className="flex items-center gap-2 mb-2">
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${(SAP_ENV_TYPE_META[selectedEnv.envType] ?? SAP_ENV_TYPE_META.dev).color}`}>
+                {(SAP_ENV_TYPE_META[selectedEnv.envType] ?? SAP_ENV_TYPE_META.dev).label}
+              </span>
+              <span className="font-semibold text-sm text-gray-800">{selectedEnv.name}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-gray-500">
+              <div><span className="font-medium text-gray-600">Host:</span> {selectedEnv.host || '—'}</div>
+              <div><span className="font-medium text-gray-600">Client:</span> {selectedEnv.client || '—'}</div>
+              <div><span className="font-medium text-gray-600">User:</span> {selectedEnv.username || '—'}</div>
+              <div><span className="font-medium text-gray-600">System:</span> {selectedEnv.type?.toUpperCase() || '—'}</div>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Feature toggles */}
-      <div className="space-y-3 border-t border-gray-100 pt-5">
-        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Features</div>
-        {[
-          { key: 'liveCheckOnGenerate', labelKey: 'sap.live_check_label', descKey: 'sap.live_check_desc', color: 'bg-blue-600' },
-          { key: 'autoImplementEnabled', labelKey: 'sap.auto_impl_label', descKey: 'sap.auto_impl_desc', color: 'bg-amber-500' },
-        ].map(({ key, labelKey, descKey, color }) => (
-          <div key={key} className="flex items-start gap-4 p-3 rounded-xl border border-gray-100 bg-gray-50">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-800">{t(labelKey)}</p>
-              <p className="text-xs text-gray-400 mt-0.5 leading-snug">{t(descKey)}</p>
-            </div>
-            <button disabled={!canEdit}
-              onClick={() => set(key, !form[key])}
-              className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 disabled:opacity-50 ${form[key] ? color : 'bg-gray-200'}`}
-              role="switch" aria-checked={form[key]}>
-              <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${form[key] ? 'translate-x-5' : 'translate-x-0'}`} />
-            </button>
-          </div>
-        ))}
-      </div>
-
-      {/* Save */}
-      {canEdit && (
-        <div className="flex items-center gap-3 pt-1">
-          <button onClick={handleSave} disabled={saving}
-            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors">
-            {saving ? '…' : t('sap.save_config')}
-          </button>
-          {saved2 && <span className="text-sm text-green-600 font-medium flex items-center gap-1"><CheckCircle2 size={14} />Saved</span>}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t('sap.environments')}</h4>
+        <div className="space-y-2">
+          {rawEnvs.map(env => {
+            const meta = SAP_ENV_TYPE_META[env.envType] ?? SAP_ENV_TYPE_META.dev;
+            const isActive = env.id === (selectedEnvId || rawEnvs[0]?.id);
+            return (
+              <div key={env.id}
+                onClick={() => handleSelect(env.id)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all ${isActive ? 'border-blue-200 bg-blue-50' : 'border-gray-100 hover:bg-gray-50'}`}>
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${meta.color}`}>{meta.label}</span>
+                <span className="font-medium text-sm text-gray-800 flex-1">{env.name}</span>
+                <span className="text-xs text-gray-400 hidden sm:block truncate max-w-[200px]">{env.host}</span>
+                {isActive && <CheckCircle2 size={14} className="text-blue-500 flex-shrink-0" />}
+              </div>
+            );
+          })}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -30233,7 +30460,13 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   const { settings } = ssCtx;
 
   const allSapConfigs = settings['sap_integration'] ?? {};
-  const sapConfig = allSapConfigs[caseData.client_id] ?? null;
+  const clientSapData = allSapConfigs[caseData.client_id] ?? {};
+  const sapEnvironments = clientSapData.environments ?? (clientSapData.host ? [clientSapData] : []);
+  const sapProjectEnvMap = settings['sap_project_env'] ?? {};
+  const selectedSapEnvId = sapProjectEnvMap[caseData.project_id];
+  const sapConfig = selectedSapEnvId
+    ? (sapEnvironments.find(e => e.id === selectedSapEnvId) ?? sapEnvironments[0] ?? null)
+    : (sapEnvironments[0] ?? null);
   const autoImplEnabled = sapConfig?.autoImplementEnabled ?? false;
 
   // Per-activity SAP object assignments: { [actId]: { objectType, objectName } }
