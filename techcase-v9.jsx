@@ -1680,6 +1680,24 @@ const TRANSLATIONS = {
     "case.visibility":        "Visibility",
     "case.private":           "Private case",
     "case.private_desc":      "— hidden from public arena; only invited consultants can see it",
+    "case.vis_public":        "Public",
+    "case.vis_private":       "Private",
+    "case.vis_invite":        "Invite-only",
+    "case.vis_label":         "Case Visibility",
+    "case.vis_pub_desc":      "Visible in Arena — anyone can discover and apply",
+    "case.vis_priv_desc":     "Internal team only — hidden from Arena",
+    "case.vis_inv_desc":      "Hidden from Arena — specific consultants invited",
+    "case.invite_btn":        "Invite Consultant",
+    "case.invite_title":      "Invite a Consultant",
+    "case.invite_apply":      "Invite to Apply",
+    "case.invite_direct":     "Direct Assign",
+    "case.invite_search":     "Search consultants by name…",
+    "case.invite_added":      "Invited",
+    "company.vis_mode":       "Visibility Mode",
+    "company.vis_open":       "Open",
+    "company.vis_open_desc":  "Participates in marketplace — cases visible in Arena",
+    "company.vis_internal":   "Internal Only",
+    "company.vis_int_desc":   "Internal project management — cases hidden from Arena by default",
     "case.nda":               "NDA required",
     "case.nda_desc":          "— consultants must sign an NDA before viewing full details",
     "case.step2_h2":          "Scope & Budget",
@@ -2963,6 +2981,24 @@ const TRANSLATIONS = {
     "case.visibility":        "Visibilidad",
     "case.private":           "Caso privado",
     "case.private_desc":      "— oculto de la arena pública; solo consultores invitados pueden verlo",
+    "case.vis_public":        "Público",
+    "case.vis_private":       "Privado",
+    "case.vis_invite":        "Solo invitación",
+    "case.vis_label":         "Visibilidad del Caso",
+    "case.vis_pub_desc":      "Visible en el Arena — cualquiera puede descubrir y postular",
+    "case.vis_priv_desc":     "Solo equipo interno — oculto del Arena",
+    "case.vis_inv_desc":      "Oculto del Arena — consultores específicos invitados",
+    "case.invite_btn":        "Invitar Consultor",
+    "case.invite_title":      "Invitar un Consultor",
+    "case.invite_apply":      "Invitar a Postular",
+    "case.invite_direct":     "Asignar Directo",
+    "case.invite_search":     "Buscar consultores por nombre…",
+    "case.invite_added":      "Invitado",
+    "company.vis_mode":       "Modo de Visibilidad",
+    "company.vis_open":       "Abierto",
+    "company.vis_open_desc":  "Participa en el marketplace — casos visibles en el Arena",
+    "company.vis_internal":   "Solo Interno",
+    "company.vis_int_desc":   "Gestión interna — casos ocultos del Arena por defecto",
     "case.nda":               "NDA requerido",
     "case.nda_desc":          "— los consultores deben firmar un NDA antes de ver los detalles completos",
     "case.step2_h2":          "Alcance y Presupuesto",
@@ -9987,6 +10023,7 @@ function AuthScreen({ onAuth }) {
 // ============================================================
 function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, auth, onSearchOpen }) {
   const { t, lang, setLang } = useT();
+  const sidebarVisCfg = useVisibilitySettings();
 
   const navItems = {
     admin: [
@@ -10050,7 +10087,14 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
     ],
   };
 
-  const items = navItems[role] ?? [];
+  let items = navItems[role] ?? [];
+  // Hide consultants nav for clients in Internal mode — they don't participate in marketplace
+  if (role === 'client' && auth?.user?.id) {
+    const compVis = sidebarVisCfg.getCompanyVisibility(auth.user.id);
+    if (compVis === 'internal') {
+      items = items.filter(i => i.id !== 'consultants');
+    }
+  }
 
   return (
     <aside className="w-64 bg-[#1C3557] text-white flex flex-col h-screen fixed left-0 top-0 z-40">
@@ -12240,7 +12284,14 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId);
   const [wizardProjects, setWizardProjects]         = useState([]);
 
+  const _visCfg = useVisibilitySettings();
   const [basics, setBasics] = useState({ title: initialData?.title ?? "", description: initialData?.description ?? "", priority: initialData?.priority ?? "medium", area_sap: initialData?.area_sap ?? "", area_industry: initialData?.area_industry ?? "", is_confidential: initialData?.is_confidential ?? false, nda_required: initialData?.nda_required ?? false, min_trust_level: initialData?.min_trust_level ?? null });
+  const [caseVisMode, setCaseVisMode] = useState(() => {
+    if (initialData?.id) return _visCfg.getCaseVisibility(initialData.id, null);
+    const clientId = auth.isClient ? auth.user?.id : null;
+    if (clientId && _visCfg.getCompanyVisibility(clientId) === 'internal') return 'private';
+    return 'public';
+  });
   const [scope, setScope]   = useState({ budget: initialData?.budget ?? "", start_date: initialData?.start_date ?? "", due_date: initialData?.due_date ?? daysFromNow(30), sla: "standard", _skills: initialData?.skills_required ?? [], client_id: auth.isClient ? auth.user?.id : (initialData?.client_id ?? "") });
 
   // Step 3: Work Arrangement
@@ -12524,6 +12575,9 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         }
         const newCase = await createCase(payload);
         if (newCase?.id) {
+          if (caseVisMode !== 'public') {
+            await _visCfg.setCaseVisibility(newCase.id, caseVisMode);
+          }
           const kuRows = [...keyUsers];
           if (auth.isKeyUser && !kuRows.some(ku => ku.user_id === auth.user?.id)) {
             kuRows.push({ user_id: auth.user?.id, area: null });
@@ -12759,13 +12813,19 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                 </div>
                 <div className="border-t border-gray-100 pt-4 mt-2">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("case.visibility")}</p>
-                  <label className="flex items-center gap-3 cursor-pointer mb-3">
-                    <input type="checkbox" checked={basics.is_confidential}
-                      onChange={e => setBasics(p => ({ ...p, is_confidential: e.target.checked }))}
-                      className="w-4 h-4 rounded accent-blue-600" />
-                    <span className="text-sm text-gray-700 font-medium">{t("case.private")}</span>
-                    <span className="text-xs text-gray-400">{t("case.private_desc")}</span>
-                  </label>
+                  <div className="flex gap-2 mb-3">
+                    {[
+                      { id: 'public',      label: t('case.vis_public'),  desc: t('case.vis_pub_desc'),  active: 'border-green-500 bg-green-50 text-green-800' },
+                      { id: 'private',     label: t('case.vis_private'), desc: t('case.vis_priv_desc'), active: 'border-gray-600 bg-gray-700 text-white' },
+                      { id: 'invite-only', label: t('case.vis_invite'),  desc: t('case.vis_inv_desc'),  active: 'border-blue-500 bg-blue-50 text-blue-800' },
+                    ].map(opt => (
+                      <button key={opt.id} type="button" onClick={() => setCaseVisMode(opt.id)}
+                        className={`flex-1 p-2.5 rounded-xl border-2 text-left transition-all ${caseVisMode === opt.id ? opt.active : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                        <div className="text-xs font-bold mb-0.5">{opt.label}</div>
+                        <div className={`text-[10px] leading-tight ${caseVisMode === opt.id ? 'opacity-80' : 'text-gray-400'}`}>{opt.desc}</div>
+                      </button>
+                    ))}
+                  </div>
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input type="checkbox" checked={basics.nda_required}
                       onChange={e => setBasics(p => ({ ...p, nda_required: e.target.checked }))}
@@ -20054,9 +20114,125 @@ function InvoiceModal({ isOpen, onClose, caseData, auth }) {
   );
 }
 
+function InviteConsultantDrawer({ caseData, auth, onClose }) {
+  const { t } = useT();
+  const visCfg = useVisibilitySettings();
+  const [search, setSearch] = useState('');
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [saving, setSaving] = useState(null);
+  const invitations = visCfg.getCaseInvitations(caseData.id);
+
+  useEffect(() => {
+    if (!search.trim()) { setResults([]); return; }
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      const { data } = await supabase.from('users')
+        .select('id, full_name, email, avatar_url, role')
+        .in('role', ['consultant', 'headhunter'])
+        .ilike('full_name', `%${search}%`)
+        .limit(10);
+      setResults(data ?? []);
+      setSearching(false);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  async function invite(consultant, type) {
+    setSaving(consultant.id + type);
+    await visCfg.addCaseInvitation(caseData.id, consultant.id, type, consultant.full_name);
+    if (type === 'direct') {
+      await supabase.from('case_assignments').upsert(
+        { case_id: caseData.id, consultant_id: consultant.id },
+        { onConflict: 'case_id,consultant_id' }
+      );
+    }
+    setSaving(null);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <h2 className="font-bold text-gray-900">{t('case.invite_title')}</h2>
+            <p className="text-xs text-gray-400 mt-0.5">{caseData.title}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+        </div>
+
+        <div className="px-5 py-3 border-b border-gray-100">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder={t('case.invite_search')}
+              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          {invitations.length > 0 && (
+            <div className="mb-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Already Invited</p>
+              {invitations.map(inv => (
+                <div key={inv.consultantId} className="flex items-center justify-between py-2 px-3 bg-green-50 rounded-xl border border-green-100 mb-1">
+                  <span className="text-sm font-medium text-gray-800">{inv.consultantName}</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${inv.type === 'direct' ? 'bg-blue-100 text-blue-700' : 'bg-teal-100 text-teal-700'}`}>
+                      {inv.type === 'direct' ? t('case.invite_direct') : t('case.invite_apply')}
+                    </span>
+                    <button onClick={() => visCfg.removeCaseInvitation(caseData.id, inv.consultantId)} className="text-gray-300 hover:text-red-400"><X size={12} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {searching && <div className="text-center text-xs text-gray-400 py-4">Searching…</div>}
+          {!searching && search && results.length === 0 && (
+            <div className="text-center text-xs text-gray-400 py-4">No consultants found</div>
+          )}
+
+          {results.map(c => {
+            const alreadyInvited = invitations.some(i => i.consultantId === c.id);
+            return (
+              <div key={c.id} className="flex items-center gap-3 py-2.5 px-3 rounded-xl border border-gray-100 hover:border-blue-100 hover:bg-blue-50/40 transition-colors">
+                <UserAvatar user={c} size={32} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-gray-900 truncate">{c.full_name}</div>
+                  <div className="text-xs text-gray-400 capitalize">{c.role}</div>
+                </div>
+                {alreadyInvited ? (
+                  <span className="text-xs text-green-600 font-semibold flex items-center gap-1"><Check size={10} />{t('case.invite_added')}</span>
+                ) : (
+                  <div className="flex gap-1.5 flex-shrink-0">
+                    <button onClick={() => invite(c, 'apply')} disabled={saving === c.id + 'apply'}
+                      className="text-xs px-2.5 py-1 rounded-lg bg-teal-50 text-teal-700 hover:bg-teal-100 font-medium border border-teal-200 disabled:opacity-50 transition-colors">
+                      {saving === c.id + 'apply' ? '…' : t('case.invite_apply')}
+                    </button>
+                    <button onClick={() => invite(c, 'direct')} disabled={saving === c.id + 'direct'}
+                      className="text-xs px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 font-medium border border-blue-200 disabled:opacity-50 transition-colors">
+                      {saving === c.id + 'direct' ? '…' : t('case.invite_direct')}
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {!search && invitations.length === 0 && (
+            <div className="text-center text-sm text-gray-400 py-8">Search for a consultant by name above</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdate, onBack }) {
   const { t } = useT();
   const { settings: cdSettings } = useSystemSettings();
+  const visCfg        = useVisibilitySettings();
   const genModel      = cdSettings["ai_model"]       ?? 'claude-haiku-4-5-20251001';
   const analysisModel = cdSettings["analysis_model"] ?? 'claude-haiku-4-5-20251001';
   const { applications, apply, reviewApplication } = useApplications(caseData.id);
@@ -20134,6 +20310,8 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [showEditWizard, setShowEditWizard]     = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
+  const [showInviteDrawer, setShowInviteDrawer] = useState(false);
+  const [savingVisibility, setSavingVisibility] = useState(false);
   const [clientLifecycle, setClientLifecycle] = useState(null);
   const [parentCaseLifecycle, setParentCaseLifecycle] = useState(null);
   const [cancelModal, setCancelModal] = useState(null); // { caseId, isSubCase }
@@ -22039,6 +22217,12 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                   <Badge className={PRIORITY_COLORS[caseData.priority]}>{PRIORITY_LABEL_KEYS[caseData.priority] ? t(PRIORITY_LABEL_KEYS[caseData.priority]) : cap(caseData.priority)}</Badge>
                   {caseData.is_confidential && <span className="px-2 py-0.5 bg-gray-800 text-white rounded-lg text-xs font-semibold">{t("case.badge_private")}</span>}
                   {caseData.nda_required && <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">{t("case.badge_nda")}</span>}
+                  {(() => {
+                    const v = visCfg.getCaseVisibility(caseData.id, caseData.client_id);
+                    if (v === 'private')      return <span className="px-2 py-0.5 bg-gray-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1"><Lock size={9}/>{t('case.vis_private')}</span>;
+                    if (v === 'invite-only')  return <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold flex items-center gap-1"><UserPlus size={9}/>{t('case.vis_invite')}</span>;
+                    return null;
+                  })()}
                   {caseData.status === "standby" && caseData.standby_reason && (
                     <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-lg text-xs font-semibold flex items-center gap-1">
                       ⏸ {caseData.standby_reason}
@@ -22322,6 +22506,12 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               {caseData.nda_required && (
                 <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">{t("case.badge_nda")}</span>
               )}
+              {(() => {
+                const v = visCfg.getCaseVisibility(caseData.id, caseData.client_id);
+                if (v === 'private')     return <span className="px-2 py-0.5 bg-gray-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1"><Lock size={9}/>{t('case.vis_private')}</span>;
+                if (v === 'invite-only') return <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold flex items-center gap-1"><UserPlus size={9}/>{t('case.vis_invite')}</span>;
+                return <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-lg text-xs font-semibold flex items-center gap-1"><Globe size={9}/>{t('case.vis_public')}</span>;
+              })()}
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               {(auth.isAdmin || auth.isManager) && (
@@ -22389,6 +22579,59 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               </div>
             </div>
           )}
+
+          {/* Visibility Control card */}
+          {(() => {
+            const caseVis = visCfg.getCaseVisibility(caseData.id, caseData.client_id);
+            const canChange = auth.isAdmin || auth.isManager || (auth.isClient && auth.user?.id === caseData.client_id);
+            const VIS_OPTIONS = [
+              { id: 'public',      label: t('case.vis_public'),  desc: t('case.vis_pub_desc'),  cls: 'border-green-400 bg-green-50 text-green-700',  inact: 'border-gray-200 text-gray-500 hover:border-green-200' },
+              { id: 'private',     label: t('case.vis_private'), desc: t('case.vis_priv_desc'), cls: 'border-gray-600 bg-gray-700 text-white',         inact: 'border-gray-200 text-gray-500 hover:border-gray-400' },
+              { id: 'invite-only', label: t('case.vis_invite'),  desc: t('case.vis_inv_desc'),  cls: 'border-blue-400 bg-blue-50 text-blue-700',       inact: 'border-gray-200 text-gray-500 hover:border-blue-200' },
+            ];
+            return (
+              <div className="border border-gray-100 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
+                    <Eye size={12} className="text-blue-400" />{t('case.vis_label')}
+                  </p>
+                  {(caseVis === 'private' || caseVis === 'invite-only') && (auth.isAdmin || auth.isManager || auth.isClient) && (
+                    <button onClick={() => setShowInviteDrawer(true)}
+                      className="text-xs px-2.5 py-1 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 flex items-center gap-1 transition-colors">
+                      <UserPlus size={11} />{t('case.invite_btn')}
+                    </button>
+                  )}
+                </div>
+                {canChange ? (
+                  <div className="flex gap-2">
+                    {VIS_OPTIONS.map(opt => (
+                      <button key={opt.id}
+                        onClick={async () => {
+                          setSavingVisibility(true);
+                          await visCfg.setCaseVisibility(caseData.id, opt.id);
+                          setSavingVisibility(false);
+                        }}
+                        disabled={savingVisibility}
+                        className={`flex-1 px-3 py-2 rounded-xl border-2 text-xs font-semibold transition-all text-left disabled:opacity-50 ${caseVis === opt.id ? opt.cls : opt.inact}`}>
+                        <div className="font-bold mb-0.5">{opt.label}</div>
+                        <div className={`font-normal text-[10px] leading-tight ${caseVis === opt.id ? 'opacity-80' : 'text-gray-400'}`}>{opt.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-600">
+                    {VIS_OPTIONS.find(o => o.id === caseVis)?.label ?? caseVis}
+                    <span className="text-xs text-gray-400 ml-2">{VIS_OPTIONS.find(o => o.id === caseVis)?.desc}</span>
+                  </div>
+                )}
+                {visCfg.getCaseInvitations(caseData.id).length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-gray-100">
+                    <p className="text-[10px] text-gray-400 font-medium mb-1">Invited: {visCfg.getCaseInvitations(caseData.id).map(i => i.consultantName).join(', ')}</p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Work Arrangement card */}
           {caseData.work_mode && (
@@ -24638,6 +24881,7 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
   const canAssign = auth && (auth.isAdmin || auth.isManager || auth.isHeadhunter);
   const canAdmin  = auth && (auth.isAdmin || auth.isManager);
   const planCfg = usePlanConfig();
+  const panelVisCfg = useVisibilitySettings();
   const roleType = ROLE_TO_PLAN_TYPE[userRole] ?? null;
   const userPlan = roleType ? planCfg.getUserPlan(consultantId) : null;
   const [changingPlan, setChangingPlan] = useState(false);
@@ -24975,6 +25219,35 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
                   </div>
                 </div>
               )}
+
+              {/* Admin: visibility mode override */}
+              {canAdmin && (() => {
+                const companyId = clientProfile.type === 'client' ? consultantId : clientProfile.member?.client_id;
+                if (!companyId) return null;
+                const current = panelVisCfg.getCompanyVisibility(companyId);
+                return (
+                  <div className="border-t border-gray-100 pt-4">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                      <Eye size={11} />Visibility Mode
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { id: 'open',     label: 'Open',          cls: 'border-blue-500 bg-blue-50 text-blue-800' },
+                        { id: 'internal', label: 'Internal Only',  cls: 'border-amber-500 bg-amber-50 text-amber-800' },
+                      ].map(opt => {
+                        const isActive = current === opt.id;
+                        return (
+                          <button key={opt.id} type="button"
+                            onClick={() => panelVisCfg.setCompanyVisibility(companyId, opt.id)}
+                            className={`py-2 px-3 text-sm font-semibold rounded-xl border-2 transition-all ${isActive ? opt.cls : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
             </>
           ) : (
             <div className="text-center py-10">
@@ -25207,6 +25480,7 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
 // ============================================================
 function ArenaView({ auth }) {
   const { t } = useT();
+  const visCfg = useVisibilitySettings();
   const [arenaTab, setArenaTab]             = useState("cases");
   const [applyingToCase, setApplying]       = useState(null);
   const [arenaSelectedCase, setArenaSelected] = useState(null);
@@ -25244,9 +25518,20 @@ function ArenaView({ auth }) {
     }
   }
 
-  const openCases       = cases.filter(c =>
-    c.status === "estimated" && (!c.case_assignments || c.case_assignments.length === 0)
-  );
+  const openCases       = cases.filter(c => {
+    if (c.status !== "estimated" || (c.case_assignments && c.case_assignments.length > 0)) return false;
+    const vis = visCfg.getCaseVisibility(c.id, c.client_id);
+    if (vis === 'private') return false;
+    if (vis === 'invite-only') {
+      // Only show to invited consultants
+      if (auth.isConsultant || auth.isHeadhunter) {
+        const invites = visCfg.getCaseInvitations(c.id);
+        return invites.some(i => i.consultantId === auth.user?.id);
+      }
+      return auth.isAdmin || auth.isManager;
+    }
+    return true;
+  });
   const myApplications  = applications.filter(a => a.consultant_id === auth.user?.id);
   const appliedCaseIds  = new Set(myApplications.map(a => a.case_id));
   const canViewRanking  = auth.isAdmin || auth.isManager || auth.isClient;
@@ -27011,6 +27296,14 @@ function ConsultantDetailModal({ consultantId, auth }) {
       caseData={caseData}
       auth={auth}
     />
+
+    {showInviteDrawer && (
+      <InviteConsultantDrawer
+        caseData={caseData}
+        auth={auth}
+        onClose={() => setShowInviteDrawer(false)}
+      />
+    )}
 
     {cancelModal && (
       <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4"
@@ -29508,6 +29801,7 @@ function useClientProfile(userId) {
 
 function ClientProfileView({ auth }) {
   const { t } = useT();
+  const visCfg = useVisibilitySettings();
   const { profile, loading, updateProfile } = useClientProfile(auth.user?.id);
   const { sla, updateSla }                  = useSlaConfig(auth.user?.id);
   const { connections, addConnection, deleteConnection } = useDbConnections(auth.user?.id);
@@ -29806,6 +30100,12 @@ function ClientProfileView({ auth }) {
               {profile?.company_size && <Badge className="bg-gray-100 text-gray-600">{profile.company_size}</Badge>}
               {profile?.founded_year && <Badge className="bg-gray-100 text-gray-600">{t("company.est_year").replace("{n}", profile.founded_year)}</Badge>}
               {profile?.budget && <Badge className="bg-green-100 text-green-700"><DollarSign className="w-3 h-3 inline mr-0.5" />{profile.budget}</Badge>}
+              {(() => {
+                const mode = visCfg.getCompanyVisibility(auth.user?.id);
+                return mode === 'internal'
+                  ? <Badge className="bg-amber-100 text-amber-700 flex items-center gap-1"><Lock className="w-3 h-3" />{t('company.vis_internal')}</Badge>
+                  : <Badge className="bg-blue-100 text-blue-700 flex items-center gap-1"><Globe className="w-3 h-3" />{t('company.vis_open')}</Badge>;
+              })()}
             </div>
           </div>
           <button onClick={() => setEditing(p => !p)}
@@ -29875,6 +30175,29 @@ function ClientProfileView({ auth }) {
           <Textarea label={t("company.internal_notes")} value={form.notes}
             onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
             placeholder={t("company.ph_vetting")} />
+
+          <div className="border-t border-gray-100 pt-4 mt-1">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+              <Eye size={11} />{t('company.vis_mode')}
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { id: 'open',     label: t('company.vis_open'),     desc: t('company.vis_open_desc'),    cls: 'border-blue-500 bg-blue-50', lbl: 'text-blue-800' },
+                { id: 'internal', label: t('company.vis_internal'), desc: t('company.vis_int_desc'),     cls: 'border-amber-500 bg-amber-50', lbl: 'text-amber-800' },
+              ].map(opt => {
+                const current = visCfg.getCompanyVisibility(auth.user?.id);
+                const isActive = current === opt.id;
+                return (
+                  <button key={opt.id} type="button"
+                    onClick={() => visCfg.setCompanyVisibility(auth.user?.id, opt.id)}
+                    className={`p-3 text-left rounded-xl border-2 transition-all ${isActive ? opt.cls : 'border-gray-200 hover:border-gray-300'}`}>
+                    <div className={`text-sm font-bold mb-0.5 ${isActive ? opt.lbl : 'text-gray-700'}`}>{opt.label}</div>
+                    <p className={`text-xs leading-tight ${isActive ? opt.lbl + ' opacity-70' : 'text-gray-400'}`}>{opt.desc}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
           <div className="flex justify-end gap-3 mt-2">
             <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
@@ -32349,6 +32672,60 @@ function usePlanConfig() {
   }
 
   return { config, userPlans, getUserPlan, getPlanLimits, setUserPlan, startCheckout, prices, priceIds };
+}
+
+function useVisibilitySettings() {
+  const ssCtx = useSystemSettings();
+  const companyVisibility = ssCtx.settings['company_visibility'] ?? {};
+  const caseVisibility    = ssCtx.settings['case_visibility']    ?? {};
+  const caseInvitations   = ssCtx.settings['case_invitations']   ?? {};
+
+  function getCompanyVisibility(clientId) {
+    if (!clientId) return 'open';
+    return companyVisibility[clientId] ?? 'open';
+  }
+
+  async function setCompanyVisibility(clientId, mode) {
+    if (!clientId) return;
+    await ssCtx.setSetting('company_visibility', { ...companyVisibility, [clientId]: mode });
+  }
+
+  function getCaseVisibility(caseId, clientId) {
+    if (caseVisibility[caseId]) return caseVisibility[caseId];
+    if (clientId && getCompanyVisibility(clientId) === 'internal') return 'private';
+    return 'public';
+  }
+
+  async function setCaseVisibility(caseId, mode) {
+    await ssCtx.setSetting('case_visibility', { ...caseVisibility, [caseId]: mode });
+  }
+
+  function getCaseInvitations(caseId) {
+    return caseInvitations[caseId] ?? [];
+  }
+
+  async function addCaseInvitation(caseId, consultantId, type, consultantName) {
+    const existing = caseInvitations[caseId] ?? [];
+    if (existing.some(i => i.consultantId === consultantId)) return;
+    await ssCtx.setSetting('case_invitations', {
+      ...caseInvitations,
+      [caseId]: [...existing, { consultantId, type, consultantName, invitedAt: new Date().toISOString() }],
+    });
+  }
+
+  async function removeCaseInvitation(caseId, consultantId) {
+    const existing = caseInvitations[caseId] ?? [];
+    await ssCtx.setSetting('case_invitations', {
+      ...caseInvitations,
+      [caseId]: existing.filter(i => i.consultantId !== consultantId),
+    });
+  }
+
+  return {
+    getCompanyVisibility, setCompanyVisibility,
+    getCaseVisibility, setCaseVisibility,
+    getCaseInvitations, addCaseInvitation, removeCaseInvitation,
+  };
 }
 
 function UpgradeModal({ onClose, title, message, roleType, planKey, auth }) {
