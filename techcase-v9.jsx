@@ -41,7 +41,7 @@ import {
   Bookmark, BookmarkCheck, Send, Crosshair,
   FileEdit, AlertCircle,
   Calendar, CalendarDays, CalendarRange, FolderKanban,
-  CreditCard, Eye, UserPlus,
+  CreditCard, Eye, UserPlus, FileCode2,
 } from "lucide-react";
 
 // ============================================================
@@ -675,7 +675,50 @@ const TRANSLATIONS = {
     "client_tab.phases":      "Phases",
     "client_tab.defaults":    "Defaults",
     "client_tab.assignment":  "Assignment",
-    "client_tab.sap":         "SAP Integration",
+    "client_tab.sap":          "SAP Integration",
+    "client_tab.abap":         "ABAP Standards",
+    // ABAP Coding Standards
+    "abap.tab_title":          "ABAP Coding Standards",
+    "abap.tab_subtitle":       "Configure naming, header, change-log, and AI instructions for generated ABAP code.",
+    "abap.section_naming":     "Naming Conventions",
+    "abap.global_prefix":      "Global Prefix",
+    "abap.namespace_prefix":   "Namespace Prefix (optional)",
+    "abap.object_type_prefixes": "Object Type Prefixes",
+    "abap.local_var_naming":   "Enforce standard local variable prefixes (lv_, ls_, lt_)",
+    "abap.section_header":     "Program Header Template",
+    "abap.header_template":    "Header Template",
+    "abap.author_id":          "Default Author ID",
+    "abap.section_changelog":  "Change Log",
+    "abap.changelog_template": "Change Log Entry Template",
+    "abap.changelog_location": "Change Log Location",
+    "abap.changelog_top":      "Top of header section",
+    "abap.changelog_bottom":   "Bottom of header section",
+    "abap.section_modifications": "Modification Rules",
+    "abap.old_code_handling":  "Old Code Handling",
+    "abap.old_code_delete":    "Delete — remove old code entirely",
+    "abap.old_code_comment":   "Comment block — wrap with markers",
+    "abap.old_code_keep":      "Keep — leave unchanged",
+    "abap.old_code_begin":     "Old Code Begin Marker",
+    "abap.old_code_end":       "Old Code End Marker",
+    "abap.mark_new_code":      "Wrap new/changed code with markers",
+    "abap.new_code_begin":     "New Code Begin Marker",
+    "abap.new_code_end":       "New Code End Marker",
+    "abap.section_style":      "ABAP Style",
+    "abap.abap_version":       "ABAP Version / Syntax",
+    "abap.version_modern":     "Modern ABAP (inline declarations, templates)",
+    "abap.version_classic":    "Classic ABAP (compatible with older systems)",
+    "abap.error_handling":     "Error Handling Pattern",
+    "abap.error_subrc":        "Check sy-subrc after operations",
+    "abap.error_exceptions":   "Class-based exceptions (cx_*)",
+    "abap.select_style":       "SELECT Style",
+    "abap.select_into_table":  "INTO TABLE @DATA(lt_result)",
+    "abap.select_fae":         "FOR ALL ENTRIES",
+    "abap.section_ai":         "AI Instructions",
+    "abap.ai_instructions":    "Additional AI Instructions",
+    "abap.ai_instructions_ph": "Enter any additional rules for AI code generation — architecture patterns, forbidden functions, specific library usage, etc.",
+    "abap.save":               "Save Standards",
+    "abap.saved":              "Saved",
+    "abap.inherited_hint":     "Inheriting from higher level — any value set here overrides the inherited one.",
     // SAP Integration settings
     "sap.integration_title":        "SAP System Integration",
     "sap.integration_subtitle":     "Configure live SAP system access for spec generation and automated implementation.",
@@ -3770,7 +3813,50 @@ const TRANSLATIONS = {
     "client_tab.phases":      "Fases",
     "client_tab.defaults":    "Valores por Defecto",
     "client_tab.assignment":  "Asignación",
-    "client_tab.sap":         "Integración SAP",
+    "client_tab.sap":          "Integración SAP",
+    "client_tab.abap":         "Estándares ABAP",
+    // ABAP Coding Standards (ES)
+    "abap.tab_title":          "Estándares de Código ABAP",
+    "abap.tab_subtitle":       "Configura nombres, cabecera, log de cambios e instrucciones de IA para el código ABAP generado.",
+    "abap.section_naming":     "Convenciones de Nombres",
+    "abap.global_prefix":      "Prefijo Global",
+    "abap.namespace_prefix":   "Prefijo de Namespace (opcional)",
+    "abap.object_type_prefixes": "Prefijos por Tipo de Objeto",
+    "abap.local_var_naming":   "Forzar prefijos estándar de variables locales (lv_, ls_, lt_)",
+    "abap.section_header":     "Plantilla de Cabecera de Programa",
+    "abap.header_template":    "Plantilla de Cabecera",
+    "abap.author_id":          "ID de Autor por Defecto",
+    "abap.section_changelog":  "Log de Cambios",
+    "abap.changelog_template": "Plantilla de Entrada en Log",
+    "abap.changelog_location": "Ubicación del Log",
+    "abap.changelog_top":      "Inicio de la sección de cabecera",
+    "abap.changelog_bottom":   "Final de la sección de cabecera",
+    "abap.section_modifications": "Reglas de Modificación",
+    "abap.old_code_handling":  "Manejo del Código Antiguo",
+    "abap.old_code_delete":    "Eliminar — borrar el código antiguo",
+    "abap.old_code_comment":   "Bloque comentado — envolver con marcadores",
+    "abap.old_code_keep":      "Conservar — dejar sin cambios",
+    "abap.old_code_begin":     "Marcador de Inicio de Código Antiguo",
+    "abap.old_code_end":       "Marcador de Fin de Código Antiguo",
+    "abap.mark_new_code":      "Envolver código nuevo/modificado con marcadores",
+    "abap.new_code_begin":     "Marcador de Inicio de Código Nuevo",
+    "abap.new_code_end":       "Marcador de Fin de Código Nuevo",
+    "abap.section_style":      "Estilo ABAP",
+    "abap.abap_version":       "Versión / Sintaxis ABAP",
+    "abap.version_modern":     "ABAP Moderno (declaraciones inline, templates)",
+    "abap.version_classic":    "ABAP Clásico (compatible con sistemas antiguos)",
+    "abap.error_handling":     "Patrón de Manejo de Errores",
+    "abap.error_subrc":        "Verificar sy-subrc tras operaciones",
+    "abap.error_exceptions":   "Excepciones de clase (cx_*)",
+    "abap.select_style":       "Estilo de SELECT",
+    "abap.select_into_table":  "INTO TABLE @DATA(lt_result)",
+    "abap.select_fae":         "FOR ALL ENTRIES",
+    "abap.section_ai":         "Instrucciones para la IA",
+    "abap.ai_instructions":    "Instrucciones adicionales para la IA",
+    "abap.ai_instructions_ph": "Ingresa reglas adicionales para la generación de código IA — patrones de arquitectura, funciones prohibidas, uso de librerías, etc.",
+    "abap.save":               "Guardar Estándares",
+    "abap.saved":              "Guardado",
+    "abap.inherited_hint":     "Heredado del nivel superior — cualquier valor aquí sobreescribe el heredado.",
     // SAP Integration settings (ES)
     "sap.integration_title":        "Integración con Sistema SAP",
     "sap.integration_subtitle":     "Configura el acceso en vivo al sistema SAP para generación de specs e implementación automatizada.",
@@ -30107,6 +30193,135 @@ function useClientProfile(userId) {
 }
 
 // ============================================================
+// ABAP CODING STANDARDS
+// ============================================================
+
+const ABAP_STANDARDS_DEFAULTS = {
+  globalPrefix: 'Z',
+  namespacePrefix: '',
+  objectTypePrefixes: {
+    program: 'R_', class: 'CL_', interface: 'IF_',
+    function_module: '', table: 'ZT_', enhancement: 'E_', badi: 'BD_', other: '',
+  },
+  authorId: '',
+  headerTemplate:
+    `*&---------------------------------------------------------------------*\n` +
+    `*& Object  : {object_name}\n` +
+    `*& Author  : {author}\n` +
+    `*& Date    : {date}\n` +
+    `*& TR      : {transport}\n` +
+    `*& Desc.   : {description}\n` +
+    `*&---------------------------------------------------------------------*`,
+  changeLogTemplate: `*& {date} {author} {transport}: {change_description}`,
+  changeLogLocation: 'top',
+  oldCodeHandling: 'comment_block',
+  oldCodeBeginMarker: `*-BEGIN OLD: {transport} {date} {author}`,
+  oldCodeEndMarker:   `*-END OLD: {transport}`,
+  markNewCode: true,
+  newCodeBeginMarker: `*-BEGIN NEW: {transport} {date} {author}`,
+  newCodeEndMarker:   `*-END NEW: {transport}`,
+  abapVersion: 'modern',
+  errorHandling: 'subrc',
+  selectStyle: 'into_table',
+  localVarNaming: true,
+  additionalInstructions: '',
+};
+
+function resolveAbapStandards(settings, clientId, projectId, caseId) {
+  const clientStd  = (settings['abap_standards_client']  ?? {})[clientId]  ?? {};
+  const projectStd = (settings['abap_standards_project'] ?? {})[projectId] ?? {};
+  const caseStd    = (settings['abap_standards_case']    ?? {})[caseId]    ?? {};
+  return {
+    ...ABAP_STANDARDS_DEFAULTS,
+    ...clientStd,
+    objectTypePrefixes: {
+      ...ABAP_STANDARDS_DEFAULTS.objectTypePrefixes,
+      ...(clientStd.objectTypePrefixes ?? {}),
+      ...(projectStd.objectTypePrefixes ?? {}),
+      ...(caseStd.objectTypePrefixes ?? {}),
+    },
+    ...projectStd,
+    ...caseStd,
+  };
+}
+
+function buildAbapStandardsPrompt(standards, objectType, objectName, act, caseData, transportReq, isModification) {
+  const today = new Date().toISOString().slice(0, 10);
+  const tr = transportReq || '{TRANSPORT}';
+  const author = standards.authorId || '{AUTHOR}';
+
+  const header = standards.headerTemplate
+    .replace(/{object_name}/g, objectName)
+    .replace(/{author}/g, author)
+    .replace(/{date}/g, today)
+    .replace(/{transport}/g, tr)
+    .replace(/{description}/g, act?.description || act?.title || '');
+
+  const changeLog = standards.changeLogTemplate
+    .replace(/{date}/g, today)
+    .replace(/{author}/g, author)
+    .replace(/{transport}/g, tr)
+    .replace(/{change_description}/g, act?.title || 'Implementation');
+
+  const typePfx = (standards.objectTypePrefixes ?? {})[objectType] ?? standards.objectTypePrefixes?.other ?? '';
+  const globalPfx = standards.namespacePrefix
+    ? `/${standards.namespacePrefix}/`
+    : (standards.globalPrefix || 'Z');
+
+  const lines = [
+    `== ABAP CODING STANDARDS (MANDATORY — follow exactly) ==`,
+    ``,
+    `NAMING:`,
+    `  Global prefix for new objects: ${globalPfx}`,
+    typePfx ? `  Object type prefix for ${objectType}: ${typePfx} (e.g. ${globalPfx}${typePfx}${objectName.replace(/^[A-Z\/]+/, '')})` : '',
+    standards.localVarNaming ? `  Local variables: lv_ prefix, local structures: ls_, local tables: lt_, field-symbols: <lv_>/<ls_>/<lt_>` : '',
+    ``,
+    `PROGRAM HEADER (place at the very top):`,
+    header,
+    ``,
+    isModification ? [
+      `CHANGE LOG — add this entry in the ${standards.changeLogLocation === 'bottom' ? 'BOTTOM' : 'TOP'} changelog section:`,
+      changeLog,
+      ``,
+      `OLD CODE HANDLING (${standards.oldCodeHandling}):`,
+      standards.oldCodeHandling === 'delete'
+        ? `  Remove old code entirely — do NOT leave commented-out blocks.`
+        : standards.oldCodeHandling === 'keep'
+          ? `  Keep old code as-is — do NOT comment it out.`
+          : [
+              `  Wrap OLD code with markers:`,
+              `  ${standards.oldCodeBeginMarker.replace(/{transport}/g, tr).replace(/{date}/g, today).replace(/{author}/g, author)}`,
+              `  ... old code ...`,
+              `  ${standards.oldCodeEndMarker.replace(/{transport}/g, tr)}`,
+            ].join('\n'),
+      standards.markNewCode ? [
+        ``,
+        `NEW CODE MARKERS — wrap new/changed logic with:`,
+        `  ${standards.newCodeBeginMarker.replace(/{transport}/g, tr).replace(/{date}/g, today).replace(/{author}/g, author)}`,
+        `  ... new code ...`,
+        `  ${standards.newCodeEndMarker.replace(/{transport}/g, tr)}`,
+      ].join('\n') : '',
+    ].filter(Boolean).join('\n') : '',
+    ``,
+    `ABAP STYLE:`,
+    standards.abapVersion === 'modern'
+      ? `  Use modern ABAP syntax (inline declarations, string templates, method chaining).`
+      : `  Use classic ABAP syntax compatible with older NetWeaver releases. Avoid inline declarations.`,
+    standards.errorHandling === 'exceptions'
+      ? `  Error handling: use class-based exceptions (cx_* classes).`
+      : `  Error handling: check sy-subrc after every database/function call.`,
+    standards.selectStyle === 'for_all_entries'
+      ? `  SELECT: prefer FOR ALL ENTRIES pattern for multi-row reads.`
+      : `  SELECT: use SELECT ... INTO TABLE @DATA(lt_result) pattern.`,
+    ``,
+    standards.additionalInstructions ? [`ADDITIONAL PROJECT INSTRUCTIONS:`, standards.additionalInstructions, ``].join('\n') : '',
+    `== END ABAP CODING STANDARDS ==`,
+  ].filter(s => s !== '').join('\n');
+
+  return lines;
+}
+
+// ============================================================
 // SAP API UTILITIES
 // ============================================================
 
@@ -30520,6 +30735,281 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
           })}
         </div>
       </div>
+
+      <AbapStandardsPanel level="project" entityId={projectId} clientId={clientId} auth={auth} />
+    </div>
+  );
+}
+
+// ============================================================
+// ABAP STANDARDS PANEL
+// ============================================================
+function AbapStandardsPanel({ level, entityId, clientId, projectId, auth }) {
+  const { t } = useT();
+  const ssCtx = useSystemSettings();
+  const { settings } = ssCtx;
+  const canEdit = auth.isAdmin || auth.isManager;
+
+  const settingKey = level === 'client'  ? 'abap_standards_client'
+                   : level === 'project' ? 'abap_standards_project'
+                   :                       'abap_standards_case';
+
+  // Resolve inherited for display purposes
+  const resolvedBase = resolveAbapStandards(
+    settings,
+    level === 'client'  ? entityId : (clientId ?? ''),
+    level === 'project' ? entityId : (projectId ?? ''),
+    level === 'case'    ? entityId : '',
+  );
+
+  const currentMap = settings[settingKey] ?? {};
+  const current = currentMap[entityId] ?? {};
+
+  const [form, setForm] = useState(() => ({ ...resolvedBase, ...current }));
+  const [saving, setSaving] = useState(false);
+  const [saved,  setSaved]  = useState(false);
+
+  function f(key, value) { setForm(p => ({ ...p, [key]: value })); }
+  function fPfx(objType, value) {
+    setForm(p => ({ ...p, objectTypePrefixes: { ...(p.objectTypePrefixes ?? {}), [objType]: value } }));
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    const toSave = { ...form };
+    await ssCtx.setSetting(settingKey, { ...currentMap, [entityId]: toSave });
+    setSaving(false); setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  }
+
+  const inputCls = "w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white font-mono";
+  const labelCls = "block text-xs font-medium text-gray-600 mb-1";
+  const sectionCls = "space-y-4 pt-5 border-t border-gray-100 first:border-t-0 first:pt-0";
+
+  const OBJECT_TYPES_FOR_PREFIX = ['program','class','interface','function_module','table','enhancement','badi','other'];
+
+  if (level === 'case') {
+    // Compact version for the case implementation tab
+    return (
+      <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <FileCode2 size={14} className="text-amber-600 flex-shrink-0" />
+          <span className="text-xs font-semibold text-amber-700 uppercase tracking-wide">{t('abap.tab_title')}</span>
+          <span className="text-xs text-amber-500 ml-auto">{t('abap.inherited_hint')}</span>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelCls}>{t('abap.global_prefix')}</label>
+            <input value={form.globalPrefix} onChange={e => f('globalPrefix', e.target.value)} disabled={!canEdit}
+              className={inputCls} maxLength={10} />
+          </div>
+          <div>
+            <label className={labelCls}>{t('abap.author_id')}</label>
+            <input value={form.authorId} onChange={e => f('authorId', e.target.value)} disabled={!canEdit}
+              className={inputCls} maxLength={40} />
+          </div>
+        </div>
+        <div>
+          <label className={labelCls}>{t('abap.ai_instructions')}</label>
+          <textarea value={form.additionalInstructions} onChange={e => f('additionalInstructions', e.target.value)}
+            disabled={!canEdit} rows={2}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white resize-none"
+            placeholder={t('abap.ai_instructions_ph')} />
+        </div>
+        {canEdit && (
+          <div className="flex items-center gap-3">
+            <button onClick={handleSave} disabled={saving}
+              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-xl disabled:opacity-50 transition-colors">
+              {saving ? '…' : t('abap.save')}
+            </button>
+            {saved && <span className="text-xs text-green-600 font-medium flex items-center gap-1"><CheckCircle2 size={12} />{t('abap.saved')}</span>}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-0">
+      <div className="mb-5">
+        <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
+          <FileCode2 size={16} className="text-amber-600" />{t('abap.tab_title')}
+        </h3>
+        <p className="text-xs text-gray-400 mt-0.5">{t('abap.tab_subtitle')}</p>
+        {level !== 'client' && (
+          <p className="text-xs text-blue-500 mt-1">{t('abap.inherited_hint')}</p>
+        )}
+      </div>
+
+      <div className={sectionCls}>
+        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('abap.section_naming')}</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={labelCls}>{t('abap.global_prefix')}</label>
+            <input value={form.globalPrefix} onChange={e => f('globalPrefix', e.target.value)} disabled={!canEdit}
+              className={inputCls} maxLength={10} placeholder="Z" />
+          </div>
+          <div>
+            <label className={labelCls}>{t('abap.namespace_prefix')}</label>
+            <input value={form.namespacePrefix} onChange={e => f('namespacePrefix', e.target.value)} disabled={!canEdit}
+              className={inputCls} maxLength={20} placeholder="MYNAMESPACE" />
+          </div>
+        </div>
+        <div>
+          <label className={labelCls}>{t('abap.object_type_prefixes')}</label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {OBJECT_TYPES_FOR_PREFIX.map(ot => (
+              <div key={ot}>
+                <label className="block text-[10px] text-gray-500 mb-0.5 capitalize">{ot.replace('_', ' ')}</label>
+                <input value={(form.objectTypePrefixes ?? {})[ot] ?? ''} onChange={e => fPfx(ot, e.target.value)}
+                  disabled={!canEdit} className={inputCls} maxLength={10} placeholder="—" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <button disabled={!canEdit} onClick={() => f('localVarNaming', !form.localVarNaming)}
+            className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 disabled:opacity-50 ${form.localVarNaming ? 'bg-blue-600' : 'bg-gray-200'}`}
+            role="switch" aria-checked={form.localVarNaming}>
+            <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200 ${form.localVarNaming ? 'translate-x-4' : 'translate-x-0'}`} />
+          </button>
+          <span className="text-sm text-gray-700">{t('abap.local_var_naming')}</span>
+        </div>
+      </div>
+
+      <div className={sectionCls}>
+        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('abap.section_header')}</h4>
+        <div>
+          <label className={labelCls}>{t('abap.author_id')}</label>
+          <input value={form.authorId} onChange={e => f('authorId', e.target.value)} disabled={!canEdit}
+            className={inputCls} maxLength={40} placeholder="JSMITH" />
+        </div>
+        <div>
+          <label className={labelCls}>{t('abap.header_template')} <span className="text-gray-400 font-normal">({`{object_name} {author} {date} {transport} {description}`})</span></label>
+          <textarea value={form.headerTemplate} onChange={e => f('headerTemplate', e.target.value)}
+            disabled={!canEdit} rows={7}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white font-mono resize-y" />
+        </div>
+      </div>
+
+      <div className={sectionCls}>
+        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('abap.section_changelog')}</h4>
+        <div>
+          <label className={labelCls}>{t('abap.changelog_template')} <span className="text-gray-400 font-normal">({`{date} {author} {transport} {change_description}`})</span></label>
+          <input value={form.changeLogTemplate} onChange={e => f('changeLogTemplate', e.target.value)}
+            disabled={!canEdit} className={inputCls} />
+        </div>
+        <div>
+          <label className={labelCls}>{t('abap.changelog_location')}</label>
+          <select value={form.changeLogLocation} onChange={e => f('changeLogLocation', e.target.value)}
+            disabled={!canEdit}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white">
+            <option value="top">{t('abap.changelog_top')}</option>
+            <option value="bottom">{t('abap.changelog_bottom')}</option>
+          </select>
+        </div>
+      </div>
+
+      <div className={sectionCls}>
+        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('abap.section_modifications')}</h4>
+        <div>
+          <label className={labelCls}>{t('abap.old_code_handling')}</label>
+          <select value={form.oldCodeHandling} onChange={e => f('oldCodeHandling', e.target.value)}
+            disabled={!canEdit}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white">
+            <option value="comment_block">{t('abap.old_code_comment')}</option>
+            <option value="delete">{t('abap.old_code_delete')}</option>
+            <option value="keep">{t('abap.old_code_keep')}</option>
+          </select>
+        </div>
+        {form.oldCodeHandling === 'comment_block' && (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>{t('abap.old_code_begin')}</label>
+              <input value={form.oldCodeBeginMarker} onChange={e => f('oldCodeBeginMarker', e.target.value)}
+                disabled={!canEdit} className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>{t('abap.old_code_end')}</label>
+              <input value={form.oldCodeEndMarker} onChange={e => f('oldCodeEndMarker', e.target.value)}
+                disabled={!canEdit} className={inputCls} />
+            </div>
+          </div>
+        )}
+        <div className="flex items-center gap-3">
+          <button disabled={!canEdit} onClick={() => f('markNewCode', !form.markNewCode)}
+            className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 disabled:opacity-50 ${form.markNewCode ? 'bg-blue-600' : 'bg-gray-200'}`}
+            role="switch" aria-checked={form.markNewCode}>
+            <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200 ${form.markNewCode ? 'translate-x-4' : 'translate-x-0'}`} />
+          </button>
+          <span className="text-sm text-gray-700">{t('abap.mark_new_code')}</span>
+        </div>
+        {form.markNewCode && (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>{t('abap.new_code_begin')}</label>
+              <input value={form.newCodeBeginMarker} onChange={e => f('newCodeBeginMarker', e.target.value)}
+                disabled={!canEdit} className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>{t('abap.new_code_end')}</label>
+              <input value={form.newCodeEndMarker} onChange={e => f('newCodeEndMarker', e.target.value)}
+                disabled={!canEdit} className={inputCls} />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className={sectionCls}>
+        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('abap.section_style')}</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label className={labelCls}>{t('abap.abap_version')}</label>
+            <select value={form.abapVersion} onChange={e => f('abapVersion', e.target.value)} disabled={!canEdit}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white">
+              <option value="modern">{t('abap.version_modern')}</option>
+              <option value="classic">{t('abap.version_classic')}</option>
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>{t('abap.error_handling')}</label>
+            <select value={form.errorHandling} onChange={e => f('errorHandling', e.target.value)} disabled={!canEdit}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white">
+              <option value="subrc">{t('abap.error_subrc')}</option>
+              <option value="exceptions">{t('abap.error_exceptions')}</option>
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>{t('abap.select_style')}</label>
+            <select value={form.selectStyle} onChange={e => f('selectStyle', e.target.value)} disabled={!canEdit}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white">
+              <option value="into_table">{t('abap.select_into_table')}</option>
+              <option value="for_all_entries">{t('abap.select_fae')}</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div className={sectionCls}>
+        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('abap.section_ai')}</h4>
+        <div>
+          <label className={labelCls}>{t('abap.ai_instructions')}</label>
+          <textarea value={form.additionalInstructions} onChange={e => f('additionalInstructions', e.target.value)}
+            disabled={!canEdit} rows={4}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white resize-y"
+            placeholder={t('abap.ai_instructions_ph')} />
+        </div>
+      </div>
+
+      {canEdit && (
+        <div className="flex items-center gap-3 pt-5 border-t border-gray-100">
+          <button onClick={handleSave} disabled={saving}
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors">
+            {saving ? '…' : t('abap.save')}
+          </button>
+          {saved && <span className="text-sm text-green-600 font-medium flex items-center gap-1"><CheckCircle2 size={14} />{t('abap.saved')}</span>}
+        </div>
+      )}
     </div>
   );
 }
@@ -30618,19 +31108,36 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
     setActField(act.id, { generating: true });
     try {
       const existingSource = actState[act.id]?.checkResult?.source ?? '';
-      const specContent = ''; // could fetch from documents
-      const prompt = `You are an SAP ABAP developer. Generate ${obj.objectType ?? 'ABAP program'} code for SAP object ${obj.objectName}.
+      const isModification = !!existingSource;
+      const standards = resolveAbapStandards(
+        settings,
+        caseData.client_id,
+        caseData.project_id,
+        caseData.id,
+      );
+      const standardsBlock = buildAbapStandardsPrompt(
+        standards,
+        obj.objectType ?? 'program',
+        obj.objectName,
+        act,
+        caseData,
+        transportReq,
+        isModification,
+      );
+      const prompt = `You are an SAP ABAP developer. ${isModification ? 'MODIFY' : 'CREATE'} ${obj.objectType ?? 'ABAP program'} code for SAP object ${obj.objectName}.
 
 Activity: ${act.title}
 Description: ${act.description ?? ''}
 Case: ${caseData.title}
 SAP Module: ${caseData.area_sap ?? 'general'}
-${existingSource ? `\nExisting source to MODIFY:\n\`\`\`abap\n${existingSource.slice(0, 3000)}\n\`\`\`` : '\nThis is a NEW object — generate complete source.'}
+${isModification ? `\nExisting source to MODIFY:\n\`\`\`abap\n${existingSource.slice(0, 3000)}\n\`\`\`` : '\nThis is a NEW object — generate complete source.'}
 
-Output ONLY the ABAP source code, no explanations. Include proper program header, selection screen if applicable, main logic, and all FORM/CLASS/METHOD definitions.`;
+${standardsBlock}
+
+Output ONLY the ABAP source code, no explanations. Follow the coding standards above exactly.`;
       const resp = await callClaude({
         model: genModel,
-        system: 'You are an expert SAP ABAP developer. Output only clean, compilable ABAP source code.',
+        system: 'You are an expert SAP ABAP developer. Output only clean, compilable ABAP source code. Follow all coding standards provided in the user message without exception.',
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
         max_tokens: 4000,
       });
@@ -30765,6 +31272,15 @@ Output ONLY the ABAP source code, no explanations. Include proper program header
           </div>
         </div>
       </div>
+
+      {/* Case-level ABAP Standards override */}
+      <AbapStandardsPanel
+        level="case"
+        entityId={caseData.id}
+        clientId={caseData.client_id}
+        projectId={caseData.project_id}
+        auth={auth}
+      />
 
       {/* Activity cards */}
       {implActivities.length === 0 ? (
@@ -31172,6 +31688,7 @@ function ClientProfileView({ auth }) {
     { id: "defaults",     label: t("client_tab.defaults"),    icon: ClipboardList,     count: null },
     { id: "assignment",   label: t("client_tab.assignment"),  icon: UserCheck,         count: null },
     { id: "sap",          label: t("client_tab.sap"),         icon: Code2,             count: null },
+    { id: "abap",         label: t("client_tab.abap"),        icon: FileCode2,          count: null },
   ];
 
   return (
@@ -31999,6 +32516,10 @@ function ClientProfileView({ auth }) {
 
       {tab === "sap" && (
         <SapIntegrationPanel clientId={auth.user?.id} auth={auth} />
+      )}
+
+      {tab === "abap" && (
+        <AbapStandardsPanel level="client" entityId={auth.user?.id} auth={auth} />
       )}
     </div>
   );
