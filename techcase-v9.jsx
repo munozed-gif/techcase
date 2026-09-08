@@ -11871,9 +11871,14 @@ function CaseTemplatesView({ auth }) {
           className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold whitespace-nowrap transition-colors border-b-2 -mb-px ${templateTab === 'project' ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
           <LayoutTemplate size={14} /> Project Templates
         </button>
+        <button onClick={() => setTemplateTab('abap')}
+          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold whitespace-nowrap transition-colors border-b-2 -mb-px ${templateTab === 'abap' ? 'border-amber-500 text-amber-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+          <FileCode2 size={14} /> ABAP Standards
+        </button>
       </div>
 
       {templateTab === 'project' && <ProjectTemplatesSection auth={auth} />}
+      {templateTab === 'abap'    && <AbapTemplatesSection auth={auth} />}
 
       {templateTab === 'case' && <>
       <div className="mb-5">
