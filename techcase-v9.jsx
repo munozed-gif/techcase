@@ -25631,13 +25631,14 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
                 );
               })()}
 
-              {/* Admin: SAP Integration quick config */}
+              {/* Admin: SAP Integration + ABAP Standards */}
               {canAdmin && (() => {
                 const companyId = clientProfile.type === 'client' ? consultantId : clientProfile.member?.client_id;
                 if (!companyId) return null;
                 return (
-                  <div className="border-t border-gray-100 pt-4">
+                  <div className="border-t border-gray-100 pt-4 space-y-4">
                     <SapIntegrationPanel clientId={companyId} auth={auth} />
+                    <AbapStandardsPanel level="client" entityId={companyId} auth={auth} />
                   </div>
                 );
               })()}
