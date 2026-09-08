@@ -26604,7 +26604,7 @@ function ArenaView({ auth }) {
 // CONSULTANT PROFILE VIEW
 // ============================================================
 function ProfileView({ auth, compact = false }) {
-  const { t } = useT();
+  const { t, lang, setLang } = useT();
   // Extract the real consultant_profiles id from auth (useAuth already fetched it via FK join)
   const cpRaw = auth.profile?.consultant_profiles;
   const realProfileId = Array.isArray(cpRaw) ? cpRaw[0]?.id : cpRaw?.id;
@@ -26629,13 +26629,14 @@ function ProfileView({ auth, compact = false }) {
       expertise_level: profile?.expertise_level ?? "mid",
       availability_type: profile?.availability_type ?? "project_based",
       _skills: profile?.skills?.join(", ") ?? "",
+      preferred_lang: lang,
     });
-  }, [profile, editing]);
+  }, [profile, editing, lang]);
 
   async function handleSave() {
     setSaving(true);
     try {
-      const { _skills, ...profileData } = form;
+      const { _skills, preferred_lang, ...profileData } = form;
       await updateProfile({
         ...profileData,
         skills: _skills?.split(",").map(s => s.trim()).filter(Boolean) ?? [],
@@ -26643,6 +26644,7 @@ function ProfileView({ auth, compact = false }) {
         years_experience: Number(form.years_experience) || 0,
         external_occupancy_pct: Number(form.external_occupancy_pct) || 0,
       });
+      if (preferred_lang && preferred_lang !== lang) setLang(preferred_lang);
       setEditing(false);
     } catch (e) { alert(e.message); }
     setSaving(false);
@@ -26867,6 +26869,12 @@ function ProfileView({ auth, compact = false }) {
                 { value: "project_based", label: t("avail.project") },
               ]} />
           </div>
+          <Select label={t("label.language")} value={form.preferred_lang ?? "en"}
+            onChange={e => setForm(p => ({ ...p, preferred_lang: e.target.value }))}
+            options={[
+              { value: "en", label: t("lang.en") },
+              { value: "es", label: t("lang.es") },
+            ]} />
           <Input label={t("label.linkedin")} value={form.linkedin_url}
             onChange={e => setForm(p => ({ ...p, linkedin_url: e.target.value }))}
             placeholder={t("profile.ph_linkedin")} />
@@ -31873,7 +31881,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
 }
 
 function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
-  const { t } = useT();
+  const { t, lang, setLang } = useT();
   const visCfg = useVisibilitySettings();
   // When opened by admin for a specific client, use that clientId; otherwise own profile
   const effectiveClientId = clientIdProp ?? auth.user?.id;
@@ -31977,8 +31985,9 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
       budget:                profile?.budget ?? "",
       _categories:           profile?.preferred_categories?.join(", ") ?? "",
       notes:                 profile?.notes ?? "",
+      preferred_lang:        lang,
     });
-  }, [profile, editing]);
+  }, [profile, editing, lang]);
 
   useEffect(() => {
     if (sla && !slaEditing) {
@@ -31999,7 +32008,7 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
   async function handleSave() {
     setSaving(true);
     try {
-      const { _categories, ...profileData } = form;
+      const { _categories, preferred_lang, ...profileData } = form;
       await updateProfile({
         ...profileData,
         founded_year: form.founded_year ? Number(form.founded_year) : null,
@@ -32007,6 +32016,7 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
           ? _categories.split(",").map(s => s.trim()).filter(Boolean)
           : [],
       });
+      if (preferred_lang && preferred_lang !== lang) setLang(preferred_lang);
       setEditing(false);
     } catch (e) { alert(e.message); }
     setSaving(false);
@@ -32256,6 +32266,14 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
               onChange={e => setForm(p => ({ ...p, _categories: e.target.value }))}
               placeholder={t("company.ph_tags")} />
           </div>
+          {!isAdminView && (
+            <Select label={t("label.language")} value={form.preferred_lang ?? "en"}
+              onChange={e => setForm(p => ({ ...p, preferred_lang: e.target.value }))}
+              options={[
+                { value: "en", label: t("lang.en") },
+                { value: "es", label: t("lang.es") },
+              ]} />
+          )}
           <Textarea label={t("company.internal_notes")} value={form.notes}
             onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
             placeholder={t("company.ph_vetting")} />
