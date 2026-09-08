@@ -10321,7 +10321,9 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
 // ============================================================
 function Dashboard({ auth }) {
   const { t } = useT();
-  const { cases, loading: casesLoading, updateCase, deleteCase } = useCases();
+  const { cases: _rawCases, loading: casesLoading, updateCase, deleteCase } = useCases();
+  const _dashVisCfg = useVisibilitySettings();
+  const cases = filterCasesByVisibility(_rawCases, auth, _dashVisCfg);
   const { applications } = useApplications();
   const [applyingToCase, setApplying]   = useState(null);
   const [clientFilter, setClientFilter] = useState(null); // { id, name } | null
@@ -16165,10 +16167,12 @@ function CasesView({ auth, initialCaseId }) {
     q.then(({ data }) => setFilterProjects(data ?? []));
   }, [auth.user?.id]);
 
-  const { cases, loading, createCase, updateCase, deleteCase, refetch } = useCases({
+  const { cases: _rawCasesCV, loading, createCase, updateCase, deleteCase, refetch } = useCases({
     search: search || undefined,
     client_id: auth.isClient ? auth.user?.id : undefined,
   });
+  const _casesViewVisCfg = useVisibilitySettings();
+  const cases = filterCasesByVisibility(_rawCasesCV, auth, _casesViewVisCfg);
 
   // Open a specific case when navigated from GlobalSearch
   const [initialCaseOpened, setInitialCaseOpened] = useState(false);
@@ -32179,7 +32183,9 @@ function KanbanCard({ c, cardSize, cols, canMove, movingId, onSelect, onMove }) 
 // ============================================================
 function KanbanView({ auth }) {
   const { t } = useT();
-  const { cases, loading, updateCase } = useCases();
+  const { cases: _rawCasesKB, loading, updateCase } = useCases();
+  const _kanbanVisCfg = useVisibilitySettings();
+  const cases = filterCasesByVisibility(_rawCasesKB, auth, _kanbanVisCfg);
   const { templates: lcTemplates } = useLifecycleTemplates();
   const [selectedCase, setSelectedCase]       = useState(null);
   const [movingId, setMovingId]               = useState(null);
@@ -33725,6 +33731,26 @@ function useVisibilitySettings() {
     getCaseVisibility, setCaseVisibility,
     getCaseInvitations, addCaseInvitation, removeCaseInvitation,
   };
+}
+
+// Applies company/case visibility rules to a cases array.
+// Admins and managers always see everything.
+// Consultants and key users only see private/internal cases they are part of.
+function filterCasesByVisibility(cases, auth, visCfg) {
+  if (!visCfg || !cases) return cases ?? [];
+  if (auth.isAdmin || auth.isManager) return cases;
+  if (auth.isClient) return cases; // RLS or client_id filter already scopes this
+  const userId = auth.user?.id;
+  if (!userId) return cases;
+  return cases.filter(c => {
+    const vis = visCfg.getCaseVisibility(c.id, c.client_id);
+    if (vis === 'public') return true;
+    // Private or internal company — show only if the user is involved
+    const isAssigned = c.case_assignments?.some(a => a.consultant_id === userId);
+    const isKeyUser  = c.case_key_users?.some(ku => ku.user_id === userId);
+    const isInvited  = visCfg.getCaseInvitations(c.id).some(i => i.consultantId === userId);
+    return isAssigned || isKeyUser || isInvited;
+  });
 }
 
 function UpgradeModal({ onClose, title, message, roleType, planKey, auth }) {
