@@ -701,6 +701,8 @@ const TRANSLATIONS = {
     "sap.delete_env":               "Delete",
     "sap.project_env_label":        "SAP Environment for this Project",
     "sap.project_env_none":         "None (use first available)",
+    "sap.case_env_label":           "SAP Environment",
+    "sap.case_env_inherit":         "Inherit from project",
     "sap.live_check_label":         "Live system check during generation",
     "sap.live_check_desc":          "Connect to SAP before generating specs to read real system version, components, and existing object source.",
     "sap.auto_impl_label":          "Enable auto-implementation",
@@ -3794,6 +3796,8 @@ const TRANSLATIONS = {
     "sap.delete_env":               "Eliminar",
     "sap.project_env_label":        "Ambiente SAP para este Proyecto",
     "sap.project_env_none":         "Ninguno (usar el primero disponible)",
+    "sap.case_env_label":           "Ambiente SAP",
+    "sap.case_env_inherit":         "Heredar del proyecto",
     "sap.live_check_label":         "Verificación en vivo durante generación",
     "sap.live_check_desc":          "Conectar a SAP antes de generar specs para leer la versión real, componentes y código fuente existente.",
     "sap.auto_impl_label":          "Habilitar auto-implementación",
@@ -18294,13 +18298,16 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
     // Live SAP system check
     if (genCtx.sap_live_check && caseData.client_id) {
       try {
-        const [{ data: sapCfgRow }, { data: sapProjEnvRow }] = await Promise.all([
+        const [{ data: sapCfgRow }, { data: sapProjEnvRow }, { data: sapCaseEnvRow }] = await Promise.all([
           supabase.from('system_settings').select('value').eq('key', 'sap_integration').maybeSingle(),
           supabase.from('system_settings').select('value').eq('key', 'sap_project_env').maybeSingle(),
+          supabase.from('system_settings').select('value').eq('key', 'sap_case_env').maybeSingle(),
         ]);
         const clientSapData = (sapCfgRow?.value ?? {})[caseData.client_id] ?? {};
         const sapEnvs = clientSapData.environments ?? (clientSapData.host ? [clientSapData] : []);
-        const selectedEnvId = (sapProjEnvRow?.value ?? {})[caseData.project_id];
+        const selectedEnvId = (sapCaseEnvRow?.value ?? {})[caseData.id]
+          ?? (sapProjEnvRow?.value ?? {})[caseData.project_id]
+          ?? null;
         const sapCfg = selectedEnvId
           ? (sapEnvs.find(e => e.id === selectedEnvId) ?? sapEnvs[0] ?? null)
           : (sapEnvs[0] ?? null);
@@ -21722,13 +21729,16 @@ canvas{display:block;width:100%}
 
     if (genCtx.sap_live_check && caseData.client_id) {
       try {
-        const [{ data: sapCfgRow }, { data: sapProjEnvRow }] = await Promise.all([
+        const [{ data: sapCfgRow }, { data: sapProjEnvRow }, { data: sapCaseEnvRow }] = await Promise.all([
           supabase.from('system_settings').select('value').eq('key', 'sap_integration').maybeSingle(),
           supabase.from('system_settings').select('value').eq('key', 'sap_project_env').maybeSingle(),
+          supabase.from('system_settings').select('value').eq('key', 'sap_case_env').maybeSingle(),
         ]);
         const clientSapData = (sapCfgRow?.value ?? {})[caseData.client_id] ?? {};
         const sapEnvs = clientSapData.environments ?? (clientSapData.host ? [clientSapData] : []);
-        const selectedEnvId = (sapProjEnvRow?.value ?? {})[caseData.project_id];
+        const selectedEnvId = (sapCaseEnvRow?.value ?? {})[caseData.id]
+          ?? (sapProjEnvRow?.value ?? {})[caseData.project_id]
+          ?? null;
         const sapCfg = selectedEnvId
           ? (sapEnvs.find(e => e.id === selectedEnvId) ?? sapEnvs[0] ?? null)
           : (sapEnvs[0] ?? null);
@@ -30467,11 +30477,19 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   const clientSapData = allSapConfigs[caseData.client_id] ?? {};
   const sapEnvironments = clientSapData.environments ?? (clientSapData.host ? [clientSapData] : []);
   const sapProjectEnvMap = settings['sap_project_env'] ?? {};
-  const selectedSapEnvId = sapProjectEnvMap[caseData.project_id];
+  const sapCaseEnvMap   = settings['sap_case_env']    ?? {};
+  // Resolution: case env → project env → first client env
+  const selectedSapEnvId = sapCaseEnvMap[caseData.id]
+    ?? sapProjectEnvMap[caseData.project_id]
+    ?? null;
   const sapConfig = selectedSapEnvId
     ? (sapEnvironments.find(e => e.id === selectedSapEnvId) ?? sapEnvironments[0] ?? null)
     : (sapEnvironments[0] ?? null);
   const autoImplEnabled = sapConfig?.autoImplementEnabled ?? false;
+
+  async function saveCaseEnv(envId) {
+    await ssCtx.setSetting('sap_case_env', { ...sapCaseEnvMap, [caseData.id]: envId || null });
+  }
 
   // Per-activity SAP object assignments: { [actId]: { objectType, objectName } }
   const savedObjects = settings['sap_activity_objects'] ?? {};
@@ -30626,6 +30644,27 @@ Output ONLY the ABAP source code, no explanations. Include proper program header
             <p className="text-xs text-gray-400 mt-0.5">{t('sap.impl_tab_subtitle')}</p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
+            {/* Environment selector */}
+            {sapEnvironments.length > 1 && (
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-500 font-medium">{t('sap.case_env_label')}:</label>
+                <select
+                  value={sapCaseEnvMap[caseData.id] ?? ''}
+                  onChange={e => saveCaseEnv(e.target.value)}
+                  className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                  <option value="">{t('sap.case_env_inherit')}</option>
+                  {sapEnvironments.map(env => {
+                    const meta = SAP_ENV_TYPE_META[env.envType] ?? SAP_ENV_TYPE_META.dev;
+                    return <option key={env.id} value={env.id}>{env.name} ({meta.label})</option>;
+                  })}
+                </select>
+                {sapConfig && (
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${(SAP_ENV_TYPE_META[sapConfig.envType] ?? SAP_ENV_TYPE_META.dev).color}`}>
+                    {sapConfig.name}
+                  </span>
+                )}
+              </div>
+            )}
             {/* Transport request */}
             <div className="flex items-center gap-2">
               <label className="text-xs text-gray-500 font-medium">{t('sap.transport_req')}:</label>
