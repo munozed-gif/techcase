@@ -25226,7 +25226,7 @@ function useConsultantShortlist() {
 // ============================================================
 // CONSULTANT PROFILE PANEL (drawer used inside Arena)
 // ============================================================
-function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCompare, inCompare, auth, isShortlisted, onToggleShortlist, openCases }) {
+function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCompare, inCompare, auth, isShortlisted, onToggleShortlist, openCases, onOpenClientProfile }) {
   const { t } = useT();
   const { profile, availability, loading } = useConsultantProfile(consultantId);
   const { ratings, avgRating } = useRatings(consultantId);
@@ -25602,43 +25602,17 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
                 </div>
               )}
 
-              {/* Admin: visibility mode override */}
+              {/* Admin: open full profile button */}
               {canAdmin && (() => {
                 const companyId = clientProfile.type === 'client' ? consultantId : clientProfile.member?.client_id;
-                if (!companyId) return null;
-                const current = panelVisCfg.getCompanyVisibility(companyId);
+                if (!companyId || !onOpenClientProfile) return null;
                 return (
                   <div className="border-t border-gray-100 pt-4">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                      <Eye size={11} />Visibility Mode
-                    </p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { id: 'open',     label: 'Open',          cls: 'border-blue-500 bg-blue-50 text-blue-800' },
-                        { id: 'internal', label: 'Internal Only',  cls: 'border-amber-500 bg-amber-50 text-amber-800' },
-                      ].map(opt => {
-                        const isActive = current === opt.id;
-                        return (
-                          <button key={opt.id} type="button"
-                            onClick={() => panelVisCfg.setCompanyVisibility(companyId, opt.id)}
-                            className={`py-2 px-3 text-sm font-semibold rounded-xl border-2 transition-all ${isActive ? opt.cls : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-                            {opt.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Admin: SAP Integration + ABAP Standards */}
-              {canAdmin && (() => {
-                const companyId = clientProfile.type === 'client' ? consultantId : clientProfile.member?.client_id;
-                if (!companyId) return null;
-                return (
-                  <div className="border-t border-gray-100 pt-4 space-y-4">
-                    <SapIntegrationPanel clientId={companyId} auth={auth} />
-                    <AbapStandardsPanel level="client" entityId={companyId} auth={auth} />
+                    <button
+                      onClick={() => { onClose?.(); onOpenClientProfile(companyId); }}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors">
+                      <ExternalLink size={14} /> Open Full Company Profile
+                    </button>
                   </div>
                 );
               })()}
@@ -31424,13 +31398,16 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
   );
 }
 
-function ClientProfileView({ auth }) {
+function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
   const { t } = useT();
   const visCfg = useVisibilitySettings();
-  const { profile, loading, updateProfile } = useClientProfile(auth.user?.id);
-  const { sla, updateSla }                  = useSlaConfig(auth.user?.id);
-  const { connections, addConnection, deleteConnection } = useDbConnections(auth.user?.id);
-  const { members, addMember, updateMember, removeMember } = useClientTeamMembers(auth.user?.id);
+  // When opened by admin for a specific client, use that clientId; otherwise own profile
+  const effectiveClientId = clientIdProp ?? auth.user?.id;
+  const isAdminView = !!(clientIdProp && (auth.isAdmin || auth.isManager));
+  const { profile, loading, updateProfile } = useClientProfile(effectiveClientId);
+  const { sla, updateSla }                  = useSlaConfig(effectiveClientId);
+  const { connections, addConnection, deleteConnection } = useDbConnections(effectiveClientId);
+  const { members, addMember, updateMember, removeMember } = useClientTeamMembers(effectiveClientId);
   const [memberStatusMap, setMemberStatusMap] = useState({});
 
   useEffect(() => {
@@ -31681,7 +31658,7 @@ function ClientProfileView({ auth }) {
 
   const tabs = [
     { id: "overview",     label: t("client_tab.overview"),    icon: Building2,         count: null },
-    { id: "plan",         label: "My Plan",                   icon: CreditCard,        count: null },
+    ...(!isAdminView ? [{ id: "plan", label: "My Plan", icon: CreditCard, count: null }] : []),
     { id: "sla",          label: t("client_tab.sla"),         icon: SlidersHorizontal, count: null },
     { id: "connections",  label: t("client_tab.connections"), icon: Database,          count: connections.length },
     { id: "team",         label: t("client_tab.team"),        icon: Users,             count: members.length },
@@ -31690,11 +31667,18 @@ function ClientProfileView({ auth }) {
     { id: "defaults",     label: t("client_tab.defaults"),    icon: ClipboardList,     count: null },
     { id: "assignment",   label: t("client_tab.assignment"),  icon: UserCheck,         count: null },
     { id: "sap",          label: t("client_tab.sap"),         icon: Code2,             count: null },
-    { id: "abap",         label: t("client_tab.abap"),        icon: FileCode2,          count: null },
+    { id: "abap",         label: t("client_tab.abap"),        icon: FileCode2,         count: null },
   ];
 
   return (
     <div>
+      {/* Back button for admin view */}
+      {isAdminView && onBack && (
+        <button onClick={onBack}
+          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 mb-4 transition-colors">
+          <ChevronLeft size={16} />Back to Settings
+        </button>
+      )}
       {/* Header card */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
         <div className="flex items-start gap-5">
@@ -32517,11 +32501,11 @@ function ClientProfileView({ auth }) {
       )}
 
       {tab === "sap" && (
-        <SapIntegrationPanel clientId={auth.user?.id} auth={auth} />
+        <SapIntegrationPanel clientId={effectiveClientId} auth={auth} />
       )}
 
       {tab === "abap" && (
-        <AbapStandardsPanel level="client" entityId={auth.user?.id} auth={auth} />
+        <AbapStandardsPanel level="client" entityId={effectiveClientId} auth={auth} />
       )}
     </div>
   );
@@ -37382,6 +37366,7 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
             initialRole={panelUserRole}
             onClose={() => setPanelConsultantId(null)}
             auth={auth}
+            onOpenClientProfile={onNavigate ? (clientId) => onNavigate({ view: 'client-profile', clientId }) : null}
           />
         </div>
       )}
@@ -38396,6 +38381,7 @@ export default function App() {
   const [pendingCaseId, setPendingCaseId] = useState(null);
   const [pendingProjectId, setPendingProjectId] = useState(null);
   const [pendingUserId, setPendingUserId] = useState(null);
+  const [pendingClientId, setPendingClientId] = useState(null);
 
   // Sync authed state with auth session
   useEffect(() => {
@@ -38488,9 +38474,11 @@ export default function App() {
       case "sla":            return (auth.isAdmin || auth.isManager) ? <SlaView auth={auth} /> : <Dashboard auth={auth} />;
       case "db-connections": return <DbConnectionsView auth={auth} />;
       case "team-members":   return <ClientTeamView auth={auth} />;
-      case "client-profile": return auth.isClient ? <ClientProfileView auth={auth} /> : <Dashboard auth={auth} />;
+      case "client-profile": return (auth.isClient || ((auth.isAdmin || auth.isManager) && pendingClientId))
+        ? <ClientProfileView auth={auth} clientId={pendingClientId ?? auth.user?.id} onBack={pendingClientId ? () => { setPendingClientId(null); setActiveView("settings"); } : null} />
+        : <Dashboard auth={auth} />;
       case "lifecycle":      return (auth.isAdmin || auth.isManager) ? <LifecycleSettingsView auth={auth} /> : <Dashboard auth={auth} />;
-      case "settings":       return (auth.isAdmin || auth.isManager) ? <SystemSettingsView auth={auth} onNavigate={({ view, userId }) => { setPendingUserId(userId ?? null); setActiveView(view); }} /> : <Dashboard auth={auth} />;
+      case "settings":       return (auth.isAdmin || auth.isManager) ? <SystemSettingsView auth={auth} onNavigate={({ view, userId, clientId }) => { setPendingUserId(userId ?? null); setPendingClientId(clientId ?? null); setActiveView(view); }} /> : <Dashboard auth={auth} />;
       case "audit_log":      return (auth.isAdmin || auth.isManager)
         ? <AuditLogDashboard onNavigate={({ view, caseId, projectId, userId }) => {
             setPendingCaseId(caseId ?? null);
