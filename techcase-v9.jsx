@@ -30748,7 +30748,8 @@ function AbapStandardsPanel({ level, entityId, clientId, projectId, auth }) {
   const { t } = useT();
   const ssCtx = useSystemSettings();
   const { settings } = ssCtx;
-  const canEdit = auth.isAdmin || auth.isManager;
+  // Clients can edit their own company-level standards; admins/managers can edit at any level
+  const canEdit = auth.isAdmin || auth.isManager || (level === 'client' && auth.isClient);
 
   const settingKey = level === 'client'  ? 'abap_standards_client'
                    : level === 'project' ? 'abap_standards_project'
