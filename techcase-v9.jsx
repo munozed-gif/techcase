@@ -16477,6 +16477,11 @@ function CasesView({ auth, initialCaseId }) {
                         <h3 className="font-semibold text-gray-900 truncate">{c.title}</h3>
                         {c.priority && <span className="text-xs text-gray-400 font-medium capitalize flex-shrink-0">{PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}</span>}
                       </div>
+                      {c.project?.name && (
+                        <p className="text-xs text-blue-600 font-medium truncate flex items-center gap-1 mb-1">
+                          <FolderKanban size={11} className="flex-shrink-0" />{c.project.name}
+                        </p>
+                      )}
                       <p className="text-sm text-gray-500 line-clamp-2">{c.description}</p>
                       <div className="flex items-center gap-4 mt-3 text-xs text-gray-400 flex-wrap">
                         {c.skills_required?.length > 0 && (
