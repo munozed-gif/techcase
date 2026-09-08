@@ -20441,6 +20441,17 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const { activities, addActivity, updateActivity, deleteActivity, refetch: refetchActivities } = useCaseActivities(caseData.id, actRefreshKey);
 
   const [activeTab, setActiveTab]   = useState("detail");
+
+  // Resolve active SAP environment for display in header
+  const _sapClientData  = (cdSettings['sap_integration'] ?? {})[caseData.client_id] ?? {};
+  const _sapEnvs        = _sapClientData.environments ?? (_sapClientData.host ? [_sapClientData] : []);
+  const _sapCaseEnvId   = (cdSettings['sap_case_env']    ?? {})[caseData.id]
+                       ?? (cdSettings['sap_project_env'] ?? {})[caseData.project_id]
+                       ?? null;
+  const _activeSapEnv   = _sapEnvs.length > 0
+    ? (_sapCaseEnvId ? (_sapEnvs.find(e => e.id === _sapCaseEnvId) ?? _sapEnvs[0]) : _sapEnvs[0])
+    : null;
+
   const [newMilestone, setNewMilestone] = useState("");
   const [commentForm, setCommentForm]  = useState({ body: "", hoursLogged: 0, progressUpdate: "", isInternal: false });
   const [sendingComment, setSendingComment] = useState(false);
@@ -22444,6 +22455,15 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                     if (v === 'private')      return <span className="px-2 py-0.5 bg-gray-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1"><Lock size={9}/>{t('case.vis_private')}</span>;
                     if (v === 'invite-only')  return <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold flex items-center gap-1"><UserPlus size={9}/>{t('case.vis_invite')}</span>;
                     return null;
+                  })()}
+                  {_activeSapEnv && (auth.isAdmin || auth.isManager || auth.isConsultant) && (() => {
+                    const meta = SAP_ENV_TYPE_META[_activeSapEnv.envType] ?? SAP_ENV_TYPE_META.dev;
+                    return (
+                      <span className={`px-2 py-0.5 rounded-lg text-xs font-semibold flex items-center gap-1 ${meta.color}`}
+                        title={`SAP: ${_activeSapEnv.host || _activeSapEnv.name}`}>
+                        <Code2 size={9} />{_activeSapEnv.name}
+                      </span>
+                    );
                   })()}
                   {caseData.status === "standby" && caseData.standby_reason && (
                     <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-lg text-xs font-semibold flex items-center gap-1">
