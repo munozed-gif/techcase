@@ -719,6 +719,22 @@ const TRANSLATIONS = {
     "abap.save":               "Save Standards",
     "abap.saved":              "Saved",
     "abap.inherited_hint":     "Inheriting from higher level — any value set here overrides the inherited one.",
+    "abap.load_template":      "Load from Template",
+    "abap.select_template":    "Select a template…",
+    "abap.apply_template":     "Apply",
+    "abap.template_applied":   "Template applied — review and save.",
+    // ABAP Templates (platform)
+    "abap_tpl.title":          "ABAP Coding Standard Templates",
+    "abap_tpl.subtitle":       "Create reusable templates that can be loaded into any client, project, or case ABAP standards configuration.",
+    "abap_tpl.new":            "New Template",
+    "abap_tpl.name":           "Template Name",
+    "abap_tpl.name_ph":        "e.g. S/4HANA Modern, ECC Classic…",
+    "abap_tpl.save":           "Save Template",
+    "abap_tpl.delete":         "Delete",
+    "abap_tpl.edit":           "Edit",
+    "abap_tpl.cancel":         "Cancel",
+    "abap_tpl.no_templates":   "No templates yet. Create one to reuse across clients.",
+    "abap_tpl.confirm_delete": "Delete this template?",
     // SAP Integration settings
     "sap.integration_title":        "SAP System Integration",
     "sap.integration_subtitle":     "Configure live SAP system access for spec generation and automated implementation.",
@@ -3857,6 +3873,22 @@ const TRANSLATIONS = {
     "abap.save":               "Guardar Estándares",
     "abap.saved":              "Guardado",
     "abap.inherited_hint":     "Heredado del nivel superior — cualquier valor aquí sobreescribe el heredado.",
+    "abap.load_template":      "Cargar Plantilla",
+    "abap.select_template":    "Selecciona una plantilla…",
+    "abap.apply_template":     "Aplicar",
+    "abap.template_applied":   "Plantilla aplicada — revisa y guarda.",
+    // ABAP Templates (platform) ES
+    "abap_tpl.title":          "Plantillas de Estándares ABAP",
+    "abap_tpl.subtitle":       "Crea plantillas reutilizables que se pueden cargar en cualquier cliente, proyecto o caso.",
+    "abap_tpl.new":            "Nueva Plantilla",
+    "abap_tpl.name":           "Nombre de Plantilla",
+    "abap_tpl.name_ph":        "ej. S/4HANA Moderno, ECC Clásico…",
+    "abap_tpl.save":           "Guardar Plantilla",
+    "abap_tpl.delete":         "Eliminar",
+    "abap_tpl.edit":           "Editar",
+    "abap_tpl.cancel":         "Cancelar",
+    "abap_tpl.no_templates":   "Aún no hay plantillas. Crea una para reutilizarla.",
+    "abap_tpl.confirm_delete": "¿Eliminar esta plantilla?",
     // SAP Integration settings (ES)
     "sap.integration_title":        "Integración con Sistema SAP",
     "sap.integration_subtitle":     "Configura el acceso en vivo al sistema SAP para generación de specs e implementación automatizada.",
@@ -30805,15 +30837,58 @@ function AbapStandardsPanel({ level, entityId, clientId, projectId, auth }) {
     );
   }
 
+  const templates = ssCtx.settings['abap_standards_templates'] ?? [];
+  const [selectedTplId, setSelectedTplId] = useState('');
+  const [tplApplied, setTplApplied] = useState(false);
+
+  function applyTemplate() {
+    const tpl = templates.find(t => t.id === selectedTplId);
+    if (!tpl) return;
+    const { id: _id, name: _name, ...fields } = tpl;
+    setForm(p => ({
+      ...p,
+      ...fields,
+      objectTypePrefixes: {
+        ...(p.objectTypePrefixes ?? {}),
+        ...(fields.objectTypePrefixes ?? {}),
+      },
+    }));
+    setSelectedTplId('');
+    setTplApplied(true);
+    setTimeout(() => setTplApplied(false), 3000);
+  }
+
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-0">
       <div className="mb-5">
-        <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
-          <FileCode2 size={16} className="text-amber-600" />{t('abap.tab_title')}
-        </h3>
-        <p className="text-xs text-gray-400 mt-0.5">{t('abap.tab_subtitle')}</p>
-        {level !== 'client' && (
-          <p className="text-xs text-blue-500 mt-1">{t('abap.inherited_hint')}</p>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
+              <FileCode2 size={16} className="text-amber-600" />{t('abap.tab_title')}
+            </h3>
+            <p className="text-xs text-gray-400 mt-0.5">{t('abap.tab_subtitle')}</p>
+            {level !== 'client' && (
+              <p className="text-xs text-blue-500 mt-1">{t('abap.inherited_hint')}</p>
+            )}
+          </div>
+          {canEdit && templates.length > 0 && (
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <select value={selectedTplId} onChange={e => setSelectedTplId(e.target.value)}
+                className="border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white">
+                <option value="">{t('abap.select_template')}</option>
+                {templates.map(tpl => <option key={tpl.id} value={tpl.id}>{tpl.name}</option>)}
+              </select>
+              <button onClick={applyTemplate} disabled={!selectedTplId}
+                className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 text-sm font-semibold rounded-xl disabled:opacity-40 transition-colors">
+                {t('abap.apply_template')}
+              </button>
+            </div>
+          )}
+        </div>
+        {tplApplied && (
+          <p className="text-xs text-amber-700 font-medium mt-2 flex items-center gap-1">
+            <CheckCircle2 size={12} />{t('abap.template_applied')}
+          </p>
         )}
       </div>
 
@@ -30984,6 +31059,273 @@ function AbapStandardsPanel({ level, entityId, clientId, projectId, auth }) {
             {saving ? '…' : t('abap.save')}
           </button>
           {saved && <span className="text-sm text-green-600 font-medium flex items-center gap-1"><CheckCircle2 size={14} />{t('abap.saved')}</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// ABAP TEMPLATES (platform-level CRUD)
+// ============================================================
+function AbapTemplatesSection({ auth }) {
+  const { t } = useT();
+  const ssCtx = useSystemSettings();
+  const { settings } = ssCtx;
+  const canEdit = auth.isAdmin || auth.isManager;
+
+  const templates = settings['abap_standards_templates'] ?? [];
+  const [editingId, setEditingId] = useState(null); // null=list, 'new'=new form, uuid=edit form
+  const [editName, setEditName] = useState('');
+  const [editForm, setEditForm] = useState({ ...ABAP_STANDARDS_DEFAULTS });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  function startNew() {
+    setEditingId('new');
+    setEditName('');
+    setEditForm({ ...ABAP_STANDARDS_DEFAULTS });
+  }
+
+  function startEdit(tpl) {
+    setEditingId(tpl.id);
+    setEditName(tpl.name);
+    setEditForm({ ...ABAP_STANDARDS_DEFAULTS, ...tpl });
+  }
+
+  function cancelEdit() { setEditingId(null); setSaved(false); }
+
+  function f(key, value) { setEditForm(p => ({ ...p, [key]: value })); }
+  function fPfx(objType, value) {
+    setEditForm(p => ({ ...p, objectTypePrefixes: { ...(p.objectTypePrefixes ?? {}), [objType]: value } }));
+  }
+
+  async function handleSave() {
+    if (!editName.trim()) return;
+    setSaving(true);
+    let updated;
+    if (editingId === 'new') {
+      const newTpl = { id: crypto.randomUUID(), name: editName.trim(), ...editForm };
+      updated = [...templates, newTpl];
+    } else {
+      updated = templates.map(t => t.id === editingId ? { ...t, name: editName.trim(), ...editForm } : t);
+    }
+    await ssCtx.setSetting('abap_standards_templates', updated);
+    setSaving(false); setSaved(true);
+    setTimeout(() => { setSaved(false); setEditingId(null); }, 1200);
+  }
+
+  async function handleDelete(id) {
+    if (!window.confirm(t('abap_tpl.confirm_delete'))) return;
+    await ssCtx.setSetting('abap_standards_templates', templates.filter(t => t.id !== id));
+  }
+
+  const inputCls = "w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white font-mono";
+  const labelCls = "block text-xs font-medium text-gray-600 mb-1";
+  const sectionCls = "space-y-4 pt-4 border-t border-gray-100";
+  const OBJECT_TYPES_FOR_PREFIX = ['program','class','interface','function_module','table','enhancement','badi','other'];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
+            <FileCode2 size={16} className="text-amber-600" />{t('abap_tpl.title')}
+          </h3>
+          <p className="text-xs text-gray-400 mt-0.5">{t('abap_tpl.subtitle')}</p>
+        </div>
+        {canEdit && editingId === null && (
+          <button onClick={startNew}
+            className="flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded-xl transition-colors">
+            <Plus size={14} />{t('abap_tpl.new')}
+          </button>
+        )}
+      </div>
+
+      {/* Template list */}
+      {editingId === null && (
+        templates.length === 0
+          ? <div className="bg-gray-50 border border-gray-100 rounded-2xl p-8 text-center text-sm text-gray-400">{t('abap_tpl.no_templates')}</div>
+          : <div className="space-y-2">
+              {templates.map(tpl => (
+                <div key={tpl.id} className="bg-white border border-gray-100 rounded-2xl px-5 py-4 flex items-center gap-3 shadow-sm">
+                  <FileCode2 size={16} className="text-amber-500 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-800 text-sm truncate">{tpl.name}</p>
+                    <p className="text-xs text-gray-400 mt-0.5 truncate">
+                      Prefix: {tpl.globalPrefix || 'Z'} · {tpl.abapVersion === 'modern' ? 'Modern ABAP' : 'Classic ABAP'} · {tpl.errorHandling === 'exceptions' ? 'cx_* exceptions' : 'sy-subrc'}
+                    </p>
+                  </div>
+                  {canEdit && (
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button onClick={() => startEdit(tpl)}
+                        className="px-3 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                        {t('abap_tpl.edit')}
+                      </button>
+                      <button onClick={() => handleDelete(tpl.id)}
+                        className="px-3 py-1.5 text-xs font-semibold text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                        {t('abap_tpl.delete')}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+      )}
+
+      {/* Edit / New form */}
+      {editingId !== null && (
+        <div className="bg-white border border-amber-200 rounded-2xl p-6 shadow-sm space-y-0">
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-gray-600 mb-1">{t('abap_tpl.name')}</label>
+            <input value={editName} onChange={e => setEditName(e.target.value)}
+              placeholder={t('abap_tpl.name_ph')}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white font-semibold" />
+          </div>
+
+          {/* ── Naming ── */}
+          <div className={sectionCls}>
+            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('abap.section_naming')}</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className={labelCls}>{t('abap.global_prefix')}</label>
+                <input value={editForm.globalPrefix} onChange={e => f('globalPrefix', e.target.value)} className={inputCls} maxLength={10} placeholder="Z" /></div>
+              <div><label className={labelCls}>{t('abap.namespace_prefix')}</label>
+                <input value={editForm.namespacePrefix} onChange={e => f('namespacePrefix', e.target.value)} className={inputCls} maxLength={20} /></div>
+            </div>
+            <div>
+              <label className={labelCls}>{t('abap.object_type_prefixes')}</label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {OBJECT_TYPES_FOR_PREFIX.map(ot => (
+                  <div key={ot}>
+                    <label className="block text-[10px] text-gray-500 mb-0.5 capitalize">{ot.replace('_',' ')}</label>
+                    <input value={(editForm.objectTypePrefixes ?? {})[ot] ?? ''} onChange={e => fPfx(ot, e.target.value)} className={inputCls} maxLength={10} placeholder="—" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button onClick={() => f('localVarNaming', !editForm.localVarNaming)}
+                className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors ${editForm.localVarNaming ? 'bg-blue-600' : 'bg-gray-200'}`}
+                role="switch" aria-checked={editForm.localVarNaming}>
+                <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${editForm.localVarNaming ? 'translate-x-4' : 'translate-x-0'}`} />
+              </button>
+              <span className="text-sm text-gray-700">{t('abap.local_var_naming')}</span>
+            </div>
+          </div>
+
+          {/* ── Header ── */}
+          <div className={sectionCls}>
+            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('abap.section_header')}</h4>
+            <div><label className={labelCls}>{t('abap.author_id')}</label>
+              <input value={editForm.authorId} onChange={e => f('authorId', e.target.value)} className={inputCls} maxLength={40} placeholder="JSMITH" /></div>
+            <div>
+              <label className={labelCls}>{t('abap.header_template')}</label>
+              <textarea value={editForm.headerTemplate} onChange={e => f('headerTemplate', e.target.value)} rows={7}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white font-mono resize-y" />
+            </div>
+          </div>
+
+          {/* ── Change Log ── */}
+          <div className={sectionCls}>
+            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('abap.section_changelog')}</h4>
+            <div><label className={labelCls}>{t('abap.changelog_template')}</label>
+              <input value={editForm.changeLogTemplate} onChange={e => f('changeLogTemplate', e.target.value)} className={inputCls} /></div>
+            <div><label className={labelCls}>{t('abap.changelog_location')}</label>
+              <select value={editForm.changeLogLocation} onChange={e => f('changeLogLocation', e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
+                <option value="top">{t('abap.changelog_top')}</option>
+                <option value="bottom">{t('abap.changelog_bottom')}</option>
+              </select>
+            </div>
+          </div>
+
+          {/* ── Modification rules ── */}
+          <div className={sectionCls}>
+            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('abap.section_modifications')}</h4>
+            <div><label className={labelCls}>{t('abap.old_code_handling')}</label>
+              <select value={editForm.oldCodeHandling} onChange={e => f('oldCodeHandling', e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
+                <option value="comment_block">{t('abap.old_code_comment')}</option>
+                <option value="delete">{t('abap.old_code_delete')}</option>
+                <option value="keep">{t('abap.old_code_keep')}</option>
+              </select>
+            </div>
+            {editForm.oldCodeHandling === 'comment_block' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className={labelCls}>{t('abap.old_code_begin')}</label>
+                  <input value={editForm.oldCodeBeginMarker} onChange={e => f('oldCodeBeginMarker', e.target.value)} className={inputCls} /></div>
+                <div><label className={labelCls}>{t('abap.old_code_end')}</label>
+                  <input value={editForm.oldCodeEndMarker} onChange={e => f('oldCodeEndMarker', e.target.value)} className={inputCls} /></div>
+              </div>
+            )}
+            <div className="flex items-center gap-3">
+              <button onClick={() => f('markNewCode', !editForm.markNewCode)}
+                className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors ${editForm.markNewCode ? 'bg-blue-600' : 'bg-gray-200'}`}
+                role="switch" aria-checked={editForm.markNewCode}>
+                <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${editForm.markNewCode ? 'translate-x-4' : 'translate-x-0'}`} />
+              </button>
+              <span className="text-sm text-gray-700">{t('abap.mark_new_code')}</span>
+            </div>
+            {editForm.markNewCode && (
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className={labelCls}>{t('abap.new_code_begin')}</label>
+                  <input value={editForm.newCodeBeginMarker} onChange={e => f('newCodeBeginMarker', e.target.value)} className={inputCls} /></div>
+                <div><label className={labelCls}>{t('abap.new_code_end')}</label>
+                  <input value={editForm.newCodeEndMarker} onChange={e => f('newCodeEndMarker', e.target.value)} className={inputCls} /></div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Style ── */}
+          <div className={sectionCls}>
+            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('abap.section_style')}</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div><label className={labelCls}>{t('abap.abap_version')}</label>
+                <select value={editForm.abapVersion} onChange={e => f('abapVersion', e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
+                  <option value="modern">{t('abap.version_modern')}</option>
+                  <option value="classic">{t('abap.version_classic')}</option>
+                </select>
+              </div>
+              <div><label className={labelCls}>{t('abap.error_handling')}</label>
+                <select value={editForm.errorHandling} onChange={e => f('errorHandling', e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
+                  <option value="subrc">{t('abap.error_subrc')}</option>
+                  <option value="exceptions">{t('abap.error_exceptions')}</option>
+                </select>
+              </div>
+              <div><label className={labelCls}>{t('abap.select_style')}</label>
+                <select value={editForm.selectStyle} onChange={e => f('selectStyle', e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
+                  <option value="into_table">{t('abap.select_into_table')}</option>
+                  <option value="for_all_entries">{t('abap.select_fae')}</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* ── AI Instructions ── */}
+          <div className={sectionCls}>
+            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('abap.section_ai')}</h4>
+            <div><label className={labelCls}>{t('abap.ai_instructions')}</label>
+              <textarea value={editForm.additionalInstructions} onChange={e => f('additionalInstructions', e.target.value)} rows={3}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white resize-y"
+                placeholder={t('abap.ai_instructions_ph')} />
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
+            <button onClick={handleSave} disabled={saving || !editName.trim()}
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors">
+              {saving ? '…' : t('abap_tpl.save')}
+            </button>
+            {saved && <span className="text-sm text-green-600 font-medium flex items-center gap-1"><CheckCircle2 size={14} />Saved</span>}
+            <button onClick={cancelEdit}
+              className="px-4 py-2 text-sm font-semibold text-gray-500 hover:text-gray-700 rounded-xl transition-colors ml-auto">
+              {t('abap_tpl.cancel')}
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -31667,7 +32009,6 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
     { id: "defaults",     label: t("client_tab.defaults"),    icon: ClipboardList,     count: null },
     { id: "assignment",   label: t("client_tab.assignment"),  icon: UserCheck,         count: null },
     { id: "sap",          label: t("client_tab.sap"),         icon: Code2,             count: null },
-    { id: "abap",         label: t("client_tab.abap"),        icon: FileCode2,         count: null },
   ];
 
   return (
@@ -32501,11 +32842,10 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
       )}
 
       {tab === "sap" && (
-        <SapIntegrationPanel clientId={effectiveClientId} auth={auth} />
-      )}
-
-      {tab === "abap" && (
-        <AbapStandardsPanel level="client" entityId={effectiveClientId} auth={auth} />
+        <div className="space-y-6">
+          <SapIntegrationPanel clientId={effectiveClientId} auth={auth} />
+          <AbapStandardsPanel level="client" entityId={effectiveClientId} auth={auth} />
+        </div>
       )}
     </div>
   );
@@ -38119,6 +38459,7 @@ function SystemSettingsView({ auth, onNavigate }) {
     { id: "workflow",   label: "Workflow",        Icon: TrendingUp },
     { id: "catalog",    label: "Catalog",         Icon: Tag },
     { id: "generation", label: "AI & Generation", Icon: Zap },
+    { id: "abap",       label: "ABAP Templates",  Icon: FileCode2 },
     { id: "platform",   label: "Platform",        Icon: Sparkles },
   ];
 
@@ -38148,6 +38489,7 @@ function SystemSettingsView({ auth, onNavigate }) {
       {activeTab === "workflow"   && <SettingsWorkflowTab auth={auth} ssCtx={ssCtx} />}
       {activeTab === "catalog"    && <SettingsCatalogTab ssCtx={ssCtx} />}
       {activeTab === "generation" && <SettingsGenerationTab ssCtx={ssCtx} />}
+      {activeTab === "abap"       && <AbapTemplatesSection auth={auth} />}
       {activeTab === "platform"   && <SettingsPlatformCombinedTab ssCtx={ssCtx} />}
     </div>
   );
