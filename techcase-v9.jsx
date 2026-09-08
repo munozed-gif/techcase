@@ -16276,23 +16276,22 @@ function CasesView({ auth, initialCaseId }) {
   const [search, setSearch]           = useState("");
   const [statusFilter, setStatus]     = useState("");
   const [periodFilter, setPeriod]     = useState("");
+  const [clientFilter, setClientFilter] = useState("");
   const [projectFilter, setProjectFilter] = useState("");
   const [selectedCase, setSelected]   = useState(null);
   const [showCreate, setShowCreate]   = useState(false);
   const [showFavOnly, setShowFavOnly] = useState(false);
   const [feedbackCase, setFeedbackCase] = useState(null);
-  const [filterProjects, setFilterProjects] = useState([]);
   const { isFavorite, toggle }        = useFavorites();
   const [selectedCases, setSelectedCases]     = useState(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [bulkProcessing, setBulkProcessing]   = useState(false);
   const [bulkStatusOpen, setBulkStatusOpen]   = useState(false);
 
-  useEffect(() => {
-    let q = supabase.from("projects").select("id, name, status").order("name");
-    if (auth.isClient) q = q.eq("client_id", auth.user?.id);
-    q.then(({ data }) => setFilterProjects(data ?? []));
-  }, [auth.user?.id]);
+  function selectClient(id) {
+    setClientFilter(id);
+    setProjectFilter(""); // reset project when client changes
+  }
 
   const { cases: _rawCasesCV, loading, createCase, updateCase, deleteCase, refetch } = useCases({
     search: search || undefined,
@@ -16319,7 +16318,39 @@ function CasesView({ auth, initialCaseId }) {
     : auth.isKeyUser
     ? cases.filter(c => c.case_key_users?.some(ku => ku.user_id === auth.user?.id))
     : cases;
-  const statusFiltered = statusFilter ? visibleCases.filter(c => c.status === statusFilter) : visibleCases;
+
+  // ── Client / Project chip data (admin+manager only) ──────────────────────
+  const clientChips = useMemo(() => {
+    if (!auth.isAdmin && !auth.isManager) return [];
+    const map = new Map();
+    visibleCases.forEach(c => {
+      if (!c.client_id) return;
+      const name = c.client?.client_profiles?.company_name || c.client?.full_name || c.client_name || c.client_id;
+      const ts = c.updated_at || c.created_at || '';
+      if (!map.has(c.client_id) || ts > map.get(c.client_id).latest) {
+        map.set(c.client_id, { id: c.client_id, name, latest: ts, count: 0 });
+      }
+      map.get(c.client_id).count += 1;
+    });
+    return [...map.values()].sort((a, b) => b.latest.localeCompare(a.latest));
+  }, [visibleCases, auth.isAdmin, auth.isManager]);
+
+  const projectChips = useMemo(() => {
+    if (!clientFilter) return [];
+    const map = new Map();
+    visibleCases.filter(c => c.client_id === clientFilter).forEach(c => {
+      if (!c.project_id) return;
+      const name = c.project?.name || c.project_id;
+      if (!map.has(c.project_id)) map.set(c.project_id, { id: c.project_id, name, count: 0 });
+      map.get(c.project_id).count += 1;
+    });
+    return [...map.values()].sort((a, b) => b.count - a.count);
+  }, [visibleCases, clientFilter]);
+
+  // ── Filter chain ─────────────────────────────────────────────────────────
+  const clientFiltered = clientFilter ? visibleCases.filter(c => c.client_id === clientFilter) : visibleCases;
+  const projectFiltered2 = projectFilter ? clientFiltered.filter(c => c.project_id === projectFilter) : clientFiltered;
+  const statusFiltered = statusFilter ? projectFiltered2.filter(c => c.status === statusFilter) : projectFiltered2;
   const periodFiltered = (() => {
     if (!periodFilter) return statusFiltered;
     const now = new Date();
@@ -16339,10 +16370,7 @@ function CasesView({ auth, initialCaseId }) {
     }
     return statusFiltered;
   })();
-  const projectFiltered = projectFilter
-    ? periodFiltered.filter(c => c.project_id === projectFilter)
-    : periodFiltered;
-  const displayed = showFavOnly ? projectFiltered.filter(c => isFavorite(c.id)) : projectFiltered;
+  const displayed = showFavOnly ? periodFiltered.filter(c => isFavorite(c.id)) : periodFiltered;
 
   async function handleStatusChange(caseId, status, extras = {}) {
     await updateCase(caseId, { status, ...extras });
@@ -16458,29 +16486,82 @@ function CasesView({ auth, initialCaseId }) {
         )}
       </div>
 
-      {/* Filters */}
+      {/* Search + saved toggle */}
       <div className="flex flex-wrap gap-3 mb-4">
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder={t("cases.search")}
           className="border border-gray-200 rounded-xl px-4 py-2 text-sm flex-1 min-w-48 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-        {filterProjects.length > 0 && (
-          <select value={projectFilter} onChange={e => setProjectFilter(e.target.value)}
-            className="border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">{t("cases.all_projects")}</option>
-            {filterProjects.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-        )}
         {auth.isConsultant && (
           <button onClick={() => setShowFavOnly(p => !p)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
               showFavOnly ? "bg-yellow-50 border-yellow-300 text-yellow-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"
             }`}>
             <Star className={`w-3.5 h-3.5 ${showFavOnly ? "fill-yellow-400 text-yellow-400" : "text-gray-400"}`} /> {t("cases.saved")}
           </button>
         )}
       </div>
+
+      {/* Client chip row (admin/manager only) */}
+      {(auth.isAdmin || auth.isManager) && clientChips.length > 0 && (
+        <div className="mb-2">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            <button
+              onClick={() => selectClient("")}
+              className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                !clientFilter
+                  ? "bg-gray-800 text-white border-gray-800"
+                  : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
+              }`}>
+              <Building2 size={11} /> All clients
+              <span className={`ml-1 text-[10px] ${!clientFilter ? "opacity-70" : "text-gray-400"}`}>{visibleCases.length}</span>
+            </button>
+            {clientChips.map(cl => (
+              <button key={cl.id}
+                onClick={() => selectClient(cl.id)}
+                className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                  clientFilter === cl.id
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:text-blue-700"
+                }`}>
+                <Building2 size={11} className="flex-shrink-0" />
+                <span className="truncate max-w-[120px]">{cl.name}</span>
+                <span className={`text-[10px] ${clientFilter === cl.id ? "opacity-70" : "text-gray-400"}`}>{cl.count}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Project chip row (appears when a client is selected) */}
+      {(auth.isAdmin || auth.isManager) && clientFilter && projectChips.length > 0 && (
+        <div className="mb-3">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none pl-1">
+            <span className="flex-shrink-0 text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Projects:</span>
+            <button
+              onClick={() => setProjectFilter("")}
+              className={`flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                !projectFilter
+                  ? "bg-blue-100 text-blue-700 border-blue-300"
+                  : "bg-white text-gray-500 border-gray-200 hover:border-gray-300"
+              }`}>
+              All projects
+            </button>
+            {projectChips.map(pr => (
+              <button key={pr.id}
+                onClick={() => setProjectFilter(f => f === pr.id ? "" : pr.id)}
+                className={`flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                  projectFilter === pr.id
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-700"
+                }`}>
+                <FolderKanban size={10} className="flex-shrink-0" />
+                <span className="truncate max-w-[140px]">{pr.name}</span>
+                <span className={`text-[10px] ${projectFilter === pr.id ? "opacity-70" : "text-gray-400"}`}>{pr.count}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Status + Period filter buttons ── */}
       {(() => {
@@ -16496,7 +16577,7 @@ function CasesView({ auth, initialCaseId }) {
           { val: "completed",      label: t("status.completed"),      color: "#0d9488", dark: "#0f766e", bg: "#f0fdfa", border: "#5eead4", Icon: CheckCircle2 },
           { val: "cancelled",      label: t("status.cancelled"),      color: "#dc2626", dark: "#b91c1c", bg: "#fef2f2", border: "#fca5a5", Icon: XCircle },
         ]
-          .map(s => ({ ...s, count: visibleCases.filter(c => c.status === s.val).length }))
+          .map(s => ({ ...s, count: projectFiltered2.filter(c => c.status === s.val).length }))
           .filter(s => s.count > 0);
 
         const PERIODS = [
@@ -16518,7 +16599,7 @@ function CasesView({ auth, initialCaseId }) {
                     ? { background: "#dbeafe", color: "#1d4ed8", borderColor: "#2563eb" }
                     : { background: "#f8fafc", color: "#64748b", borderColor: "#e2e8f0" }}>
                   <Layers size={16} />
-                  <span className="text-xs leading-none">All <span className="opacity-70">{visibleCases.length}</span></span>
+                  <span className="text-xs leading-none">All <span className="opacity-70">{projectFiltered2.length}</span></span>
                 </button>
                 {STATUS_DEFS.map(s => {
                   const active = statusFilter === s.val;
