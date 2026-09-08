@@ -20443,14 +20443,22 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [activeTab, setActiveTab]   = useState("detail");
 
   // Resolve active SAP environment for display in header
+  const ssCtxCD = useSystemSettings();
   const _sapClientData  = (cdSettings['sap_integration'] ?? {})[caseData.client_id] ?? {};
   const _sapEnvs        = _sapClientData.environments ?? (_sapClientData.host ? [_sapClientData] : []);
-  const _sapCaseEnvId   = (cdSettings['sap_case_env']    ?? {})[caseData.id]
+  const _sapCaseEnvMap  = cdSettings['sap_case_env'] ?? {};
+  const _sapCaseEnvId   = _sapCaseEnvMap[caseData.id]
                        ?? (cdSettings['sap_project_env'] ?? {})[caseData.project_id]
                        ?? null;
   const _activeSapEnv   = _sapEnvs.length > 0
     ? (_sapCaseEnvId ? (_sapEnvs.find(e => e.id === _sapCaseEnvId) ?? _sapEnvs[0]) : _sapEnvs[0])
     : null;
+  const [showSapEnvPicker, setShowSapEnvPicker] = useState(false);
+
+  async function _saveCaseEnv(envId) {
+    await ssCtxCD.setSetting('sap_case_env', { ..._sapCaseEnvMap, [caseData.id]: envId || null });
+    setShowSapEnvPicker(false);
+  }
 
   const [newMilestone, setNewMilestone] = useState("");
   const [commentForm, setCommentForm]  = useState({ body: "", hoursLogged: 0, progressUpdate: "", isInternal: false });
@@ -22458,11 +22466,48 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                   })()}
                   {_activeSapEnv && (auth.isAdmin || auth.isManager || auth.isConsultant) && (() => {
                     const meta = SAP_ENV_TYPE_META[_activeSapEnv.envType] ?? SAP_ENV_TYPE_META.dev;
+                    const canSwitch = _sapEnvs.length > 1 && (auth.isAdmin || auth.isManager);
                     return (
-                      <span className={`px-2 py-0.5 rounded-lg text-xs font-semibold flex items-center gap-1 ${meta.color}`}
-                        title={`SAP: ${_activeSapEnv.host || _activeSapEnv.name}`}>
-                        <Code2 size={9} />{_activeSapEnv.name}
-                      </span>
+                      <div className="relative">
+                        <button
+                          onClick={() => canSwitch && setShowSapEnvPicker(p => !p)}
+                          className={`px-2 py-0.5 rounded-lg text-xs font-semibold flex items-center gap-1 ${meta.color} ${canSwitch ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
+                          title={`SAP: ${_activeSapEnv.host || _activeSapEnv.name}${canSwitch ? ' — click to change' : ''}`}>
+                          <Code2 size={9} />{_activeSapEnv.name}
+                          {canSwitch && <ChevronDown size={9} />}
+                        </button>
+                        {showSapEnvPicker && canSwitch && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setShowSapEnvPicker(false)} />
+                            <div className="absolute left-0 top-full mt-1 z-50 bg-white rounded-xl shadow-lg border border-gray-100 py-1 min-w-[180px]">
+                              <div className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wide border-b border-gray-100 mb-1">SAP Environment</div>
+                              {_sapEnvs.map(env => {
+                                const em = SAP_ENV_TYPE_META[env.envType] ?? SAP_ENV_TYPE_META.dev;
+                                const isActive = env.id === (_sapCaseEnvMap[caseData.id] ?? _sapEnvs[0]?.id);
+                                return (
+                                  <button key={env.id}
+                                    onClick={() => _saveCaseEnv(env.id)}
+                                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${isActive ? 'font-semibold' : ''}`}>
+                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${em.color}`}>{em.label.split(' ')[0]}</span>
+                                    <span className="flex-1 text-left truncate">{env.name}</span>
+                                    {isActive && <CheckCircle2 size={12} className="text-blue-500 flex-shrink-0" />}
+                                  </button>
+                                );
+                              })}
+                              {_sapCaseEnvMap[caseData.id] && (
+                                <>
+                                  <div className="border-t border-gray-100 mt-1 pt-1">
+                                    <button onClick={() => _saveCaseEnv(null)}
+                                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-400 hover:bg-gray-50 transition-colors">
+                                      Reset to project default
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
                     );
                   })()}
                   {caseData.status === "standby" && caseData.standby_reason && (
