@@ -16015,13 +16015,14 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
 
 function ProjectsView({ auth, initialProjectId }) {
   const { t } = useT();
-  const clientFilter = auth.isClient ? { client_id: auth.user?.id } : {};
-  const { projects, loading, createProject, updateProject, closeProject } = useProjects(clientFilter);
-  const [statusFilter, setStatusFilter] = useState("");
-  const [showCreate, setShowCreate]     = useState(false);
+  const clientFetchFilter = auth.isClient ? { client_id: auth.user?.id } : {};
+  const { projects, loading, createProject, updateProject, closeProject } = useProjects(clientFetchFilter);
+  const [statusFilter, setStatusFilter]       = useState("");
+  const [clientChipFilter, setClientChipFilter] = useState("");
+  const [showCreate, setShowCreate]           = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
-  const [importBanner, setImportBanner] = useState(null);
-  const [clients, setClients]           = useState([]);
+  const [importBanner, setImportBanner]       = useState(null);
+  const [clients, setClients]                 = useState([]);
 
   useEffect(() => {
     if (auth.isAdmin || auth.isManager) {
@@ -16032,11 +16033,29 @@ function ProjectsView({ auth, initialProjectId }) {
     }
   }, []);
 
+  // Client chips (admin/manager only)
+  const clientChips = useMemo(() => {
+    if (!auth.isAdmin && !auth.isManager) return [];
+    const map = new Map();
+    projects.forEach(p => {
+      if (!p.client_id) return;
+      const name = p.client?.client_profiles?.company_name || p.client?.full_name || p.client_id;
+      const ts = p.updated_at || p.created_at || '';
+      if (!map.has(p.client_id) || ts > map.get(p.client_id).latest) {
+        map.set(p.client_id, { id: p.client_id, name, latest: ts, count: 0 });
+      }
+      map.get(p.client_id).count += 1;
+    });
+    return [...map.values()].sort((a, b) => b.latest.localeCompare(a.latest));
+  }, [projects, auth.isAdmin, auth.isManager]);
+
+  const clientFiltered = clientChipFilter ? projects.filter(p => p.client_id === clientChipFilter) : projects;
+  const TERM_ALL = ["completed","cancelled","terminated","closed","approved"];
   const displayed = statusFilter === "__overdue__"
-    ? projects.filter(p => !["completed","cancelled","terminated","closed","approved"].includes(p.status) && p.end_date && new Date(p.end_date) < new Date())
+    ? clientFiltered.filter(p => !TERM_ALL.includes(p.status) && p.end_date && new Date(p.end_date) < new Date())
     : statusFilter
-    ? projects.filter(p => p.status === statusFilter)
-    : projects;
+    ? clientFiltered.filter(p => p.status === statusFilter)
+    : clientFiltered;
 
   // Open a specific project when navigated from GlobalSearch
   const [initialProjectOpened, setInitialProjectOpened] = useState(false);
@@ -16108,6 +16127,33 @@ function ProjectsView({ auth, initialProjectId }) {
           </button>
         )}
       </div>
+
+      {/* Client chip row (admin/manager only) */}
+      {(auth.isAdmin || auth.isManager) && clientChips.length > 0 && (
+        <div className="mb-4">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+            <button
+              onClick={() => setClientChipFilter("")}
+              className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                !clientChipFilter ? "bg-gray-800 text-white border-gray-800" : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
+              }`}>
+              <Building2 size={11} /> All clients
+              <span className={`ml-1 text-[10px] ${!clientChipFilter ? "opacity-70" : "text-gray-400"}`}>{projects.length}</span>
+            </button>
+            {clientChips.map(cl => (
+              <button key={cl.id}
+                onClick={() => setClientChipFilter(f => f === cl.id ? "" : cl.id)}
+                className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                  clientChipFilter === cl.id ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:text-blue-700"
+                }`}>
+                <Building2 size={11} className="flex-shrink-0" />
+                <span className="truncate max-w-[120px]">{cl.name}</span>
+                <span className={`text-[10px] ${clientChipFilter === cl.id ? "opacity-70" : "text-gray-400"}`}>{cl.count}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Status stat tiles */}
       {(() => {
