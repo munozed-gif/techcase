@@ -22688,7 +22688,11 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
     const el = carouselRef.current;
     if (!el) return;
     const idx = tabs.findIndex(t => t.id === activeTab);
-    if (idx >= 0) el.scrollTo({ left: idx * el.offsetWidth, behavior: 'smooth' });
+    if (idx < 0) return;
+    const slide = el.children[idx];
+    if (!slide) return;
+    const targetLeft = slide.offsetLeft - (el.offsetWidth - slide.offsetWidth) / 2;
+    el.scrollTo({ left: targetLeft, behavior: 'smooth' });
   }, [activeTab]);
 
   return (
@@ -22970,15 +22974,23 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         function scrollTo(idx) {
           const el = carouselRef.current;
           if (!el) return;
-          el.scrollTo({ left: idx * el.offsetWidth, behavior: 'smooth' });
+          const slide = el.children[idx];
+          if (!slide) return;
+          const targetLeft = slide.offsetLeft - (el.offsetWidth - slide.offsetWidth) / 2;
+          el.scrollTo({ left: targetLeft, behavior: 'smooth' });
           setActiveTab(tabs[Math.max(0, Math.min(idx, tabs.length - 1))]?.id ?? activeTab);
         }
-        
+
         function onScroll() {
           const el = carouselRef.current;
           if (!el) return;
-          const idx = Math.round(el.scrollLeft / el.offsetWidth);
-          const tab = tabs[idx];
+          const center = el.scrollLeft + el.offsetWidth / 2;
+          let closest = 0, minDist = Infinity;
+          Array.from(el.children).forEach((child, i) => {
+            const dist = Math.abs((child.offsetLeft + child.offsetWidth / 2) - center);
+            if (dist < minDist) { minDist = dist; closest = i; }
+          });
+          const tab = tabs[closest];
           if (tab && tab.id !== activeTab) setActiveTab(tab.id);
         }
         
