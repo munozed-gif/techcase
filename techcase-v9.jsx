@@ -20697,6 +20697,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
 
   const [activeTab, setActiveTab]   = useState("detail");
   const carouselRef = useRef(null);
+  const carouselScrolling = useRef(false);
   const [mountedSlides, setMountedSlides] = useState(() => new Set(["detail"]));
 
   // Resolve active SAP environment for display in header
@@ -22692,7 +22693,10 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
     const slide = el.children[idx];
     if (!slide) return;
     const targetLeft = slide.offsetLeft - (el.offsetWidth - slide.offsetWidth) / 2;
+    carouselScrolling.current = true;
     el.scrollTo({ left: targetLeft, behavior: 'smooth' });
+    const tid = setTimeout(() => { carouselScrolling.current = false; }, 600);
+    return () => clearTimeout(tid);
   }, [activeTab]);
 
   return (
@@ -22972,16 +22976,12 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         const carouselIdx = Math.max(0, tabs.findIndex(t => t.id === activeTab));
         
         function scrollTo(idx) {
-          const el = carouselRef.current;
-          if (!el) return;
-          const slide = el.children[idx];
-          if (!slide) return;
-          const targetLeft = slide.offsetLeft - (el.offsetWidth - slide.offsetWidth) / 2;
-          el.scrollTo({ left: targetLeft, behavior: 'smooth' });
+          // Only update state; useEffect handles the actual scroll + flag
           setActiveTab(tabs[Math.max(0, Math.min(idx, tabs.length - 1))]?.id ?? activeTab);
         }
 
         function onScroll() {
+          if (carouselScrolling.current) return;
           const el = carouselRef.current;
           if (!el) return;
           const center = el.scrollLeft + el.offsetWidth / 2;
