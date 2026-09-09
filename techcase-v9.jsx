@@ -22964,64 +22964,86 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
       )}
 
       {/* Section Carousel */}
-      <style>{`@keyframes carouselRight{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}@keyframes carouselLeft{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}`}</style>
       {(() => {
         const carouselIdx = Math.max(0, tabs.findIndex(t => t.id === activeTab));
-        const prevTab = tabs[carouselIdx - 1];
-        const nextTab = tabs[carouselIdx + 1];
-        const ActiveIcon = tabs[carouselIdx]?.icon ?? ClipboardList;
-        function carouselTo(targetId) {
-          const tIdx = tabs.findIndex(t => t.id === targetId);
-          setCarouselAnim(tIdx > carouselIdx ? 'right' : 'left');
-          setActiveTab(targetId);
+        
+        function scrollTo(idx) {
+          const el = carouselRef.current;
+          if (!el) return;
+          el.scrollTo({ left: idx * el.offsetWidth, behavior: 'smooth' });
+          setActiveTab(tabs[Math.max(0, Math.min(idx, tabs.length - 1))]?.id ?? activeTab);
         }
+        
+        function onScroll() {
+          const el = carouselRef.current;
+          if (!el) return;
+          const idx = Math.round(el.scrollLeft / el.offsetWidth);
+          const tab = tabs[idx];
+          if (tab && tab.id !== activeTab) setActiveTab(tab.id);
+        }
+        
         return (
-        <div>
-          <div style={{ display:'flex', alignItems:'stretch', gap:8 }}>
+          <div style={{ position:'relative' }}>
+            {/* Left arrow */}
+            {carouselIdx > 0 && (
+              <button onClick={() => scrollTo(carouselIdx - 1)}
+                style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid #CBD5E1', background:'white', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
+                <ChevronLeft size={16} style={{color:'#64748B'}}/>
+              </button>
+            )}
+            {/* Right arrow */}
+            {carouselIdx < tabs.length - 1 && (
+              <button onClick={() => scrollTo(carouselIdx + 1)}
+                style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid #CBD5E1', background:'white', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
+                <ChevronRight size={16} style={{color:'#64748B'}}/>
+              </button>
+            )}
+            
+            {/* Scroll track */}
+            <div ref={carouselRef} onScroll={onScroll}
+              style={{ display:'flex', overflowX:'scroll', scrollSnapType:'x mandatory', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', gap:10, padding:'0 60px' }}>
+              
+              {tabs.map((tab, i) => {
+                const isActive = tab.id === activeTab;
+                const Icon = tab.icon;
+                return (
+                  <div key={tab.id}
+                    style={{ flex:'0 0 calc(100% - 120px)', scrollSnapAlign:'center', scrollSnapStop:'always', opacity: isActive ? 1 : 0.5, transform: isActive ? 'scale(1)' : 'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
+                    <div style={{ borderRadius:12, border:`1px solid ${isActive?'#CBD5E1':'#E2E8F0'}`, background:'white', overflow:'hidden', height:480, display:'flex', flexDirection:'column', boxShadow: isActive ? '0 4px 20px rgba(0,0,0,.08)' : 'none', transition:'box-shadow .25s' }}>
+                      {/* Card header */}
+                      <div style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 18px', borderBottom:'1px solid #F1F5F9', background: isActive ? '#F8FAFC' : '#FAFAFA', flexShrink:0, cursor: isActive ? 'default' : 'pointer' }}
+                        onClick={() => !isActive && scrollTo(i)}>
+                        <Icon size={14} style={{color: isActive ? '#1A4B8C' : '#94A3B8', flexShrink:0}}/>
+                        <span style={{flex:1, fontSize:13, fontWeight:700, color: isActive ? '#0F172A' : '#94A3B8'}}>{tab.label}</span>
+                        {tab.count !== null && <span style={{fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:99, background: isActive ? '#DBEAFE' : '#F1F5F9', color: isActive ? '#2563EB' : '#94A3B8'}}>{tab.count}</span>}
+                      </div>
+                      {/* Content */}
+                      {mountedSlides.has(tab.id) ? (
+                        <div className="space-y-4" style={{ flex:1, overflowY:'auto', padding:'18px 20px' }}>
+                          {/* Stage lock banner (shown only on active tab) */}
+                          {isActive && currentStage?.rules && (() => {
+                            const locked = [
+                              !stageRules.editable && t("cd.lock_editing"),
+                              !stageRules.can_log_time && t("cd.lock_time"),
+                              !stageRules.can_add_activities && t("cd.lock_activities"),
+                              !stageRules.can_comment && t("cd.lock_comments"),
+                              !stageRules.can_upload_docs && t("cd.lock_doc_uploads"),
+                            ].filter(Boolean);
+                            if (!locked.length) return null;
+                            return (
+                              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-start gap-2.5">
+                                <AlertTriangle size={14} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                                <p className="text-xs text-amber-800">
+                                  <span className="font-semibold">{currentStage.label} {t("cd.stage_restricted")} </span>
+                                  {locked.join(", ")} {t("cd.stage_restricted_msg")}
+                                </p>
+                              </div>
+                            );
+                          })()}
 
-            {/* Prev peek stub */}
-            <button disabled={!prevTab} onClick={() => prevTab && carouselTo(prevTab.id)}
-              style={{ width:60, flexShrink:0, borderRadius:12, border:'1px solid #E2E8F0', background:'white', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:6, opacity:prevTab?0.45:0, cursor:prevTab?'pointer':'default', padding:'12px 4px', transition:'opacity .2s' }}>
-              {prevTab && (() => { const I=prevTab.icon; return <I size={16} style={{color:'#94A3B8'}}/>; })()}
-              {prevTab && <span style={{fontSize:9,fontWeight:600,color:'#CBD5E1',textAlign:'center',lineHeight:1.3}}>{prevTab.label}</span>}
-              {prevTab && <ChevronLeft size={12} style={{color:'#CBD5E1'}}/>}
-            </button>
 
-            {/* Main content card */}
-            <div style={{ flex:1, borderRadius:12, border:'1px solid #E2E8F0', background:'white', overflow:'hidden', display:'flex', flexDirection:'column', minWidth:0 }}>
-              {/* Card section header */}
-              <div style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 18px', borderBottom:'1px solid #F1F5F9', background:'#F8FAFC', flexShrink:0 }}>
-                <ActiveIcon size={14} style={{color:'#1A4B8C',flexShrink:0}}/>
-                <span style={{flex:1,fontSize:13,fontWeight:700,color:'#0F172A'}}>{tabs[carouselIdx]?.label}</span>
-                {tabs[carouselIdx]?.count !== null && <span style={{fontSize:11,fontWeight:600,padding:'2px 8px',borderRadius:99,background:'#DBEAFE',color:'#2563EB'}}>{tabs[carouselIdx]?.count}</span>}
-              </div>
-              {/* Scrollable content area — same size for every section */}
-              <div key={activeTab} className="space-y-4"
-                style={{ overflowY:'auto', padding:'20px 22px', minHeight:480, animation: carouselAnim ? `carousel${carouselAnim==='right'?'Right':'Left'} .22s ease both` : 'none' }}>
-
-      {/* Stage lock banner — shown when the current stage restricts any action */}
-      {currentStage?.rules && (() => {
-        const locked = [
-          !stageRules.editable && t("cd.lock_editing"),
-          !stageRules.can_log_time && t("cd.lock_time"),
-          !stageRules.can_add_activities && t("cd.lock_activities"),
-          !stageRules.can_comment && t("cd.lock_comments"),
-          !stageRules.can_upload_docs && t("cd.lock_doc_uploads"),
-        ].filter(Boolean);
-        if (!locked.length) return null;
-        return (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-start gap-2.5">
-            <AlertTriangle size={14} className="text-amber-500 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-800">
-              <span className="font-semibold">{currentStage.label} {t("cd.stage_restricted")} </span>
-              {locked.join(", ")} {t("cd.stage_restricted_msg")}
-            </p>
-          </div>
-        );
-      })()}
-
-      {/* Detail Tab */}
-      {activeTab === "detail" && (
+                    {/* Detail Tab */}
+                    {tab.id === "detail" && (
         <div className="space-y-4">
           {/* Start-date countdown banner */}
           {caseData.status === "assigned" && caseData.start_date && (() => {
@@ -23402,12 +23424,12 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           )}
         </div>
       )}
-      {showSaveAsTemplate && (
+                    {showSaveAsTemplate && (
         <SaveCaseAsTemplateModal caseData={caseData} onClose={() => setShowSaveAsTemplate(false)} />
       )}
 
-      {/* Milestones Tab */}
-      {activeTab === "milestones" && (
+                    {/* Milestones Tab */}
+                    {tab.id === "milestones" && (
         <div className="space-y-3">
           {milestones.length > 0 && (
             <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-4">
@@ -23447,8 +23469,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         </div>
       )}
 
-      {/* Activity / Comments Tab */}
-      {activeTab === "comments" && (
+                    {/* Activity / Comments Tab */}
+                    {tab.id === "comments" && (
         <div className="space-y-4">
           <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
             {comments.map(c => (
@@ -23514,8 +23536,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         </div>
       )}
 
-      {/* Sub-cases Tab */}
-      {activeTab === "subcases" && (
+                    {/* Sub-cases Tab */}
+                    {tab.id === "subcases" && (
         <div className="space-y-3">
           {/* Header row with add + bulk-delete */}
           <div className="flex items-center justify-between gap-3">
@@ -23652,8 +23674,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         </div>
       )}
 
-      {/* Applications Tab */}
-      {activeTab === "applications" && (auth.isAdmin || auth.isManager || auth.isClient) && (
+                    {/* Applications Tab */}
+                    {tab.id === "applications" && (auth.isAdmin || auth.isManager || auth.isClient) && (
         <ApplicantRankingSection
           caseData={caseData}
           auth={auth}
@@ -23662,8 +23684,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         />
       )}
 
-      {/* V9 Documents Tab */}
-      {activeTab === "documents" && (() => {
+                    {/* V9 Documents Tab */}
+                    {tab.id === "documents" && (() => {
         const AI_NAME_PREFIXES = ['SpecA_', 'SpecB_', 'SpecC_', 'FuncSpec_'];
         const isAiDoc = d =>
           d.notes?.toLowerCase().includes('auto-generated') ||
@@ -23793,8 +23815,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         );
       })()}
 
-      {/* ── Activities Tab ── */}
-      {activeTab === "activities" && (() => {
+                    {/* ── Activities Tab ── */}
+                    {tab.id === "activities" && (() => {
         const canManage = (auth.isAdmin || auth.isManager || auth.isConsultant) && stageRules.can_add_activities;
         const totalActualHoursAll = timeEntries.reduce((s, e) => s + (e.hours ?? 0), 0);
 
@@ -25243,22 +25265,22 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         );
       })()}
 
-      {/* Time Log Tab — uses time_logs table via TimeLogPanel */}
-      {activeTab === "time" && (
+                    {/* Time Log Tab — uses time_logs table via TimeLogPanel */}
+                    {tab.id === "time" && (
         <TimeLogPanel caseId={caseData.id} caseTitle={caseData.title} auth={auth} />
       )}
 
-      {/* Lifecycle Tab */}
-      {/* Spec Tab */}
-      {activeTab === "spec" && (
+                    {/* Lifecycle Tab */}
+                    {/* Spec Tab */}
+                    {tab.id === "spec" && (
         <SpecificationTab caseData={caseData} auth={auth} documents={documents} addDocument={addDocument} deleteDocument={deleteDocument} refetchDocuments={refetchDocuments} onUpdate={onUpdate} />
       )}
 
-      {activeTab === "implementation" && (auth.isAdmin || auth.isManager || auth.isConsultant) && (
+                    {tab.id === "implementation" && (auth.isAdmin || auth.isManager || auth.isConsultant) && (
         <SapImplementationTab caseData={caseData} auth={auth} activities={activities} updateActivity={updateActivity} />
       )}
 
-      {activeTab === "lifecycle" && (auth.isAdmin || auth.isManager || auth.isClient) && (() => {
+                    {tab.id === "lifecycle" && (auth.isAdmin || auth.isManager || auth.isClient) && (() => {
         if (lcMode === null) return <div className="flex justify-center py-10"><Spinner /></div>;
         const caseOverrideAllowed = clientLifecycle?.allow_case_override ?? true;
         const tmplList = caseLcTemplates.length ? caseLcTemplates : Object.entries(LIFECYCLE_PRESETS).map(([k, v]) => ({ key: k, ...v }));
@@ -25333,36 +25355,34 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           </div>
         );
       })()}
-
-              </div>
+                        </div>
+                      ) : (
+                        <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          <Spinner />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
-            {/* Next peek stub */}
-            <button disabled={!nextTab} onClick={() => nextTab && carouselTo(nextTab.id)}
-              style={{ width:60, flexShrink:0, borderRadius:12, border:'1px solid #E2E8F0', background:'white', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:6, opacity:nextTab?0.45:0, cursor:nextTab?'pointer':'default', padding:'12px 4px', transition:'opacity .2s' }}>
-              {nextTab && (() => { const I=nextTab.icon; return <I size={16} style={{color:'#94A3B8'}}/>; })()}
-              {nextTab && <span style={{fontSize:9,fontWeight:600,color:'#CBD5E1',textAlign:'center',lineHeight:1.3}}>{nextTab.label}</span>}
-              {nextTab && <ChevronRight size={12} style={{color:'#CBD5E1'}}/>}
-            </button>
-
+            {/* Footer pill bar */}
+            <div style={{ marginTop:10, background:'white', borderRadius:12, border:'1px solid #E2E8F0', padding:'10px 14px', display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none' }}>
+              {tabs.map((tab, i) => {
+                const Icon = tab.icon;
+                const isActive = tab.id === activeTab;
+                return (
+                  <button key={tab.id} onClick={() => scrollTo(i)}
+                    style={{ flexShrink:0, display:'flex', alignItems:'center', gap:5, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'#1A4B8C':'#E2E8F0'}`, background:isActive?'#1A4B8C':'white', color:isActive?'white':'#64748B', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
+                    <Icon size={11}/>
+                    <span>{tab.label}</span>
+                    {tab.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)':'#F1F5F9',color:isActive?'rgba(255,255,255,.7)':'#94A3B8'}}>{tab.count}</span>}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-
-          {/* Footer pill bar */}
-          <div style={{ marginTop:8, background:'white', borderRadius:12, border:'1px solid #E2E8F0', padding:'10px 14px', display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none' }}>
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = tab.id === activeTab;
-              return (
-                <button key={tab.id} onClick={() => carouselTo(tab.id)}
-                  style={{ flexShrink:0, display:'flex', alignItems:'center', gap:5, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'#1A4B8C':'#E2E8F0'}`, background:isActive?'#1A4B8C':'white', color:isActive?'white':'#64748B', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
-                  <Icon size={11}/>
-                  <span>{tab.label}</span>
-                  {tab.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)':'#F1F5F9',color:isActive?'rgba(255,255,255,.7)':'#94A3B8'}}>{tab.count}</span>}
-                </button>
-              );
-            })}
-          </div>
-        </div>
         );
       })()}
 
