@@ -9009,6 +9009,19 @@ function ConsultantProfileView({ userId, onBack }) {
   };
 
   const [section, setSection] = useState('overview');
+  const cvCarouselRef = useRef(null);
+  const cvCarouselScrolling = useRef(false);
+  const [cvMountedSlides, setCvMountedSlides] = useState(() => new Set(["overview"]));
+  const [cvManualCompletions, setCvManualCompletionsRaw] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`tc_cvmc_${userId ?? 'me'}`) ?? "{}"); } catch { return {}; }
+  });
+  function setCvManualComplete(tabId, done) {
+    setCvManualCompletionsRaw(prev => {
+      const next = { ...prev, [tabId]: done };
+      try { localStorage.setItem(`tc_cvmc_${userId ?? 'me'}`, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }
   const [profileData, setProfileData]   = useState(null);
   const [cpData, setCpData]             = useState(null);
   const [ratingsData, setRatingsData]   = useState([]);
@@ -9121,13 +9134,39 @@ function ConsultantProfileView({ userId, onBack }) {
   }
 
   const tabs = [
-    { id: 'overview',  label: t('profile.tab_overview') },
-    { id: 'ratings',   label: t('profile.tab_ratings') },
-    { id: 'tier',      label: t('profile.tab_tier') },
-    { id: 'activity',  label: t('profile.tab_activity') },
-    { id: 'vouches',   label: t('vouch.tab') },
-    ...(isOwnProfile ? [{ id: 'plan', label: 'My Plan' }, { id: 'edit', label: 'Profile' }] : []),
+    { id: 'overview',  label: t('profile.tab_overview'), icon: BarChart2,  count: null },
+    { id: 'ratings',   label: t('profile.tab_ratings'),  icon: Star,        count: ratingsData.length > 0 ? ratingsData.length : null },
+    { id: 'tier',      label: t('profile.tab_tier'),     icon: Trophy,      count: null },
+    { id: 'activity',  label: t('profile.tab_activity'), icon: Activity,    count: activity.length > 0 ? activity.length : null },
+    { id: 'vouches',   label: t('vouch.tab'),            icon: Heart,       count: null },
+    ...(isOwnProfile ? [{ id: 'plan', label: 'My Plan', icon: CreditCard, count: null }, { id: 'edit', label: 'Profile', icon: Pencil, count: null }] : []),
   ];
+
+  const cvTabStatus = (() => {
+    const r = {};
+    for (const tab of tabs) {
+      if (cvManualCompletions[tab.id] !== undefined) {
+        r[tab.id] = cvManualCompletions[tab.id] ? "complete" : "none"; continue;
+      }
+      r[tab.id] = "none";
+    }
+    return r;
+  })();
+
+  useEffect(() => {
+    setCvMountedSlides(prev => { const s = new Set(prev); s.add(section); return s; });
+    const el = cvCarouselRef.current;
+    if (!el) return;
+    const idx = tabs.findIndex(t => t.id === section);
+    if (idx < 0) return;
+    const slide = el.children[idx];
+    if (!slide) return;
+    const targetLeft = slide.offsetLeft - (el.offsetWidth - slide.offsetWidth) / 2;
+    cvCarouselScrolling.current = true;
+    el.scrollTo({ left: targetLeft, behavior: 'smooth' });
+    const tid = setTimeout(() => { cvCarouselScrolling.current = false; }, 600);
+    return () => clearTimeout(tid);
+  }, [section]);
 
   if (loading) return <Spinner />;
   if (error) return (
@@ -9217,272 +9256,349 @@ function ConsultantProfileView({ userId, onBack }) {
         </div>
       </div>
 
-      {/* Tab bar */}
-      <div className="flex gap-1 border-b border-gray-200 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-        {tabs.map(tabItem => (
-          <button key={tabItem.id} onClick={() => setSection(tabItem.id)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
-              tabItem.id === section
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}>
-            {tabItem.label}
-          </button>
-        ))}
-      </div>
+      {/* Progress bar */}
+      {(() => {
+        const done = tabs.filter(t => cvTabStatus[t.id] === "complete").length;
+        if (done === 0) return null;
+        return (
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+            <div style={{ flex:1, height:4, borderRadius:99, background:'#E2E8F0', overflow:'hidden' }}>
+              <div style={{ height:'100%', width:`${(done/tabs.length)*100}%`, background:'linear-gradient(90deg,#1A4B8C,#3B82F6)', borderRadius:99, transition:'width .4s' }}/>
+            </div>
+            <span style={{ fontSize:11, fontWeight:700, color:'#1A4B8C', whiteSpace:'nowrap' }}>{done}/{tabs.length} done</span>
+          </div>
+        );
+      })()}
 
-      {/* Overview */}
-      {section === 'overview' && (
-        <div className="space-y-6">
-          {/* Bio / Headline */}
-          {(cpData?.headline || cpData?.bio) && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-2">
-              {cpData?.headline && <p className="font-semibold text-gray-800">{cpData.headline}</p>}
-              {cpData?.bio && <p className="text-sm text-gray-600 whitespace-pre-line">{cpData.bio}</p>}
+      {/* Section Carousel */}
+      {(() => {
+        const carouselIdx = Math.max(0, tabs.findIndex(t => t.id === section));
+        function scrollTo(idx) {
+          setSection(tabs[Math.max(0, Math.min(idx, tabs.length - 1))]?.id ?? section);
+        }
+        function onScroll() {
+          if (cvCarouselScrolling.current) return;
+          const el = cvCarouselRef.current;
+          if (!el) return;
+          const center = el.scrollLeft + el.offsetWidth / 2;
+          let closest = 0, minDist = Infinity;
+          Array.from(el.children).forEach((child, i) => {
+            const dist = Math.abs((child.offsetLeft + child.offsetWidth / 2) - center);
+            if (dist < minDist) { minDist = dist; closest = i; }
+          });
+          const tab = tabs[closest];
+          if (tab && tab.id !== section) setSection(tab.id);
+        }
+        return (
+          <div style={{ position:'relative' }}>
+            {carouselIdx > 0 && (
+              <button onClick={() => scrollTo(carouselIdx - 1)}
+                style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid #CBD5E1', background:'white', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
+                <ChevronLeft size={16} style={{color:'#64748B'}}/>
+              </button>
+            )}
+            {carouselIdx < tabs.length - 1 && (
+              <button onClick={() => scrollTo(carouselIdx + 1)}
+                style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid #CBD5E1', background:'white', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
+                <ChevronRight size={16} style={{color:'#64748B'}}/>
+              </button>
+            )}
+            <div ref={cvCarouselRef} onScroll={onScroll}
+              style={{ display:'flex', overflowX:'scroll', scrollSnapType:'x mandatory', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', gap:10, padding:'0 60px' }}>
+              {tabs.map((tab, i) => {
+                const isActive = tab.id === section;
+                const Icon = tab.icon;
+                const st = cvTabStatus[tab.id];
+                return (
+                  <div key={tab.id}
+                    style={{ flex:'0 0 calc(100% - 120px)', width:'calc(100% - 120px)', maxWidth:'calc(100% - 120px)', minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity:isActive?1:0.5, transform:isActive?'scale(1)':'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
+                    <div style={{ borderRadius:12, border:`1px solid ${isActive?'#CBD5E1':'#E2E8F0'}`, background:'white', overflow:'hidden', width:'100%', boxSizing:'border-box', height:520, display:'flex', flexDirection:'column', boxShadow:isActive?'0 4px 20px rgba(0,0,0,.08)':'none', transition:'box-shadow .25s' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', borderBottom:'1px solid #F1F5F9', background:isActive?'#F8FAFC':'#FAFAFA', flexShrink:0, cursor:isActive?'default':'pointer' }}
+                        onClick={() => !isActive && scrollTo(i)}>
+                        {st === "complete"
+                          ? <div style={{width:16,height:16,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={9} color="white" strokeWidth={3}/></div>
+                          : st === "in_progress"
+                            ? <div style={{width:8,height:8,borderRadius:'50%',background:'#3B82F6',flexShrink:0,marginRight:2}}/>
+                            : <div style={{width:8,height:8,borderRadius:'50%',background:'#CBD5E1',flexShrink:0,marginRight:2}}/>}
+                        <Icon size={13} style={{color:isActive?'#1A4B8C':'#94A3B8',flexShrink:0}}/>
+                        <span style={{flex:1,fontSize:12,fontWeight:700,color:isActive?'#0F172A':'#94A3B8',minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{tab.label}</span>
+                        {tab.count !== null && <span style={{fontSize:10,fontWeight:600,padding:'1px 6px',borderRadius:99,background:isActive?'#DBEAFE':'#F1F5F9',color:isActive?'#2563EB':'#94A3B8',flexShrink:0}}>{tab.count}</span>}
+                        {isActive && (
+                          <button onClick={e => { e.stopPropagation(); setCvManualComplete(tab.id, st !== "complete"); }}
+                            title={st === "complete" ? "Mark incomplete" : "Mark complete"}
+                            style={{ flexShrink:0,display:'flex',alignItems:'center',gap:3,fontSize:10,fontWeight:600,padding:'2px 7px',borderRadius:99,border:`1px solid ${st==="complete"?'#BBF7D0':'#E2E8F0'}`,background:st==="complete"?'#F0FDF4':'#F8FAFC',color:st==="complete"?'#16A34A':'#94A3B8',cursor:'pointer',transition:'all .15s',whiteSpace:'nowrap' }}>
+                            <Check size={9} strokeWidth={3}/>
+                            {st === "complete" ? "Done" : "Mark done"}
+                          </button>
+                        )}
+                      </div>
+                      {cvMountedSlides.has(tab.id) ? (
+                        <div style={{ flex:1, overflowY:'auto', padding:'18px 20px' }}>
+
+          {/* Overview */}
+          {tab.id === 'overview' && (
+            <div className="space-y-6">
+              {(cpData?.headline || cpData?.bio) && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-2">
+                  {cpData?.headline && <p className="font-semibold text-gray-800">{cpData.headline}</p>}
+                  {cpData?.bio && <p className="text-sm text-gray-600 whitespace-pre-line">{cpData.bio}</p>}
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+                  <h3 className="font-semibold text-gray-900 text-sm">Profile Details</h3>
+                  <div className="space-y-3 text-sm">
+                    {cpData?.years_experience != null && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Experience</span>
+                        <span className="font-medium text-gray-800">{cpData.years_experience} yrs</span>
+                      </div>
+                    )}
+                    {cpData?.expertise_level && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Expertise</span>
+                        <span className="font-medium text-gray-800 capitalize">{cpData.expertise_level.replace('_', ' ')}</span>
+                      </div>
+                    )}
+                    {cpData?.hourly_rate != null && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Hourly Rate</span>
+                        <span className="font-medium text-gray-800">${cpData.hourly_rate}/hr</span>
+                      </div>
+                    )}
+                    {cpData?.availability_type && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Availability</span>
+                        <span className="font-medium text-gray-800 capitalize">{cpData.availability_type.replace('_', ' ')}</span>
+                      </div>
+                    )}
+                    {cpData?.travel_available != null && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Travel</span>
+                        <span className="font-medium text-gray-800">{cpData.travel_available ? 'Available' : 'Not available'}</span>
+                      </div>
+                    )}
+                    {cpData?.linkedin_url && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500">LinkedIn</span>
+                        <a href={cpData.linkedin_url} target="_blank" rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline text-xs truncate max-w-[160px]">
+                          {cpData.linkedin_url.replace(/^https?:\/\/(www\.)?linkedin\.com\//, '')}
+                        </a>
+                      </div>
+                    )}
+                    <div className="flex justify-between border-t border-gray-100 pt-3">
+                      <span className="text-gray-500">Cases Assigned</span>
+                      <span className="font-bold text-blue-600">{assignedCount}</span>
+                    </div>
+                  </div>
+                  {dimensions.length > 0 && (
+                    <div className="border-t border-gray-100 pt-4 space-y-2">
+                      <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                        {t('profile.avg_rating')} {t('profile.by_dimension')}
+                      </h4>
+                      {dimensions.map(d => (
+                        <div key={d.key} className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">{d.label}</span>
+                          <span className="font-semibold text-gray-800">{dimAvgs[d.key] ?? '—'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                  <h3 className="font-semibold text-gray-900 text-sm mb-4">{t('profile.tier_progress')}</h3>
+                  <TierProgressBar ratingsData={ratingsData} currentTier={profileData?.trust_level} thresholds={thresholds} />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
+                  <div className="text-3xl font-bold text-blue-700">{cpData?.consultant_projects?.length ?? 0}</div>
+                  <div className="text-xs text-gray-500 mt-1 font-medium uppercase tracking-wide">{t("profile.projects")}</div>
+                </div>
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
+                  <div className="text-3xl font-bold text-teal-600">{cpData?.skills?.length ?? 0}</div>
+                  <div className="text-xs text-gray-500 mt-1 font-medium uppercase tracking-wide">{t("label.skills")}</div>
+                </div>
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
+                  <div className="text-3xl font-bold text-violet-600">{cpData?.consultant_customers?.length ?? 0}</div>
+                  <div className="text-xs text-gray-500 mt-1 font-medium uppercase tracking-wide">Clients</div>
+                </div>
+              </div>
+              {(cpData?.featured_skills?.length ?? 0) > 0 && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Top Skills</p>
+                  <div className="flex flex-wrap gap-2">
+                    {cpData.featured_skills.map(s => (
+                      <span key={s} className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-xl text-sm font-medium">{s}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {(() => {
+                const featured = (cpData?.consultant_projects ?? []).filter(p => p.featured);
+                return featured.length > 0 ? (
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Featured Projects</p>
+                    <div className="space-y-3">
+                      {featured.map(proj => (
+                        <div key={proj.id} className="border border-gray-100 rounded-xl p-3">
+                          <div className="flex items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-sm text-gray-900">{proj.title}</div>
+                              {proj.role && <div className="text-xs text-blue-600 font-medium mt-0.5">{proj.role}</div>}
+                              {proj.client_name && <div className="text-xs text-gray-500">{proj.client_name}</div>}
+                              {proj.tech_stack?.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                  {proj.tech_stack.slice(0, 5).map(s => (
+                                    <span key={s} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px]">{s}</span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <Star className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" fill="currentColor" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null;
+              })()}
             </div>
           )}
 
-          {/* Key details grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left: consultant details */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-              <h3 className="font-semibold text-gray-900 text-sm">Profile Details</h3>
-              <div className="space-y-3 text-sm">
-                {cpData?.years_experience != null && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Experience</span>
-                    <span className="font-medium text-gray-800">{cpData.years_experience} yrs</span>
-                  </div>
+          {/* Ratings history */}
+          {tab.id === 'ratings' && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+              <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+                <h3 className="font-semibold text-gray-900">{t('profile.tab_ratings')}</h3>
+                {overallAvg && (
+                  <span className="text-yellow-500 font-bold">★ {overallAvg} {t('profile.overall_avg')}</span>
                 )}
-                {cpData?.expertise_level && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Expertise</span>
-                    <span className="font-medium text-gray-800 capitalize">{cpData.expertise_level.replace('_', ' ')}</span>
-                  </div>
-                )}
-                {cpData?.hourly_rate != null && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Hourly Rate</span>
-                    <span className="font-medium text-gray-800">${cpData.hourly_rate}/hr</span>
-                  </div>
-                )}
-                {cpData?.availability_type && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Availability</span>
-                    <span className="font-medium text-gray-800 capitalize">{cpData.availability_type.replace('_', ' ')}</span>
-                  </div>
-                )}
-                {cpData?.travel_available != null && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Travel</span>
-                    <span className="font-medium text-gray-800">{cpData.travel_available ? 'Available' : 'Not available'}</span>
-                  </div>
-                )}
-                {cpData?.linkedin_url && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-500">LinkedIn</span>
-                    <a href={cpData.linkedin_url} target="_blank" rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline text-xs truncate max-w-[160px]">
-                      {cpData.linkedin_url.replace(/^https?:\/\/(www\.)?linkedin\.com\//, '')}
-                    </a>
-                  </div>
-                )}
-                <div className="flex justify-between border-t border-gray-100 pt-3">
-                  <span className="text-gray-500">Cases Assigned</span>
-                  <span className="font-bold text-blue-600">{assignedCount}</span>
-                </div>
               </div>
+              {ratingsByCase.length === 0 ? (
+                <div className="p-8 text-center text-gray-400 text-sm">{t('profile.no_ratings')}</div>
+              ) : (
+                <div className="divide-y divide-gray-50">
+                  {ratingsByCase.map(group => {
+                    const gAvgs = group.ratings.map(r => {
+                      const vals = Object.values(r.scores ?? {});
+                      return vals.length > 0 ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
+                    });
+                    const gAvg = gAvgs.length > 0
+                      ? (gAvgs.reduce((s, v) => s + v, 0) / gAvgs.length).toFixed(2) : '—';
+                    return (
+                      <div key={group.caseId} className="p-5">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="font-medium text-gray-800 text-sm">{group.caseTitle}</span>
+                          <span className="text-xs text-yellow-600 font-semibold">★ {gAvg}</span>
+                        </div>
+                        {group.ratings.map(r => (
+                          <div key={r.id} className="ml-3 border-l-2 border-gray-100 pl-3 mt-2 space-y-1.5">
+                            <div className="text-xs text-gray-400">
+                              {t('label.client')} · {new Date(r.created_at).toLocaleDateString()}
+                            </div>
+                            {dimensions.map(d => r.scores?.[d.key] != null && (
+                              <div key={d.key} className="flex items-center justify-between text-xs">
+                                <span className="text-gray-500">{d.label}</span>
+                                <div className="flex gap-0.5">
+                                  {[1,2,3,4,5].map(s => (
+                                    <span key={s} className={s <= r.scores[d.key] ? 'text-yellow-400' : 'text-gray-200'}>★</span>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
+          {/* Tier progress */}
+          {tab.id === 'tier' && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <h3 className="font-semibold text-gray-900 mb-5">{t('profile.tier_progress')}</h3>
+              <TierProgressBar ratingsData={ratingsData} currentTier={profileData?.trust_level} thresholds={thresholds} />
+            </div>
+          )}
 
-              {/* Avg rating by dimension */}
-              {dimensions.length > 0 && (
-                <div className="border-t border-gray-100 pt-4 space-y-2">
-                  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                    {t('profile.avg_rating')} {t('profile.by_dimension')}
-                  </h4>
-                  {dimensions.map(d => (
-                    <div key={d.key} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">{d.label}</span>
-                      <span className="font-semibold text-gray-800">{dimAvgs[d.key] ?? '—'}</span>
+          {/* Activity */}
+          {tab.id === 'activity' && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+              <div className="p-5 border-b border-gray-100">
+                <h3 className="font-semibold text-gray-900">{t('profile.tab_activity')}</h3>
+              </div>
+              {activity.length === 0 ? (
+                <div className="p-8 text-center text-gray-400 text-sm">{t('profile.no_activity')}</div>
+              ) : (
+                <div className="divide-y divide-gray-50">
+                  {activity.map(log => (
+                    <div key={log.id} className="p-4 flex items-start gap-3">
+                      <div className="w-2 h-2 rounded-full bg-blue-400 mt-2 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-sm text-gray-700">{log.entity_name ?? log.event_type}</div>
+                        <div className="text-xs text-gray-400 mt-0.5">{new Date(log.created_at).toLocaleString()}</div>
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
+          )}
 
-            {/* Right: tier progress */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <h3 className="font-semibold text-gray-900 text-sm mb-4">{t('profile.tier_progress')}</h3>
-              <TierProgressBar
-                ratingsData={ratingsData}
-                currentTier={profileData?.trust_level}
-                thresholds={thresholds}
-              />
-            </div>
-          </div>
-
-          {/* Stats + Featured highlights */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
-              <div className="text-3xl font-bold text-blue-700">{cpData?.consultant_projects?.length ?? 0}</div>
-              <div className="text-xs text-gray-500 mt-1 font-medium uppercase tracking-wide">{t("profile.projects")}</div>
-            </div>
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
-              <div className="text-3xl font-bold text-teal-600">{cpData?.skills?.length ?? 0}</div>
-              <div className="text-xs text-gray-500 mt-1 font-medium uppercase tracking-wide">{t("label.skills")}</div>
-            </div>
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center">
-              <div className="text-3xl font-bold text-violet-600">{cpData?.consultant_customers?.length ?? 0}</div>
-              <div className="text-xs text-gray-500 mt-1 font-medium uppercase tracking-wide">Clients</div>
-            </div>
-          </div>
-
-          {(cpData?.featured_skills?.length ?? 0) > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Top Skills</p>
-              <div className="flex flex-wrap gap-2">
-                {cpData.featured_skills.map(s => (
-                  <span key={s} className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-xl text-sm font-medium">{s}</span>
-                ))}
-              </div>
+          {/* Vouches */}
+          {tab.id === 'vouches' && (
+            <div className="space-y-4">
+              <VouchingPanel targetUserId={targetUserId} targetName={profileData?.full_name} />
             </div>
           )}
 
-          {(() => {
-            const featured = (cpData?.consultant_projects ?? []).filter(p => p.featured);
-            return featured.length > 0 ? (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Featured Projects</p>
-                <div className="space-y-3">
-                  {featured.map(proj => (
-                    <div key={proj.id} className="border border-gray-100 rounded-xl p-3">
-                      <div className="flex items-start gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm text-gray-900">{proj.title}</div>
-                          {proj.role && <div className="text-xs text-blue-600 font-medium mt-0.5">{proj.role}</div>}
-                          {proj.client_name && <div className="text-xs text-gray-500">{proj.client_name}</div>}
-                          {proj.tech_stack?.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1.5">
-                              {proj.tech_stack.slice(0, 5).map(s => (
-                                <span key={s} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px]">{s}</span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <Star className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" fill="currentColor" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null;
-          })()}
-        </div>
-      )}
+          {/* My Plan */}
+          {tab.id === 'plan' && isOwnProfile && (
+            <PlanUsageCard auth={auth} />
+          )}
 
-      {/* Ratings history */}
-      {section === 'ratings' && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-            <h3 className="font-semibold text-gray-900">{t('profile.tab_ratings')}</h3>
-            {overallAvg && (
-              <span className="text-yellow-500 font-bold">★ {overallAvg} {t('profile.overall_avg')}</span>
-            )}
-          </div>
-          {ratingsByCase.length === 0 ? (
-            <div className="p-8 text-center text-gray-400 text-sm">{t('profile.no_ratings')}</div>
-          ) : (
-            <div className="divide-y divide-gray-50">
-              {ratingsByCase.map(group => {
-                const gAvgs = group.ratings.map(r => {
-                  const vals = Object.values(r.scores ?? {});
-                  return vals.length > 0 ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
-                });
-                const gAvg = gAvgs.length > 0
-                  ? (gAvgs.reduce((s, v) => s + v, 0) / gAvgs.length).toFixed(2) : '—';
-                return (
-                  <div key={group.caseId} className="p-5">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="font-medium text-gray-800 text-sm">{group.caseTitle}</span>
-                      <span className="text-xs text-yellow-600 font-semibold">★ {gAvg}</span>
-                    </div>
-                    {group.ratings.map(r => (
-                      <div key={r.id} className="ml-3 border-l-2 border-gray-100 pl-3 mt-2 space-y-1.5">
-                        <div className="text-xs text-gray-400">
-                          {t('label.client')} · {new Date(r.created_at).toLocaleDateString()}
+          {/* Edit profile */}
+          {tab.id === 'edit' && isOwnProfile && (
+            <ProfileView auth={auth} compact={true} />
+          )}
+
                         </div>
-                        {dimensions.map(d => r.scores?.[d.key] != null && (
-                          <div key={d.key} className="flex items-center justify-between text-xs">
-                            <span className="text-gray-500">{d.label}</span>
-                            <div className="flex gap-0.5">
-                              {[1,2,3,4,5].map(s => (
-                                <span key={s} className={s <= r.scores[d.key] ? 'text-yellow-400' : 'text-gray-200'}>★</span>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ))}
+                      ) : (
+                        <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          <Spinner />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Tier progress */}
-      {section === 'tier' && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <h3 className="font-semibold text-gray-900 mb-5">{t('profile.tier_progress')}</h3>
-          <TierProgressBar
-            ratingsData={ratingsData}
-            currentTier={profileData?.trust_level}
-            thresholds={thresholds}
-          />
-        </div>
-      )}
-
-      {/* Activity */}
-      {section === 'activity' && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-          <div className="p-5 border-b border-gray-100">
-            <h3 className="font-semibold text-gray-900">{t('profile.tab_activity')}</h3>
-          </div>
-          {activity.length === 0 ? (
-            <div className="p-8 text-center text-gray-400 text-sm">{t('profile.no_activity')}</div>
-          ) : (
-            <div className="divide-y divide-gray-50">
-              {activity.map(log => (
-                <div key={log.id} className="p-4 flex items-start gap-3">
-                  <div className="w-2 h-2 rounded-full bg-blue-400 mt-2 flex-shrink-0" />
-                  <div className="min-w-0">
-                    <div className="text-sm text-gray-700">{log.entity_name ?? log.event_type}</div>
-                    <div className="text-xs text-gray-400 mt-0.5">{new Date(log.created_at).toLocaleString()}</div>
-                  </div>
-                </div>
-              ))}
+            {/* Footer pill bar */}
+            <div style={{ marginTop:10, background:'white', borderRadius:12, border:'1px solid #E2E8F0', padding:'10px 14px', display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none' }}>
+              {tabs.map((tab, i) => {
+                const Icon = tab.icon;
+                const isActive = tab.id === section;
+                const st = cvTabStatus[tab.id];
+                return (
+                  <button key={tab.id} onClick={() => scrollTo(i)}
+                    style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'#1A4B8C':st==="complete"?'#BBF7D0':'#E2E8F0'}`, background:isActive?'#1A4B8C':st==="complete"?'#F0FDF4':'white', color:isActive?'white':st==="complete"?'#16A34A':'#64748B', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
+                    {st === "complete" && !isActive
+                      ? <div style={{width:13,height:13,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={8} color="white" strokeWidth={3}/></div>
+                      : <Icon size={11}/>}
+                    <span>{tab.label}</span>
+                    {tab.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)':st==="complete"?'#DCFCE7':'#F1F5F9',color:isActive?'rgba(255,255,255,.7)':st==="complete"?'#16A34A':'#94A3B8'}}>{tab.count}</span>}
+                  </button>
+                );
+              })}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Vouches */}
-      {section === 'vouches' && (
-        <div className="space-y-4">
-          <VouchingPanel targetUserId={targetUserId} targetName={profileData?.full_name} />
-        </div>
-      )}
-
-      {/* My Plan */}
-      {section === 'plan' && isOwnProfile && (
-        <PlanUsageCard auth={auth} />
-      )}
-
-      {/* Edit profile */}
-      {section === 'edit' && isOwnProfile && (
-        <ProfileView auth={auth} compact={true} />
-      )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -25716,6 +25832,19 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
   const [assigning, setAssigning]       = useState(false);
   const [assignDone, setAssignDone]     = useState(false);
   const [panelTab, setPanelTab]         = useState('profile');
+  const panelCarouselRef = useRef(null);
+  const panelCarouselScrolling = useRef(false);
+  const [panelMountedSlides, setPanelMountedSlides] = useState(() => new Set(["profile"]));
+  const [panelManualCompletions, setPanelManualCompletionsRaw] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`tc_panelmc_panel`) ?? "{}"); } catch { return {}; }
+  });
+  function setPanelManualComplete(tabId, done) {
+    setPanelManualCompletionsRaw(prev => {
+      const next = { ...prev, [tabId]: done };
+      try { localStorage.setItem(`tc_panelmc_panel`, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }
   const canAssign = auth && (auth.isAdmin || auth.isManager || auth.isHeadhunter);
   const canAdmin  = auth && (auth.isAdmin || auth.isManager);
   const planCfg = usePlanConfig();
@@ -25813,6 +25942,37 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
     } catch(e) { alert(e.message); }
     finally { setAssigning(false); }
   }
+
+  const panelTabs = [
+    { id: 'profile', label: 'Profile', icon: User,  count: null },
+    { id: 'ratings', label: 'Ratings', icon: Star,  count: ratings.length > 0 ? ratings.length : null },
+  ];
+
+  const panelTabStatus = (() => {
+    const r = {};
+    for (const tab of panelTabs) {
+      if (panelManualCompletions[tab.id] !== undefined) {
+        r[tab.id] = panelManualCompletions[tab.id] ? "complete" : "none"; continue;
+      }
+      r[tab.id] = "none";
+    }
+    return r;
+  })();
+
+  useEffect(() => {
+    setPanelMountedSlides(prev => { const s = new Set(prev); s.add(panelTab); return s; });
+    const el = panelCarouselRef.current;
+    if (!el) return;
+    const idx = panelTabs.findIndex(t => t.id === panelTab);
+    if (idx < 0) return;
+    const slide = el.children[idx];
+    if (!slide) return;
+    const targetLeft = slide.offsetLeft - (el.offsetWidth - slide.offsetWidth) / 2;
+    panelCarouselScrolling.current = true;
+    el.scrollTo({ left: targetLeft, behavior: 'smooth' });
+    const tid = setTimeout(() => { panelCarouselScrolling.current = false; }, 600);
+    return () => clearTimeout(tid);
+  }, [panelTab]);
 
   return (
     <div className="w-full max-w-md bg-white h-full flex flex-col shadow-2xl overflow-hidden">
@@ -26121,179 +26281,278 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
       )}
 
       {panelView === 'profile' && isConsultantRole && (
-        <>
-          {/* Tab bar */}
-          <div className="flex border-b border-gray-100 flex-shrink-0">
-            {[
-              { id: 'profile', label: 'Profile' },
-              { id: 'ratings', label: `Ratings${ratings.length > 0 ? ` (${ratings.length})` : ''}` },
-            ].map(tab => (
-              <button key={tab.id} onClick={() => setPanelTab(tab.id)}
-                className={`flex-1 py-2.5 text-sm font-semibold transition-colors border-b-2 -mb-px ${panelTab === tab.id ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-      <div className="flex-1 overflow-y-auto p-5 space-y-5">
-        {loading ? <Spinner /> : panelTab === 'ratings' ? (
-          /* ── Ratings tab ── */
-          ratings.length === 0 ? (
-            <div className="text-center py-10">
-              <Star size={32} className="text-gray-200 mx-auto mb-2" />
-              <p className="text-sm text-gray-400">No ratings yet</p>
-            </div>
-          ) : (
-            <>
-              {/* Summary */}
-              <div className="flex items-center gap-3 bg-yellow-50 border border-yellow-100 rounded-xl p-4">
-                <div className="text-3xl font-bold text-gray-900">{avgRating}</div>
-                <div>
-                  <div className="text-yellow-400 text-lg">{stars(avgRating)}</div>
-                  <p className="text-xs text-gray-500 mt-0.5">{ratings.length} rating{ratings.length !== 1 ? 's' : ''}</p>
+        <div className="flex-1 overflow-y-auto p-3">
+          {/* Progress bar */}
+          {(() => {
+            const done = panelTabs.filter(t => panelTabStatus[t.id] === "complete").length;
+            if (done === 0) return null;
+            return (
+              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+                <div style={{ flex:1, height:4, borderRadius:99, background:'#E2E8F0', overflow:'hidden' }}>
+                  <div style={{ height:'100%', width:`${(done/panelTabs.length)*100}%`, background:'linear-gradient(90deg,#1A4B8C,#3B82F6)', borderRadius:99, transition:'width .4s' }}/>
                 </div>
-                {winRate != null && (
-                  <div className="ml-auto text-right">
-                    <div className="text-lg font-bold text-green-600">{winRate}%</div>
-                    <p className="text-xs text-gray-400">win rate</p>
-                  </div>
-                )}
+                <span style={{ fontSize:11, fontWeight:700, color:'#1A4B8C', whiteSpace:'nowrap' }}>{done}/{panelTabs.length} done</span>
               </div>
-              {/* Individual ratings */}
-              <div className="space-y-3">
-                {ratings.map((r, i) => (
-                  <div key={i} className="border border-gray-100 rounded-xl p-3 bg-white">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-yellow-400 text-sm">{stars(r.score)}</span>
-                        <span className="text-sm font-bold text-gray-800">{r.score}/5</span>
+            );
+          })()}
+
+          {/* Section Carousel */}
+          {(() => {
+            const carouselIdx = Math.max(0, panelTabs.findIndex(t => t.id === panelTab));
+            function scrollTo(idx) {
+              setPanelTab(panelTabs[Math.max(0, Math.min(idx, panelTabs.length - 1))]?.id ?? panelTab);
+            }
+            function onScroll() {
+              if (panelCarouselScrolling.current) return;
+              const el = panelCarouselRef.current;
+              if (!el) return;
+              const center = el.scrollLeft + el.offsetWidth / 2;
+              let closest = 0, minDist = Infinity;
+              Array.from(el.children).forEach((child, i) => {
+                const dist = Math.abs((child.offsetLeft + child.offsetWidth / 2) - center);
+                if (dist < minDist) { minDist = dist; closest = i; }
+              });
+              const t2 = panelTabs[closest];
+              if (t2 && t2.id !== panelTab) setPanelTab(t2.id);
+            }
+            return (
+              <div style={{ position:'relative' }}>
+                {carouselIdx > 0 && (
+                  <button onClick={() => scrollTo(carouselIdx - 1)}
+                    style={{ position:'absolute', left:4, top:'50%', transform:'translateY(-50%)', zIndex:10, width:28, height:28, borderRadius:'50%', border:'1.5px solid #CBD5E1', background:'white', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-16 }}>
+                    <ChevronLeft size={14} style={{color:'#64748B'}}/>
+                  </button>
+                )}
+                {carouselIdx < panelTabs.length - 1 && (
+                  <button onClick={() => scrollTo(carouselIdx + 1)}
+                    style={{ position:'absolute', right:4, top:'50%', transform:'translateY(-50%)', zIndex:10, width:28, height:28, borderRadius:'50%', border:'1.5px solid #CBD5E1', background:'white', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-16 }}>
+                    <ChevronRight size={14} style={{color:'#64748B'}}/>
+                  </button>
+                )}
+                <div ref={panelCarouselRef} onScroll={onScroll}
+                  style={{ display:'flex', overflowX:'scroll', scrollSnapType:'x mandatory', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', gap:8, padding:'0 44px' }}>
+                  {panelTabs.map((tab, i) => {
+                    const isActive = tab.id === panelTab;
+                    const Icon = tab.icon;
+                    const st = panelTabStatus[tab.id];
+                    return (
+                      <div key={tab.id}
+                        style={{ flex:'0 0 calc(100% - 88px)', width:'calc(100% - 88px)', maxWidth:'calc(100% - 88px)', minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity:isActive?1:0.5, transform:isActive?'scale(1)':'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
+                        <div style={{ borderRadius:12, border:`1px solid ${isActive?'#CBD5E1':'#E2E8F0'}`, background:'white', overflow:'hidden', width:'100%', boxSizing:'border-box', minHeight:400, display:'flex', flexDirection:'column', boxShadow:isActive?'0 4px 20px rgba(0,0,0,.08)':'none', transition:'box-shadow .25s' }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 14px', borderBottom:'1px solid #F1F5F9', background:isActive?'#F8FAFC':'#FAFAFA', flexShrink:0, cursor:isActive?'default':'pointer' }}
+                            onClick={() => !isActive && scrollTo(i)}>
+                            {st === "complete"
+                              ? <div style={{width:16,height:16,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={9} color="white" strokeWidth={3}/></div>
+                              : st === "in_progress"
+                                ? <div style={{width:8,height:8,borderRadius:'50%',background:'#3B82F6',flexShrink:0,marginRight:2}}/>
+                                : <div style={{width:8,height:8,borderRadius:'50%',background:'#CBD5E1',flexShrink:0,marginRight:2}}/>}
+                            <Icon size={13} style={{color:isActive?'#1A4B8C':'#94A3B8',flexShrink:0}}/>
+                            <span style={{flex:1,fontSize:12,fontWeight:700,color:isActive?'#0F172A':'#94A3B8',minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{tab.label}</span>
+                            {tab.count !== null && <span style={{fontSize:10,fontWeight:600,padding:'1px 6px',borderRadius:99,background:isActive?'#DBEAFE':'#F1F5F9',color:isActive?'#2563EB':'#94A3B8',flexShrink:0}}>{tab.count}</span>}
+                            {isActive && (
+                              <button onClick={e => { e.stopPropagation(); setPanelManualComplete(tab.id, st !== "complete"); }}
+                                title={st === "complete" ? "Mark incomplete" : "Mark complete"}
+                                style={{ flexShrink:0,display:'flex',alignItems:'center',gap:3,fontSize:10,fontWeight:600,padding:'2px 7px',borderRadius:99,border:`1px solid ${st==="complete"?'#BBF7D0':'#E2E8F0'}`,background:st==="complete"?'#F0FDF4':'#F8FAFC',color:st==="complete"?'#16A34A':'#94A3B8',cursor:'pointer',transition:'all .15s',whiteSpace:'nowrap' }}>
+                                <Check size={9} strokeWidth={3}/>
+                                {st === "complete" ? "Done" : "Mark done"}
+                              </button>
+                            )}
+                          </div>
+                          {panelMountedSlides.has(tab.id) ? (
+                            <div style={{ flex:1, overflowY:'auto', padding:'16px' }} className="space-y-4">
+
+              {/* Profile tab */}
+              {tab.id === 'profile' && (loading ? <Spinner /> : (
+                <>
+                  {/* Avatar + identity */}
+                  <div className="flex items-center gap-4">
+                    <PersonAvatar name={userName} avatarUrl={avatarUrl} size={64} />
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-gray-900 text-lg leading-tight">{userName}</h3>
+                      {profile?.headline && <p className="text-sm text-gray-500 mt-0.5">{profile.headline}</p>}
+                      {avgRating != null && (
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <span className="text-yellow-400 text-xs">{stars(avgRating)}</span>
+                          <span className="text-sm font-semibold text-gray-700">{avgRating}</span>
+                          <span className="text-xs text-gray-400">({ratings.length} rating{ratings.length !== 1 ? 's' : ''})</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Stats grid */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {profile?.years_experience != null && (
+                      <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
+                        <div className="font-bold text-gray-900 text-lg">{profile.years_experience}<span className="text-xs font-normal text-gray-400">y</span></div>
+                        <div className="text-xs text-gray-400 mt-0.5">Experience</div>
                       </div>
-                      <span className="text-xs text-gray-400">{fmtDate(r.created_at)}</span>
-                    </div>
-                    {r.case?.title && <p className="text-xs text-blue-600 font-medium mb-1">{r.case.title}</p>}
-                    {r.comment && <p className="text-sm text-gray-600 italic">"{r.comment}"</p>}
+                    )}
+                    {profile?.hourly_rate != null && (
+                      <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
+                        <div className="font-bold text-gray-900 text-base">${profile.hourly_rate}<span className="text-[10px] font-normal text-gray-400">/h</span></div>
+                        <div className="text-xs text-gray-400 mt-0.5">Rate</div>
+                      </div>
+                    )}
+                    {availability?.available_percentage != null && (
+                      <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
+                        <div className={`font-bold text-lg ${availability.available_percentage >= 50 ? "text-green-600" : "text-orange-500"}`}>
+                          {availability.available_percentage}<span className="text-xs font-normal text-gray-400">%</span>
+                        </div>
+                        <div className="text-xs text-gray-400 mt-0.5">Available</div>
+                      </div>
+                    )}
                   </div>
-                ))}
+
+                  {/* Badges row */}
+                  <div className="flex flex-wrap gap-2">
+                    {profile?.expertise_level && (
+                      <span className="px-2.5 py-1 bg-violet-50 text-violet-700 rounded-lg text-xs font-semibold capitalize">{profile.expertise_level}</span>
+                    )}
+                    {profile?.availability_type && (
+                      <span className="px-2.5 py-1 bg-sky-50 text-sky-700 rounded-lg text-xs font-semibold capitalize">{profile.availability_type.replace(/_/g, ' ')}</span>
+                    )}
+                    {profile?.travel_available && (
+                      <span className="px-2.5 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-semibold">Travel OK</span>
+                    )}
+                  </div>
+
+                  {/* Top Skills — featured first, else first 5 */}
+                  {(() => {
+                    const featured = profile?.featured_skills ?? [];
+                    const topSkills = featured.length > 0
+                      ? featured.slice(0, 6)
+                      : (profile?.skills ?? []).slice(0, 5);
+                    return topSkills.length > 0 ? (
+                      <div>
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                          Top Skills {featured.length > 0 && <span className="normal-case text-gray-300 font-normal">· featured</span>}
+                        </p>
+                        <div className="flex flex-wrap gap-1">
+                          {topSkills.map(s => (
+                            <span key={s} className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">
+                              {featured.includes(s) && <Star size={9} className="text-amber-400 fill-amber-400" />}
+                              {s}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
+
+                  {/* Top Experience — top 3 clients + top 3 projects */}
+                  {(profile?.consultant_customers?.length > 0 || profile?.consultant_projects?.length > 0) && (
+                    <div className="space-y-3">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Top Experience</p>
+                      {profile?.consultant_customers?.slice(0, 3).map((cu, i) => (
+                        <div key={i} className="flex items-center gap-2.5">
+                          <UserAvatar name={cu.company_name ?? '?'} size={30} />
+                          <div className="min-w-0">
+                            <div className="font-medium text-sm text-gray-900 truncate">{cu.company_name}</div>
+                            <div className="text-xs text-gray-400">{cu.role}{cu.start_year ? ` · ${cu.start_year}` : ''}</div>
+                          </div>
+                        </div>
+                      ))}
+                      {profile?.consultant_projects?.slice(0, 3).map((p, i) => (
+                        <div key={i} className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                            <Briefcase size={12} className="text-blue-600" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-medium text-sm text-gray-900 truncate">{p.project_name ?? p.name ?? "SAP Project"}</div>
+                            {p.module && <div className="text-xs text-gray-400">{p.module}{p.year ? ` · ${p.year}` : ''}</div>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* LinkedIn */}
+                  {profile?.linkedin_url && (
+                    <a href={profile.linkedin_url} target="_blank" rel="noreferrer"
+                      className="flex items-center gap-2 text-sm text-blue-600 hover:underline">
+                      <ExternalLink size={14} />View LinkedIn Profile
+                    </a>
+                  )}
+                </>
+              ))}
+
+              {/* Ratings tab */}
+              {tab.id === 'ratings' && (
+                ratings.length === 0 ? (
+                  <div className="text-center py-10">
+                    <Star size={32} className="text-gray-200 mx-auto mb-2" />
+                    <p className="text-sm text-gray-400">No ratings yet</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Summary */}
+                    <div className="flex items-center gap-3 bg-yellow-50 border border-yellow-100 rounded-xl p-4">
+                      <div className="text-3xl font-bold text-gray-900">{avgRating}</div>
+                      <div>
+                        <div className="text-yellow-400 text-lg">{stars(avgRating)}</div>
+                        <p className="text-xs text-gray-500 mt-0.5">{ratings.length} rating{ratings.length !== 1 ? 's' : ''}</p>
+                      </div>
+                      {winRate != null && (
+                        <div className="ml-auto text-right">
+                          <div className="text-lg font-bold text-green-600">{winRate}%</div>
+                          <p className="text-xs text-gray-400">win rate</p>
+                        </div>
+                      )}
+                    </div>
+                    {/* Individual ratings */}
+                    <div className="space-y-3">
+                      {ratings.map((r, i) => (
+                        <div key={i} className="border border-gray-100 rounded-xl p-3 bg-white">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-yellow-400 text-sm">{stars(r.score)}</span>
+                              <span className="text-sm font-bold text-gray-800">{r.score}/5</span>
+                            </div>
+                            <span className="text-xs text-gray-400">{fmtDate(r.created_at)}</span>
+                          </div>
+                          {r.case?.title && <p className="text-xs text-blue-600 font-medium mb-1">{r.case.title}</p>}
+                          {r.comment && <p className="text-sm text-gray-600 italic">"{r.comment}"</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )
+              )}
+
+                            </div>
+                          ) : (
+                            <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+                              <Spinner />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Footer pill bar */}
+                <div style={{ marginTop:8, background:'white', borderRadius:12, border:'1px solid #E2E8F0', padding:'8px 12px', display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none' }}>
+                  {panelTabs.map((tab, i) => {
+                    const Icon = tab.icon;
+                    const isActive = tab.id === panelTab;
+                    const st = panelTabStatus[tab.id];
+                    return (
+                      <button key={tab.id} onClick={() => scrollTo(i)}
+                        style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'#1A4B8C':st==="complete"?'#BBF7D0':'#E2E8F0'}`, background:isActive?'#1A4B8C':st==="complete"?'#F0FDF4':'white', color:isActive?'white':st==="complete"?'#16A34A':'#64748B', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
+                        {st === "complete" && !isActive
+                          ? <div style={{width:13,height:13,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={8} color="white" strokeWidth={3}/></div>
+                          : <Icon size={11}/>}
+                        <span>{tab.label}</span>
+                        {tab.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)':st==="complete"?'#DCFCE7':'#F1F5F9',color:isActive?'rgba(255,255,255,.7)':st==="complete"?'#16A34A':'#94A3B8'}}>{tab.count}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </>
-          )
-        ) : (
-          <>
-            {/* Avatar + identity */}
-            <div className="flex items-center gap-4">
-              <PersonAvatar name={userName} avatarUrl={avatarUrl} size={64} />
-              <div className="min-w-0">
-                <h3 className="font-bold text-gray-900 text-lg leading-tight">{userName}</h3>
-                {profile?.headline && <p className="text-sm text-gray-500 mt-0.5">{profile.headline}</p>}
-                {avgRating != null && (
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <span className="text-yellow-400 text-xs">{stars(avgRating)}</span>
-                    <span className="text-sm font-semibold text-gray-700">{avgRating}</span>
-                    <span className="text-xs text-gray-400">({ratings.length} rating{ratings.length !== 1 ? 's' : ''})</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Stats grid */}
-            <div className="grid grid-cols-3 gap-2">
-              {profile?.years_experience != null && (
-                <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
-                  <div className="font-bold text-gray-900 text-lg">{profile.years_experience}<span className="text-xs font-normal text-gray-400">y</span></div>
-                  <div className="text-xs text-gray-400 mt-0.5">Experience</div>
-                </div>
-              )}
-              {profile?.hourly_rate != null && (
-                <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
-                  <div className="font-bold text-gray-900 text-base">${profile.hourly_rate}<span className="text-[10px] font-normal text-gray-400">/h</span></div>
-                  <div className="text-xs text-gray-400 mt-0.5">Rate</div>
-                </div>
-              )}
-              {availability?.available_percentage != null && (
-                <div className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
-                  <div className={`font-bold text-lg ${availability.available_percentage >= 50 ? "text-green-600" : "text-orange-500"}`}>
-                    {availability.available_percentage}<span className="text-xs font-normal text-gray-400">%</span>
-                  </div>
-                  <div className="text-xs text-gray-400 mt-0.5">Available</div>
-                </div>
-              )}
-            </div>
-
-            {/* Badges row */}
-            <div className="flex flex-wrap gap-2">
-              {profile?.expertise_level && (
-                <span className="px-2.5 py-1 bg-violet-50 text-violet-700 rounded-lg text-xs font-semibold capitalize">{profile.expertise_level}</span>
-              )}
-              {profile?.availability_type && (
-                <span className="px-2.5 py-1 bg-sky-50 text-sky-700 rounded-lg text-xs font-semibold capitalize">{profile.availability_type.replace(/_/g, ' ')}</span>
-              )}
-              {profile?.travel_available && (
-                <span className="px-2.5 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-semibold">Travel OK</span>
-              )}
-            </div>
-
-            {/* Top Skills — featured first, else first 5 */}
-            {(() => {
-              const featured = profile?.featured_skills ?? [];
-              const topSkills = featured.length > 0
-                ? featured.slice(0, 6)
-                : (profile?.skills ?? []).slice(0, 5);
-              return topSkills.length > 0 ? (
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-                    Top Skills {featured.length > 0 && <span className="normal-case text-gray-300 font-normal">· featured</span>}
-                  </p>
-                  <div className="flex flex-wrap gap-1">
-                    {topSkills.map(s => (
-                      <span key={s} className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">
-                        {featured.includes(s) && <Star size={9} className="text-amber-400 fill-amber-400" />}
-                        {s}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : null;
-            })()}
-
-            {/* Top Experience — top 3 clients + top 3 projects */}
-            {(profile?.consultant_customers?.length > 0 || profile?.consultant_projects?.length > 0) && (
-              <div className="space-y-3">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Top Experience</p>
-                {profile?.consultant_customers?.slice(0, 3).map((cu, i) => (
-                  <div key={i} className="flex items-center gap-2.5">
-                    <UserAvatar name={cu.company_name ?? '?'} size={30} />
-                    <div className="min-w-0">
-                      <div className="font-medium text-sm text-gray-900 truncate">{cu.company_name}</div>
-                      <div className="text-xs text-gray-400">{cu.role}{cu.start_year ? ` · ${cu.start_year}` : ''}</div>
-                    </div>
-                  </div>
-                ))}
-                {profile?.consultant_projects?.slice(0, 3).map((p, i) => (
-                  <div key={i} className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                      <Briefcase size={12} className="text-blue-600" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="font-medium text-sm text-gray-900 truncate">{p.project_name ?? p.name ?? "SAP Project"}</div>
-                      {p.module && <div className="text-xs text-gray-400">{p.module}{p.year ? ` · ${p.year}` : ''}</div>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* LinkedIn */}
-            {profile?.linkedin_url && (
-              <a href={profile.linkedin_url} target="_blank" rel="noreferrer"
-                className="flex items-center gap-2 text-sm text-blue-600 hover:underline">
-                <ExternalLink size={14} />View LinkedIn Profile
-              </a>
-            )}
-
-          </>
-        )}
-      </div>
-        </>
+            );
+          })()}
+        </div>
       )}
     </div>
   );
@@ -26306,6 +26565,19 @@ function ArenaView({ auth }) {
   const { t } = useT();
   const visCfg = useVisibilitySettings();
   const [arenaTab, setArenaTab]             = useState("cases");
+  const arenaCarouselRef = useRef(null);
+  const arenaCarouselScrolling = useRef(false);
+  const [arenaMountedSlides, setArenaMountedSlides] = useState(() => new Set(["cases"]));
+  const [arenaManualCompletions, setArenaManualCompletionsRaw] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`tc_arenamc_arena`) ?? "{}"); } catch { return {}; }
+  });
+  function setArenaManualComplete(tabId, done) {
+    setArenaManualCompletionsRaw(prev => {
+      const next = { ...prev, [tabId]: done };
+      try { localStorage.setItem(`tc_arenamc_arena`, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }
   const [applyingToCase, setApplying]       = useState(null);
   const [arenaSelectedCase, setArenaSelected] = useState(null);
   const [profileView, setProfileView]       = useState(null);  // consultant id for drawer
@@ -26745,6 +27017,39 @@ function ArenaView({ auth }) {
     );
   };
 
+  const arenaTabs = [
+    { id: "cases",       label: t("arena.open_cases"),  icon: Briefcase,  count: openCases.length > 0 ? openCases.length : null },
+    { id: "leaderboard", label: t("arena.leaderboard"), icon: Trophy,     count: null },
+    { id: "cards",       label: t("arena.cards"),       icon: LayoutGrid, count: null },
+    { id: "compare",     label: t("arena.compare"),     icon: BarChart2,  count: compareSet.length >= 2 ? compareSet.length : null },
+  ];
+
+  const arenaTabStatus = (() => {
+    const r = {};
+    for (const tab of arenaTabs) {
+      if (arenaManualCompletions[tab.id] !== undefined) {
+        r[tab.id] = arenaManualCompletions[tab.id] ? "complete" : "none"; continue;
+      }
+      r[tab.id] = "none";
+    }
+    return r;
+  })();
+
+  useEffect(() => {
+    setArenaMountedSlides(prev => { const s = new Set(prev); s.add(arenaTab); return s; });
+    const el = arenaCarouselRef.current;
+    if (!el) return;
+    const idx = arenaTabs.findIndex(t => t.id === arenaTab);
+    if (idx < 0) return;
+    const slide = el.children[idx];
+    if (!slide) return;
+    const targetLeft = slide.offsetLeft - (el.offsetWidth - slide.offsetWidth) / 2;
+    arenaCarouselScrolling.current = true;
+    el.scrollTo({ left: targetLeft, behavior: 'smooth' });
+    const tid = setTimeout(() => { arenaCarouselScrolling.current = false; }, 600);
+    return () => clearTimeout(tid);
+  }, [arenaTab]);
+
   if (applyingToCase) {
     return (
       <div className="min-h-screen bg-[#EAF4FD] p-6">
@@ -26836,26 +27141,122 @@ function ArenaView({ auth }) {
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 w-fit">
-        {[
-          { id: "cases",       label: t("arena.open_cases") },
-          { id: "leaderboard", label: t("arena.leaderboard") },
-          { id: "cards",       label: t("arena.cards") },
-          { id: "compare",     label: t("arena.compare") },
-        ].map(tab => (
-          <button key={tab.id} onClick={() => setArenaTab(tab.id)}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-              arenaTab === tab.id ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      {/* Progress bar */}
+      {(() => {
+        const done = arenaTabs.filter(t => arenaTabStatus[t.id] === "complete").length;
+        if (done === 0) return null;
+        return (
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+            <div style={{ flex:1, height:4, borderRadius:99, background:'#E2E8F0', overflow:'hidden' }}>
+              <div style={{ height:'100%', width:`${(done/arenaTabs.length)*100}%`, background:'linear-gradient(90deg,#1A4B8C,#3B82F6)', borderRadius:99, transition:'width .4s' }}/>
+            </div>
+            <span style={{ fontSize:11, fontWeight:700, color:'#1A4B8C', whiteSpace:'nowrap' }}>{done}/{arenaTabs.length} done</span>
+          </div>
+        );
+      })()}
 
-      {arenaTab === "cases"       && renderCases()}
-      {arenaTab === "leaderboard" && renderLeaderboard()}
-      {arenaTab === "cards"       && renderCards()}
-      {arenaTab === "compare"     && renderCompare()}
+      {/* Section Carousel */}
+      {(() => {
+        const carouselIdx = Math.max(0, arenaTabs.findIndex(t => t.id === arenaTab));
+        function scrollTo(idx) {
+          setArenaTab(arenaTabs[Math.max(0, Math.min(idx, arenaTabs.length - 1))]?.id ?? arenaTab);
+        }
+        function onScroll() {
+          if (arenaCarouselScrolling.current) return;
+          const el = arenaCarouselRef.current;
+          if (!el) return;
+          const center = el.scrollLeft + el.offsetWidth / 2;
+          let closest = 0, minDist = Infinity;
+          Array.from(el.children).forEach((child, i) => {
+            const dist = Math.abs((child.offsetLeft + child.offsetWidth / 2) - center);
+            if (dist < minDist) { minDist = dist; closest = i; }
+          });
+          const t2 = arenaTabs[closest];
+          if (t2 && t2.id !== arenaTab) setArenaTab(t2.id);
+        }
+        return (
+          <div style={{ position:'relative' }}>
+            {carouselIdx > 0 && (
+              <button onClick={() => scrollTo(carouselIdx - 1)}
+                style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid #CBD5E1', background:'white', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
+                <ChevronLeft size={16} style={{color:'#64748B'}}/>
+              </button>
+            )}
+            {carouselIdx < arenaTabs.length - 1 && (
+              <button onClick={() => scrollTo(carouselIdx + 1)}
+                style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid #CBD5E1', background:'white', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
+                <ChevronRight size={16} style={{color:'#64748B'}}/>
+              </button>
+            )}
+            <div ref={arenaCarouselRef} onScroll={onScroll}
+              style={{ display:'flex', overflowX:'scroll', scrollSnapType:'x mandatory', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', gap:10, padding:'0 60px' }}>
+              {arenaTabs.map((tab, i) => {
+                const isActive = tab.id === arenaTab;
+                const Icon = tab.icon;
+                const st = arenaTabStatus[tab.id];
+                return (
+                  <div key={tab.id}
+                    style={{ flex:'0 0 calc(100% - 120px)', width:'calc(100% - 120px)', maxWidth:'calc(100% - 120px)', minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity:isActive?1:0.5, transform:isActive?'scale(1)':'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
+                    <div style={{ borderRadius:12, border:`1px solid ${isActive?'#CBD5E1':'#E2E8F0'}`, background:'white', overflow:'hidden', width:'100%', boxSizing:'border-box', height:520, display:'flex', flexDirection:'column', boxShadow:isActive?'0 4px 20px rgba(0,0,0,.08)':'none', transition:'box-shadow .25s' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', borderBottom:'1px solid #F1F5F9', background:isActive?'#F8FAFC':'#FAFAFA', flexShrink:0, cursor:isActive?'default':'pointer' }}
+                        onClick={() => !isActive && scrollTo(i)}>
+                        {st === "complete"
+                          ? <div style={{width:16,height:16,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={9} color="white" strokeWidth={3}/></div>
+                          : st === "in_progress"
+                            ? <div style={{width:8,height:8,borderRadius:'50%',background:'#3B82F6',flexShrink:0,marginRight:2}}/>
+                            : <div style={{width:8,height:8,borderRadius:'50%',background:'#CBD5E1',flexShrink:0,marginRight:2}}/>}
+                        <Icon size={13} style={{color:isActive?'#1A4B8C':'#94A3B8',flexShrink:0}}/>
+                        <span style={{flex:1,fontSize:12,fontWeight:700,color:isActive?'#0F172A':'#94A3B8',minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{tab.label}</span>
+                        {tab.count !== null && <span style={{fontSize:10,fontWeight:600,padding:'1px 6px',borderRadius:99,background:isActive?'#DBEAFE':'#F1F5F9',color:isActive?'#2563EB':'#94A3B8',flexShrink:0}}>{tab.count}</span>}
+                        {isActive && (
+                          <button onClick={e => { e.stopPropagation(); setArenaManualComplete(tab.id, st !== "complete"); }}
+                            title={st === "complete" ? "Mark incomplete" : "Mark complete"}
+                            style={{ flexShrink:0,display:'flex',alignItems:'center',gap:3,fontSize:10,fontWeight:600,padding:'2px 7px',borderRadius:99,border:`1px solid ${st==="complete"?'#BBF7D0':'#E2E8F0'}`,background:st==="complete"?'#F0FDF4':'#F8FAFC',color:st==="complete"?'#16A34A':'#94A3B8',cursor:'pointer',transition:'all .15s',whiteSpace:'nowrap' }}>
+                            <Check size={9} strokeWidth={3}/>
+                            {st === "complete" ? "Done" : "Mark done"}
+                          </button>
+                        )}
+                      </div>
+                      {arenaMountedSlides.has(tab.id) ? (
+                        <div style={{ flex:1, overflowY:'auto', padding:'18px 20px' }}>
+
+          {tab.id === "cases"       && renderCases()}
+          {tab.id === "leaderboard" && renderLeaderboard()}
+          {tab.id === "cards"       && renderCards()}
+          {tab.id === "compare"     && renderCompare()}
+
+                        </div>
+                      ) : (
+                        <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          <Spinner />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Footer pill bar */}
+            <div style={{ marginTop:10, background:'white', borderRadius:12, border:'1px solid #E2E8F0', padding:'10px 14px', display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none' }}>
+              {arenaTabs.map((tab, i) => {
+                const Icon = tab.icon;
+                const isActive = tab.id === arenaTab;
+                const st = arenaTabStatus[tab.id];
+                return (
+                  <button key={tab.id} onClick={() => scrollTo(i)}
+                    style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'#1A4B8C':st==="complete"?'#BBF7D0':'#E2E8F0'}`, background:isActive?'#1A4B8C':st==="complete"?'#F0FDF4':'white', color:isActive?'white':st==="complete"?'#16A34A':'#64748B', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
+                    {st === "complete" && !isActive
+                      ? <div style={{width:13,height:13,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={8} color="white" strokeWidth={3}/></div>
+                      : <Icon size={11}/>}
+                    <span>{tab.label}</span>
+                    {tab.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)':st==="complete"?'#DCFCE7':'#F1F5F9',color:isActive?'rgba(255,255,255,.7)':st==="complete"?'#16A34A':'#94A3B8'}}>{tab.count}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Floating compare bar */}
       {compareSet.length >= 2 && (
@@ -26904,6 +27305,19 @@ function ProfileView({ auth, compact = false }) {
     useConsultantProfile(auth.user?.id, realProfileId);
   const { ratings, avgRating } = useRatings(auth.user?.id);
   const [profileTab, setProfileTab] = useState("experience");
+  const pvCarouselRef = useRef(null);
+  const pvCarouselScrolling = useRef(false);
+  const [pvMountedSlides, setPvMountedSlides] = useState(() => new Set(["experience"]));
+  const [pvManualCompletions, setPvManualCompletionsRaw] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`tc_pvmc_${auth.user?.id ?? 'me'}`) ?? "{}"); } catch { return {}; }
+  });
+  function setPvManualComplete(tabId, done) {
+    setPvManualCompletionsRaw(prev => {
+      const next = { ...prev, [tabId]: done };
+      try { localStorage.setItem(`tc_pvmc_${auth.user?.id ?? 'me'}`, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }
   const [editing, setEditing]       = useState(false);
   const [form, setForm]             = useState({});
   const [saving, setSaving]         = useState(false);
@@ -26969,10 +27383,36 @@ function ProfileView({ auth, compact = false }) {
   const freeAvail = Math.max(0, 100 - totalUsed);
 
   const tabs = [
-    { id: "experience", label: t("profile.tab_experience"), icon: Briefcase },
-    { id: "skills",     label: t("profile.tab_skills"),     icon: GraduationCap },
-    { id: "ratings",    label: t("profile.tab_ratings"),    icon: Star },
+    { id: "experience", label: t("profile.tab_experience"), icon: Briefcase,     count: null },
+    { id: "skills",     label: t("profile.tab_skills"),     icon: GraduationCap, count: profile?.skills?.length > 0 ? profile.skills.length : null },
+    { id: "ratings",    label: t("profile.tab_ratings"),    icon: Star,          count: ratings.length > 0 ? ratings.length : null },
   ];
+
+  const pvTabStatus = (() => {
+    const r = {};
+    for (const tab of tabs) {
+      if (pvManualCompletions[tab.id] !== undefined) {
+        r[tab.id] = pvManualCompletions[tab.id] ? "complete" : "none"; continue;
+      }
+      r[tab.id] = "none";
+    }
+    return r;
+  })();
+
+  useEffect(() => {
+    setPvMountedSlides(prev => { const s = new Set(prev); s.add(profileTab); return s; });
+    const el = pvCarouselRef.current;
+    if (!el) return;
+    const idx = tabs.findIndex(t => t.id === profileTab);
+    if (idx < 0) return;
+    const slide = el.children[idx];
+    if (!slide) return;
+    const targetLeft = slide.offsetLeft - (el.offsetWidth - slide.offsetWidth) / 2;
+    pvCarouselScrolling.current = true;
+    el.scrollTo({ left: targetLeft, behavior: 'smooth' });
+    const tid = setTimeout(() => { pvCarouselScrolling.current = false; }, 600);
+    return () => clearTimeout(tid);
+  }, [profileTab]);
 
   async function handleAddCustomer() {
     setSavingExp(true);
@@ -27350,162 +27790,254 @@ function ProfileView({ auth, compact = false }) {
         </>
       )}
 
-      {/* Icon Tiles */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        {tabs.map(tab => {
-          const Icon = tab.icon;
-          const isActive = profileTab === tab.id;
-          return (
-            <button key={tab.id} onClick={() => setProfileTab(tab.id)}
-              className={`flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl border transition-all min-w-[80px] ${
-                isActive
-                  ? "bg-[#1A4B8C] border-[#1A4B8C] text-white shadow-md"
-                  : "bg-white border-gray-200 text-gray-500 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"}`}>
-              <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
-                isActive ? "bg-white/20" : "bg-gray-100"}`}>
-                <Icon size={14} className={isActive ? "text-white" : "text-gray-500"} />
-              </div>
-              <span className="text-xs font-medium">{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Tab Content */}
-      {profileTab === "experience" && (
-        <div className="space-y-6">
-          {/* Projects — read-only hierarchy; edit/add available in Edit Profile mode */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">{t("profile.projects")}</h3>
-            {(profile?.consultant_projects?.length ?? 0) === 0
-              ? <p className="text-sm text-gray-400">{t("profile.no_projects")}</p>
-              : <ConsultantProjectsHierarchy projects={profile.consultant_projects} />}
-          </div>
-        </div>
-      )}
-
-      {profileTab === "skills" && (
-        <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">{t("label.skills")}</h3>
-            {(profile?.skills?.length ?? 0) === 0
-              ? <p className="text-sm text-gray-400 mb-4">{t("profile.no_skills")}</p>
-              : <div className="flex flex-wrap gap-2 mb-4">{profile.skills.map(s => {
-                  const isFeatured = (profile?.featured_skills ?? []).includes(s);
-                  return (
-                    <div key={s} className={`flex items-center rounded-xl text-sm font-medium border ${
-                      isFeatured ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-blue-50 text-blue-700 border-blue-100"
-                    }`}>
-                      <button onClick={async () => {
-                        const cur = profile?.featured_skills ?? [];
-                        const next = isFeatured ? cur.filter(f => f !== s) : [...cur, s];
-                        try { await updateProfile({ featured_skills: next }); } catch (e) { alert(e.message); }
-                      }} title={isFeatured ? "Remove from highlights" : "Add to highlights"}
-                        className="flex items-center gap-1.5 px-3 py-1.5 transition-colors hover:opacity-80">
-                        <Star className="w-3 h-3 flex-shrink-0" fill={isFeatured ? "currentColor" : "none"} />
-                        {s}
-                      </button>
-                      <button onClick={async () => {
-                        setSavingExp(true);
-                        try {
-                          const nextSkills = (profile?.skills ?? []).filter(sk => sk !== s);
-                          const nextFeatured = (profile?.featured_skills ?? []).filter(f => f !== s);
-                          await updateProfile({ skills: nextSkills, featured_skills: nextFeatured });
-                        } catch (e) { alert(e.message); }
-                        setSavingExp(false);
-                      }} title="Remove skill"
-                        className="pr-2 pl-0.5 py-1.5 hover:text-red-500 transition-colors">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  );
-                })}</div>}
-            <p className="text-xs text-gray-400 mb-3">Tap a skill to highlight it in your overview.</p>
-            <div className="flex gap-2 mt-2">
-              <input id="new-skill-input" placeholder={t("profile.skill_ph")}
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <button disabled={savingExp} onClick={async () => {
-                const input = document.getElementById("new-skill-input");
-                const val = input?.value?.trim();
-                if (!val) return;
-                setSavingExp(true);
-                try {
-                  const current = profile?.skills ?? [];
-                  if (!current.includes(val)) await updateProfile({ skills: [...current, val] });
-                  input.value = "";
-                } catch (e) { alert(e.message); }
-                setSavingExp(false);
-              }} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
-                {savingExp ? "…" : t("profile.add_skill")}
-              </button>
+      {/* Progress bar */}
+      {(() => {
+        const done = tabs.filter(t => pvTabStatus[t.id] === "complete").length;
+        if (done === 0) return null;
+        return (
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+            <div style={{ flex:1, height:4, borderRadius:99, background:'#E2E8F0', overflow:'hidden' }}>
+              <div style={{ height:'100%', width:`${(done/tabs.length)*100}%`, background:'linear-gradient(90deg,#1A4B8C,#3B82F6)', borderRadius:99, transition:'width .4s' }}/>
             </div>
+            <span style={{ fontSize:11, fontWeight:700, color:'#1A4B8C', whiteSpace:'nowrap' }}>{done}/{tabs.length} done</span>
           </div>
+        );
+      })()}
 
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">{t("profile.work_auth")}</h3>
-            {(profile?.work_authorizations?.length ?? 0) === 0
-              ? <p className="text-sm text-gray-400 mb-4">{t("profile.no_auth")}</p>
-              : <div className="grid grid-cols-2 gap-3 mb-4">
-                  {profile.work_authorizations.map(w => (
-                    <div key={w.id} className="border border-gray-100 rounded-xl p-3 flex items-center gap-3">
-                      <div className="text-2xl">{w.country_code === "US" ? "🇺🇸" : w.country_code === "GB" ? "🇬🇧" : <Globe size={18} />}</div>
-                      <div>
-                        <div className="text-sm font-medium">{w.country_name}</div>
-                        <div className="text-xs text-gray-400 capitalize">{fmt(w.auth_type)}</div>
+      {/* Section Carousel */}
+      {(() => {
+        const carouselIdx = Math.max(0, tabs.findIndex(t => t.id === profileTab));
+        function scrollTo(idx) {
+          setProfileTab(tabs[Math.max(0, Math.min(idx, tabs.length - 1))]?.id ?? profileTab);
+        }
+        function onScroll() {
+          if (pvCarouselScrolling.current) return;
+          const el = pvCarouselRef.current;
+          if (!el) return;
+          const center = el.scrollLeft + el.offsetWidth / 2;
+          let closest = 0, minDist = Infinity;
+          Array.from(el.children).forEach((child, i) => {
+            const dist = Math.abs((child.offsetLeft + child.offsetWidth / 2) - center);
+            if (dist < minDist) { minDist = dist; closest = i; }
+          });
+          const t2 = tabs[closest];
+          if (t2 && t2.id !== profileTab) setProfileTab(t2.id);
+        }
+        return (
+          <div style={{ position:'relative' }}>
+            {carouselIdx > 0 && (
+              <button onClick={() => scrollTo(carouselIdx - 1)}
+                style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid #CBD5E1', background:'white', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
+                <ChevronLeft size={16} style={{color:'#64748B'}}/>
+              </button>
+            )}
+            {carouselIdx < tabs.length - 1 && (
+              <button onClick={() => scrollTo(carouselIdx + 1)}
+                style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid #CBD5E1', background:'white', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
+                <ChevronRight size={16} style={{color:'#64748B'}}/>
+              </button>
+            )}
+            <div ref={pvCarouselRef} onScroll={onScroll}
+              style={{ display:'flex', overflowX:'scroll', scrollSnapType:'x mandatory', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', gap:10, padding:'0 60px' }}>
+              {tabs.map((tab, i) => {
+                const isActive = tab.id === profileTab;
+                const Icon = tab.icon;
+                const st = pvTabStatus[tab.id];
+                return (
+                  <div key={tab.id}
+                    style={{ flex:'0 0 calc(100% - 120px)', width:'calc(100% - 120px)', maxWidth:'calc(100% - 120px)', minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity:isActive?1:0.5, transform:isActive?'scale(1)':'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
+                    <div style={{ borderRadius:12, border:`1px solid ${isActive?'#CBD5E1':'#E2E8F0'}`, background:'white', overflow:'hidden', width:'100%', boxSizing:'border-box', height:520, display:'flex', flexDirection:'column', boxShadow:isActive?'0 4px 20px rgba(0,0,0,.08)':'none', transition:'box-shadow .25s' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', borderBottom:'1px solid #F1F5F9', background:isActive?'#F8FAFC':'#FAFAFA', flexShrink:0, cursor:isActive?'default':'pointer' }}
+                        onClick={() => !isActive && scrollTo(i)}>
+                        {st === "complete"
+                          ? <div style={{width:16,height:16,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={9} color="white" strokeWidth={3}/></div>
+                          : st === "in_progress"
+                            ? <div style={{width:8,height:8,borderRadius:'50%',background:'#3B82F6',flexShrink:0,marginRight:2}}/>
+                            : <div style={{width:8,height:8,borderRadius:'50%',background:'#CBD5E1',flexShrink:0,marginRight:2}}/>}
+                        <Icon size={13} style={{color:isActive?'#1A4B8C':'#94A3B8',flexShrink:0}}/>
+                        <span style={{flex:1,fontSize:12,fontWeight:700,color:isActive?'#0F172A':'#94A3B8',minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{tab.label}</span>
+                        {tab.count !== null && <span style={{fontSize:10,fontWeight:600,padding:'1px 6px',borderRadius:99,background:isActive?'#DBEAFE':'#F1F5F9',color:isActive?'#2563EB':'#94A3B8',flexShrink:0}}>{tab.count}</span>}
+                        {isActive && (
+                          <button onClick={e => { e.stopPropagation(); setPvManualComplete(tab.id, st !== "complete"); }}
+                            title={st === "complete" ? "Mark incomplete" : "Mark complete"}
+                            style={{ flexShrink:0,display:'flex',alignItems:'center',gap:3,fontSize:10,fontWeight:600,padding:'2px 7px',borderRadius:99,border:`1px solid ${st==="complete"?'#BBF7D0':'#E2E8F0'}`,background:st==="complete"?'#F0FDF4':'#F8FAFC',color:st==="complete"?'#16A34A':'#94A3B8',cursor:'pointer',transition:'all .15s',whiteSpace:'nowrap' }}>
+                            <Check size={9} strokeWidth={3}/>
+                            {st === "complete" ? "Done" : "Mark done"}
+                          </button>
+                        )}
                       </div>
+                      {pvMountedSlides.has(tab.id) ? (
+                        <div style={{ flex:1, overflowY:'auto', padding:'18px 20px' }}>
+
+          {/* Experience */}
+          {tab.id === "experience" && (
+            <div className="space-y-6">
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                <h3 className="font-semibold text-gray-900 mb-4">{t("profile.projects")}</h3>
+                {(profile?.consultant_projects?.length ?? 0) === 0
+                  ? <p className="text-sm text-gray-400">{t("profile.no_projects")}</p>
+                  : <ConsultantProjectsHierarchy projects={profile.consultant_projects} />}
+              </div>
+            </div>
+          )}
+
+          {/* Skills */}
+          {tab.id === "skills" && (
+            <div className="space-y-6">
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                <h3 className="font-semibold text-gray-900 mb-4">{t("label.skills")}</h3>
+                {(profile?.skills?.length ?? 0) === 0
+                  ? <p className="text-sm text-gray-400 mb-4">{t("profile.no_skills")}</p>
+                  : <div className="flex flex-wrap gap-2 mb-4">{profile.skills.map(s => {
+                      const isFeatured = (profile?.featured_skills ?? []).includes(s);
+                      return (
+                        <div key={s} className={`flex items-center rounded-xl text-sm font-medium border ${
+                          isFeatured ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-blue-50 text-blue-700 border-blue-100"
+                        }`}>
+                          <button onClick={async () => {
+                            const cur = profile?.featured_skills ?? [];
+                            const next = isFeatured ? cur.filter(f => f !== s) : [...cur, s];
+                            try { await updateProfile({ featured_skills: next }); } catch (e) { alert(e.message); }
+                          }} title={isFeatured ? "Remove from highlights" : "Add to highlights"}
+                            className="flex items-center gap-1.5 px-3 py-1.5 transition-colors hover:opacity-80">
+                            <Star className="w-3 h-3 flex-shrink-0" fill={isFeatured ? "currentColor" : "none"} />
+                            {s}
+                          </button>
+                          <button onClick={async () => {
+                            setSavingExp(true);
+                            try {
+                              const nextSkills = (profile?.skills ?? []).filter(sk => sk !== s);
+                              const nextFeatured = (profile?.featured_skills ?? []).filter(f => f !== s);
+                              await updateProfile({ skills: nextSkills, featured_skills: nextFeatured });
+                            } catch (e) { alert(e.message); }
+                            setSavingExp(false);
+                          }} title="Remove skill"
+                            className="pr-2 pl-0.5 py-1.5 hover:text-red-500 transition-colors">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      );
+                    })}</div>}
+                <p className="text-xs text-gray-400 mb-3">Tap a skill to highlight it in your overview.</p>
+                <div className="flex gap-2 mt-2">
+                  <input id="new-skill-input" placeholder={t("profile.skill_ph")}
+                    className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <button disabled={savingExp} onClick={async () => {
+                    const input = document.getElementById("new-skill-input");
+                    const val = input?.value?.trim();
+                    if (!val) return;
+                    setSavingExp(true);
+                    try {
+                      const current = profile?.skills ?? [];
+                      if (!current.includes(val)) await updateProfile({ skills: [...current, val] });
+                      input.value = "";
+                    } catch (e) { alert(e.message); }
+                    setSavingExp(false);
+                  }} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                    {savingExp ? "…" : t("profile.add_skill")}
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                <h3 className="font-semibold text-gray-900 mb-4">{t("profile.work_auth")}</h3>
+                {(profile?.work_authorizations?.length ?? 0) === 0
+                  ? <p className="text-sm text-gray-400 mb-4">{t("profile.no_auth")}</p>
+                  : <div className="grid grid-cols-2 gap-3 mb-4">
+                      {profile.work_authorizations.map(w => (
+                        <div key={w.id} className="border border-gray-100 rounded-xl p-3 flex items-center gap-3">
+                          <div className="text-2xl">{w.country_code === "US" ? "🇺🇸" : w.country_code === "GB" ? "🇬🇧" : <Globe size={18} />}</div>
+                          <div>
+                            <div className="text-sm font-medium">{w.country_name}</div>
+                            <div className="text-xs text-gray-400 capitalize">{fmt(w.auth_type)}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>}
+                <div className="border-t border-gray-100 pt-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("profile.add_auth")}</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <Input label={t("profile.country")} value={authForm.country_name} onChange={e => setAuthForm(p => ({ ...p, country_name: e.target.value }))} />
+                    <Input label={t("profile.country_code")} value={authForm.country_code} onChange={e => setAuthForm(p => ({ ...p, country_code: e.target.value.toUpperCase() }))} placeholder="US" />
+                    <Select label={t("profile.auth_type")} value={authForm.auth_type} onChange={e => setAuthForm(p => ({ ...p, auth_type: e.target.value }))}
+                      options={[{ value: "citizen", label: t("profile.auth_citizen") }, { value: "permanent_resident", label: t("profile.auth_perm_resident") }, { value: "work_visa", label: t("profile.auth_work_visa") }, { value: "other", label: t("profile.auth_other") }]} />
+                  </div>
+                  <button onClick={handleAddWorkAuth} disabled={savingExp || !authForm.country_name}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
+                    {savingExp ? t("profile.saving") : t("profile.add_auth")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Ratings */}
+          {tab.id === "ratings" && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              {avgRating && (
+                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
+                  <div className="text-5xl font-bold text-gray-900">{avgRating}</div>
+                  <div>
+                    <div className="flex text-yellow-400 text-xl">{stars(avgRating)}</div>
+                    <div className="text-sm text-gray-500 mt-1">{ratings.length} rating{ratings.length !== 1 ? "s" : ""}</div>
+                  </div>
+                </div>
+              )}
+              {ratings.length === 0 ? (
+                <p className="text-sm text-gray-400">{t("profile.no_ratings")}</p>
+              ) : (
+                <div className="space-y-4">
+                  {ratings.map(r => (
+                    <div key={r.id} className="border border-gray-100 rounded-xl p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <PersonAvatar name={r.rater?.full_name} avatarUrl={r.rater?.avatar_url} size={32} />
+                          <span className="text-sm font-medium">{r.rater?.full_name}</span>
+                        </div>
+                        <div className="flex text-yellow-400">{stars(r.score)}</div>
+                      </div>
+                      {r.comment && <p className="text-sm text-gray-600">{r.comment}</p>}
+                      {r.case?.title && <div className="text-xs text-gray-400 mt-1">{t("review.on_case").replace("{n}", r.case.title)}</div>}
+                      <div className="text-xs text-gray-300 mt-1">{fmtDate(r.created_at)}</div>
                     </div>
                   ))}
-                </div>}
-            <div className="border-t border-gray-100 pt-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("profile.add_auth")}</p>
-              <div className="grid grid-cols-3 gap-3">
-                <Input label={t("profile.country")} value={authForm.country_name} onChange={e => setAuthForm(p => ({ ...p, country_name: e.target.value }))} />
-                <Input label={t("profile.country_code")} value={authForm.country_code} onChange={e => setAuthForm(p => ({ ...p, country_code: e.target.value.toUpperCase() }))} placeholder="US" />
-                <Select label={t("profile.auth_type")} value={authForm.auth_type} onChange={e => setAuthForm(p => ({ ...p, auth_type: e.target.value }))}
-                  options={[{ value: "citizen", label: t("profile.auth_citizen") }, { value: "permanent_resident", label: t("profile.auth_perm_resident") }, { value: "work_visa", label: t("profile.auth_work_visa") }, { value: "other", label: t("profile.auth_other") }]} />
-              </div>
-              <button onClick={handleAddWorkAuth} disabled={savingExp || !authForm.country_name}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
-                {savingExp ? t("profile.saving") : t("profile.add_auth")}
-              </button>
+                </div>
+              )}
+            </div>
+          )}
+
+                        </div>
+                      ) : (
+                        <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          <Spinner />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Footer pill bar */}
+            <div style={{ marginTop:10, background:'white', borderRadius:12, border:'1px solid #E2E8F0', padding:'10px 14px', display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none' }}>
+              {tabs.map((tab, i) => {
+                const Icon = tab.icon;
+                const isActive = tab.id === profileTab;
+                const st = pvTabStatus[tab.id];
+                return (
+                  <button key={tab.id} onClick={() => scrollTo(i)}
+                    style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'#1A4B8C':st==="complete"?'#BBF7D0':'#E2E8F0'}`, background:isActive?'#1A4B8C':st==="complete"?'#F0FDF4':'white', color:isActive?'white':st==="complete"?'#16A34A':'#64748B', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
+                    {st === "complete" && !isActive
+                      ? <div style={{width:13,height:13,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={8} color="white" strokeWidth={3}/></div>
+                      : <Icon size={11}/>}
+                    <span>{tab.label}</span>
+                    {tab.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)':st==="complete"?'#DCFCE7':'#F1F5F9',color:isActive?'rgba(255,255,255,.7)':st==="complete"?'#16A34A':'#94A3B8'}}>{tab.count}</span>}
+                  </button>
+                );
+              })}
             </div>
           </div>
-        </div>
-      )}
-
-      {profileTab === "ratings" && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          {avgRating && (
-            <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
-              <div className="text-5xl font-bold text-gray-900">{avgRating}</div>
-              <div>
-                <div className="flex text-yellow-400 text-xl">{stars(avgRating)}</div>
-                <div className="text-sm text-gray-500 mt-1">{ratings.length} rating{ratings.length !== 1 ? "s" : ""}</div>
-              </div>
-            </div>
-          )}
-          {ratings.length === 0 ? (
-            <p className="text-sm text-gray-400">{t("profile.no_ratings")}</p>
-          ) : (
-            <div className="space-y-4">
-              {ratings.map(r => (
-                <div key={r.id} className="border border-gray-100 rounded-xl p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <PersonAvatar name={r.rater?.full_name} avatarUrl={r.rater?.avatar_url} size={32} />
-                      <span className="text-sm font-medium">{r.rater?.full_name}</span>
-                    </div>
-                    <div className="flex text-yellow-400">{stars(r.score)}</div>
-                  </div>
-                  {r.comment && <p className="text-sm text-gray-600">{r.comment}</p>}
-                  {r.case?.title && <div className="text-xs text-gray-400 mt-1">{t("review.on_case").replace("{n}", r.case.title)}</div>}
-                  <div className="text-xs text-gray-300 mt-1">{fmtDate(r.created_at)}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
@@ -32268,6 +32800,19 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
   }
 
   const [tab, setTab]         = useState("overview");
+  const cpvCarouselRef = useRef(null);
+  const cpvCarouselScrolling = useRef(false);
+  const [cpvMountedSlides, setCpvMountedSlides] = useState(() => new Set(["overview"]));
+  const [cpvManualCompletions, setCpvManualCompletionsRaw] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`tc_cpvmc_${effectiveClientId ?? 'me'}`) ?? "{}"); } catch { return {}; }
+  });
+  function setCpvManualComplete(tabId, done) {
+    setCpvManualCompletionsRaw(prev => {
+      const next = { ...prev, [tabId]: done };
+      try { localStorage.setItem(`tc_cpvmc_${effectiveClientId ?? 'me'}`, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }
   const [editing, setEditing] = useState(false);
   const [form, setForm]       = useState({});
   const [saving, setSaving]   = useState(false);
@@ -32506,6 +33051,32 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
     { id: "sap",          label: t("client_tab.sap"),         icon: Code2,             count: null },
   ];
 
+  const cpvTabStatus = (() => {
+    const r = {};
+    for (const t of tabs) {
+      if (cpvManualCompletions[t.id] !== undefined) {
+        r[t.id] = cpvManualCompletions[t.id] ? "complete" : "none"; continue;
+      }
+      r[t.id] = "none";
+    }
+    return r;
+  })();
+
+  useEffect(() => {
+    setCpvMountedSlides(prev => { const s = new Set(prev); s.add(tab); return s; });
+    const el = cpvCarouselRef.current;
+    if (!el) return;
+    const idx = tabs.findIndex(t => t.id === tab);
+    if (idx < 0) return;
+    const slide = el.children[idx];
+    if (!slide) return;
+    const targetLeft = slide.offsetLeft - (el.offsetWidth - slide.offsetWidth) / 2;
+    cpvCarouselScrolling.current = true;
+    el.scrollTo({ left: targetLeft, behavior: 'smooth' });
+    const tid = setTimeout(() => { cpvCarouselScrolling.current = false; }, 600);
+    return () => clearTimeout(tid);
+  }, [tab]);
+
   return (
     <div>
       {/* Back button for admin view */}
@@ -32664,35 +33235,87 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
         </div>
       )}
 
-      {/* Icon Tiles */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        {tabs.map(tabItem => {
-          const Icon = tabItem.icon;
-          const isActive = tab === tabItem.id;
-          return (
-            <button key={tabItem.id} onClick={() => setTab(tabItem.id)}
-              className={`flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl border transition-all min-w-[80px] ${
-                isActive
-                  ? "bg-[#1A4B8C] border-[#1A4B8C] text-white shadow-md"
-                  : "bg-white border-gray-200 text-gray-500 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"}`}>
-              <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
-                isActive ? "bg-white/20" : "bg-gray-100"}`}>
-                <Icon size={14} className={isActive ? "text-white" : "text-gray-500"} />
-              </div>
-              <span className="text-xs font-medium">{tabItem.label}</span>
-              {tabItem.count !== null && (
-                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                  isActive ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"}`}>
-                  {tabItem.count}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {/* Progress bar */}
+      {(() => {
+        const done = tabs.filter(t => cpvTabStatus[t.id] === "complete").length;
+        if (done === 0) return null;
+        return (
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+            <div style={{ flex:1, height:4, borderRadius:99, background:'#E2E8F0', overflow:'hidden' }}>
+              <div style={{ height:'100%', width:`${(done/tabs.length)*100}%`, background:'linear-gradient(90deg,#1A4B8C,#3B82F6)', borderRadius:99, transition:'width .4s' }}/>
+            </div>
+            <span style={{ fontSize:11, fontWeight:700, color:'#1A4B8C', whiteSpace:'nowrap' }}>{done}/{tabs.length} done</span>
+          </div>
+        );
+      })()}
+
+      {/* Section Carousel */}
+      {(() => {
+        const carouselIdx = Math.max(0, tabs.findIndex(t => t.id === tab));
+        function scrollTo(idx) {
+          setTab(tabs[Math.max(0, Math.min(idx, tabs.length - 1))]?.id ?? tab);
+        }
+        function onScroll() {
+          if (cpvCarouselScrolling.current) return;
+          const el = cpvCarouselRef.current;
+          if (!el) return;
+          const center = el.scrollLeft + el.offsetWidth / 2;
+          let closest = 0, minDist = Infinity;
+          Array.from(el.children).forEach((child, i) => {
+            const dist = Math.abs((child.offsetLeft + child.offsetWidth / 2) - center);
+            if (dist < minDist) { minDist = dist; closest = i; }
+          });
+          const t2 = tabs[closest];
+          if (t2 && t2.id !== tab) setTab(t2.id);
+        }
+        return (
+          <div style={{ position:'relative' }}>
+            {carouselIdx > 0 && (
+              <button onClick={() => scrollTo(carouselIdx - 1)}
+                style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid #CBD5E1', background:'white', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
+                <ChevronLeft size={16} style={{color:'#64748B'}}/>
+              </button>
+            )}
+            {carouselIdx < tabs.length - 1 && (
+              <button onClick={() => scrollTo(carouselIdx + 1)}
+                style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid #CBD5E1', background:'white', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
+                <ChevronRight size={16} style={{color:'#64748B'}}/>
+              </button>
+            )}
+            <div ref={cpvCarouselRef} onScroll={onScroll}
+              style={{ display:'flex', overflowX:'scroll', scrollSnapType:'x mandatory', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', gap:10, padding:'0 60px' }}>
+              {tabs.map((tabItem, i) => {
+                const isActive = tabItem.id === tab;
+                const Icon = tabItem.icon;
+                const st = cpvTabStatus[tabItem.id];
+                return (
+                  <div key={tabItem.id}
+                    style={{ flex:'0 0 calc(100% - 120px)', width:'calc(100% - 120px)', maxWidth:'calc(100% - 120px)', minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity:isActive?1:0.5, transform:isActive?'scale(1)':'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
+                    <div style={{ borderRadius:12, border:`1px solid ${isActive?'#CBD5E1':'#E2E8F0'}`, background:'white', overflow:'hidden', width:'100%', boxSizing:'border-box', height:520, display:'flex', flexDirection:'column', boxShadow:isActive?'0 4px 20px rgba(0,0,0,.08)':'none', transition:'box-shadow .25s' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', borderBottom:'1px solid #F1F5F9', background:isActive?'#F8FAFC':'#FAFAFA', flexShrink:0, cursor:isActive?'default':'pointer' }}
+                        onClick={() => !isActive && scrollTo(i)}>
+                        {st === "complete"
+                          ? <div style={{width:16,height:16,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={9} color="white" strokeWidth={3}/></div>
+                          : st === "in_progress"
+                            ? <div style={{width:8,height:8,borderRadius:'50%',background:'#3B82F6',flexShrink:0,marginRight:2}}/>
+                            : <div style={{width:8,height:8,borderRadius:'50%',background:'#CBD5E1',flexShrink:0,marginRight:2}}/>}
+                        <Icon size={13} style={{color:isActive?'#1A4B8C':'#94A3B8',flexShrink:0}}/>
+                        <span style={{flex:1,fontSize:12,fontWeight:700,color:isActive?'#0F172A':'#94A3B8',minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{tabItem.label}</span>
+                        {tabItem.count !== null && <span style={{fontSize:10,fontWeight:600,padding:'1px 6px',borderRadius:99,background:isActive?'#DBEAFE':'#F1F5F9',color:isActive?'#2563EB':'#94A3B8',flexShrink:0}}>{tabItem.count}</span>}
+                        {isActive && (
+                          <button onClick={e => { e.stopPropagation(); setCpvManualComplete(tabItem.id, st !== "complete"); }}
+                            title={st === "complete" ? "Mark incomplete" : "Mark complete"}
+                            style={{ flexShrink:0,display:'flex',alignItems:'center',gap:3,fontSize:10,fontWeight:600,padding:'2px 7px',borderRadius:99,border:`1px solid ${st==="complete"?'#BBF7D0':'#E2E8F0'}`,background:st==="complete"?'#F0FDF4':'#F8FAFC',color:st==="complete"?'#16A34A':'#94A3B8',cursor:'pointer',transition:'all .15s',whiteSpace:'nowrap' }}>
+                            <Check size={9} strokeWidth={3}/>
+                            {st === "complete" ? "Done" : "Mark done"}
+                          </button>
+                        )}
+                      </div>
+                      {cpvMountedSlides.has(tabItem.id) ? (
+                        <div style={{ flex:1, overflowY:'auto', padding:'18px 20px' }}>
 
       {/* OVERVIEW TAB */}
-      {tab === "overview" && (
+      {tabItem.id === "overview" && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
           {!profile && (
             <div className="flex flex-col items-center justify-center py-10 text-center">
@@ -32775,10 +33398,10 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
       )}
 
       {/* MY PLAN TAB */}
-      {tab === "plan" && <PlanUsageCard auth={auth} />}
+      {tabItem.id === "plan" && <PlanUsageCard auth={auth} />}
 
       {/* SLA TAB */}
-      {tab === "sla" && (
+      {tabItem.id === "sla" && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
             <div>
@@ -32865,7 +33488,7 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
       )}
 
       {/* DB CONNECTIONS TAB */}
-      {tab === "connections" && (
+      {tabItem.id === "connections" && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
             <div>
@@ -33001,7 +33624,7 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
       )}
 
       {/* TEAM TAB */}
-      {tab === "team" && (
+      {tabItem.id === "team" && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
             <div>
@@ -33147,7 +33770,7 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
       )}
 
       {/* LIFECYCLE TAB */}
-      {tab === "lifecycle" && (
+      {tabItem.id === "lifecycle" && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
           <div>
             <h3 className="font-semibold text-gray-900 mb-1">{t("lifecycle.title")}</h3>
@@ -33248,7 +33871,7 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
       )}
 
       {/* Activity Phases Config */}
-      {tab === "phases" && phasesForm && (
+      {tabItem.id === "phases" && phasesForm && (
         <div className="space-y-5">
           <div className="flex items-center justify-between">
             <div>
@@ -33336,20 +33959,53 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
         </div>
       )}
 
-      {tab === "defaults" && (
+      {tabItem.id === "defaults" && (
         <CaseDefaultsPanel profile={profile} updateProfile={updateProfile} />
       )}
 
-      {tab === "assignment" && (
+      {tabItem.id === "assignment" && (
         <AssignmentSettingsPanel profile={profile} updateProfile={updateProfile} />
       )}
 
-      {tab === "sap" && (
+      {tabItem.id === "sap" && (
         <div className="space-y-6">
           <SapIntegrationPanel clientId={effectiveClientId} auth={auth} />
           <AbapStandardsPanel level="client" entityId={effectiveClientId} auth={auth} />
         </div>
       )}
+
+                        </div>
+                      ) : (
+                        <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          <Spinner />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Footer pill bar */}
+            <div style={{ marginTop:10, background:'white', borderRadius:12, border:'1px solid #E2E8F0', padding:'10px 14px', display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none' }}>
+              {tabs.map((tabItem, i) => {
+                const Icon = tabItem.icon;
+                const isActive = tabItem.id === tab;
+                const st = cpvTabStatus[tabItem.id];
+                return (
+                  <button key={tabItem.id} onClick={() => scrollTo(i)}
+                    style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'#1A4B8C':st==="complete"?'#BBF7D0':'#E2E8F0'}`, background:isActive?'#1A4B8C':st==="complete"?'#F0FDF4':'white', color:isActive?'white':st==="complete"?'#16A34A':'#64748B', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
+                    {st === "complete" && !isActive
+                      ? <div style={{width:13,height:13,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={8} color="white" strokeWidth={3}/></div>
+                      : <Icon size={11}/>}
+                    <span>{tabItem.label}</span>
+                    {tabItem.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)':st==="complete"?'#DCFCE7':'#F1F5F9',color:isActive?'rgba(255,255,255,.7)':st==="complete"?'#16A34A':'#94A3B8'}}>{tabItem.count}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
