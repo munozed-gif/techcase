@@ -27373,15 +27373,6 @@ function ProfileView({ auth, compact = false }) {
   const [authForm, setAuthForm] = useState({ country_name: "", country_code: "", auth_type: "citizen" });
   const [savingExp, setSavingExp] = useState(false);
 
-  if (loading) return <Spinner />;
-
-
-  // Availability breakdown
-  const activeCaseCommitment = 0; // case_assignments removed from join; RPC provides totals
-  const extOccupancy = profile?.external_occupancy_pct ?? 0;
-  const totalUsed = Math.min(100, activeCaseCommitment + extOccupancy);
-  const freeAvail = Math.max(0, 100 - totalUsed);
-
   const tabs = [
     { id: "experience", label: t("profile.tab_experience"), icon: Briefcase,     count: null },
     { id: "skills",     label: t("profile.tab_skills"),     icon: GraduationCap, count: profile?.skills?.length > 0 ? profile.skills.length : null },
@@ -27399,6 +27390,7 @@ function ProfileView({ auth, compact = false }) {
     return r;
   })();
 
+  // Scroll-sync effect must be declared before any early return (Rules of Hooks)
   useEffect(() => {
     setPvMountedSlides(prev => { const s = new Set(prev); s.add(profileTab); return s; });
     const el = pvCarouselRef.current;
@@ -27413,6 +27405,14 @@ function ProfileView({ auth, compact = false }) {
     const tid = setTimeout(() => { pvCarouselScrolling.current = false; }, 600);
     return () => clearTimeout(tid);
   }, [profileTab]);
+
+  if (loading) return <Spinner />;
+
+  // Availability breakdown
+  const activeCaseCommitment = 0; // case_assignments removed from join; RPC provides totals
+  const extOccupancy = profile?.external_occupancy_pct ?? 0;
+  const totalUsed = Math.min(100, activeCaseCommitment + extOccupancy);
+  const freeAvail = Math.max(0, 100 - totalUsed);
 
   async function handleAddCustomer() {
     setSavingExp(true);
@@ -33021,23 +33021,6 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
     setSavingPhases(false);
   }
 
-  if (loading) return <Spinner />;
-
-  const tierColors = { standard: "bg-gray-100 text-gray-700", premium: "bg-blue-100 text-blue-700", enterprise: "bg-violet-100 text-blue-700" };
-  const dbTypeColors = {
-    postgresql: "bg-blue-100 text-blue-700", mysql: "bg-orange-100 text-orange-700",
-    mssql: "bg-red-100 text-red-700", oracle: "bg-red-100 text-red-700",
-    mongodb: "bg-green-100 text-green-700",
-    sap_gui: "bg-indigo-100 text-indigo-700", sap_hana: "bg-cyan-100 text-cyan-700",
-    sap_rfc: "bg-purple-100 text-purple-700", sap_odata: "bg-teal-100 text-teal-700",
-    vpn: "bg-slate-100 text-slate-700", other: "bg-gray-100 text-gray-700",
-  };
-  const connTypeLabels = {
-    postgresql: "PostgreSQL", mysql: "MySQL", mssql: "MSSQL", oracle: "Oracle",
-    mongodb: "MongoDB", sap_gui: "SAP GUI", sap_hana: "SAP HANA",
-    sap_rfc: "SAP RFC", sap_odata: "SAP OData", vpn: "VPN", other: "Other",
-  };
-
   const tabs = [
     { id: "overview",     label: t("client_tab.overview"),    icon: Building2,         count: null },
     ...(!isAdminView ? [{ id: "plan", label: "My Plan", icon: CreditCard, count: null }] : []),
@@ -33062,6 +33045,7 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
     return r;
   })();
 
+  // Scroll-sync effect must be declared before any early return (Rules of Hooks)
   useEffect(() => {
     setCpvMountedSlides(prev => { const s = new Set(prev); s.add(tab); return s; });
     const el = cpvCarouselRef.current;
@@ -33076,6 +33060,23 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
     const tid = setTimeout(() => { cpvCarouselScrolling.current = false; }, 600);
     return () => clearTimeout(tid);
   }, [tab]);
+
+  if (loading) return <Spinner />;
+
+  const tierColors = { standard: "bg-gray-100 text-gray-700", premium: "bg-blue-100 text-blue-700", enterprise: "bg-violet-100 text-blue-700" };
+  const dbTypeColors = {
+    postgresql: "bg-blue-100 text-blue-700", mysql: "bg-orange-100 text-orange-700",
+    mssql: "bg-red-100 text-red-700", oracle: "bg-red-100 text-red-700",
+    mongodb: "bg-green-100 text-green-700",
+    sap_gui: "bg-indigo-100 text-indigo-700", sap_hana: "bg-cyan-100 text-cyan-700",
+    sap_rfc: "bg-purple-100 text-purple-700", sap_odata: "bg-teal-100 text-teal-700",
+    vpn: "bg-slate-100 text-slate-700", other: "bg-gray-100 text-gray-700",
+  };
+  const connTypeLabels = {
+    postgresql: "PostgreSQL", mysql: "MySQL", mssql: "MSSQL", oracle: "Oracle",
+    mongodb: "MongoDB", sap_gui: "SAP GUI", sap_hana: "SAP HANA",
+    sap_rfc: "SAP RFC", sap_odata: "SAP OData", vpn: "VPN", other: "Other",
+  };
 
   return (
     <div>
