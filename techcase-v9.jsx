@@ -30850,6 +30850,34 @@ function SapIntegrationPanel({ clientId, auth }) {
           })}
         </div>
       )}
+
+      {/* AI model in use — read from settings, never hardcoded */}
+      {(() => {
+        const aiModel = ssCtx.settings["ai_model"];
+        const MODEL_LABELS = {
+          "claude-haiku-4-5-20251001":  t("model.haiku_label"),
+          "claude-sonnet-4-6":          t("model.sonnet_label"),
+          "claude-sonnet-5-20251001":   t("model.sonnet_label"),
+          "claude-opus-5-20250101":     t("model.opus_label"),
+        };
+        const displayName = aiModel
+          ? (MODEL_LABELS[aiModel] ?? aiModel)
+          : t("sys.model_label");
+        return (
+          <div className="border-t border-gray-100 pt-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <Sparkles size={13} className="text-purple-500 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-gray-700">AI for Code Generation</p>
+                <p className="text-[11px] text-gray-400 mt-0.5 leading-snug">Used for ABAP generation &amp; analysis · Configure in Settings → Generation</p>
+              </div>
+            </div>
+            <span className="flex-shrink-0 text-xs font-semibold text-purple-700 bg-purple-50 border border-purple-100 rounded-lg px-2.5 py-1 whitespace-nowrap">
+              {aiModel ? displayName : <span className="text-gray-400 font-normal">Not set</span>}
+            </span>
+          </div>
+        );
+      })()}
     </div>
   );
 }
