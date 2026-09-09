@@ -14967,6 +14967,19 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
   const [showAssign, setShowAssign] = useState(false);
   const [unassignedCases, setUnassignedCases] = useState([]);
   const [activeTab, setActiveTab] = useState("overview");
+  const projCarouselRef = useRef(null);
+  const projCarouselScrolling = useRef(false);
+  const [projMountedSlides, setProjMountedSlides] = useState(() => new Set(["overview"]));
+  const [projManualCompletions, setProjManualCompletionsRaw] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`tc_pmc_${project.id}`) ?? "{}"); } catch { return {}; }
+  });
+  function setProjManualComplete(tabId, done) {
+    setProjManualCompletionsRaw(prev => {
+      const next = { ...prev, [tabId]: done };
+      try { localStorage.setItem(`tc_pmc_${project.id}`, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }
   const [projLcMode, setProjLcMode] = useState(project.case_lifecycle?.preset ?? "standard");
   const [savingProjLc, setSavingProjLc] = useState(false);
   const [clientLcConfig, setClientLcConfig] = useState(null);
@@ -15169,6 +15182,40 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
     ...((auth.isAdmin || auth.isManager || auth.isClient) && project.client_id ? [{ id: "sap", label: t("project.tab_sap"), icon: Code2, count: null }] : []),
   ];
 
+  const projTabStatus = (() => {
+    const r = {};
+    for (const tab of projectTabs) {
+      if (projManualCompletions[tab.id] !== undefined) {
+        r[tab.id] = projManualCompletions[tab.id] ? "complete" : "none"; continue;
+      }
+      switch (tab.id) {
+        case "overview":      r[tab.id] = "in_progress"; break;
+        case "objectives":    r[tab.id] = (project.objectives || project.deliverables?.length || project.success_criteria) ? "in_progress" : "none"; break;
+        case "team":          r[tab.id] = (project.client || project.stakeholder_name) ? "in_progress" : "none"; break;
+        case "consultants":   r[tab.id] = consultants.length > 0 ? "complete" : "none"; break;
+        case "requirements":  r[tab.id] = (project.skills_required?.length || project.compliance_notes) ? "in_progress" : "none"; break;
+        case "cases":         r[tab.id] = projCases.length > 0 ? "in_progress" : "none"; break;
+        default:              r[tab.id] = "none";
+      }
+    }
+    return r;
+  })();
+
+  useEffect(() => {
+    setProjMountedSlides(prev => { const s = new Set(prev); s.add(activeTab); return s; });
+    const el = projCarouselRef.current;
+    if (!el) return;
+    const idx = projectTabs.findIndex(t => t.id === activeTab);
+    if (idx < 0) return;
+    const slide = el.children[idx];
+    if (!slide) return;
+    const targetLeft = slide.offsetLeft - (el.offsetWidth - slide.offsetWidth) / 2;
+    projCarouselScrolling.current = true;
+    el.scrollTo({ left: targetLeft, behavior: 'smooth' });
+    const tid = setTimeout(() => { projCarouselScrolling.current = false; }, 600);
+    return () => clearTimeout(tid);
+  }, [activeTab]);
+
   if (projSelectedCase) {
     return (
       <CaseDetail
@@ -15294,38 +15341,87 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         })()}
       </div>
 
-      {/* Icon Tiles */}
-      <div className="flex flex-wrap gap-2">
-        {projectTabs.map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl border transition-all min-w-[80px] ${
-                isActive
-                  ? "bg-[#1A4B8C] border-[#1A4B8C] text-white shadow-md"
-                  : "bg-white border-gray-200 text-gray-500 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"}`}>
-              <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
-                isActive ? "bg-white/20" : "bg-gray-100"}`}>
-                <Icon size={14} className={isActive ? "text-white" : "text-gray-500"} />
-              </div>
-              <span className="text-xs font-medium">{tab.label}</span>
-              {tab.count !== null && (
-                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                  isActive ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"}`}>
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {/* Progress bar */}
+      {(() => {
+        const done = projectTabs.filter(t => projTabStatus[t.id] === "complete").length;
+        if (done === 0) return null;
+        return (
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <div style={{ flex:1, height:4, borderRadius:99, background:'#E2E8F0', overflow:'hidden' }}>
+              <div style={{ height:'100%', width:`${(done/projectTabs.length)*100}%`, background:'linear-gradient(90deg,#1A4B8C,#3B82F6)', borderRadius:99, transition:'width .4s' }}/>
+            </div>
+            <span style={{ fontSize:11, fontWeight:700, color:'#1A4B8C', whiteSpace:'nowrap' }}>{done}/{projectTabs.length} done</span>
+          </div>
+        );
+      })()}
 
-      {/* Tab Content */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      {/* Section Carousel */}
+      {(() => {
+        const carouselIdx = Math.max(0, projectTabs.findIndex(t => t.id === activeTab));
+        function scrollTo(idx) {
+          setActiveTab(projectTabs[Math.max(0, Math.min(idx, projectTabs.length - 1))]?.id ?? activeTab);
+        }
+        function onScroll() {
+          if (projCarouselScrolling.current) return;
+          const el = projCarouselRef.current;
+          if (!el) return;
+          const center = el.scrollLeft + el.offsetWidth / 2;
+          let closest = 0, minDist = Infinity;
+          Array.from(el.children).forEach((child, i) => {
+            const dist = Math.abs((child.offsetLeft + child.offsetWidth / 2) - center);
+            if (dist < minDist) { minDist = dist; closest = i; }
+          });
+          const tab = projectTabs[closest];
+          if (tab && tab.id !== activeTab) setActiveTab(tab.id);
+        }
+        return (
+          <div style={{ position:'relative' }}>
+            {carouselIdx > 0 && (
+              <button onClick={() => scrollTo(carouselIdx - 1)}
+                style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid #CBD5E1', background:'white', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
+                <ChevronLeft size={16} style={{color:'#64748B'}}/>
+              </button>
+            )}
+            {carouselIdx < projectTabs.length - 1 && (
+              <button onClick={() => scrollTo(carouselIdx + 1)}
+                style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid #CBD5E1', background:'white', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
+                <ChevronRight size={16} style={{color:'#64748B'}}/>
+              </button>
+            )}
+            <div ref={projCarouselRef} onScroll={onScroll}
+              style={{ display:'flex', overflowX:'scroll', scrollSnapType:'x mandatory', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', gap:10, padding:'0 60px' }}>
+              {projectTabs.map((tab, i) => {
+                const isActive = tab.id === activeTab;
+                const Icon = tab.icon;
+                const st = projTabStatus[tab.id];
+                return (
+                  <div key={tab.id}
+                    style={{ flex:'0 0 calc(100% - 120px)', width:'calc(100% - 120px)', maxWidth:'calc(100% - 120px)', minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity:isActive?1:0.5, transform:isActive?'scale(1)':'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
+                    <div style={{ borderRadius:12, border:`1px solid ${isActive?'#CBD5E1':'#E2E8F0'}`, background:'white', overflow:'hidden', width:'100%', boxSizing:'border-box', height:520, display:'flex', flexDirection:'column', boxShadow:isActive?'0 4px 20px rgba(0,0,0,.08)':'none', transition:'box-shadow .25s' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', borderBottom:'1px solid #F1F5F9', background:isActive?'#F8FAFC':'#FAFAFA', flexShrink:0, cursor:isActive?'default':'pointer' }}
+                        onClick={() => !isActive && scrollTo(i)}>
+                        {st === "complete"
+                          ? <div style={{width:16,height:16,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={9} color="white" strokeWidth={3}/></div>
+                          : st === "in_progress"
+                            ? <div style={{width:8,height:8,borderRadius:'50%',background:'#3B82F6',flexShrink:0,marginRight:2}}/>
+                            : <div style={{width:8,height:8,borderRadius:'50%',background:'#CBD5E1',flexShrink:0,marginRight:2}}/>}
+                        <Icon size={13} style={{color:isActive?'#1A4B8C':'#94A3B8',flexShrink:0}}/>
+                        <span style={{flex:1,fontSize:12,fontWeight:700,color:isActive?'#0F172A':'#94A3B8',minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{tab.label}</span>
+                        {tab.count !== null && <span style={{fontSize:10,fontWeight:600,padding:'1px 6px',borderRadius:99,background:isActive?'#DBEAFE':'#F1F5F9',color:isActive?'#2563EB':'#94A3B8',flexShrink:0}}>{tab.count}</span>}
+                        {isActive && tab.id !== "lifecycle" && (
+                          <button onClick={e => { e.stopPropagation(); setProjManualComplete(tab.id, st !== "complete"); }}
+                            title={st === "complete" ? "Mark incomplete" : "Mark complete"}
+                            style={{ flexShrink:0,display:'flex',alignItems:'center',gap:3,fontSize:10,fontWeight:600,padding:'2px 7px',borderRadius:99,border:`1px solid ${st==="complete"?'#BBF7D0':'#E2E8F0'}`,background:st==="complete"?'#F0FDF4':'#F8FAFC',color:st==="complete"?'#16A34A':'#94A3B8',cursor:'pointer',transition:'all .15s',whiteSpace:'nowrap' }}>
+                            <Check size={9} strokeWidth={3}/>
+                            {st === "complete" ? "Done" : "Mark done"}
+                          </button>
+                        )}
+                      </div>
+                      {projMountedSlides.has(tab.id) ? (
+                        <div style={{ flex:1, overflowY:'auto', padding:'18px 20px' }}>
 
         {/* Overview */}
-        {activeTab === "overview" && (
+        {tab.id === "overview" && (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 text-sm">
             {project.priority && (
               <div>
@@ -15382,7 +15478,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         )}
 
         {/* Objectives */}
-        {activeTab === "objectives" && (
+        {tab.id === "objectives" && (
           <div className="space-y-4">
             {project.objectives && (
               <div>
@@ -15419,7 +15515,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         )}
 
         {/* Team & Contacts */}
-        {activeTab === "team" && (() => {
+        {tab.id === "team" && (() => {
           const clientName = project.client?.client_profiles?.company_name ?? project.client?.full_name;
           const uniqueManagers = [...new Map(projCases.filter(c => c.manager?.id).map(c => [c.manager.id, c.manager])).values()];
           return (
@@ -15515,7 +15611,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         })()}
 
         {/* Requirements */}
-        {activeTab === "requirements" && (
+        {tab.id === "requirements" && (
           <div className="space-y-4">
             {project.skills_required?.length > 0 && (
               <div>
@@ -15540,7 +15636,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         )}
 
         {/* Cases */}
-        {activeTab === "cases" && (
+        {tab.id === "cases" && (
           <div>
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-semibold text-gray-900">
@@ -15775,7 +15871,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         )}
 
         {/* Consultants */}
-        {activeTab === "consultants" && (
+        {tab.id === "consultants" && (
           <div>
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-semibold text-gray-900">
@@ -15850,17 +15946,17 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         )}
 
         {/* Connections */}
-        {activeTab === "connections" && (
+        {tab.id === "connections" && (
           <ProjectConnectionsTab projectId={project.id} clientId={project.client_id} auth={auth} />
         )}
 
         {/* SAP Setup */}
-        {activeTab === "sap" && project.client_id && (
+        {tab.id === "sap" && project.client_id && (
           <ProjectSapEnvPanel projectId={project.id} clientId={project.client_id} auth={auth} />
         )}
 
         {/* Lifecycle */}
-        {activeTab === "lifecycle" && canEdit && (() => {
+        {tab.id === "lifecycle" && canEdit && (() => {
           const projOverrideAllowed = clientLcConfig?.allow_project_override ?? true;
           const tmplList = lcTemplates2.length ? lcTemplates2 : Object.entries(LIFECYCLE_PRESETS).map(([k, v]) => ({ key: k, ...v }));
           const previewStages = getProjTmplStages(projLcMode);
@@ -15946,8 +16042,39 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
             </div>
           );
         })()}
+                        </div>
+                      ) : (
+                        <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          <Spinner />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
-      </div>
+            {/* Footer pill bar */}
+            <div style={{ marginTop:10, background:'white', borderRadius:12, border:'1px solid #E2E8F0', padding:'10px 14px', display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none' }}>
+              {projectTabs.map((tab, i) => {
+                const Icon = tab.icon;
+                const isActive = tab.id === activeTab;
+                const st = projTabStatus[tab.id];
+                return (
+                  <button key={tab.id} onClick={() => scrollTo(i)}
+                    style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'#1A4B8C':st==="complete"?'#BBF7D0':'#E2E8F0'}`, background:isActive?'#1A4B8C':st==="complete"?'#F0FDF4':'white', color:isActive?'white':st==="complete"?'#16A34A':'#64748B', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
+                    {st === "complete" && !isActive
+                      ? <div style={{width:13,height:13,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={8} color="white" strokeWidth={3}/></div>
+                      : <Icon size={11}/>}
+                    <span>{tab.label}</span>
+                    {tab.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)':st==="complete"?'#DCFCE7':'#F1F5F9',color:isActive?'rgba(255,255,255,.7)':st==="complete"?'#16A34A':'#94A3B8'}}>{tab.count}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Edit project wizard */}
       {showEditWizard && (
