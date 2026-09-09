@@ -20696,6 +20696,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const { activities, addActivity, updateActivity, deleteActivity, refetch: refetchActivities } = useCaseActivities(caseData.id, actRefreshKey);
 
   const [activeTab, setActiveTab]   = useState("detail");
+  const [carouselAnim, setCarouselAnim] = useState(null);
 
   // Resolve active SAP environment for display in header
   const ssCtxCD = useSystemSettings();
@@ -22953,34 +22954,41 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         </div>
       )}
 
-      {/* Icon Tiles */}
-      <div>
-        <div className="flex flex-wrap gap-2 mb-4">
-          {tabs.map(tab => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className={`flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl border transition-all min-w-[80px] ${
-                  isActive
-                    ? "bg-[#1A4B8C] border-[#1A4B8C] text-white shadow-md"
-                    : "bg-white border-gray-200 text-gray-500 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"}`}>
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
-                  isActive ? "bg-white/20" : "bg-gray-100"}`}>
-                  <Icon size={14} className={isActive ? "text-white" : "text-gray-500"} />
-                </div>
-                <span className="text-xs font-medium">{tab.label}</span>
-                {tab.count !== null && (
-                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                    isActive ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"}`}>
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
+      {/* Section Carousel */}
+      <style>{`@keyframes carouselRight{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}@keyframes carouselLeft{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}`}</style>
+      {(() => {
+        const carouselIdx = Math.max(0, tabs.findIndex(t => t.id === activeTab));
+        const prevTab = tabs[carouselIdx - 1];
+        const nextTab = tabs[carouselIdx + 1];
+        const ActiveIcon = tabs[carouselIdx]?.icon ?? ClipboardList;
+        function carouselTo(targetId) {
+          const tIdx = tabs.findIndex(t => t.id === targetId);
+          setCarouselAnim(tIdx > carouselIdx ? 'right' : 'left');
+          setActiveTab(targetId);
+        }
+        return (
+        <div>
+          <div style={{ display:'flex', alignItems:'stretch', gap:8 }}>
+
+            {/* Prev peek stub */}
+            <button disabled={!prevTab} onClick={() => prevTab && carouselTo(prevTab.id)}
+              style={{ width:60, flexShrink:0, borderRadius:12, border:'1px solid #E2E8F0', background:'white', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:6, opacity:prevTab?0.45:0, cursor:prevTab?'pointer':'default', padding:'12px 4px', transition:'opacity .2s' }}>
+              {prevTab && (() => { const I=prevTab.icon; return <I size={16} style={{color:'#94A3B8'}}/>; })()}
+              {prevTab && <span style={{fontSize:9,fontWeight:600,color:'#CBD5E1',textAlign:'center',lineHeight:1.3}}>{prevTab.label}</span>}
+              {prevTab && <ChevronLeft size={12} style={{color:'#CBD5E1'}}/>}
+            </button>
+
+            {/* Main content card */}
+            <div style={{ flex:1, borderRadius:12, border:'1px solid #E2E8F0', background:'white', overflow:'hidden', display:'flex', flexDirection:'column', minWidth:0 }}>
+              {/* Card section header */}
+              <div style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 18px', borderBottom:'1px solid #F1F5F9', background:'#F8FAFC', flexShrink:0 }}>
+                <ActiveIcon size={14} style={{color:'#1A4B8C',flexShrink:0}}/>
+                <span style={{flex:1,fontSize:13,fontWeight:700,color:'#0F172A'}}>{tabs[carouselIdx]?.label}</span>
+                {tabs[carouselIdx]?.count !== null && <span style={{fontSize:11,fontWeight:600,padding:'2px 8px',borderRadius:99,background:'#DBEAFE',color:'#2563EB'}}>{tabs[carouselIdx]?.count}</span>}
+              </div>
+              {/* Scrollable content area — same size for every section */}
+              <div key={activeTab} className="space-y-4"
+                style={{ overflowY:'auto', padding:'20px 22px', minHeight:480, animation: carouselAnim ? `carousel${carouselAnim==='right'?'Right':'Left'} .22s ease both` : 'none' }}>
 
       {/* Stage lock banner — shown when the current stage restricts any action */}
       {currentStage?.rules && (() => {
@@ -25317,8 +25325,37 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         );
       })()}
 
+              </div>
+            </div>
+
+            {/* Next peek stub */}
+            <button disabled={!nextTab} onClick={() => nextTab && carouselTo(nextTab.id)}
+              style={{ width:60, flexShrink:0, borderRadius:12, border:'1px solid #E2E8F0', background:'white', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:6, opacity:nextTab?0.45:0, cursor:nextTab?'pointer':'default', padding:'12px 4px', transition:'opacity .2s' }}>
+              {nextTab && (() => { const I=nextTab.icon; return <I size={16} style={{color:'#94A3B8'}}/>; })()}
+              {nextTab && <span style={{fontSize:9,fontWeight:600,color:'#CBD5E1',textAlign:'center',lineHeight:1.3}}>{nextTab.label}</span>}
+              {nextTab && <ChevronRight size={12} style={{color:'#CBD5E1'}}/>}
+            </button>
+
+          </div>
+
+          {/* Footer pill bar */}
+          <div style={{ marginTop:8, background:'white', borderRadius:12, border:'1px solid #E2E8F0', padding:'10px 14px', display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none' }}>
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = tab.id === activeTab;
+              return (
+                <button key={tab.id} onClick={() => carouselTo(tab.id)}
+                  style={{ flexShrink:0, display:'flex', alignItems:'center', gap:5, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'#1A4B8C':'#E2E8F0'}`, background:isActive?'#1A4B8C':'white', color:isActive?'white':'#64748B', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
+                  <Icon size={11}/>
+                  <span>{tab.label}</span>
+                  {tab.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)':'#F1F5F9',color:isActive?'rgba(255,255,255,.7)':'#94A3B8'}}>{tab.count}</span>}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+        );
+      })()}
 
       {showEditWizard && (
         <div className="fixed top-0 bottom-0 right-0 left-64 z-50 bg-[#EAF4FD] overflow-y-auto p-6">
