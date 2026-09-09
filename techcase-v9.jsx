@@ -20696,7 +20696,8 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const { activities, addActivity, updateActivity, deleteActivity, refetch: refetchActivities } = useCaseActivities(caseData.id, actRefreshKey);
 
   const [activeTab, setActiveTab]   = useState("detail");
-  const [carouselAnim, setCarouselAnim] = useState(null);
+  const carouselRef = useRef(null);
+  const [mountedSlides, setMountedSlides] = useState(() => new Set(["detail"]));
 
   // Resolve active SAP environment for display in header
   const ssCtxCD = useSystemSettings();
@@ -22681,6 +22682,14 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
       if (fallback && fallback !== activeTab) setActiveTab(fallback);
     }
   }, [stageRules.visible_tabs, activeTab]);
+
+  useEffect(() => {
+    setMountedSlides(prev => { const s = new Set(prev); s.add(activeTab); return s; });
+    const el = carouselRef.current;
+    if (!el) return;
+    const idx = tabs.findIndex(t => t.id === activeTab);
+    if (idx >= 0) el.scrollTo({ left: idx * el.offsetWidth, behavior: 'smooth' });
+  }, [activeTab]);
 
   return (
     <div className="space-y-4">
