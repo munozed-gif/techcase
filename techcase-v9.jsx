@@ -10438,16 +10438,14 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       { id: "kanban",    Icon: LayoutGrid,      labelKey: "nav.kanban" },
       { id: "my-cases",  Icon: FolderOpen,      labelKey: "nav.my_cases" },
       { id: "time",      Icon: Clock,           labelKey: "nav.time" },
-      { id: "profile",   Icon: User,            labelKey: "nav.profile" },
     ],
     client: [
-      { id: "dashboard",      Icon: LayoutDashboard, labelKey: "nav.dashboard" },
-      { id: "projects",       Icon: Layers,          labelKey: "nav.projects" },
-      { id: "cases",          Icon: FolderOpen,      labelKey: "nav.my_cases" },
-      { id: "kanban",         Icon: LayoutGrid,      labelKey: "nav.kanban" },
-      { id: "invoices",       Icon: Receipt,         labelKey: "nav.invoices" },
-      { id: "consultants",    Icon: UserCheck,       labelKey: "nav.consultants" },
-      { id: "client-profile", Icon: Building2,       labelKey: "nav.company_profile" },
+      { id: "dashboard",   Icon: LayoutDashboard, labelKey: "nav.dashboard" },
+      { id: "projects",    Icon: Layers,          labelKey: "nav.projects" },
+      { id: "cases",       Icon: FolderOpen,      labelKey: "nav.my_cases" },
+      { id: "kanban",      Icon: LayoutGrid,      labelKey: "nav.kanban" },
+      { id: "invoices",    Icon: Receipt,         labelKey: "nav.invoices" },
+      { id: "consultants", Icon: UserCheck,       labelKey: "nav.consultants" },
     ],
     key_user: [
       { id: "dashboard", Icon: LayoutDashboard, labelKey: "nav.dashboard" },
@@ -10455,9 +10453,8 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       { id: "kanban",    Icon: LayoutGrid,      labelKey: "nav.kanban" },
     ],
     headhunter: [
-      { id: "arena",       Icon: Target,            labelKey: "nav.arena" },
-      { id: "consultants", Icon: UserCheck,         labelKey: "nav.consultants" },
-      { id: "profile",     Icon: User,              labelKey: "nav.profile" },
+      { id: "arena",       Icon: Target,    labelKey: "nav.arena" },
+      { id: "consultants", Icon: UserCheck, labelKey: "nav.consultants" },
     ],
   };
 
@@ -10526,26 +10523,24 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
 
       {/* User footer */}
       <div className="p-4 border-t border-blue-900">
-        {/* Language picker */}
-        <div className="flex items-center gap-2 mb-3">
-          <Globe className="w-4 h-4 text-blue-400 flex-shrink-0" />
-          <select
-            value={lang}
-            onChange={e => setLang(e.target.value)}
-            className="flex-1 bg-blue-900/60 text-blue-200 text-xs rounded-lg px-2 py-1 border border-blue-800 hover:border-blue-600 focus:outline-none focus:border-blue-500 cursor-pointer">
-            <option value="en">{t("lang.en")}</option>
-            <option value="es">{t("lang.es")}</option>
-          </select>
-        </div>
-
-        <div className="flex items-center gap-3 mb-3">
-          <PersonAvatar name={profile?.full_name} avatarUrl={profile?.avatar_url} size={36} />
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-white truncate">{profile?.full_name ?? t("fallback.user")}</div>
-            <div className="text-xs text-blue-300 truncate">{profile?.email}</div>
-          </div>
-          {auth && <NotificationBell auth={auth} />}
-        </div>
+        {(() => {
+          const profileView = role === 'client' ? 'client-profile' : 'profile';
+          const canGoToProfile = ['consultant', 'headhunter', 'client'].includes(role);
+          return (
+            <div
+              className={`flex items-center gap-3 mb-3 rounded-xl px-2 py-1.5 -mx-2 transition-colors ${canGoToProfile ? 'cursor-pointer hover:bg-blue-900/60' : ''}`}
+              onClick={canGoToProfile ? () => onNav(profileView) : undefined}
+              title={canGoToProfile ? t("nav.profile") : undefined}
+            >
+              <PersonAvatar name={profile?.full_name} avatarUrl={profile?.avatar_url} size={36} />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-white truncate">{profile?.full_name ?? t("fallback.user")}</div>
+                <div className="text-xs text-blue-300 truncate">{profile?.email}</div>
+              </div>
+              {auth && <NotificationBell auth={auth} />}
+            </div>
+          );
+        })()}
         <button onClick={onSignOut}
           className="w-full text-sm text-blue-300 hover:text-white py-1.5 px-3 rounded-lg hover:bg-blue-900 transition-colors text-left">
           {t("action.sign_out")}
