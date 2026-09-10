@@ -9035,6 +9035,8 @@ function ConsultantProfileView({ userId, onBack }) {
   const avatarFileRef = useRef(null);
   const [cpEditingProj, setCpEditingProj] = useState(null);
   const [cpSaving, setCpSaving] = useState(false);
+  const EMPTY_CP_PROJ = { title: '', consulting_company: '', client_name: '', role: '', url: '', description: '', _tech: '' };
+  const [cpNewProj, setCpNewProj] = useState(null);
 
   async function handleCpSaveProj() {
     if (!cpEditingProj) return;
@@ -9049,6 +9051,23 @@ function ConsultantProfileView({ userId, onBack }) {
         consultant_projects: prev.consultant_projects.map(p => p.id === id ? { ...p, ...data } : p),
       } : prev);
       setCpEditingProj(null);
+    } catch (e) { alert(e.message); }
+    setCpSaving(false);
+  }
+
+  async function handleCpAddProj() {
+    if (!cpNewProj?.title) return;
+    setCpSaving(true);
+    try {
+      const { _tech, ...rest } = cpNewProj;
+      const data = { ...rest, consultant_id: targetUserId, tech_stack: (_tech ?? '').split(',').map(s => s.trim()).filter(Boolean) };
+      const { data: inserted, error: err } = await supabase.from('consultant_projects').insert(data).select().single();
+      if (err) throw err;
+      setCpData(prev => prev ? {
+        ...prev,
+        consultant_projects: [...(prev.consultant_projects ?? []), inserted],
+      } : prev);
+      setCpNewProj(null);
     } catch (e) { alert(e.message); }
     setCpSaving(false);
   }
@@ -9606,14 +9625,26 @@ function ConsultantProfileView({ userId, onBack }) {
           {/* Experience */}
           {tab.id === 'experience' && (
             <div className="space-y-4">
+              {/* Edit form */}
               {cpEditingProj && (
                 <div className="border border-blue-200 bg-blue-50 rounded-2xl p-4">
                   <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-3">Edit Project</p>
                   <div className="grid grid-cols-2 gap-2">
                     <Input label={t("label.title")} value={cpEditingProj.title ?? ''} onChange={e => setCpEditingProj(p => ({ ...p, title: e.target.value }))} />
                     <Input label="Role" value={cpEditingProj.role ?? ''} onChange={e => setCpEditingProj(p => ({ ...p, role: e.target.value }))} />
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Consulting Company</label>
+                      <select value={cpEditingProj.consulting_company ?? ''}
+                        onChange={e => setCpEditingProj(p => ({ ...p, consulting_company: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">— None —</option>
+                        {(cpData?.consultant_customers ?? []).map(c => (
+                          <option key={c.id} value={c.company_name}>{c.company_name}</option>
+                        ))}
+                      </select>
+                    </div>
                     <Input label={t("profile.client_name")} value={cpEditingProj.client_name ?? ''} onChange={e => setCpEditingProj(p => ({ ...p, client_name: e.target.value }))} />
-                    <Input label={t("profile.tech_stack")} value={cpEditingProj._tech ?? ''} onChange={e => setCpEditingProj(p => ({ ...p, _tech: e.target.value }))} />
+                    <Input label={t("profile.tech_stack")} value={cpEditingProj._tech ?? ''} onChange={e => setCpEditingProj(p => ({ ...p, _tech: e.target.value }))} placeholder="React, Node.js, …" />
                     <Input label={t("profile.url")} value={cpEditingProj.url ?? ''} onChange={e => setCpEditingProj(p => ({ ...p, url: e.target.value }))} />
                   </div>
                   <Textarea label={t("label.description")} value={cpEditingProj.description ?? ''} onChange={e => setCpEditingProj(p => ({ ...p, description: e.target.value }))} />
@@ -9629,14 +9660,60 @@ function ConsultantProfileView({ userId, onBack }) {
                   </div>
                 </div>
               )}
+
+              {/* Projects list */}
               {(cpData?.consultant_projects?.length ?? 0) === 0
                 ? <p className="text-sm text-gray-400">{t("profile.no_projects")}</p>
                 : <ConsultantProjectsHierarchy
                     projects={cpData.consultant_projects}
-                    onEdit={isOwnProfile ? p => setCpEditingProj({ ...p, _tech: p.tech_stack?.join(', ') ?? '' }) : undefined}
+                    onEdit={isOwnProfile ? p => { setCpNewProj(null); setCpEditingProj({ ...p, _tech: p.tech_stack?.join(', ') ?? '' }); } : undefined}
                     onDelete={isOwnProfile ? handleCpDeleteProj : undefined}
                     onToggleFeatured={isOwnProfile ? handleCpToggleFeatured : undefined}
                   />}
+
+              {/* Add project */}
+              {isOwnProfile && (
+                cpNewProj ? (
+                  <div className="border border-green-200 bg-green-50 rounded-2xl p-4">
+                    <p className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-3">{t("profile.add_project")}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input label={t("label.title")} value={cpNewProj.title} onChange={e => setCpNewProj(p => ({ ...p, title: e.target.value }))} />
+                      <Input label="Role" value={cpNewProj.role} onChange={e => setCpNewProj(p => ({ ...p, role: e.target.value }))} />
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Consulting Company</label>
+                        <select value={cpNewProj.consulting_company}
+                          onChange={e => setCpNewProj(p => ({ ...p, consulting_company: e.target.value }))}
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                          <option value="">— None —</option>
+                          {(cpData?.consultant_customers ?? []).map(c => (
+                            <option key={c.id} value={c.company_name}>{c.company_name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <Input label={t("profile.client_name")} value={cpNewProj.client_name} onChange={e => setCpNewProj(p => ({ ...p, client_name: e.target.value }))} />
+                      <Input label={t("profile.tech_stack")} value={cpNewProj._tech} onChange={e => setCpNewProj(p => ({ ...p, _tech: e.target.value }))} placeholder="React, Node.js, …" />
+                      <Input label={t("profile.url")} value={cpNewProj.url} onChange={e => setCpNewProj(p => ({ ...p, url: e.target.value }))} />
+                    </div>
+                    <Textarea label={t("label.description")} value={cpNewProj.description} onChange={e => setCpNewProj(p => ({ ...p, description: e.target.value }))} />
+                    <div className="flex gap-2 mt-2">
+                      <button onClick={handleCpAddProj} disabled={cpSaving || !cpNewProj.title}
+                        className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50">
+                        {cpSaving ? t("profile.saving") : t("profile.add_project_btn")}
+                      </button>
+                      <button onClick={() => setCpNewProj(null)}
+                        className="px-3 py-1.5 border border-gray-200 text-xs font-semibold text-gray-600 rounded-lg hover:bg-gray-50">
+                        {t("action.cancel")}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={() => { setCpEditingProj(null); setCpNewProj({ ...EMPTY_CP_PROJ }); }}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-gray-200 rounded-2xl text-sm font-semibold text-gray-400 hover:border-blue-300 hover:text-blue-500 transition-colors">
+                    <Plus className="w-4 h-4" />
+                    {t("profile.add_project_btn")}
+                  </button>
+                )
+              )}
             </div>
           )}
 
