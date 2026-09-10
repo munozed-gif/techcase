@@ -10426,8 +10426,8 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
   const navItems = {
     admin: [
       { id: "dashboard",       Icon: LayoutDashboard,   labelKey: "nav.dashboard" },
-      { id: "projects",        Icon: Layers,            labelKey: "nav.projects" },
       { id: "cases",           Icon: FolderOpen,        labelKey: "nav.cases" },
+      { id: "projects",        Icon: Layers,            labelKey: "nav.projects" },
       { id: "kanban",          Icon: LayoutGrid,        labelKey: "nav.kanban" },
       { id: "arena",           Icon: Target,            labelKey: "nav.arena" },
       { id: "invoices",        Icon: Receipt,           labelKey: "nav.invoices" },
@@ -10442,8 +10442,8 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
     ],
     manager: [
       { id: "dashboard",       Icon: LayoutDashboard,   labelKey: "nav.dashboard" },
-      { id: "projects",        Icon: Layers,            labelKey: "nav.projects" },
       { id: "cases",           Icon: FolderOpen,        labelKey: "nav.cases" },
+      { id: "projects",        Icon: Layers,            labelKey: "nav.projects" },
       { id: "kanban",          Icon: LayoutGrid,        labelKey: "nav.kanban" },
       { id: "arena",           Icon: Target,            labelKey: "nav.arena" },
       { id: "invoices",        Icon: Receipt,           labelKey: "nav.invoices" },
@@ -10458,15 +10458,15 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
     ],
     consultant: [
       { id: "dashboard", Icon: LayoutDashboard, labelKey: "nav.dashboard" },
+      { id: "my-cases",  Icon: FolderOpen,      labelKey: "nav.my_cases" },
       { id: "arena",     Icon: Target,          labelKey: "nav.arena" },
       { id: "kanban",    Icon: LayoutGrid,      labelKey: "nav.kanban" },
-      { id: "my-cases",  Icon: FolderOpen,      labelKey: "nav.my_cases" },
       { id: "time",      Icon: Clock,           labelKey: "nav.time" },
     ],
     client: [
       { id: "dashboard",   Icon: LayoutDashboard, labelKey: "nav.dashboard" },
-      { id: "projects",    Icon: Layers,          labelKey: "nav.projects" },
       { id: "cases",       Icon: FolderOpen,      labelKey: "nav.my_cases" },
+      { id: "projects",    Icon: Layers,          labelKey: "nav.projects" },
       { id: "kanban",      Icon: LayoutGrid,      labelKey: "nav.kanban" },
       { id: "invoices",    Icon: Receipt,         labelKey: "nav.invoices" },
       { id: "consultants", Icon: UserCheck,       labelKey: "nav.consultants" },
