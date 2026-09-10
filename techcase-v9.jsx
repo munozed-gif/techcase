@@ -9033,6 +9033,45 @@ function ConsultantProfileView({ userId, onBack }) {
   const [error, setError]               = useState(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarFileRef = useRef(null);
+  const [cpEditingProj, setCpEditingProj] = useState(null);
+  const [cpSaving, setCpSaving] = useState(false);
+
+  async function handleCpSaveProj() {
+    if (!cpEditingProj) return;
+    setCpSaving(true);
+    try {
+      const { id, _tech, ...rest } = cpEditingProj;
+      const data = { ...rest, tech_stack: (_tech ?? '').split(',').map(s => s.trim()).filter(Boolean) };
+      const { error: err } = await supabase.from('consultant_projects').update(data).eq('id', id);
+      if (err) throw err;
+      setCpData(prev => prev ? {
+        ...prev,
+        consultant_projects: prev.consultant_projects.map(p => p.id === id ? { ...p, ...data } : p),
+      } : prev);
+      setCpEditingProj(null);
+    } catch (e) { alert(e.message); }
+    setCpSaving(false);
+  }
+
+  async function handleCpDeleteProj(id) {
+    if (!window.confirm('Delete this project?')) return;
+    const { error: err } = await supabase.from('consultant_projects').delete().eq('id', id);
+    if (err) { alert(err.message); return; }
+    setCpData(prev => prev ? {
+      ...prev,
+      consultant_projects: prev.consultant_projects.filter(p => p.id !== id),
+    } : prev);
+  }
+
+  async function handleCpToggleFeatured(proj) {
+    const next = !proj.featured;
+    const { error: err } = await supabase.from('consultant_projects').update({ featured: next }).eq('id', proj.id);
+    if (err) { alert(err.message); return; }
+    setCpData(prev => prev ? {
+      ...prev,
+      consultant_projects: prev.consultant_projects.map(p => p.id === proj.id ? { ...p, featured: next } : p),
+    } : prev);
+  }
 
   async function handleAvatarUpload(e) {
     const file = e.target.files?.[0];
@@ -9567,9 +9606,37 @@ function ConsultantProfileView({ userId, onBack }) {
           {/* Experience */}
           {tab.id === 'experience' && (
             <div className="space-y-4">
+              {cpEditingProj && (
+                <div className="border border-blue-200 bg-blue-50 rounded-2xl p-4">
+                  <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-3">Edit Project</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input label={t("label.title")} value={cpEditingProj.title ?? ''} onChange={e => setCpEditingProj(p => ({ ...p, title: e.target.value }))} />
+                    <Input label="Role" value={cpEditingProj.role ?? ''} onChange={e => setCpEditingProj(p => ({ ...p, role: e.target.value }))} />
+                    <Input label={t("profile.client_name")} value={cpEditingProj.client_name ?? ''} onChange={e => setCpEditingProj(p => ({ ...p, client_name: e.target.value }))} />
+                    <Input label={t("profile.tech_stack")} value={cpEditingProj._tech ?? ''} onChange={e => setCpEditingProj(p => ({ ...p, _tech: e.target.value }))} />
+                    <Input label={t("profile.url")} value={cpEditingProj.url ?? ''} onChange={e => setCpEditingProj(p => ({ ...p, url: e.target.value }))} />
+                  </div>
+                  <Textarea label={t("label.description")} value={cpEditingProj.description ?? ''} onChange={e => setCpEditingProj(p => ({ ...p, description: e.target.value }))} />
+                  <div className="flex gap-2 mt-2">
+                    <button onClick={handleCpSaveProj} disabled={cpSaving}
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50">
+                      {cpSaving ? t("profile.saving") : t("action.save")}
+                    </button>
+                    <button onClick={() => setCpEditingProj(null)}
+                      className="px-3 py-1.5 border border-gray-200 text-xs font-semibold text-gray-600 rounded-lg hover:bg-gray-50">
+                      {t("action.cancel")}
+                    </button>
+                  </div>
+                </div>
+              )}
               {(cpData?.consultant_projects?.length ?? 0) === 0
                 ? <p className="text-sm text-gray-400">{t("profile.no_projects")}</p>
-                : <ConsultantProjectsHierarchy projects={cpData.consultant_projects} />}
+                : <ConsultantProjectsHierarchy
+                    projects={cpData.consultant_projects}
+                    onEdit={isOwnProfile ? p => setCpEditingProj({ ...p, _tech: p.tech_stack?.join(', ') ?? '' }) : undefined}
+                    onDelete={isOwnProfile ? handleCpDeleteProj : undefined}
+                    onToggleFeatured={isOwnProfile ? handleCpToggleFeatured : undefined}
+                  />}
             </div>
           )}
 
