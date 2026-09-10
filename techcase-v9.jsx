@@ -16049,15 +16049,6 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                             <span className="font-semibold text-sm text-gray-900">{isBuiltin ? t(`lc.preset_${tmpl.key}_name`) : tmpl.name}</span>
                             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500">{isBuiltin ? t(`lc.preset_${tmpl.key}_subtitle`) : (tmpl.subtitle ?? "")}</span>
                           </div>
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {active.map((s, i) => (
-                              <span key={s.key} className="flex items-center gap-1">
-                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                                  style={{ backgroundColor: s.color + "22", color: s.color }}>{s.label}</span>
-                                {i < active.length - 1 && <span className="text-gray-300 text-[10px]">›</span>}
-                              </span>
-                            ))}
-                          </div>
                         </button>
                       );
                     })}
@@ -33661,16 +33652,7 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
                     <span className="font-semibold text-sm text-gray-900">{isBuiltin ? t(`lc.preset_${tmpl.key}_name`) : tmpl.name}</span>
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{isBuiltin ? t(`lc.preset_${tmpl.key}_subtitle`) : (tmpl.subtitle ?? "")}</span>
                   </div>
-                  <p className="text-xs text-gray-500 mb-3">{isBuiltin ? t(`lc.preset_${tmpl.key}_desc`) : (tmpl.description ?? "")}</p>
-                  <div className="flex flex-wrap gap-1 items-center">
-                    {active.map((s, i) => (
-                      <span key={s.key} className="flex items-center gap-1">
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                          style={{ backgroundColor: s.color + "22", color: s.color }}>{s.label}</span>
-                        {i < active.length - 1 && <span className="text-gray-300 text-[10px]">›</span>}
-                      </span>
-                    ))}
-                  </div>
+                  <p className="text-xs text-gray-500">{isBuiltin ? t(`lc.preset_${tmpl.key}_desc`) : (tmpl.description ?? "")}</p>
                 </button>
               );
             })}
