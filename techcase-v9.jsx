@@ -40059,25 +40059,20 @@ export default function App() {
   // Show role-specific onboarding wizard for new signups — full-screen, no sidebar
   if (onboardingRole && auth.user) {
     const bg = "min-h-screen bg-[#EAF4FD] p-6";
+    let inner;
     if (onboardingRole === "consultant") {
-      return (
-        <div className={bg}>
-          <ConsultantOnboardingView auth={auth} onComplete={() => completeOnboarding("profile")} />
-        </div>
-      );
+      inner = <ConsultantOnboardingView auth={auth} onComplete={() => completeOnboarding("profile")} />;
+    } else if (onboardingRole === "client") {
+      inner = <ClientOnboardingView auth={auth} onComplete={() => completeOnboarding("client-profile")} />;
+    } else {
+      inner = <ManagerAdminWelcomeView auth={auth} onComplete={() => completeOnboarding("dashboard")} />;
     }
-    if (onboardingRole === "client") {
-      return (
-        <div className={bg}>
-          <ClientOnboardingView auth={auth} onComplete={() => completeOnboarding("client-profile")} />
-        </div>
-      );
-    }
-    // manager / admin — welcome screen
     return (
-      <div className={bg}>
-        <ManagerAdminWelcomeView auth={auth} onComplete={() => completeOnboarding("dashboard")} />
-      </div>
+      <SystemSettingsProvider>
+        <LanguageProvider userId={auth.user?.id}>
+          <div className={bg}>{inner}</div>
+        </LanguageProvider>
+      </SystemSettingsProvider>
     );
   }
 
