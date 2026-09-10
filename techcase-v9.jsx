@@ -9256,6 +9256,19 @@ function ConsultantProfileView({ userId, onBack }) {
         </div>
       </div>
 
+      {/* Progress bar */}
+      {(() => {
+        const done = tabs.filter(t => cvTabStatus[t.id] === "complete").length;
+        if (done === 0) return null;
+        return (
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+            <div style={{ flex:1, height:4, borderRadius:99, background:'#E2E8F0', overflow:'hidden' }}>
+              <div style={{ height:'100%', width:`${(done/tabs.length)*100}%`, background:'linear-gradient(90deg,#1A4B8C,#3B82F6)', borderRadius:99, transition:'width .4s' }}/>
+            </div>
+            <span style={{ fontSize:11, fontWeight:700, color:'#1A4B8C', whiteSpace:'nowrap' }}>{done}/{tabs.length} done</span>
+          </div>
+        );
+      })()}
 
       {/* Section Carousel */}
       {(() => {
@@ -9295,15 +9308,29 @@ function ConsultantProfileView({ userId, onBack }) {
               {tabs.map((tab, i) => {
                 const isActive = tab.id === section;
                 const Icon = tab.icon;
+                const st = cvTabStatus[tab.id];
                 return (
                   <div key={tab.id}
                     style={{ flex:'0 0 calc(100% - 120px)', width:'calc(100% - 120px)', maxWidth:'calc(100% - 120px)', minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity:isActive?1:0.5, transform:isActive?'scale(1)':'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
                     <div style={{ borderRadius:12, border:`1px solid ${isActive?'#CBD5E1':'#E2E8F0'}`, background:'white', overflow:'hidden', width:'100%', boxSizing:'border-box', height:520, display:'flex', flexDirection:'column', boxShadow:isActive?'0 4px 20px rgba(0,0,0,.08)':'none', transition:'box-shadow .25s' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', borderBottom:'1px solid #F1F5F9', background:isActive?'#F8FAFC':'#FAFAFA', flexShrink:0, cursor:isActive?'default':'pointer' }}
                         onClick={() => !isActive && scrollTo(i)}>
+                        {st === "complete"
+                          ? <div style={{width:16,height:16,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={9} color="white" strokeWidth={3}/></div>
+                          : st === "in_progress"
+                            ? <div style={{width:8,height:8,borderRadius:'50%',background:'#3B82F6',flexShrink:0,marginRight:2}}/>
+                            : <div style={{width:8,height:8,borderRadius:'50%',background:'#CBD5E1',flexShrink:0,marginRight:2}}/>}
                         <Icon size={13} style={{color:isActive?'#1A4B8C':'#94A3B8',flexShrink:0}}/>
                         <span style={{flex:1,fontSize:12,fontWeight:700,color:isActive?'#0F172A':'#94A3B8',minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{tab.label}</span>
                         {tab.count !== null && <span style={{fontSize:10,fontWeight:600,padding:'1px 6px',borderRadius:99,background:isActive?'#DBEAFE':'#F1F5F9',color:isActive?'#2563EB':'#94A3B8',flexShrink:0}}>{tab.count}</span>}
+                        {isActive && (
+                          <button onClick={e => { e.stopPropagation(); setCvManualComplete(tab.id, st !== "complete"); }}
+                            title={st === "complete" ? "Mark incomplete" : "Mark complete"}
+                            style={{ flexShrink:0,display:'flex',alignItems:'center',gap:3,fontSize:10,fontWeight:600,padding:'2px 7px',borderRadius:99,border:`1px solid ${st==="complete"?'#BBF7D0':'#E2E8F0'}`,background:st==="complete"?'#F0FDF4':'#F8FAFC',color:st==="complete"?'#16A34A':'#94A3B8',cursor:'pointer',transition:'all .15s',whiteSpace:'nowrap' }}>
+                            <Check size={9} strokeWidth={3}/>
+                            {st === "complete" ? "Done" : "Mark done"}
+                          </button>
+                        )}
                       </div>
                       {cvMountedSlides.has(tab.id) ? (
                         <div style={{ flex:1, overflowY:'auto', padding:'18px 20px' }}>
@@ -9556,12 +9583,15 @@ function ConsultantProfileView({ userId, onBack }) {
               {tabs.map((tab, i) => {
                 const Icon = tab.icon;
                 const isActive = tab.id === section;
+                const st = cvTabStatus[tab.id];
                 return (
                   <button key={tab.id} onClick={() => scrollTo(i)}
-                    style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'#1A4B8C':'#E2E8F0'}`, background:isActive?'#1A4B8C':'white', color:isActive?'white':'#64748B', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
-                    <Icon size={11}/>
+                    style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'#1A4B8C':st==="complete"?'#BBF7D0':'#E2E8F0'}`, background:isActive?'#1A4B8C':st==="complete"?'#F0FDF4':'white', color:isActive?'white':st==="complete"?'#16A34A':'#64748B', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
+                    {st === "complete" && !isActive
+                      ? <div style={{width:13,height:13,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={8} color="white" strokeWidth={3}/></div>
+                      : <Icon size={11}/>}
                     <span>{tab.label}</span>
-                    {tab.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)':'#F1F5F9',color:isActive?'rgba(255,255,255,.7)':'#94A3B8'}}>{tab.count}</span>}
+                    {tab.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)':st==="complete"?'#DCFCE7':'#F1F5F9',color:isActive?'rgba(255,255,255,.7)':st==="complete"?'#16A34A':'#94A3B8'}}>{tab.count}</span>}
                   </button>
                 );
               })}
@@ -15422,6 +15452,19 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         })()}
       </div>
 
+      {/* Progress bar */}
+      {(() => {
+        const done = projectTabs.filter(t => projTabStatus[t.id] === "complete").length;
+        if (done === 0) return null;
+        return (
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <div style={{ flex:1, height:4, borderRadius:99, background:'#E2E8F0', overflow:'hidden' }}>
+              <div style={{ height:'100%', width:`${(done/projectTabs.length)*100}%`, background:'linear-gradient(90deg,#1A4B8C,#3B82F6)', borderRadius:99, transition:'width .4s' }}/>
+            </div>
+            <span style={{ fontSize:11, fontWeight:700, color:'#1A4B8C', whiteSpace:'nowrap' }}>{done}/{projectTabs.length} done</span>
+          </div>
+        );
+      })()}
 
       {/* Section Carousel */}
       {(() => {
@@ -15461,15 +15504,29 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
               {projectTabs.map((tab, i) => {
                 const isActive = tab.id === activeTab;
                 const Icon = tab.icon;
+                const st = projTabStatus[tab.id];
                 return (
                   <div key={tab.id}
                     style={{ flex:'0 0 calc(100% - 120px)', width:'calc(100% - 120px)', maxWidth:'calc(100% - 120px)', minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity:isActive?1:0.5, transform:isActive?'scale(1)':'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
                     <div style={{ borderRadius:12, border:`1px solid ${isActive?'#CBD5E1':'#E2E8F0'}`, background:'white', overflow:'hidden', width:'100%', boxSizing:'border-box', height:520, display:'flex', flexDirection:'column', boxShadow:isActive?'0 4px 20px rgba(0,0,0,.08)':'none', transition:'box-shadow .25s' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', borderBottom:'1px solid #F1F5F9', background:isActive?'#F8FAFC':'#FAFAFA', flexShrink:0, cursor:isActive?'default':'pointer' }}
                         onClick={() => !isActive && scrollTo(i)}>
+                        {st === "complete"
+                          ? <div style={{width:16,height:16,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={9} color="white" strokeWidth={3}/></div>
+                          : st === "in_progress"
+                            ? <div style={{width:8,height:8,borderRadius:'50%',background:'#3B82F6',flexShrink:0,marginRight:2}}/>
+                            : <div style={{width:8,height:8,borderRadius:'50%',background:'#CBD5E1',flexShrink:0,marginRight:2}}/>}
                         <Icon size={13} style={{color:isActive?'#1A4B8C':'#94A3B8',flexShrink:0}}/>
                         <span style={{flex:1,fontSize:12,fontWeight:700,color:isActive?'#0F172A':'#94A3B8',minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{tab.label}</span>
                         {tab.count !== null && <span style={{fontSize:10,fontWeight:600,padding:'1px 6px',borderRadius:99,background:isActive?'#DBEAFE':'#F1F5F9',color:isActive?'#2563EB':'#94A3B8',flexShrink:0}}>{tab.count}</span>}
+                        {isActive && tab.id !== "lifecycle" && (
+                          <button onClick={e => { e.stopPropagation(); setProjManualComplete(tab.id, st !== "complete"); }}
+                            title={st === "complete" ? "Mark incomplete" : "Mark complete"}
+                            style={{ flexShrink:0,display:'flex',alignItems:'center',gap:3,fontSize:10,fontWeight:600,padding:'2px 7px',borderRadius:99,border:`1px solid ${st==="complete"?'#BBF7D0':'#E2E8F0'}`,background:st==="complete"?'#F0FDF4':'#F8FAFC',color:st==="complete"?'#16A34A':'#94A3B8',cursor:'pointer',transition:'all .15s',whiteSpace:'nowrap' }}>
+                            <Check size={9} strokeWidth={3}/>
+                            {st === "complete" ? "Done" : "Mark done"}
+                          </button>
+                        )}
                       </div>
                       {projMountedSlides.has(tab.id) ? (
                         <div style={{ flex:1, overflowY:'auto', padding:'18px 20px' }}>
@@ -16104,12 +16161,15 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
               {projectTabs.map((tab, i) => {
                 const Icon = tab.icon;
                 const isActive = tab.id === activeTab;
+                const st = projTabStatus[tab.id];
                 return (
                   <button key={tab.id} onClick={() => scrollTo(i)}
-                    style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'#1A4B8C':'#E2E8F0'}`, background:isActive?'#1A4B8C':'white', color:isActive?'white':'#64748B', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
-                    <Icon size={11}/>
+                    style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'#1A4B8C':st==="complete"?'#BBF7D0':'#E2E8F0'}`, background:isActive?'#1A4B8C':st==="complete"?'#F0FDF4':'white', color:isActive?'white':st==="complete"?'#16A34A':'#64748B', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
+                    {st === "complete" && !isActive
+                      ? <div style={{width:13,height:13,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={8} color="white" strokeWidth={3}/></div>
+                      : <Icon size={11}/>}
                     <span>{tab.label}</span>
-                    {tab.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)':'#F1F5F9',color:isActive?'rgba(255,255,255,.7)':'#94A3B8'}}>{tab.count}</span>}
+                    {tab.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)':st==="complete"?'#DCFCE7':'#F1F5F9',color:isActive?'rgba(255,255,255,.7)':st==="complete"?'#16A34A':'#94A3B8'}}>{tab.count}</span>}
                   </button>
                 );
               })}
@@ -23187,6 +23247,19 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         </div>
       )}
 
+      {/* Progress bar */}
+      {(() => {
+        const done = tabs.filter(t => tabStatus[t.id] === "complete").length;
+        if (done === 0) return null;
+        return (
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <div style={{ flex:1, height:4, borderRadius:99, background:'#E2E8F0', overflow:'hidden' }}>
+              <div style={{ height:'100%', width:`${(done/tabs.length)*100}%`, background:'linear-gradient(90deg,#1A4B8C,#3B82F6)', borderRadius:99, transition:'width .4s' }}/>
+            </div>
+            <span style={{ fontSize:11, fontWeight:700, color:'#1A4B8C', whiteSpace:'nowrap' }}>{done}/{tabs.length} done</span>
+          </div>
+        );
+      })()}
 
       {/* Section Carousel */}
       {(() => {
@@ -23240,12 +23313,34 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                     style={{ flex:'0 0 calc(100% - 120px)', width:'calc(100% - 120px)', maxWidth:'calc(100% - 120px)', minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity: isActive ? 1 : 0.5, transform: isActive ? 'scale(1)' : 'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
                     <div style={{ borderRadius:12, border:`1px solid ${isActive?'#CBD5E1':'#E2E8F0'}`, background:'white', overflow:'hidden', width:'100%', boxSizing:'border-box', height:480, display:'flex', flexDirection:'column', boxShadow: isActive ? '0 4px 20px rgba(0,0,0,.08)' : 'none', transition:'box-shadow .25s' }}>
                       {/* Card header */}
-                      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', borderBottom:'1px solid #F1F5F9', background: isActive ? '#F8FAFC' : '#FAFAFA', flexShrink:0, cursor: isActive ? 'default' : 'pointer' }}
-                        onClick={() => !isActive && scrollTo(i)}>
-                        <Icon size={13} style={{color: isActive ? '#1A4B8C' : '#94A3B8', flexShrink:0}}/>
-                        <span style={{flex:1, fontSize:12, fontWeight:700, color: isActive ? '#0F172A' : '#94A3B8', minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{tab.label}</span>
-                        {tab.count !== null && <span style={{fontSize:10, fontWeight:600, padding:'1px 6px', borderRadius:99, background: isActive ? '#DBEAFE' : '#F1F5F9', color: isActive ? '#2563EB' : '#94A3B8', flexShrink:0}}>{tab.count}</span>}
-                      </div>
+                      {(() => {
+                        const st = tabStatus[tab.id];
+                        return (
+                          <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', borderBottom:'1px solid #F1F5F9', background: isActive ? '#F8FAFC' : '#FAFAFA', flexShrink:0, cursor: isActive ? 'default' : 'pointer' }}
+                            onClick={() => !isActive && scrollTo(i)}>
+                            {/* Status dot */}
+                            {st === "complete"
+                              ? <div style={{width:16,height:16,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={9} color="white" strokeWidth={3}/></div>
+                              : st === "in_progress"
+                                ? <div style={{width:8,height:8,borderRadius:'50%',background:'#3B82F6',flexShrink:0,marginRight:2}}/>
+                                : <div style={{width:8,height:8,borderRadius:'50%',background:'#CBD5E1',flexShrink:0,marginRight:2}}/>
+                            }
+                            <Icon size={13} style={{color: isActive ? '#1A4B8C' : '#94A3B8', flexShrink:0}}/>
+                            <span style={{flex:1, fontSize:12, fontWeight:700, color: isActive ? '#0F172A' : '#94A3B8', minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{tab.label}</span>
+                            {tab.count !== null && <span style={{fontSize:10, fontWeight:600, padding:'1px 6px', borderRadius:99, background: isActive ? '#DBEAFE' : '#F1F5F9', color: isActive ? '#2563EB' : '#94A3B8', flexShrink:0}}>{tab.count}</span>}
+                            {/* Mark done toggle — active cards only, not lifecycle */}
+                            {isActive && tab.id !== "lifecycle" && (
+                              <button
+                                onClick={e => { e.stopPropagation(); setManualComplete(tab.id, st !== "complete"); }}
+                                title={st === "complete" ? "Mark incomplete" : "Mark complete"}
+                                style={{ flexShrink:0, display:'flex', alignItems:'center', gap:3, fontSize:10, fontWeight:600, padding:'2px 7px', borderRadius:99, border:`1px solid ${st === "complete" ? '#BBF7D0' : '#E2E8F0'}`, background: st === "complete" ? '#F0FDF4' : '#F8FAFC', color: st === "complete" ? '#16A34A' : '#94A3B8', cursor:'pointer', transition:'all .15s', whiteSpace:'nowrap' }}>
+                                <Check size={9} strokeWidth={3}/>
+                                {st === "complete" ? "Done" : "Mark done"}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })()}
                       {/* Content */}
                       {mountedSlides.has(tab.id) ? (
                         <div className="space-y-4" style={{ flex:1, overflowY:'auto', padding:'18px 20px' }}>
@@ -25601,12 +25696,16 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               {tabs.map((tab, i) => {
                 const Icon = tab.icon;
                 const isActive = tab.id === activeTab;
+                const st = tabStatus[tab.id];
                 return (
                   <button key={tab.id} onClick={() => scrollTo(i)}
-                    style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'#1A4B8C':'#E2E8F0'}`, background:isActive?'#1A4B8C':'white', color:isActive?'white':'#64748B', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
-                    <Icon size={11}/>
+                    style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'#1A4B8C': st==="complete"?'#BBF7D0':'#E2E8F0'}`, background:isActive?'#1A4B8C': st==="complete"?'#F0FDF4':'white', color:isActive?'white': st==="complete"?'#16A34A':'#64748B', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
+                    {st === "complete" && !isActive
+                      ? <div style={{width:13,height:13,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={8} color="white" strokeWidth={3}/></div>
+                      : <Icon size={11}/>
+                    }
                     <span>{tab.label}</span>
-                    {tab.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)':'#F1F5F9',color:isActive?'rgba(255,255,255,.7)':'#94A3B8'}}>{tab.count}</span>}
+                    {tab.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)': st==="complete"?'#DCFCE7':'#F1F5F9',color:isActive?'rgba(255,255,255,.7)': st==="complete"?'#16A34A':'#94A3B8'}}>{tab.count}</span>}
                   </button>
                 );
               })}
@@ -33123,6 +33222,19 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
         </div>
       )}
 
+      {/* Progress bar */}
+      {(() => {
+        const done = tabs.filter(t => cpvTabStatus[t.id] === "complete").length;
+        if (done === 0) return null;
+        return (
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+            <div style={{ flex:1, height:4, borderRadius:99, background:'#E2E8F0', overflow:'hidden' }}>
+              <div style={{ height:'100%', width:`${(done/tabs.length)*100}%`, background:'linear-gradient(90deg,#1A4B8C,#3B82F6)', borderRadius:99, transition:'width .4s' }}/>
+            </div>
+            <span style={{ fontSize:11, fontWeight:700, color:'#1A4B8C', whiteSpace:'nowrap' }}>{done}/{tabs.length} done</span>
+          </div>
+        );
+      })()}
 
       {/* Section Carousel */}
       {(() => {
@@ -33162,15 +33274,29 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
               {tabs.map((tabItem, i) => {
                 const isActive = tabItem.id === tab;
                 const Icon = tabItem.icon;
+                const st = cpvTabStatus[tabItem.id];
                 return (
                   <div key={tabItem.id}
                     style={{ flex:'0 0 calc(100% - 120px)', width:'calc(100% - 120px)', maxWidth:'calc(100% - 120px)', minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity:isActive?1:0.5, transform:isActive?'scale(1)':'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
                     <div style={{ borderRadius:12, border:`1px solid ${isActive?'#CBD5E1':'#E2E8F0'}`, background:'white', overflow:'hidden', width:'100%', boxSizing:'border-box', height:520, display:'flex', flexDirection:'column', boxShadow:isActive?'0 4px 20px rgba(0,0,0,.08)':'none', transition:'box-shadow .25s' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', borderBottom:'1px solid #F1F5F9', background:isActive?'#F8FAFC':'#FAFAFA', flexShrink:0, cursor:isActive?'default':'pointer' }}
                         onClick={() => !isActive && scrollTo(i)}>
+                        {st === "complete"
+                          ? <div style={{width:16,height:16,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={9} color="white" strokeWidth={3}/></div>
+                          : st === "in_progress"
+                            ? <div style={{width:8,height:8,borderRadius:'50%',background:'#3B82F6',flexShrink:0,marginRight:2}}/>
+                            : <div style={{width:8,height:8,borderRadius:'50%',background:'#CBD5E1',flexShrink:0,marginRight:2}}/>}
                         <Icon size={13} style={{color:isActive?'#1A4B8C':'#94A3B8',flexShrink:0}}/>
                         <span style={{flex:1,fontSize:12,fontWeight:700,color:isActive?'#0F172A':'#94A3B8',minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{tabItem.label}</span>
                         {tabItem.count !== null && <span style={{fontSize:10,fontWeight:600,padding:'1px 6px',borderRadius:99,background:isActive?'#DBEAFE':'#F1F5F9',color:isActive?'#2563EB':'#94A3B8',flexShrink:0}}>{tabItem.count}</span>}
+                        {isActive && (
+                          <button onClick={e => { e.stopPropagation(); setCpvManualComplete(tabItem.id, st !== "complete"); }}
+                            title={st === "complete" ? "Mark incomplete" : "Mark complete"}
+                            style={{ flexShrink:0,display:'flex',alignItems:'center',gap:3,fontSize:10,fontWeight:600,padding:'2px 7px',borderRadius:99,border:`1px solid ${st==="complete"?'#BBF7D0':'#E2E8F0'}`,background:st==="complete"?'#F0FDF4':'#F8FAFC',color:st==="complete"?'#16A34A':'#94A3B8',cursor:'pointer',transition:'all .15s',whiteSpace:'nowrap' }}>
+                            <Check size={9} strokeWidth={3}/>
+                            {st === "complete" ? "Done" : "Mark done"}
+                          </button>
+                        )}
                       </div>
                       {cpvMountedSlides.has(tabItem.id) ? (
                         <div style={{ flex:1, overflowY:'auto', padding:'18px 20px' }}>
@@ -33842,12 +33968,15 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
               {tabs.map((tabItem, i) => {
                 const Icon = tabItem.icon;
                 const isActive = tabItem.id === tab;
+                const st = cpvTabStatus[tabItem.id];
                 return (
                   <button key={tabItem.id} onClick={() => scrollTo(i)}
-                    style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'#1A4B8C':'#E2E8F0'}`, background:isActive?'#1A4B8C':'white', color:isActive?'white':'#64748B', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
-                    <Icon size={11}/>
+                    style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'#1A4B8C':st==="complete"?'#BBF7D0':'#E2E8F0'}`, background:isActive?'#1A4B8C':st==="complete"?'#F0FDF4':'white', color:isActive?'white':st==="complete"?'#16A34A':'#64748B', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
+                    {st === "complete" && !isActive
+                      ? <div style={{width:13,height:13,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={8} color="white" strokeWidth={3}/></div>
+                      : <Icon size={11}/>}
                     <span>{tabItem.label}</span>
-                    {tabItem.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)':'#F1F5F9',color:isActive?'rgba(255,255,255,.7)':'#94A3B8'}}>{tabItem.count}</span>}
+                    {tabItem.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)':st==="complete"?'#DCFCE7':'#F1F5F9',color:isActive?'rgba(255,255,255,.7)':st==="complete"?'#16A34A':'#94A3B8'}}>{tabItem.count}</span>}
                   </button>
                 );
               })}
