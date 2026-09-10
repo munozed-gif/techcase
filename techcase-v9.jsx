@@ -32621,7 +32621,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
         max_tokens: 4000,
       });
-      const code = resp.content?.[0]?.text ?? '';
+      const code = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
       setActField(act.id, { generating: false, generatedCode: code });
     } catch (e) {
       setActField(act.id, { generating: false });
