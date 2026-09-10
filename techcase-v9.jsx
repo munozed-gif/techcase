@@ -10527,15 +10527,17 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
           const profileView = role === 'client' ? 'client-profile' : 'profile';
           const canGoToProfile = ['consultant', 'headhunter', 'client'].includes(role);
           return (
-            <div
-              className={`flex items-center gap-3 mb-3 rounded-xl px-2 py-1.5 -mx-2 transition-colors ${canGoToProfile ? 'cursor-pointer hover:bg-blue-900/60' : ''}`}
-              onClick={canGoToProfile ? () => onNav(profileView) : undefined}
-              title={canGoToProfile ? t("nav.profile") : undefined}
-            >
-              <PersonAvatar name={profile?.full_name} avatarUrl={profile?.avatar_url} size={36} />
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-white truncate">{profile?.full_name ?? t("fallback.user")}</div>
-                <div className="text-xs text-blue-300 truncate">{profile?.email}</div>
+            <div className="flex items-center gap-2 mb-3 -mx-2">
+              <div
+                className={`flex items-center gap-3 flex-1 min-w-0 rounded-xl px-2 py-1.5 transition-colors ${canGoToProfile ? 'cursor-pointer hover:bg-blue-900/60' : ''}`}
+                onClick={canGoToProfile ? () => onNav(profileView) : undefined}
+                title={canGoToProfile ? t("nav.profile") : undefined}
+              >
+                <PersonAvatar name={profile?.full_name} avatarUrl={profile?.avatar_url} size={36} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-white truncate">{profile?.full_name ?? t("fallback.user")}</div>
+                  <div className="text-xs text-blue-300 truncate">{profile?.email}</div>
+                </div>
               </div>
               {auth && <NotificationBell auth={auth} />}
             </div>
