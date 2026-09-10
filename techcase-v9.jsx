@@ -9134,12 +9134,14 @@ function ConsultantProfileView({ userId, onBack }) {
   }
 
   const tabs = [
-    { id: 'overview',  label: t('profile.tab_overview'), icon: BarChart2,  count: null },
-    { id: 'ratings',   label: t('profile.tab_ratings'),  icon: Star,        count: ratingsData.length > 0 ? ratingsData.length : null },
-    { id: 'tier',      label: t('profile.tab_tier'),     icon: Trophy,      count: null },
-    { id: 'activity',  label: t('profile.tab_activity'), icon: Activity,    count: activity.length > 0 ? activity.length : null },
-    { id: 'vouches',   label: t('vouch.tab'),            icon: Heart,       count: null },
-    ...(isOwnProfile ? [{ id: 'plan', label: 'My Plan', icon: CreditCard, count: null }, { id: 'edit', label: 'Profile', icon: Pencil, count: null }] : []),
+    { id: 'overview',   label: t('profile.tab_overview'),   icon: BarChart2,     count: null },
+    { id: 'experience', label: t('profile.tab_experience'),  icon: Briefcase,     count: cpData?.consultant_projects?.length > 0 ? cpData.consultant_projects.length : null },
+    { id: 'skills',     label: t('profile.tab_skills'),      icon: GraduationCap, count: cpData?.skills?.length > 0 ? cpData.skills.length : null },
+    { id: 'ratings',    label: t('profile.tab_ratings'),     icon: Star,          count: ratingsData.length > 0 ? ratingsData.length : null },
+    { id: 'tier',       label: t('profile.tab_tier'),        icon: Trophy,        count: null },
+    { id: 'activity',   label: t('profile.tab_activity'),    icon: Activity,      count: activity.length > 0 ? activity.length : null },
+    { id: 'vouches',    label: t('vouch.tab'),               icon: Heart,         count: null },
+    ...(isOwnProfile ? [{ id: 'plan', label: 'My Plan', icon: CreditCard, count: null }] : []),
   ];
 
   const cvTabStatus = (() => {
@@ -9562,9 +9564,31 @@ function ConsultantProfileView({ userId, onBack }) {
             <PlanUsageCard auth={auth} />
           )}
 
-          {/* Edit profile */}
-          {tab.id === 'edit' && isOwnProfile && (
-            <ProfileView auth={auth} compact={true} />
+          {/* Experience */}
+          {tab.id === 'experience' && (
+            <div className="space-y-4">
+              {(cpData?.consultant_projects?.length ?? 0) === 0
+                ? <p className="text-sm text-gray-400">{t("profile.no_projects")}</p>
+                : <ConsultantProjectsHierarchy projects={cpData.consultant_projects} />}
+            </div>
+          )}
+
+          {/* Skills */}
+          {tab.id === 'skills' && (
+            <div className="space-y-4">
+              {(cpData?.skills?.length ?? 0) === 0
+                ? <p className="text-sm text-gray-400">{t("profile.no_skills")}</p>
+                : <div className="flex flex-wrap gap-2">
+                    {(cpData.skills ?? []).map(s => {
+                      const isFeatured = (cpData?.featured_skills ?? []).includes(s);
+                      return (
+                        <span key={s} className={`px-3 py-1.5 rounded-xl text-sm font-medium border ${isFeatured ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-blue-50 text-blue-700 border-blue-100"}`}>
+                          {isFeatured && <span className="mr-1">★</span>}{s}
+                        </span>
+                      );
+                    })}
+                  </div>}
+            </div>
           )}
 
                         </div>
@@ -27364,7 +27388,6 @@ function ProfileView({ auth, compact = false }) {
   const tabs = [
     { id: "experience", label: t("profile.tab_experience"), icon: Briefcase,     count: null },
     { id: "skills",     label: t("profile.tab_skills"),     icon: GraduationCap, count: profile?.skills?.length > 0 ? profile.skills.length : null },
-    { id: "ratings",    label: t("profile.tab_ratings"),    icon: Star,          count: ratings.length > 0 ? ratings.length : null },
   ];
 
   const pvTabStatus = (() => {
@@ -27860,19 +27883,17 @@ function ProfileView({ auth, compact = false }) {
           {/* Experience */}
           {tab.id === "experience" && (
             <div className="space-y-6">
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                <h3 className="font-semibold text-gray-900 mb-4">{t("profile.projects")}</h3>
-                {(profile?.consultant_projects?.length ?? 0) === 0
-                  ? <p className="text-sm text-gray-400">{t("profile.no_projects")}</p>
-                  : <ConsultantProjectsHierarchy projects={profile.consultant_projects} />}
-              </div>
+              <h3 className="font-semibold text-gray-900 mb-4">{t("profile.projects")}</h3>
+              {(profile?.consultant_projects?.length ?? 0) === 0
+                ? <p className="text-sm text-gray-400">{t("profile.no_projects")}</p>
+                : <ConsultantProjectsHierarchy projects={profile.consultant_projects} />}
             </div>
           )}
 
           {/* Skills */}
           {tab.id === "skills" && (
             <div className="space-y-6">
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <div>
                 <h3 className="font-semibold text-gray-900 mb-4">{t("label.skills")}</h3>
                 {(profile?.skills?.length ?? 0) === 0
                   ? <p className="text-sm text-gray-400 mb-4">{t("profile.no_skills")}</p>
@@ -27927,7 +27948,7 @@ function ProfileView({ auth, compact = false }) {
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <div className="border-t border-gray-100 pt-6">
                 <h3 className="font-semibold text-gray-900 mb-4">{t("profile.work_auth")}</h3>
                 {(profile?.work_authorizations?.length ?? 0) === 0
                   ? <p className="text-sm text-gray-400 mb-4">{t("profile.no_auth")}</p>
@@ -27959,40 +27980,6 @@ function ProfileView({ auth, compact = false }) {
             </div>
           )}
 
-          {/* Ratings */}
-          {tab.id === "ratings" && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              {avgRating && (
-                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
-                  <div className="text-5xl font-bold text-gray-900">{avgRating}</div>
-                  <div>
-                    <div className="flex text-yellow-400 text-xl">{stars(avgRating)}</div>
-                    <div className="text-sm text-gray-500 mt-1">{ratings.length} rating{ratings.length !== 1 ? "s" : ""}</div>
-                  </div>
-                </div>
-              )}
-              {ratings.length === 0 ? (
-                <p className="text-sm text-gray-400">{t("profile.no_ratings")}</p>
-              ) : (
-                <div className="space-y-4">
-                  {ratings.map(r => (
-                    <div key={r.id} className="border border-gray-100 rounded-xl p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <PersonAvatar name={r.rater?.full_name} avatarUrl={r.rater?.avatar_url} size={32} />
-                          <span className="text-sm font-medium">{r.rater?.full_name}</span>
-                        </div>
-                        <div className="flex text-yellow-400">{stars(r.score)}</div>
-                      </div>
-                      {r.comment && <p className="text-sm text-gray-600">{r.comment}</p>}
-                      {r.case?.title && <div className="text-xs text-gray-400 mt-1">{t("review.on_case").replace("{n}", r.case.title)}</div>}
-                      <div className="text-xs text-gray-300 mt-1">{fmtDate(r.created_at)}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
 
                         </div>
                       ) : (
