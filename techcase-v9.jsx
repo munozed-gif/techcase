@@ -9079,7 +9079,7 @@ function ConsultantProfileView({ userId, onBack }) {
           supabase.from('system_settings')
             .select('key, value').eq('key', 'trust_thresholds').maybeSingle(),
           supabase.from('consultant_profiles')
-            .select('headline, bio, linkedin_url, hourly_rate, years_experience, expertise_level, availability_type, travel_available, skills, external_occupancy_pct, featured_skills, consultant_projects(id, title, role, client_name, tech_stack, featured), consultant_customers(id)')
+            .select('headline, bio, linkedin_url, hourly_rate, years_experience, expertise_level, availability_type, travel_available, skills, external_occupancy_pct, featured_skills, consultant_projects(id, title, role, client_name, consulting_company, description, url, tech_stack, featured), consultant_customers(id, company_name)')
             .eq('id', targetUserId).maybeSingle(),
         ]);
         if (cancelled) return;
