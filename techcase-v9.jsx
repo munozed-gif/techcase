@@ -10517,32 +10517,50 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {items.map(item => (
-          <button key={item.id} onClick={() => onNav(item.id)}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-              activeView === item.id
-                ? "bg-blue-600 text-white shadow-md"
-                : "text-blue-200 hover:bg-blue-900 hover:text-white"}`}>
-            <item.Icon className="w-[18px] h-[18px] flex-shrink-0" />
-            {t(item.labelKey)}
-          </button>
-        ))}
+      <nav className="flex-1 px-3 pt-3 pb-2 overflow-y-auto">
+        <div className="grid grid-cols-2 gap-2">
+          {items.map(item => {
+            const isActive = activeView === item.id;
+            return (
+              <button key={item.id} onClick={() => onNav(item.id)}
+                className={`flex flex-col items-center justify-center gap-1.5 rounded-2xl py-3.5 px-2 text-center transition-all ${
+                  isActive
+                    ? "bg-blue-600 text-white shadow-lg"
+                    : "text-blue-200 hover:bg-blue-900/80 hover:text-white"}`}
+                style={{ minHeight: 72 }}>
+                <item.Icon size={22} style={{ flexShrink: 0, opacity: isActive ? 1 : 0.8 }} />
+                <span style={{ fontSize: 11, fontWeight: 600, lineHeight: 1.2, letterSpacing: '0.01em' }}>
+                  {t(item.labelKey)}
+                </span>
+              </button>
+            );
+          })}
 
-        {/* Notifications */}
-        <button onClick={() => onNav("notifications")}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-            activeView === "notifications"
-              ? "bg-blue-600 text-white shadow-md"
-              : "text-blue-200 hover:bg-blue-900 hover:text-white"}`}>
-          <Bell className="w-[18px] h-[18px] flex-shrink-0" />
-          {t("nav.notifications")}
-          {unreadCount > 0 && (
-            <span className="ml-auto bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-              {unreadCount > 9 ? "9+" : unreadCount}
-            </span>
-          )}
-        </button>
+          {/* Notifications */}
+          {(() => {
+            const isActive = activeView === "notifications";
+            return (
+              <button onClick={() => onNav("notifications")}
+                className={`relative flex flex-col items-center justify-center gap-1.5 rounded-2xl py-3.5 px-2 text-center transition-all ${
+                  isActive
+                    ? "bg-blue-600 text-white shadow-lg"
+                    : "text-blue-200 hover:bg-blue-900/80 hover:text-white"}`}
+                style={{ minHeight: 72 }}>
+                <span className="relative">
+                  <Bell size={22} style={{ opacity: isActive ? 1 : 0.8 }} />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+                </span>
+                <span style={{ fontSize: 11, fontWeight: 600, lineHeight: 1.2, letterSpacing: '0.01em' }}>
+                  {t("nav.notifications")}
+                </span>
+              </button>
+            );
+          })()}
+        </div>
       </nav>
 
       {/* User footer */}
