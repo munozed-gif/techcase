@@ -9925,12 +9925,71 @@ function ConsultantProfileView({ userId, onBack }) {
                     {(cpData.skills ?? []).map(s => {
                       const isFeatured = (cpData?.featured_skills ?? []).includes(s);
                       return (
-                        <span key={s} className={`px-3 py-1.5 rounded-xl text-sm font-medium border ${isFeatured ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-blue-50 text-blue-700 border-blue-100"}`}>
-                          {isFeatured && <span className="mr-1">★</span>}{s}
-                        </span>
+                        <div key={s} className={`flex items-center rounded-xl text-sm font-medium border ${isFeatured ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-blue-50 text-blue-700 border-blue-100"}`}>
+                          {isOwnProfile ? (
+                            <button onClick={async () => {
+                              const cur = cpData?.featured_skills ?? [];
+                              const next = isFeatured ? cur.filter(f => f !== s) : [...cur, s];
+                              await supabase.from('consultant_profiles').update({ featured_skills: next }).eq('id', targetUserId);
+                              setCpData(p => p ? { ...p, featured_skills: next } : p);
+                            }} title={isFeatured ? "Remove from highlights" : "Add to highlights"}
+                              className="flex items-center gap-1.5 px-3 py-1.5 transition-colors hover:opacity-80">
+                              <Star className="w-3 h-3 flex-shrink-0" fill={isFeatured ? "currentColor" : "none"} />
+                              {s}
+                            </button>
+                          ) : (
+                            <span className="flex items-center gap-1.5 px-3 py-1.5">
+                              {isFeatured && <Star className="w-3 h-3 flex-shrink-0" fill="currentColor" />}{s}
+                            </span>
+                          )}
+                          {isOwnProfile && (
+                            <button onClick={async () => {
+                              const nextSkills   = (cpData?.skills ?? []).filter(sk => sk !== s);
+                              const nextFeatured = (cpData?.featured_skills ?? []).filter(f => f !== s);
+                              await supabase.from('consultant_profiles').update({ skills: nextSkills, featured_skills: nextFeatured }).eq('id', targetUserId);
+                              setCpData(p => p ? { ...p, skills: nextSkills, featured_skills: nextFeatured } : p);
+                            }} title="Remove skill"
+                              className="pr-2 pl-0.5 py-1.5 hover:text-red-500 transition-colors">
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
                       );
                     })}
                   </div>}
+              {isOwnProfile && (
+                <>
+                  <p className="text-xs text-gray-400">Tap a skill to highlight it. Star = featured in your overview.</p>
+                  <div className="flex gap-2">
+                    <input id="cp-skill-input" placeholder={t("profile.skill_ph")}
+                      className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      onKeyDown={async e => {
+                        if (e.key !== 'Enter') return;
+                        const val = e.target.value.trim();
+                        if (!val) return;
+                        const current = cpData?.skills ?? [];
+                        if (current.includes(val)) return;
+                        const next = [...current, val];
+                        await supabase.from('consultant_profiles').update({ skills: next }).eq('id', targetUserId);
+                        setCpData(p => p ? { ...p, skills: next } : p);
+                        e.target.value = '';
+                      }} />
+                    <button onClick={async () => {
+                      const input = document.getElementById('cp-skill-input');
+                      const val = input?.value?.trim();
+                      if (!val) return;
+                      const current = cpData?.skills ?? [];
+                      if (current.includes(val)) return;
+                      const next = [...current, val];
+                      await supabase.from('consultant_profiles').update({ skills: next }).eq('id', targetUserId);
+                      setCpData(p => p ? { ...p, skills: next } : p);
+                      input.value = '';
+                    }} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl">
+                      {t("profile.add_skill")}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
