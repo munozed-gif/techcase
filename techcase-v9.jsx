@@ -27740,6 +27740,19 @@ function ArenaView({ auth }) {
     );
   }
 
+  // Consultants get the case carousel directly — no outer section carousel
+  if (auth.isConsultant) {
+    return (
+      <div>
+        <div className="mb-5">
+          <h1 className="text-2xl font-bold text-gray-900">{t("arena.title")}</h1>
+          <p className="text-gray-500 text-sm mt-1">{t("arena.subtitle")}</p>
+        </div>
+        {renderCases()}
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="mb-6 flex items-end justify-between">
