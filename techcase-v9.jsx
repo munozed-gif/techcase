@@ -27028,6 +27028,8 @@ function ArenaView({ auth }) {
   const { shortlist, toggle: toggleShortlist, isShortlisted } = useConsultantShortlist();
   const { applications, reviewApplication, refetch: refetchApps } = useApplications();
   const { templates: arenaLcTemplates } = useLifecycleTemplates();
+  const [caseSort, setCaseSort] = useState('match');
+  const [caseCarouselIdx, setCaseCarouselIdx] = useState(0);
 
   function toggleCompare(id) {
     setCompareSet(prev =>
@@ -27076,60 +27078,230 @@ function ArenaView({ auth }) {
   const renderCases = () => {
     if (casesLoading) return <Spinner />;
     if (openCases.length === 0) return (
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center text-gray-400 text-sm">
+      <div style={{ background:'#0D1B35', borderRadius:16, padding:'48px 24px', textAlign:'center', color:'#4A6B9A', fontSize:14 }}>
         {t("arena.no_cases")}
       </div>
     );
+
+    const cpObj = Array.isArray(auth.profile?.consultant_profiles)
+      ? auth.profile.consultant_profiles[0]
+      : auth.profile?.consultant_profiles;
+    const mySkills = new Set((cpObj?.skills ?? []).map(s => String(s).toLowerCase()));
+
+    function matchScore(cs) {
+      if (!auth.isConsultant) return null;
+      const req = cs.skills_required ?? [];
+      if (req.length === 0) return 50;
+      const hits = req.filter(s => mySkills.has(String(s).toLowerCase())).length;
+      return Math.round(Math.max(5, Math.min(100, (hits / req.length) * 70 + 30)));
+    }
+
+    const sorted = [...openCases].sort((a, b) => {
+      if (caseSort === 'match')    return (matchScore(b) ?? 0) - (matchScore(a) ?? 0);
+      if (caseSort === 'deadline') {
+        const da = a.due_date ? new Date(a.due_date) : new Date(9e15);
+        const db = b.due_date ? new Date(b.due_date) : new Date(9e15);
+        return da - db;
+      }
+      if (caseSort === 'budget')   return (Number(b.budget) || 0) - (Number(a.budget) || 0);
+      return 0;
+    });
+
+    const safeIdx = Math.min(caseCarouselIdx, sorted.length - 1);
+    const c = sorted[safeIdx];
+    const companyName  = c.client?.client_profiles?.company_name || c.client?.full_name;
+    const alreadyApplied = appliedCaseIds.has(c.id);
+    const appCount     = c.applications?.[0]?.count ?? 0;
+    const score        = matchScore(c);
+
+    const now      = Date.now();
+    const dueMs    = c.due_date    ? new Date(c.due_date).getTime()    : null;
+    const startMs  = c.start_date  ? new Date(c.start_date).getTime()  : null;
+    const daysLeft = dueMs  ? Math.max(0, Math.ceil((dueMs - now) / 86400000))  : null;
+    const totalDays = (dueMs && startMs) ? Math.max(1, Math.ceil((dueMs - startMs) / 86400000)) : 14;
+    const timePct  = daysLeft != null ? Math.max(0, Math.min(1, daysLeft / totalDays)) : null;
+
+    const mc    = score == null ? '#6B8AB8' : score >= 75 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444';
+    const mcDim = score == null ? 'rgba(107,138,184,0.3)' : score >= 75 ? 'rgba(16,185,129,0.3)' : score >= 50 ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)';
+    const tc    = timePct == null ? '#6B8AB8' : timePct <= 0.15 ? '#EF4444' : timePct <= 0.4 ? '#F59E0B' : '#10B981';
+
+    const svgR = 43, svgCx = 48, svgCy = 48;
+    const circ  = 2 * Math.PI * svgR;
+    const filled = score != null ? circ * (score / 100) : 0;
+
+    const dayChipColor  = timePct == null ? '#8AABCC' : timePct <= 0.15 ? '#F87171' : timePct <= 0.4 ? '#FBB02D' : '#8AABCC';
+    const dayChipBorder = timePct == null ? 'rgba(255,255,255,0.12)' : timePct <= 0.15 ? 'rgba(239,68,68,0.4)' : timePct <= 0.4 ? 'rgba(245,158,11,0.4)' : 'rgba(255,255,255,0.12)';
+    const dayChipBg     = timePct == null ? 'transparent' : timePct <= 0.15 ? 'rgba(239,68,68,0.07)' : timePct <= 0.4 ? 'rgba(245,158,11,0.07)' : 'transparent';
+
+    const chip = (color, border, bg, label) => (
+      <span style={{ fontSize:10, fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', padding:'4px 10px', borderRadius:99, border:`1px solid ${border}`, color, background:bg }}>{label}</span>
+    );
+
+    const arrowBtn = (dir) => {
+      const atEnd = dir === -1 ? safeIdx === 0 : safeIdx === sorted.length - 1;
+      return (
+        <button onClick={() => !atEnd && setCaseCarouselIdx(i => Math.max(0, Math.min(sorted.length - 1, i + dir)))}
+          disabled={atEnd} aria-label={dir === -1 ? 'Previous case' : 'Next case'}
+          style={{ width:36, height:36, borderRadius:'50%', background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', color: atEnd ? 'rgba(255,255,255,0.15)' : '#8AABCC', fontSize:22, lineHeight:1, cursor: atEnd ? 'default' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'all .15s' }}>
+          {dir === -1 ? '‹' : '›'}
+        </button>
+      );
+    };
+
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {openCases.map(c => {
-          const companyName  = c.client?.client_profiles?.company_name || c.client?.full_name;
-          const alreadyApplied = appliedCaseIds.has(c.id);
-          const appCount     = c.applications?.[0]?.count ?? 0;
-          return (
-            <div key={c.id} className={`bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow ${canViewRanking ? "cursor-pointer" : ""}`}
-              onClick={canViewRanking ? () => setArenaSelected(c) : undefined}>
-              <div className="flex items-start gap-3 mb-2">
-                <ProjectAvatar project={c.project ?? { name: companyName || c.title, client: c.client }} size={40} className="flex-shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-semibold text-gray-900 text-sm leading-snug">{c.title}</h3>
-                    <Badge className={PRIORITY_COLORS[c.priority]}>{PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}</Badge>
-                  </div>
-                  {companyName && <p className="text-xs text-blue-600 font-medium mt-0.5">{companyName}</p>}
+      <div>
+        <style>{`@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&display=swap');`}</style>
+
+        {/* Sort bar */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14, flexWrap:'wrap', gap:8 }}>
+          <span style={{ fontSize:12, color:'#6B8AB8', fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase' }}>
+            {sorted.length === 1 ? t('arena.open_count_one') : t('arena.open_count_many').replace('{n}', sorted.length)}
+          </span>
+          <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+            <span style={{ fontSize:11, color:'#4A6B9A', textTransform:'uppercase', letterSpacing:'0.1em', marginRight:2 }}>Sort</span>
+            {['match','deadline','budget'].map(key => (
+              <button key={key} onClick={() => { setCaseSort(key); setCaseCarouselIdx(0); }}
+                style={{ background: caseSort === key ? '#1A4B8C' : 'rgba(255,255,255,0.06)', border:`1px solid ${caseSort === key ? '#2563EB' : 'rgba(255,255,255,0.1)'}`, borderRadius:99, color: caseSort === key ? '#fff' : '#8AABCC', fontSize:11, fontWeight:600, letterSpacing:'0.06em', padding:'5px 14px', cursor:'pointer', textTransform:'uppercase', transition:'all .15s' }}>
+                {key.charAt(0).toUpperCase() + key.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Card */}
+        <div style={{ background:'#0D1B35', borderRadius:22, border:'1px solid rgba(255,255,255,0.07)', overflow:'hidden', position:'relative' }}>
+          {/* Left match stripe */}
+          <div style={{ position:'absolute', left:0, top:'20%', bottom:'20%', width:3, borderRadius:'0 3px 3px 0', background:mc, boxShadow:`0 0 12px ${mc}` }} />
+
+          {/* Time strip */}
+          <div style={{ height:4, background:'rgba(255,255,255,0.06)', position:'relative', overflow:'hidden' }}>
+            {timePct != null && (
+              <div style={{ position:'absolute', left:0, top:0, bottom:0, width:`${timePct * 100}%`, background:tc, boxShadow:`0 0 8px ${tc}` }} />
+            )}
+          </div>
+
+          <div style={{ padding:'24px 28px 22px', display:'flex', flexDirection:'column', gap:18 }}>
+
+            {/* Hero: ring + match info */}
+            <div style={{ display:'flex', alignItems:'center', gap:20 }}>
+              <div style={{ position:'relative', width:96, height:96, flexShrink:0 }}>
+                <svg viewBox="0 0 96 96" fill="none" style={{ position:'absolute', inset:0, width:'100%', height:'100%' }}>
+                  <circle cx={svgCx} cy={svgCy} r={svgR} stroke="rgba(255,255,255,0.08)" strokeWidth="6"/>
+                  {score != null && (
+                    <circle cx={svgCx} cy={svgCy} r={svgR}
+                      stroke={mc} strokeWidth="6"
+                      strokeDasharray={`${circ.toFixed(1)}`}
+                      strokeDashoffset={`${(circ - filled).toFixed(1)}`}
+                      strokeLinecap="round"
+                      transform={`rotate(-90 ${svgCx} ${svgCy})`}
+                      style={{ filter:`drop-shadow(0 0 7px ${mcDim})` }}
+                    />
+                  )}
+                </svg>
+                <div style={{ position:'absolute', inset:12, borderRadius:'50%', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  <ProjectAvatar project={c.project ?? { name: companyName || c.title, client: c.client }} size={72} />
                 </div>
               </div>
-              <div className="flex flex-wrap gap-1 mb-2">
-                {c.area_sap      && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{c.area_sap}</span>}
-                {c.area_industry && <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg text-xs font-medium">{c.area_industry}</span>}
-              </div>
-              {c.description && <p className="text-xs text-gray-400 line-clamp-2 mb-3">{c.description}</p>}
-              <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 mb-3">
-                {c.start_date && <span>{t("arena.label_starts")}{fmtDate(c.start_date)}</span>}
-                {c.due_date   && <span>{t("arena.label_due")}{fmtDate(c.due_date)}</span>}
-                {c.budget     && <span>{t("arena.label_budget")}{Number(c.budget).toLocaleString()}</span>}
-              </div>
-              {c.skills_required?.length > 0 && (
-                <div className="flex flex-wrap gap-1 mb-3">
-                  {c.skills_required.slice(0, 3).map(s => (
-                    <span key={s} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">{s}</span>
-                  ))}
-                </div>
-              )}
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-xs text-gray-400">{appCount === 1 ? t("arena.applicant_one") : t("arena.applicant_many").replace("{n}", appCount)}</span>
-                {auth.isConsultant && (
-                  alreadyApplied
-                    ? <span className="text-xs text-green-600 font-semibold"><><Check size={10} className="mr-0.5 inline" />{t("arena.applied")}</></span>
-                    : <button onClick={() => setApplying(c)}
-                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors">
-                        {t("arena.apply")}
-                      </button>
+              <div style={{ flex:1, minWidth:0 }}>
+                {score != null ? (
+                  <>
+                    <div style={{ fontFamily:"'Barlow Condensed', sans-serif", fontSize:52, fontWeight:800, lineHeight:1, color:mc, textShadow:`0 0 24px ${mcDim}`, letterSpacing:'-0.01em' }}>
+                      {score}<span style={{ fontSize:26, opacity:0.55 }}>%</span>
+                    </div>
+                    <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:'#4A6B9A', marginTop:4 }}>Match score</div>
+                    {(c.skills_required?.length ?? 0) > 0 && (
+                      <div style={{ fontSize:11, color:'#5B7FA8', marginTop:5, lineHeight:1.4 }}>
+                        {c.skills_required.filter(s => mySkills.has(String(s).toLowerCase())).length} of {c.skills_required.length} required skills matched
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div style={{ fontSize:14, color:'#8AABCC', fontWeight:600 }}>{companyName || c.title}</div>
                 )}
               </div>
             </div>
-          );
-        })}
+
+            {/* Title + description */}
+            <div>
+              <div style={{ fontFamily:"'Barlow Condensed', sans-serif", fontSize:26, fontWeight:700, letterSpacing:'0.02em', color:'#fff', lineHeight:1.2 }}>
+                {c.title}
+              </div>
+              {c.description && (
+                <div style={{ fontSize:13, color:'#5B7FA8', lineHeight:1.55, marginTop:6 }}>
+                  {c.description}
+                </div>
+              )}
+            </div>
+
+            {/* Chips */}
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
+              {c.area_sap      && chip('#00C8FF', 'rgba(0,200,255,0.3)',    'rgba(0,200,255,0.07)',   c.area_sap)}
+              {c.area_industry && chip('#7DBBDC', 'rgba(125,187,220,0.3)',  'rgba(125,187,220,0.07)', c.area_industry)}
+              {c.budget        && chip('#10B981', 'rgba(16,185,129,0.3)',   'rgba(16,185,129,0.07)',  `$${Number(c.budget).toLocaleString()}`)}
+              {daysLeft != null && chip(dayChipColor, dayChipBorder, dayChipBg, daysLeft === 1 ? '1 day left' : `${daysLeft} days left`)}
+              {companyName     && chip('#8AABCC', 'rgba(255,255,255,0.1)',  'transparent',            companyName)}
+            </div>
+
+            {/* Divider */}
+            <div style={{ height:1, background:'rgba(255,255,255,0.06)' }} />
+
+            {/* Applicant strip */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                {appCount > 0 && (
+                  <div style={{ display:'flex', alignItems:'center' }}>
+                    {[...Array(Math.min(3, appCount))].map((_, i) => (
+                      <div key={i} style={{ width:32, height:32, borderRadius:'50%', border:'2px solid #0D1B35', background:['#10B981','#3B82F6','#8B5CF6'][i], display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#fff', marginLeft: i === 0 ? 0 : -10, flexShrink:0, fontFamily:"'Barlow Condensed',sans-serif", letterSpacing:'0.04em' }}>
+                        #{i + 1}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <span style={{ fontSize:12, color:'#4A6B9A', fontWeight:500 }}>
+                  {appCount === 1 ? t('arena.applicant_one') : t('arena.applicant_many').replace('{n}', appCount)}
+                </span>
+              </div>
+              {canViewRanking && (
+                <button onClick={() => setArenaSelected(c)}
+                  style={{ background:'transparent', border:'1px solid rgba(255,255,255,0.12)', borderRadius:10, color:'#8AABCC', fontSize:11, fontWeight:600, padding:'6px 14px', cursor:'pointer', whiteSpace:'nowrap', letterSpacing:'0.02em', transition:'all .15s' }}>
+                  View ranking ›
+                </button>
+              )}
+            </div>
+
+            {/* Apply CTA */}
+            {auth.isConsultant && (
+              alreadyApplied ? (
+                <button disabled style={{ width:'100%', background:'rgba(16,185,129,0.12)', border:'1px solid rgba(16,185,129,0.3)', borderRadius:14, color:'#10B981', fontSize:15, fontWeight:600, padding:'13px', cursor:'default', letterSpacing:'0.02em', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                  <Check size={14} />{t('arena.applied')}
+                </button>
+              ) : (
+                <button onClick={() => setApplying(c)}
+                  style={{ width:'100%', background:'linear-gradient(135deg,#1A4B8C,#2563EB)', border:'none', borderRadius:14, color:'#fff', fontSize:15, fontWeight:600, padding:'13px', cursor:'pointer', letterSpacing:'0.02em', boxShadow:'0 4px 20px rgba(37,99,235,0.25)', transition:'all .2s' }}>
+                  {t('arena.apply')}
+                </button>
+              )
+            )}
+          </div>
+        </div>
+
+        {/* Nav: arrows + dots + counter */}
+        <div style={{ marginTop:14, display:'flex', flexDirection:'column', alignItems:'center', gap:10 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            {arrowBtn(-1)}
+            <div style={{ display:'flex', gap:7, alignItems:'center' }}>
+              {sorted.map((_, i) => (
+                <button key={i} onClick={() => setCaseCarouselIdx(i)}
+                  aria-label={`Case ${i + 1}`}
+                  style={{ width: i === safeIdx ? 22 : 7, height:7, borderRadius:4, background: i === safeIdx ? '#2563EB' : 'rgba(255,255,255,0.15)', border:'none', cursor:'pointer', transition:'all .2s', padding:0 }} />
+              ))}
+            </div>
+            {arrowBtn(1)}
+          </div>
+          <span style={{ fontSize:11, color:'#4A6B9A', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase' }}>
+            {safeIdx + 1} of {sorted.length}
+          </span>
+        </div>
       </div>
     );
   };
