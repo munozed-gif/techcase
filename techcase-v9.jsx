@@ -8388,6 +8388,7 @@ function ProfileCompleteWizard({ auth, onDone, onClose }) {
         years_experience: yearsExp ? parseInt(yearsExp, 10) : null,
         hourly_rate: hourlyRate ? parseFloat(hourlyRate) : null,
         expertise_level: expertiseLvl,
+        availability_type: 'project_based',
       }, { onConflict: "id" });
       if (cpErr) { setError(cpErr.message); setSaving(false); return; }
       // Insert AI-extracted work experience
