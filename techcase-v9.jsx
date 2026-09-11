@@ -5116,17 +5116,26 @@ const TRANSLATIONS = {
 
 const LanguageContext = createContext({ lang: "en", setLang: () => {}, t: k => k });
 
-function LanguageProvider({ children, userId }) {
+function LanguageProvider({ children, userId, initialLang }) {
   const [lang, setLangState] = useState(() => {
+    // Profile language takes priority over anything cached locally
+    if (initialLang && TRANSLATIONS[initialLang]) return initialLang;
     try {
       const saved = localStorage.getItem("tc_lang");
       return saved && TRANSLATIONS[saved] ? saved : "en";
     } catch { return "en"; }
   });
 
-  // Sync language preference from DB when user is known
+  // Apply profile language whenever it becomes available after mount
   useEffect(() => {
-    if (!userId) return;
+    if (!initialLang || !TRANSLATIONS[initialLang]) return;
+    setLangState(initialLang);
+    try { localStorage.setItem("tc_lang", initialLang); } catch {}
+  }, [initialLang]);
+
+  // Fallback DB sync when initialLang is not available (e.g. onboarding screens)
+  useEffect(() => {
+    if (!userId || initialLang) return;
     supabase.from("users").select("language_pref").eq("id", userId).maybeSingle()
       .then(({ data }) => {
         if (data?.language_pref && TRANSLATIONS[data.language_pref]) {
@@ -5134,7 +5143,7 @@ function LanguageProvider({ children, userId }) {
           try { localStorage.setItem("tc_lang", data.language_pref); } catch {}
         }
       });
-  }, [userId]);
+  }, [userId, initialLang]);
 
   function setLang(newLang) {
     if (!TRANSLATIONS[newLang]) return;
@@ -40327,7 +40336,7 @@ export default function App() {
     }
     return (
       <SystemSettingsProvider>
-        <LanguageProvider userId={auth.user?.id}>
+        <LanguageProvider userId={auth.user?.id} initialLang={auth.profile?.language_pref}>
           <div className={bg}>{inner}</div>
         </LanguageProvider>
       </SystemSettingsProvider>
@@ -40397,7 +40406,7 @@ export default function App() {
 
   return (
     <SystemSettingsProvider>
-      <LanguageProvider userId={auth.user?.id}>
+      <LanguageProvider userId={auth.user?.id} initialLang={auth.profile?.language_pref}>
         <StartDateMonitor auth={auth} />
         <div className="min-h-screen bg-[#EAF4FD]">
           <Sidebar
