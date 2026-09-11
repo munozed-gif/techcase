@@ -27030,6 +27030,7 @@ function ArenaView({ auth }) {
   const { templates: arenaLcTemplates } = useLifecycleTemplates();
   const [caseSort, setCaseSort] = useState('match');
   const [caseCarouselIdx, setCaseCarouselIdx] = useState(0);
+  const [solarCase, setSolarCase] = useState(null);
 
   function toggleCompare(id) {
     setCompareSet(prev =>
@@ -27078,7 +27079,7 @@ function ArenaView({ auth }) {
   const renderCases = () => {
     if (casesLoading) return <Spinner />;
     if (openCases.length === 0) return (
-      <div style={{ background:'#0D1B35', borderRadius:16, padding:'48px 24px', textAlign:'center', color:'#4A6B9A', fontSize:14 }}>
+      <div style={{ background:'#1a3560', borderRadius:16, padding:'48px 24px', textAlign:'center', color:'#7aa3c8', fontSize:14 }}>
         {t("arena.no_cases")}
       </div>
     );
@@ -27169,7 +27170,7 @@ function ArenaView({ auth }) {
         </div>
 
         {/* Card */}
-        <div style={{ background:'#0D1B35', borderRadius:22, border:'1px solid rgba(255,255,255,0.07)', overflow:'hidden', position:'relative' }}>
+        <div style={{ background:'#1a3560', borderRadius:22, border:'1px solid rgba(255,255,255,0.12)', overflow:'hidden', position:'relative' }}>
           {/* Left match stripe */}
           <div style={{ position:'absolute', left:0, top:'20%', bottom:'20%', width:3, borderRadius:'0 3px 3px 0', background:mc, boxShadow:`0 0 12px ${mc}` }} />
 
@@ -27251,7 +27252,7 @@ function ArenaView({ auth }) {
                 {appCount > 0 && (
                   <div style={{ display:'flex', alignItems:'center' }}>
                     {[...Array(Math.min(3, appCount))].map((_, i) => (
-                      <div key={i} style={{ width:32, height:32, borderRadius:'50%', border:'2px solid #0D1B35', background:['#10B981','#3B82F6','#8B5CF6'][i], display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#fff', marginLeft: i === 0 ? 0 : -10, flexShrink:0, fontFamily:"'Barlow Condensed',sans-serif", letterSpacing:'0.04em' }}>
+                      <div key={i} style={{ width:32, height:32, borderRadius:'50%', border:'2px solid #1a3560', background:['#10B981','#3B82F6','#8B5CF6'][i], display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#fff', marginLeft: i === 0 ? 0 : -10, flexShrink:0, fontFamily:"'Barlow Condensed',sans-serif", letterSpacing:'0.04em' }}>
                         #{i + 1}
                       </div>
                     ))}
@@ -27261,12 +27262,17 @@ function ArenaView({ auth }) {
                   {appCount === 1 ? t('arena.applicant_one') : t('arena.applicant_many').replace('{n}', appCount)}
                 </span>
               </div>
-              {canViewRanking && (
+              {canViewRanking ? (
                 <button onClick={() => setArenaSelected(c)}
                   style={{ background:'transparent', border:'1px solid rgba(255,255,255,0.12)', borderRadius:10, color:'#8AABCC', fontSize:11, fontWeight:600, padding:'6px 14px', cursor:'pointer', whiteSpace:'nowrap', letterSpacing:'0.02em', transition:'all .15s' }}>
                   View ranking ›
                 </button>
-              )}
+              ) : auth.isConsultant ? (
+                <button onClick={() => setSolarCase(c)}
+                  style={{ background:'transparent', border:'1px solid rgba(255,255,255,0.12)', borderRadius:10, color:'#8AABCC', fontSize:11, fontWeight:600, padding:'6px 14px', cursor:'pointer', whiteSpace:'nowrap', letterSpacing:'0.02em', transition:'all .15s' }}>
+                  View leaderboard ›
+                </button>
+              ) : null}
             </div>
 
             {/* Apply CTA */}
@@ -27630,6 +27636,167 @@ function ArenaView({ auth }) {
     );
   };
 
+  const renderSolarModal = () => {
+    if (!solarCase) return null;
+    const c = solarCase;
+    const cpObj = Array.isArray(auth.profile?.consultant_profiles)
+      ? auth.profile.consultant_profiles[0]
+      : auth.profile?.consultant_profiles;
+    const mySkills = new Set((cpObj?.skills ?? []).map(s => String(s).toLowerCase()));
+    const score = (() => {
+      const req = c.skills_required ?? [];
+      if (req.length === 0) return 50;
+      const hits = req.filter(s => mySkills.has(String(s).toLowerCase())).length;
+      return Math.round(Math.max(5, Math.min(100, (hits / req.length) * 70 + 30)));
+    })();
+    const mc    = score >= 75 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444';
+    const mcDim = score >= 75 ? 'rgba(16,185,129,0.4)' : score >= 50 ? 'rgba(245,158,11,0.4)' : 'rgba(239,68,68,0.4)';
+    const now = Date.now();
+    const dueMs   = c.due_date    ? new Date(c.due_date).getTime()   : null;
+    const startMs = c.start_date  ? new Date(c.start_date).getTime() : null;
+    const daysLeft  = dueMs  ? Math.max(0, Math.ceil((dueMs - now) / 86400000))  : null;
+    const totalDays = (dueMs && startMs) ? Math.max(1, Math.ceil((dueMs - startMs) / 86400000)) : 14;
+    const timePct   = daysLeft != null ? Math.max(0, Math.min(1, daysLeft / totalDays)) : null;
+    const tc        = timePct == null ? '#6B8AB8' : timePct <= 0.15 ? '#EF4444' : timePct <= 0.4 ? '#F59E0B' : '#10B981';
+    const arcDim    = tc === '#EF4444' ? 'rgba(239,68,68,0.3)' : tc === '#F59E0B' ? 'rgba(245,158,11,0.3)' : 'rgba(16,185,129,0.3)';
+    const appCount     = c.applications?.[0]?.count ?? 0;
+    const alreadyApplied = appliedCaseIds.has(c.id);
+    const companyName  = c.client?.client_profiles?.company_name || c.client?.full_name;
+    const orbColors = ['#10B981','#3B82F6','#8B5CF6','#EC4899','#F59E0B','#0EA5E9','#F97316'];
+    const sysSize = Math.min(380, typeof window !== 'undefined' ? window.innerWidth * 0.82 : 380);
+    const innerR = sysSize * 0.24, outerR = sysSize * 0.355, timeR = sysSize * 0.46;
+    const timeCirc = 2 * Math.PI * timeR;
+    const timeFilled = timePct != null ? timeCirc * timePct : 0;
+    const otherCount = Math.max(0, appCount - (alreadyApplied ? 1 : 0));
+    const innerSlots = Math.min(2, otherCount);
+    const outerSlots = Math.min(5, Math.max(0, otherCount - innerSlots));
+
+    function OrbiterNode({ label, color, r, slotIdx, total, dur, isYou }) {
+      const startDeg = (slotIdx / Math.max(total, 1)) * 360 + (r === innerR ? 0 : 40);
+      return (
+        <div style={{ position:'absolute', top:'50%', left:'50%', width:0, height:0,
+          animation:`arena-solar-orbit ${dur}s linear infinite`,
+          '--start':`${startDeg}deg`, '--r':`${r}px` }}>
+          <div style={{ position:'absolute', width:44, height:44, margin:-22, borderRadius:'50%', background:color,
+            border: isYou ? '2px solid #00C8FF' : '2px solid rgba(0,0,0,0.25)',
+            boxShadow: isYou ? '0 0 16px rgba(0,200,255,0.5)' : 'none',
+            display:'flex', alignItems:'center', justifyContent:'center',
+            fontFamily:"'Barlow Condensed',sans-serif", fontSize:12, fontWeight:700, color:'#fff' }}>
+            {label}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ position:'fixed', inset:0, background:'rgba(3,7,18,0.94)', backdropFilter:'blur(12px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:20 }}
+        onClick={e => { if (e.target === e.currentTarget) setSolarCase(null); }}>
+        <style>{`
+          @keyframes arena-solar-orbit {
+            from { transform: rotate(var(--start)) translateX(var(--r)) rotate(calc(-1 * var(--start))); }
+            to   { transform: rotate(calc(var(--start) + 360deg)) translateX(var(--r)) rotate(calc(-1 * (var(--start) + 360deg))); }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            [style*="arena-solar-orbit"] { animation: none !important; }
+          }
+        `}</style>
+        <button onClick={() => setSolarCase(null)}
+          style={{ position:'absolute', top:20, right:20, background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:'50%', width:36, height:36, color:'#8AABCC', fontSize:18, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', lineHeight:1 }}>
+          ✕
+        </button>
+
+        <div style={{ display:'flex', gap:32, alignItems:'center', flexWrap:'wrap', justifyContent:'center', maxWidth:860, width:'100%' }}>
+
+          {/* Solar system */}
+          <div style={{ position:'relative', width:sysSize, height:sysSize, flexShrink:0 }}>
+            {[innerR, outerR].map(r => (
+              <div key={r} style={{ position:'absolute', borderRadius:'50%', border:'1px solid rgba(255,255,255,0.07)', top:'50%', left:'50%', width:r*2, height:r*2, transform:'translate(-50%,-50%)' }} />
+            ))}
+            <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%', overflow:'visible' }} viewBox={`0 0 ${sysSize} ${sysSize}`}>
+              <circle cx={sysSize/2} cy={sysSize/2} r={timeR} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="6"/>
+              {timePct != null && (
+                <circle cx={sysSize/2} cy={sysSize/2} r={timeR} fill="none" stroke={tc} strokeWidth="6"
+                  strokeDasharray={`${timeFilled.toFixed(1)} ${(timeCirc-timeFilled).toFixed(1)}`}
+                  strokeLinecap="round" transform={`rotate(-90 ${sysSize/2} ${sysSize/2})`}
+                  style={{ filter:`drop-shadow(0 0 8px ${arcDim})` }}/>
+              )}
+            </svg>
+            <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:108, height:108, borderRadius:'50%', background:'radial-gradient(circle at 35% 35%,#1A4B8C,#080F1E)', border:'2px solid rgba(0,200,255,0.3)', boxShadow:'0 0 40px rgba(0,200,255,0.15),0 0 0 8px rgba(0,200,255,0.05)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', zIndex:10 }}>
+              <ProjectAvatar project={c.project ?? { name: companyName || c.title, client: c.client }} size={80} />
+            </div>
+            {[...Array(innerSlots)].map((_, i) => (
+              <OrbiterNode key={`in${i}`} label={`#${i+1}`} color={orbColors[i % orbColors.length]} r={innerR} slotIdx={i} total={innerSlots + (alreadyApplied ? 1 : 0)} dur={10} isYou={false} />
+            ))}
+            {alreadyApplied && (
+              <OrbiterNode label="You" color="#00C8FF" r={innerR} slotIdx={innerSlots} total={innerSlots + 1} dur={10} isYou={true} />
+            )}
+            {[...Array(outerSlots)].map((_, i) => (
+              <OrbiterNode key={`out${i}`} label={`#${innerSlots+i+1}`} color={orbColors[(innerSlots+i) % orbColors.length]} r={outerR} slotIdx={i} total={Math.max(outerSlots,1)} dur={17} isYou={false} />
+            ))}
+            {daysLeft != null && (
+              <div style={{ position:'absolute', bottom:6, left:'50%', transform:'translateX(-50%)', fontSize:10, fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', color:tc, whiteSpace:'nowrap' }}>
+                {daysLeft === 1 ? '1 day' : `${daysLeft} days`} left to apply
+              </div>
+            )}
+          </div>
+
+          {/* Info panel */}
+          <div style={{ flex:1, minWidth:200, maxWidth:260, color:'#E8F0FE', fontFamily:"'Inter',sans-serif" }}>
+            <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:56, fontWeight:800, lineHeight:1, color:mc, textShadow:`0 0 30px ${mcDim}`, marginBottom:4 }}>
+              {score}%
+            </div>
+            <div style={{ fontSize:11, color:'#4A6B9A', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:14 }}>Your match score</div>
+            <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:24, fontWeight:800, color:'#fff', lineHeight:1.15, marginBottom:12 }}>
+              {c.title}
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:7, marginBottom:18 }}>
+              {companyName && <div style={{ display:'flex', gap:8 }}><span style={{ fontSize:10, fontWeight:600, color:'#4A6B9A', letterSpacing:'0.1em', textTransform:'uppercase', width:56, flexShrink:0 }}>Client</span><span style={{ fontSize:13, color:'#C8D8F0' }}>{companyName}</span></div>}
+              {c.area_sap   && <div style={{ display:'flex', gap:8 }}><span style={{ fontSize:10, fontWeight:600, color:'#4A6B9A', letterSpacing:'0.1em', textTransform:'uppercase', width:56, flexShrink:0 }}>Module</span><span style={{ fontSize:13, color:'#C8D8F0' }}>{c.area_sap}</span></div>}
+              {c.budget     && <div style={{ display:'flex', gap:8 }}><span style={{ fontSize:10, fontWeight:600, color:'#4A6B9A', letterSpacing:'0.1em', textTransform:'uppercase', width:56, flexShrink:0 }}>Budget</span><span style={{ fontSize:13, color:'#C8D8F0' }}>${Number(c.budget).toLocaleString()}</span></div>}
+              <div style={{ display:'flex', gap:8 }}><span style={{ fontSize:10, fontWeight:600, color:'#4A6B9A', letterSpacing:'0.1em', textTransform:'uppercase', width:56, flexShrink:0 }}>Applied</span><span style={{ fontSize:13, color:'#C8D8F0' }}>{appCount} consultant{appCount !== 1 ? 's' : ''}</span></div>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:16 }}>
+              {[...Array(Math.min(appCount, 5))].map((_, i) => (
+                <div key={i} style={{ display:'flex', alignItems:'center', gap:10, background:'rgba(255,255,255,0.04)', borderRadius:10, padding:'7px 12px', border:'1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:16, fontWeight:700, width:20, textAlign:'center', color: i===0?'#F59E0B':i===1?'#94A3B8':i===2?'#92714B':'#4A6B9A' }}>{i+1}</div>
+                  <div style={{ width:28, height:28, borderRadius:'50%', background:orbColors[i%orbColors.length], display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff', fontFamily:"'Barlow Condensed',sans-serif" }}>#{i+1}</div>
+                  <div style={{ flex:1, fontSize:12, color:'#C8D8F0' }}>Consultant</div>
+                </div>
+              ))}
+              {!alreadyApplied && auth.isConsultant && (
+                <div style={{ display:'flex', alignItems:'center', gap:10, background:'rgba(0,200,255,0.06)', borderRadius:10, padding:'7px 12px', border:'1px dashed rgba(0,200,255,0.25)' }}>
+                  <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:16, fontWeight:700, width:20, textAlign:'center', color:'#00C8FF' }}>?</div>
+                  <div style={{ width:28, height:28, borderRadius:'50%', background:'rgba(0,200,255,0.15)', border:'1.5px dashed rgba(0,200,255,0.5)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#00C8FF' }}>Me</div>
+                  <div style={{ flex:1, fontSize:12, color:'#5B9ED6' }}>Your position if you apply</div>
+                  <div style={{ fontSize:12, fontWeight:700, color:mc }}>{score}</div>
+                </div>
+              )}
+              {alreadyApplied && (
+                <div style={{ display:'flex', alignItems:'center', gap:10, background:'rgba(0,200,255,0.06)', borderRadius:10, padding:'7px 12px', border:'1px solid rgba(0,200,255,0.3)' }}>
+                  <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:16, fontWeight:700, width:20, textAlign:'center', color:'#00C8FF' }}>✓</div>
+                  <div style={{ width:28, height:28, borderRadius:'50%', background:'#00C8FF', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#060D1A' }}>Me</div>
+                  <div style={{ flex:1, fontSize:12, color:'#00C8FF', fontWeight:600 }}>You applied — score {score}</div>
+                </div>
+              )}
+            </div>
+            {auth.isConsultant && (
+              alreadyApplied ? (
+                <button disabled style={{ width:'100%', background:'rgba(16,185,129,0.12)', border:'1px solid rgba(16,185,129,0.3)', borderRadius:12, color:'#10B981', fontSize:14, fontWeight:600, padding:12, cursor:'default', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                  <Check size={14} /> Applied ✓
+                </button>
+              ) : (
+                <button onClick={() => { setSolarCase(null); setApplying(c); }}
+                  style={{ width:'100%', background:'linear-gradient(135deg,#1A4B8C,#2563EB)', border:'none', borderRadius:12, color:'#fff', fontSize:14, fontWeight:600, padding:12, cursor:'pointer', letterSpacing:'0.02em', boxShadow:'0 4px 20px rgba(37,99,235,0.3)', transition:'all .2s' }}>
+                  Apply for this Case
+                </button>
+              )
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const arenaTabs = [
     { id: "cases",       label: t("arena.open_cases"),  icon: Briefcase,  count: openCases.length > 0 ? openCases.length : null },
     { id: "leaderboard", label: t("arena.leaderboard"), icon: Trophy,     count: null },
@@ -27736,19 +27903,6 @@ function ArenaView({ auth }) {
             reviewApplication={handleArenaReviewApplication}
           />
         </div>
-      </div>
-    );
-  }
-
-  // Consultants get the case carousel directly — no outer section carousel
-  if (auth.isConsultant) {
-    return (
-      <div>
-        <div className="mb-5">
-          <h1 className="text-2xl font-bold text-gray-900">{t("arena.title")}</h1>
-          <p className="text-gray-500 text-sm mt-1">{t("arena.subtitle")}</p>
-        </div>
-        {renderCases()}
       </div>
     );
   }
@@ -27883,6 +28037,9 @@ function ArenaView({ auth }) {
           </div>
         );
       })()}
+
+      {/* Solar system leaderboard modal */}
+      {solarCase && renderSolarModal()}
 
       {/* Floating compare bar */}
       {compareSet.length >= 2 && (
