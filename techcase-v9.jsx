@@ -9036,7 +9036,10 @@ function ConsultantProfileView({ userId, onBack }) {
   const [cpEditingProj, setCpEditingProj] = useState(null);
   const [cpSaving, setCpSaving] = useState(false);
   const EMPTY_CP_PROJ = { title: '', consulting_company: '', client_name: '', role: '', url: '', description: '', _tech: '' };
+  const EMPTY_CP_CUST = { company_name: '', role_held: '', start_date: '', end_date: '', description: '' };
   const [cpNewProj, setCpNewProj] = useState(null);
+  const [cpNewCust, setCpNewCust] = useState(null);
+  const [cpEditingCust, setCpEditingCust] = useState(null);
 
   async function handleCpSaveProj() {
     if (!cpEditingProj) return;
@@ -9070,6 +9073,48 @@ function ConsultantProfileView({ userId, onBack }) {
       setCpNewProj(null);
     } catch (e) { alert(e.message); }
     setCpSaving(false);
+  }
+
+  async function handleCpAddCust() {
+    if (!cpNewCust?.company_name) return;
+    setCpSaving(true);
+    try {
+      const { data: inserted, error: err } = await supabase
+        .from('consultant_customers').insert({ ...cpNewCust, consultant_id: targetUserId }).select().single();
+      if (err) throw err;
+      setCpData(prev => prev ? {
+        ...prev,
+        consultant_customers: [...(prev.consultant_customers ?? []), inserted],
+      } : prev);
+      setCpNewCust(null);
+    } catch (e) { alert(e.message); }
+    setCpSaving(false);
+  }
+
+  async function handleCpSaveCust() {
+    if (!cpEditingCust) return;
+    setCpSaving(true);
+    try {
+      const { id, ...data } = cpEditingCust;
+      const { error: err } = await supabase.from('consultant_customers').update(data).eq('id', id);
+      if (err) throw err;
+      setCpData(prev => prev ? {
+        ...prev,
+        consultant_customers: prev.consultant_customers.map(c => c.id === id ? { ...c, ...data } : c),
+      } : prev);
+      setCpEditingCust(null);
+    } catch (e) { alert(e.message); }
+    setCpSaving(false);
+  }
+
+  async function handleCpDeleteCust(id) {
+    if (!window.confirm('Delete this company?')) return;
+    const { error: err } = await supabase.from('consultant_customers').delete().eq('id', id);
+    if (err) { alert(err.message); return; }
+    setCpData(prev => prev ? {
+      ...prev,
+      consultant_customers: prev.consultant_customers.filter(c => c.id !== id),
+    } : prev);
   }
 
   async function handleCpDeleteProj(id) {
@@ -9658,6 +9703,103 @@ function ConsultantProfileView({ userId, onBack }) {
                       {t("action.cancel")}
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* Work Experience Companies */}
+              {isOwnProfile && (
+                <div className="border border-gray-200 rounded-2xl overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("profile.past_customers")}</span>
+                    {!cpNewCust && !cpEditingCust && (
+                      <button onClick={() => setCpNewCust({ ...EMPTY_CP_CUST })}
+                        className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700">
+                        <Plus className="w-3.5 h-3.5" />{t("profile.add_customer_btn")}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Add company form */}
+                  {cpNewCust && (
+                    <div className="p-4 bg-green-50 border-b border-green-100">
+                      <p className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-3">{t("profile.add_customer")}</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input label={t("profile.company_name")} value={cpNewCust.company_name} onChange={e => setCpNewCust(p => ({ ...p, company_name: e.target.value }))} />
+                        <Input label={t("profile.role_held")} value={cpNewCust.role_held} onChange={e => setCpNewCust(p => ({ ...p, role_held: e.target.value }))} />
+                        <Input label={t("label.start_date")} type="date" value={cpNewCust.start_date} onChange={e => setCpNewCust(p => ({ ...p, start_date: e.target.value }))} />
+                        <Input label={t("label.end_date")} type="date" value={cpNewCust.end_date} onChange={e => setCpNewCust(p => ({ ...p, end_date: e.target.value }))} placeholder={t("profile.blank_if_curr")} />
+                      </div>
+                      <Textarea label={t("label.description")} value={cpNewCust.description} onChange={e => setCpNewCust(p => ({ ...p, description: e.target.value }))} />
+                      <div className="flex gap-2 mt-2">
+                        <button onClick={handleCpAddCust} disabled={cpSaving || !cpNewCust.company_name}
+                          className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50">
+                          {cpSaving ? t("profile.saving") : t("profile.add_customer_btn")}
+                        </button>
+                        <button onClick={() => setCpNewCust(null)}
+                          className="px-3 py-1.5 border border-gray-200 text-xs font-semibold text-gray-600 rounded-lg hover:bg-gray-50">
+                          {t("action.cancel")}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Company list */}
+                  {(cpData?.consultant_customers?.length ?? 0) === 0 && !cpNewCust ? (
+                    <p className="text-sm text-gray-400 p-4">{t("profile.no_customers")}</p>
+                  ) : (
+                    <div className="divide-y divide-gray-50">
+                      {(cpData?.consultant_customers ?? []).map(c => (
+                        <div key={c.id} className="p-4">
+                          {cpEditingCust?.id === c.id ? (
+                            <div className="space-y-2">
+                              <div className="grid grid-cols-2 gap-2">
+                                <Input label={t("profile.company_name")} value={cpEditingCust.company_name} onChange={e => setCpEditingCust(p => ({ ...p, company_name: e.target.value }))} />
+                                <Input label={t("profile.role_held")} value={cpEditingCust.role_held ?? ''} onChange={e => setCpEditingCust(p => ({ ...p, role_held: e.target.value }))} />
+                                <Input label={t("label.start_date")} type="date" value={cpEditingCust.start_date ?? ''} onChange={e => setCpEditingCust(p => ({ ...p, start_date: e.target.value }))} />
+                                <Input label={t("label.end_date")} type="date" value={cpEditingCust.end_date ?? ''} onChange={e => setCpEditingCust(p => ({ ...p, end_date: e.target.value }))} />
+                              </div>
+                              <Textarea label={t("label.description")} value={cpEditingCust.description ?? ''} onChange={e => setCpEditingCust(p => ({ ...p, description: e.target.value }))} />
+                              <div className="flex gap-2">
+                                <button onClick={handleCpSaveCust} disabled={cpSaving}
+                                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50">
+                                  {cpSaving ? t("profile.saving") : t("action.save")}
+                                </button>
+                                <button onClick={() => setCpEditingCust(null)}
+                                  className="px-3 py-1.5 border border-gray-200 text-xs font-semibold text-gray-600 rounded-lg hover:bg-gray-50">
+                                  {t("action.cancel")}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <div className="font-medium text-sm text-gray-900">{c.company_name}</div>
+                                {c.role_held && <div className="text-xs text-gray-500 mt-0.5">{c.role_held}</div>}
+                                {(c.start_date || c.end_date) && (
+                                  <div className="text-xs text-gray-400 mt-0.5">
+                                    {c.start_date ? new Date(c.start_date).toLocaleDateString(undefined, { year:'numeric', month:'short' }) : ''}
+                                    {' – '}
+                                    {c.end_date ? new Date(c.end_date).toLocaleDateString(undefined, { year:'numeric', month:'short' }) : t("label.present")}
+                                  </div>
+                                )}
+                                {c.description && <p className="text-xs text-gray-500 mt-1">{c.description}</p>}
+                              </div>
+                              <div className="flex gap-1 flex-shrink-0">
+                                <button onClick={() => { setCpNewCust(null); setCpEditingCust({ ...c }); }}
+                                  className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-blue-600 transition-colors">
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button onClick={() => handleCpDeleteCust(c.id)}
+                                  className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors">
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
