@@ -9670,6 +9670,63 @@ function ConsultantProfileView({ userId, onBack }) {
           {/* Experience */}
           {tab.id === 'experience' && (
             <div className="space-y-4">
+              {/* AI Resume Importer */}
+              {isOwnProfile && (
+                <ResumeImporter onExtracted={async data => {
+                  // Update consultant_profiles (headline, bio, skills, etc.)
+                  const profileUpdates = {};
+                  if (data.headline)         profileUpdates.headline         = data.headline;
+                  if (data.bio)              profileUpdates.bio              = data.bio;
+                  if (data.linkedin_url)     profileUpdates.linkedin_url     = data.linkedin_url;
+                  if (data.hourly_rate)      profileUpdates.hourly_rate      = data.hourly_rate;
+                  if (data.years_experience) profileUpdates.years_experience = data.years_experience;
+                  if (data.skills?.length)   profileUpdates.skills           = data.skills;
+                  if (Object.keys(profileUpdates).length) {
+                    await supabase.from('consultant_profiles').update(profileUpdates).eq('id', targetUserId);
+                    setCpData(prev => prev ? { ...prev, ...profileUpdates } : prev);
+                  }
+                  // Add work experience companies
+                  const newCustomers = [];
+                  for (const exp of (data.work_experience ?? [])) {
+                    if (!exp.company_name) continue;
+                    const { data: ins } = await supabase.from('consultant_customers')
+                      .insert({ consultant_id: targetUserId, company_name: exp.company_name, role_held: exp.role_held ?? null, start_date: exp.start_date ?? null, end_date: exp.end_date ?? null, description: exp.description ?? null })
+                      .select().single();
+                    if (ins) newCustomers.push(ins);
+                  }
+                  // Auto-create companies for consulting_company found in projects
+                  const existingNames = new Set([
+                    ...(cpData?.consultant_customers ?? []).map(c => c.company_name.toLowerCase()),
+                    ...newCustomers.map(c => c.company_name.toLowerCase()),
+                  ]);
+                  const seenCo = new Set();
+                  for (const proj of (data.projects ?? [])) {
+                    const co = proj.consulting_company?.trim();
+                    if (co && !existingNames.has(co.toLowerCase()) && !seenCo.has(co.toLowerCase())) {
+                      seenCo.add(co.toLowerCase());
+                      const { data: ins } = await supabase.from('consultant_customers')
+                        .insert({ consultant_id: targetUserId, company_name: co }).select().single();
+                      if (ins) newCustomers.push(ins);
+                    }
+                  }
+                  // Add projects
+                  const newProjects = [];
+                  for (const proj of (data.projects ?? [])) {
+                    if (!proj.title) continue;
+                    const { data: ins } = await supabase.from('consultant_projects')
+                      .insert({ consultant_id: targetUserId, title: proj.title, consulting_company: proj.consulting_company ?? null, client_name: proj.client_name ?? null, role: proj.role ?? null, description: proj.description ?? null, tech_stack: proj.tech_stack ?? [], url: proj.url ?? null })
+                      .select().single();
+                    if (ins) newProjects.push(ins);
+                  }
+                  // Update local state
+                  setCpData(prev => prev ? {
+                    ...prev,
+                    consultant_customers: [...(prev.consultant_customers ?? []), ...newCustomers],
+                    consultant_projects:  [...(prev.consultant_projects  ?? []), ...newProjects],
+                  } : prev);
+                }} />
+              )}
+
               {/* Edit form */}
               {cpEditingProj && (
                 <div className="border border-blue-200 bg-blue-50 rounded-2xl p-4">
