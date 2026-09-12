@@ -15,7 +15,7 @@ import { useAuth } from "../hooks/useAuth.jsx";
 import {
   useMilestones, useCaseComments, useSlaConfig, useSubCases,
   useClientTeamMembers, useInvoices, useTimeEntries, useCaseActivities,
-  useCaseDocuments, useProjectDbConnections,
+  useCaseDocuments, useProjectDbConnections, getStageRules, activityAdherence,
 } from "../hooks/useCoreHooks.js";
 import { useCases, useApplications, useRatings } from "../hooks/useCaseHooks.js";
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";

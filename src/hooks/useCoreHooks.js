@@ -576,4 +576,6 @@ export {
   useCaseActivities,
   useProjectTemplates,
   useCaseDocuments,
+  getStageRules,
+  activityAdherence,
 };
