@@ -129,6 +129,7 @@ import { EmptyState, Modal, Input, Textarea, Select } from "./src/components/ui.
 // AUTH SCREEN
 // ============================================================
 import { AuthScreen } from "./src/views/AuthScreen.jsx";
+import { LandingView } from "./src/views/LandingView.jsx";
 
 
 // ============================================================
@@ -544,6 +545,7 @@ export default function App() {
   const auth = useAuth();
   const [activeView, setActiveView]       = useState("dashboard");
   const [authed, setAuthed]               = useState(false);
+  const [showAuth, setShowAuth]           = useState(false);
   const [onboardingRole, setOnboarding]   = useState(null); // role string or null
   const unreadCount                       = useUnreadCount();
   const [searchOpen, setSearchOpen]       = useState(false);
@@ -578,11 +580,15 @@ export default function App() {
   }
 
   if (!authed || !auth.user) {
+    if (!showAuth) {
+      return <LandingView onSignIn={() => setShowAuth(true)} />;
+    }
     return (
       <SystemSettingsProvider>
         <LanguageProvider userId={null}>
           <AuthScreen onAuth={(newRole = null) => {
             setAuthed(true);
+            setShowAuth(false);
             if (newRole) setOnboarding(newRole);
           }} />
         </LanguageProvider>
