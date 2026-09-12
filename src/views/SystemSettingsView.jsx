@@ -31,6 +31,7 @@ import { GENERATION_CONTEXT_DEFAULTS, GENERATION_PROFILE_DEFAULTS, GEN_DOCS, ROL
 import { LifecycleSettingsView, CaseDefaultsPanel, AssignmentSettingsPanel, TransitionGatesPanel } from "./SettingsSubViews.jsx";
 import { PersonAvatar } from "./Projects.jsx";
 import { AbapTemplatesSection } from "../components/SapPanels.jsx";
+import { SlaView } from "./OperationsViews.jsx";
 
 function UpgradeModal({ onClose, title, message, roleType, planKey, auth }) {
   const planCfg = usePlanConfig();
