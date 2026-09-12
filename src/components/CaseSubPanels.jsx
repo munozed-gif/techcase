@@ -11,6 +11,7 @@ import { useAuth } from "../hooks/useAuth.jsx";
 import { usePlanConfig, useSystemSettings } from "../hooks/useSystemSettings.jsx";
 import { callClaude, logEvent } from "../lib/utils.js";
 import { useCaseDocuments } from "../hooks/useCoreHooks.js";
+import { useCaseSpecification } from "../hooks/useNotificationHooks.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { Input, Textarea } from "../components/ui.jsx";
 import { fmtDate, fmt, cap } from "../lib/uiUtils.jsx";
