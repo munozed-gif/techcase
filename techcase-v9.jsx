@@ -27009,6 +27009,8 @@ function ArenaView({ auth }) {
   const [arenaTab, setArenaTab]             = useState("cases");
   const arenaCarouselRef = useRef(null);
   const arenaCarouselScrolling = useRef(false);
+  const caseCarouselRef = useRef(null);
+  const caseCarouselScrolling = useRef(false);
   const [arenaMountedSlides, setArenaMountedSlides] = useState(() => new Set(["cases"]));
   const [arenaManualCompletions, setArenaManualCompletionsRaw] = useState(() => {
     try { return JSON.parse(localStorage.getItem(`tc_arenamc_arena`) ?? "{}"); } catch { return {}; }
@@ -27031,7 +27033,6 @@ function ArenaView({ auth }) {
   const { templates: arenaLcTemplates } = useLifecycleTemplates();
   const [caseSort, setCaseSort] = useState('match');
   const [caseCarouselIdx, setCaseCarouselIdx] = useState(0);
-  const [solarCase, setSolarCase] = useState(null);
 
   function toggleCompare(id) {
     setCompareSet(prev =>
@@ -27095,147 +27096,6 @@ function ArenaView({ auth }) {
 
     const orbColors = ['#10B981','#3B82F6','#8B5CF6','#EC4899','#F59E0B','#0EA5E9','#F97316'];
 
-    // ── Inline leaderboard / solar view ──────────────────────────
-    if (solarCase) {
-      const c = solarCase;
-      const score = matchScore(c) ?? 50;
-      const mc    = score >= 75 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444';
-      const now = Date.now();
-      const dueMs   = c.due_date   ? new Date(c.due_date).getTime()   : null;
-      const startMs = c.start_date ? new Date(c.start_date).getTime() : null;
-      const daysLeft  = dueMs  ? Math.max(0, Math.ceil((dueMs - now) / 86400000))  : null;
-      const totalDays = (dueMs && startMs) ? Math.max(1, Math.ceil((dueMs - startMs) / 86400000)) : 14;
-      const timePct   = daysLeft != null ? Math.max(0, Math.min(1, daysLeft / totalDays)) : null;
-      const tc        = timePct == null ? '#6B8AB8' : timePct <= 0.15 ? '#EF4444' : timePct <= 0.4 ? '#F59E0B' : '#10B981';
-      const arcDim    = tc === '#EF4444' ? 'rgba(239,68,68,0.3)' : tc === '#F59E0B' ? 'rgba(245,158,11,0.3)' : 'rgba(16,185,129,0.3)';
-      const appCount     = c.applications?.[0]?.count ?? 0;
-      const alreadyApplied = appliedCaseIds.has(c.id);
-      const companyName  = c.client?.client_profiles?.company_name || c.client?.full_name;
-      const sysSize = 240;
-      const innerR = sysSize * 0.24, outerR = sysSize * 0.36, timeR = sysSize * 0.46;
-      const timeCirc = 2 * Math.PI * timeR;
-      const timeFilled = timePct != null ? timeCirc * timePct : 0;
-      const otherCount = Math.max(0, appCount - (alreadyApplied ? 1 : 0));
-      const innerSlots = Math.min(2, otherCount);
-      const outerSlots = Math.min(5, Math.max(0, otherCount - innerSlots));
-
-      function OrbiterNode({ label, color, r, slotIdx, total, dur, isYou }) {
-        const startDeg = (slotIdx / Math.max(total, 1)) * 360 + (r === innerR ? 0 : 40);
-        return (
-          <div style={{ position:'absolute', top:'50%', left:'50%', width:0, height:0,
-            animation:`arena-solar-orbit ${dur}s linear infinite`,
-            '--start':`${startDeg}deg`, '--r':`${r}px` }}>
-            <div style={{ position:'absolute', width:36, height:36, margin:-18, borderRadius:'50%', background:color,
-              border: isYou ? '2px solid #3B82F6' : '2px solid rgba(0,0,0,0.15)',
-              boxShadow: isYou ? '0 0 10px rgba(59,130,246,0.4)' : 'none',
-              display:'flex', alignItems:'center', justifyContent:'center',
-              fontFamily:"'Barlow Condensed',sans-serif", fontSize:11, fontWeight:700, color:'#fff' }}>
-              {label}
-            </div>
-          </div>
-        );
-      }
-
-      return (
-        <div>
-          <style>{`
-            @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&display=swap');
-            @keyframes arena-solar-orbit {
-              from { transform: rotate(var(--start)) translateX(var(--r)) rotate(calc(-1 * var(--start))); }
-              to   { transform: rotate(calc(var(--start) + 360deg)) translateX(var(--r)) rotate(calc(-1 * (var(--start) + 360deg))); }
-            }
-          `}</style>
-          <button onClick={() => setSolarCase(null)}
-            style={{ display:'flex', alignItems:'center', gap:6, fontSize:13, fontWeight:600, color:'#1A4B8C', background:'none', border:'none', cursor:'pointer', marginBottom:14, padding:0 }}>
-            ← Back to cases
-          </button>
-          <div style={{ display:'flex', gap:16, flexWrap:'wrap', alignItems:'flex-start' }}>
-            {/* Solar system panel */}
-            <div style={{ background:'#0C1A30', borderRadius:18, padding:14, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-              <div style={{ position:'relative', width:sysSize, height:sysSize }}>
-                {[innerR, outerR].map(r => (
-                  <div key={r} style={{ position:'absolute', borderRadius:'50%', border:'1px solid rgba(255,255,255,0.07)', top:'50%', left:'50%', width:r*2, height:r*2, transform:'translate(-50%,-50%)' }} />
-                ))}
-                <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%', overflow:'visible' }} viewBox={`0 0 ${sysSize} ${sysSize}`}>
-                  <circle cx={sysSize/2} cy={sysSize/2} r={timeR} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="5"/>
-                  {timePct != null && (
-                    <circle cx={sysSize/2} cy={sysSize/2} r={timeR} fill="none" stroke={tc} strokeWidth="5"
-                      strokeDasharray={`${timeFilled.toFixed(1)} ${(timeCirc-timeFilled).toFixed(1)}`}
-                      strokeLinecap="round" transform={`rotate(-90 ${sysSize/2} ${sysSize/2})`}
-                      style={{ filter:`drop-shadow(0 0 6px ${arcDim})` }}/>
-                  )}
-                </svg>
-                <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:72, height:72, borderRadius:'50%', background:'radial-gradient(circle at 35% 35%,#1A4B8C,#080F1E)', border:'2px solid rgba(59,130,246,0.4)', boxShadow:'0 0 24px rgba(59,130,246,0.2)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', zIndex:10 }}>
-                  <ProjectAvatar project={c.project ?? { name: companyName || c.title, client: c.client }} size={52} />
-                </div>
-                {[...Array(innerSlots)].map((_, i) => <OrbiterNode key={`in${i}`} label={`#${i+1}`} color={orbColors[i%orbColors.length]} r={innerR} slotIdx={i} total={innerSlots+(alreadyApplied?1:0)} dur={10} isYou={false} />)}
-                {alreadyApplied && <OrbiterNode label="You" color="#3B82F6" r={innerR} slotIdx={innerSlots} total={innerSlots+1} dur={10} isYou={true} />}
-                {[...Array(outerSlots)].map((_, i) => <OrbiterNode key={`out${i}`} label={`#${innerSlots+i+1}`} color={orbColors[(innerSlots+i)%orbColors.length]} r={outerR} slotIdx={i} total={Math.max(outerSlots,1)} dur={17} isYou={false} />)}
-                {daysLeft != null && (
-                  <div style={{ position:'absolute', bottom:2, left:'50%', transform:'translateX(-50%)', fontSize:9, fontWeight:600, letterSpacing:'0.07em', textTransform:'uppercase', color:tc, whiteSpace:'nowrap' }}>
-                    {daysLeft === 1 ? '1 day' : `${daysLeft} days`} left
-                  </div>
-                )}
-              </div>
-            </div>
-            {/* Info + leaderboard */}
-            <div style={{ flex:1, minWidth:180 }}>
-              {auth.isConsultant && (
-                <div style={{ marginBottom:10 }}>
-                  <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:44, fontWeight:800, lineHeight:1, color:mc }}>{score}%</span>
-                  <span style={{ fontSize:10, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#6B8AB8', marginLeft:8 }}>match</span>
-                </div>
-              )}
-              <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:18, fontWeight:700, color:'#0F172A', lineHeight:1.2, marginBottom:8 }}>{c.title}</div>
-              <div style={{ display:'flex', flexDirection:'column', gap:4, marginBottom:12, fontSize:12, color:'#475569' }}>
-                {companyName && <span>{companyName}</span>}
-                {c.area_sap  && <span>{c.area_sap}</span>}
-                {c.budget    && <span>${Number(c.budget).toLocaleString()}</span>}
-              </div>
-              <p style={{ fontSize:11, fontWeight:600, color:'#6B8AB8', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>{appCount} applied</p>
-              <div style={{ display:'flex', flexDirection:'column', gap:4, marginBottom:12 }}>
-                {[...Array(Math.min(appCount, 5))].map((_, i) => (
-                  <div key={i} style={{ display:'flex', alignItems:'center', gap:7, background:'#F0F7FF', borderRadius:9, padding:'5px 9px', border:'1px solid #BFDBFE' }}>
-                    <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:13, fontWeight:700, width:16, textAlign:'center', color: i===0?'#F59E0B':i===1?'#94A3B8':i===2?'#B45309':'#93C5FD' }}>{i+1}</span>
-                    <div style={{ width:22, height:22, borderRadius:'50%', background:orbColors[i%orbColors.length], display:'flex', alignItems:'center', justifyContent:'center', fontSize:8, fontWeight:700, color:'#fff' }}>#{i+1}</div>
-                    <span style={{ flex:1, fontSize:11, color:'#334155' }}>Consultant</span>
-                  </div>
-                ))}
-                {!alreadyApplied && auth.isConsultant && (
-                  <div style={{ display:'flex', alignItems:'center', gap:7, background:'#EFF6FF', borderRadius:9, padding:'5px 9px', border:'1px dashed #3B82F6' }}>
-                    <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:13, fontWeight:700, width:16, textAlign:'center', color:'#3B82F6' }}>?</span>
-                    <div style={{ width:22, height:22, borderRadius:'50%', background:'rgba(59,130,246,0.12)', border:'1.5px dashed #3B82F6', display:'flex', alignItems:'center', justifyContent:'center', fontSize:8, fontWeight:700, color:'#3B82F6' }}>Me</div>
-                    <span style={{ flex:1, fontSize:11, color:'#3B82F6' }}>Your spot if you apply</span>
-                    <span style={{ fontSize:11, fontWeight:700, color:mc }}>{score}</span>
-                  </div>
-                )}
-                {alreadyApplied && (
-                  <div style={{ display:'flex', alignItems:'center', gap:7, background:'#EFF6FF', borderRadius:9, padding:'5px 9px', border:'1px solid #3B82F6' }}>
-                    <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:13, fontWeight:700, width:16, textAlign:'center', color:'#3B82F6' }}>✓</span>
-                    <div style={{ width:22, height:22, borderRadius:'50%', background:'#3B82F6', display:'flex', alignItems:'center', justifyContent:'center', fontSize:8, fontWeight:700, color:'#fff' }}>Me</div>
-                    <span style={{ flex:1, fontSize:11, color:'#1D4ED8', fontWeight:600 }}>Applied — score {score}</span>
-                  </div>
-                )}
-              </div>
-              {auth.isConsultant && (
-                alreadyApplied ? (
-                  <button disabled style={{ width:'100%', background:'rgba(16,185,129,0.1)', border:'1px solid rgba(16,185,129,0.3)', borderRadius:11, color:'#059669', fontSize:13, fontWeight:600, padding:10, cursor:'default', display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}>
-                    <Check size={13} /> Applied ✓
-                  </button>
-                ) : (
-                  <button onClick={() => { setSolarCase(null); setApplying(c); }}
-                    style={{ width:'100%', background:'linear-gradient(135deg,#1A4B8C,#2563EB)', border:'none', borderRadius:11, color:'#fff', fontSize:13, fontWeight:600, padding:10, cursor:'pointer', boxShadow:'0 3px 14px rgba(37,99,235,0.3)' }}>
-                    Apply for this Case
-                  </button>
-                )
-              )}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // ── Case carousel ─────────────────────────────────────────────
     if (openCases.length === 0) return (
       <div className="bg-blue-50 rounded-2xl p-12 text-center text-blue-400 text-sm border border-blue-100">
         {t("arena.no_cases")}
@@ -27253,110 +27113,111 @@ function ArenaView({ auth }) {
       return 0;
     });
 
-    const safeIdx = Math.min(caseCarouselIdx, sorted.length - 1);
-    const c = sorted[safeIdx];
-    const companyName  = c.client?.client_profiles?.company_name || c.client?.full_name;
-    const alreadyApplied = appliedCaseIds.has(c.id);
-    const appCount     = c.applications?.[0]?.count ?? 0;
-    const score        = matchScore(c);
+    const safeIdx = Math.max(0, Math.min(caseCarouselIdx, sorted.length - 1));
+    const activeCase = sorted[safeIdx];
 
-    const now      = Date.now();
-    const dueMs    = c.due_date    ? new Date(c.due_date).getTime()    : null;
-    const startMs  = c.start_date  ? new Date(c.start_date).getTime()  : null;
-    const daysLeft = dueMs  ? Math.max(0, Math.ceil((dueMs - now) / 86400000))  : null;
-    const totalDays = (dueMs && startMs) ? Math.max(1, Math.ceil((dueMs - startMs) / 86400000)) : 14;
-    const timePct  = daysLeft != null ? Math.max(0, Math.min(1, daysLeft / totalDays)) : null;
+    function scrollToCase(idx) {
+      const el = caseCarouselRef.current;
+      if (!el) { setCaseCarouselIdx(idx); return; }
+      caseCarouselScrolling.current = true;
+      el.scrollTo({ left: idx * el.offsetWidth, behavior: 'smooth' });
+      setCaseCarouselIdx(idx);
+      setTimeout(() => { caseCarouselScrolling.current = false; }, 600);
+    }
 
-    const mc    = score == null ? '#2563EB' : score >= 75 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444';
-    const mcDim = score == null ? 'rgba(37,99,235,0.25)' : score >= 75 ? 'rgba(16,185,129,0.25)' : score >= 50 ? 'rgba(245,158,11,0.25)' : 'rgba(239,68,68,0.25)';
-    const tc    = timePct == null ? '#3B82F6' : timePct <= 0.15 ? '#EF4444' : timePct <= 0.4 ? '#F59E0B' : '#10B981';
+    // Leaderboard data for the active carousel case
+    const lbCase = activeCase;
+    const lbScore = matchScore(lbCase) ?? 50;
+    const lbMc = lbScore >= 75 ? '#10B981' : lbScore >= 50 ? '#F59E0B' : '#EF4444';
+    const lbNow = Date.now();
+    const lbDueMs = lbCase.due_date ? new Date(lbCase.due_date).getTime() : null;
+    const lbStartMs = lbCase.start_date ? new Date(lbCase.start_date).getTime() : null;
+    const lbDaysLeft = lbDueMs ? Math.max(0, Math.ceil((lbDueMs - lbNow) / 86400000)) : null;
+    const lbTotalDays = (lbDueMs && lbStartMs) ? Math.max(1, Math.ceil((lbDueMs - lbStartMs) / 86400000)) : 14;
+    const lbTimePct = lbDaysLeft != null ? Math.max(0, Math.min(1, lbDaysLeft / lbTotalDays)) : null;
+    const lbTc = lbTimePct == null ? '#6B8AB8' : lbTimePct <= 0.15 ? '#EF4444' : lbTimePct <= 0.4 ? '#F59E0B' : '#10B981';
+    const lbAppCount = lbCase.applications?.[0]?.count ?? 0;
+    const lbAlreadyApplied = appliedCaseIds.has(lbCase.id);
+    const lbCompanyName = lbCase.client?.client_profiles?.company_name || lbCase.client?.full_name;
+    const sysSize = 180;
+    const innerR = sysSize * 0.24, outerR = sysSize * 0.36, timeR = sysSize * 0.46;
+    const timeCirc = 2 * Math.PI * timeR;
+    const timeFilled = lbTimePct != null ? timeCirc * lbTimePct : 0;
+    const otherCount = Math.max(0, lbAppCount - (lbAlreadyApplied ? 1 : 0));
+    const innerSlots = Math.min(2, otherCount);
+    const outerSlots = Math.min(5, Math.max(0, otherCount - innerSlots));
 
-    const svgR = 43, svgCx = 48, svgCy = 48;
-    const circ  = 2 * Math.PI * svgR;
-    const filled = score != null ? circ * (score / 100) : 0;
-
-    const dayChipColor  = timePct == null ? '#3B82F6' : timePct <= 0.15 ? '#DC2626' : timePct <= 0.4 ? '#D97706' : '#3B82F6';
-    const dayChipBorder = timePct == null ? 'rgba(59,130,246,0.3)' : timePct <= 0.15 ? 'rgba(220,38,38,0.35)' : timePct <= 0.4 ? 'rgba(217,119,6,0.35)' : 'rgba(59,130,246,0.3)';
-    const dayChipBg     = timePct == null ? 'rgba(59,130,246,0.07)' : timePct <= 0.15 ? 'rgba(220,38,38,0.07)' : timePct <= 0.4 ? 'rgba(217,119,6,0.07)' : 'rgba(59,130,246,0.07)';
-
-    const chip = (color, border, bg, label) => (
-      <span style={{ fontSize:10, fontWeight:600, letterSpacing:'0.07em', textTransform:'uppercase', padding:'3px 9px', borderRadius:99, border:`1px solid ${border}`, color, background:bg }}>{label}</span>
-    );
-
-    const arrowBtn = (dir) => {
-      const atEnd = dir === -1 ? safeIdx === 0 : safeIdx === sorted.length - 1;
+    function OrbiterNode({ label, color, r, slotIdx, total, dur, isYou }) {
+      const startDeg = (slotIdx / Math.max(total, 1)) * 360 + (r === innerR ? 0 : 40);
       return (
-        <button onClick={() => !atEnd && setCaseCarouselIdx(i => Math.max(0, Math.min(sorted.length - 1, i + dir)))}
-          disabled={atEnd} aria-label={dir === -1 ? 'Previous case' : 'Next case'}
-          style={{ width:34, height:34, borderRadius:'50%', background:'rgba(26,75,140,0.08)', border:'1px solid rgba(26,75,140,0.18)', color: atEnd ? 'rgba(26,75,140,0.22)' : '#1A4B8C', fontSize:20, lineHeight:1, cursor: atEnd ? 'default' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'all .15s' }}>
-          {dir === -1 ? '‹' : '›'}
-        </button>
-      );
-    };
-
-    return (
-      <div>
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&display=swap');`}</style>
-
-        {/* Sort bar */}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14, flexWrap:'wrap', gap:8 }}>
-          <span style={{ fontSize:12, color:'#6B8AB8', fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase' }}>
-            {sorted.length === 1 ? t('arena.open_count_one') : t('arena.open_count_many').replace('{n}', sorted.length)}
-          </span>
-          <div style={{ display:'flex', gap:5, alignItems:'center' }}>
-            <span style={{ fontSize:11, color:'#6B8AB8', textTransform:'uppercase', letterSpacing:'0.1em', marginRight:2 }}>Sort</span>
-            {['match','deadline','budget'].map(key => (
-              <button key={key} onClick={() => { setCaseSort(key); setCaseCarouselIdx(0); }}
-                style={{ background: caseSort === key ? '#1A4B8C' : 'rgba(26,75,140,0.07)', border:`1px solid ${caseSort === key ? '#2563EB' : 'rgba(26,75,140,0.2)'}`, borderRadius:99, color: caseSort === key ? '#fff' : '#1A4B8C', fontSize:11, fontWeight:600, letterSpacing:'0.06em', padding:'4px 12px', cursor:'pointer', textTransform:'uppercase', transition:'all .15s' }}>
-                {key.charAt(0).toUpperCase() + key.slice(1)}
-              </button>
-            ))}
+        <div style={{ position:'absolute', top:'50%', left:'50%', width:0, height:0,
+          animation:`arena-solar-orbit ${dur}s linear infinite`,
+          '--start':`${startDeg}deg`, '--r':`${r}px` }}>
+          <div style={{ position:'absolute', width:30, height:30, margin:-15, borderRadius:'50%', background:color,
+            border: isYou ? '2px solid #3B82F6' : '2px solid rgba(0,0,0,0.15)',
+            boxShadow: isYou ? '0 0 8px rgba(59,130,246,0.4)' : 'none',
+            display:'flex', alignItems:'center', justifyContent:'center',
+            fontFamily:"'Barlow Condensed',sans-serif", fontSize:9, fontWeight:700, color:'#fff' }}>
+            {label}
           </div>
         </div>
+      );
+    }
 
-        {/* Card */}
+    function renderCard(c) {
+      const companyName = c.client?.client_profiles?.company_name || c.client?.full_name;
+      const alreadyApplied = appliedCaseIds.has(c.id);
+      const appCount = c.applications?.[0]?.count ?? 0;
+      const score = matchScore(c);
+      const now = Date.now();
+      const dueMs = c.due_date ? new Date(c.due_date).getTime() : null;
+      const startMs = c.start_date ? new Date(c.start_date).getTime() : null;
+      const daysLeft = dueMs ? Math.max(0, Math.ceil((dueMs - now) / 86400000)) : null;
+      const totalDays = (dueMs && startMs) ? Math.max(1, Math.ceil((dueMs - startMs) / 86400000)) : 14;
+      const timePct = daysLeft != null ? Math.max(0, Math.min(1, daysLeft / totalDays)) : null;
+      const mc = score == null ? '#2563EB' : score >= 75 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444';
+      const mcDim = score == null ? 'rgba(37,99,235,0.25)' : score >= 75 ? 'rgba(16,185,129,0.25)' : score >= 50 ? 'rgba(245,158,11,0.25)' : 'rgba(239,68,68,0.25)';
+      const tc = timePct == null ? '#3B82F6' : timePct <= 0.15 ? '#EF4444' : timePct <= 0.4 ? '#F59E0B' : '#10B981';
+      const svgR = 43, svgCx = 48, svgCy = 48;
+      const circ = 2 * Math.PI * svgR;
+      const filled = score != null ? circ * (score / 100) : 0;
+      const dayChipColor = timePct == null ? '#3B82F6' : timePct <= 0.15 ? '#DC2626' : timePct <= 0.4 ? '#D97706' : '#3B82F6';
+      const dayChipBorder = timePct == null ? 'rgba(59,130,246,0.3)' : timePct <= 0.15 ? 'rgba(220,38,38,0.35)' : timePct <= 0.4 ? 'rgba(217,119,6,0.35)' : 'rgba(59,130,246,0.3)';
+      const dayChipBg = timePct == null ? 'rgba(59,130,246,0.07)' : timePct <= 0.15 ? 'rgba(220,38,38,0.07)' : timePct <= 0.4 ? 'rgba(217,119,6,0.07)' : 'rgba(59,130,246,0.07)';
+      const chip = (color, border, bg, label) => (
+        <span style={{ fontSize:10, fontWeight:600, letterSpacing:'0.07em', textTransform:'uppercase', padding:'3px 9px', borderRadius:99, border:`1px solid ${border}`, color, background:bg }}>{label}</span>
+      );
+      return (
         <div style={{ background:'#EEF5FF', borderRadius:22, border:'1px solid #BFDBFE', overflow:'hidden', position:'relative', boxShadow:'0 4px 20px rgba(37,99,235,0.08)' }}>
-          {/* Left match stripe */}
           <div style={{ position:'absolute', left:0, top:'20%', bottom:'20%', width:3, borderRadius:'0 3px 3px 0', background:mc, boxShadow:`0 0 10px ${mcDim}` }} />
-
-          {/* Time strip */}
           <div style={{ height:4, background:'rgba(26,75,140,0.07)', position:'relative', overflow:'hidden' }}>
-            {timePct != null && (
-              <div style={{ position:'absolute', left:0, top:0, bottom:0, width:`${timePct * 100}%`, background:tc, opacity:0.8 }} />
-            )}
+            {timePct != null && <div style={{ position:'absolute', left:0, top:0, bottom:0, width:`${timePct*100}%`, background:tc, opacity:0.8 }} />}
           </div>
-
-          <div style={{ padding:'22px 26px 20px', display:'flex', flexDirection:'column', gap:16 }}>
-
-            {/* Hero: ring + match info */}
-            <div style={{ display:'flex', alignItems:'center', gap:18 }}>
-              <div style={{ position:'relative', width:92, height:92, flexShrink:0 }}>
+          <div style={{ padding:'18px 22px 16px', display:'flex', flexDirection:'column', gap:12 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:16 }}>
+              <div style={{ position:'relative', width:84, height:84, flexShrink:0 }}>
                 <svg viewBox="0 0 96 96" fill="none" style={{ position:'absolute', inset:0, width:'100%', height:'100%' }}>
                   <circle cx={svgCx} cy={svgCy} r={svgR} stroke="rgba(26,75,140,0.12)" strokeWidth="6"/>
                   {score != null && (
-                    <circle cx={svgCx} cy={svgCy} r={svgR}
-                      stroke={mc} strokeWidth="6"
-                      strokeDasharray={`${circ.toFixed(1)}`}
-                      strokeDashoffset={`${(circ - filled).toFixed(1)}`}
-                      strokeLinecap="round"
-                      transform={`rotate(-90 ${svgCx} ${svgCy})`}
-                      style={{ filter:`drop-shadow(0 0 5px ${mcDim})` }}
-                    />
+                    <circle cx={svgCx} cy={svgCy} r={svgR} stroke={mc} strokeWidth="6"
+                      strokeDasharray={`${circ.toFixed(1)}`} strokeDashoffset={`${(circ-filled).toFixed(1)}`}
+                      strokeLinecap="round" transform={`rotate(-90 ${svgCx} ${svgCy})`}
+                      style={{ filter:`drop-shadow(0 0 5px ${mcDim})` }} />
                   )}
                 </svg>
                 <div style={{ position:'absolute', inset:12, borderRadius:'50%', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', background:'#fff' }}>
-                  <ProjectAvatar project={c.project ?? { name: companyName || c.title, client: c.client }} size={68} />
+                  <ProjectAvatar project={c.project ?? { name: companyName || c.title, client: c.client }} size={60} />
                 </div>
               </div>
               <div style={{ flex:1, minWidth:0 }}>
                 {score != null ? (
                   <>
-                    <div style={{ fontFamily:"'Barlow Condensed', sans-serif", fontSize:50, fontWeight:800, lineHeight:1, color:mc, letterSpacing:'-0.01em' }}>
-                      {score}<span style={{ fontSize:24, opacity:0.5 }}>%</span>
+                    <div style={{ fontFamily:"'Barlow Condensed', sans-serif", fontSize:46, fontWeight:800, lineHeight:1, color:mc, letterSpacing:'-0.01em' }}>
+                      {score}<span style={{ fontSize:22, opacity:0.5 }}>%</span>
                     </div>
-                    <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:'#6B8AB8', marginTop:3 }}>Match score</div>
+                    <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:'#6B8AB8', marginTop:2 }}>Match score</div>
                     {(c.skills_required?.length ?? 0) > 0 && (
-                      <div style={{ fontSize:11, color:'#4A6B9A', marginTop:4, lineHeight:1.4 }}>
+                      <div style={{ fontSize:11, color:'#4A6B9A', marginTop:3, lineHeight:1.4 }}>
                         {c.skills_required.filter(s => mySkills.has(String(s).toLowerCase())).length} of {c.skills_required.length} skills matched
                       </div>
                     )}
@@ -27366,40 +27227,24 @@ function ArenaView({ auth }) {
                 )}
               </div>
             </div>
-
-            {/* Title + description */}
             <div>
-              <div style={{ fontFamily:"'Barlow Condensed', sans-serif", fontSize:24, fontWeight:700, letterSpacing:'0.02em', color:'#0F172A', lineHeight:1.2 }}>
-                {c.title}
-              </div>
-              {c.description && (
-                <div style={{ fontSize:13, color:'#4A6B9A', lineHeight:1.55, marginTop:5 }}>
-                  {c.description}
-                </div>
-              )}
+              <div style={{ fontFamily:"'Barlow Condensed', sans-serif", fontSize:22, fontWeight:700, letterSpacing:'0.02em', color:'#0F172A', lineHeight:1.2 }}>{c.title}</div>
+              {c.description && <div style={{ fontSize:12, color:'#4A6B9A', lineHeight:1.5, marginTop:4 }}>{c.description}</div>}
             </div>
-
-            {/* Chips */}
-            <div style={{ display:'flex', gap:7, flexWrap:'wrap', alignItems:'center' }}>
-              {c.area_sap      && chip('#0066CC', 'rgba(0,102,204,0.3)',  'rgba(0,102,204,0.07)', c.area_sap)}
-              {c.area_industry && chip('#0369A1', 'rgba(3,105,161,0.3)',  'rgba(3,105,161,0.07)', c.area_industry)}
-              {c.budget        && chip('#059669', 'rgba(5,150,105,0.3)',  'rgba(5,150,105,0.07)', `$${Number(c.budget).toLocaleString()}`)}
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center' }}>
+              {c.area_sap      && chip('#0066CC','rgba(0,102,204,0.3)','rgba(0,102,204,0.07)', c.area_sap)}
+              {c.area_industry && chip('#0369A1','rgba(3,105,161,0.3)','rgba(3,105,161,0.07)', c.area_industry)}
+              {c.budget        && chip('#059669','rgba(5,150,105,0.3)','rgba(5,150,105,0.07)', `$${Number(c.budget).toLocaleString()}`)}
               {daysLeft != null && chip(dayChipColor, dayChipBorder, dayChipBg, daysLeft === 1 ? '1 day left' : `${daysLeft} days left`)}
-              {companyName     && chip('#1A4B8C', 'rgba(26,75,140,0.25)', 'rgba(26,75,140,0.06)', companyName)}
+              {companyName     && chip('#1A4B8C','rgba(26,75,140,0.25)','rgba(26,75,140,0.06)', companyName)}
             </div>
-
-            {/* Divider */}
             <div style={{ height:1, background:'rgba(26,75,140,0.1)' }} />
-
-            {/* Applicant strip */}
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                 {appCount > 0 && (
                   <div style={{ display:'flex', alignItems:'center' }}>
-                    {[...Array(Math.min(3, appCount))].map((_, i) => (
-                      <div key={i} style={{ width:30, height:30, borderRadius:'50%', border:'2px solid #EEF5FF', background:['#10B981','#3B82F6','#8B5CF6'][i], display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff', marginLeft: i === 0 ? 0 : -9, flexShrink:0 }}>
-                        #{i+1}
-                      </div>
+                    {[...Array(Math.min(3, appCount))].map((_, j) => (
+                      <div key={j} style={{ width:28, height:28, borderRadius:'50%', border:'2px solid #EEF5FF', background:['#10B981','#3B82F6','#8B5CF6'][j], display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700, color:'#fff', marginLeft: j===0 ? 0 : -8, flexShrink:0 }}>#{j+1}</div>
                     ))}
                   </div>
                 )}
@@ -27407,55 +27252,169 @@ function ArenaView({ auth }) {
                   {appCount === 1 ? t('arena.applicant_one') : t('arena.applicant_many').replace('{n}', appCount)}
                 </span>
               </div>
-              {canViewRanking ? (
+              {canViewRanking && (
                 <button onClick={() => setArenaSelected(c)}
-                  style={{ background:'transparent', border:'1px solid rgba(26,75,140,0.25)', borderRadius:10, color:'#1A4B8C', fontSize:11, fontWeight:600, padding:'6px 13px', cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
+                  style={{ background:'transparent', border:'1px solid rgba(26,75,140,0.25)', borderRadius:10, color:'#1A4B8C', fontSize:11, fontWeight:600, padding:'5px 12px', cursor:'pointer', whiteSpace:'nowrap' }}>
                   View ranking ›
                 </button>
-              ) : auth.isConsultant ? (
-                <button onClick={() => setSolarCase(c)}
-                  style={{ background:'transparent', border:'1px solid rgba(26,75,140,0.25)', borderRadius:10, color:'#1A4B8C', fontSize:11, fontWeight:600, padding:'6px 13px', cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
-                  View leaderboard ›
-                </button>
-              ) : null}
+              )}
             </div>
-
-            {/* Apply CTA */}
             {auth.isConsultant && (
               alreadyApplied ? (
-                <button disabled style={{ width:'100%', background:'rgba(5,150,105,0.1)', border:'1px solid rgba(5,150,105,0.3)', borderRadius:13, color:'#059669', fontSize:15, fontWeight:600, padding:'12px', cursor:'default', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
-                  <Check size={14} />{t('arena.applied')}
+                <button disabled style={{ width:'100%', background:'rgba(5,150,105,0.1)', border:'1px solid rgba(5,150,105,0.3)', borderRadius:12, color:'#059669', fontSize:14, fontWeight:600, padding:'11px', cursor:'default', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                  <Check size={13} />{t('arena.applied')}
                 </button>
               ) : (
                 <button onClick={() => setApplying(c)}
-                  style={{ width:'100%', background:'linear-gradient(135deg,#1A4B8C,#2563EB)', border:'none', borderRadius:13, color:'#fff', fontSize:15, fontWeight:600, padding:'12px', cursor:'pointer', boxShadow:'0 4px 18px rgba(37,99,235,0.3)', transition:'all .2s' }}>
+                  style={{ width:'100%', background:'linear-gradient(135deg,#1A4B8C,#2563EB)', border:'none', borderRadius:12, color:'#fff', fontSize:14, fontWeight:600, padding:'11px', cursor:'pointer', boxShadow:'0 4px 16px rgba(37,99,235,0.3)' }}>
                   {t('arena.apply')}
                 </button>
               )
             )}
           </div>
         </div>
+      );
+    }
 
-        {/* Nav: arrows + dots + counter */}
-        <div style={{ marginTop:14, display:'flex', flexDirection:'column', alignItems:'center', gap:8 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-            {arrowBtn(-1)}
-            <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-              {sorted.map((_, i) => (
-                <button key={i} onClick={() => setCaseCarouselIdx(i)}
-                  aria-label={`Case ${i + 1}`}
-                  style={{ width: i === safeIdx ? 20 : 7, height:7, borderRadius:4, background: i === safeIdx ? '#2563EB' : 'rgba(26,75,140,0.2)', border:'none', cursor:'pointer', transition:'all .2s', padding:0 }} />
-              ))}
-            </div>
-            {arrowBtn(1)}
+    return (
+      <div>
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&display=swap');
+          @keyframes arena-solar-orbit {
+            from { transform: rotate(var(--start)) translateX(var(--r)) rotate(calc(-1 * var(--start))); }
+            to   { transform: rotate(calc(var(--start) + 360deg)) translateX(var(--r)) rotate(calc(-1 * (var(--start) + 360deg))); }
+          }
+        `}</style>
+
+        {/* Sort bar */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14, flexWrap:'wrap', gap:8 }}>
+          <span style={{ fontSize:12, color:'#6B8AB8', fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase' }}>
+            {sorted.length === 1 ? t('arena.open_count_one') : t('arena.open_count_many').replace('{n}', sorted.length)}
+          </span>
+          <div style={{ display:'flex', gap:5, alignItems:'center' }}>
+            <span style={{ fontSize:11, color:'#6B8AB8', textTransform:'uppercase', letterSpacing:'0.1em', marginRight:2 }}>Sort</span>
+            {['match','deadline','budget'].map(key => (
+              <button key={key} onClick={() => { setCaseSort(key); scrollToCase(0); }}
+                style={{ background: caseSort===key ? '#1A4B8C' : 'rgba(26,75,140,0.07)', border:`1px solid ${caseSort===key ? '#2563EB' : 'rgba(26,75,140,0.2)'}`, borderRadius:99, color: caseSort===key ? '#fff' : '#1A4B8C', fontSize:11, fontWeight:600, letterSpacing:'0.06em', padding:'4px 12px', cursor:'pointer', textTransform:'uppercase', transition:'all .15s' }}>
+                {key.charAt(0).toUpperCase() + key.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Case cards – scroll-snap carousel */}
+        <div style={{ position:'relative' }}>
+          {safeIdx > 0 && (
+            <button onClick={() => scrollToCase(safeIdx - 1)}
+              style={{ position:'absolute', left:-14, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', background:'rgba(26,75,140,0.08)', border:'1px solid rgba(26,75,140,0.18)', color:'#1A4B8C', fontSize:20, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', transition:'all .15s' }}>
+              ‹
+            </button>
+          )}
+          <div ref={caseCarouselRef}
+            style={{ display:'flex', overflowX:'auto', scrollSnapType:'x mandatory', scrollBehavior:'smooth', scrollbarWidth:'none', borderRadius:22 }}
+            onScroll={() => {
+              if (caseCarouselScrolling.current) return;
+              const el = caseCarouselRef.current;
+              if (!el) return;
+              const idx = Math.round(el.scrollLeft / Math.max(el.offsetWidth, 1));
+              if (idx !== caseCarouselIdx) setCaseCarouselIdx(Math.max(0, Math.min(sorted.length - 1, idx)));
+            }}>
+            {sorted.map((cs) => (
+              <div key={cs.id} style={{ flexShrink:0, width:'100%', scrollSnapAlign:'start' }}>
+                {renderCard(cs)}
+              </div>
+            ))}
+          </div>
+          {safeIdx < sorted.length - 1 && (
+            <button onClick={() => scrollToCase(safeIdx + 1)}
+              style={{ position:'absolute', right:-14, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', background:'rgba(26,75,140,0.08)', border:'1px solid rgba(26,75,140,0.18)', color:'#1A4B8C', fontSize:20, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', transition:'all .15s' }}>
+              ›
+            </button>
+          )}
+        </div>
+
+        {/* Dots + counter */}
+        <div style={{ marginTop:12, display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
+          <div style={{ display:'flex', gap:5 }}>
+            {sorted.map((_, i) => (
+              <button key={i} onClick={() => scrollToCase(i)}
+                style={{ width: i===safeIdx ? 18 : 6, height:6, borderRadius:4, background: i===safeIdx ? '#2563EB' : 'rgba(26,75,140,0.2)', border:'none', cursor:'pointer', transition:'all .2s', padding:0 }} />
+            ))}
           </div>
           <span style={{ fontSize:11, color:'#6B8AB8', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase' }}>
             {safeIdx + 1} of {sorted.length}
           </span>
         </div>
+
+        {/* Solar leaderboard — always visible for the active case */}
+        <div style={{ marginTop:16, background:'#0C1A30', borderRadius:18, padding:14, display:'flex', gap:14, alignItems:'flex-start', flexWrap:'wrap' }}>
+          {/* Solar animation */}
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+            <div style={{ position:'relative', width:sysSize, height:sysSize }}>
+              {[innerR, outerR].map(r => (
+                <div key={r} style={{ position:'absolute', borderRadius:'50%', border:'1px solid rgba(255,255,255,0.07)', top:'50%', left:'50%', width:r*2, height:r*2, transform:'translate(-50%,-50%)' }} />
+              ))}
+              <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%', overflow:'visible' }} viewBox={`0 0 ${sysSize} ${sysSize}`}>
+                <circle cx={sysSize/2} cy={sysSize/2} r={timeR} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="4"/>
+                {lbTimePct != null && (
+                  <circle cx={sysSize/2} cy={sysSize/2} r={timeR} fill="none" stroke={lbTc} strokeWidth="4"
+                    strokeDasharray={`${timeFilled.toFixed(1)} ${(timeCirc-timeFilled).toFixed(1)}`}
+                    strokeLinecap="round" transform={`rotate(-90 ${sysSize/2} ${sysSize/2})`}
+                    style={{ filter:`drop-shadow(0 0 5px ${lbTc}66)` }}/>
+                )}
+              </svg>
+              <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:60, height:60, borderRadius:'50%', background:'radial-gradient(circle at 35% 35%,#1A4B8C,#080F1E)', border:'2px solid rgba(59,130,246,0.4)', boxShadow:'0 0 20px rgba(59,130,246,0.2)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', zIndex:10 }}>
+                <ProjectAvatar project={lbCase.project ?? { name: lbCompanyName || lbCase.title, client: lbCase.client }} size={44} />
+              </div>
+              {[...Array(innerSlots)].map((_, i) => <OrbiterNode key={`in${i}`} label={`#${i+1}`} color={orbColors[i%orbColors.length]} r={innerR} slotIdx={i} total={innerSlots+(lbAlreadyApplied?1:0)} dur={10} isYou={false} />)}
+              {lbAlreadyApplied && <OrbiterNode label="You" color="#3B82F6" r={innerR} slotIdx={innerSlots} total={innerSlots+1} dur={10} isYou={true} />}
+              {[...Array(outerSlots)].map((_, i) => <OrbiterNode key={`out${i}`} label={`#${innerSlots+i+1}`} color={orbColors[(innerSlots+i)%orbColors.length]} r={outerR} slotIdx={i} total={Math.max(outerSlots,1)} dur={17} isYou={false} />)}
+              {lbDaysLeft != null && (
+                <div style={{ position:'absolute', bottom:0, left:'50%', transform:'translateX(-50%)', fontSize:8, fontWeight:600, letterSpacing:'0.07em', textTransform:'uppercase', color:lbTc, whiteSpace:'nowrap' }}>
+                  {lbDaysLeft === 1 ? '1 day' : `${lbDaysLeft} days`} left
+                </div>
+              )}
+            </div>
+          </div>
+          {/* Ranked list */}
+          <div style={{ flex:1, minWidth:160 }}>
+            {auth.isConsultant && (
+              <div style={{ marginBottom:8 }}>
+                <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:38, fontWeight:800, lineHeight:1, color:lbMc }}>{lbScore}%</span>
+                <span style={{ fontSize:9, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', marginLeft:6 }}>match</span>
+              </div>
+            )}
+            <p style={{ fontSize:10, fontWeight:700, color:'rgba(255,255,255,0.5)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:6 }}>{lbAppCount} applied</p>
+            <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+              {[...Array(Math.min(lbAppCount, 5))].map((_, i) => (
+                <div key={i} style={{ display:'flex', alignItems:'center', gap:7, background:'rgba(255,255,255,0.05)', borderRadius:8, padding:'5px 9px', border:'1px solid rgba(255,255,255,0.08)' }}>
+                  <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:13, fontWeight:700, width:14, textAlign:'center', color: i===0?'#F59E0B':i===1?'rgba(255,255,255,0.5)':i===2?'#B45309':'rgba(255,255,255,0.3)' }}>{i+1}</span>
+                  <div style={{ width:20, height:20, borderRadius:'50%', background:orbColors[i%orbColors.length], display:'flex', alignItems:'center', justifyContent:'center', fontSize:7, fontWeight:700, color:'#fff' }}>#{i+1}</div>
+                  <span style={{ flex:1, fontSize:11, color:'rgba(255,255,255,0.7)' }}>Consultant</span>
+                </div>
+              ))}
+              {!lbAlreadyApplied && auth.isConsultant && (
+                <div style={{ display:'flex', alignItems:'center', gap:7, background:'rgba(59,130,246,0.08)', borderRadius:8, padding:'5px 9px', border:'1px dashed rgba(59,130,246,0.4)' }}>
+                  <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:13, fontWeight:700, width:14, textAlign:'center', color:'#60A5FA' }}>?</span>
+                  <div style={{ width:20, height:20, borderRadius:'50%', background:'rgba(59,130,246,0.15)', border:'1.5px dashed #3B82F6', display:'flex', alignItems:'center', justifyContent:'center', fontSize:7, fontWeight:700, color:'#3B82F6' }}>Me</div>
+                  <span style={{ flex:1, fontSize:11, color:'#60A5FA' }}>Your spot if you apply</span>
+                  <span style={{ fontSize:10, fontWeight:700, color:lbMc }}>{lbScore}</span>
+                </div>
+              )}
+              {lbAlreadyApplied && auth.isConsultant && (
+                <div style={{ display:'flex', alignItems:'center', gap:7, background:'rgba(59,130,246,0.12)', borderRadius:8, padding:'5px 9px', border:'1px solid rgba(59,130,246,0.4)' }}>
+                  <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:13, fontWeight:700, width:14, textAlign:'center', color:'#60A5FA' }}>✓</span>
+                  <div style={{ width:20, height:20, borderRadius:'50%', background:'#3B82F6', display:'flex', alignItems:'center', justifyContent:'center', fontSize:7, fontWeight:700, color:'#fff' }}>Me</div>
+                  <span style={{ flex:1, fontSize:11, color:'#93C5FD', fontWeight:600 }}>Applied — score {lbScore}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     );
   };
+
 
   const renderLeaderboard = () => {
     if (lbLoading) return <Spinner />;
