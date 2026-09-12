@@ -6211,10 +6211,15 @@ function CaseFeedbackModal({ caseData, onClose }) {
       for (const a of consultants) {
         const r = ratings[a.consultant_id];
         if (r?.score > 0) {
-          await supabase.from("ratings").upsert({
-            consultant_id: a.consultant_id, case_id: caseData.id,
-            rated_by: user.id, score: r.score, comment: r.comment || null, is_public: true,
-          });
+          await supabase.from("case_ratings").upsert({
+            case_id:    caseData.id,
+            rater_id:   user.id,
+            ratee_id:   a.consultant_id,
+            rater_role: "client",
+            ratee_role: "consultant",
+            scores:     { overall: r.score },
+            comment:    r.comment || null,
+          }, { onConflict: "case_id,ratee_id" });
         }
       }
       onClose();
