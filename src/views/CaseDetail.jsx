@@ -2304,121 +2304,184 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         </div>
       )}
 
-      {/* Next Steps — big action buttons */}
+      {/* Lifecycle Pipeline — all stages as tall narrow cards */}
       {onStatusChange && (() => {
         const curStage = lifecycleStages.find(s => s.key === caseData.status);
-        if (!curStage || curStage.is_terminal) return null;
-        const allowedNext  = curStage.allowed_next?.length  ? curStage.allowed_next  : null;
-        const allowedRoles = curStage.allowed_roles?.length ? curStage.allowed_roles : null;
+        const allowedNext  = curStage?.allowed_next?.length  ? curStage.allowed_next  : null;
+        const allowedRoles = curStage?.allowed_roles?.length ? curStage.allowed_roles : null;
         const canChange = auth.isAdmin || !allowedRoles || allowedRoles.includes(auth.role);
-        if (!canChange) return null;
+        if (!canChange && !curStage) return null;
         const statusInLifecycle = lifecycleStages.some(s => s.key === caseData.status);
-        const validNext = allowedNext
-          // explicit allowed_next configured — use exactly that (exclude auto-only stages)
-          ? lifecycleStages.filter(s => allowedNext.includes(s.key) && s.trigger !== "auto")
-          // no allowed_next: show all other stages in this lifecycle (exclude auto-only)
-          : lifecycleStages.filter(s => (s.key !== caseData.status || !statusInLifecycle) && s.trigger !== "auto");
-        if (!validNext.length) return null;
-
-        const NEXT_META = {
-          open:            { Icon: FolderOpen,   desc: t("cd.next_desc_open") },
-          estimated:       { Icon: BarChart2,    desc: t("cd.next_desc_estimated") },
-          evaluation:      { Icon: Search,       desc: t("cd.next_desc_evaluation") },
-          confirmed:       { Icon: CheckCircle2, desc: t("cd.next_desc_confirmed") },
-          planning:        { Icon: Target,       desc: t("cd.next_desc_planning") },
-          in_progress:     { Icon: Play,         desc: t("cd.next_desc_in_progress") },
-          on_hold:         { Icon: PauseCircle,  desc: t("cd.next_desc_on_hold") },
-          review:          { Icon: Activity,     desc: t("cd.next_desc_review") },
-          completed:       { Icon: Archive,      desc: t("cd.next_desc_completed") },
-          closed:          { Icon: Archive,      desc: t("cd.next_desc_completed") },
-          cancelled:       { Icon: X,            desc: t("cd.next_desc_cancelled") },
-          new:             { Icon: Inbox,        desc: t("cd.next_desc_new") },
-          screening:       { Icon: Search,       desc: t("cd.next_desc_screening") },
-          shortlisted:     { Icon: Star,         desc: t("cd.next_desc_shortlisted") },
-          assigned:        { Icon: UserCheck,    desc: t("cd.next_desc_assigned") },
-          standby:         { Icon: Clock,        desc: t("cd.next_desc_standby") },
-          technical_test:  { Icon: Code2,        desc: t("cd.next_desc_tech_test") },
-          functional_test: { Icon: Target,       desc: t("cd.next_desc_func_test") },
-          user_test:       { Icon: Users,        desc: t("cd.next_desc_user_test") },
-          adjustments:     { Icon: SlidersHorizontal, desc: t("cd.next_desc_adjustments") },
-          approved:        { Icon: BadgeCheck,   desc: t("cd.next_desc_approved") },
-          returned:        { Icon: RotateCcw,    desc: t("cd.next_desc_returned") },
-          resolved:        { Icon: CheckCircle2, desc: t("cd.next_desc_resolved") },
-          terminated:      { Icon: XCircle,      desc: t("cd.next_desc_terminated") },
-          sourcing:        { Icon: Globe,        desc: t("cd.next_desc_sourcing") },
-        };
+        const curIdx = lifecycleStages.findIndex(s => s.key === caseData.status);
+        const validNextKeys = new Set(
+          allowedNext
+            ? lifecycleStages.filter(s => allowedNext.includes(s.key) && s.trigger !== "auto").map(s => s.key)
+            : lifecycleStages.filter(s => (s.key !== caseData.status || !statusInLifecycle) && s.trigger !== "auto").map(s => s.key)
+        );
 
         const TEST_STAGES = ['technical_test', 'functional_test', 'user_test'];
         const doneCount = activities.filter(a => actEffectivePct(a) === 100).length;
 
+        // Get gate conditions with pass/fail for a given stage
+        function stageGateItems(stageKey) {
+          const allGates = cdSettings["transition_gates"] ?? {};
+          const lcGates = allGates[lifecycleKey] ?? {};
+          const gate = lcGates[stageKey];
+          if (!gate?.enabled) return [];
+          return (gate.conditions ?? []).filter(c => c.enabled).map(c => {
+            const def = GATE_CONDITIONS.find(d => d.key === c.key);
+            return { key: c.key, label: def?.label ?? c.key, mode: c.mode, passed: def ? def.check(caseData, gateData) : false };
+          });
+        }
+
+        // Determine card state for each stage
+        function stageState(s, idx) {
+          if (s.key === caseData.status) return "current";
+          if (curStage?.is_terminal && idx < curIdx) return "past";
+          if (!curStage?.is_terminal && idx < curIdx) return "past";
+          if (canChange && !curStage?.is_terminal && validNextKeys.has(s.key)) return "reachable";
+          return "future";
+        }
+
+        // All non-auto stages to display
+        const displayStages = lifecycleStages.filter(s => s.trigger !== "auto");
+        if (!displayStages.length) return null;
+
         return (
           <div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("case.next_steps")}</p>
-            <div className={`grid gap-3 ${validNext.length === 1 ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"}`}>
-              {validNext.map(s => {
-                const { Icon, desc } = NEXT_META[s.key] ?? { Icon: Zap, desc: t("cd.next_desc_default") };
+            {/* Horizontal scroll pipeline */}
+            <div className="flex gap-2.5 overflow-x-auto pb-2" style={{ scrollbarWidth: "thin" }}>
+              {displayStages.map((s, idx) => {
+                const state = stageState(s, idx);
                 const isCancelled = s.key === "cancelled";
+                const color = isCancelled ? "#EF4444" : (s.color ?? "#6B7280");
+                const gateItems = stageGateItems(s.key);
                 const isTestStage = TEST_STAGES.includes(s.key);
                 const needsConfirm = isTestStage && caseProgress < 100 && activities.length > 0;
                 const isPending = pendingStageKey === s.key;
-                const color = isCancelled ? "#EF4444" : s.color;
-                return (
-                  <button key={s.key}
-                    onClick={async () => {
-                      if (isCancelled) return initCancelModal(caseData.id);
-                      if (s.key === "standby") { setStandbyReason(""); setStandbyNotes(""); setStandbyModal(true); return; }
-                      if (s.key === "approved") { setApprovalBypass(""); setApprovalModal(true); return; }
-                      if (needsConfirm && !isPending) { setPendingStageKey(s.key); return; }
-                      setPendingStageKey(null);
-                      // Gate check before proceeding
-                      const { blockers: gb, warnings: gw } = checkTransitionGates(s.key);
-                      if (gb.length > 0 || gw.length > 0) {
-                        setGateModal({ caseId: caseData.id, toStatus: s.key, toLabel: s.label, toColor: s.color, blockers: gb, warnings: gw, extra: undefined });
-                        return;
-                      }
-                      await onStatusChange(caseData.id, s.key);
-                      if (s.key === "completed") {
-                        if (auth.isConsultant) {
-                          // Consultant rates client
-                          if (caseData.client?.id) {
-                            setClientRatingModal({ caseId: caseData.id, caseTitle: caseData.title, clientId: caseData.client.id, clientName: caseData.client.full_name ?? 'Client' });
-                          }
-                        } else {
-                          // Client/admin rates consultant
-                          const ratee = { id: caseData.case_assignments?.[0]?.users?.id, name: caseData.case_assignments?.[0]?.users?.full_name, role: "consultant" };
-                          if (ratee.id) setRatingModal({ caseId: caseData.id, caseTitle: caseData.title, rateeId: ratee.id, rateeName: ratee.name, rateeRole: ratee.role, raterRole: auth.role });
-                        }
-                      }
-                    }}
-                    className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl border-2 text-left transition-all hover:shadow-md active:scale-[0.98] bg-white ${
-                      isCancelled
-                        ? "border-red-100 hover:border-red-300 hover:bg-red-50"
-                        : "border-gray-100 hover:border-blue-200 hover:bg-blue-50/30"
-                    }`}>
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: color + "22" }}>
-                      <Icon className="w-6 h-6" style={{ color }} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold text-gray-900 text-sm">{s.label}</div>
-                      {isPending ? (
+                const hasBlockers = gateItems.some(c => !c.passed && c.mode === "block");
+                const hasWarnings = gateItems.some(c => !c.passed && c.mode === "warn");
+
+                const cardBase = "flex-shrink-0 flex flex-col rounded-2xl border-2 transition-all overflow-hidden";
+                const cardWidth = "w-36";
+
+                const cardStyle = state === "past"
+                  ? { borderColor: "#E5E7EB", backgroundColor: "#F9FAFB" }
+                  : state === "current"
+                  ? { borderColor: color, backgroundColor: color + "10" }
+                  : state === "reachable"
+                  ? { borderColor: color + "55", backgroundColor: "#FFFFFF" }
+                  : { borderColor: "#F3F4F6", backgroundColor: "#FAFAFA" };
+
+                const cardContent = (
+                  <div className={`${cardBase} ${cardWidth}`} style={cardStyle}
+                    key={s.key}>
+                    {/* Color stripe */}
+                    <div className="h-1.5 flex-shrink-0" style={{
+                      backgroundColor: state === "past" ? "#9CA3AF" : state === "future" ? "#D1D5DB" : color
+                    }} />
+
+                    {/* Card body */}
+                    <div className="flex flex-col flex-1 px-3 pt-3 pb-3 gap-2">
+                      {/* Stage name + state badge */}
+                      <div>
+                        <p className={`text-xs font-bold leading-tight ${
+                          state === "past" ? "text-gray-400" : state === "future" ? "text-gray-400" : "text-gray-900"
+                        }`} style={state === "current" ? { color } : {}}>
+                          {s.label}
+                        </p>
                         <div className="mt-1">
-                          <p className="text-xs text-amber-700 font-medium mb-1.5">
-                            Only {caseProgress}% complete ({doneCount}/{activities.length} activities). Confirm move?
-                          </p>
-                          <div className="flex gap-2">
-                            <span className="px-2.5 py-1 text-xs bg-amber-500 text-white font-semibold rounded-lg">{t("cd.tap_confirm")}</span>
-                            <span onClick={e => { e.stopPropagation(); setPendingStageKey(null); }}
-                              className="px-2.5 py-1 text-xs border border-gray-200 text-gray-500 rounded-lg">{t("action.cancel")}</span>
-                          </div>
+                          {state === "past" && (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-gray-400">
+                              <CheckCircle2 size={9} className="text-gray-400" /> Done
+                            </span>
+                          )}
+                          {state === "current" && (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold" style={{ color }}>
+                              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: color }} />
+                              Current
+                            </span>
+                          )}
+                          {state === "future" && (
+                            <span className="text-[9px] text-gray-300 font-medium">Upcoming</span>
+                          )}
+                          {state === "reachable" && (
+                            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold" style={{ color }}>
+                              {hasBlockers ? "⚠ Blocked" : hasWarnings ? "⚡ Warn" : "→ Next"}
+                            </span>
+                          )}
                         </div>
-                      ) : (
-                        <div className="text-xs text-gray-500 mt-0.5 leading-relaxed">{desc}</div>
+                      </div>
+
+                      {/* Gate checklist */}
+                      {gateItems.length > 0 && (
+                        <div className="flex-1 space-y-1">
+                          {gateItems.map(cond => (
+                            <div key={cond.key} className="flex items-start gap-1.5">
+                              {cond.passed ? (
+                                <CheckCircle2 size={10} className="text-green-500 flex-shrink-0 mt-0.5" />
+                              ) : cond.mode === "block" ? (
+                                <XCircle size={10} className="text-red-400 flex-shrink-0 mt-0.5" />
+                              ) : (
+                                <AlertTriangle size={10} className="text-orange-400 flex-shrink-0 mt-0.5" />
+                              )}
+                              <span className={`text-[9px] leading-tight ${
+                                cond.passed ? "text-gray-500" : cond.mode === "block" ? "text-red-600" : "text-orange-600"
+                              } ${state === "past" || state === "future" ? "opacity-50" : ""}`}>
+                                {cond.label}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {gateItems.length === 0 && state !== "current" && state !== "past" && (
+                        <div className="flex-1" />
+                      )}
+
+                      {/* Action button — only for reachable stages */}
+                      {state === "reachable" && canChange && !curStage?.is_terminal && (
+                        <button
+                          onClick={async () => {
+                            if (isCancelled) { initCancelModal(caseData.id); return; }
+                            if (s.key === "standby") { setStandbyReason(""); setStandbyNotes(""); setStandbyModal(true); return; }
+                            if (s.key === "approved") { setApprovalBypass(""); setApprovalModal(true); return; }
+                            if (needsConfirm && !isPending) { setPendingStageKey(s.key); return; }
+                            setPendingStageKey(null);
+                            const { blockers: gb, warnings: gw } = checkTransitionGates(s.key);
+                            if (gb.length > 0 || gw.length > 0) {
+                              setGateModal({ caseId: caseData.id, toStatus: s.key, toLabel: s.label, toColor: color, blockers: gb, warnings: gw });
+                              return;
+                            }
+                            await onStatusChange(caseData.id, s.key);
+                            if (s.key === "completed") {
+                              if (auth.isConsultant) {
+                                if (caseData.client?.id) setClientRatingModal({ caseId: caseData.id, caseTitle: caseData.title, clientId: caseData.client.id, clientName: caseData.client.full_name ?? 'Client' });
+                              } else {
+                                const ratee = { id: caseData.case_assignments?.[0]?.users?.id, name: caseData.case_assignments?.[0]?.users?.full_name, role: "consultant" };
+                                if (ratee.id) setRatingModal({ caseId: caseData.id, caseTitle: caseData.title, rateeId: ratee.id, rateeName: ratee.name, rateeRole: ratee.role, raterRole: auth.role });
+                              }
+                            }
+                          }}
+                          className="w-full py-1.5 text-[10px] font-bold rounded-xl text-white transition-all hover:opacity-90 active:scale-95 mt-auto"
+                          style={{ backgroundColor: isCancelled ? "#EF4444" : color }}>
+                          {isPending ? "Confirm?" : isCancelled ? "Cancel case" : `Move →`}
+                        </button>
+                      )}
+
+                      {/* Cancel confirmation sub-row */}
+                      {isPending && (
+                        <div className="mt-1 space-y-1">
+                          <p className="text-[9px] text-amber-700">{caseProgress}% done</p>
+                          <button onClick={e => { e.stopPropagation(); setPendingStageKey(null); }}
+                            className="text-[9px] text-gray-400 underline">Cancel</button>
+                        </div>
                       )}
                     </div>
-                    {!isPending && <span className="text-gray-300 text-xl flex-shrink-0">›</span>}
-                  </button>
+                  </div>
                 );
+
+                return cardContent;
               })}
             </div>
           </div>
