@@ -27114,54 +27114,18 @@ function ArenaView({ auth }) {
     });
 
     const safeIdx = Math.max(0, Math.min(caseCarouselIdx, sorted.length - 1));
-    const activeCase = sorted[safeIdx];
 
     function scrollToCase(idx) {
       const el = caseCarouselRef.current;
       if (!el) { setCaseCarouselIdx(idx); return; }
       caseCarouselScrolling.current = true;
-      el.scrollTo({ left: idx * el.offsetWidth, behavior: 'smooth' });
+      const slide = el.children[Math.max(0, Math.min(idx, sorted.length - 1))];
+      if (slide) {
+        const targetLeft = slide.offsetLeft - (el.offsetWidth - slide.offsetWidth) / 2;
+        el.scrollTo({ left: Math.max(0, targetLeft), behavior: 'smooth' });
+      }
       setCaseCarouselIdx(idx);
       setTimeout(() => { caseCarouselScrolling.current = false; }, 600);
-    }
-
-    // Leaderboard data for the active carousel case
-    const lbCase = activeCase;
-    const lbScore = matchScore(lbCase) ?? 50;
-    const lbMc = lbScore >= 75 ? '#10B981' : lbScore >= 50 ? '#F59E0B' : '#EF4444';
-    const lbNow = Date.now();
-    const lbDueMs = lbCase.due_date ? new Date(lbCase.due_date).getTime() : null;
-    const lbStartMs = lbCase.start_date ? new Date(lbCase.start_date).getTime() : null;
-    const lbDaysLeft = lbDueMs ? Math.max(0, Math.ceil((lbDueMs - lbNow) / 86400000)) : null;
-    const lbTotalDays = (lbDueMs && lbStartMs) ? Math.max(1, Math.ceil((lbDueMs - lbStartMs) / 86400000)) : 14;
-    const lbTimePct = lbDaysLeft != null ? Math.max(0, Math.min(1, lbDaysLeft / lbTotalDays)) : null;
-    const lbTc = lbTimePct == null ? '#6B8AB8' : lbTimePct <= 0.15 ? '#EF4444' : lbTimePct <= 0.4 ? '#F59E0B' : '#10B981';
-    const lbAppCount = lbCase.applications?.[0]?.count ?? 0;
-    const lbAlreadyApplied = appliedCaseIds.has(lbCase.id);
-    const lbCompanyName = lbCase.client?.client_profiles?.company_name || lbCase.client?.full_name;
-    const sysSize = 180;
-    const innerR = sysSize * 0.24, outerR = sysSize * 0.36, timeR = sysSize * 0.46;
-    const timeCirc = 2 * Math.PI * timeR;
-    const timeFilled = lbTimePct != null ? timeCirc * lbTimePct : 0;
-    const otherCount = Math.max(0, lbAppCount - (lbAlreadyApplied ? 1 : 0));
-    const innerSlots = Math.min(2, otherCount);
-    const outerSlots = Math.min(5, Math.max(0, otherCount - innerSlots));
-
-    function OrbiterNode({ label, color, r, slotIdx, total, dur, isYou }) {
-      const startDeg = (slotIdx / Math.max(total, 1)) * 360 + (r === innerR ? 0 : 40);
-      return (
-        <div style={{ position:'absolute', top:'50%', left:'50%', width:0, height:0,
-          animation:`arena-solar-orbit ${dur}s linear infinite`,
-          '--start':`${startDeg}deg`, '--r':`${r}px` }}>
-          <div style={{ position:'absolute', width:30, height:30, margin:-15, borderRadius:'50%', background:color,
-            border: isYou ? '2px solid #2563EB' : '2px solid rgba(255,255,255,0.6)',
-            boxShadow: isYou ? '0 0 8px rgba(37,99,235,0.35)' : '0 1px 4px rgba(0,0,0,0.15)',
-            display:'flex', alignItems:'center', justifyContent:'center',
-            fontFamily:"'Barlow Condensed',sans-serif", fontSize:9, fontWeight:700, color:'#fff' }}>
-            {label}
-          </div>
-        </div>
-      );
     }
 
     function renderCard(c) {
@@ -27187,6 +27151,33 @@ function ArenaView({ auth }) {
       const chip = (color, border, bg, label) => (
         <span style={{ fontSize:10, fontWeight:600, letterSpacing:'0.07em', textTransform:'uppercase', padding:'3px 9px', borderRadius:99, border:`1px solid ${border}`, color, background:bg }}>{label}</span>
       );
+
+      // Leaderboard (solar) data for this card
+      const lbSys = 150;
+      const lbInnerR = lbSys * 0.24, lbOuterR = lbSys * 0.36, lbTimeR = lbSys * 0.46;
+      const lbCirc = 2 * Math.PI * lbTimeR;
+      const lbFilled = timePct != null ? lbCirc * timePct : 0;
+      const otherCount = Math.max(0, appCount - (alreadyApplied ? 1 : 0));
+      const innerSlots = Math.min(2, otherCount);
+      const outerSlots = Math.min(5, Math.max(0, otherCount - innerSlots));
+
+      function OrbiterNode({ label, color, r, slotIdx, total, dur, isYou }) {
+        const startDeg = (slotIdx / Math.max(total, 1)) * 360 + (r === lbInnerR ? 0 : 40);
+        return (
+          <div style={{ position:'absolute', top:'50%', left:'50%', width:0, height:0,
+            animation:`arena-solar-orbit ${dur}s linear infinite`,
+            '--start':`${startDeg}deg`, '--r':`${r}px` }}>
+            <div style={{ position:'absolute', width:26, height:26, margin:-13, borderRadius:'50%', background:color,
+              border: isYou ? '2px solid #2563EB' : '2px solid rgba(255,255,255,0.5)',
+              boxShadow: isYou ? '0 0 7px rgba(37,99,235,0.35)' : '0 1px 3px rgba(0,0,0,0.15)',
+              display:'flex', alignItems:'center', justifyContent:'center',
+              fontFamily:"'Barlow Condensed',sans-serif", fontSize:8, fontWeight:700, color:'#fff' }}>
+              {label}
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div style={{ background:'#EEF5FF', borderRadius:22, border:'1px solid #BFDBFE', overflow:'hidden', position:'relative', boxShadow:'0 4px 20px rgba(37,99,235,0.08)' }}>
           <div style={{ position:'absolute', left:0, top:'20%', bottom:'20%', width:3, borderRadius:'0 3px 3px 0', background:mc, boxShadow:`0 0 10px ${mcDim}` }} />
@@ -27194,6 +27185,7 @@ function ArenaView({ auth }) {
             {timePct != null && <div style={{ position:'absolute', left:0, top:0, bottom:0, width:`${timePct*100}%`, background:tc, opacity:0.8 }} />}
           </div>
           <div style={{ padding:'18px 22px 16px', display:'flex', flexDirection:'column', gap:12 }}>
+            {/* Ring + score */}
             <div style={{ display:'flex', alignItems:'center', gap:16 }}>
               <div style={{ position:'relative', width:84, height:84, flexShrink:0 }}>
                 <svg viewBox="0 0 96 96" fill="none" style={{ position:'absolute', inset:0, width:'100%', height:'100%' }}>
@@ -27227,10 +27219,12 @@ function ArenaView({ auth }) {
                 )}
               </div>
             </div>
+            {/* Title */}
             <div>
               <div style={{ fontFamily:"'Barlow Condensed', sans-serif", fontSize:22, fontWeight:700, letterSpacing:'0.02em', color:'#0F172A', lineHeight:1.2 }}>{c.title}</div>
               {c.description && <div style={{ fontSize:12, color:'#4A6B9A', lineHeight:1.5, marginTop:4 }}>{c.description}</div>}
             </div>
+            {/* Chips */}
             <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center' }}>
               {c.area_sap      && chip('#0066CC','rgba(0,102,204,0.3)','rgba(0,102,204,0.07)', c.area_sap)}
               {c.area_industry && chip('#0369A1','rgba(3,105,161,0.3)','rgba(3,105,161,0.07)', c.area_industry)}
@@ -27239,26 +27233,80 @@ function ArenaView({ auth }) {
               {companyName     && chip('#1A4B8C','rgba(26,75,140,0.25)','rgba(26,75,140,0.06)', companyName)}
             </div>
             <div style={{ height:1, background:'rgba(26,75,140,0.1)' }} />
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                {appCount > 0 && (
-                  <div style={{ display:'flex', alignItems:'center' }}>
-                    {[...Array(Math.min(3, appCount))].map((_, j) => (
-                      <div key={j} style={{ width:28, height:28, borderRadius:'50%', border:'2px solid #EEF5FF', background:['#10B981','#3B82F6','#8B5CF6'][j], display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700, color:'#fff', marginLeft: j===0 ? 0 : -8, flexShrink:0 }}>#{j+1}</div>
-                    ))}
+
+            {/* Solar leaderboard inside the card */}
+            <div style={{ display:'flex', gap:12, alignItems:'flex-start', flexWrap:'wrap', background:'rgba(26,75,140,0.04)', borderRadius:14, padding:'10px 12px', border:'1px solid rgba(26,75,140,0.09)' }}>
+              {/* Solar system */}
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <div style={{ position:'relative', width:lbSys, height:lbSys }}>
+                  {[lbInnerR, lbOuterR].map(r => (
+                    <div key={r} style={{ position:'absolute', borderRadius:'50%', border:'1px solid rgba(26,75,140,0.1)', top:'50%', left:'50%', width:r*2, height:r*2, transform:'translate(-50%,-50%)' }} />
+                  ))}
+                  <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%', overflow:'visible' }} viewBox={`0 0 ${lbSys} ${lbSys}`}>
+                    <circle cx={lbSys/2} cy={lbSys/2} r={lbTimeR} fill="none" stroke="rgba(26,75,140,0.07)" strokeWidth="3.5"/>
+                    {timePct != null && (
+                      <circle cx={lbSys/2} cy={lbSys/2} r={lbTimeR} fill="none" stroke={tc} strokeWidth="3.5"
+                        strokeDasharray={`${lbFilled.toFixed(1)} ${(lbCirc-lbFilled).toFixed(1)}`}
+                        strokeLinecap="round" transform={`rotate(-90 ${lbSys/2} ${lbSys/2})`}
+                        style={{ filter:`drop-shadow(0 0 4px ${tc}88)` }}/>
+                    )}
+                  </svg>
+                  <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:46, height:46, borderRadius:'50%', background:'#fff', border:'2px solid rgba(37,99,235,0.22)', boxShadow:'0 2px 8px rgba(37,99,235,0.12)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', zIndex:10 }}>
+                    <ProjectAvatar project={c.project ?? { name: companyName || c.title, client: c.client }} size={34} />
+                  </div>
+                  {[...Array(innerSlots)].map((_, i) => <OrbiterNode key={`in${i}`} label={`#${i+1}`} color={orbColors[i%orbColors.length]} r={lbInnerR} slotIdx={i} total={innerSlots+(alreadyApplied?1:0)} dur={10} isYou={false} />)}
+                  {alreadyApplied && <OrbiterNode label="You" color="#3B82F6" r={lbInnerR} slotIdx={innerSlots} total={innerSlots+1} dur={10} isYou={true} />}
+                  {[...Array(outerSlots)].map((_, i) => <OrbiterNode key={`out${i}`} label={`#${innerSlots+i+1}`} color={orbColors[(innerSlots+i)%orbColors.length]} r={lbOuterR} slotIdx={i} total={Math.max(outerSlots,1)} dur={17} isYou={false} />)}
+                  {daysLeft != null && (
+                    <div style={{ position:'absolute', bottom:0, left:'50%', transform:'translateX(-50%)', fontSize:7, fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase', color:tc, whiteSpace:'nowrap' }}>
+                      {daysLeft === 1 ? '1 day' : `${daysLeft} days`} left
+                    </div>
+                  )}
+                </div>
+              </div>
+              {/* Ranked list */}
+              <div style={{ flex:1, minWidth:140 }}>
+                {auth.isConsultant && score != null && (
+                  <div style={{ marginBottom:6 }}>
+                    <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:30, fontWeight:800, lineHeight:1, color:mc }}>{score}%</span>
+                    <span style={{ fontSize:8, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#6B8AB8', marginLeft:5 }}>match</span>
                   </div>
                 )}
-                <span style={{ fontSize:12, color:'#4A6B9A', fontWeight:500 }}>
-                  {appCount === 1 ? t('arena.applicant_one') : t('arena.applicant_many').replace('{n}', appCount)}
-                </span>
+                <p style={{ fontSize:9, fontWeight:700, color:'#4A6B9A', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:5 }}>{appCount} applied</p>
+                <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
+                  {[...Array(Math.min(appCount, 4))].map((_, i) => (
+                    <div key={i} style={{ display:'flex', alignItems:'center', gap:6, background:'rgba(26,75,140,0.05)', borderRadius:7, padding:'4px 8px', border:'1px solid rgba(26,75,140,0.1)' }}>
+                      <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:12, fontWeight:700, width:12, textAlign:'center', color: i===0?'#D97706':i===1?'#6B8AB8':i===2?'#B45309':'#93AECF' }}>{i+1}</span>
+                      <div style={{ width:18, height:18, borderRadius:'50%', background:orbColors[i%orbColors.length], display:'flex', alignItems:'center', justifyContent:'center', fontSize:6, fontWeight:700, color:'#fff' }}>#{i+1}</div>
+                      <span style={{ flex:1, fontSize:10, color:'#334155' }}>Consultant</span>
+                    </div>
+                  ))}
+                  {!alreadyApplied && auth.isConsultant && (
+                    <div style={{ display:'flex', alignItems:'center', gap:6, background:'rgba(59,130,246,0.06)', borderRadius:7, padding:'4px 8px', border:'1px dashed rgba(59,130,246,0.3)' }}>
+                      <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:12, fontWeight:700, width:12, textAlign:'center', color:'#2563EB' }}>?</span>
+                      <div style={{ width:18, height:18, borderRadius:'50%', background:'rgba(59,130,246,0.1)', border:'1.5px dashed #3B82F6', display:'flex', alignItems:'center', justifyContent:'center', fontSize:6, fontWeight:700, color:'#3B82F6' }}>Me</div>
+                      <span style={{ flex:1, fontSize:10, color:'#2563EB' }}>Your spot</span>
+                      {score != null && <span style={{ fontSize:9, fontWeight:700, color:mc }}>{score}%</span>}
+                    </div>
+                  )}
+                  {alreadyApplied && auth.isConsultant && (
+                    <div style={{ display:'flex', alignItems:'center', gap:6, background:'rgba(59,130,246,0.08)', borderRadius:7, padding:'4px 8px', border:'1px solid rgba(59,130,246,0.3)' }}>
+                      <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:12, fontWeight:700, width:12, textAlign:'center', color:'#2563EB' }}>✓</span>
+                      <div style={{ width:18, height:18, borderRadius:'50%', background:'#3B82F6', display:'flex', alignItems:'center', justifyContent:'center', fontSize:6, fontWeight:700, color:'#fff' }}>Me</div>
+                      <span style={{ flex:1, fontSize:10, color:'#1D4ED8', fontWeight:600 }}>Applied{score != null ? ` · ${score}%` : ''}</span>
+                    </div>
+                  )}
+                </div>
+                {canViewRanking && (
+                  <button onClick={() => setArenaSelected(c)}
+                    style={{ marginTop:6, background:'transparent', border:'1px solid rgba(26,75,140,0.22)', borderRadius:8, color:'#1A4B8C', fontSize:10, fontWeight:600, padding:'4px 10px', cursor:'pointer', whiteSpace:'nowrap' }}>
+                    View ranking ›
+                  </button>
+                )}
               </div>
-              {canViewRanking && (
-                <button onClick={() => setArenaSelected(c)}
-                  style={{ background:'transparent', border:'1px solid rgba(26,75,140,0.25)', borderRadius:10, color:'#1A4B8C', fontSize:11, fontWeight:600, padding:'5px 12px', cursor:'pointer', whiteSpace:'nowrap' }}>
-                  View ranking ›
-                </button>
-              )}
             </div>
+
+            {/* Apply CTA */}
             {auth.isConsultant && (
               alreadyApplied ? (
                 <button disabled style={{ width:'100%', background:'rgba(5,150,105,0.1)', border:'1px solid rgba(5,150,105,0.3)', borderRadius:12, color:'#059669', fontSize:14, fontWeight:600, padding:'11px', cursor:'default', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
@@ -27302,32 +27350,37 @@ function ArenaView({ auth }) {
           </div>
         </div>
 
-        {/* Case cards – scroll-snap carousel */}
+        {/* Case cards – peek scroll-snap carousel, same style as outer */}
         <div style={{ position:'relative' }}>
           {safeIdx > 0 && (
             <button onClick={() => scrollToCase(safeIdx - 1)}
-              style={{ position:'absolute', left:-14, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', background:'rgba(26,75,140,0.08)', border:'1px solid rgba(26,75,140,0.18)', color:'#1A4B8C', fontSize:20, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', transition:'all .15s' }}>
+              style={{ position:'absolute', left:4, top:'50%', transform:'translateY(-50%)', zIndex:10, width:28, height:28, borderRadius:'50%', background:'rgba(26,75,140,0.08)', border:'1px solid rgba(26,75,140,0.18)', color:'#1A4B8C', fontSize:18, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', transition:'all .15s' }}>
               ‹
             </button>
           )}
           <div ref={caseCarouselRef}
-            style={{ display:'flex', overflowX:'auto', scrollSnapType:'x mandatory', scrollBehavior:'smooth', scrollbarWidth:'none', borderRadius:22 }}
+            style={{ display:'flex', overflowX:'scroll', scrollSnapType:'x mandatory', scrollBehavior:'smooth', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', gap:10, padding:'0 32px' }}
             onScroll={() => {
               if (caseCarouselScrolling.current) return;
               const el = caseCarouselRef.current;
               if (!el) return;
-              const idx = Math.round(el.scrollLeft / Math.max(el.offsetWidth, 1));
-              if (idx !== caseCarouselIdx) setCaseCarouselIdx(Math.max(0, Math.min(sorted.length - 1, idx)));
+              const center = el.scrollLeft + el.offsetWidth / 2;
+              let closest = 0, minDist = Infinity;
+              Array.from(el.children).forEach((child, i) => {
+                const dist = Math.abs((child.offsetLeft + child.offsetWidth / 2) - center);
+                if (dist < minDist) { minDist = dist; closest = i; }
+              });
+              if (closest !== caseCarouselIdx) setCaseCarouselIdx(closest);
             }}>
             {sorted.map((cs) => (
-              <div key={cs.id} style={{ flexShrink:0, width:'100%', scrollSnapAlign:'start' }}>
+              <div key={cs.id} style={{ flexShrink:0, width:'100%', scrollSnapAlign:'center' }}>
                 {renderCard(cs)}
               </div>
             ))}
           </div>
           {safeIdx < sorted.length - 1 && (
             <button onClick={() => scrollToCase(safeIdx + 1)}
-              style={{ position:'absolute', right:-14, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', background:'rgba(26,75,140,0.08)', border:'1px solid rgba(26,75,140,0.18)', color:'#1A4B8C', fontSize:20, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', transition:'all .15s' }}>
+              style={{ position:'absolute', right:4, top:'50%', transform:'translateY(-50%)', zIndex:10, width:28, height:28, borderRadius:'50%', background:'rgba(26,75,140,0.08)', border:'1px solid rgba(26,75,140,0.18)', color:'#1A4B8C', fontSize:18, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', transition:'all .15s' }}>
               ›
             </button>
           )}
@@ -27345,76 +27398,9 @@ function ArenaView({ auth }) {
             {safeIdx + 1} of {sorted.length}
           </span>
         </div>
-
-        {/* Solar leaderboard — always visible for the active case */}
-        <div style={{ marginTop:16, background:'#EEF5FF', borderRadius:18, border:'1px solid #BFDBFE', padding:14, display:'flex', gap:14, alignItems:'flex-start', flexWrap:'wrap', boxShadow:'0 4px 20px rgba(37,99,235,0.08)' }}>
-          {/* Solar animation */}
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-            <div style={{ position:'relative', width:sysSize, height:sysSize }}>
-              {[innerR, outerR].map(r => (
-                <div key={r} style={{ position:'absolute', borderRadius:'50%', border:'1px solid rgba(26,75,140,0.12)', top:'50%', left:'50%', width:r*2, height:r*2, transform:'translate(-50%,-50%)' }} />
-              ))}
-              <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%', overflow:'visible' }} viewBox={`0 0 ${sysSize} ${sysSize}`}>
-                <circle cx={sysSize/2} cy={sysSize/2} r={timeR} fill="none" stroke="rgba(26,75,140,0.08)" strokeWidth="4"/>
-                {lbTimePct != null && (
-                  <circle cx={sysSize/2} cy={sysSize/2} r={timeR} fill="none" stroke={lbTc} strokeWidth="4"
-                    strokeDasharray={`${timeFilled.toFixed(1)} ${(timeCirc-timeFilled).toFixed(1)}`}
-                    strokeLinecap="round" transform={`rotate(-90 ${sysSize/2} ${sysSize/2})`}
-                    style={{ filter:`drop-shadow(0 0 5px ${lbTc}66)` }}/>
-                )}
-              </svg>
-              <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:60, height:60, borderRadius:'50%', background:'#fff', border:'2px solid rgba(37,99,235,0.25)', boxShadow:'0 2px 12px rgba(37,99,235,0.15)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', zIndex:10 }}>
-                <ProjectAvatar project={lbCase.project ?? { name: lbCompanyName || lbCase.title, client: lbCase.client }} size={44} />
-              </div>
-              {[...Array(innerSlots)].map((_, i) => <OrbiterNode key={`in${i}`} label={`#${i+1}`} color={orbColors[i%orbColors.length]} r={innerR} slotIdx={i} total={innerSlots+(lbAlreadyApplied?1:0)} dur={10} isYou={false} />)}
-              {lbAlreadyApplied && <OrbiterNode label="You" color="#3B82F6" r={innerR} slotIdx={innerSlots} total={innerSlots+1} dur={10} isYou={true} />}
-              {[...Array(outerSlots)].map((_, i) => <OrbiterNode key={`out${i}`} label={`#${innerSlots+i+1}`} color={orbColors[(innerSlots+i)%orbColors.length]} r={outerR} slotIdx={i} total={Math.max(outerSlots,1)} dur={17} isYou={false} />)}
-              {lbDaysLeft != null && (
-                <div style={{ position:'absolute', bottom:0, left:'50%', transform:'translateX(-50%)', fontSize:8, fontWeight:600, letterSpacing:'0.07em', textTransform:'uppercase', color:lbTc, whiteSpace:'nowrap' }}>
-                  {lbDaysLeft === 1 ? '1 day' : `${lbDaysLeft} days`} left
-                </div>
-              )}
-            </div>
-          </div>
-          {/* Ranked list */}
-          <div style={{ flex:1, minWidth:160 }}>
-            {auth.isConsultant && (
-              <div style={{ marginBottom:8 }}>
-                <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:38, fontWeight:800, lineHeight:1, color:lbMc }}>{lbScore}%</span>
-                <span style={{ fontSize:9, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#6B8AB8', marginLeft:6 }}>match</span>
-              </div>
-            )}
-            <p style={{ fontSize:10, fontWeight:700, color:'#4A6B9A', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:6 }}>{lbAppCount} applied</p>
-            <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-              {[...Array(Math.min(lbAppCount, 5))].map((_, i) => (
-                <div key={i} style={{ display:'flex', alignItems:'center', gap:7, background:'rgba(26,75,140,0.06)', borderRadius:8, padding:'5px 9px', border:'1px solid rgba(26,75,140,0.12)' }}>
-                  <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:13, fontWeight:700, width:14, textAlign:'center', color: i===0?'#D97706':i===1?'#6B8AB8':i===2?'#B45309':'#93AECF' }}>{i+1}</span>
-                  <div style={{ width:20, height:20, borderRadius:'50%', background:orbColors[i%orbColors.length], display:'flex', alignItems:'center', justifyContent:'center', fontSize:7, fontWeight:700, color:'#fff' }}>#{i+1}</div>
-                  <span style={{ flex:1, fontSize:11, color:'#334155' }}>Consultant</span>
-                </div>
-              ))}
-              {!lbAlreadyApplied && auth.isConsultant && (
-                <div style={{ display:'flex', alignItems:'center', gap:7, background:'rgba(59,130,246,0.07)', borderRadius:8, padding:'5px 9px', border:'1px dashed rgba(59,130,246,0.35)' }}>
-                  <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:13, fontWeight:700, width:14, textAlign:'center', color:'#2563EB' }}>?</span>
-                  <div style={{ width:20, height:20, borderRadius:'50%', background:'rgba(59,130,246,0.12)', border:'1.5px dashed #3B82F6', display:'flex', alignItems:'center', justifyContent:'center', fontSize:7, fontWeight:700, color:'#3B82F6' }}>Me</div>
-                  <span style={{ flex:1, fontSize:11, color:'#2563EB' }}>Your spot if you apply</span>
-                  <span style={{ fontSize:10, fontWeight:700, color:lbMc }}>{lbScore}</span>
-                </div>
-              )}
-              {lbAlreadyApplied && auth.isConsultant && (
-                <div style={{ display:'flex', alignItems:'center', gap:7, background:'rgba(59,130,246,0.1)', borderRadius:8, padding:'5px 9px', border:'1px solid rgba(59,130,246,0.35)' }}>
-                  <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:13, fontWeight:700, width:14, textAlign:'center', color:'#2563EB' }}>✓</span>
-                  <div style={{ width:20, height:20, borderRadius:'50%', background:'#3B82F6', display:'flex', alignItems:'center', justifyContent:'center', fontSize:7, fontWeight:700, color:'#fff' }}>Me</div>
-                  <span style={{ flex:1, fontSize:11, color:'#1D4ED8', fontWeight:600 }}>Applied — score {lbScore}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
       </div>
     );
   };
-
 
   const renderLeaderboard = () => {
     if (lbLoading) return <Spinner />;
