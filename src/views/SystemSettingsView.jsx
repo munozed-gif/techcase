@@ -30,6 +30,7 @@ import {
 import { GENERATION_CONTEXT_DEFAULTS, GENERATION_PROFILE_DEFAULTS, GEN_DOCS, ROLE_PERMISSIONS_DEFAULTS } from "../lib/constants.js";
 import { LifecycleSettingsView, CaseDefaultsPanel, AssignmentSettingsPanel } from "./SettingsSubViews.jsx";
 import { PersonAvatar } from "./Projects.jsx";
+import { AbapTemplatesSection } from "../components/SapPanels.jsx";
 
 function UpgradeModal({ onClose, title, message, roleType, planKey, auth }) {
   const planCfg = usePlanConfig();
