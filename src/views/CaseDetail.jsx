@@ -77,6 +77,8 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const carouselScrolling = useRef(false);
   const pipelineRef = useRef(null);
   const pipelineScrolled = useRef(false);
+  const pipelineScrolling = useRef(false);
+  const [pipelineActiveIdx, setPipelineActiveIdx] = useState(0);
   const [mountedSlides, setMountedSlides] = useState(() => new Set(["detail"]));
   const [manualCompletions, setManualCompletionsRaw] = useState(() => {
     try { return JSON.parse(localStorage.getItem(`tc_mc_${caseData.id}`) ?? "{}"); } catch { return {}; }
@@ -2306,7 +2308,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         </div>
       )}
 
-      {/* Lifecycle Pipeline — carousel, current stage first */}
+      {/* Lifecycle Pipeline — same carousel style as section cards */}
       {onStatusChange && (() => {
         const curStage = lifecycleStages.find(s => s.key === caseData.status);
         const allowedNext  = curStage?.allowed_next?.length  ? curStage.allowed_next  : null;
@@ -2341,7 +2343,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           return "future";
         }
 
-        // All non-auto stages; reorder so current is first
+        // All non-auto stages; reorder so current stage is index 0
         const allDisplayStages = lifecycleStages.filter(s => s.trigger !== "auto");
         if (!allDisplayStages.length) return null;
         const curDisplayIdx = allDisplayStages.findIndex(s => s.key === caseData.status);
@@ -2349,34 +2351,59 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           ? [...allDisplayStages.slice(curDisplayIdx), ...allDisplayStages.slice(0, curDisplayIdx)]
           : allDisplayStages;
 
-        // Scroll carousel one card width
-        const CARD_W = 152; // w-36 (144) + gap-2 (8)
-        function scrollPipeline(dir) {
+        const clampedActive = Math.max(0, Math.min(pipelineActiveIdx, displayStages.length - 1));
+
+        function pipelineScrollTo(idx) {
+          const clamped = Math.max(0, Math.min(idx, displayStages.length - 1));
+          setPipelineActiveIdx(clamped);
+          pipelineScrolling.current = true;
+          const el = pipelineRef.current;
+          if (el) {
+            const child = el.children[clamped];
+            if (child) child.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+          }
+          setTimeout(() => { pipelineScrolling.current = false; }, 600);
+        }
+
+        function onPipelineScroll() {
+          if (pipelineScrolling.current) return;
           const el = pipelineRef.current;
           if (!el) return;
-          el.scrollBy({ left: dir * CARD_W, behavior: "smooth" });
+          const center = el.scrollLeft + el.offsetWidth / 2;
+          let closest = 0, minDist = Infinity;
+          Array.from(el.children).forEach((child, i) => {
+            const dist = Math.abs((child.offsetLeft + child.offsetWidth / 2) - center);
+            if (dist < minDist) { minDist = dist; closest = i; }
+          });
+          if (closest !== pipelineActiveIdx) setPipelineActiveIdx(closest);
         }
 
         return (
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t("case.next_steps")}</p>
-              <div className="flex items-center gap-1">
-                <button onClick={() => scrollPipeline(-1)}
-                  className="w-6 h-6 flex items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-colors text-xs leading-none">‹</button>
-                <button onClick={() => scrollPipeline(1)}
-                  className="w-6 h-6 flex items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-colors text-xs leading-none">›</button>
-              </div>
-            </div>
+          <div style={{ position: "relative" }}>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("case.next_steps")}</p>
+
+            {/* Left arrow */}
+            {clampedActive > 0 && (
+              <button onClick={() => pipelineScrollTo(clampedActive - 1)}
+                style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", zIndex: 10, width: 32, height: 32, borderRadius: "50%", border: "1.5px solid #CBD5E1", background: "white", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,.08)", marginTop: 10 }}>
+                <ChevronLeft size={16} style={{ color: "#64748B" }} />
+              </button>
+            )}
+            {/* Right arrow */}
+            {clampedActive < displayStages.length - 1 && (
+              <button onClick={() => pipelineScrollTo(clampedActive + 1)}
+                style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", zIndex: 10, width: 32, height: 32, borderRadius: "50%", border: "1.5px solid #CBD5E1", background: "white", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,.08)", marginTop: 10 }}>
+                <ChevronRight size={16} style={{ color: "#64748B" }} />
+              </button>
+            )}
+
             {/* Carousel track */}
-            <div
-              ref={pipelineRef}
-              className="flex gap-2 overflow-x-auto pb-2"
-              style={{ scrollbarWidth: "none", scrollSnapType: "x mandatory", msOverflowStyle: "none" }}>
+            <div ref={pipelineRef} onScroll={onPipelineScroll}
+              style={{ display: "flex", overflowX: "scroll", scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch", gap: 10, padding: "0 60px" }}>
               {displayStages.map((s, displayIdx) => {
-                // Original index for stageState calculation
                 const origIdx = allDisplayStages.findIndex(st => st.key === s.key);
                 const state = stageState(s, origIdx);
+                const isActive = displayIdx === clampedActive;
                 const isCancelled = s.key === "cancelled";
                 const color = isCancelled ? "#EF4444" : (s.color ?? "#6B7280");
                 const gateItems = stageGateItems(s.key);
@@ -2386,122 +2413,117 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 const hasBlockers = gateItems.some(c => !c.passed && c.mode === "block");
                 const hasWarnings = gateItems.some(c => !c.passed && c.mode === "warn");
 
-                const cardStyle = state === "past"
-                  ? { borderColor: "#E5E7EB", backgroundColor: "#F9FAFB" }
-                  : state === "current"
-                  ? { borderColor: color, backgroundColor: color + "10" }
-                  : state === "reachable"
-                  ? { borderColor: color + "55", backgroundColor: "#FFFFFF" }
-                  : { borderColor: "#F3F4F6", backgroundColor: "#FAFAFA" };
+                const borderColor = state === "past" ? "#E2E8F0"
+                  : state === "current" ? color
+                  : state === "reachable" ? color + "88"
+                  : "#E2E8F0";
+                const bgColor = state === "past" ? "#F8FAFC"
+                  : state === "current" ? color + "0D"
+                  : "#FFFFFF";
 
                 return (
                   <div key={s.key}
-                    className="flex-shrink-0 flex flex-col rounded-2xl border-2 transition-all overflow-hidden w-36"
-                    style={{ ...cardStyle, scrollSnapAlign: "start" }}>
-                    {/* Color stripe */}
-                    <div className="h-1.5 flex-shrink-0" style={{
-                      backgroundColor: state === "past" ? "#9CA3AF" : state === "future" ? "#D1D5DB" : color
-                    }} />
+                    style={{ flex: "0 0 calc(100% - 120px)", width: "calc(100% - 120px)", maxWidth: "calc(100% - 120px)", minWidth: 0, overflow: "hidden", scrollSnapAlign: "center", scrollSnapStop: "always", opacity: isActive ? 1 : 0.5, transform: isActive ? "scale(1)" : "scale(0.97)", transition: "opacity .25s, transform .25s" }}>
+                    <div style={{ borderRadius: 12, border: `1px solid ${isActive ? borderColor : "#E2E8F0"}`, background: bgColor, overflow: "hidden", width: "100%", boxSizing: "border-box", boxShadow: isActive ? "0 4px 20px rgba(0,0,0,.08)" : "none", transition: "box-shadow .25s", cursor: isActive ? "default" : "pointer" }}
+                      onClick={() => !isActive && pipelineScrollTo(displayIdx)}>
 
-                    {/* Card body */}
-                    <div className="flex flex-col flex-1 px-3 pt-3 pb-3 gap-2">
-                      {/* Stage name + state badge */}
-                      <div>
-                        <p className={`text-xs font-bold leading-tight ${
-                          state === "past" || state === "future" ? "text-gray-400" : "text-gray-900"
-                        }`} style={state === "current" ? { color } : {}}>
+                      {/* Card header */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", borderBottom: "1px solid #F1F5F9", background: isActive ? (state === "current" ? color + "12" : "#F8FAFC") : "#FAFAFA", flexShrink: 0 }}>
+                        {/* State dot */}
+                        {state === "past"
+                          ? <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#22C55E", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Check size={9} color="white" strokeWidth={3} /></div>
+                          : state === "current"
+                            ? <div style={{ width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0, marginRight: 2 }} />
+                            : <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#CBD5E1", flexShrink: 0, marginRight: 2 }} />
+                        }
+                        <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: isActive ? (state === "current" ? color : "#0F172A") : "#94A3B8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {s.label}
-                        </p>
-                        <div className="mt-1">
-                          {state === "past" && (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-gray-400">
-                              <CheckCircle2 size={9} className="text-gray-400" /> Done
-                            </span>
-                          )}
-                          {state === "current" && (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold" style={{ color }}>
-                              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: color }} />
-                              Current
-                            </span>
-                          )}
-                          {state === "future" && (
-                            <span className="text-[9px] text-gray-300 font-medium">Upcoming</span>
-                          )}
-                          {state === "reachable" && (
-                            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold" style={{ color }}>
-                              {hasBlockers ? "⚠ Blocked" : hasWarnings ? "⚡ Warn" : "→ Next"}
-                            </span>
-                          )}
-                        </div>
+                        </span>
+                        {/* State badge */}
+                        <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 99, background: isActive ? (state === "current" ? color + "22" : state === "reachable" ? color + "22" : "#F1F5F9") : "#F1F5F9", color: isActive ? (state === "current" ? color : state === "reachable" ? color : "#94A3B8") : "#94A3B8", flexShrink: 0 }}>
+                          {state === "past" ? "Done" : state === "current" ? "Current" : state === "reachable" ? (hasBlockers ? "⚠ Blocked" : hasWarnings ? "⚡ Warn" : "→ Next") : "Upcoming"}
+                        </span>
                       </div>
 
-                      {/* Gate checklist */}
-                      {gateItems.length > 0 && (
-                        <div className="flex-1 space-y-1">
-                          {gateItems.map(cond => (
-                            <div key={cond.key} className="flex items-start gap-1.5">
-                              {cond.passed ? (
-                                <CheckCircle2 size={10} className="text-green-500 flex-shrink-0 mt-0.5" />
-                              ) : cond.mode === "block" ? (
-                                <XCircle size={10} className="text-red-400 flex-shrink-0 mt-0.5" />
-                              ) : (
-                                <AlertTriangle size={10} className="text-orange-400 flex-shrink-0 mt-0.5" />
-                              )}
-                              <span className={`text-[9px] leading-tight ${
-                                cond.passed ? "text-gray-500" : cond.mode === "block" ? "text-red-600" : "text-orange-600"
-                              } ${state === "past" || state === "future" ? "opacity-50" : ""}`}>
-                                {cond.label}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {gateItems.length === 0 && state !== "current" && state !== "past" && (
-                        <div className="flex-1" />
-                      )}
+                      {/* Card body */}
+                      <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+                        {/* Gate checklist */}
+                        {gateItems.length > 0 ? (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                            {gateItems.map(cond => (
+                              <div key={cond.key} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                                {cond.passed
+                                  ? <CheckCircle2 size={13} style={{ color: "#22C55E", flexShrink: 0, marginTop: 1 }} />
+                                  : cond.mode === "block"
+                                    ? <XCircle size={13} style={{ color: "#F87171", flexShrink: 0, marginTop: 1 }} />
+                                    : <AlertTriangle size={13} style={{ color: "#FB923C", flexShrink: 0, marginTop: 1 }} />
+                                }
+                                <span style={{ fontSize: 12, lineHeight: 1.4, color: cond.passed ? "#64748B" : cond.mode === "block" ? "#DC2626" : "#EA580C", opacity: !isActive ? 0.6 : 1 }}>
+                                  {cond.label}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p style={{ fontSize: 12, color: "#94A3B8", margin: 0 }}>
+                            {state === "past" ? "Completed" : state === "current" ? "No gate conditions configured" : "No requirements set"}
+                          </p>
+                        )}
 
-                      {/* Action button — only for reachable stages */}
-                      {state === "reachable" && canChange && !curStage?.is_terminal && (
-                        <button
-                          onClick={async () => {
-                            if (isCancelled) { initCancelModal(caseData.id); return; }
-                            if (s.key === "standby") { setStandbyReason(""); setStandbyNotes(""); setStandbyModal(true); return; }
-                            if (s.key === "approved") { setApprovalBypass(""); setApprovalModal(true); return; }
-                            if (needsConfirm && !isPending) { setPendingStageKey(s.key); return; }
-                            setPendingStageKey(null);
-                            const { blockers: gb, warnings: gw } = checkTransitionGates(s.key);
-                            if (gb.length > 0 || gw.length > 0) {
-                              setGateModal({ caseId: caseData.id, toStatus: s.key, toLabel: s.label, toColor: color, blockers: gb, warnings: gw });
-                              return;
-                            }
-                            await onStatusChange(caseData.id, s.key);
-                            if (s.key === "completed") {
-                              if (auth.isConsultant) {
-                                if (caseData.client?.id) setClientRatingModal({ caseId: caseData.id, caseTitle: caseData.title, clientId: caseData.client.id, clientName: caseData.client.full_name ?? 'Client' });
-                              } else {
-                                const ratee = { id: caseData.case_assignments?.[0]?.users?.id, name: caseData.case_assignments?.[0]?.users?.full_name, role: "consultant" };
-                                if (ratee.id) setRatingModal({ caseId: caseData.id, caseTitle: caseData.title, rateeId: ratee.id, rateeName: ratee.name, rateeRole: ratee.role, raterRole: auth.role });
+                        {/* Action button — reachable stages only */}
+                        {state === "reachable" && canChange && !curStage?.is_terminal && isActive && (
+                          <button
+                            onClick={async e => {
+                              e.stopPropagation();
+                              if (isCancelled) { initCancelModal(caseData.id); return; }
+                              if (s.key === "standby") { setStandbyReason(""); setStandbyNotes(""); setStandbyModal(true); return; }
+                              if (s.key === "approved") { setApprovalBypass(""); setApprovalModal(true); return; }
+                              if (needsConfirm && !isPending) { setPendingStageKey(s.key); return; }
+                              setPendingStageKey(null);
+                              const { blockers: gb, warnings: gw } = checkTransitionGates(s.key);
+                              if (gb.length > 0 || gw.length > 0) {
+                                setGateModal({ caseId: caseData.id, toStatus: s.key, toLabel: s.label, toColor: color, blockers: gb, warnings: gw });
+                                return;
                               }
-                            }
-                          }}
-                          className="w-full py-1.5 text-[10px] font-bold rounded-xl text-white transition-all hover:opacity-90 active:scale-95 mt-auto"
-                          style={{ backgroundColor: isCancelled ? "#EF4444" : color }}>
-                          {isPending ? "Confirm?" : isCancelled ? "Cancel case" : `Move →`}
-                        </button>
-                      )}
-
-                      {isPending && (
-                        <div className="mt-1 space-y-1">
-                          <p className="text-[9px] text-amber-700">{caseProgress}% done</p>
-                          <button onClick={e => { e.stopPropagation(); setPendingStageKey(null); }}
-                            className="text-[9px] text-gray-400 underline">Cancel</button>
-                        </div>
-                      )}
+                              await onStatusChange(caseData.id, s.key);
+                              if (s.key === "completed") {
+                                if (auth.isConsultant) {
+                                  if (caseData.client?.id) setClientRatingModal({ caseId: caseData.id, caseTitle: caseData.title, clientId: caseData.client.id, clientName: caseData.client.full_name ?? 'Client' });
+                                } else {
+                                  const ratee = { id: caseData.case_assignments?.[0]?.users?.id, name: caseData.case_assignments?.[0]?.users?.full_name, role: "consultant" };
+                                  if (ratee.id) setRatingModal({ caseId: caseData.id, caseTitle: caseData.title, rateeId: ratee.id, rateeName: ratee.name, rateeRole: ratee.role, raterRole: auth.role });
+                                }
+                              }
+                            }}
+                            style={{ width: "100%", padding: "9px 0", fontSize: 12, fontWeight: 700, borderRadius: 10, color: "white", background: isCancelled ? "#EF4444" : color, border: "none", cursor: "pointer", transition: "opacity .15s" }}
+                            onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
+                            onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
+                            {isPending ? "Confirm?" : isCancelled ? "Cancel case" : `Move to ${s.label} →`}
+                          </button>
+                        )}
+                        {isPending && isActive && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ fontSize: 11, color: "#B45309" }}>{caseProgress}% done</span>
+                            <button onClick={e => { e.stopPropagation(); setPendingStageKey(null); }}
+                              style={{ fontSize: 11, color: "#94A3B8", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>Cancel</button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
               })}
             </div>
+
+            {/* Dot indicators */}
+            {displayStages.length > 1 && (
+              <div style={{ display: "flex", justifyContent: "center", gap: 5, marginTop: 10 }}>
+                {displayStages.map((_, i) => (
+                  <button key={i} onClick={() => pipelineScrollTo(i)}
+                    style={{ width: i === clampedActive ? 18 : 6, height: 6, borderRadius: 99, background: i === clampedActive ? "#1A4B8C" : "#CBD5E1", border: "none", cursor: "pointer", padding: 0, transition: "all .2s" }} />
+                ))}
+              </div>
+            )}
           </div>
         );
       })()}
