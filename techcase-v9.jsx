@@ -27079,11 +27079,6 @@ function ArenaView({ auth }) {
 
   const renderCases = () => {
     if (casesLoading) return <Spinner />;
-    if (openCases.length === 0) return (
-      <div style={{ background:'#1a3560', borderRadius:16, padding:'48px 24px', textAlign:'center', color:'#7aa3c8', fontSize:14 }}>
-        {t("arena.no_cases")}
-      </div>
-    );
 
     const cpObj = Array.isArray(auth.profile?.consultant_profiles)
       ? auth.profile.consultant_profiles[0]
@@ -27097,6 +27092,155 @@ function ArenaView({ auth }) {
       const hits = req.filter(s => mySkills.has(String(s).toLowerCase())).length;
       return Math.round(Math.max(5, Math.min(100, (hits / req.length) * 70 + 30)));
     }
+
+    const orbColors = ['#10B981','#3B82F6','#8B5CF6','#EC4899','#F59E0B','#0EA5E9','#F97316'];
+
+    // ── Inline leaderboard / solar view ──────────────────────────
+    if (solarCase) {
+      const c = solarCase;
+      const score = matchScore(c) ?? 50;
+      const mc    = score >= 75 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444';
+      const now = Date.now();
+      const dueMs   = c.due_date   ? new Date(c.due_date).getTime()   : null;
+      const startMs = c.start_date ? new Date(c.start_date).getTime() : null;
+      const daysLeft  = dueMs  ? Math.max(0, Math.ceil((dueMs - now) / 86400000))  : null;
+      const totalDays = (dueMs && startMs) ? Math.max(1, Math.ceil((dueMs - startMs) / 86400000)) : 14;
+      const timePct   = daysLeft != null ? Math.max(0, Math.min(1, daysLeft / totalDays)) : null;
+      const tc        = timePct == null ? '#6B8AB8' : timePct <= 0.15 ? '#EF4444' : timePct <= 0.4 ? '#F59E0B' : '#10B981';
+      const arcDim    = tc === '#EF4444' ? 'rgba(239,68,68,0.3)' : tc === '#F59E0B' ? 'rgba(245,158,11,0.3)' : 'rgba(16,185,129,0.3)';
+      const appCount     = c.applications?.[0]?.count ?? 0;
+      const alreadyApplied = appliedCaseIds.has(c.id);
+      const companyName  = c.client?.client_profiles?.company_name || c.client?.full_name;
+      const sysSize = 240;
+      const innerR = sysSize * 0.24, outerR = sysSize * 0.36, timeR = sysSize * 0.46;
+      const timeCirc = 2 * Math.PI * timeR;
+      const timeFilled = timePct != null ? timeCirc * timePct : 0;
+      const otherCount = Math.max(0, appCount - (alreadyApplied ? 1 : 0));
+      const innerSlots = Math.min(2, otherCount);
+      const outerSlots = Math.min(5, Math.max(0, otherCount - innerSlots));
+
+      function OrbiterNode({ label, color, r, slotIdx, total, dur, isYou }) {
+        const startDeg = (slotIdx / Math.max(total, 1)) * 360 + (r === innerR ? 0 : 40);
+        return (
+          <div style={{ position:'absolute', top:'50%', left:'50%', width:0, height:0,
+            animation:`arena-solar-orbit ${dur}s linear infinite`,
+            '--start':`${startDeg}deg`, '--r':`${r}px` }}>
+            <div style={{ position:'absolute', width:36, height:36, margin:-18, borderRadius:'50%', background:color,
+              border: isYou ? '2px solid #3B82F6' : '2px solid rgba(0,0,0,0.15)',
+              boxShadow: isYou ? '0 0 10px rgba(59,130,246,0.4)' : 'none',
+              display:'flex', alignItems:'center', justifyContent:'center',
+              fontFamily:"'Barlow Condensed',sans-serif", fontSize:11, fontWeight:700, color:'#fff' }}>
+              {label}
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div>
+          <style>{`
+            @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&display=swap');
+            @keyframes arena-solar-orbit {
+              from { transform: rotate(var(--start)) translateX(var(--r)) rotate(calc(-1 * var(--start))); }
+              to   { transform: rotate(calc(var(--start) + 360deg)) translateX(var(--r)) rotate(calc(-1 * (var(--start) + 360deg))); }
+            }
+          `}</style>
+          <button onClick={() => setSolarCase(null)}
+            style={{ display:'flex', alignItems:'center', gap:6, fontSize:13, fontWeight:600, color:'#1A4B8C', background:'none', border:'none', cursor:'pointer', marginBottom:14, padding:0 }}>
+            ← Back to cases
+          </button>
+          <div style={{ display:'flex', gap:16, flexWrap:'wrap', alignItems:'flex-start' }}>
+            {/* Solar system panel */}
+            <div style={{ background:'#0C1A30', borderRadius:18, padding:14, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              <div style={{ position:'relative', width:sysSize, height:sysSize }}>
+                {[innerR, outerR].map(r => (
+                  <div key={r} style={{ position:'absolute', borderRadius:'50%', border:'1px solid rgba(255,255,255,0.07)', top:'50%', left:'50%', width:r*2, height:r*2, transform:'translate(-50%,-50%)' }} />
+                ))}
+                <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%', overflow:'visible' }} viewBox={`0 0 ${sysSize} ${sysSize}`}>
+                  <circle cx={sysSize/2} cy={sysSize/2} r={timeR} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="5"/>
+                  {timePct != null && (
+                    <circle cx={sysSize/2} cy={sysSize/2} r={timeR} fill="none" stroke={tc} strokeWidth="5"
+                      strokeDasharray={`${timeFilled.toFixed(1)} ${(timeCirc-timeFilled).toFixed(1)}`}
+                      strokeLinecap="round" transform={`rotate(-90 ${sysSize/2} ${sysSize/2})`}
+                      style={{ filter:`drop-shadow(0 0 6px ${arcDim})` }}/>
+                  )}
+                </svg>
+                <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:72, height:72, borderRadius:'50%', background:'radial-gradient(circle at 35% 35%,#1A4B8C,#080F1E)', border:'2px solid rgba(59,130,246,0.4)', boxShadow:'0 0 24px rgba(59,130,246,0.2)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', zIndex:10 }}>
+                  <ProjectAvatar project={c.project ?? { name: companyName || c.title, client: c.client }} size={52} />
+                </div>
+                {[...Array(innerSlots)].map((_, i) => <OrbiterNode key={`in${i}`} label={`#${i+1}`} color={orbColors[i%orbColors.length]} r={innerR} slotIdx={i} total={innerSlots+(alreadyApplied?1:0)} dur={10} isYou={false} />)}
+                {alreadyApplied && <OrbiterNode label="You" color="#3B82F6" r={innerR} slotIdx={innerSlots} total={innerSlots+1} dur={10} isYou={true} />}
+                {[...Array(outerSlots)].map((_, i) => <OrbiterNode key={`out${i}`} label={`#${innerSlots+i+1}`} color={orbColors[(innerSlots+i)%orbColors.length]} r={outerR} slotIdx={i} total={Math.max(outerSlots,1)} dur={17} isYou={false} />)}
+                {daysLeft != null && (
+                  <div style={{ position:'absolute', bottom:2, left:'50%', transform:'translateX(-50%)', fontSize:9, fontWeight:600, letterSpacing:'0.07em', textTransform:'uppercase', color:tc, whiteSpace:'nowrap' }}>
+                    {daysLeft === 1 ? '1 day' : `${daysLeft} days`} left
+                  </div>
+                )}
+              </div>
+            </div>
+            {/* Info + leaderboard */}
+            <div style={{ flex:1, minWidth:180 }}>
+              {auth.isConsultant && (
+                <div style={{ marginBottom:10 }}>
+                  <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:44, fontWeight:800, lineHeight:1, color:mc }}>{score}%</span>
+                  <span style={{ fontSize:10, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#6B8AB8', marginLeft:8 }}>match</span>
+                </div>
+              )}
+              <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:18, fontWeight:700, color:'#0F172A', lineHeight:1.2, marginBottom:8 }}>{c.title}</div>
+              <div style={{ display:'flex', flexDirection:'column', gap:4, marginBottom:12, fontSize:12, color:'#475569' }}>
+                {companyName && <span>{companyName}</span>}
+                {c.area_sap  && <span>{c.area_sap}</span>}
+                {c.budget    && <span>${Number(c.budget).toLocaleString()}</span>}
+              </div>
+              <p style={{ fontSize:11, fontWeight:600, color:'#6B8AB8', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>{appCount} applied</p>
+              <div style={{ display:'flex', flexDirection:'column', gap:4, marginBottom:12 }}>
+                {[...Array(Math.min(appCount, 5))].map((_, i) => (
+                  <div key={i} style={{ display:'flex', alignItems:'center', gap:7, background:'#F0F7FF', borderRadius:9, padding:'5px 9px', border:'1px solid #BFDBFE' }}>
+                    <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:13, fontWeight:700, width:16, textAlign:'center', color: i===0?'#F59E0B':i===1?'#94A3B8':i===2?'#B45309':'#93C5FD' }}>{i+1}</span>
+                    <div style={{ width:22, height:22, borderRadius:'50%', background:orbColors[i%orbColors.length], display:'flex', alignItems:'center', justifyContent:'center', fontSize:8, fontWeight:700, color:'#fff' }}>#{i+1}</div>
+                    <span style={{ flex:1, fontSize:11, color:'#334155' }}>Consultant</span>
+                  </div>
+                ))}
+                {!alreadyApplied && auth.isConsultant && (
+                  <div style={{ display:'flex', alignItems:'center', gap:7, background:'#EFF6FF', borderRadius:9, padding:'5px 9px', border:'1px dashed #3B82F6' }}>
+                    <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:13, fontWeight:700, width:16, textAlign:'center', color:'#3B82F6' }}>?</span>
+                    <div style={{ width:22, height:22, borderRadius:'50%', background:'rgba(59,130,246,0.12)', border:'1.5px dashed #3B82F6', display:'flex', alignItems:'center', justifyContent:'center', fontSize:8, fontWeight:700, color:'#3B82F6' }}>Me</div>
+                    <span style={{ flex:1, fontSize:11, color:'#3B82F6' }}>Your spot if you apply</span>
+                    <span style={{ fontSize:11, fontWeight:700, color:mc }}>{score}</span>
+                  </div>
+                )}
+                {alreadyApplied && (
+                  <div style={{ display:'flex', alignItems:'center', gap:7, background:'#EFF6FF', borderRadius:9, padding:'5px 9px', border:'1px solid #3B82F6' }}>
+                    <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:13, fontWeight:700, width:16, textAlign:'center', color:'#3B82F6' }}>✓</span>
+                    <div style={{ width:22, height:22, borderRadius:'50%', background:'#3B82F6', display:'flex', alignItems:'center', justifyContent:'center', fontSize:8, fontWeight:700, color:'#fff' }}>Me</div>
+                    <span style={{ flex:1, fontSize:11, color:'#1D4ED8', fontWeight:600 }}>Applied — score {score}</span>
+                  </div>
+                )}
+              </div>
+              {auth.isConsultant && (
+                alreadyApplied ? (
+                  <button disabled style={{ width:'100%', background:'rgba(16,185,129,0.1)', border:'1px solid rgba(16,185,129,0.3)', borderRadius:11, color:'#059669', fontSize:13, fontWeight:600, padding:10, cursor:'default', display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}>
+                    <Check size={13} /> Applied ✓
+                  </button>
+                ) : (
+                  <button onClick={() => { setSolarCase(null); setApplying(c); }}
+                    style={{ width:'100%', background:'linear-gradient(135deg,#1A4B8C,#2563EB)', border:'none', borderRadius:11, color:'#fff', fontSize:13, fontWeight:600, padding:10, cursor:'pointer', boxShadow:'0 3px 14px rgba(37,99,235,0.3)' }}>
+                    Apply for this Case
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Case carousel ─────────────────────────────────────────────
+    if (openCases.length === 0) return (
+      <div className="bg-blue-50 rounded-2xl p-12 text-center text-blue-400 text-sm border border-blue-100">
+        {t("arena.no_cases")}
+      </div>
+    );
 
     const sorted = [...openCases].sort((a, b) => {
       if (caseSort === 'match')    return (matchScore(b) ?? 0) - (matchScore(a) ?? 0);
@@ -27123,20 +27267,20 @@ function ArenaView({ auth }) {
     const totalDays = (dueMs && startMs) ? Math.max(1, Math.ceil((dueMs - startMs) / 86400000)) : 14;
     const timePct  = daysLeft != null ? Math.max(0, Math.min(1, daysLeft / totalDays)) : null;
 
-    const mc    = score == null ? '#6B8AB8' : score >= 75 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444';
-    const mcDim = score == null ? 'rgba(107,138,184,0.3)' : score >= 75 ? 'rgba(16,185,129,0.3)' : score >= 50 ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)';
-    const tc    = timePct == null ? '#6B8AB8' : timePct <= 0.15 ? '#EF4444' : timePct <= 0.4 ? '#F59E0B' : '#10B981';
+    const mc    = score == null ? '#2563EB' : score >= 75 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444';
+    const mcDim = score == null ? 'rgba(37,99,235,0.25)' : score >= 75 ? 'rgba(16,185,129,0.25)' : score >= 50 ? 'rgba(245,158,11,0.25)' : 'rgba(239,68,68,0.25)';
+    const tc    = timePct == null ? '#3B82F6' : timePct <= 0.15 ? '#EF4444' : timePct <= 0.4 ? '#F59E0B' : '#10B981';
 
     const svgR = 43, svgCx = 48, svgCy = 48;
     const circ  = 2 * Math.PI * svgR;
     const filled = score != null ? circ * (score / 100) : 0;
 
-    const dayChipColor  = timePct == null ? '#8AABCC' : timePct <= 0.15 ? '#F87171' : timePct <= 0.4 ? '#FBB02D' : '#8AABCC';
-    const dayChipBorder = timePct == null ? 'rgba(255,255,255,0.12)' : timePct <= 0.15 ? 'rgba(239,68,68,0.4)' : timePct <= 0.4 ? 'rgba(245,158,11,0.4)' : 'rgba(255,255,255,0.12)';
-    const dayChipBg     = timePct == null ? 'transparent' : timePct <= 0.15 ? 'rgba(239,68,68,0.07)' : timePct <= 0.4 ? 'rgba(245,158,11,0.07)' : 'transparent';
+    const dayChipColor  = timePct == null ? '#3B82F6' : timePct <= 0.15 ? '#DC2626' : timePct <= 0.4 ? '#D97706' : '#3B82F6';
+    const dayChipBorder = timePct == null ? 'rgba(59,130,246,0.3)' : timePct <= 0.15 ? 'rgba(220,38,38,0.35)' : timePct <= 0.4 ? 'rgba(217,119,6,0.35)' : 'rgba(59,130,246,0.3)';
+    const dayChipBg     = timePct == null ? 'rgba(59,130,246,0.07)' : timePct <= 0.15 ? 'rgba(220,38,38,0.07)' : timePct <= 0.4 ? 'rgba(217,119,6,0.07)' : 'rgba(59,130,246,0.07)';
 
     const chip = (color, border, bg, label) => (
-      <span style={{ fontSize:10, fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', padding:'4px 10px', borderRadius:99, border:`1px solid ${border}`, color, background:bg }}>{label}</span>
+      <span style={{ fontSize:10, fontWeight:600, letterSpacing:'0.07em', textTransform:'uppercase', padding:'3px 9px', borderRadius:99, border:`1px solid ${border}`, color, background:bg }}>{label}</span>
     );
 
     const arrowBtn = (dir) => {
@@ -27144,7 +27288,7 @@ function ArenaView({ auth }) {
       return (
         <button onClick={() => !atEnd && setCaseCarouselIdx(i => Math.max(0, Math.min(sorted.length - 1, i + dir)))}
           disabled={atEnd} aria-label={dir === -1 ? 'Previous case' : 'Next case'}
-          style={{ width:36, height:36, borderRadius:'50%', background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', color: atEnd ? 'rgba(255,255,255,0.15)' : '#8AABCC', fontSize:22, lineHeight:1, cursor: atEnd ? 'default' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'all .15s' }}>
+          style={{ width:34, height:34, borderRadius:'50%', background:'rgba(26,75,140,0.08)', border:'1px solid rgba(26,75,140,0.18)', color: atEnd ? 'rgba(26,75,140,0.22)' : '#1A4B8C', fontSize:20, lineHeight:1, cursor: atEnd ? 'default' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'all .15s' }}>
           {dir === -1 ? '‹' : '›'}
         </button>
       );
@@ -27159,11 +27303,11 @@ function ArenaView({ auth }) {
           <span style={{ fontSize:12, color:'#6B8AB8', fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase' }}>
             {sorted.length === 1 ? t('arena.open_count_one') : t('arena.open_count_many').replace('{n}', sorted.length)}
           </span>
-          <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-            <span style={{ fontSize:11, color:'#4A6B9A', textTransform:'uppercase', letterSpacing:'0.1em', marginRight:2 }}>Sort</span>
+          <div style={{ display:'flex', gap:5, alignItems:'center' }}>
+            <span style={{ fontSize:11, color:'#6B8AB8', textTransform:'uppercase', letterSpacing:'0.1em', marginRight:2 }}>Sort</span>
             {['match','deadline','budget'].map(key => (
               <button key={key} onClick={() => { setCaseSort(key); setCaseCarouselIdx(0); }}
-                style={{ background: caseSort === key ? '#1A4B8C' : 'rgba(255,255,255,0.06)', border:`1px solid ${caseSort === key ? '#2563EB' : 'rgba(255,255,255,0.1)'}`, borderRadius:99, color: caseSort === key ? '#fff' : '#8AABCC', fontSize:11, fontWeight:600, letterSpacing:'0.06em', padding:'5px 14px', cursor:'pointer', textTransform:'uppercase', transition:'all .15s' }}>
+                style={{ background: caseSort === key ? '#1A4B8C' : 'rgba(26,75,140,0.07)', border:`1px solid ${caseSort === key ? '#2563EB' : 'rgba(26,75,140,0.2)'}`, borderRadius:99, color: caseSort === key ? '#fff' : '#1A4B8C', fontSize:11, fontWeight:600, letterSpacing:'0.06em', padding:'4px 12px', cursor:'pointer', textTransform:'uppercase', transition:'all .15s' }}>
                 {key.charAt(0).toUpperCase() + key.slice(1)}
               </button>
             ))}
@@ -27171,24 +27315,24 @@ function ArenaView({ auth }) {
         </div>
 
         {/* Card */}
-        <div style={{ background:'#1a3560', borderRadius:22, border:'1px solid rgba(255,255,255,0.12)', overflow:'hidden', position:'relative' }}>
+        <div style={{ background:'#EEF5FF', borderRadius:22, border:'1px solid #BFDBFE', overflow:'hidden', position:'relative', boxShadow:'0 4px 20px rgba(37,99,235,0.08)' }}>
           {/* Left match stripe */}
-          <div style={{ position:'absolute', left:0, top:'20%', bottom:'20%', width:3, borderRadius:'0 3px 3px 0', background:mc, boxShadow:`0 0 12px ${mc}` }} />
+          <div style={{ position:'absolute', left:0, top:'20%', bottom:'20%', width:3, borderRadius:'0 3px 3px 0', background:mc, boxShadow:`0 0 10px ${mcDim}` }} />
 
           {/* Time strip */}
-          <div style={{ height:4, background:'rgba(255,255,255,0.06)', position:'relative', overflow:'hidden' }}>
+          <div style={{ height:4, background:'rgba(26,75,140,0.07)', position:'relative', overflow:'hidden' }}>
             {timePct != null && (
-              <div style={{ position:'absolute', left:0, top:0, bottom:0, width:`${timePct * 100}%`, background:tc, boxShadow:`0 0 8px ${tc}` }} />
+              <div style={{ position:'absolute', left:0, top:0, bottom:0, width:`${timePct * 100}%`, background:tc, opacity:0.8 }} />
             )}
           </div>
 
-          <div style={{ padding:'24px 28px 22px', display:'flex', flexDirection:'column', gap:18 }}>
+          <div style={{ padding:'22px 26px 20px', display:'flex', flexDirection:'column', gap:16 }}>
 
             {/* Hero: ring + match info */}
-            <div style={{ display:'flex', alignItems:'center', gap:20 }}>
-              <div style={{ position:'relative', width:96, height:96, flexShrink:0 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:18 }}>
+              <div style={{ position:'relative', width:92, height:92, flexShrink:0 }}>
                 <svg viewBox="0 0 96 96" fill="none" style={{ position:'absolute', inset:0, width:'100%', height:'100%' }}>
-                  <circle cx={svgCx} cy={svgCy} r={svgR} stroke="rgba(255,255,255,0.08)" strokeWidth="6"/>
+                  <circle cx={svgCx} cy={svgCy} r={svgR} stroke="rgba(26,75,140,0.12)" strokeWidth="6"/>
                   {score != null && (
                     <circle cx={svgCx} cy={svgCy} r={svgR}
                       stroke={mc} strokeWidth="6"
@@ -27196,56 +27340,56 @@ function ArenaView({ auth }) {
                       strokeDashoffset={`${(circ - filled).toFixed(1)}`}
                       strokeLinecap="round"
                       transform={`rotate(-90 ${svgCx} ${svgCy})`}
-                      style={{ filter:`drop-shadow(0 0 7px ${mcDim})` }}
+                      style={{ filter:`drop-shadow(0 0 5px ${mcDim})` }}
                     />
                   )}
                 </svg>
-                <div style={{ position:'absolute', inset:12, borderRadius:'50%', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  <ProjectAvatar project={c.project ?? { name: companyName || c.title, client: c.client }} size={72} />
+                <div style={{ position:'absolute', inset:12, borderRadius:'50%', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', background:'#fff' }}>
+                  <ProjectAvatar project={c.project ?? { name: companyName || c.title, client: c.client }} size={68} />
                 </div>
               </div>
               <div style={{ flex:1, minWidth:0 }}>
                 {score != null ? (
                   <>
-                    <div style={{ fontFamily:"'Barlow Condensed', sans-serif", fontSize:52, fontWeight:800, lineHeight:1, color:mc, textShadow:`0 0 24px ${mcDim}`, letterSpacing:'-0.01em' }}>
-                      {score}<span style={{ fontSize:26, opacity:0.55 }}>%</span>
+                    <div style={{ fontFamily:"'Barlow Condensed', sans-serif", fontSize:50, fontWeight:800, lineHeight:1, color:mc, letterSpacing:'-0.01em' }}>
+                      {score}<span style={{ fontSize:24, opacity:0.5 }}>%</span>
                     </div>
-                    <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:'#4A6B9A', marginTop:4 }}>Match score</div>
+                    <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:'#6B8AB8', marginTop:3 }}>Match score</div>
                     {(c.skills_required?.length ?? 0) > 0 && (
-                      <div style={{ fontSize:11, color:'#5B7FA8', marginTop:5, lineHeight:1.4 }}>
-                        {c.skills_required.filter(s => mySkills.has(String(s).toLowerCase())).length} of {c.skills_required.length} required skills matched
+                      <div style={{ fontSize:11, color:'#4A6B9A', marginTop:4, lineHeight:1.4 }}>
+                        {c.skills_required.filter(s => mySkills.has(String(s).toLowerCase())).length} of {c.skills_required.length} skills matched
                       </div>
                     )}
                   </>
                 ) : (
-                  <div style={{ fontSize:14, color:'#8AABCC', fontWeight:600 }}>{companyName || c.title}</div>
+                  <div style={{ fontSize:14, color:'#1A4B8C', fontWeight:600 }}>{companyName || c.title}</div>
                 )}
               </div>
             </div>
 
             {/* Title + description */}
             <div>
-              <div style={{ fontFamily:"'Barlow Condensed', sans-serif", fontSize:26, fontWeight:700, letterSpacing:'0.02em', color:'#fff', lineHeight:1.2 }}>
+              <div style={{ fontFamily:"'Barlow Condensed', sans-serif", fontSize:24, fontWeight:700, letterSpacing:'0.02em', color:'#0F172A', lineHeight:1.2 }}>
                 {c.title}
               </div>
               {c.description && (
-                <div style={{ fontSize:13, color:'#5B7FA8', lineHeight:1.55, marginTop:6 }}>
+                <div style={{ fontSize:13, color:'#4A6B9A', lineHeight:1.55, marginTop:5 }}>
                   {c.description}
                 </div>
               )}
             </div>
 
             {/* Chips */}
-            <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
-              {c.area_sap      && chip('#00C8FF', 'rgba(0,200,255,0.3)',    'rgba(0,200,255,0.07)',   c.area_sap)}
-              {c.area_industry && chip('#7DBBDC', 'rgba(125,187,220,0.3)',  'rgba(125,187,220,0.07)', c.area_industry)}
-              {c.budget        && chip('#10B981', 'rgba(16,185,129,0.3)',   'rgba(16,185,129,0.07)',  `$${Number(c.budget).toLocaleString()}`)}
+            <div style={{ display:'flex', gap:7, flexWrap:'wrap', alignItems:'center' }}>
+              {c.area_sap      && chip('#0066CC', 'rgba(0,102,204,0.3)',  'rgba(0,102,204,0.07)', c.area_sap)}
+              {c.area_industry && chip('#0369A1', 'rgba(3,105,161,0.3)',  'rgba(3,105,161,0.07)', c.area_industry)}
+              {c.budget        && chip('#059669', 'rgba(5,150,105,0.3)',  'rgba(5,150,105,0.07)', `$${Number(c.budget).toLocaleString()}`)}
               {daysLeft != null && chip(dayChipColor, dayChipBorder, dayChipBg, daysLeft === 1 ? '1 day left' : `${daysLeft} days left`)}
-              {companyName     && chip('#8AABCC', 'rgba(255,255,255,0.1)',  'transparent',            companyName)}
+              {companyName     && chip('#1A4B8C', 'rgba(26,75,140,0.25)', 'rgba(26,75,140,0.06)', companyName)}
             </div>
 
             {/* Divider */}
-            <div style={{ height:1, background:'rgba(255,255,255,0.06)' }} />
+            <div style={{ height:1, background:'rgba(26,75,140,0.1)' }} />
 
             {/* Applicant strip */}
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
@@ -27253,8 +27397,8 @@ function ArenaView({ auth }) {
                 {appCount > 0 && (
                   <div style={{ display:'flex', alignItems:'center' }}>
                     {[...Array(Math.min(3, appCount))].map((_, i) => (
-                      <div key={i} style={{ width:32, height:32, borderRadius:'50%', border:'2px solid #1a3560', background:['#10B981','#3B82F6','#8B5CF6'][i], display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#fff', marginLeft: i === 0 ? 0 : -10, flexShrink:0, fontFamily:"'Barlow Condensed',sans-serif", letterSpacing:'0.04em' }}>
-                        #{i + 1}
+                      <div key={i} style={{ width:30, height:30, borderRadius:'50%', border:'2px solid #EEF5FF', background:['#10B981','#3B82F6','#8B5CF6'][i], display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff', marginLeft: i === 0 ? 0 : -9, flexShrink:0 }}>
+                        #{i+1}
                       </div>
                     ))}
                   </div>
@@ -27265,12 +27409,12 @@ function ArenaView({ auth }) {
               </div>
               {canViewRanking ? (
                 <button onClick={() => setArenaSelected(c)}
-                  style={{ background:'transparent', border:'1px solid rgba(255,255,255,0.12)', borderRadius:10, color:'#8AABCC', fontSize:11, fontWeight:600, padding:'6px 14px', cursor:'pointer', whiteSpace:'nowrap', letterSpacing:'0.02em', transition:'all .15s' }}>
+                  style={{ background:'transparent', border:'1px solid rgba(26,75,140,0.25)', borderRadius:10, color:'#1A4B8C', fontSize:11, fontWeight:600, padding:'6px 13px', cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
                   View ranking ›
                 </button>
               ) : auth.isConsultant ? (
                 <button onClick={() => setSolarCase(c)}
-                  style={{ background:'transparent', border:'1px solid rgba(255,255,255,0.12)', borderRadius:10, color:'#8AABCC', fontSize:11, fontWeight:600, padding:'6px 14px', cursor:'pointer', whiteSpace:'nowrap', letterSpacing:'0.02em', transition:'all .15s' }}>
+                  style={{ background:'transparent', border:'1px solid rgba(26,75,140,0.25)', borderRadius:10, color:'#1A4B8C', fontSize:11, fontWeight:600, padding:'6px 13px', cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
                   View leaderboard ›
                 </button>
               ) : null}
@@ -27279,12 +27423,12 @@ function ArenaView({ auth }) {
             {/* Apply CTA */}
             {auth.isConsultant && (
               alreadyApplied ? (
-                <button disabled style={{ width:'100%', background:'rgba(16,185,129,0.12)', border:'1px solid rgba(16,185,129,0.3)', borderRadius:14, color:'#10B981', fontSize:15, fontWeight:600, padding:'13px', cursor:'default', letterSpacing:'0.02em', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                <button disabled style={{ width:'100%', background:'rgba(5,150,105,0.1)', border:'1px solid rgba(5,150,105,0.3)', borderRadius:13, color:'#059669', fontSize:15, fontWeight:600, padding:'12px', cursor:'default', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
                   <Check size={14} />{t('arena.applied')}
                 </button>
               ) : (
                 <button onClick={() => setApplying(c)}
-                  style={{ width:'100%', background:'linear-gradient(135deg,#1A4B8C,#2563EB)', border:'none', borderRadius:14, color:'#fff', fontSize:15, fontWeight:600, padding:'13px', cursor:'pointer', letterSpacing:'0.02em', boxShadow:'0 4px 20px rgba(37,99,235,0.25)', transition:'all .2s' }}>
+                  style={{ width:'100%', background:'linear-gradient(135deg,#1A4B8C,#2563EB)', border:'none', borderRadius:13, color:'#fff', fontSize:15, fontWeight:600, padding:'12px', cursor:'pointer', boxShadow:'0 4px 18px rgba(37,99,235,0.3)', transition:'all .2s' }}>
                   {t('arena.apply')}
                 </button>
               )
@@ -27293,19 +27437,19 @@ function ArenaView({ auth }) {
         </div>
 
         {/* Nav: arrows + dots + counter */}
-        <div style={{ marginTop:14, display:'flex', flexDirection:'column', alignItems:'center', gap:10 }}>
+        <div style={{ marginTop:14, display:'flex', flexDirection:'column', alignItems:'center', gap:8 }}>
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
             {arrowBtn(-1)}
-            <div style={{ display:'flex', gap:7, alignItems:'center' }}>
+            <div style={{ display:'flex', gap:6, alignItems:'center' }}>
               {sorted.map((_, i) => (
                 <button key={i} onClick={() => setCaseCarouselIdx(i)}
                   aria-label={`Case ${i + 1}`}
-                  style={{ width: i === safeIdx ? 22 : 7, height:7, borderRadius:4, background: i === safeIdx ? '#2563EB' : 'rgba(255,255,255,0.15)', border:'none', cursor:'pointer', transition:'all .2s', padding:0 }} />
+                  style={{ width: i === safeIdx ? 20 : 7, height:7, borderRadius:4, background: i === safeIdx ? '#2563EB' : 'rgba(26,75,140,0.2)', border:'none', cursor:'pointer', transition:'all .2s', padding:0 }} />
               ))}
             </div>
             {arrowBtn(1)}
           </div>
-          <span style={{ fontSize:11, color:'#4A6B9A', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase' }}>
+          <span style={{ fontSize:11, color:'#6B8AB8', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase' }}>
             {safeIdx + 1} of {sorted.length}
           </span>
         </div>
@@ -27637,277 +27781,6 @@ function ArenaView({ auth }) {
     );
   };
 
-  const renderSolarModal = () => {
-    if (!solarCase) return null;
-    const c = solarCase;
-    const cpObj = Array.isArray(auth.profile?.consultant_profiles)
-      ? auth.profile.consultant_profiles[0]
-      : auth.profile?.consultant_profiles;
-    const mySkills = new Set((cpObj?.skills ?? []).map(s => String(s).toLowerCase()));
-    const score = (() => {
-      const req = c.skills_required ?? [];
-      if (req.length === 0) return 50;
-      const hits = req.filter(s => mySkills.has(String(s).toLowerCase())).length;
-      return Math.round(Math.max(5, Math.min(100, (hits / req.length) * 70 + 30)));
-    })();
-    const mc    = score >= 75 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444';
-    const mcDim = score >= 75 ? 'rgba(16,185,129,0.4)' : score >= 50 ? 'rgba(245,158,11,0.4)' : 'rgba(239,68,68,0.4)';
-    const now = Date.now();
-    const dueMs   = c.due_date    ? new Date(c.due_date).getTime()   : null;
-    const startMs = c.start_date  ? new Date(c.start_date).getTime() : null;
-    const daysLeft  = dueMs  ? Math.max(0, Math.ceil((dueMs - now) / 86400000))  : null;
-    const totalDays = (dueMs && startMs) ? Math.max(1, Math.ceil((dueMs - startMs) / 86400000)) : 14;
-    const timePct   = daysLeft != null ? Math.max(0, Math.min(1, daysLeft / totalDays)) : null;
-    const tc        = timePct == null ? '#6B8AB8' : timePct <= 0.15 ? '#EF4444' : timePct <= 0.4 ? '#F59E0B' : '#10B981';
-    const arcDim    = tc === '#EF4444' ? 'rgba(239,68,68,0.3)' : tc === '#F59E0B' ? 'rgba(245,158,11,0.3)' : 'rgba(16,185,129,0.3)';
-    const appCount     = c.applications?.[0]?.count ?? 0;
-    const alreadyApplied = appliedCaseIds.has(c.id);
-    const companyName  = c.client?.client_profiles?.company_name || c.client?.full_name;
-    const orbColors = ['#10B981','#3B82F6','#8B5CF6','#EC4899','#F59E0B','#0EA5E9','#F97316'];
-    const sysSize = Math.min(380, typeof window !== 'undefined' ? window.innerWidth * 0.82 : 380);
-    const innerR = sysSize * 0.24, outerR = sysSize * 0.355, timeR = sysSize * 0.46;
-    const timeCirc = 2 * Math.PI * timeR;
-    const timeFilled = timePct != null ? timeCirc * timePct : 0;
-    const otherCount = Math.max(0, appCount - (alreadyApplied ? 1 : 0));
-    const innerSlots = Math.min(2, otherCount);
-    const outerSlots = Math.min(5, Math.max(0, otherCount - innerSlots));
-
-    function OrbiterNode({ label, color, r, slotIdx, total, dur, isYou }) {
-      const startDeg = (slotIdx / Math.max(total, 1)) * 360 + (r === innerR ? 0 : 40);
-      return (
-        <div style={{ position:'absolute', top:'50%', left:'50%', width:0, height:0,
-          animation:`arena-solar-orbit ${dur}s linear infinite`,
-          '--start':`${startDeg}deg`, '--r':`${r}px` }}>
-          <div style={{ position:'absolute', width:44, height:44, margin:-22, borderRadius:'50%', background:color,
-            border: isYou ? '2px solid #00C8FF' : '2px solid rgba(0,0,0,0.25)',
-            boxShadow: isYou ? '0 0 16px rgba(0,200,255,0.5)' : 'none',
-            display:'flex', alignItems:'center', justifyContent:'center',
-            fontFamily:"'Barlow Condensed',sans-serif", fontSize:12, fontWeight:700, color:'#fff' }}>
-            {label}
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div style={{ position:'fixed', inset:0, background:'rgba(3,7,18,0.94)', backdropFilter:'blur(12px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:20 }}
-        onClick={e => { if (e.target === e.currentTarget) setSolarCase(null); }}>
-        <style>{`
-          @keyframes arena-solar-orbit {
-            from { transform: rotate(var(--start)) translateX(var(--r)) rotate(calc(-1 * var(--start))); }
-            to   { transform: rotate(calc(var(--start) + 360deg)) translateX(var(--r)) rotate(calc(-1 * (var(--start) + 360deg))); }
-          }
-          @media (prefers-reduced-motion: reduce) {
-            [style*="arena-solar-orbit"] { animation: none !important; }
-          }
-        `}</style>
-        <button onClick={() => setSolarCase(null)}
-          style={{ position:'absolute', top:20, right:20, background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.12)', borderRadius:'50%', width:36, height:36, color:'#8AABCC', fontSize:18, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', lineHeight:1 }}>
-          ✕
-        </button>
-
-        <div style={{ display:'flex', gap:32, alignItems:'center', flexWrap:'wrap', justifyContent:'center', maxWidth:860, width:'100%' }}>
-
-          {/* Solar system */}
-          <div style={{ position:'relative', width:sysSize, height:sysSize, flexShrink:0 }}>
-            {[innerR, outerR].map(r => (
-              <div key={r} style={{ position:'absolute', borderRadius:'50%', border:'1px solid rgba(255,255,255,0.07)', top:'50%', left:'50%', width:r*2, height:r*2, transform:'translate(-50%,-50%)' }} />
-            ))}
-            <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%', overflow:'visible' }} viewBox={`0 0 ${sysSize} ${sysSize}`}>
-              <circle cx={sysSize/2} cy={sysSize/2} r={timeR} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="6"/>
-              {timePct != null && (
-                <circle cx={sysSize/2} cy={sysSize/2} r={timeR} fill="none" stroke={tc} strokeWidth="6"
-                  strokeDasharray={`${timeFilled.toFixed(1)} ${(timeCirc-timeFilled).toFixed(1)}`}
-                  strokeLinecap="round" transform={`rotate(-90 ${sysSize/2} ${sysSize/2})`}
-                  style={{ filter:`drop-shadow(0 0 8px ${arcDim})` }}/>
-              )}
-            </svg>
-            <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:108, height:108, borderRadius:'50%', background:'radial-gradient(circle at 35% 35%,#1A4B8C,#080F1E)', border:'2px solid rgba(0,200,255,0.3)', boxShadow:'0 0 40px rgba(0,200,255,0.15),0 0 0 8px rgba(0,200,255,0.05)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', zIndex:10 }}>
-              <ProjectAvatar project={c.project ?? { name: companyName || c.title, client: c.client }} size={80} />
-            </div>
-            {[...Array(innerSlots)].map((_, i) => (
-              <OrbiterNode key={`in${i}`} label={`#${i+1}`} color={orbColors[i % orbColors.length]} r={innerR} slotIdx={i} total={innerSlots + (alreadyApplied ? 1 : 0)} dur={10} isYou={false} />
-            ))}
-            {alreadyApplied && (
-              <OrbiterNode label="You" color="#00C8FF" r={innerR} slotIdx={innerSlots} total={innerSlots + 1} dur={10} isYou={true} />
-            )}
-            {[...Array(outerSlots)].map((_, i) => (
-              <OrbiterNode key={`out${i}`} label={`#${innerSlots+i+1}`} color={orbColors[(innerSlots+i) % orbColors.length]} r={outerR} slotIdx={i} total={Math.max(outerSlots,1)} dur={17} isYou={false} />
-            ))}
-            {daysLeft != null && (
-              <div style={{ position:'absolute', bottom:6, left:'50%', transform:'translateX(-50%)', fontSize:10, fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', color:tc, whiteSpace:'nowrap' }}>
-                {daysLeft === 1 ? '1 day' : `${daysLeft} days`} left to apply
-              </div>
-            )}
-          </div>
-
-          {/* Info panel */}
-          <div style={{ flex:1, minWidth:200, maxWidth:260, color:'#E8F0FE', fontFamily:"'Inter',sans-serif" }}>
-            <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:56, fontWeight:800, lineHeight:1, color:mc, textShadow:`0 0 30px ${mcDim}`, marginBottom:4 }}>
-              {score}%
-            </div>
-            <div style={{ fontSize:11, color:'#4A6B9A', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:14 }}>Your match score</div>
-            <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:24, fontWeight:800, color:'#fff', lineHeight:1.15, marginBottom:12 }}>
-              {c.title}
-            </div>
-            <div style={{ display:'flex', flexDirection:'column', gap:7, marginBottom:18 }}>
-              {companyName && <div style={{ display:'flex', gap:8 }}><span style={{ fontSize:10, fontWeight:600, color:'#4A6B9A', letterSpacing:'0.1em', textTransform:'uppercase', width:56, flexShrink:0 }}>Client</span><span style={{ fontSize:13, color:'#C8D8F0' }}>{companyName}</span></div>}
-              {c.area_sap   && <div style={{ display:'flex', gap:8 }}><span style={{ fontSize:10, fontWeight:600, color:'#4A6B9A', letterSpacing:'0.1em', textTransform:'uppercase', width:56, flexShrink:0 }}>Module</span><span style={{ fontSize:13, color:'#C8D8F0' }}>{c.area_sap}</span></div>}
-              {c.budget     && <div style={{ display:'flex', gap:8 }}><span style={{ fontSize:10, fontWeight:600, color:'#4A6B9A', letterSpacing:'0.1em', textTransform:'uppercase', width:56, flexShrink:0 }}>Budget</span><span style={{ fontSize:13, color:'#C8D8F0' }}>${Number(c.budget).toLocaleString()}</span></div>}
-              <div style={{ display:'flex', gap:8 }}><span style={{ fontSize:10, fontWeight:600, color:'#4A6B9A', letterSpacing:'0.1em', textTransform:'uppercase', width:56, flexShrink:0 }}>Applied</span><span style={{ fontSize:13, color:'#C8D8F0' }}>{appCount} consultant{appCount !== 1 ? 's' : ''}</span></div>
-            </div>
-            <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:16 }}>
-              {[...Array(Math.min(appCount, 5))].map((_, i) => (
-                <div key={i} style={{ display:'flex', alignItems:'center', gap:10, background:'rgba(255,255,255,0.04)', borderRadius:10, padding:'7px 12px', border:'1px solid rgba(255,255,255,0.06)' }}>
-                  <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:16, fontWeight:700, width:20, textAlign:'center', color: i===0?'#F59E0B':i===1?'#94A3B8':i===2?'#92714B':'#4A6B9A' }}>{i+1}</div>
-                  <div style={{ width:28, height:28, borderRadius:'50%', background:orbColors[i%orbColors.length], display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff', fontFamily:"'Barlow Condensed',sans-serif" }}>#{i+1}</div>
-                  <div style={{ flex:1, fontSize:12, color:'#C8D8F0' }}>Consultant</div>
-                </div>
-              ))}
-              {!alreadyApplied && auth.isConsultant && (
-                <div style={{ display:'flex', alignItems:'center', gap:10, background:'rgba(0,200,255,0.06)', borderRadius:10, padding:'7px 12px', border:'1px dashed rgba(0,200,255,0.25)' }}>
-                  <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:16, fontWeight:700, width:20, textAlign:'center', color:'#00C8FF' }}>?</div>
-                  <div style={{ width:28, height:28, borderRadius:'50%', background:'rgba(0,200,255,0.15)', border:'1.5px dashed rgba(0,200,255,0.5)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#00C8FF' }}>Me</div>
-                  <div style={{ flex:1, fontSize:12, color:'#5B9ED6' }}>Your position if you apply</div>
-                  <div style={{ fontSize:12, fontWeight:700, color:mc }}>{score}</div>
-                </div>
-              )}
-              {alreadyApplied && (
-                <div style={{ display:'flex', alignItems:'center', gap:10, background:'rgba(0,200,255,0.06)', borderRadius:10, padding:'7px 12px', border:'1px solid rgba(0,200,255,0.3)' }}>
-                  <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:16, fontWeight:700, width:20, textAlign:'center', color:'#00C8FF' }}>✓</div>
-                  <div style={{ width:28, height:28, borderRadius:'50%', background:'#00C8FF', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#060D1A' }}>Me</div>
-                  <div style={{ flex:1, fontSize:12, color:'#00C8FF', fontWeight:600 }}>You applied — score {score}</div>
-                </div>
-              )}
-            </div>
-            {auth.isConsultant && (
-              alreadyApplied ? (
-                <button disabled style={{ width:'100%', background:'rgba(16,185,129,0.12)', border:'1px solid rgba(16,185,129,0.3)', borderRadius:12, color:'#10B981', fontSize:14, fontWeight:600, padding:12, cursor:'default', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
-                  <Check size={14} /> Applied ✓
-                </button>
-              ) : (
-                <button onClick={() => { setSolarCase(null); setApplying(c); }}
-                  style={{ width:'100%', background:'linear-gradient(135deg,#1A4B8C,#2563EB)', border:'none', borderRadius:12, color:'#fff', fontSize:14, fontWeight:600, padding:12, cursor:'pointer', letterSpacing:'0.02em', boxShadow:'0 4px 20px rgba(37,99,235,0.3)', transition:'all .2s' }}>
-                  Apply for this Case
-                </button>
-              )
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const arenaTabs = [
-    { id: "cases",       label: t("arena.open_cases"),  icon: Briefcase,  count: openCases.length > 0 ? openCases.length : null },
-    { id: "leaderboard", label: t("arena.leaderboard"), icon: Trophy,     count: null },
-    { id: "cards",       label: t("arena.cards"),       icon: LayoutGrid, count: null },
-    { id: "compare",     label: t("arena.compare"),     icon: BarChart2,  count: compareSet.length >= 2 ? compareSet.length : null },
-  ];
-
-  const arenaTabStatus = (() => {
-    const r = {};
-    for (const tab of arenaTabs) {
-      if (arenaManualCompletions[tab.id] !== undefined) {
-        r[tab.id] = arenaManualCompletions[tab.id] ? "complete" : "none"; continue;
-      }
-      r[tab.id] = "none";
-    }
-    return r;
-  })();
-
-  useEffect(() => {
-    setArenaMountedSlides(prev => { const s = new Set(prev); s.add(arenaTab); return s; });
-    const el = arenaCarouselRef.current;
-    if (!el) return;
-    const idx = arenaTabs.findIndex(t => t.id === arenaTab);
-    if (idx < 0) return;
-    const slide = el.children[idx];
-    if (!slide) return;
-    const targetLeft = slide.offsetLeft - (el.offsetWidth - slide.offsetWidth) / 2;
-    arenaCarouselScrolling.current = true;
-    el.scrollTo({ left: targetLeft, behavior: 'smooth' });
-    const tid = setTimeout(() => { arenaCarouselScrolling.current = false; }, 600);
-    return () => clearTimeout(tid);
-  }, [arenaTab]);
-
-  if (applyingToCase) {
-    return (
-      <div className="min-h-screen bg-[#EAF4FD] p-6">
-        <ApplyWizard
-          caseData={applyingToCase}
-          auth={auth}
-          onComplete={() => { setApplying(null); refetchApps(); }}
-          onCancel={() => setApplying(null)}
-        />
-      </div>
-    );
-  }
-
-  if (arenaSelectedCase && canViewRanking) {
-    const c = arenaSelectedCase;
-    const companyName = c.client?.client_profiles?.company_name || c.client?.full_name;
-    const caseApps = applications.filter(a => a.case_id === c.id);
-    const appCount = caseApps.length;
-    return (
-      <div className="space-y-5">
-        <button onClick={() => setArenaSelected(null)}
-          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700">
-          {t("arena.back")}
-        </button>
-
-        {/* Case overview */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <div className="flex items-start justify-between gap-4 mb-3">
-            <div className="min-w-0">
-              <h1 className="text-xl font-bold text-gray-900 leading-tight">{c.title}</h1>
-              <div className="flex flex-wrap gap-2 mt-2">
-                <Badge className={PRIORITY_COLORS[c.priority]}>{PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}</Badge>
-                {c.area_sap      && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{c.area_sap}</span>}
-                {c.area_industry && <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg text-xs font-medium">{c.area_industry}</span>}
-                {c.is_confidential && <span className="px-2 py-0.5 bg-gray-800 text-white rounded-lg text-xs font-semibold">{t("arena.private")}</span>}
-                {c.nda_required  && <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">{t("arena.nda")}</span>}
-              </div>
-            </div>
-            <div className="flex-shrink-0 text-right">
-              <div className="text-2xl font-black text-gray-900">{appCount}</div>
-              <div className="text-xs text-gray-400">{appCount !== 1 ? t("arena.applicant_pl") : t("arena.applicant_sg")}</div>
-            </div>
-          </div>
-
-          {companyName && <p className="text-sm text-blue-600 font-semibold mb-2">{companyName}</p>}
-          {c.description && <p className="text-sm text-gray-600 leading-relaxed mb-4">{c.description}</p>}
-
-          <div className="flex flex-wrap gap-4 text-sm text-gray-500 mb-4">
-            {c.start_date && <span><span className="font-medium text-gray-700">{t("arena.label_start")}</span> {fmtDate(c.start_date)}</span>}
-            {c.due_date   && <span><span className="font-medium text-gray-700">{t("arena.label_due_short")}</span> {fmtDate(c.due_date)}</span>}
-            {c.budget     && <span><span className="font-medium text-gray-700">{t("arena.label_budget_short")}</span> ${Number(c.budget).toLocaleString()}</span>}
-            {c.min_years_experience > 0 && <span><span className="font-medium text-gray-700">{t("arena.label_experience")}</span> {c.min_years_experience}{t("arena.yrs_suffix")}</span>}
-          </div>
-
-          {c.skills_required?.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {c.skills_required.map(s => (
-                <span key={s} className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{s}</span>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Ranked applicants */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">{t("arena.applicant_ranking")}</p>
-          <ApplicantRankingSection
-            caseData={c}
-            auth={auth}
-            applications={caseApps}
-            reviewApplication={handleArenaReviewApplication}
-          />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div>
       <div className="mb-6 flex items-end justify-between">
@@ -28039,8 +27912,6 @@ function ArenaView({ auth }) {
         );
       })()}
 
-      {/* Solar system leaderboard modal */}
-      {solarCase && renderSolarModal()}
 
       {/* Floating compare bar */}
       {compareSet.length >= 2 && (
