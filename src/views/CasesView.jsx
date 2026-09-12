@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Building2, Calendar, CalendarDays, CalendarRange, CheckCircle2,
   ChevronDown, ClipboardList, Code2, Download, FolderKanban, FolderOpen,
@@ -42,6 +42,14 @@ function CasesView({ auth, initialCaseId }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [bulkProcessing, setBulkProcessing]   = useState(false);
   const [bulkStatusOpen, setBulkStatusOpen]   = useState(false);
+  const [focusedCaseId, setFocusedCaseId]     = useState(null);
+  const caseCarouselRef                        = useRef(null);
+
+  function scrollCaseCarousel(dir) {
+    const el = caseCarouselRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * 300, behavior: "smooth" });
+  }
 
   function selectClient(id) {
     setClientFilter(id);
@@ -411,72 +419,142 @@ function CasesView({ auth, initialCaseId }) {
       {displayed.length === 0 ? (
         <EmptyState Icon={FolderOpen} title={t("cases.no_cases")} subtitle={t("cases.no_cases_hint")} />
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm p-4 grid gap-3">
-          {displayed.map(c => (
-            <div key={c.id}
-              className="rounded-2xl cursor-pointer transition-all hover:shadow-md p-5"
-              style={(() => { const cc = selectedCases.has(c.id) ? { border: '#bfdbfe', bg: '#eff6ff' } : (CASE_CARD_COLORS[c.status] ?? { border: '#e5e7eb', bg: '#ffffff' }); return { border: `1.5px solid ${cc.border}`, backgroundColor: cc.bg }; })()}
-              onClick={() => setSelected(c)}>
-              {(() => {
-                const StatusIcon = STATUS_CARD_ICONS[c.status] ?? Tag;
-                const cc = CASE_CARD_COLORS[c.status] ?? { bar: "#9ca3af", bg: "#f9fafb" };
-                return (
-                  <div className="flex items-center gap-3">
-                    {(auth.isAdmin || auth.isManager) && (
-                      <div className="self-start pt-1 shrink-0">
+        <div className="bg-white rounded-2xl shadow-sm p-4">
+          {/* Carousel header with nav */}
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+              {displayed.length} {displayed.length === 1 ? "case" : "cases"}
+            </span>
+            <div className="flex items-center gap-1">
+              <button onClick={() => scrollCaseCarousel(-1)}
+                className="w-6 h-6 flex items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-colors text-xs leading-none">‹</button>
+              <button onClick={() => scrollCaseCarousel(1)}
+                className="w-6 h-6 flex items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-colors text-xs leading-none">›</button>
+            </div>
+          </div>
+          {/* Carousel track */}
+          <div
+            ref={caseCarouselRef}
+            className="flex gap-3 overflow-x-auto pb-2"
+            style={{ scrollbarWidth: "none", scrollSnapType: "x mandatory", msOverflowStyle: "none" }}>
+            {displayed.map(c => {
+              const isFocused = (focusedCaseId ?? displayed[0]?.id) === c.id;
+              const StatusIcon = STATUS_CARD_ICONS[c.status] ?? Tag;
+              const cc = CASE_CARD_COLORS[c.status] ?? { bar: "#9ca3af", bg: "#f9fafb", border: "#e5e7eb" };
+              const isChecked = selectedCases.has(c.id);
+
+              return (
+                <div key={c.id}
+                  className="flex-shrink-0 flex flex-col rounded-2xl border-2 cursor-pointer transition-all duration-300 overflow-hidden"
+                  style={{
+                    width: isFocused ? "300px" : "180px",
+                    scrollSnapAlign: "start",
+                    borderColor: isChecked ? "#bfdbfe" : isFocused ? cc.bar : cc.border,
+                    backgroundColor: isChecked ? "#eff6ff" : cc.bg,
+                  }}
+                  onClick={() => {
+                    if (isFocused) { setSelected(c); }
+                    else { setFocusedCaseId(c.id); }
+                  }}>
+                  {/* Color stripe */}
+                  <div className="h-1.5 flex-shrink-0" style={{ backgroundColor: cc.bar }} />
+
+                  <div className="flex flex-col flex-1 p-3 gap-2">
+                    {/* Top row: avatar + checkbox */}
+                    <div className="flex items-start gap-2">
+                      {(auth.isAdmin || auth.isManager) && (
                         <input type="checkbox"
-                          checked={selectedCases.has(c.id)}
+                          checked={isChecked}
                           onChange={() => {}}
                           onClick={e => toggleCaseSelect(c.id, e)}
-                          className="w-4 h-4 rounded border-gray-300 text-blue-600 cursor-pointer accent-blue-600" />
+                          className="w-3.5 h-3.5 mt-0.5 rounded border-gray-300 text-blue-600 cursor-pointer accent-blue-600 flex-shrink-0" />
+                      )}
+                      <ProjectAvatar
+                        project={c.project ?? { name: c.client?.client_profiles?.company_name || c.client?.full_name || c.title, client: c.client }}
+                        size={isFocused ? 36 : 28}
+                        className="flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <h3 className={`font-bold leading-tight truncate ${isFocused ? "text-sm text-gray-900" : "text-xs text-gray-700"}`}>
+                          {c.title}
+                        </h3>
+                        {c.project?.name && (
+                          <p className="text-[10px] text-blue-600 font-medium truncate flex items-center gap-0.5 mt-0.5">
+                            <FolderKanban size={9} className="flex-shrink-0" />{c.project.name}
+                          </p>
+                        )}
+                      </div>
+                      {/* Status icon */}
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{ background: cc.bar + "22", color: cc.bar }}>
+                        <StatusIcon size={16} strokeWidth={2} />
+                      </div>
+                    </div>
+
+                    {/* Description — only in focused */}
+                    {isFocused && c.description && (
+                      <p className="text-xs text-gray-500 line-clamp-2">{c.description}</p>
+                    )}
+
+                    {/* Meta row */}
+                    <div className="flex flex-col gap-0.5">
+                      {c.priority && (
+                        <span className="text-[10px] text-gray-400 font-medium capitalize">
+                          {PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}
+                        </span>
+                      )}
+                      {c.due_date && (
+                        <span className="text-[10px] text-gray-400">{t("label.due")} {fmtDate(c.due_date)}</span>
+                      )}
+                      {isFocused && c.budget && (
+                        <span className="text-[10px] text-gray-400">{t("label.budget")}: ${Number(c.budget).toLocaleString()}</span>
+                      )}
+                      {isFocused && c.skills_required?.length > 0 && (
+                        <span className="text-[10px] text-gray-400">
+                          {t("label.skills")}: {c.skills_required.slice(0, 3).join(", ")}{c.skills_required.length > 3 ? "…" : ""}
+                        </span>
+                      )}
+                      {c.status === "assigned" && c.start_date && (() => {
+                        const d = Math.ceil((new Date(c.start_date + "T00:00:00") - Date.now()) / 86400000);
+                        if (d > 3) return null;
+                        const late = d < 0;
+                        const txt = late ? t("case.start_overdue").replace("{n}", Math.abs(d)) : d === 0 ? t("case.starts_today") : d === 1 ? t("case.starts_tomorrow") : t("case.starts_in").replace("{n}", d);
+                        return <span key="start" className={`self-start text-[10px] px-1.5 py-0.5 rounded font-semibold ${late ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>{txt}</span>;
+                      })()}
+                    </div>
+
+                    {/* Actions — only in focused card */}
+                    {isFocused && (
+                      <div className="flex items-center gap-2 mt-auto pt-1">
+                        <button
+                          onClick={e => { e.stopPropagation(); setSelected(c); }}
+                          className="flex-1 py-1.5 text-[11px] font-bold rounded-xl text-white transition-all hover:opacity-90"
+                          style={{ backgroundColor: cc.bar }}>
+                          Open →
+                        </button>
+                        {auth.isConsultant && (
+                          <button onClick={e => { e.stopPropagation(); toggle(c.id); }}
+                            className="w-7 h-7 flex items-center justify-center rounded-xl border border-gray-200 transition-colors hover:bg-gray-50">
+                            <Star className={`w-3.5 h-3.5 ${isFavorite(c.id) ? "fill-yellow-400 text-yellow-400" : "text-gray-300 hover:text-yellow-400"}`} />
+                          </button>
+                        )}
                       </div>
                     )}
-                    <ProjectAvatar project={c.project ?? { name: c.client?.client_profiles?.company_name || c.client?.full_name || c.title, client: c.client }} size={40} className="flex-shrink-0 self-start mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline gap-2 mb-1 flex-wrap">
-                        <h3 className="font-semibold text-gray-900 truncate">{c.title}</h3>
-                        {c.priority && <span className="text-xs text-gray-400 font-medium capitalize flex-shrink-0">{PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}</span>}
-                      </div>
-                      {c.project?.name && (
-                        <p className="text-xs text-blue-600 font-medium truncate flex items-center gap-1 mb-1">
-                          <FolderKanban size={11} className="flex-shrink-0" />{c.project.name}
-                        </p>
-                      )}
-                      <p className="text-sm text-gray-500 line-clamp-2">{c.description}</p>
-                      <div className="flex items-center gap-4 mt-3 text-xs text-gray-400 flex-wrap">
-                        {c.skills_required?.length > 0 && (
-                          <span>{t("label.skills")}: {c.skills_required.slice(0, 3).join(", ")}{c.skills_required.length > 3 ? "…" : ""}</span>
-                        )}
-                        {c.due_date && <span>{t("label.due")} {fmtDate(c.due_date)}</span>}
-                        {c.budget && <span>{t("label.budget")}: ${Number(c.budget).toLocaleString()}</span>}
-                        <span>{t((c.applications?.length ?? 0) !== 1 ? "case.applicants_many" : "case.applicants_one").replace("{n}", c.applications?.length ?? 0)}</span>
-                        {c.status === "assigned" && c.start_date && (() => {
-                          const d = Math.ceil((new Date(c.start_date + "T00:00:00") - Date.now()) / 86400000);
-                          if (d > 3) return null;
-                          const late = d < 0;
-                          const txt = late ? t("case.start_overdue").replace("{n}", Math.abs(d)) : d === 0 ? t("case.starts_today") : d === 1 ? t("case.starts_tomorrow") : t("case.starts_in").replace("{n}", d);
-                          return <span className={`px-2 py-0.5 rounded-lg font-semibold ${late ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>{txt}</span>;
-                        })()}
-                      </div>
-                    </div>
-                    {/* Right: status square (light tint bg, colored icon) + star */}
-                    <div className="flex flex-col items-center gap-2 flex-shrink-0 self-center ml-1">
-                      <div className="w-12 h-12 rounded-xl flex items-center justify-center"
-                        style={{ background: cc.bar + "33", color: cc.bar }}>
-                        <StatusIcon size={22} strokeWidth={2} />
-                      </div>
-                      {auth.isConsultant && (
-                        <button onClick={e => { e.stopPropagation(); toggle(c.id); }}
-                          className="transition-colors">
-                          <Star className={`w-4 h-4 ${isFavorite(c.id) ? "fill-yellow-400 text-yellow-400" : "text-gray-300 hover:text-yellow-400"}`} />
-                        </button>
-                      )}
-                    </div>
+                    {/* Star for non-focused */}
+                    {!isFocused && auth.isConsultant && (
+                      <button onClick={e => { e.stopPropagation(); toggle(c.id); }}
+                        className="self-end transition-colors">
+                        <Star className={`w-3.5 h-3.5 ${isFavorite(c.id) ? "fill-yellow-400 text-yellow-400" : "text-gray-300 hover:text-yellow-400"}`} />
+                      </button>
+                    )}
+                    {/* Tap hint for non-focused */}
+                    {!isFocused && (
+                      <p className="text-[9px] text-gray-300 text-center mt-auto">Tap to expand</p>
+                    )}
                   </div>
-                );
-              })()}
-            </div>
-          ))}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
