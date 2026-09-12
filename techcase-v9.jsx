@@ -5780,11 +5780,12 @@ function useAuth() {
 
     // For client team members, find the client they belong to so plan limits
     // can be inherited from the client's billing plan rather than their own.
-    if (data && CLIENT_TEAM_ROLES.includes(data.role)) {
+    // client_team_members links by email, not user_id.
+    if (data && CLIENT_TEAM_ROLES.includes(data.role) && data.email) {
       const { data: membership } = await supabase
         .from("client_team_members")
         .select("client_id")
-        .eq("user_id", userId)
+        .eq("email", data.email)
         .maybeSingle();
       if (membership?.client_id) {
         data = { ...data, team_client_id: membership.client_id };
