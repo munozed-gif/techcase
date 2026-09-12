@@ -5749,6 +5749,8 @@ function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const CLIENT_TEAM_ROLES = ['key_user', 'final_user', 'internal_consultant', 'project_manager'];
+
   async function fetchProfile(userId) {
     let { data } = await supabase
       .from("users")
@@ -5776,6 +5778,19 @@ function useAuth() {
       }
     }
 
+    // For client team members, find the client they belong to so plan limits
+    // can be inherited from the client's billing plan rather than their own.
+    if (data && CLIENT_TEAM_ROLES.includes(data.role)) {
+      const { data: membership } = await supabase
+        .from("client_team_members")
+        .select("client_id")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (membership?.client_id) {
+        data = { ...data, team_client_id: membership.client_id };
+      }
+    }
+
     setProfile(data ?? null);
     setLoading(false);
   }
@@ -5800,9 +5815,15 @@ function useAuth() {
     await supabase.auth.signOut();
   }
 
+  // For client team members, billing is under the associated client account.
+  const billingUserId = (profile && CLIENT_TEAM_ROLES.includes(profile.role))
+    ? (profile.team_client_id ?? user?.id)
+    : user?.id;
+
   return {
     user, profile, loading,
     role: profile?.role ?? null,
+    billingUserId,
     signIn, signUp, signOut,
     refreshProfile: () => { if (user) fetchProfile(user.id); },
     isAdmin:      profile?.role === "admin",
@@ -8864,49 +8885,50 @@ function VouchingPanel({ targetUserId, targetName }) {
 // CONSULTANT PROFILE VIEW
 // ============================================================
 function PlanUsageCard({ auth }) {
-  const planCfg  = usePlanConfig();
-  const roleType = ROLE_TO_PLAN_TYPE[auth.profile?.role] ?? null;
-  const userId   = auth.user?.id;
-  const curPlan  = roleType ? planCfg.getUserPlan(userId) : null;
-  const limits   = roleType ? planCfg.getPlanLimits(userId, roleType) : {};
+  const planCfg    = usePlanConfig();
+  const roleType   = ROLE_TO_PLAN_TYPE[auth.profile?.role] ?? null;
+  const billingId  = auth.billingUserId;
+  const curPlan    = roleType ? planCfg.getUserPlan(billingId) : null;
+  const limits     = roleType ? planCfg.getPlanLimits(billingId, roleType, auth.profile?.role) : {};
 
   const [usage, setUsage]       = useState(null);
   const [loading, setLoading]   = useState(true);
   const [upgradeModal, setUpgradeModal] = useState(null);
 
   useEffect(() => {
-    if (!userId || !roleType) { setLoading(false); return; }
+    if (!billingId || !roleType) { setLoading(false); return; }
     (async () => {
       setLoading(true);
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const ownId = auth.user?.id;
 
       if (roleType === 'client') {
         const [{ count: activeCases }, { count: teamCount }] = await Promise.all([
           supabase.from('cases').select('id', { count: 'exact', head: true })
-            .eq('client_id', userId).not('status', 'in', '(closed,completed,cancelled)'),
+            .eq('client_id', billingId).not('status', 'in', '(closed,completed,cancelled)'),
           supabase.from('client_team_members').select('id', { count: 'exact', head: true })
-            .eq('client_id', userId),
+            .eq('client_id', billingId),
         ]);
         setUsage({ activeCases: activeCases ?? 0, teamCount: teamCount ?? 0 });
       } else if (roleType === 'consultant') {
         const { count: monthlyApps } = await supabase.from('applications')
           .select('id', { count: 'exact', head: true })
-          .eq('consultant_id', userId)
+          .eq('consultant_id', ownId)
           .gte('created_at', startOfMonth);
         const { count: totalApps } = await supabase.from('applications')
           .select('id', { count: 'exact', head: true })
-          .eq('consultant_id', userId);
+          .eq('consultant_id', ownId);
         setUsage({ monthlyApps: monthlyApps ?? 0, totalApps: totalApps ?? 0 });
       } else if (roleType === 'headhunter') {
         const { count: candidates } = await supabase.from('users')
           .select('id', { count: 'exact', head: true })
-          .eq('headhunter_id', userId);
+          .eq('headhunter_id', ownId);
         setUsage({ candidates: candidates ?? 0 });
       }
       setLoading(false);
     })();
-  }, [userId, roleType]);
+  }, [billingId, roleType]);
 
   if (!roleType || !curPlan) return null;
 
@@ -14628,7 +14650,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
   const { t } = useT();
   const { settings: catalogSettings } = useSystemSettings();
   const planCfg = usePlanConfig();
-  const clientLimits = planCfg.getPlanLimits(auth.user?.id, 'client', auth.profile?.role);
+  const clientLimits = planCfg.getPlanLimits(auth.billingUserId, 'client', auth.profile?.role);
   const SKILL_DEFAULTS = ["ABAP Development", "SAP Basis Administration", "SAP FICO Configuration", "SAP MM Configuration", "SAP SD Configuration", "SAP HCM", "SAP Fiori / UI5", "SAP BW / Analytics", "SAP Integration (CPI/PI)", "S/4HANA Migration", "SAP GRC", "SAP PM / QM", "HANA DB Administration", "SAP Security / Roles", "SAP PS (Project Systems)"];
   const DELIVERABLE_DEFAULTS = ["Business Blueprint", "Functional Specification", "Technical Specification", "Configuration Document", "Data Migration Plan", "Test Scripts", "UAT Report", "Training Material", "Go-Live Checklist", "Cutover Plan", "Gap Analysis", "Integration Test Report", "Migration Report", "Process Flow Diagram", "Project Charter", "System Documentation", "Change Management Plan", "Hypercare Plan", "Project Status Report", "SLA Agreement"];
   const catalogSkills        = catalogSettings["catalog_skills"]        ?? SKILL_DEFAULTS;
@@ -36530,7 +36552,7 @@ function usePlanConfig() {
   }
 
   const INTERNAL_LIMITS = { maxCases: -1, maxTeam: -1, maxApps: -1, maxCandidates: -1, ai: true, analytics: true, priority: true, helpDesk: true };
-  const INTERNAL_ROLES  = ['admin', 'manager', 'project_manager', 'internal_consultant'];
+  const INTERNAL_ROLES  = ['admin', 'manager'];
 
   function getPlanLimits(userId, roleType, authRole) {
     if (authRole && INTERNAL_ROLES.includes(authRole)) return INTERNAL_LIMITS;
@@ -39814,7 +39836,10 @@ function SettingsPlansTab({ ssCtx, auth }) {
   const PLAN_KEYS  = { client: ['free','starter','professional','enterprise'], consultant: ['free','starter','professional'], headhunter: ['free','professional'] };
   const LIMIT_LABELS = { maxCases: 'Max active cases', maxTeam: 'Max team members', maxApps: 'Max applications/mo', maxCandidates: 'Max candidates', ai: 'AI features', analytics: 'Analytics', priority: 'Priority listing', helpDesk: 'Help Desk projects' };
 
-  const relevantUsers = users.filter(u => ROLE_TO_PLAN_TYPE[u.role]);
+  const CLIENT_TEAM_ROLES_ADMIN = ['key_user', 'final_user', 'internal_consultant', 'project_manager'];
+  const billingUsers  = users.filter(u => ROLE_TO_PLAN_TYPE[u.role] && !CLIENT_TEAM_ROLES_ADMIN.includes(u.role));
+  const teamMembers   = users.filter(u => CLIENT_TEAM_ROLES_ADMIN.includes(u.role));
+  const relevantUsers = billingUsers;
 
   return (
     <div className="space-y-5">
@@ -39884,6 +39909,14 @@ function SettingsPlansTab({ ssCtx, auth }) {
               )}
             </tbody>
           </table>
+          {teamMembers.length > 0 && (
+            <div className="px-4 py-3 bg-blue-50 border-t border-blue-100 flex items-start gap-2">
+              <AlertCircle size={14} className="text-blue-500 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-blue-700">
+                <span className="font-semibold">Team members</span> (Key User, Final User, Internal Consultant, Project Manager) inherit their associated client's plan — they don't have individual plans. To change their limits, update the client account plan above.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
