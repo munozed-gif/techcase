@@ -27004,6 +27004,7 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
 // ============================================================
 // ARENA (COMPETITIVE BIDDING)
 // ============================================================
+let _arenaCaseIdx = 0; // persists carousel position across ArenaView remounts
 function ArenaView({ auth }) {
   const { t } = useT();
   const visCfg = useVisibilitySettings();
@@ -27033,7 +27034,7 @@ function ArenaView({ auth }) {
   const { applications, reviewApplication, refetch: refetchApps } = useApplications();
   const { templates: arenaLcTemplates } = useLifecycleTemplates();
   const [caseSort, setCaseSort] = useState('match');
-  const [caseCarouselIdx, setCaseCarouselIdx] = useState(0);
+  const [caseCarouselIdx, setCaseCarouselIdx] = useState(_arenaCaseIdx);
 
   function toggleCompare(id) {
     setCompareSet(prev =>
@@ -27772,6 +27773,26 @@ function ArenaView({ auth }) {
     const tid = setTimeout(() => { arenaCarouselScrolling.current = false; }, 600);
     return () => clearTimeout(tid);
   }, [arenaTab]);
+
+  // Sync case carousel index to module-level var so it survives remounts
+  useEffect(() => { _arenaCaseIdx = caseCarouselIdx; }, [caseCarouselIdx]);
+
+  // When returning from ranking detail, scroll case carousel back to remembered position
+  useEffect(() => {
+    if (arenaSelectedCase) return;
+    if (_arenaCaseIdx === 0) return;
+    const tid = setTimeout(() => {
+      const el = caseCarouselRef.current;
+      if (!el) return;
+      const slide = el.children[_arenaCaseIdx];
+      if (!slide) return;
+      caseCarouselScrolling.current = true;
+      const targetLeft = slide.offsetLeft - (el.offsetWidth - slide.offsetWidth) / 2;
+      el.scrollTo({ left: Math.max(0, targetLeft), behavior: 'instant' });
+      setTimeout(() => { caseCarouselScrolling.current = false; }, 100);
+    }, 50);
+    return () => clearTimeout(tid);
+  }, [arenaSelectedCase]);
 
   if (applyingToCase) {
     return (
