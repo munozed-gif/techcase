@@ -8,10 +8,12 @@ import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { usePlanConfig, useSystemSettings } from "../hooks/useSystemSettings.jsx";
 import { logEvent } from "../lib/utils.js";
-import { Badge, Spinner, ProfileCompleteWizard } from "../components/ProfileComponents.jsx";
-import { Input, Select } from "../components/ui.jsx";
-import { fmtDate } from "../lib/uiUtils.jsx";
+import { Badge, ConsultantProjectsHierarchy, ProfileCompleteWizard, Spinner } from "../components/ProfileComponents.jsx";
+import { Input, Select, Textarea } from "../components/ui.jsx";
+import { fmt, fmtDate } from "../lib/uiUtils.jsx";
 import { ROLE_COLORS, SAP_AREAS, INDUSTRY_AREAS, PROJECT_TYPES } from "../lib/businessConstants.js";
+import { useClientProfile } from "../components/SapPanels.jsx";
+import { useConsultantProfile } from "../hooks/useProfileHooks.js";
 
 const ONBOARDING_STEPS = [
   { id: "basics",    labelKey: "ob.step_basics",    Icon: User,      descKey: "ob.step_basics_desc" },

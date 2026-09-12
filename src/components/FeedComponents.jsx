@@ -3,6 +3,9 @@ import {
   MessageSquare, SlidersHorizontal, Star, UserCheck,
 } from "lucide-react";
 import { useT } from "../i18n/index.jsx";
+import { Badge } from "./ProfileComponents.jsx";
+import { STATUS_COLORS } from "../lib/businessConstants.js";
+import { STATUS_LABEL_KEYS, cap, fmt, timeAgo } from "../lib/uiUtils.jsx";
 
 // FEED_TYPE_STYLES, FeedCard, FeedPreferencesModal, stars
 

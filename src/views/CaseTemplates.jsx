@@ -8,8 +8,11 @@ import { useT } from "../i18n/index.jsx";
 import { useCases } from "../hooks/useCaseHooks.js";
 import { useProjectTemplates } from "../hooks/useCoreHooks.js";
 import { Spinner } from "../components/ProfileComponents.jsx";
-import { EmptyState } from "../components/ui.jsx";
+import { EmptyState, Select } from "../components/ui.jsx";
 import { LIFECYCLE_PRESETS } from "../lib/businessConstants.js";
+import { CreateCaseWizard } from "../components/CreateCaseWizard.jsx";
+import { AbapTemplatesSection } from "../components/SapPanels.jsx";
+import { logEvent } from "../lib/utils.js";
 
 // ============================================================
 // CASE TEMPLATES

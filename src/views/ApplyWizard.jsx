@@ -5,6 +5,10 @@ import { useT } from "../i18n/index.jsx";
 import { usePlanConfig } from "../hooks/useSystemSettings.jsx";
 import { Badge } from "../components/ProfileComponents.jsx";
 import { Input, Textarea } from "../components/ui.jsx";
+import { PRIORITY_COLORS } from "../lib/businessConstants.js";
+import { PRIORITY_LABEL_KEYS, cap, fmtDate } from "../lib/uiUtils.jsx";
+import { OnboardingRoadmap } from "./OnboardingViews.jsx";
+import { UpgradeModal } from "./SystemSettingsView.jsx";
 
 function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
   const { t } = useT();

@@ -3,6 +3,10 @@ import { AlertTriangle, Check, RotateCcw, Star, Trophy, Wand2 } from "lucide-rea
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { computeApplicantScore, useApplicantRanking } from "../hooks/useRankingHooks.js";
+import { Badge, Spinner } from "./ProfileComponents.jsx";
+import { APP_STATUS_COLORS } from "../lib/businessConstants.js";
+import { STATUS_LABEL_KEYS, cap } from "../lib/uiUtils.jsx";
+import { PersonAvatar } from "../views/Projects.jsx";
 
 // CaseFeedbackModal, RANKING_CRITERIA, ApplicantRankingSection
 

@@ -5,8 +5,9 @@ import { useAuth } from "../hooks/useAuth.jsx";
 import { useInvoices } from "../hooks/useCoreHooks.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { InvoiceModal } from "../components/InvoiceModal.jsx";
-import { fmtDate, INVOICE_STATUS_COLORS, INV_STATUS_LABEL_KEYS } from "../lib/uiUtils.jsx";
+import { INVOICE_STATUS_COLORS, INV_STATUS_LABEL_KEYS, cap, fmtDate } from "../lib/uiUtils.jsx";
 import { STATUS_COLORS } from "../lib/businessConstants.js";
+import { Input, Modal, Select, Textarea } from "../components/ui.jsx";
 
 function InvoicesView({ auth }) {
   const { t } = useT();

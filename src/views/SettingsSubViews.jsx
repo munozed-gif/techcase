@@ -8,8 +8,9 @@ import { usePlanConfig, useSystemSettings } from "../hooks/useSystemSettings.jsx
 import { logEvent } from "../lib/utils.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { Input, Select, Textarea } from "../components/ui.jsx";
-import { SlaMatrixEditor, SLA_PRIORITIES, SLA_DEFAULT_TYPES, SLA_UNIT_LABELS } from "../lib/uiUtils.jsx";
+import { PRIORITY_LABEL_KEYS, ROLE_LABEL_KEYS, SLA_DEFAULT_TYPES, SLA_PRIORITIES, SLA_UNIT_LABELS, SlaMatrixEditor, cap } from "../lib/uiUtils.jsx";
 import { LIFECYCLE_PRESETS, DEFAULT_ACTIVITY_PHASES, SAP_AREAS, INDUSTRY_AREAS, PROJECT_TYPES } from "../lib/businessConstants.js";
+import { SLA_PRESETS } from "../components/CreateCaseWizard.jsx";
 
 function LifecycleSettingsView({ auth }) {
   const { t } = useT();

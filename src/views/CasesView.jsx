@@ -10,12 +10,17 @@ import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useCases } from "../hooks/useCaseHooks.js";
 import { useProjects } from "../hooks/useCoreHooks.js";
-import { usePlanConfig, useSystemSettings, useVisibilitySettings } from "../hooks/useSystemSettings.jsx";
+import { filterCasesByVisibility, usePlanConfig, useSystemSettings, useVisibilitySettings } from "../hooks/useSystemSettings.jsx";
 import { logEvent } from "../lib/utils.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { EmptyState, Input } from "../components/ui.jsx";
 import { fmtDate, fmt, cap, STATUS_LABEL_KEYS, PRIORITY_LABEL_KEYS, WORK_MODE_LABEL_KEYS } from "../lib/uiUtils.jsx";
 import { ApplyWizard } from "./ApplyWizard.jsx";
+import { CreateCaseWizard } from "../components/CreateCaseWizard.jsx";
+import { CaseFeedbackModal } from "../components/RankingComponents.jsx";
+import { useFavorites } from "../hooks/useProfileHooks.js";
+import { CaseDetail } from "./CaseDetail.jsx";
+import { ProjectAvatar } from "./Projects.jsx";
 import {
   STATUS_COLORS, CASE_CARD_COLORS, PRIORITY_COLORS, STATUS_CARD_ICONS,
   ROLE_COLORS, PROJECT_TYPES, SAP_AREAS, INDUSTRY_AREAS,

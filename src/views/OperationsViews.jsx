@@ -8,13 +8,15 @@ import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useNotifications, useLeaderboard } from "../hooks/useNotificationHooks.js";
-import { useSlaConfig, useClientTeamMembers, useDbConnections } from "../hooks/useCoreHooks.js";
+import { useClientTeamMembers, useDbConnections, useInvoices, useSlaConfig, useTimeEntries } from "../hooks/useCoreHooks.js";
 import { usePlanConfig, useSystemSettings } from "../hooks/useSystemSettings.jsx";
 import { logEvent, notify } from "../lib/utils.js";
-import { Badge, Spinner } from "../components/ProfileComponents.jsx";
-import { EmptyState, Input, Modal, Select } from "../components/ui.jsx";
-import { fmtDate, fmt, cap, ROLE_LABEL_KEYS, SLA_TIER_LABEL_KEYS } from "../lib/uiUtils.jsx";
+import { Badge, Spinner, TrustBadge } from "../components/ProfileComponents.jsx";
+import { EmptyState, Input, Modal, Select, Textarea } from "../components/ui.jsx";
+import { ROLE_LABEL_KEYS, SLA_DEFAULT_TYPES, SLA_TIER_LABEL_KEYS, STATUS_LABEL_KEYS, SlaMatrixEditor, cap, fmt, fmtDate, makeDefaultMatrix } from "../lib/uiUtils.jsx";
 import { ROLE_COLORS, STATUS_COLORS } from "../lib/businessConstants.js";
+import { useApplications, useCases } from "../hooks/useCaseHooks.js";
+import { PersonAvatar } from "./Projects.jsx";
 
 function NotificationsView() {
   const { t } = useT();

@@ -21,7 +21,7 @@ import { useCases, useApplications, useRatings } from "../hooks/useCaseHooks.js"
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
 import { usePlanConfig, useSystemSettings, useVisibilitySettings, usePermissions } from "../hooks/useSystemSettings.jsx";
 import { notify, notifyManagers, notifyCaseParticipants, callClaude, logEvent } from "../lib/utils.js";
-import { Badge, Spinner, TrustBadge } from "../components/ProfileComponents.jsx";
+import { Badge, ROLE_LABELS, Spinner, TrustBadge } from "../components/ProfileComponents.jsx";
 import { EmptyState, Modal, Input, Textarea, Select } from "../components/ui.jsx";
 import { CaseFeedbackModal, ApplicantRankingSection } from "../components/RankingComponents.jsx";
 import {
@@ -39,10 +39,18 @@ import {
   EXPERTISE_LABEL_KEYS, AVAIL_LABEL_KEYS, SLA_TIER_LABEL_KEYS,
   INVOICE_STATUS_COLORS, INV_STATUS_LABEL_KEYS, timeAgo,
 } from "../lib/uiUtils.jsx";
+import { buildContextString, openHtmlInNewTab } from "../components/CaseSubPanels.jsx";
+import { SAP_ENV_TYPE_META } from "../components/SapPanels.jsx";
+import { useCaseSpecification } from "../hooks/useNotificationHooks.js";
+import { GENERATION_CONTEXT_DEFAULTS } from "../lib/constants.js";
+import { SaveCaseAsTemplateModal } from "./CaseTemplates.jsx";
+import { PersonAvatar, ProjectAvatar } from "./Projects.jsx";
+import { ClientRatingModal, RatingModal } from "./SystemSettingsView.jsx";
 import {
   STATUS_COLORS, CASE_CARD_COLORS, PRIORITY_COLORS, STATUS_CARD_ICONS,
   ROLE_COLORS, APP_STATUS_COLORS, PROJECT_TYPES,
   SAP_AREAS, INDUSTRY_AREAS, LIFECYCLE_PRESETS,
+  DEFAULT_ACTIVITY_PHASES, getLifecycleStages,
 } from "../lib/businessConstants.js";
 
 function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdate, onBack }) {

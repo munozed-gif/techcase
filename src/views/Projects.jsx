@@ -13,12 +13,13 @@ import { useProjects, useProjectDbConnections } from "../hooks/useCoreHooks.js";
 import { useCases } from "../hooks/useCaseHooks.js";
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
 import { usePlanConfig, useSystemSettings } from "../hooks/useSystemSettings.jsx";
-import { logEvent } from "../lib/utils.js";
+import { callClaude, logEvent } from "../lib/utils.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
-import { EmptyState, Input } from "../components/ui.jsx";
+import { EmptyState, Input, Textarea } from "../components/ui.jsx";
 import { CatalogMultiSelect } from "../components/CreateCaseWizard.jsx";
+import { OnboardingRoadmap } from "./OnboardingViews.jsx";
 import {
-  LIFECYCLE_PRESETS, SAP_AREAS, INDUSTRY_AREAS, ROLE_COLORS,
+  LIFECYCLE_PRESETS, SAP_AREAS, INDUSTRY_AREAS, ROLE_COLORS, PROJECT_TYPES,
 } from "../lib/businessConstants.js";
 
 const PROJECT_STATUS_COLORS = {

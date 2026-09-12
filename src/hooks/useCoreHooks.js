@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase.js";
-import { notifyCaseParticipants } from "../lib/utils.js";
+import { logEvent, notifyCaseParticipants } from "../lib/utils.js";
 
 // useMilestones, useCaseComments, useSlaConfig, useDbConnections,
 // useProjectDbConnections, useSubCases, useClientTeamMembers, useInvoices,

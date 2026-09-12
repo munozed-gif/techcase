@@ -3,9 +3,11 @@ import { FileText, Plus, Receipt, X } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useInvoices } from "../hooks/useCoreHooks.js";
-import { usePlanConfig } from "../hooks/useSystemSettings.jsx";
+import { usePlanConfig, useSystemSettings } from "../hooks/useSystemSettings.jsx";
 import { Badge } from "../components/ProfileComponents.jsx";
 import { fmtDate, INVOICE_STATUS_COLORS, INV_STATUS_LABEL_KEYS } from "../lib/uiUtils.jsx";
+import { Spinner } from "./ProfileComponents.jsx";
+import { logEvent, notify } from "../lib/utils.js";
 
 function InvoiceModal({ isOpen, onClose, caseData, auth }) {
   const { t } = useT();

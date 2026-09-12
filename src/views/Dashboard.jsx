@@ -13,10 +13,15 @@ import { useApplications } from "../hooks/useCaseHooks.js";
 import { useFollowedClients } from "../hooks/useProfileHooks.js";
 import { useNotifications } from "../hooks/useNotificationHooks.js";
 import { useActivityFeed, useFeedPrefs, useGlobalActivity } from "../hooks/useActivityHooks.js";
-import { useSystemSettings, useVisibilitySettings } from "../hooks/useSystemSettings.jsx";
+import { filterCasesByVisibility, useSystemSettings, useVisibilitySettings } from "../hooks/useSystemSettings.jsx";
 import { FeedCard, FeedPreferencesModal } from "../components/FeedComponents.jsx";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
-import { ROLE_COLORS, PLAN_BADGE, STATUS_COLORS } from "../lib/businessConstants.js";
+import { APP_STATUS_COLORS, CASE_CARD_COLORS, INDUSTRY_AREAS, PLAN_BADGE, PRIORITY_COLORS, ROLE_COLORS, SAP_AREAS, STATUS_CARD_ICONS, STATUS_COLORS } from "../lib/businessConstants.js";
+import { PRIORITY_LABEL_KEYS, STATUS_LABEL_KEYS, cap, fmt, fmtDate } from "../lib/uiUtils.jsx";
+import { ApplyWizard } from "./ApplyWizard.jsx";
+import { CaseDetail } from "./CaseDetail.jsx";
+import { ProjectAvatar } from "./Projects.jsx";
+import { ClientRatingModal } from "./SystemSettingsView.jsx";
 
 function Dashboard({ auth }) {
   const { t } = useT();

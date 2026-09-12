@@ -7,6 +7,7 @@ import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { Spinner, TrustBadge, TierProgressBar, VouchingPanel, PlanUsageCard } from "./ProfileComponents.jsx";
+import { PersonAvatar } from "../views/Projects.jsx";
 
 function ConsultantProfileView({ userId, onBack }) {
   const auth = useAuth();

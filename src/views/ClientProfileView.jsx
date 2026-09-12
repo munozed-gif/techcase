@@ -9,16 +9,17 @@ import {
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
-import { useClientTeamMembers, useProjects, useDbConnections } from "../hooks/useCoreHooks.js";
+import { useClientTeamMembers, useDbConnections, useProjects, useSlaConfig } from "../hooks/useCoreHooks.js";
 import { useCases } from "../hooks/useCaseHooks.js";
-import { usePlanConfig, useSystemSettings } from "../hooks/useSystemSettings.jsx";
+import { usePlanConfig, useSystemSettings, useVisibilitySettings } from "../hooks/useSystemSettings.jsx";
 import { logEvent, notify } from "../lib/utils.js";
 import { Badge, Spinner, TrustBadge } from "../components/ProfileComponents.jsx";
 import { EmptyState, Input, Modal, Textarea } from "../components/ui.jsx";
-import { SapIntegrationPanel, ProjectSapEnvPanel, AbapStandardsPanel } from "../components/SapPanels.jsx";
+import { AbapStandardsPanel, ProjectSapEnvPanel, SapIntegrationPanel, useClientProfile } from "../components/SapPanels.jsx";
 import { DbConnectionsList, SapProfileFields, SapProfileBadges } from "../views/OperationsViews.jsx";
-import { fmtDate, fmt, cap, ROLE_LABEL_KEYS } from "../lib/uiUtils.jsx";
-import { ROLE_COLORS, STATUS_COLORS } from "../lib/businessConstants.js";
+import { ROLE_LABEL_KEYS, SLA_DEFAULT_TYPES, cap, fmt, fmtDate, makeDefaultMatrix } from "../lib/uiUtils.jsx";
+import { DEFAULT_ACTIVITY_PHASES, ROLE_COLORS, STATUS_COLORS } from "../lib/businessConstants.js";
+import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
 
 function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
   const { t, lang, setLang } = useT();

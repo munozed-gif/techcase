@@ -3,13 +3,14 @@ import { AlertTriangle, Check, ChevronDown, Clock, Download } from "lucide-react
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
-import { useProjects } from "../hooks/useCoreHooks.js";
+import { useProjects, useTimeEntries } from "../hooks/useCoreHooks.js";
 import { useCases } from "../hooks/useCaseHooks.js";
 import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
-import { EmptyState, Input, Select } from "../components/ui.jsx";
+import { EmptyState, Input, Select, Textarea } from "../components/ui.jsx";
 import { fmtDate } from "../lib/uiUtils.jsx";
 import { ROLE_COLORS } from "../lib/businessConstants.js";
+import { PersonAvatar } from "./Projects.jsx";
 
 function TimeEntriesView({ auth }) {
   const { t } = useT();

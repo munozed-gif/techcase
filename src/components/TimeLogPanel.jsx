@@ -4,6 +4,8 @@ import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useTimeEntries } from "../hooks/useCoreHooks.js";
 import { fmtDate } from "../lib/uiUtils.jsx";
+import { Spinner } from "./ProfileComponents.jsx";
+import { logEvent } from "../lib/utils.js";
 
 function TimeLogPanel({ caseId, caseTitle, auth }) {
   const { t } = useT();

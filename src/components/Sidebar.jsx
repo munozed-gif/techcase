@@ -4,8 +4,9 @@ import {
   SlidersHorizontal, Target, User, UserCheck,
 } from "lucide-react";
 import { useT } from "../i18n/index.jsx";
-import { usePlatformBranding } from "../hooks/useSystemSettings.jsx";
+import { usePlatformBranding, useVisibilitySettings } from "../hooks/useSystemSettings.jsx";
 import { NotificationBell } from "./NotificationBell.jsx";
+import { PersonAvatar } from "../views/Projects.jsx";
 
 function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, auth, onSearchOpen }) {
   const { t, lang, setLang } = useT();

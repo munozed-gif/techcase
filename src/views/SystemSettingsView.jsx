@@ -15,7 +15,7 @@ import { useAuth } from "../hooks/useAuth.jsx";
 import { useSystemSettings, useVisibilitySettings, usePlanConfig, usePlatformBranding } from "../hooks/useSystemSettings.jsx";
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
 import { logEvent, notify } from "../lib/utils.js";
-import { Badge, Spinner, PlanUsageCard } from "../components/ProfileComponents.jsx";
+import { Badge, PlanUsageCard, Spinner, TrustBadge } from "../components/ProfileComponents.jsx";
 import { EmptyState, Input, Modal, Select, Textarea } from "../components/ui.jsx";
 import {
   SlaMatrixEditor, SLA_PRIORITIES, SLA_DEFAULT_TYPES,

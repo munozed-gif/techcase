@@ -6,6 +6,9 @@ import {
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { usePlatformBranding, useSystemSettings } from "../hooks/useSystemSettings.jsx";
+import { Input } from "../components/ui.jsx";
+import { useAuth } from "../hooks/useAuth.jsx";
+import { ROLE_PERMISSIONS_DEFAULTS } from "../lib/constants.js";
 
 // AuthScreen — sign-in, sign-up wizard, password reset
 

@@ -5,11 +5,14 @@ import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useCases } from "../hooks/useCaseHooks.js";
 import { useProjects } from "../hooks/useCoreHooks.js";
-import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
+import { filterCasesByVisibility, useSystemSettings, useVisibilitySettings } from "../hooks/useSystemSettings.jsx";
 import { logEvent } from "../lib/utils.js";
-import { Spinner } from "../components/ProfileComponents.jsx";
-import { fmtDate, PRIORITY_LABEL_KEYS, STATUS_LABEL_KEYS } from "../lib/uiUtils.jsx";
-import { PRIORITY_COLORS, STATUS_COLORS, CASE_CARD_COLORS } from "../lib/businessConstants.js";
+import { Badge, Spinner } from "../components/ProfileComponents.jsx";
+import { PRIORITY_LABEL_KEYS, STATUS_LABEL_KEYS, cap, fmtDate } from "../lib/uiUtils.jsx";
+import { CASE_CARD_COLORS, LIFECYCLE_PRESETS, PRIORITY_COLORS, STATUS_COLORS } from "../lib/businessConstants.js";
+import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
+import { CaseDetail } from "./CaseDetail.jsx";
+import { PersonAvatar, ProjectAvatar } from "./Projects.jsx";
 
 const PRIORITY_DOT = { urgent: "#ef4444", high: "#f97316", medium: "#eab308", low: "#6b7280" };
 

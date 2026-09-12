@@ -6,6 +6,8 @@ import { useAuth } from "../hooks/useAuth.jsx";
 import { notify } from "../lib/utils.js";
 import { Badge } from "../components/ProfileComponents.jsx";
 import { Input } from "../components/ui.jsx";
+import { useVisibilitySettings } from "../hooks/useSystemSettings.jsx";
+import { UserAvatar } from "../views/Projects.jsx";
 
 function InviteConsultantDrawer({ caseData, auth, onClose }) {
   const { t } = useT();

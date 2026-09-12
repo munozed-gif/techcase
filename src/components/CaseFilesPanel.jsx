@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useCaseDocuments } from "../hooks/useCoreHooks.js";
 import { fmtDate } from "../lib/uiUtils.jsx";
+import { Spinner } from "./ProfileComponents.jsx";
 
 const CF_ALLOWED_EXTS = ['pdf','doc','docx','xls','xlsx','ppt','pptx','png','jpg','jpeg','txt','csv'];
 const CF_MAX_BYTES    = 10 * 1024 * 1024; // 10 MB

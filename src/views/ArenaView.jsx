@@ -13,9 +13,16 @@ import { usePlanConfig, useSystemSettings, useVisibilitySettings } from "../hook
 import { logEvent, notify } from "../lib/utils.js";
 import { Badge, Spinner, TrustBadge, TierProgressBar, VouchingPanel } from "../components/ProfileComponents.jsx";
 import { ConsultantProfileView } from "../components/ConsultantProfileView.jsx";
-import { EmptyState, Input, Modal } from "../components/ui.jsx";
-import { fmtDate, fmt, cap, AVAIL_LABEL_KEYS, EXPERTISE_LABEL_KEYS, WORK_MODE_LABEL_KEYS, timeAgo } from "../lib/uiUtils.jsx";
-import { ROLE_COLORS, STATUS_COLORS, APP_STATUS_COLORS, SAP_AREAS, INDUSTRY_AREAS, PROJECT_TYPES } from "../lib/businessConstants.js";
+import { EmptyState, Input, Modal, Select } from "../components/ui.jsx";
+import { AVAIL_LABEL_KEYS, EXPERTISE_LABEL_KEYS, PRIORITY_LABEL_KEYS, WORK_MODE_LABEL_KEYS, cap, fmt, fmtDate, timeAgo } from "../lib/uiUtils.jsx";
+import { APP_STATUS_COLORS, DEFAULT_PLAN_CONFIG, INDUSTRY_AREAS, PRIORITY_COLORS, PROJECT_TYPES, ROLE_COLORS, ROLE_TO_PLAN_TYPE, SAP_AREAS, STATUS_COLORS, getLifecycleStages } from "../lib/businessConstants.js";
+import { stars } from "../components/FeedComponents.jsx";
+import { ApplicantRankingSection } from "../components/RankingComponents.jsx";
+import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
+import { useLeaderboard } from "../hooks/useNotificationHooks.js";
+import { useConsultantProfile } from "../hooks/useProfileHooks.js";
+import { ApplyWizard } from "./ApplyWizard.jsx";
+import { PersonAvatar, ProjectAvatar, UserAvatar } from "./Projects.jsx";
 
 function useConsultantShortlist() {
   const [shortlist, setShortlist] = useState(() => {

@@ -10,10 +10,15 @@ import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
 import { usePlanConfig, useSystemSettings, useVisibilitySettings } from "../hooks/useSystemSettings.jsx";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { Input, Select, Textarea } from "../components/ui.jsx";
-import { SlaMatrixEditor, SLA_PRIORITIES, SLA_DEFAULT_TYPES, SLA_UNIT_LABELS } from "../lib/uiUtils.jsx";
+import { PRIORITY_LABEL_KEYS, SLA_DEFAULT_TYPES, SLA_PRIORITIES, SLA_UNIT_LABELS, SlaMatrixEditor, cap, fmtDate } from "../lib/uiUtils.jsx";
+import { logEvent } from "../lib/utils.js";
+import { CaseTemplatePickerModal } from "../views/CaseTemplates.jsx";
+import { OnboardingRoadmap } from "../views/OnboardingViews.jsx";
+import { UpgradeModal } from "../views/SystemSettingsView.jsx";
 import {
   LIFECYCLE_PRESETS, PROJECT_TYPES, SAP_AREAS, INDUSTRY_AREAS,
   DEFAULT_ACTIVITY_PHASES, ROLE_COLORS,
+  PRIORITY_COLORS, STATUS_COLORS, getLifecycleStages,
 } from "../lib/businessConstants.js";
 
 function daysFromNow(n) {

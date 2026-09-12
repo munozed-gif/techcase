@@ -8,7 +8,8 @@ import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { callClaude, logEvent } from "../lib/utils.js";
 import { useAuth } from "../hooks/useAuth.jsx";
-import { usePlanConfig } from "../hooks/useSystemSettings.jsx";
+import { usePlanConfig, usePlatformBranding } from "../hooks/useSystemSettings.jsx";
+import { Select } from "./ui.jsx";
 
 function Badge({ children, className = "" }) {
   return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${className}`}>{children}</span>;

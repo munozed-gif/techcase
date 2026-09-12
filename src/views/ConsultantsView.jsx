@@ -11,9 +11,17 @@ import { usePlanConfig, useSystemSettings } from "../hooks/useSystemSettings.jsx
 import { logEvent } from "../lib/utils.js";
 import { Badge, Spinner, TrustBadge } from "../components/ProfileComponents.jsx";
 import { ConsultantProfileView } from "../components/ConsultantProfileView.jsx";
-import { EmptyState, Input, Modal } from "../components/ui.jsx";
+import { EmptyState, Input, Modal, Textarea } from "../components/ui.jsx";
 import { fmtDate, fmt, cap, AVAIL_LABEL_KEYS, EXPERTISE_LABEL_KEYS, WORK_MODE_LABEL_KEYS } from "../lib/uiUtils.jsx";
-import { ROLE_COLORS, SAP_AREAS, INDUSTRY_AREAS } from "../lib/businessConstants.js";
+import { DEFAULT_ACTIVITY_PHASES, INDUSTRY_AREAS, ROLE_COLORS, SAP_AREAS } from "../lib/businessConstants.js";
+import { stars } from "../components/FeedComponents.jsx";
+import { InviteConsultantDrawer } from "../components/InviteConsultantDrawer.jsx";
+import { InvoiceModal } from "../components/InvoiceModal.jsx";
+import { useCases, useRatings } from "../hooks/useCaseHooks.js";
+import { useLeaderboard } from "../hooks/useNotificationHooks.js";
+import { useConsultantProfile } from "../hooks/useProfileHooks.js";
+import { ConsultantProfilePanel, useConsultantShortlist } from "./ArenaView.jsx";
+import { PersonAvatar } from "./Projects.jsx";
 
 function ConsultantsView({ auth }) {
   const { t } = useT();
