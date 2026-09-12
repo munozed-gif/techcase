@@ -6963,6 +6963,17 @@ const ROLE_TO_PLAN_TYPE = {
   headhunter: 'headhunter',
 };
 
+const PROJECT_TYPES = [
+  { value: "consulting",        Icon: Target,       label: "Consulting",          desc: "SAP advisory, analysis & configuration" },
+  { value: "help_desk",         Icon: MessageSquare,label: "Help Desk / Support", desc: "Ticket-based reactive support with SLA" },
+  { value: "implementation",    Icon: Rocket,        label: "Implementation",      desc: "Full project delivery with milestones & go-live" },
+  { value: "managed_services",  Icon: RefreshCw,     label: "Managed Services",    desc: "Ongoing retainer, SLA-driven recurring work" },
+  { value: "staff_augmentation",Icon: Users,         label: "Staff Augmentation",  desc: "Embedded consultant, time-tracking focused" },
+  { value: "training",          Icon: GraduationCap, label: "Training",            desc: "Workshops, certifications, learning paths" },
+  { value: "audit",             Icon: Search,        label: "Audit & Assessment",  desc: "Fixed-scope review with deliverable report" },
+  { value: "development",       Icon: Code2,         label: "Development",         desc: "Custom dev work, sprint or milestone based" },
+];
+
 const SAP_AREAS = [
   "SAP S/4HANA", "SAP BW / Analytics", "SAP FICO", "SAP MM/SD",
   "SAP HCM", "SAP Basis / Infrastructure", "SAP Fiori / UI5",
@@ -14864,29 +14875,20 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
               <p className="text-sm font-medium text-gray-700 mb-1">Project Type</p>
               <p className="text-xs text-gray-400 mb-3">Determines which features and workflows are available for this project.</p>
               <div className="grid grid-cols-2 gap-2">
-                {[
-                  { value: "consulting",         emoji: "🎯", label: "Consulting",           desc: "SAP advisory, analysis & configuration" },
-                  { value: "help_desk",           emoji: "🎧", label: "Help Desk / Support",  desc: "Ticket-based reactive support with SLA" },
-                  { value: "implementation",      emoji: "🏗️", label: "Implementation",       desc: "Full project delivery with milestones & go-live" },
-                  { value: "managed_services",    emoji: "🔄", label: "Managed Services",     desc: "Ongoing retainer, SLA-driven recurring work" },
-                  { value: "staff_augmentation",  emoji: "👥", label: "Staff Augmentation",   desc: "Embedded consultant, time-tracking focused" },
-                  { value: "training",            emoji: "📚", label: "Training",             desc: "Workshops, certifications, learning paths" },
-                  { value: "audit",               emoji: "🔍", label: "Audit & Assessment",   desc: "Fixed-scope review with deliverable report" },
-                  { value: "development",         emoji: "⚙️", label: "Development",          desc: "Custom dev work, sprint or milestone based" },
-                ].map(opt => (
-                  <button key={opt.value} type="button"
-                    onClick={() => setBasics(p => ({ ...p, project_type: opt.value }))}
-                    className={`text-left p-3 border-2 rounded-xl transition-all ${
-                      basics.project_type === opt.value
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200 hover:border-gray-300"}`}>
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-base">{opt.emoji}</span>
-                      <span className="font-semibold text-xs text-gray-900">{opt.label}</span>
-                    </div>
-                    <div className="text-xs text-gray-400 leading-snug pl-6">{opt.desc}</div>
-                  </button>
-                ))}
+                {PROJECT_TYPES.map(({ value, Icon: PtIcon, label, desc }) => {
+                  const active = basics.project_type === value;
+                  return (
+                    <button key={value} type="button"
+                      onClick={() => setBasics(p => ({ ...p, project_type: value }))}
+                      className={`text-left p-3 border-2 rounded-xl transition-all ${active ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"}`}>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <PtIcon size={14} className={active ? "text-blue-600" : "text-gray-400"} />
+                        <span className={`font-semibold text-xs ${active ? "text-blue-700" : "text-gray-900"}`}>{label}</span>
+                      </div>
+                      <div className="text-xs text-gray-400 leading-snug pl-[22px]">{desc}</div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </>
@@ -16059,11 +16061,15 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
               </div>
             )}
             {project.project_type && (() => {
-              const PT_LABELS = { consulting:'🎯 Consulting', help_desk:'🎧 Help Desk', implementation:'🏗️ Implementation', managed_services:'🔄 Managed Services', staff_augmentation:'👥 Staff Augmentation', training:'📚 Training', audit:'🔍 Audit & Assessment', development:'⚙️ Development' };
+              const ptMeta = PROJECT_TYPES.find(pt => pt.value === project.project_type);
+              const PtIcon = ptMeta?.Icon;
               return (
                 <div className="flex items-center gap-2 text-sm">
                   <span className="text-gray-500 font-medium w-32 shrink-0">Project Type</span>
-                  <span className="font-medium text-gray-900">{PT_LABELS[project.project_type] ?? project.project_type}</span>
+                  <span className="flex items-center gap-1.5 font-medium text-gray-900">
+                    {PtIcon && <PtIcon size={14} className="text-violet-500" />}
+                    {ptMeta?.label ?? project.project_type}
+                  </span>
                 </div>
               );
             })()}
@@ -17007,8 +17013,14 @@ function ProjectsView({ auth, initialProjectId }) {
                         <span>{t("label.budget")}: <span className="font-semibold text-gray-700">${Number(p.total_budget).toLocaleString()}</span></span>
                       )}
                       {p.project_type && p.project_type !== 'consulting' && (() => {
-                        const PT_LABELS = { help_desk:'🎧 Help Desk', implementation:'🏗️ Implementation', managed_services:'🔄 Managed Services', staff_augmentation:'👥 Staff Aug', training:'📚 Training', audit:'🔍 Audit', development:'⚙️ Development' };
-                        return <span className="px-2 py-0.5 bg-violet-50 text-violet-700 rounded-lg font-medium border border-violet-100">{PT_LABELS[p.project_type] ?? p.project_type}</span>;
+                        const ptMeta = PROJECT_TYPES.find(pt => pt.value === p.project_type);
+                        const PtIcon = ptMeta?.Icon;
+                        return (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-violet-50 text-violet-700 rounded-lg font-medium border border-violet-100">
+                            {PtIcon && <PtIcon size={11} />}
+                            {ptMeta?.label ?? p.project_type}
+                          </span>
+                        );
                       })()}
                       {p.area_sap && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg font-medium">{p.area_sap}</span>}
                       {p.industry && <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg font-medium">{p.industry}</span>}
