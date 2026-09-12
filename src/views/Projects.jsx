@@ -20,6 +20,7 @@ import { CatalogMultiSelect } from "../components/CreateCaseWizard.jsx";
 import { OnboardingRoadmap } from "./OnboardingViews.jsx";
 import {
   LIFECYCLE_PRESETS, SAP_AREAS, INDUSTRY_AREAS, ROLE_COLORS, PROJECT_TYPES,
+  PRIORITY_COLORS, STATUS_COLORS,
 } from "../lib/businessConstants.js";
 import { STATUS_LABEL_KEYS, PRIORITY_LABEL_KEYS, WORK_MODE_LABEL_KEYS, fmt, cap, fmtDate } from "../lib/uiUtils.jsx";
 
