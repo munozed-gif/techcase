@@ -25,7 +25,7 @@ import {
 import {
   ROLE_COLORS, PLAN_BADGE, DEFAULT_PLAN_CONFIG, DEFAULT_PLAN_PRICES,
   LIFECYCLE_PRESETS, DEFAULT_ACTIVITY_PHASES,
-  SAP_AREAS, INDUSTRY_AREAS, PROJECT_TYPES,
+  SAP_AREAS, INDUSTRY_AREAS, PROJECT_TYPES, ROLE_TO_PLAN_TYPE,
 } from "../lib/businessConstants.js";
 import { GENERATION_CONTEXT_DEFAULTS, GENERATION_PROFILE_DEFAULTS, GEN_DOCS, ROLE_PERMISSIONS_DEFAULTS } from "../lib/constants.js";
 import { LifecycleSettingsView, CaseDefaultsPanel, AssignmentSettingsPanel } from "./SettingsSubViews.jsx";

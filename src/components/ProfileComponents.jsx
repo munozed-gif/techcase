@@ -10,6 +10,7 @@ import { callClaude, logEvent } from "../lib/utils.js";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { usePlanConfig, usePlatformBranding } from "../hooks/useSystemSettings.jsx";
 import { Select } from "./ui.jsx";
+import { DEFAULT_PLAN_CONFIG, PLAN_BADGE, ROLE_TO_PLAN_TYPE } from "../lib/businessConstants.js";
 
 function Badge({ children, className = "" }) {
   return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${className}`}>{children}</span>;
