@@ -75,6 +75,8 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [activeTab, setActiveTab]   = useState("detail");
   const carouselRef = useRef(null);
   const carouselScrolling = useRef(false);
+  const pipelineRef = useRef(null);
+  const pipelineScrolled = useRef(false);
   const [mountedSlides, setMountedSlides] = useState(() => new Set(["detail"]));
   const [manualCompletions, setManualCompletionsRaw] = useState(() => {
     try { return JSON.parse(localStorage.getItem(`tc_mc_${caseData.id}`) ?? "{}"); } catch { return {}; }
@@ -2304,7 +2306,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         </div>
       )}
 
-      {/* Lifecycle Pipeline — all stages as tall narrow cards */}
+      {/* Lifecycle Pipeline — carousel, current stage first */}
       {onStatusChange && (() => {
         const curStage = lifecycleStages.find(s => s.key === caseData.status);
         const allowedNext  = curStage?.allowed_next?.length  ? curStage.allowed_next  : null;
@@ -2320,9 +2322,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         );
 
         const TEST_STAGES = ['technical_test', 'functional_test', 'user_test'];
-        const doneCount = activities.filter(a => actEffectivePct(a) === 100).length;
 
-        // Get gate conditions with pass/fail for a given stage
         function stageGateItems(stageKey) {
           const allGates = cdSettings["transition_gates"] ?? {};
           const lcGates = allGates[lifecycleKey] ?? {};
@@ -2334,26 +2334,49 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           });
         }
 
-        // Determine card state for each stage
         function stageState(s, idx) {
           if (s.key === caseData.status) return "current";
-          if (curStage?.is_terminal && idx < curIdx) return "past";
-          if (!curStage?.is_terminal && idx < curIdx) return "past";
+          if (idx < curIdx) return "past";
           if (canChange && !curStage?.is_terminal && validNextKeys.has(s.key)) return "reachable";
           return "future";
         }
 
-        // All non-auto stages to display
-        const displayStages = lifecycleStages.filter(s => s.trigger !== "auto");
-        if (!displayStages.length) return null;
+        // All non-auto stages; reorder so current is first
+        const allDisplayStages = lifecycleStages.filter(s => s.trigger !== "auto");
+        if (!allDisplayStages.length) return null;
+        const curDisplayIdx = allDisplayStages.findIndex(s => s.key === caseData.status);
+        const displayStages = curDisplayIdx > 0
+          ? [...allDisplayStages.slice(curDisplayIdx), ...allDisplayStages.slice(0, curDisplayIdx)]
+          : allDisplayStages;
+
+        // Scroll carousel one card width
+        const CARD_W = 152; // w-36 (144) + gap-2 (8)
+        function scrollPipeline(dir) {
+          const el = pipelineRef.current;
+          if (!el) return;
+          el.scrollBy({ left: dir * CARD_W, behavior: "smooth" });
+        }
 
         return (
           <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("case.next_steps")}</p>
-            {/* Horizontal scroll pipeline */}
-            <div className="flex gap-2.5 overflow-x-auto pb-2" style={{ scrollbarWidth: "thin" }}>
-              {displayStages.map((s, idx) => {
-                const state = stageState(s, idx);
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t("case.next_steps")}</p>
+              <div className="flex items-center gap-1">
+                <button onClick={() => scrollPipeline(-1)}
+                  className="w-6 h-6 flex items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-colors text-xs leading-none">‹</button>
+                <button onClick={() => scrollPipeline(1)}
+                  className="w-6 h-6 flex items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-colors text-xs leading-none">›</button>
+              </div>
+            </div>
+            {/* Carousel track */}
+            <div
+              ref={pipelineRef}
+              className="flex gap-2 overflow-x-auto pb-2"
+              style={{ scrollbarWidth: "none", scrollSnapType: "x mandatory", msOverflowStyle: "none" }}>
+              {displayStages.map((s, displayIdx) => {
+                // Original index for stageState calculation
+                const origIdx = allDisplayStages.findIndex(st => st.key === s.key);
+                const state = stageState(s, origIdx);
                 const isCancelled = s.key === "cancelled";
                 const color = isCancelled ? "#EF4444" : (s.color ?? "#6B7280");
                 const gateItems = stageGateItems(s.key);
@@ -2363,9 +2386,6 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 const hasBlockers = gateItems.some(c => !c.passed && c.mode === "block");
                 const hasWarnings = gateItems.some(c => !c.passed && c.mode === "warn");
 
-                const cardBase = "flex-shrink-0 flex flex-col rounded-2xl border-2 transition-all overflow-hidden";
-                const cardWidth = "w-36";
-
                 const cardStyle = state === "past"
                   ? { borderColor: "#E5E7EB", backgroundColor: "#F9FAFB" }
                   : state === "current"
@@ -2374,9 +2394,10 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                   ? { borderColor: color + "55", backgroundColor: "#FFFFFF" }
                   : { borderColor: "#F3F4F6", backgroundColor: "#FAFAFA" };
 
-                const cardContent = (
-                  <div className={`${cardBase} ${cardWidth}`} style={cardStyle}
-                    key={s.key}>
+                return (
+                  <div key={s.key}
+                    className="flex-shrink-0 flex flex-col rounded-2xl border-2 transition-all overflow-hidden w-36"
+                    style={{ ...cardStyle, scrollSnapAlign: "start" }}>
                     {/* Color stripe */}
                     <div className="h-1.5 flex-shrink-0" style={{
                       backgroundColor: state === "past" ? "#9CA3AF" : state === "future" ? "#D1D5DB" : color
@@ -2387,7 +2408,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       {/* Stage name + state badge */}
                       <div>
                         <p className={`text-xs font-bold leading-tight ${
-                          state === "past" ? "text-gray-400" : state === "future" ? "text-gray-400" : "text-gray-900"
+                          state === "past" || state === "future" ? "text-gray-400" : "text-gray-900"
                         }`} style={state === "current" ? { color } : {}}>
                           {s.label}
                         </p>
@@ -2469,7 +2490,6 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                         </button>
                       )}
 
-                      {/* Cancel confirmation sub-row */}
                       {isPending && (
                         <div className="mt-1 space-y-1">
                           <p className="text-[9px] text-amber-700">{caseProgress}% done</p>
@@ -2480,8 +2500,6 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                     </div>
                   </div>
                 );
-
-                return cardContent;
               })}
             </div>
           </div>
