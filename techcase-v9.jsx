@@ -14628,7 +14628,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
   const { t } = useT();
   const { settings: catalogSettings } = useSystemSettings();
   const planCfg = usePlanConfig();
-  const clientLimits = planCfg.getPlanLimits(auth.user?.id, 'client');
+  const clientLimits = planCfg.getPlanLimits(auth.user?.id, 'client', auth.profile?.role);
   const SKILL_DEFAULTS = ["ABAP Development", "SAP Basis Administration", "SAP FICO Configuration", "SAP MM Configuration", "SAP SD Configuration", "SAP HCM", "SAP Fiori / UI5", "SAP BW / Analytics", "SAP Integration (CPI/PI)", "S/4HANA Migration", "SAP GRC", "SAP PM / QM", "HANA DB Administration", "SAP Security / Roles", "SAP PS (Project Systems)"];
   const DELIVERABLE_DEFAULTS = ["Business Blueprint", "Functional Specification", "Technical Specification", "Configuration Document", "Data Migration Plan", "Test Scripts", "UAT Report", "Training Material", "Go-Live Checklist", "Cutover Plan", "Gap Analysis", "Integration Test Report", "Migration Report", "Process Flow Diagram", "Project Charter", "System Documentation", "Change Management Plan", "Hypercare Plan", "Project Status Report", "SLA Agreement"];
   const catalogSkills        = catalogSettings["catalog_skills"]        ?? SKILL_DEFAULTS;
@@ -36529,7 +36529,11 @@ function usePlanConfig() {
     return userPlans[userId]?.plan ?? 'free';
   }
 
-  function getPlanLimits(userId, roleType) {
+  const INTERNAL_LIMITS = { maxCases: -1, maxTeam: -1, maxApps: -1, maxCandidates: -1, ai: true, analytics: true, priority: true, helpDesk: true };
+  const INTERNAL_ROLES  = ['admin', 'manager', 'project_manager', 'internal_consultant'];
+
+  function getPlanLimits(userId, roleType, authRole) {
+    if (authRole && INTERNAL_ROLES.includes(authRole)) return INTERNAL_LIMITS;
     const plan = getUserPlan(userId);
     const rt = roleType ?? 'client';
     return (config[rt] ?? {})[plan] ?? (DEFAULT_PLAN_CONFIG[rt] ?? {}).free ?? {};
