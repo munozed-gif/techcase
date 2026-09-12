@@ -78,21 +78,6 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const pipelineRef = useRef(null);
   const pipelineScrolling = useRef(false);
   const [pipelineActiveIdx, setPipelineActiveIdx] = useState(0);
-
-  // Scroll pipeline to current status whenever status or stages change
-  useEffect(() => {
-    const allDisplay = lifecycleStages.filter(s => s.trigger !== "auto");
-    const idx = allDisplay.findIndex(s => s.key === caseData.status);
-    if (idx < 0) return;
-    setPipelineActiveIdx(idx);
-    const timer = setTimeout(() => {
-      const el = pipelineRef.current;
-      if (!el) return;
-      const child = el.children[idx];
-      if (child) child.scrollIntoView({ behavior: "instant", block: "nearest", inline: "center" });
-    }, 80);
-    return () => clearTimeout(timer);
-  }, [caseData.status, lifecycleStages.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const [mountedSlides, setMountedSlides] = useState(() => new Set(["detail"]));
   const [manualCompletions, setManualCompletionsRaw] = useState(() => {
     try { return JSON.parse(localStorage.getItem(`tc_mc_${caseData.id}`) ?? "{}"); } catch { return {}; }
@@ -259,6 +244,21 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const effectiveLifecycle = caseData.case_lifecycle ?? parentCaseLifecycle ?? projectLifecycle ?? clientLifecycle;
   const lifecycleStages = getLifecycleStages(effectiveLifecycle, caseLcTemplates);
   const subCaseInitialStatus = (lifecycleStages.find(s => s.is_initial) ?? lifecycleStages.find(s => !s.is_terminal))?.key ?? "open";
+
+  // Scroll pipeline carousel to current status whenever status or stages change
+  useEffect(() => {
+    const allDisplay = lifecycleStages.filter(s => s.trigger !== "auto");
+    const idx = allDisplay.findIndex(s => s.key === caseData.status);
+    if (idx < 0) return;
+    setPipelineActiveIdx(idx);
+    const timer = setTimeout(() => {
+      const el = pipelineRef.current;
+      if (!el) return;
+      const child = el.children[idx];
+      if (child) child.scrollIntoView({ behavior: "instant", block: "nearest", inline: "center" });
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [caseData.status, lifecycleStages.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Resolve the lifecycle key used to look up gates
   const lifecycleKey = effectiveLifecycle?.preset ?? effectiveLifecycle?.key ?? "standard";
