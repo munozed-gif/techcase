@@ -18,8 +18,9 @@ import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { EmptyState, Input, Textarea } from "../components/ui.jsx";
 import { CatalogMultiSelect } from "../components/CreateCaseWizard.jsx";
 import { OnboardingRoadmap } from "./OnboardingViews.jsx";
-import { SapProfileBadges } from "./OperationsViews.jsx";
+import { SapProfileBadges, SapProfileFields } from "./OperationsViews.jsx";
 import { ProjectSapEnvPanel } from "../components/SapPanels.jsx";
+import { ApplyTemplateModal, SaveTemplateModal } from "./CaseTemplates.jsx";
 import {
   LIFECYCLE_PRESETS, SAP_AREAS, INDUSTRY_AREAS, ROLE_COLORS, PROJECT_TYPES,
   PRIORITY_COLORS, STATUS_COLORS,
