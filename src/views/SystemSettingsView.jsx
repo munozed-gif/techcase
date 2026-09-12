@@ -28,7 +28,7 @@ import {
   SAP_AREAS, INDUSTRY_AREAS, PROJECT_TYPES, ROLE_TO_PLAN_TYPE,
 } from "../lib/businessConstants.js";
 import { GENERATION_CONTEXT_DEFAULTS, GENERATION_PROFILE_DEFAULTS, GEN_DOCS, ROLE_PERMISSIONS_DEFAULTS } from "../lib/constants.js";
-import { LifecycleSettingsView, CaseDefaultsPanel, AssignmentSettingsPanel } from "./SettingsSubViews.jsx";
+import { LifecycleSettingsView, CaseDefaultsPanel, AssignmentSettingsPanel, TransitionGatesPanel } from "./SettingsSubViews.jsx";
 import { PersonAvatar } from "./Projects.jsx";
 import { AbapTemplatesSection } from "../components/SapPanels.jsx";
 
@@ -3424,6 +3424,7 @@ function SettingsWorkflowTab({ auth, ssCtx }) {
   const [wTab, setWTab] = useState("lifecycle");
   const WTABS = [
     { id: "lifecycle", label: "Lifecycle Templates", Icon: TrendingUp },
+    { id: "gates",     label: "Transition Gates",    Icon: Lock },
     { id: "phases",    label: "Activity Phases",     Icon: ListChecks },
     { id: "sla",       label: "SLA",                 Icon: Shield },
   ];
@@ -3440,6 +3441,7 @@ function SettingsWorkflowTab({ auth, ssCtx }) {
         ))}
       </div>
       {wTab === "lifecycle" && <LifecycleSettingsView auth={auth} />}
+      {wTab === "gates"     && <TransitionGatesPanel auth={auth} />}
       {wTab === "phases"    && <SettingsPhasesTab ssCtx={ssCtx} />}
       {wTab === "sla"       && <SlaView auth={auth} />}
     </div>

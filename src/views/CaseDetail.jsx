@@ -50,7 +50,7 @@ import {
   STATUS_COLORS, CASE_CARD_COLORS, PRIORITY_COLORS, STATUS_CARD_ICONS,
   ROLE_COLORS, APP_STATUS_COLORS, PROJECT_TYPES,
   SAP_AREAS, INDUSTRY_AREAS, LIFECYCLE_PRESETS,
-  DEFAULT_ACTIVITY_PHASES, getLifecycleStages,
+  DEFAULT_ACTIVITY_PHASES, getLifecycleStages, GATE_CONDITIONS,
 } from "../lib/businessConstants.js";
 
 function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdate, onBack }) {
@@ -65,8 +65,12 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const { subCases, createSubCase, refetch: refetchSubCases } = useSubCases(caseData.id);
   const { documents, addDocument, deleteDocument, refetch: refetchDocuments } = useCaseDocuments(caseData.id);
   const { entries: timeEntries, addTimeEntry, approveEntry } = useTimeEntries(caseData.id);
+  const { invoices } = useInvoices(caseData.id);
   const [actRefreshKey, setActRefreshKey] = useState(0);
   const { activities, addActivity, updateActivity, deleteActivity, refetch: refetchActivities } = useCaseActivities(caseData.id, actRefreshKey);
+
+  // Transition gate modal
+  const [gateModal, setGateModal] = useState(null); // { toStatus, toLabel, blockers: [...], warnings: [...] }
 
   const [activeTab, setActiveTab]   = useState("detail");
   const carouselRef = useRef(null);
@@ -237,6 +241,52 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const effectiveLifecycle = caseData.case_lifecycle ?? parentCaseLifecycle ?? projectLifecycle ?? clientLifecycle;
   const lifecycleStages = getLifecycleStages(effectiveLifecycle, caseLcTemplates);
   const subCaseInitialStatus = (lifecycleStages.find(s => s.is_initial) ?? lifecycleStages.find(s => !s.is_terminal))?.key ?? "open";
+
+  // Resolve the lifecycle key used to look up gates
+  const lifecycleKey = effectiveLifecycle?.preset ?? effectiveLifecycle?.key ?? "standard";
+
+  // Gate runtime data bundle (same shape as GATE_CONDITIONS checks)
+  const gateData = { milestones, timeEntries, documents, invoices, activities, applications };
+
+  // Returns { blockers: [...], warnings: [...] } for a given target status
+  function checkTransitionGates(toStatus) {
+    const allGates = cdSettings["transition_gates"] ?? {};
+    const lcGates = allGates[lifecycleKey] ?? {};
+    const gate = lcGates[toStatus];
+    if (!gate?.enabled) return { blockers: [], warnings: [] };
+
+    // Check if user's role is exempt
+    const exemptRoles = gate.exempt_roles ?? ["admin"];
+    if (exemptRoles.includes(auth.role)) return { blockers: [], warnings: [] };
+
+    const activeConditions = (gate.conditions ?? []).filter(c => c.enabled);
+    const blockers = [];
+    const warnings = [];
+
+    for (const cond of activeConditions) {
+      const def = GATE_CONDITIONS.find(d => d.key === cond.key);
+      if (!def) continue;
+      const passed = def.check(caseData, gateData);
+      if (!passed) {
+        const item = { key: cond.key, label: def.label, fixHint: def.fixHint };
+        if (cond.mode === "block") blockers.push(item);
+        else warnings.push(item);
+      }
+    }
+    return { blockers, warnings };
+  }
+
+  // Intercept status change: check gates, show modal if needed, else proceed
+  function handleStatusChangeWithGates(caseId, toStatus, extra) {
+    if (!onStatusChange) return;
+    const toStage = lifecycleStages.find(s => s.key === toStatus);
+    const { blockers, warnings } = checkTransitionGates(toStatus);
+    if (blockers.length > 0 || warnings.length > 0) {
+      setGateModal({ caseId, toStatus, toLabel: toStage?.label ?? toStatus, toColor: toStage?.color, blockers, warnings, extra });
+      return;
+    }
+    onStatusChange(caseId, toStatus, extra);
+  }
 
   async function handleReviewApplication(appId, appStatus, notes) {
     await reviewApplication(appId, appStatus, notes);
@@ -2320,6 +2370,12 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       if (s.key === "approved") { setApprovalBypass(""); setApprovalModal(true); return; }
                       if (needsConfirm && !isPending) { setPendingStageKey(s.key); return; }
                       setPendingStageKey(null);
+                      // Gate check before proceeding
+                      const { blockers: gb, warnings: gw } = checkTransitionGates(s.key);
+                      if (gb.length > 0 || gw.length > 0) {
+                        setGateModal({ caseId: caseData.id, toStatus: s.key, toLabel: s.label, toColor: s.color, blockers: gb, warnings: gw, extra: undefined });
+                        return;
+                      }
                       await onStatusChange(caseData.id, s.key);
                       if (s.key === "completed") {
                         if (auth.isConsultant) {
@@ -2859,7 +2915,16 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               <div className="border-t border-gray-100 pt-4 flex flex-wrap gap-2">
                 {validNext.map(s => (
                   <button key={s.key}
-                    onClick={() => s.key === "cancelled" ? initCancelModal(caseData.id) : s.key === "standby" ? (setStandbyReason(""), setStandbyNotes(""), setStandbyModal(true)) : onStatusChange(caseData.id, s.key)}
+                    onClick={() => {
+                      if (s.key === "cancelled") { initCancelModal(caseData.id); return; }
+                      if (s.key === "standby") { setStandbyReason(""); setStandbyNotes(""); setStandbyModal(true); return; }
+                      const { blockers: gb, warnings: gw } = checkTransitionGates(s.key);
+                      if (gb.length > 0 || gw.length > 0) {
+                        setGateModal({ caseId: caseData.id, toStatus: s.key, toLabel: s.label, toColor: s.color, blockers: gb, warnings: gw });
+                        return;
+                      }
+                      onStatusChange(caseData.id, s.key);
+                    }}
                     className="px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors hover:opacity-90"
                     style={{ borderColor: s.color + "55", color: s.color, backgroundColor: s.color + "12" }}>
                     → {s.label}
@@ -4898,6 +4963,93 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           clientName={clientRatingModal.clientName}
           onClose={() => setClientRatingModal(null)}
         />
+      )}
+
+      {/* Transition Gate Modal */}
+      {gateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            {/* Header */}
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: (gateModal.toColor ?? "#6366f1") + "20" }}>
+                <Lock size={16} style={{ color: gateModal.toColor ?? "#6366f1" }} />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900">
+                  Moving to <span style={{ color: gateModal.toColor ?? "#6366f1" }}>{gateModal.toLabel}</span>
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {gateModal.blockers.length > 0
+                    ? "Some requirements must be completed before this transition."
+                    : "Some items are recommended before this transition."}
+                </p>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 space-y-4 max-h-80 overflow-y-auto">
+              {/* Blockers */}
+              {gateModal.blockers.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold text-red-600 uppercase tracking-wide mb-2">
+                    Required — must complete before proceeding
+                  </p>
+                  <div className="space-y-2">
+                    {gateModal.blockers.map(b => (
+                      <div key={b.key} className="flex items-start gap-2.5 p-3 bg-red-50 border border-red-100 rounded-xl">
+                        <XCircle size={14} className="text-red-500 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-semibold text-red-800">{b.label}</p>
+                          <p className="text-[10px] text-red-600 mt-0.5">{b.fixHint}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Warnings */}
+              {gateModal.warnings.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold text-orange-600 uppercase tracking-wide mb-2">
+                    Recommended — you can still proceed
+                  </p>
+                  <div className="space-y-2">
+                    {gateModal.warnings.map(w => (
+                      <div key={w.key} className="flex items-start gap-2.5 p-3 bg-orange-50 border border-orange-100 rounded-xl">
+                        <AlertTriangle size={14} className="text-orange-500 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-semibold text-orange-800">{w.label}</p>
+                          <p className="text-[10px] text-orange-600 mt-0.5">{w.fixHint}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100">
+              <button onClick={() => setGateModal(null)}
+                className="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-800 rounded-xl hover:bg-gray-100 transition-colors">
+                Cancel
+              </button>
+              {gateModal.blockers.length === 0 && (
+                <button
+                  onClick={() => {
+                    const { caseId, toStatus, extra } = gateModal;
+                    setGateModal(null);
+                    onStatusChange(caseId, toStatus, extra);
+                  }}
+                  className="px-4 py-2 text-sm font-semibold text-white rounded-xl transition-colors"
+                  style={{ backgroundColor: gateModal.toColor ?? "#6366f1" }}>
+                  Proceed anyway
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

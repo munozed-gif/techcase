@@ -9,7 +9,7 @@ import { logEvent } from "../lib/utils.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { Input, Select, Textarea } from "../components/ui.jsx";
 import { PRIORITY_LABEL_KEYS, ROLE_LABEL_KEYS, SLA_DEFAULT_TYPES, SLA_PRIORITIES, SLA_UNIT_LABELS, SlaMatrixEditor, cap } from "../lib/uiUtils.jsx";
-import { LIFECYCLE_PRESETS, DEFAULT_ACTIVITY_PHASES, SAP_AREAS, INDUSTRY_AREAS, PROJECT_TYPES } from "../lib/businessConstants.js";
+import { LIFECYCLE_PRESETS, DEFAULT_ACTIVITY_PHASES, SAP_AREAS, INDUSTRY_AREAS, PROJECT_TYPES, GATE_CONDITIONS, getLifecycleStages } from "../lib/businessConstants.js";
 import { SLA_PRESETS } from "../components/CreateCaseWizard.jsx";
 
 function LifecycleSettingsView({ auth }) {
@@ -1036,4 +1036,280 @@ function AssignmentSettingsPanel({ profile, updateProfile }) {
   );
 }
 
-export { LifecycleSettingsView, CASE_DEFAULTS_EMPTY, CaseDefaultsPanel, AS_DEFAULTS, AssignmentSettingsPanel };
+// ─── Transition Gates Panel ──────────────────────────────────────────────────
+
+const ALL_ROLES = ["admin", "manager", "consultant", "client", "key_user"];
+
+function TransitionGatesPanel({ auth }) {
+  const { t } = useT();
+  const { settings, setSetting } = useSystemSettings();
+  const { templates, loadingTmpl } = useLifecycleTemplates();
+
+  // All lifecycles: presets + custom templates
+  const allLifecycles = [
+    ...Object.entries(LIFECYCLE_PRESETS).map(([key, lc]) => ({ key, name: lc.name, stages: lc.stages, source: "preset" })),
+    ...(templates || []).map(tmpl => ({ key: tmpl.key, name: tmpl.name, stages: tmpl.stages, source: "custom" })),
+  ];
+
+  const [selectedLcKey, setSelectedLcKey] = useState(allLifecycles[1]?.key ?? "standard");
+  const [saving, setSaving] = useState(false);
+  const [expandedStage, setExpandedStage] = useState(null);
+
+  // Gates stored in system settings as { [lifecycleKey]: { [stageKey]: { enabled, exempt_roles, conditions: [{key, enabled, mode}] } } }
+  const allGates = settings["transition_gates"] ?? {};
+  const [localGates, setLocalGates] = useState(() => allGates);
+
+  // When settings load, sync
+  useEffect(() => { setLocalGates(allGates); }, [JSON.stringify(allGates)]);
+
+  const currentLc = allLifecycles.find(lc => lc.key === selectedLcKey);
+  const activeStages = (currentLc?.stages ?? []).filter(s => !s.is_terminal);
+
+  function getLcGates() { return localGates[selectedLcKey] ?? {}; }
+
+  function getStageGate(stageKey) {
+    const def = getLcGates()[stageKey];
+    if (def) return def;
+    // Default: off for all conditions
+    return { enabled: false, exempt_roles: ["admin"], conditions: GATE_CONDITIONS.map(c => ({ key: c.key, enabled: false, mode: "block" })) };
+  }
+
+  function updateStageGate(stageKey, updater) {
+    setLocalGates(prev => {
+      const lcGates = prev[selectedLcKey] ?? {};
+      const current = lcGates[stageKey] ?? getStageGate(stageKey);
+      return { ...prev, [selectedLcKey]: { ...lcGates, [stageKey]: updater(current) } };
+    });
+  }
+
+  function toggleGateEnabled(stageKey) {
+    updateStageGate(stageKey, g => ({ ...g, enabled: !g.enabled }));
+  }
+
+  function toggleCondition(stageKey, condKey) {
+    updateStageGate(stageKey, g => ({
+      ...g,
+      conditions: (g.conditions ?? GATE_CONDITIONS.map(c => ({ key: c.key, enabled: false, mode: "block" }))).map(c =>
+        c.key === condKey ? { ...c, enabled: !c.enabled } : c
+      ),
+    }));
+  }
+
+  function setConditionMode(stageKey, condKey, mode) {
+    updateStageGate(stageKey, g => ({
+      ...g,
+      conditions: (g.conditions ?? GATE_CONDITIONS.map(c => ({ key: c.key, enabled: false, mode: "block" }))).map(c =>
+        c.key === condKey ? { ...c, mode } : c
+      ),
+    }));
+  }
+
+  function toggleExemptRole(stageKey, role) {
+    updateStageGate(stageKey, g => {
+      const roles = g.exempt_roles ?? ["admin"];
+      return { ...g, exempt_roles: roles.includes(role) ? roles.filter(r => r !== role) : [...roles, role] };
+    });
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    await setSetting("transition_gates", localGates);
+    setSaving(false);
+  }
+
+  if (loadingTmpl) return <div className="flex items-center justify-center py-12"><div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>;
+
+  const stageGatesWithData = activeStages.map(s => ({ stage: s, gate: getStageGate(s.key) }));
+  const enabledCount = stageGatesWithData.filter(({ gate }) => gate.enabled).length;
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Define requirements that must be met before a case can move into a status.
+            Each condition can <span className="font-medium text-orange-600">warn</span> (allow override) or <span className="font-medium text-red-600">block</span> (hard stop).
+          </p>
+        </div>
+        <button onClick={handleSave} disabled={saving}
+          className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50 flex-shrink-0">
+          {saving ? "Saving…" : "Save gates"}
+        </button>
+      </div>
+
+      {/* Lifecycle selector */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Lifecycle</span>
+        <div className="flex gap-2 flex-wrap">
+          {allLifecycles.map(lc => (
+            <button key={lc.key}
+              onClick={() => setSelectedLcKey(lc.key)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
+                selectedLcKey === lc.key
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-white text-gray-600 border-gray-200 hover:border-blue-300"
+              }`}>
+              {lc.name}
+              {lc.source === "custom" && <span className="ml-1 opacity-60">custom</span>}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Summary bar */}
+      {enabledCount > 0 && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl text-xs text-blue-700">
+          <Check size={13} className="text-blue-500 flex-shrink-0" />
+          Gates active on {enabledCount} of {activeStages.length} stages in this lifecycle
+        </div>
+      )}
+
+      {/* Stage rows */}
+      <div className="space-y-2">
+        {stageGatesWithData.map(({ stage, gate }) => {
+          const isExpanded = expandedStage === stage.key;
+          const activeConditions = (gate.conditions ?? []).filter(c => c.enabled);
+          const blockers = activeConditions.filter(c => c.mode === "block").length;
+          const warnings = activeConditions.filter(c => c.mode === "warn").length;
+
+          return (
+            <div key={stage.key}
+              className={`border rounded-xl overflow-hidden transition-colors ${
+                gate.enabled ? "border-blue-200 bg-blue-50/30" : "border-gray-100 bg-white"
+              }`}>
+              {/* Stage header row */}
+              <div className="flex items-center gap-3 px-4 py-3">
+                {/* Color dot */}
+                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: stage.color }} />
+
+                {/* Stage name */}
+                <span className="text-sm font-semibold text-gray-700 flex-1 min-w-0">
+                  → {stage.label}
+                  <span className="ml-1.5 text-xs font-normal text-gray-400">({stage.key})</span>
+                </span>
+
+                {/* Condition badges */}
+                {gate.enabled && (
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {blockers > 0 && (
+                      <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-red-100 text-red-700">
+                        {blockers} block{blockers !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                    {warnings > 0 && (
+                      <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-orange-100 text-orange-700">
+                        {warnings} warn
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Enable toggle */}
+                <button onClick={() => toggleGateEnabled(stage.key)}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 ${
+                    gate.enabled ? "bg-blue-600" : "bg-gray-200"
+                  }`}>
+                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                    gate.enabled ? "translate-x-[18px]" : "translate-x-[3px]"
+                  }`} />
+                </button>
+
+                {/* Expand toggle */}
+                {gate.enabled && (
+                  <button onClick={() => setExpandedStage(isExpanded ? null : stage.key)}
+                    className="text-gray-400 hover:text-gray-600 flex-shrink-0">
+                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </button>
+                )}
+              </div>
+
+              {/* Expanded conditions */}
+              {gate.enabled && isExpanded && (
+                <div className="border-t border-blue-100 bg-white">
+                  {/* Exempt roles */}
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-semibold text-gray-500">Bypass for roles:</span>
+                      {ALL_ROLES.map(role => {
+                        const exempt = (gate.exempt_roles ?? []).includes(role);
+                        return (
+                          <button key={role} onClick={() => toggleExemptRole(stage.key, role)}
+                            className={`px-2.5 py-1 text-[10px] font-semibold rounded-full border transition-colors ${
+                              exempt
+                                ? "bg-purple-100 text-purple-700 border-purple-200"
+                                : "bg-gray-50 text-gray-400 border-gray-200 hover:border-gray-300"
+                            }`}>
+                            {cap(role.replace(/_/g, " "))}
+                            {exempt && " ✓"}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-1">Users with these roles can proceed even if conditions are not met.</p>
+                  </div>
+
+                  {/* Conditions list */}
+                  <div className="divide-y divide-gray-50">
+                    {GATE_CONDITIONS.map(condDef => {
+                      const condState = (gate.conditions ?? []).find(c => c.key === condDef.key)
+                        ?? { key: condDef.key, enabled: false, mode: "block" };
+                      return (
+                        <div key={condDef.key}
+                          className={`flex items-start gap-3 px-4 py-3 transition-colors ${
+                            condState.enabled ? "bg-white" : "bg-gray-50/50"
+                          }`}>
+                          {/* Enabled toggle */}
+                          <button onClick={() => toggleCondition(stage.key, condDef.key)}
+                            className={`mt-0.5 flex-shrink-0 relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
+                              condState.enabled ? "bg-blue-500" : "bg-gray-200"
+                            }`}>
+                            <span className={`inline-block h-2.5 w-2.5 transform rounded-full bg-white shadow transition-transform ${
+                              condState.enabled ? "translate-x-[13px]" : "translate-x-[2px]"
+                            }`} />
+                          </button>
+
+                          {/* Label + desc */}
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-xs font-semibold ${condState.enabled ? "text-gray-800" : "text-gray-400"}`}>
+                              {condDef.label}
+                            </p>
+                            <p className="text-[10px] text-gray-400 mt-0.5">{condDef.description}</p>
+                          </div>
+
+                          {/* Mode selector */}
+                          {condState.enabled && (
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <button onClick={() => setConditionMode(stage.key, condDef.key, "warn")}
+                                className={`px-2.5 py-1 text-[10px] font-bold rounded-l-lg border transition-colors ${
+                                  condState.mode === "warn"
+                                    ? "bg-orange-500 text-white border-orange-500"
+                                    : "bg-white text-gray-400 border-gray-200 hover:border-orange-300"
+                                }`}>
+                                Warn
+                              </button>
+                              <button onClick={() => setConditionMode(stage.key, condDef.key, "block")}
+                                className={`px-2.5 py-1 text-[10px] font-bold rounded-r-lg border border-l-0 transition-colors ${
+                                  condState.mode === "block"
+                                    ? "bg-red-500 text-white border-red-500"
+                                    : "bg-white text-gray-400 border-gray-200 hover:border-red-300"
+                                }`}>
+                                Block
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export { LifecycleSettingsView, CASE_DEFAULTS_EMPTY, CaseDefaultsPanel, AS_DEFAULTS, AssignmentSettingsPanel, TransitionGatesPanel };

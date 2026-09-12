@@ -203,6 +203,94 @@ function getLifecycleStages(lifecycle, templates) {
   return lifecycle.stages?.length ? lifecycle.stages : resolvePreset("standard");
 }
 
+// ── Transition gate condition definitions ──────────────────────
+const GATE_CONDITIONS = [
+  {
+    key: "consultant_assigned",
+    label: "Consultant assigned",
+    description: "At least one consultant has been accepted on this case",
+    check: (c, d) => !!(c.assignee_id || d.applications?.some(a => a.status === "accepted")),
+    fixHint: "Go to the Arena tab and accept a consultant application",
+  },
+  {
+    key: "spec_generated",
+    label: "Functional spec generated",
+    description: "A functional specification has been created in the Spec tab",
+    check: (c, d) => !!(c.specification && c.specification.length > 20),
+    fixHint: "Go to the Spec tab and generate or write a specification",
+  },
+  {
+    key: "sla_set",
+    label: "Due date / SLA set",
+    description: "A due date has been defined for this case",
+    check: (c, d) => !!c.due_date,
+    fixHint: "Set a due date in the case details",
+  },
+  {
+    key: "project_linked",
+    label: "Linked to a project",
+    description: "This case is associated with a project",
+    check: (c, d) => !!c.project_id,
+    fixHint: "Link this case to a project in the details panel",
+  },
+  {
+    key: "budget_defined",
+    label: "Budget defined",
+    description: "An estimated budget or effort has been set",
+    check: (c, d) => !!(c.budget_estimated || c.budget || c.effort_days),
+    fixHint: "Set an estimated budget or effort in the case details",
+  },
+  {
+    key: "milestones_defined",
+    label: "Milestones defined",
+    description: "At least one milestone has been created",
+    check: (c, d) => (d.milestones?.length ?? 0) > 0,
+    fixHint: "Add milestones in the Milestones section",
+  },
+  {
+    key: "milestones_complete",
+    label: "All milestones complete",
+    description: "Every milestone has been marked as completed",
+    check: (c, d) => (d.milestones?.length ?? 0) > 0 && d.milestones.every(m => m.is_done),
+    fixHint: "Complete all pending milestones",
+  },
+  {
+    key: "time_logged",
+    label: "Time logged",
+    description: "At least one time entry has been submitted",
+    check: (c, d) => (d.timeEntries?.length ?? 0) > 0,
+    fixHint: "Log time in the Time Entries tab",
+  },
+  {
+    key: "documents_attached",
+    label: "Documents attached",
+    description: "At least one file has been uploaded to this case",
+    check: (c, d) => (d.documents?.length ?? 0) > 0,
+    fixHint: "Upload a file in the Files section",
+  },
+  {
+    key: "invoice_sent",
+    label: "Invoice sent",
+    description: "At least one invoice has been sent or paid",
+    check: (c, d) => !!(d.invoices?.some(i => ["sent", "paid"].includes(i.status))),
+    fixHint: "Create and send an invoice in the Invoices section",
+  },
+  {
+    key: "activities_complete",
+    label: "All activities complete",
+    description: "No activities are left in a pending or in-progress state",
+    check: (c, d) => (d.activities?.filter(a => !["completed", "cancelled"].includes(a.status)).length ?? 0) === 0,
+    fixHint: "Complete all pending activities in the Activity tab",
+  },
+  {
+    key: "client_rating",
+    label: "Client rating submitted",
+    description: "The client has submitted a satisfaction rating",
+    check: (c, d) => !!c.client_rating,
+    fixHint: "Request a rating from the client via the feedback button",
+  },
+];
+
 // ── Stripe / pricing defaults ─────────────────────────────────
 const DEFAULT_PLAN_PRICES = {
   client_starter:          { label: 'Client Starter',          amount: 49,  currency: 'usd', roleType: 'client',      planKey: 'starter'      },
@@ -231,4 +319,5 @@ export {
   LIFECYCLE_PRESETS,
   getLifecycleStages,
   DEFAULT_PLAN_PRICES,
+  GATE_CONDITIONS,
 };
