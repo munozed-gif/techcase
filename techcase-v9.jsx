@@ -39739,7 +39739,7 @@ function SettingsPlansTab({ ssCtx, auth }) {
 
   const PLAN_TYPES = ['client', 'consultant', 'headhunter'];
   const PLAN_KEYS  = { client: ['free','starter','professional','enterprise'], consultant: ['free','starter','professional'], headhunter: ['free','professional'] };
-  const LIMIT_LABELS = { maxCases: 'Max active cases', maxTeam: 'Max team members', maxApps: 'Max applications/mo', maxCandidates: 'Max candidates', ai: 'AI features', analytics: 'Analytics', priority: 'Priority listing' };
+  const LIMIT_LABELS = { maxCases: 'Max active cases', maxTeam: 'Max team members', maxApps: 'Max applications/mo', maxCandidates: 'Max candidates', ai: 'AI features', analytics: 'Analytics', priority: 'Priority listing', helpDesk: 'Help Desk projects' };
 
   const relevantUsers = users.filter(u => ROLE_TO_PLAN_TYPE[u.role]);
 
