@@ -5832,7 +5832,7 @@ function useCases(filters = {}) {
         case_assignments(consultant_id, time_commitment,
           users:consultant_id(id, full_name, avatar_url)),
         case_key_users(user_id, area, users:user_id(full_name, email, role)),
-        applications(count),
+        applications(consultant_id, submitted_at, consultant:consultant_id(full_name, avatar_url)),
         project:project_id(id, name, avatar_url, client:client_id(id, avatar_url))
       `)
       .order("created_at", { ascending: false });
@@ -17425,7 +17425,7 @@ function CasesView({ auth, initialCaseId }) {
                         )}
                         {c.due_date && <span>{t("label.due")} {fmtDate(c.due_date)}</span>}
                         {c.budget && <span>{t("label.budget")}: ${Number(c.budget).toLocaleString()}</span>}
-                        <span>{t(c.applications?.[0]?.count !== 1 ? "case.applicants_many" : "case.applicants_one").replace("{n}", c.applications?.[0]?.count ?? 0)}</span>
+                        <span>{t((c.applications?.length ?? 0) !== 1 ? "case.applicants_many" : "case.applicants_one").replace("{n}", c.applications?.length ?? 0)}</span>
                         {c.status === "assigned" && c.start_date && (() => {
                           const d = Math.ceil((new Date(c.start_date + "T00:00:00") - Date.now()) / 86400000);
                           if (d > 3) return null;
@@ -27131,7 +27131,8 @@ function ArenaView({ auth }) {
     function renderCard(c) {
       const companyName = c.client?.client_profiles?.company_name || c.client?.full_name;
       const alreadyApplied = appliedCaseIds.has(c.id);
-      const appCount = c.applications?.[0]?.count ?? 0;
+      const appCount = c.applications?.length ?? 0;
+      const appsSorted = [...(c.applications ?? [])].sort((a, b) => new Date(a.submitted_at) - new Date(b.submitted_at));
       const score = matchScore(c);
       const now = Date.now();
       const dueMs = c.due_date ? new Date(c.due_date).getTime() : null;
@@ -27179,12 +27180,12 @@ function ArenaView({ auth }) {
       }
 
       return (
-        <div style={{ background:'#EEF5FF', borderRadius:22, border:'1px solid #BFDBFE', overflow:'hidden', position:'relative', boxShadow:'0 4px 20px rgba(37,99,235,0.08)' }}>
+        <div style={{ background:'#EEF5FF', borderRadius:22, border:'1px solid #BFDBFE', overflow:'hidden', position:'relative', boxShadow:'0 4px 20px rgba(37,99,235,0.08)', height:'100%', display:'flex', flexDirection:'column' }}>
           <div style={{ position:'absolute', left:0, top:'20%', bottom:'20%', width:3, borderRadius:'0 3px 3px 0', background:mc, boxShadow:`0 0 10px ${mcDim}` }} />
           <div style={{ height:4, background:'rgba(26,75,140,0.07)', position:'relative', overflow:'hidden' }}>
             {timePct != null && <div style={{ position:'absolute', left:0, top:0, bottom:0, width:`${timePct*100}%`, background:tc, opacity:0.8 }} />}
           </div>
-          <div style={{ padding:'18px 22px 16px', display:'flex', flexDirection:'column', gap:12 }}>
+          <div style={{ padding:'18px 22px 16px', display:'flex', flexDirection:'column', gap:12, flex:1 }}>
             {/* Ring + score */}
             <div style={{ display:'flex', alignItems:'center', gap:16 }}>
               <div style={{ position:'relative', width:84, height:84, flexShrink:0 }}>
@@ -27274,13 +27275,20 @@ function ArenaView({ auth }) {
                 )}
                 <p style={{ fontSize:9, fontWeight:700, color:'#4A6B9A', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:5 }}>{appCount} applied</p>
                 <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
-                  {[...Array(Math.min(appCount, 4))].map((_, i) => (
-                    <div key={i} style={{ display:'flex', alignItems:'center', gap:6, background:'rgba(26,75,140,0.05)', borderRadius:7, padding:'4px 8px', border:'1px solid rgba(26,75,140,0.1)' }}>
-                      <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:12, fontWeight:700, width:12, textAlign:'center', color: i===0?'#D97706':i===1?'#6B8AB8':i===2?'#B45309':'#93AECF' }}>{i+1}</span>
-                      <div style={{ width:18, height:18, borderRadius:'50%', background:orbColors[i%orbColors.length], display:'flex', alignItems:'center', justifyContent:'center', fontSize:6, fontWeight:700, color:'#fff' }}>#{i+1}</div>
-                      <span style={{ flex:1, fontSize:10, color:'#334155' }}>Consultant</span>
-                    </div>
-                  ))}
+                  {appsSorted.slice(0, 4).map((app, i) => {
+                    const name = app.consultant?.full_name ?? 'Consultant';
+                    const initials = name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+                    const avatarUrl = app.consultant?.avatar_url;
+                    return (
+                      <div key={app.consultant_id} style={{ display:'flex', alignItems:'center', gap:6, background:'rgba(26,75,140,0.05)', borderRadius:7, padding:'4px 8px', border:'1px solid rgba(26,75,140,0.1)' }}>
+                        <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:12, fontWeight:700, width:12, textAlign:'center', color: i===0?'#D97706':i===1?'#6B8AB8':i===2?'#B45309':'#93AECF' }}>{i+1}</span>
+                        <div style={{ width:18, height:18, borderRadius:'50%', background: avatarUrl ? 'transparent' : orbColors[i%orbColors.length], display:'flex', alignItems:'center', justifyContent:'center', fontSize:6, fontWeight:700, color:'#fff', overflow:'hidden', flexShrink:0 }}>
+                          {avatarUrl ? <img src={avatarUrl} alt={name} style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : initials}
+                        </div>
+                        <span style={{ flex:1, fontSize:10, color:'#334155', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{name}</span>
+                      </div>
+                    );
+                  })}
                   {!alreadyApplied && auth.isConsultant && (
                     <div style={{ display:'flex', alignItems:'center', gap:6, background:'rgba(59,130,246,0.06)', borderRadius:7, padding:'4px 8px', border:'1px dashed rgba(59,130,246,0.3)' }}>
                       <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:12, fontWeight:700, width:12, textAlign:'center', color:'#2563EB' }}>?</span>
@@ -27359,7 +27367,7 @@ function ArenaView({ auth }) {
             </button>
           )}
           <div ref={caseCarouselRef}
-            style={{ display:'flex', overflowX:'scroll', scrollSnapType:'x mandatory', scrollBehavior:'smooth', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', gap:10, padding:'0 32px' }}
+            style={{ display:'flex', overflowX:'scroll', scrollSnapType:'x mandatory', scrollBehavior:'smooth', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', gap:10, padding:'0 40px', alignItems:'stretch' }}
             onScroll={() => {
               if (caseCarouselScrolling.current) return;
               const el = caseCarouselRef.current;
@@ -27372,11 +27380,16 @@ function ArenaView({ auth }) {
               });
               if (closest !== caseCarouselIdx) setCaseCarouselIdx(closest);
             }}>
-            {sorted.map((cs) => (
-              <div key={cs.id} style={{ flexShrink:0, width:'100%', scrollSnapAlign:'center' }}>
-                {renderCard(cs)}
-              </div>
-            ))}
+            {sorted.map((cs, i) => {
+              const isActive = i === safeIdx;
+              return (
+                <div key={cs.id} style={{ flex:`0 0 calc(100% - 88px)`, width:'calc(100% - 88px)', maxWidth:'calc(100% - 88px)', minWidth:0, scrollSnapAlign:'center', scrollSnapStop:'always', opacity: isActive ? 1 : 0.55, transform: isActive ? 'scale(1)' : 'scale(0.95)', transition:'opacity .25s, transform .25s', display:'flex', flexDirection:'column' }}>
+                  <div style={{ flex:1, display:'flex', flexDirection:'column' }}>
+                    {renderCard(cs)}
+                  </div>
+                </div>
+              );
+            })}
           </div>
           {safeIdx < sorted.length - 1 && (
             <button onClick={() => scrollToCase(safeIdx + 1)}
