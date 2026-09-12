@@ -10880,6 +10880,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       { id: "cases",       Icon: FolderOpen,      labelKey: "nav.my_cases" },
       { id: "projects",    Icon: Layers,          labelKey: "nav.projects" },
       { id: "kanban",      Icon: LayoutGrid,      labelKey: "nav.kanban" },
+      { id: "arena",       Icon: Target,          labelKey: "nav.arena" },
       { id: "invoices",    Icon: Receipt,         labelKey: "nav.invoices" },
       { id: "consultants", Icon: UserCheck,       labelKey: "nav.consultants" },
     ],
