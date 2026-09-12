@@ -2424,7 +2424,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 return (
                   <div key={s.key}
                     style={{ flex: "0 0 calc(100% - 120px)", width: "calc(100% - 120px)", maxWidth: "calc(100% - 120px)", minWidth: 0, overflow: "hidden", scrollSnapAlign: "center", scrollSnapStop: "always", opacity: isActive ? 1 : 0.5, transform: isActive ? "scale(1)" : "scale(0.97)", transition: "opacity .25s, transform .25s" }}>
-                    <div style={{ borderRadius: 12, border: `1px solid ${isActive ? borderColor : "#E2E8F0"}`, background: bgColor, overflow: "hidden", width: "100%", boxSizing: "border-box", boxShadow: isActive ? "0 4px 20px rgba(0,0,0,.08)" : "none", transition: "box-shadow .25s", cursor: isActive ? "default" : "pointer" }}
+                    <div style={{ borderRadius: 12, border: `1px solid ${isActive ? borderColor : "#E2E8F0"}`, background: bgColor, overflow: "hidden", width: "100%", boxSizing: "border-box", height: 320, display: "flex", flexDirection: "column", boxShadow: isActive ? "0 4px 20px rgba(0,0,0,.08)" : "none", transition: "box-shadow .25s", cursor: isActive ? "default" : "pointer" }}
                       onClick={() => !isActive && pipelineScrollTo(displayIdx)}>
 
                       {/* Card header */}
@@ -2446,7 +2446,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       </div>
 
                       {/* Card body */}
-                      <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+                      <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12, flex: 1, overflowY: "auto" }}>
                         {/* Gate checklist */}
                         {gateItems.length > 0 ? (
                           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
