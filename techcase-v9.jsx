@@ -27740,6 +27740,109 @@ function ArenaView({ auth }) {
     );
   };
 
+  const arenaTabs = [
+    { id: "cases",       label: t("arena.open_cases"),  icon: Briefcase,  count: openCases.length > 0 ? openCases.length : null },
+    { id: "leaderboard", label: t("arena.leaderboard"), icon: Trophy,     count: null },
+    { id: "cards",       label: t("arena.cards"),       icon: LayoutGrid, count: null },
+    { id: "compare",     label: t("arena.compare"),     icon: BarChart2,  count: compareSet.length >= 2 ? compareSet.length : null },
+  ];
+
+  const arenaTabStatus = (() => {
+    const r = {};
+    for (const tab of arenaTabs) {
+      if (arenaManualCompletions[tab.id] !== undefined) {
+        r[tab.id] = arenaManualCompletions[tab.id] ? "complete" : "none"; continue;
+      }
+      r[tab.id] = "none";
+    }
+    return r;
+  })();
+
+  useEffect(() => {
+    setArenaMountedSlides(prev => { const s = new Set(prev); s.add(arenaTab); return s; });
+    const el = arenaCarouselRef.current;
+    if (!el) return;
+    const idx = arenaTabs.findIndex(t => t.id === arenaTab);
+    if (idx < 0) return;
+    const slide = el.children[idx];
+    if (!slide) return;
+    const targetLeft = slide.offsetLeft - (el.offsetWidth - slide.offsetWidth) / 2;
+    arenaCarouselScrolling.current = true;
+    el.scrollTo({ left: targetLeft, behavior: 'smooth' });
+    const tid = setTimeout(() => { arenaCarouselScrolling.current = false; }, 600);
+    return () => clearTimeout(tid);
+  }, [arenaTab]);
+
+  if (applyingToCase) {
+    return (
+      <div className="min-h-screen bg-[#EAF4FD] p-6">
+        <ApplyWizard
+          caseData={applyingToCase}
+          auth={auth}
+          onComplete={() => { setApplying(null); refetchApps(); }}
+          onCancel={() => setApplying(null)}
+        />
+      </div>
+    );
+  }
+
+  if (arenaSelectedCase && canViewRanking) {
+    const c = arenaSelectedCase;
+    const companyName = c.client?.client_profiles?.company_name || c.client?.full_name;
+    const caseApps = applications.filter(a => a.case_id === c.id);
+    const appCount = caseApps.length;
+    return (
+      <div className="space-y-5">
+        <button onClick={() => setArenaSelected(null)}
+          className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700">
+          {t("arena.back")}
+        </button>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div className="flex items-start justify-between gap-4 mb-3">
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold text-gray-900 leading-tight">{c.title}</h1>
+              <div className="flex flex-wrap gap-2 mt-2">
+                <Badge className={PRIORITY_COLORS[c.priority]}>{PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}</Badge>
+                {c.area_sap      && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{c.area_sap}</span>}
+                {c.area_industry && <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg text-xs font-medium">{c.area_industry}</span>}
+                {c.is_confidential && <span className="px-2 py-0.5 bg-gray-800 text-white rounded-lg text-xs font-semibold">{t("arena.private")}</span>}
+                {c.nda_required  && <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">{t("arena.nda")}</span>}
+              </div>
+            </div>
+            <div className="flex-shrink-0 text-right">
+              <div className="text-2xl font-black text-gray-900">{appCount}</div>
+              <div className="text-xs text-gray-400">{appCount !== 1 ? t("arena.applicant_pl") : t("arena.applicant_sg")}</div>
+            </div>
+          </div>
+          {companyName && <p className="text-sm text-blue-600 font-semibold mb-2">{companyName}</p>}
+          {c.description && <p className="text-sm text-gray-600 leading-relaxed mb-4">{c.description}</p>}
+          <div className="flex flex-wrap gap-4 text-sm text-gray-500 mb-4">
+            {c.start_date && <span><span className="font-medium text-gray-700">{t("arena.label_start")}</span> {fmtDate(c.start_date)}</span>}
+            {c.due_date   && <span><span className="font-medium text-gray-700">{t("arena.label_due_short")}</span> {fmtDate(c.due_date)}</span>}
+            {c.budget     && <span><span className="font-medium text-gray-700">{t("arena.label_budget_short")}</span> ${Number(c.budget).toLocaleString()}</span>}
+            {c.min_years_experience > 0 && <span><span className="font-medium text-gray-700">{t("arena.label_experience")}</span> {c.min_years_experience}{t("arena.yrs_suffix")}</span>}
+          </div>
+          {c.skills_required?.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {c.skills_required.map(s => (
+                <span key={s} className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{s}</span>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4">{t("arena.applicant_ranking")}</p>
+          <ApplicantRankingSection
+            caseData={c}
+            auth={auth}
+            applications={caseApps}
+            reviewApplication={handleArenaReviewApplication}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="mb-6 flex items-end justify-between">
