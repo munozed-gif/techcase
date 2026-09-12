@@ -32,6 +32,7 @@ import { LifecycleSettingsView, CaseDefaultsPanel, AssignmentSettingsPanel, Tran
 import { PersonAvatar } from "./Projects.jsx";
 import { AbapTemplatesSection } from "../components/SapPanels.jsx";
 import { SlaView } from "./OperationsViews.jsx";
+import { ConsultantProfilePanel } from "./ArenaView.jsx";
 
 function UpgradeModal({ onClose, title, message, roleType, planKey, auth }) {
   const planCfg = usePlanConfig();
