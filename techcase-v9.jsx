@@ -14623,6 +14623,8 @@ const PROJECT_NEXT_META = {
 function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel, clients = [], initialData = null }) {
   const { t } = useT();
   const { settings: catalogSettings } = useSystemSettings();
+  const planCfg = usePlanConfig();
+  const clientLimits = planCfg.getPlanLimits(auth.user?.id, 'client');
   const SKILL_DEFAULTS = ["ABAP Development", "SAP Basis Administration", "SAP FICO Configuration", "SAP MM Configuration", "SAP SD Configuration", "SAP HCM", "SAP Fiori / UI5", "SAP BW / Analytics", "SAP Integration (CPI/PI)", "S/4HANA Migration", "SAP GRC", "SAP PM / QM", "HANA DB Administration", "SAP Security / Roles", "SAP PS (Project Systems)"];
   const DELIVERABLE_DEFAULTS = ["Business Blueprint", "Functional Specification", "Technical Specification", "Configuration Document", "Data Migration Plan", "Test Scripts", "UAT Report", "Training Material", "Go-Live Checklist", "Cutover Plan", "Gap Analysis", "Integration Test Report", "Migration Report", "Process Flow Diagram", "Project Charter", "System Documentation", "Change Management Plan", "Hypercare Plan", "Project Status Report", "SLA Agreement"];
   const catalogSkills       = catalogSettings["catalog_skills"]       ?? SKILL_DEFAULTS;
@@ -14877,15 +14879,20 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
               <div className="grid grid-cols-2 gap-2">
                 {PROJECT_TYPES.map(({ value, Icon: PtIcon, label, desc }) => {
                   const active = basics.project_type === value;
+                  const locked = value === 'help_desk' && !clientLimits.helpDesk;
                   return (
-                    <button key={value} type="button"
-                      onClick={() => setBasics(p => ({ ...p, project_type: value }))}
-                      className={`text-left p-3 border-2 rounded-xl transition-all ${active ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"}`}>
+                    <button key={value} type="button" disabled={locked}
+                      onClick={() => !locked && setBasics(p => ({ ...p, project_type: value }))}
+                      className={`text-left p-3 border-2 rounded-xl transition-all relative ${
+                        locked  ? "border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed" :
+                        active  ? "border-blue-500 bg-blue-50" :
+                                  "border-gray-200 hover:border-gray-300"}`}>
                       <div className="flex items-center gap-2 mb-0.5">
-                        <PtIcon size={14} className={active ? "text-blue-600" : "text-gray-400"} />
-                        <span className={`font-semibold text-xs ${active ? "text-blue-700" : "text-gray-900"}`}>{label}</span>
+                        <PtIcon size={14} className={locked ? "text-gray-300" : active ? "text-blue-600" : "text-gray-400"} />
+                        <span className={`font-semibold text-xs ${locked ? "text-gray-400" : active ? "text-blue-700" : "text-gray-900"}`}>{label}</span>
+                        {locked && <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full border border-amber-200 whitespace-nowrap">Pro+</span>}
                       </div>
-                      <div className="text-xs text-gray-400 leading-snug pl-[22px]">{desc}</div>
+                      <div className="text-xs text-gray-400 leading-snug pl-[22px]">{locked ? "Upgrade to Professional to unlock" : desc}</div>
                     </button>
                   );
                 })}
