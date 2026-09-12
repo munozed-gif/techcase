@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { X, Check, RotateCcw } from "lucide-react";
 import { useT } from "../i18n/index.jsx";
 
 // Pure UI utility constants, formatters, and SLA editor used across components

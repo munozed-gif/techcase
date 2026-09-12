@@ -1,4 +1,8 @@
-import { Target, MessageSquare, Rocket, RefreshCw, Users, GraduationCap, Search, Code2 } from "lucide-react";
+import {
+  Target, MessageSquare, Rocket, RefreshCw, Users, GraduationCap, Search, Code2,
+  Activity, CheckCircle2, ClipboardList, Inbox, ListChecks, PauseCircle,
+  User, UserCheck, X, XCircle, Zap,
+} from "lucide-react";
 
 const ROLE_COLORS = {
   admin:               { bg: "bg-violet-100", text: "text-violet-800", dot: "bg-violet-500" },
