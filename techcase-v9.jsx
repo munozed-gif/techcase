@@ -6933,10 +6933,10 @@ const ROLE_COLORS = {
 
 const DEFAULT_PLAN_CONFIG = {
   client: {
-    free:         { label: 'Free',         maxCases: 1,  maxTeam: 2,  ai: false, analytics: false },
-    starter:      { label: 'Starter',      maxCases: 5,  maxTeam: 10, ai: false, analytics: false },
-    professional: { label: 'Professional', maxCases: 20, maxTeam: 50, ai: true,  analytics: true  },
-    enterprise:   { label: 'Enterprise',   maxCases: -1, maxTeam: -1, ai: true,  analytics: true  },
+    free:         { label: 'Free',         maxCases: 1,  maxTeam: 2,  ai: false, analytics: false, helpDesk: false },
+    starter:      { label: 'Starter',      maxCases: 5,  maxTeam: 10, ai: false, analytics: false, helpDesk: false },
+    professional: { label: 'Professional', maxCases: 20, maxTeam: 50, ai: true,  analytics: true,  helpDesk: true  },
+    enterprise:   { label: 'Enterprise',   maxCases: -1, maxTeam: -1, ai: true,  analytics: true,  helpDesk: true  },
   },
   consultant: {
     free:         { label: 'Free',         maxApps: 3,  ai: false, priority: false },
@@ -14631,7 +14631,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
   const [creating, setCreating] = useState(false);
 
   // Step 0: Basics
-  const [basics, setBasics] = useState({ name: initialData?.name ?? "", description: initialData?.description ?? "", status: initialData?.status ?? "draft" });
+  const [basics, setBasics] = useState({ name: initialData?.name ?? "", description: initialData?.description ?? "", status: initialData?.status ?? "draft", project_type: initialData?.project_type ?? "consulting" });
   // Step 1: Scope
   const [scopeData, setScopeData] = useState({ total_budget: initialData?.total_budget ?? "", start_date: initialData?.start_date ?? "", end_date: initialData?.end_date ?? "", area_sap: initialData?.area_sap ?? "", industry: initialData?.industry ?? "", client_id: auth.isClient ? auth.user?.id : (initialData?.client_id ?? "") });
   // Step 2: Objectives
@@ -14840,7 +14840,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
             </div>
 
             {/* Priority cards */}
-            <div className="mb-2">
+            <div className="mb-5">
               <p className="text-sm font-medium text-gray-700 mb-2">{t("label.priority")}</p>
               <div className="grid grid-cols-4 gap-2">
                 {[
@@ -14854,6 +14854,37 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                     className={`p-3 border-2 rounded-xl text-xs font-semibold transition-all ${
                       reqs.priority === opt.value ? opt.sel : opt.cls}`}>
                     {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Project type */}
+            <div className="mb-2">
+              <p className="text-sm font-medium text-gray-700 mb-1">Project Type</p>
+              <p className="text-xs text-gray-400 mb-3">Determines which features and workflows are available for this project.</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: "consulting",         emoji: "🎯", label: "Consulting",           desc: "SAP advisory, analysis & configuration" },
+                  { value: "help_desk",           emoji: "🎧", label: "Help Desk / Support",  desc: "Ticket-based reactive support with SLA" },
+                  { value: "implementation",      emoji: "🏗️", label: "Implementation",       desc: "Full project delivery with milestones & go-live" },
+                  { value: "managed_services",    emoji: "🔄", label: "Managed Services",     desc: "Ongoing retainer, SLA-driven recurring work" },
+                  { value: "staff_augmentation",  emoji: "👥", label: "Staff Augmentation",   desc: "Embedded consultant, time-tracking focused" },
+                  { value: "training",            emoji: "📚", label: "Training",             desc: "Workshops, certifications, learning paths" },
+                  { value: "audit",               emoji: "🔍", label: "Audit & Assessment",   desc: "Fixed-scope review with deliverable report" },
+                  { value: "development",         emoji: "⚙️", label: "Development",          desc: "Custom dev work, sprint or milestone based" },
+                ].map(opt => (
+                  <button key={opt.value} type="button"
+                    onClick={() => setBasics(p => ({ ...p, project_type: opt.value }))}
+                    className={`text-left p-3 border-2 rounded-xl transition-all ${
+                      basics.project_type === opt.value
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:border-gray-300"}`}>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-base">{opt.emoji}</span>
+                      <span className="font-semibold text-xs text-gray-900">{opt.label}</span>
+                    </div>
+                    <div className="text-xs text-gray-400 leading-snug pl-6">{opt.desc}</div>
                   </button>
                 ))}
               </div>
@@ -16027,6 +16058,15 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                 <span className="font-medium text-gray-900">{fmtDate(project.end_date)}</span>
               </div>
             )}
+            {project.project_type && (() => {
+              const PT_LABELS = { consulting:'🎯 Consulting', help_desk:'🎧 Help Desk', implementation:'🏗️ Implementation', managed_services:'🔄 Managed Services', staff_augmentation:'👥 Staff Augmentation', training:'📚 Training', audit:'🔍 Audit & Assessment', development:'⚙️ Development' };
+              return (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-gray-500 font-medium w-32 shrink-0">Project Type</span>
+                  <span className="font-medium text-gray-900">{PT_LABELS[project.project_type] ?? project.project_type}</span>
+                </div>
+              );
+            })()}
             {project.area_sap && (
               <div>
                 <span className="text-gray-400 block text-xs mb-1">{t("project.sap_area")}</span>
@@ -16966,6 +17006,10 @@ function ProjectsView({ auth, initialProjectId }) {
                       {p.total_budget && (
                         <span>{t("label.budget")}: <span className="font-semibold text-gray-700">${Number(p.total_budget).toLocaleString()}</span></span>
                       )}
+                      {p.project_type && p.project_type !== 'consulting' && (() => {
+                        const PT_LABELS = { help_desk:'🎧 Help Desk', implementation:'🏗️ Implementation', managed_services:'🔄 Managed Services', staff_augmentation:'👥 Staff Aug', training:'📚 Training', audit:'🔍 Audit', development:'⚙️ Development' };
+                        return <span className="px-2 py-0.5 bg-violet-50 text-violet-700 rounded-lg font-medium border border-violet-100">{PT_LABELS[p.project_type] ?? p.project_type}</span>;
+                      })()}
                       {p.area_sap && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg font-medium">{p.area_sap}</span>}
                       {p.industry && <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg font-medium">{p.industry}</span>}
                       {(p.start_date || p.end_date) && (
@@ -17109,11 +17153,12 @@ function CasesView({ auth, initialCaseId }) {
     await updateCase(caseId, { status, ...extras });
     const TERMINAL_STATUSES = ["completed", "terminated", "cancelled", "closed", "approved"];
     if (selectedCase?.id === caseId) {
-      const updatedCase = { ...selectedCase, status };
-      setSelected(updatedCase);
-      if (TERMINAL_STATUSES.includes(status) && (auth.isAdmin || auth.isManager || auth.isClient)
-          && updatedCase.case_assignments?.length) {
-        setFeedbackCase(updatedCase);
+      setSelected({ ...selectedCase, status });
+    }
+    if (TERMINAL_STATUSES.includes(status) && (auth.isAdmin || auth.isManager || auth.isClient)) {
+      const fullCase = cases.find(c => c.id === caseId) ?? selectedCase;
+      if (fullCase?.case_assignments?.length) {
+        setFeedbackCase({ ...fullCase, status });
       }
     }
   }
