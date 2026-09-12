@@ -1283,4 +1283,4 @@ function PlanUsageCard({ auth }) {
   );
 }
 
-export { Badge, Spinner, PendingApprovalScreen, ConsultantProjectsHierarchy, RESUME_SECTIONS, ResumeImporter, ProfileOnboardingScreen, ROLE_LABELS, ProfileCompleteWizard, TrustBadge, TierProgressBar, VouchingPanel, PlanUsageCard };
+export { Badge, Spinner, ErrorBoundary, PendingApprovalScreen, ConsultantProjectsHierarchy, RESUME_SECTIONS, ResumeImporter, ProfileOnboardingScreen, ROLE_LABELS, ProfileCompleteWizard, TrustBadge, TierProgressBar, VouchingPanel, PlanUsageCard };

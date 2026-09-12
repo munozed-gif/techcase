@@ -109,7 +109,7 @@ import { FEED_TYPE_STYLES, FeedCard, FeedPreferencesModal, stars } from "./src/c
 // UI PRIMITIVES
 // ============================================================
 import {
-  Badge, Spinner, PendingApprovalScreen, ConsultantProjectsHierarchy,
+  Badge, Spinner, ErrorBoundary, PendingApprovalScreen, ConsultantProjectsHierarchy,
   RESUME_SECTIONS, ResumeImporter, ProfileOnboardingScreen,
   ROLE_LABELS, ProfileCompleteWizard,
   TrustBadge, TierProgressBar, VouchingPanel, PlanUsageCard,
