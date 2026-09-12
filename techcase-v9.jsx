@@ -41,7 +41,7 @@ import {
   Bookmark, BookmarkCheck, Send, Crosshair,
   FileEdit, AlertCircle,
   Calendar, CalendarDays, CalendarRange, FolderKanban,
-  CreditCard, Eye, UserPlus, FileCode2,
+  CreditCard, Eye, UserPlus, FileCode2, Palette,
 } from "lucide-react";
 
 // ============================================================
@@ -8224,6 +8224,7 @@ function ResumeImporter({ onExtracted }) {
 
 function ProfileOnboardingScreen({ auth }) {
   const { t } = useT();
+  const branding = usePlatformBranding();
   const [showWizard, setShowWizard] = useState(false);
   const [allDone, setAllDone] = useState(false);
 
@@ -8235,7 +8236,7 @@ function ProfileOnboardingScreen({ auth }) {
             <CheckCircle2 className="w-9 h-9 text-green-600" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">{t("ob.all_set")}</h2>
-          <p className="text-gray-500 mb-7">Your profile is complete. Welcome to TechCase.</p>
+          <p className="text-gray-500 mb-7">Your profile is complete. Welcome to {branding.platformName}.</p>
           <button onClick={() => auth.refreshProfile()}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors">
             Go to Dashboard →
@@ -8248,7 +8249,7 @@ function ProfileOnboardingScreen({ auth }) {
   return (
     <div className="min-h-screen bg-[#EAF4FD]">
       <div className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-        <span className="font-bold text-gray-900 text-lg">TechCase</span>
+        <span className="font-bold text-gray-900 text-lg">{branding.platformName}</span>
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">
             {(auth.profile?.full_name ?? "?")[0].toUpperCase()}
@@ -10180,6 +10181,7 @@ function Select({ label, options, ...props }) {
 // ============================================================
 function AuthScreen({ onAuth }) {
   const { t } = useT();
+  const branding = usePlatformBranding();
   const [mode, setMode]         = useState("signin");
   // Sign-in fields
   const [siEmail, setSiEmail]   = useState("");
@@ -10462,9 +10464,9 @@ function AuthScreen({ onAuth }) {
   const logo = (
     <div className="text-center mb-8">
       <div className="inline-flex items-center justify-center mb-4">
-        <img src={TECHCASE_LOGO_URI} width="256" height="256" alt="TechCase" style={{objectFit:"contain"}}/>
+        <img src={branding.logoUrl} width="256" height="256" alt={branding.platformName} style={{objectFit:"contain"}}/>
       </div>
-      <h1 className="text-3xl font-bold text-[#1C3557]">TechCase</h1>
+      <h1 className="text-3xl font-bold text-[#1C3557]">{branding.platformName}</h1>
       <p className="text-blue-500 mt-1">{t("auth.tagline")}</p>
     </div>
   );
@@ -10845,6 +10847,7 @@ function AuthScreen({ onAuth }) {
 function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, auth, onSearchOpen }) {
   const { t, lang, setLang } = useT();
   const sidebarVisCfg = useVisibilitySettings();
+  const branding = usePlatformBranding();
 
   const navItems = {
     admin: [
@@ -10920,9 +10923,9 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       {/* Logo */}
       <div className="p-6 border-b border-blue-900">
         <div className="flex items-center gap-3">
-          <img src={TECHCASE_LOGO_URI} width="36" height="36" alt="TechCase" style={{objectFit:"contain"}}/>
+          <img src={branding.logoUrl} width="36" height="36" alt={branding.platformName} style={{objectFit:"contain"}}/>
           <div>
-            <div className="font-bold text-white">TechCase</div>
+            <div className="font-bold text-white">{branding.platformName}</div>
             <div className="text-xs text-blue-300 capitalize">{role} Portal</div>
           </div>
         </div>
@@ -14628,8 +14631,10 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
   const clientLimits = planCfg.getPlanLimits(auth.user?.id, 'client');
   const SKILL_DEFAULTS = ["ABAP Development", "SAP Basis Administration", "SAP FICO Configuration", "SAP MM Configuration", "SAP SD Configuration", "SAP HCM", "SAP Fiori / UI5", "SAP BW / Analytics", "SAP Integration (CPI/PI)", "S/4HANA Migration", "SAP GRC", "SAP PM / QM", "HANA DB Administration", "SAP Security / Roles", "SAP PS (Project Systems)"];
   const DELIVERABLE_DEFAULTS = ["Business Blueprint", "Functional Specification", "Technical Specification", "Configuration Document", "Data Migration Plan", "Test Scripts", "UAT Report", "Training Material", "Go-Live Checklist", "Cutover Plan", "Gap Analysis", "Integration Test Report", "Migration Report", "Process Flow Diagram", "Project Charter", "System Documentation", "Change Management Plan", "Hypercare Plan", "Project Status Report", "SLA Agreement"];
-  const catalogSkills       = catalogSettings["catalog_skills"]       ?? SKILL_DEFAULTS;
-  const catalogDeliverables = catalogSettings["catalog_deliverables"] ?? DELIVERABLE_DEFAULTS;
+  const catalogSkills        = catalogSettings["catalog_skills"]        ?? SKILL_DEFAULTS;
+  const catalogDeliverables  = catalogSettings["catalog_deliverables"]  ?? DELIVERABLE_DEFAULTS;
+  const catalogProjectTypes  = catalogSettings["catalog_project_types"] ?? PROJECT_TYPES.map(p => p.value);
+  const activeProjectTypes   = PROJECT_TYPES.filter(p => catalogProjectTypes.includes(p.value));
   const isEdit = !!initialData;
   const ALL_PROJECT_STEPS = [
     { id: "basics",       label: t("proj.rev_basics"),      Icon: FileText,          desc: t("proj.step_basics_desc") },
@@ -14878,7 +14883,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
               <p className="text-sm font-medium text-gray-700 mb-1">Project Type</p>
               <p className="text-xs text-gray-400 mb-3">Determines which features and workflows are available for this project.</p>
               <div className="grid grid-cols-2 gap-2">
-                {PROJECT_TYPES.map(({ value, Icon: PtIcon, label, desc }) => {
+                {activeProjectTypes.map(({ value, Icon: PtIcon, label, desc }) => {
                   const active = basics.project_type === value;
                   const locked = value === 'help_desk' && !clientLimits.helpDesk;
                   return (
@@ -36506,6 +36511,15 @@ function ManagerAdminWelcomeView({ auth, onComplete }) {
 // ============================================================
 const SystemSettingsContext = createContext(null);
 
+function usePlatformBranding() {
+  const { settings } = useSystemSettings();
+  return {
+    platformName: settings['platform_name'] || 'TechCase',
+    tagline:      settings['platform_tagline'] || 'Consultant case management platform',
+    logoUrl:      settings['brand_logo_url']  || TECHCASE_LOGO_URI,
+  };
+}
+
 function usePlanConfig() {
   const ssCtx = useSystemSettings();
   const config  = ssCtx.settings['plan_config']  ?? DEFAULT_PLAN_CONFIG;
@@ -37161,6 +37175,7 @@ function SettingsCatalogTab({ ssCtx }) {
     certifications: ["SAP Certified Associate - ABAP with SAP NetWeaver", "SAP Certified Application Associate - SAP S/4HANA Finance", "SAP Certified Application Associate - SAP S/4HANA Sourcing and Procurement", "SAP Certified Application Associate - SAP SuccessFactors", "SAP Certified Technology Associate - SAP HANA", "SAP Certified Technology Associate - SAP Basis", "SAP Certified Application Associate - SAP MM", "SAP Certified Application Associate - SAP SD", "SAP Certified Application Associate - SAP HCM"],
     languages:      ["English", "Spanish", "German", "French", "Portuguese", "Italian", "Dutch", "Polish", "Mandarin", "Japanese", "Arabic", "Russian", "Hindi"],
     deliverables:   ["Business Blueprint", "Functional Specification", "Technical Specification", "Configuration Document", "Data Migration Plan", "Test Scripts", "UAT Report", "Training Material", "Go-Live Checklist", "Cutover Plan", "Gap Analysis", "Integration Test Report", "Migration Report", "Process Flow Diagram", "Project Charter", "System Documentation", "Change Management Plan", "Hypercare Plan", "Project Status Report", "SLA Agreement"],
+    project_types:  ["consulting", "help_desk", "implementation", "managed_services", "staff_augmentation", "training", "audit", "development"],
   };
 
   const [selectedCat, setSelectedCat] = useState("sap_areas");
@@ -37183,6 +37198,7 @@ function SettingsCatalogTab({ ssCtx }) {
     certifications: t("catalog.certifications"),
     languages:      t("catalog.languages"),
     deliverables:   "Project Deliverables",
+    project_types:  "Project Types",
   };
 
   useEffect(() => {
@@ -37286,6 +37302,9 @@ function SettingsCatalogTab({ ssCtx }) {
 
 function SettingsPlatformTab({ ssCtx }) {
   const DEFAULTS = {
+    platform_name:              "TechCase",
+    platform_tagline:           "Consultant case management platform",
+    brand_logo_url:             "",
     default_currency:           "USD",
     scoring_weights:            { skills: 40, experience: 30, availability: 15, rate: 15 },
     overdue_grace_days:         1,
@@ -37302,6 +37321,9 @@ function SettingsPlatformTab({ ssCtx }) {
   useEffect(() => {
     if (!ssCtx.loading) {
       setForm({
+        platform_name:              ssCtx.settings["platform_name"]              ?? DEFAULTS.platform_name,
+        platform_tagline:           ssCtx.settings["platform_tagline"]           ?? DEFAULTS.platform_tagline,
+        brand_logo_url:             ssCtx.settings["brand_logo_url"]             ?? DEFAULTS.brand_logo_url,
         default_currency:           ssCtx.settings["default_currency"]           ?? DEFAULTS.default_currency,
         scoring_weights:            ssCtx.settings["scoring_weights"]            ?? { ...DEFAULTS.scoring_weights },
         overdue_grace_days:         ssCtx.settings["overdue_grace_days"]         ?? DEFAULTS.overdue_grace_days,
@@ -37316,6 +37338,9 @@ function SettingsPlatformTab({ ssCtx }) {
     setSaving(true);
     try {
       await Promise.all([
+        ssCtx.setSetting("platform_name",             form.platform_name),
+        ssCtx.setSetting("platform_tagline",          form.platform_tagline),
+        ssCtx.setSetting("brand_logo_url",            form.brand_logo_url),
         ssCtx.setSetting("default_currency",          form.default_currency),
         ssCtx.setSetting("scoring_weights",           form.scoring_weights),
         ssCtx.setSetting("overdue_grace_days",        form.overdue_grace_days),
@@ -37337,6 +37362,41 @@ function SettingsPlatformTab({ ssCtx }) {
 
   return (
     <div className="space-y-6 max-w-2xl">
+      {/* Branding */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Palette size={16} className="text-purple-600" /> Branding
+        </h3>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Platform Name</label>
+            <input value={form.platform_name}
+              onChange={e => setForm(p => ({ ...p, platform_name: e.target.value }))}
+              placeholder="TechCase"
+              className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tagline</label>
+            <input value={form.platform_tagline}
+              onChange={e => setForm(p => ({ ...p, platform_tagline: e.target.value }))}
+              placeholder="Consultant case management platform"
+              className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
+            <input value={form.brand_logo_url}
+              onChange={e => setForm(p => ({ ...p, brand_logo_url: e.target.value }))}
+              placeholder="https://…/logo.png"
+              className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full font-mono text-xs" />
+            {form.brand_logo_url && (
+              <img src={form.brand_logo_url} alt="Logo preview"
+                className="mt-2 h-10 object-contain rounded border border-gray-100 p-1"
+                onError={e => { e.currentTarget.style.display = 'none'; }} />
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="bg-white rounded-2xl border border-gray-200 p-5">
         <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Settings size={16} className="text-gray-600" /> {t("sys.general_title")}
