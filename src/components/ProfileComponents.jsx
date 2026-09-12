@@ -68,11 +68,27 @@ function PendingApprovalScreen({ auth }) {
             <p className="text-xs text-gray-400">This usually takes 1–2 business days.</p>
           </>
         )}
-        <button
-          onClick={() => supabase.auth.signOut()}
-          className="w-full py-2.5 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-          Sign out
-        </button>
+        {(() => {
+          const [confirmLogout, setConfirmLogout] = useState(false);
+          return confirmLogout ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500 flex-1">Sign out?</span>
+              <button onClick={() => supabase.auth.signOut()}
+                className="px-3 py-1.5 text-xs font-semibold text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors">
+                Yes, sign out
+              </button>
+              <button onClick={() => setConfirmLogout(false)}
+                className="px-3 py-1.5 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => setConfirmLogout(true)}
+              className="w-full py-2.5 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+              Sign out
+            </button>
+          );
+        })()}
       </div>
     </div>
   );
@@ -521,7 +537,20 @@ function ProfileOnboardingScreen({ auth }) {
             {(auth.profile?.full_name ?? "?")[0].toUpperCase()}
           </div>
           <span className="text-sm text-gray-600 hidden sm:block">{auth.profile?.full_name}</span>
-          <button onClick={() => supabase.auth.signOut()} className="ml-3 text-xs text-gray-400 hover:text-gray-600">Sign out</button>
+          {(() => {
+            const [confirmLogout2, setConfirmLogout2] = useState(false);
+            return confirmLogout2 ? (
+              <div className="flex items-center gap-1.5 ml-3">
+                <span className="text-xs text-gray-500">Sign out?</span>
+                <button onClick={() => supabase.auth.signOut()}
+                  className="text-xs font-semibold text-red-500 hover:text-red-700 transition-colors">Yes</button>
+                <button onClick={() => setConfirmLogout2(false)}
+                  className="text-xs text-gray-400 hover:text-gray-600 transition-colors">Cancel</button>
+              </div>
+            ) : (
+              <button onClick={() => setConfirmLogout2(true)} className="ml-3 text-xs text-gray-400 hover:text-gray-600">Sign out</button>
+            );
+          })()}
         </div>
       </div>
 
