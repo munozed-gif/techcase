@@ -76,9 +76,23 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const carouselRef = useRef(null);
   const carouselScrolling = useRef(false);
   const pipelineRef = useRef(null);
-  const pipelineScrolled = useRef(false);
   const pipelineScrolling = useRef(false);
   const [pipelineActiveIdx, setPipelineActiveIdx] = useState(0);
+
+  // Scroll pipeline to current status whenever status or stages change
+  useEffect(() => {
+    const allDisplay = lifecycleStages.filter(s => s.trigger !== "auto");
+    const idx = allDisplay.findIndex(s => s.key === caseData.status);
+    if (idx < 0) return;
+    setPipelineActiveIdx(idx);
+    const timer = setTimeout(() => {
+      const el = pipelineRef.current;
+      if (!el) return;
+      const child = el.children[idx];
+      if (child) child.scrollIntoView({ behavior: "instant", block: "nearest", inline: "center" });
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [caseData.status, lifecycleStages.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const [mountedSlides, setMountedSlides] = useState(() => new Set(["detail"]));
   const [manualCompletions, setManualCompletionsRaw] = useState(() => {
     try { return JSON.parse(localStorage.getItem(`tc_mc_${caseData.id}`) ?? "{}"); } catch { return {}; }
@@ -2343,13 +2357,10 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           return "future";
         }
 
-        // All non-auto stages; reorder so current stage is index 0
+        // All non-auto stages in original lifecycle order; carousel starts at current
         const allDisplayStages = lifecycleStages.filter(s => s.trigger !== "auto");
         if (!allDisplayStages.length) return null;
-        const curDisplayIdx = allDisplayStages.findIndex(s => s.key === caseData.status);
-        const displayStages = curDisplayIdx > 0
-          ? [...allDisplayStages.slice(curDisplayIdx), ...allDisplayStages.slice(0, curDisplayIdx)]
-          : allDisplayStages;
+        const displayStages = allDisplayStages;
 
         const clampedActive = Math.max(0, Math.min(pipelineActiveIdx, displayStages.length - 1));
 
