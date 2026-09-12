@@ -8685,8 +8685,8 @@ function TierProgressBar({ ratingsData, currentTier, thresholds }) {
   }
 
   const nextThresholds = thresholds[nextTier] ?? {};
-  const minCases = nextThresholds.min_cases ?? 1;
-  const minRating = nextThresholds.min_avg_rating ?? 3.5;
+  const minCases = nextThresholds.cases ?? nextThresholds.min_cases ?? 1;
+  const minRating = nextThresholds.min_rating ?? nextThresholds.min_avg_rating ?? 3.5;
 
   const caseIds = new Set((ratingsData ?? []).map(r => r.case_id));
   const completedRatedCases = caseIds.size;
@@ -9024,9 +9024,9 @@ function ConsultantProfileView({ userId, onBack }) {
   const isOwnProfile = !userId || userId === auth.user?.id;
 
   const DEFAULT_THRESHOLDS = {
-    silver:   { min_cases: 1,  min_avg_rating: 3.5 },
-    gold:     { min_cases: 5,  min_avg_rating: 4.0 },
-    platinum: { min_cases: 10, min_avg_rating: 4.5 },
+    silver:   { cases: 3,  min_rating: 3.5 },
+    gold:     { cases: 10, min_rating: 4.2 },
+    platinum: { cases: 25, min_rating: 4.5 },
   };
 
   const [section, setSection] = useState('overview');
@@ -11023,6 +11023,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
 // ============================================================
 function Dashboard({ auth }) {
   const { t } = useT();
+  const { settings: catalogSettings } = useSystemSettings();
   const { cases: _rawCases, loading: casesLoading, updateCase, deleteCase } = useCases();
   const _dashVisCfg = useVisibilitySettings();
   const cases = filterCasesByVisibility(_rawCases, auth, _dashVisCfg);
@@ -11600,12 +11601,12 @@ function Dashboard({ auth }) {
                 <select value={filterSap} onChange={e => setFilterSap(e.target.value)}
                   className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">{t("dashboard.all_sap")}</option>
-                  {SAP_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                  {(catalogSettings?.["catalog_sap_areas"] ?? SAP_AREAS).map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
                 <select value={filterIndustry} onChange={e => setFilterInd(e.target.value)}
                   className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">{t("dashboard.all_industries")}</option>
-                  {INDUSTRY_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                  {(catalogSettings?.["catalog_industries"] ?? INDUSTRY_AREAS).map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
                 <input type="date" value={filterStartFrom} onChange={e => setStartFrom(e.target.value)}
                   title={t("label.start_date_from")}
@@ -13611,7 +13612,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                       onChange={e => setBasics(p => ({ ...p, area_sap: e.target.value }))}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                       <option value="">{t("case.sap_area_none")}</option>
-                      {SAP_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                      {(catalogSettings?.["catalog_sap_areas"] ?? SAP_AREAS).map(a => <option key={a} value={a}>{a}</option>)}
                     </select>
                   </div>
                 </div>
@@ -13642,7 +13643,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                       onChange={e => setBasics(p => ({ ...p, area_sap: e.target.value }))}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                       <option value="">{t("case.sap_area_none")}</option>
-                      {SAP_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                      {(catalogSettings?.["catalog_sap_areas"] ?? SAP_AREAS).map(a => <option key={a} value={a}>{a}</option>)}
                     </select>
                   </div>
                   <div>
@@ -13651,7 +13652,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                       onChange={e => setBasics(p => ({ ...p, area_industry: e.target.value }))}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                       <option value="">{t("proj.select_industry")}</option>
-                      {INDUSTRY_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                      {(catalogSettings?.["catalog_industries"] ?? INDUSTRY_AREAS).map(a => <option key={a} value={a}>{a}</option>)}
                     </select>
                   </div>
                 </div>
@@ -14937,7 +14938,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                   onChange={e => setScopeData(p => ({ ...p, area_sap: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">{t("proj.none_opt")}</option>
-                  {SAP_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                  {(catalogSettings?.["catalog_sap_areas"] ?? SAP_AREAS).map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
               </div>
               <div>
@@ -14946,7 +14947,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                   onChange={e => setScopeData(p => ({ ...p, industry: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">{t("proj.select_industry")}</option>
-                  {INDUSTRY_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                  {(catalogSettings?.["catalog_industries"] ?? INDUSTRY_AREAS).map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
               </div>
             </div>
@@ -31447,6 +31448,7 @@ const CASE_DEFAULTS_EMPTY = {
 
 function CaseDefaultsPanel({ profile, updateProfile }) {
   const { t } = useT();
+  const { settings: catalogSettings } = useSystemSettings();
   const [form, setForm]   = useState(CASE_DEFAULTS_EMPTY);
   const [saving, setSaving] = useState(false);
   const [langInput, setLangInput] = useState("");
@@ -31514,7 +31516,7 @@ function CaseDefaultsPanel({ profile, updateProfile }) {
               <select value={form.area_sap} onChange={e => setForm(p => ({ ...p, area_sap: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="">{t("cd.none")}</option>
-                {SAP_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                {(catalogSettings?.["catalog_sap_areas"] ?? SAP_AREAS).map(a => <option key={a} value={a}>{a}</option>)}
               </select>
             </div>
           </div>
@@ -31523,7 +31525,7 @@ function CaseDefaultsPanel({ profile, updateProfile }) {
             <select value={form.area_industry} onChange={e => setForm(p => ({ ...p, area_industry: e.target.value }))}
               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="">{t("cd.none")}</option>
-              {INDUSTRY_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+              {(catalogSettings?.["catalog_industries"] ?? INDUSTRY_AREAS).map(a => <option key={a} value={a}>{a}</option>)}
             </select>
           </div>
           <Textarea label={t("cd.default_desc_tmpl")} value={form.description}
