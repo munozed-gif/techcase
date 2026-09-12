@@ -27154,8 +27154,8 @@ function ArenaView({ auth }) {
           animation:`arena-solar-orbit ${dur}s linear infinite`,
           '--start':`${startDeg}deg`, '--r':`${r}px` }}>
           <div style={{ position:'absolute', width:30, height:30, margin:-15, borderRadius:'50%', background:color,
-            border: isYou ? '2px solid #3B82F6' : '2px solid rgba(0,0,0,0.15)',
-            boxShadow: isYou ? '0 0 8px rgba(59,130,246,0.4)' : 'none',
+            border: isYou ? '2px solid #2563EB' : '2px solid rgba(255,255,255,0.6)',
+            boxShadow: isYou ? '0 0 8px rgba(37,99,235,0.35)' : '0 1px 4px rgba(0,0,0,0.15)',
             display:'flex', alignItems:'center', justifyContent:'center',
             fontFamily:"'Barlow Condensed',sans-serif", fontSize:9, fontWeight:700, color:'#fff' }}>
             {label}
@@ -27347,15 +27347,15 @@ function ArenaView({ auth }) {
         </div>
 
         {/* Solar leaderboard — always visible for the active case */}
-        <div style={{ marginTop:16, background:'#0C1A30', borderRadius:18, padding:14, display:'flex', gap:14, alignItems:'flex-start', flexWrap:'wrap' }}>
+        <div style={{ marginTop:16, background:'#EEF5FF', borderRadius:18, border:'1px solid #BFDBFE', padding:14, display:'flex', gap:14, alignItems:'flex-start', flexWrap:'wrap', boxShadow:'0 4px 20px rgba(37,99,235,0.08)' }}>
           {/* Solar animation */}
           <div style={{ display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
             <div style={{ position:'relative', width:sysSize, height:sysSize }}>
               {[innerR, outerR].map(r => (
-                <div key={r} style={{ position:'absolute', borderRadius:'50%', border:'1px solid rgba(255,255,255,0.07)', top:'50%', left:'50%', width:r*2, height:r*2, transform:'translate(-50%,-50%)' }} />
+                <div key={r} style={{ position:'absolute', borderRadius:'50%', border:'1px solid rgba(26,75,140,0.12)', top:'50%', left:'50%', width:r*2, height:r*2, transform:'translate(-50%,-50%)' }} />
               ))}
               <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%', overflow:'visible' }} viewBox={`0 0 ${sysSize} ${sysSize}`}>
-                <circle cx={sysSize/2} cy={sysSize/2} r={timeR} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="4"/>
+                <circle cx={sysSize/2} cy={sysSize/2} r={timeR} fill="none" stroke="rgba(26,75,140,0.08)" strokeWidth="4"/>
                 {lbTimePct != null && (
                   <circle cx={sysSize/2} cy={sysSize/2} r={timeR} fill="none" stroke={lbTc} strokeWidth="4"
                     strokeDasharray={`${timeFilled.toFixed(1)} ${(timeCirc-timeFilled).toFixed(1)}`}
@@ -27363,7 +27363,7 @@ function ArenaView({ auth }) {
                     style={{ filter:`drop-shadow(0 0 5px ${lbTc}66)` }}/>
                 )}
               </svg>
-              <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:60, height:60, borderRadius:'50%', background:'radial-gradient(circle at 35% 35%,#1A4B8C,#080F1E)', border:'2px solid rgba(59,130,246,0.4)', boxShadow:'0 0 20px rgba(59,130,246,0.2)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', zIndex:10 }}>
+              <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:60, height:60, borderRadius:'50%', background:'#fff', border:'2px solid rgba(37,99,235,0.25)', boxShadow:'0 2px 12px rgba(37,99,235,0.15)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', zIndex:10 }}>
                 <ProjectAvatar project={lbCase.project ?? { name: lbCompanyName || lbCase.title, client: lbCase.client }} size={44} />
               </div>
               {[...Array(innerSlots)].map((_, i) => <OrbiterNode key={`in${i}`} label={`#${i+1}`} color={orbColors[i%orbColors.length]} r={innerR} slotIdx={i} total={innerSlots+(lbAlreadyApplied?1:0)} dur={10} isYou={false} />)}
@@ -27381,31 +27381,31 @@ function ArenaView({ auth }) {
             {auth.isConsultant && (
               <div style={{ marginBottom:8 }}>
                 <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:38, fontWeight:800, lineHeight:1, color:lbMc }}>{lbScore}%</span>
-                <span style={{ fontSize:9, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)', marginLeft:6 }}>match</span>
+                <span style={{ fontSize:9, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#6B8AB8', marginLeft:6 }}>match</span>
               </div>
             )}
-            <p style={{ fontSize:10, fontWeight:700, color:'rgba(255,255,255,0.5)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:6 }}>{lbAppCount} applied</p>
+            <p style={{ fontSize:10, fontWeight:700, color:'#4A6B9A', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:6 }}>{lbAppCount} applied</p>
             <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
               {[...Array(Math.min(lbAppCount, 5))].map((_, i) => (
-                <div key={i} style={{ display:'flex', alignItems:'center', gap:7, background:'rgba(255,255,255,0.05)', borderRadius:8, padding:'5px 9px', border:'1px solid rgba(255,255,255,0.08)' }}>
-                  <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:13, fontWeight:700, width:14, textAlign:'center', color: i===0?'#F59E0B':i===1?'rgba(255,255,255,0.5)':i===2?'#B45309':'rgba(255,255,255,0.3)' }}>{i+1}</span>
+                <div key={i} style={{ display:'flex', alignItems:'center', gap:7, background:'rgba(26,75,140,0.06)', borderRadius:8, padding:'5px 9px', border:'1px solid rgba(26,75,140,0.12)' }}>
+                  <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:13, fontWeight:700, width:14, textAlign:'center', color: i===0?'#D97706':i===1?'#6B8AB8':i===2?'#B45309':'#93AECF' }}>{i+1}</span>
                   <div style={{ width:20, height:20, borderRadius:'50%', background:orbColors[i%orbColors.length], display:'flex', alignItems:'center', justifyContent:'center', fontSize:7, fontWeight:700, color:'#fff' }}>#{i+1}</div>
-                  <span style={{ flex:1, fontSize:11, color:'rgba(255,255,255,0.7)' }}>Consultant</span>
+                  <span style={{ flex:1, fontSize:11, color:'#334155' }}>Consultant</span>
                 </div>
               ))}
               {!lbAlreadyApplied && auth.isConsultant && (
-                <div style={{ display:'flex', alignItems:'center', gap:7, background:'rgba(59,130,246,0.08)', borderRadius:8, padding:'5px 9px', border:'1px dashed rgba(59,130,246,0.4)' }}>
-                  <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:13, fontWeight:700, width:14, textAlign:'center', color:'#60A5FA' }}>?</span>
-                  <div style={{ width:20, height:20, borderRadius:'50%', background:'rgba(59,130,246,0.15)', border:'1.5px dashed #3B82F6', display:'flex', alignItems:'center', justifyContent:'center', fontSize:7, fontWeight:700, color:'#3B82F6' }}>Me</div>
-                  <span style={{ flex:1, fontSize:11, color:'#60A5FA' }}>Your spot if you apply</span>
+                <div style={{ display:'flex', alignItems:'center', gap:7, background:'rgba(59,130,246,0.07)', borderRadius:8, padding:'5px 9px', border:'1px dashed rgba(59,130,246,0.35)' }}>
+                  <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:13, fontWeight:700, width:14, textAlign:'center', color:'#2563EB' }}>?</span>
+                  <div style={{ width:20, height:20, borderRadius:'50%', background:'rgba(59,130,246,0.12)', border:'1.5px dashed #3B82F6', display:'flex', alignItems:'center', justifyContent:'center', fontSize:7, fontWeight:700, color:'#3B82F6' }}>Me</div>
+                  <span style={{ flex:1, fontSize:11, color:'#2563EB' }}>Your spot if you apply</span>
                   <span style={{ fontSize:10, fontWeight:700, color:lbMc }}>{lbScore}</span>
                 </div>
               )}
               {lbAlreadyApplied && auth.isConsultant && (
-                <div style={{ display:'flex', alignItems:'center', gap:7, background:'rgba(59,130,246,0.12)', borderRadius:8, padding:'5px 9px', border:'1px solid rgba(59,130,246,0.4)' }}>
-                  <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:13, fontWeight:700, width:14, textAlign:'center', color:'#60A5FA' }}>✓</span>
+                <div style={{ display:'flex', alignItems:'center', gap:7, background:'rgba(59,130,246,0.1)', borderRadius:8, padding:'5px 9px', border:'1px solid rgba(59,130,246,0.35)' }}>
+                  <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:13, fontWeight:700, width:14, textAlign:'center', color:'#2563EB' }}>✓</span>
                   <div style={{ width:20, height:20, borderRadius:'50%', background:'#3B82F6', display:'flex', alignItems:'center', justifyContent:'center', fontSize:7, fontWeight:700, color:'#fff' }}>Me</div>
-                  <span style={{ flex:1, fontSize:11, color:'#93C5FD', fontWeight:600 }}>Applied — score {lbScore}</span>
+                  <span style={{ flex:1, fontSize:11, color:'#1D4ED8', fontWeight:600 }}>Applied — score {lbScore}</span>
                 </div>
               )}
             </div>
