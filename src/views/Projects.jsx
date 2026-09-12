@@ -2190,6 +2190,7 @@ function ProjectsView({ auth, initialProjectId }) {
   const { t } = useT();
   const clientFetchFilter = auth.isClient ? { client_id: auth.user?.id } : {};
   const { projects, loading, createProject, updateProject, closeProject } = useProjects(clientFetchFilter);
+  const { templates: lcTemplates } = useLifecycleTemplates();
   const [statusFilter, setStatusFilter]       = useState("");
   const [clientChipFilter, setClientChipFilter] = useState("");
   const [showCreate, setShowCreate]           = useState(false);
@@ -2464,6 +2465,17 @@ function ProjectsView({ auth, initialProjectId }) {
                       })()}
                       {p.area_sap && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg font-medium">{p.area_sap}</span>}
                       {p.industry && <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg font-medium">{p.industry}</span>}
+                      {p.case_lifecycle?.preset && p.case_lifecycle.preset !== "standard" && (() => {
+                        const preset = p.case_lifecycle.preset;
+                        const tmpl = lcTemplates.find(t => t.key === preset);
+                        const label = tmpl?.name ?? LIFECYCLE_PRESETS[preset]?.name ?? preset.replace(/_/g, " ");
+                        return (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-50 text-purple-700 rounded-lg font-medium border border-purple-100">
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" strokeWidth="1.5"/><path d="M5 3v2l1.5 1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+                            {label}
+                          </span>
+                        );
+                      })()}
                       {(p.start_date || p.end_date) && (
                         <span>
                           {p.start_date ? fmtDate(p.start_date) : "?"} → {p.end_date ? fmtDate(p.end_date) : "?"}
