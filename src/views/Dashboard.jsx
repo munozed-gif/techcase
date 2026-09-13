@@ -14,6 +14,8 @@ import { useFollowedClients } from "../hooks/useProfileHooks.js";
 import { useNotifications } from "../hooks/useNotificationHooks.js";
 import { useActivityFeed, useFeedPrefs, useGlobalActivity } from "../hooks/useActivityHooks.js";
 import { filterCasesByVisibility, useSystemSettings, useVisibilitySettings } from "../hooks/useSystemSettings.jsx";
+import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
+import { getLifecycleStages } from "../lib/businessConstants.js";
 import { FeedCard, FeedPreferencesModal } from "../components/FeedComponents.jsx";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { APP_STATUS_COLORS, CASE_CARD_COLORS, INDUSTRY_AREAS, PLAN_BADGE, PRIORITY_COLORS, ROLE_COLORS, SAP_AREAS, STATUS_CARD_ICONS, STATUS_COLORS } from "../lib/businessConstants.js";
@@ -29,6 +31,7 @@ function Dashboard({ auth, onNavigate }) {
   const { cases: _rawCases, loading: casesLoading, updateCase, deleteCase } = useCases();
   const _dashVisCfg = useVisibilitySettings();
   const cases = filterCasesByVisibility(_rawCases, auth, _dashVisCfg);
+  const { templates: lcTemplates } = useLifecycleTemplates();
   const { applications } = useApplications();
   const [applyingToCase, setApplying]   = useState(null);
   const [clientFilter, setClientFilter] = useState(null); // { id, name } | null
@@ -69,18 +72,31 @@ function Dashboard({ auth, onNavigate }) {
   const TRUST_ORDER = ['starter', 'silver', 'gold', 'platinum'];
   const _userTrustIdx = TRUST_ORDER.indexOf(auth.profile?.trust_level ?? 'starter');
   const availableCases = cases.filter(c => {
-    if (c.status !== 'estimated') return false;
-    if (appliedCaseIds.has(c.id) || assignedCaseIds.has(c.id)) return false;
+    const lcStages = getLifecycleStages(c.case_lifecycle, lcTemplates);
+    const arenaKeys = lcStages.filter(s => s.is_arena).map(s => s.key);
+    const isArenaStage = arenaKeys.length > 0 ? arenaKeys.includes(c.status) : c.status === 'estimated';
+    if (!isArenaStage) return false;
+    if (c.case_assignments && c.case_assignments.length > 0) return false;
+    if (appliedCaseIds.has(c.id)) return false;
+    const vis = _dashVisCfg.getCaseVisibility(c.id, c.client_id);
+    if (vis === 'private') return false;
+    if (vis === 'invite-only') {
+      const invites = _dashVisCfg.getCaseInvitations(c.id);
+      if (!invites.some(i => i.consultantId === auth.user?.id)) return false;
+    }
     if (c.min_trust_level && TRUST_ORDER.indexOf(c.min_trust_level) > _userTrustIdx) return false;
     return true;
   });
-  const _hiddenTierCases = cases.filter(c =>
-    c.status === 'estimated' &&
-    !appliedCaseIds.has(c.id) &&
-    !assignedCaseIds.has(c.id) &&
-    c.min_trust_level &&
-    TRUST_ORDER.indexOf(c.min_trust_level) > _userTrustIdx
-  );
+  const _hiddenTierCases = cases.filter(c => {
+    const lcStages = getLifecycleStages(c.case_lifecycle, lcTemplates);
+    const arenaKeys = lcStages.filter(s => s.is_arena).map(s => s.key);
+    const isArenaStage = arenaKeys.length > 0 ? arenaKeys.includes(c.status) : c.status === 'estimated';
+    return isArenaStage &&
+      !appliedCaseIds.has(c.id) &&
+      !(c.case_assignments && c.case_assignments.length > 0) &&
+      c.min_trust_level &&
+      TRUST_ORDER.indexOf(c.min_trust_level) > _userTrustIdx;
+  });
   const _nextUnlockTier = _hiddenTierCases.length > 0
     ? _hiddenTierCases.reduce((best, c) => {
         const idx = TRUST_ORDER.indexOf(c.min_trust_level);
