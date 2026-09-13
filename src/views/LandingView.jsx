@@ -1,5 +1,37 @@
 import { useEffect } from "react";
 
+// GALEA MANDALORIA — Corinthian dome + Mandalorian T-visor combined mark
+// bg prop matches the surface the SVG sits on (T-visor fill must match background)
+function GaleaMark({ size = 22, bg = "#0B0F1A" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 80 82" fill="none" style={{overflow:"visible",flexShrink:0}}>
+      {/* Helmet body — Corinthian proportions */}
+      <path d="M14 66 L14 40 Q14 8 40 8 Q66 8 66 40 L66 66 Q66 75 57 76 L23 76 Q14 75 14 66 Z"
+            fill="rgba(79,110,247,.12)" stroke="#4F6EF7" strokeWidth="2.2"/>
+      {/* Crown top accent */}
+      <path d="M30 8 Q40 3 50 8" stroke="#C9922A" strokeWidth="2.2" strokeLinecap="round"/>
+      {/* Brow ridge — Roman gold */}
+      <path d="M15 41 Q40 33 65 41" stroke="#C9922A" strokeWidth="2" strokeLinecap="round"/>
+      {/* T-Visor horizontal eye bar — Mandalorian */}
+      <path d="M15 43 L65 43 L65 53 L15 53 Z" fill={bg}/>
+      {/* T-Visor vertical stem */}
+      <path d="M36 53 L44 53 L44 69 L36 69 Z" fill={bg}/>
+      {/* Visor gold outline — Mandalorian glow */}
+      <line x1="15" y1="43" x2="65" y2="43" stroke="#C9922A" strokeWidth="1.4" opacity=".5"/>
+      <path d="M15 53 L36 53 L36 69 L44 69 L44 53 L65 53" stroke="#C9922A" strokeWidth="1.4" fill="none" opacity=".5"/>
+      {/* Amber inner glow hairlines */}
+      <path d="M16 44 L64 44" stroke="#E8B84B" strokeWidth=".7" opacity=".4"/>
+      <line x1="40" y1="54" x2="40" y2="68" stroke="#E8B84B" strokeWidth=".7" opacity=".3"/>
+      {/* Cheek guard accent lines — Corinthian heritage */}
+      <path d="M14 55 Q16 63 20 68" stroke="#C9922A" strokeWidth="1.4" strokeLinecap="round" opacity=".65"/>
+      <path d="M66 55 Q64 63 60 68" stroke="#C9922A" strokeWidth="1.4" strokeLinecap="round" opacity=".65"/>
+      {/* Inner dome depth lines */}
+      <path d="M22 66 Q22 72 30 73" stroke="#4F6EF7" strokeWidth="1" opacity=".35" strokeLinecap="round"/>
+      <path d="M58 66 Q58 72 50 73" stroke="#4F6EF7" strokeWidth="1" opacity=".35" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 #arena-landing {position:fixed;inset:0;overflow-y:auto;z-index:9999;font-family:'Inter',system-ui,sans-serif;background:#F8FAFF;color:#0B0F1A;line-height:1.6;}
@@ -8,7 +40,7 @@ const CSS = `
 #arena-landing img{max-width:100%;}
 :root{--accent:#4F6EF7;--accent-d:#3A56D4;--emerald:#10B981;--amber:#F59E0B;--rose:#EF4444;--muted:#64748B;--border:#E2E8F0;--surface:#fff;--surface2:#F1F5FE;--ink:#0B0F1A;--base:#F8FAFF;}
 #arena-landing nav{position:sticky;top:0;left:0;right:0;z-index:100;padding:0 24px;background:rgba(11,15,26,.93);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:space-between;height:60px;transition:height .2s;}
-#arena-landing .nav-logo{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;color:#fff;letter-spacing:-.02em;display:flex;align-items:baseline;gap:4px;}
+#arena-landing .nav-logo{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;color:#fff;letter-spacing:-.02em;display:flex;align-items:center;gap:8px;}
 #arena-landing .logo-arena{font-size:1.45rem;color:var(--accent);letter-spacing:-.04em;}
 #arena-landing .logo-rest{font-size:.85rem;font-weight:600;color:rgba(255,255,255,.6);}
 #arena-landing .nav-links{display:flex;align-items:center;gap:28px;}
@@ -188,7 +220,7 @@ const CSS = `
 
 #arena-landing footer{background:#060910;padding:48px 24px 32px;border-top:1px solid rgba(255,255,255,.05);}
 #arena-landing .footer-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px;}
-#arena-landing .footer-logo{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;color:#fff;margin-bottom:10px;display:flex;align-items:baseline;gap:4px;}
+#arena-landing .footer-logo{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;color:#fff;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
 #arena-landing .footer-logo .logo-arena{font-size:1.4rem;color:var(--accent);letter-spacing:-.04em;}
 #arena-landing .footer-logo .logo-rest{font-size:.82rem;font-weight:600;color:rgba(255,255,255,.5);}
 #arena-landing .footer-tagline{font-size:.82rem;color:rgba(255,255,255,.35);line-height:1.6;max-width:260px;}
@@ -252,6 +284,7 @@ export function LandingView({ onSignIn }) {
       {/* NAV */}
       <nav>
         <div className="nav-logo">
+          <GaleaMark size={26} bg="#0B0F1A" />
           <span className="logo-arena">Arena</span>
           <span className="logo-rest">Solutions Platform</span>
         </div>
@@ -638,7 +671,7 @@ export function LandingView({ onSignIn }) {
       <footer>
         <div className="footer-inner">
           <div>
-            <div className="footer-logo"><span className="logo-arena">Arena</span><span className="logo-rest">Solutions Platform</span></div>
+            <div className="footer-logo"><GaleaMark size={28} bg="#060910" /><span className="logo-arena">Arena</span><span className="logo-rest">Solutions Platform</span></div>
             <div className="footer-tagline">The operating system for SAP consulting teams. Structured support, every stage governed, every role in sync.</div>
           </div>
           <div className="footer-col"><h4>Product</h4><a href="#features">Features</a><a href="#lifecycle">Lifecycle Engine</a><a href="#roles">Roles</a><a href="#pricing">Pricing</a></div>
