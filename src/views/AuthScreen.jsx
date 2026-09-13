@@ -380,7 +380,7 @@ function AuthScreen({ onAuth, onBack }) {
 
         {/* ── SIGN IN ── */}
         {mode === "signin" && (
-          <div className="bg-white rounded-2xl shadow-xl p-8">
+          <div className="rounded-2xl shadow-xl p-8" style={{background:"#D6E8F7"}}>
             {tabs}
             <Input label={t("auth.email")} type="email" value={siEmail}
               onChange={e => setSiEmail(e.target.value)} placeholder={t("auth.ph_email")} />
@@ -396,7 +396,7 @@ function AuthScreen({ onAuth, onBack }) {
 
         {/* ── SIGN UP WIZARD ── */}
         {mode === "signup" && (
-          <div className="bg-white rounded-2xl shadow-xl p-8">
+          <div className="rounded-2xl shadow-xl p-8" style={{background:"#D6E8F7"}}>
             {tabs}
 
             {/* Step progress */}
