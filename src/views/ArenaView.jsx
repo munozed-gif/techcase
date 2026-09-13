@@ -867,11 +867,15 @@ function ArenaView({ auth }) {
   }
 
   const openCases       = cases.filter(c => {
-    if (c.status !== "estimated" || (c.case_assignments && c.case_assignments.length > 0)) return false;
+    // Find which stages are marked as Arena stages in this case's lifecycle template
+    const lcStages = getLifecycleStages(c.case_lifecycle, arenaLcTemplates);
+    const arenaKeys = lcStages.filter(s => s.is_arena).map(s => s.key);
+    // Fall back to "estimated" for templates that predate the is_arena field
+    const isArenaStage = arenaKeys.length > 0 ? arenaKeys.includes(c.status) : c.status === "estimated";
+    if (!isArenaStage || (c.case_assignments && c.case_assignments.length > 0)) return false;
     const vis = visCfg.getCaseVisibility(c.id, c.client_id);
     if (vis === 'private') return false;
     if (vis === 'invite-only') {
-      // Only show to invited consultants
       if (auth.isConsultant || auth.isHeadhunter) {
         const invites = visCfg.getCaseInvitations(c.id);
         return invites.some(i => i.consultantId === auth.user?.id);

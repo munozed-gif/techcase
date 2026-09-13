@@ -143,7 +143,7 @@ const LIFECYCLE_PRESETS = {
     description: "Simple flow for straightforward consulting requests.",
     stages: [
       { key: "open",            label: "New Request",      color: "#60A5FA", is_terminal: false },
-      { key: "estimated",       label: "Estimated",        color: "#34D399", is_terminal: false },
+      { key: "estimated",       label: "Estimated",        color: "#34D399", is_terminal: false, is_arena: true },
       { key: "assigned",        label: "Assigned",         color: "#8B5CF6", is_terminal: false, trigger: "auto" },
       { key: "in_progress",     label: "Active",           color: "#1E40AF", is_terminal: false },
       { key: "functional_test", label: "Functional Test",  color: "#F59E0B", is_terminal: false },
@@ -158,7 +158,7 @@ const LIFECYCLE_PRESETS = {
     description: "Default consulting flow with full test pipeline.",
     stages: [
       { key: "open",            label: "Open",             color: "#93C5FD", is_terminal: false },
-      { key: "estimated",       label: "Estimated",        color: "#34D399", is_terminal: false },
+      { key: "estimated",       label: "Estimated",        color: "#34D399", is_terminal: false, is_arena: true },
       { key: "assigned",        label: "Assigned",         color: "#8B5CF6", is_terminal: false, trigger: "auto" },
       { key: "in_progress",     label: "In Progress",      color: "#2563EB", is_terminal: false },
       { key: "on_hold",         label: "On Hold",          color: "#1D4ED8", is_terminal: false },
@@ -177,7 +177,7 @@ const LIFECYCLE_PRESETS = {
       { key: "open",            label: "Sourcing",         color: "#93C5FD", is_terminal: false },
       { key: "screening",       label: "Screening",        color: "#60A5FA", is_terminal: false },
       { key: "shortlisted",     label: "Shortlisted",      color: "#3B82F6", is_terminal: false },
-      { key: "estimated",       label: "Estimated",        color: "#34D399", is_terminal: false },
+      { key: "estimated",       label: "Estimated",        color: "#34D399", is_terminal: false, is_arena: true },
       { key: "assigned",        label: "Assigned",         color: "#8B5CF6", is_terminal: false, trigger: "auto" },
       { key: "in_progress",     label: "In Progress",      color: "#1D4ED8", is_terminal: false },
       { key: "on_hold",         label: "Negotiation",      color: "#1E40AF", is_terminal: false },

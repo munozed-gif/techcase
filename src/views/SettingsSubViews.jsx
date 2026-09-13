@@ -61,6 +61,9 @@ function LifecycleSettingsView({ auth }) {
   function setInitialStage(i) {
     setEditStages(p => p.map((s, j) => ({ ...s, is_initial: j === i })));
   }
+  function toggleArenaStage(i) {
+    setEditStages(p => p.map((s, j) => ({ ...s, is_arena: j === i ? !s.is_arena : s.is_arena })));
+  }
   function cycleTrigger(i) {
     const cur = editStages[i].trigger ?? "manual";
     const next = cur === "manual" ? "auto" : cur === "auto" ? "both" : "manual";
@@ -227,11 +230,13 @@ function LifecycleSettingsView({ auth }) {
                   <div className="w-3.5 h-3.5 rounded-full flex-shrink-0 ring-2 ring-white/40"
                     style={{ backgroundColor: s.color }} />
                   <span className="text-xs font-medium text-center leading-tight">{s.label || t("lifecycle.stage_lbl")}</span>
-                  {(s.is_terminal || s.is_initial) && (
+                  {(s.is_terminal || s.is_initial || s.is_arena) && (
                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                      activeStageIdx === i ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"
+                      activeStageIdx === i ? "bg-white/20 text-white"
+                        : s.is_arena ? "bg-amber-100 text-amber-700"
+                        : "bg-gray-100 text-gray-500"
                     }`}>
-                      {s.is_initial ? t("lc.initial") : t("lc.terminal")}
+                      {s.is_initial ? t("lc.initial") : s.is_arena ? "Arena" : t("lc.terminal")}
                     </span>
                   )}
                 </button>
@@ -269,6 +274,15 @@ function LifecycleSettingsView({ auth }) {
                               : "bg-white text-gray-400 border-gray-200 hover:border-emerald-300 hover:text-emerald-600"
                           }`}>
                           {t("lc.initial")}
+                        </button>
+                        <button onClick={() => toggleArenaStage(idx)}
+                          title="Cases in this stage appear in the Arena bidding pool (must also be public)"
+                          className={`text-xs px-2 py-1.5 rounded-lg border font-semibold transition-colors flex-shrink-0 ${
+                            stage.is_arena
+                              ? "bg-amber-50 text-amber-700 border-amber-300"
+                              : "bg-white text-gray-400 border-gray-200 hover:border-amber-300 hover:text-amber-600"
+                          }`}>
+                          Arena
                         </button>
                         <button onClick={() => cycleTrigger(idx)}
                           title={t("lc.entry_tooltip")}
