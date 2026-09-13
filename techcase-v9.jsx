@@ -586,11 +586,13 @@ export default function App() {
     return (
       <SystemSettingsProvider>
         <LanguageProvider userId={null}>
-          <AuthScreen onAuth={(newRole = null) => {
-            setAuthed(true);
-            setShowAuth(false);
-            if (newRole) setOnboarding(newRole);
-          }} />
+          <AuthScreen
+            onBack={() => setShowAuth(false)}
+            onAuth={(newRole = null) => {
+              setAuthed(true);
+              setShowAuth(false);
+              if (newRole) setOnboarding(newRole);
+            }} />
         </LanguageProvider>
       </SystemSettingsProvider>
     );

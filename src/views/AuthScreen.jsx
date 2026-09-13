@@ -12,7 +12,7 @@ import { ROLE_PERMISSIONS_DEFAULTS } from "../lib/constants.js";
 
 // AuthScreen — sign-in, sign-up wizard, password reset
 
-function AuthScreen({ onAuth }) {
+function AuthScreen({ onAuth, onBack }) {
   const { t } = useT();
   const branding = usePlatformBranding();
   const [mode, setMode]         = useState("signin");
@@ -296,6 +296,15 @@ function AuthScreen({ onAuth }) {
 
   const logo = (
     <div className="text-center mb-8">
+      {onBack && (
+        <button onClick={onBack}
+          className="mb-6 inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300 transition-colors">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+          Back to home
+        </button>
+      )}
       <div className="inline-flex items-center justify-center mb-4">
         <img src={branding.logoUrl} width="256" height="256" alt={branding.platformName} style={{objectFit:"contain"}}/>
       </div>
