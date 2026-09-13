@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   Activity, AlertTriangle, Briefcase, CalendarDays, Check, CheckCircle2,
   ChevronRight, ClipboardList, Clock, Code2, FolderOpen, Heart, Inbox,
-  Layers, ListChecks, PauseCircle, SlidersHorizontal, Tag, UserCheck,
+  Layers, ListChecks, PauseCircle, SlidersHorizontal, Tag, Target, UserCheck,
   Users, X, XCircle, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
@@ -23,7 +23,7 @@ import { CaseDetail } from "./CaseDetail.jsx";
 import { ProjectAvatar } from "./Projects.jsx";
 import { ClientRatingModal } from "./SystemSettingsView.jsx";
 
-function Dashboard({ auth }) {
+function Dashboard({ auth, onNavigate }) {
   const { t } = useT();
   const { settings: catalogSettings } = useSystemSettings();
   const { cases: _rawCases, loading: casesLoading, updateCase, deleteCase } = useCases();
@@ -585,9 +585,17 @@ function Dashboard({ auth }) {
                   <h2 className="text-lg font-bold text-gray-900">{t("dashboard.available_cases")}</h2>
                   <p className="text-xs text-gray-400 mt-0.5">{t("dashboard.avail_subtitle")}</p>
                 </div>
-                <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-lg">
-                  {filteredAvailable.length} open
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-lg">
+                    {filteredAvailable.length} open
+                  </span>
+                  {onNavigate && (
+                    <button onClick={() => onNavigate("arena")}
+                      className="flex items-center gap-1 px-3 py-1 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors">
+                      <Target className="w-3 h-3" /> Arena
+                    </button>
+                  )}
+                </div>
               </div>
               {_hiddenTierCases.length > 0 && (auth.isConsultant || auth.isHeadhunter) && (
                 <div className="mx-5 mt-3 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2">

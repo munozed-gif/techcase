@@ -632,7 +632,7 @@ export default function App() {
 
   function renderView() {
     switch (activeView) {
-      case "dashboard":      return <Dashboard auth={auth} />;
+      case "dashboard":      return <Dashboard auth={auth} onNavigate={setActiveView} />;
       case "projects":       return <ProjectsView auth={auth} initialProjectId={pendingProjectId} />;
       case "cases":          return <CasesView auth={auth} initialCaseId={pendingCaseId} />;
       case "my-cases":       return <CasesView auth={auth} initialCaseId={pendingCaseId} />;
