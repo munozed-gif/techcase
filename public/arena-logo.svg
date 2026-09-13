@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 82" fill="none" width="256" height="256">
+  <!-- Helmet body — Corinthian proportions: tall dome, flared cheeks, neck guard -->
+  <path d="M14 66 L14 40 Q14 8 40 8 Q66 8 66 40 L66 66 Q66 75 57 76 L23 76 Q14 75 14 66 Z"
+        fill="rgba(79,110,247,.12)" stroke="#4F6EF7" stroke-width="2.2"/>
+  <!-- Crown top accent (Roman crest base) -->
+  <path d="M30 8 Q40 3 50 8" stroke="#C9922A" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+  <!-- Brow ridge — Roman gold -->
+  <path d="M15 41 Q40 33 65 41" stroke="#C9922A" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <!-- T-Visor horizontal eye bar — Mandalorian; fill matches dark bg -->
+  <path d="M15 43 L65 43 L65 53 L15 53 Z" fill="#0B0F1A"/>
+  <!-- T-Visor vertical stem -->
+  <path d="M36 53 L44 53 L44 69 L36 69 Z" fill="#0B0F1A"/>
+  <!-- Visor gold outline — Mandalorian glow -->
+  <line x1="15" y1="43" x2="65" y2="43" stroke="#C9922A" stroke-width="1.4" opacity=".5"/>
+  <path d="M15 53 L36 53 L36 69 L44 69 L44 53 L65 53" stroke="#C9922A" stroke-width="1.4" fill="none" opacity=".5"/>
+  <!-- Amber inner glow hairlines -->
+  <path d="M16 44 L64 44" stroke="#E8B84B" stroke-width=".7" opacity=".4"/>
+  <line x1="40" y1="54" x2="40" y2="68" stroke="#E8B84B" stroke-width=".7" opacity=".3"/>
+  <!-- Cheek guard accent lines — Corinthian heritage -->
+  <path d="M14 55 Q16 63 20 68" stroke="#C9922A" stroke-width="1.4" stroke-linecap="round" opacity=".65"/>
+  <path d="M66 55 Q64 63 60 68" stroke="#C9922A" stroke-width="1.4" stroke-linecap="round" opacity=".65"/>
+  <!-- Inner dome depth lines -->
+  <path d="M22 66 Q22 72 30 73" stroke="#4F6EF7" stroke-width="1" opacity=".35" stroke-linecap="round"/>
+  <path d="M58 66 Q58 72 50 73" stroke="#4F6EF7" stroke-width="1" opacity=".35" stroke-linecap="round"/>
+</svg>

@@ -299,8 +299,8 @@ function AuthScreen({ onAuth }) {
       <div className="inline-flex items-center justify-center mb-4">
         <img src={branding.logoUrl} width="256" height="256" alt={branding.platformName} style={{objectFit:"contain"}}/>
       </div>
-      <h1 className="text-3xl font-bold text-[#1C3557]">{branding.platformName}</h1>
-      <p className="text-blue-500 mt-1">{t("auth.tagline")}</p>
+      <h1 className="text-3xl font-bold text-white">{branding.platformName}</h1>
+      <p className="text-blue-400 mt-1">{branding.tagline}</p>
     </div>
   );
 
@@ -359,7 +359,13 @@ function AuthScreen({ onAuth }) {
   );
 
   return (
-    <div className="min-h-screen bg-[#D0E8F7] flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{
+      background:"#0B0F1A",
+      backgroundImage:`
+        linear-gradient(rgba(79,110,247,.04) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(79,110,247,.04) 1px,transparent 1px)`,
+      backgroundSize:"48px 48px"
+    }}>
       <div className="w-full max-w-md">
         {logo}
 
