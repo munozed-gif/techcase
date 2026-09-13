@@ -671,12 +671,14 @@ function ProfileCompleteWizard({ auth, onDone, onClose }) {
     : role === "consultant" ? headline.trim().length > 0 : true;
 
   async function handleFinish() {
-    if (!pwdOk) { setError("Passwords don't match or are too short (min 6 characters)."); return; }
     setSaving(true); setError("");
 
-    // Set password (required step — user may have signed up via magic link with no password)
-    const { error: pwdErr } = await supabase.auth.updateUser({ password });
-    if (pwdErr) { setError(pwdErr.message); setSaving(false); return; }
+    // Only update password if the user entered one
+    if (password.length > 0) {
+      if (!pwdOk) { setError("Passwords don't match or are too short (min 6 characters)."); setSaving(false); return; }
+      const { error: pwdErr } = await supabase.auth.updateUser({ password });
+      if (pwdErr) { setError(pwdErr.message); setSaving(false); return; }
+    }
 
     // Update users table: name + role
     const { error: userErr } = await supabase
