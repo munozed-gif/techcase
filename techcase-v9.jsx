@@ -628,6 +628,7 @@ export default function App() {
     setAuthed(false);
     setOnboarding(null);
     setActiveView("dashboard");
+    setShowAuth(true);
   }
 
   function renderView() {
