@@ -253,7 +253,7 @@ export function LandingView({ onSignIn }) {
       <nav>
         <div className="nav-logo">
           <span className="logo-arena">Arena</span>
-          <span className="logo-rest">Solution Platform</span>
+          <span className="logo-rest">Solutions Platform</span>
         </div>
         <div className="nav-links">
           <a href="#features">Features</a>
@@ -275,7 +275,7 @@ export function LandingView({ onSignIn }) {
         <div className="hero-inner">
           <div>
             <div className="hero-badge">SAP Consulting Platform · 2026</div>
-            <div className="hero-name">Solution Platform</div>
+            <div className="hero-name">Solutions Platform</div>
             <h1><em style={{fontSize:"1.2em",display:"block",lineHeight:1}}>Arena</em>SAP Consulting,<br />Engineered.</h1>
             <p className="hero-sub">Arena gives consulting firms and their clients a unified workspace — from ticket triage to full project delivery, with every role in sync and every stage governed.</p>
             <div className="hero-actions">
@@ -559,7 +559,7 @@ export function LandingView({ onSignIn }) {
             <div className="video-inner">
               <div className="video-grid-bg" />
               <div className="play-btn"><svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div>
-              <div className="video-overlay-text"><div className="video-label">Arena Solution Platform Demo · 3:24</div></div>
+              <div className="video-overlay-text"><div className="video-label">Arena Solutions Platform Demo · 3:24</div></div>
             </div>
           </div>
         </div>
@@ -638,7 +638,7 @@ export function LandingView({ onSignIn }) {
       <footer>
         <div className="footer-inner">
           <div>
-            <div className="footer-logo"><span className="logo-arena">Arena</span><span className="logo-rest">Solution Platform</span></div>
+            <div className="footer-logo"><span className="logo-arena">Arena</span><span className="logo-rest">Solutions Platform</span></div>
             <div className="footer-tagline">The operating system for SAP consulting teams. Structured support, every stage governed, every role in sync.</div>
           </div>
           <div className="footer-col"><h4>Product</h4><a href="#features">Features</a><a href="#lifecycle">Lifecycle Engine</a><a href="#roles">Roles</a><a href="#pricing">Pricing</a></div>
@@ -646,7 +646,7 @@ export function LandingView({ onSignIn }) {
           <div className="footer-col"><h4>Legal</h4><a href="#">Privacy Policy</a><a href="#">Terms of Service</a><a href="#">Security</a></div>
         </div>
         <div className="footer-bottom">
-          <div className="footer-copy">© 2026 Arena Solution Platform. All rights reserved.</div>
+          <div className="footer-copy">© 2026 Arena Solutions Platform. All rights reserved.</div>
           <div className="footer-copy">Built for SAP consulting teams worldwide.</div>
         </div>
       </footer>
