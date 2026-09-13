@@ -2,7 +2,7 @@ import { useEffect } from "react";
 
 // GALEA MANDALORIA — Corinthian dome + Mandalorian T-visor combined mark
 // bg prop matches the surface the SVG sits on (T-visor fill must match background)
-function GaleaMark({ size = 22, bg = "#0B0F1A" }) {
+export function GaleaMark({ size = 22, bg = "#0B0F1A" }) {
   return (
     <svg width={size} height={size} viewBox="0 0 80 82" fill="none" style={{overflow:"visible",flexShrink:0}}>
       {/* Helmet body — Corinthian proportions */}

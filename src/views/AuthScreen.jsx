@@ -9,6 +9,7 @@ import { usePlatformBranding, useSystemSettings } from "../hooks/useSystemSettin
 import { Input } from "../components/ui.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { ROLE_PERMISSIONS_DEFAULTS } from "../lib/constants.js";
+import { GaleaMark } from "./LandingView.jsx";
 
 // AuthScreen — sign-in, sign-up wizard, password reset
 
@@ -296,20 +297,11 @@ function AuthScreen({ onAuth, onBack }) {
 
   const logo = (
     <div className="text-center mb-8">
-      {onBack && (
-        <button onClick={onBack}
-          className="mb-6 inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300 transition-colors">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6"/>
-          </svg>
-          Back to home
-        </button>
-      )}
       <div className="inline-flex items-center justify-center mb-4">
-        <img src={branding.logoUrl} width="256" height="256" alt={branding.platformName} style={{objectFit:"contain"}}/>
+        <img src={branding.logoUrl} width="80" height="80" alt={branding.platformName} style={{objectFit:"contain"}}/>
       </div>
-      <h1 className="text-3xl font-bold text-white">{branding.platformName}</h1>
-      <p className="text-blue-400 mt-1">{branding.tagline}</p>
+      <h1 className="text-2xl font-bold text-[#1C3557]">{branding.platformName}</h1>
+      <p className="text-blue-500 mt-1 text-sm">{branding.tagline}</p>
     </div>
   );
 
@@ -367,14 +359,45 @@ function AuthScreen({ onAuth, onBack }) {
     </div>
   );
 
+  const NAV_CSS = `
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
+    .auth-nav{position:sticky;top:0;z-index:10;height:60px;padding:0 24px;
+      background:rgba(11,15,26,.95);backdrop-filter:blur(12px);
+      border-bottom:1px solid rgba(255,255,255,.07);
+      display:flex;align-items:center;justify-content:space-between;}
+    .auth-nav-logo{display:flex;align-items:center;gap:8px;cursor:pointer;text-decoration:none;}
+    .auth-nav-arena{font-family:'Plus Jakarta Sans',sans-serif;font-size:1.45rem;font-weight:800;
+      color:#4F6EF7;letter-spacing:-.04em;}
+    .auth-nav-rest{font-family:'Plus Jakarta Sans',sans-serif;font-size:.85rem;font-weight:600;
+      color:rgba(255,255,255,.55);}
+    .auth-nav-links{display:flex;align-items:center;gap:28px;}
+    .auth-nav-links a{font-size:.85rem;font-weight:500;color:rgba(255,255,255,.6);text-decoration:none;}
+    @media(max-width:640px){.auth-nav-links{display:none;}}
+  `;
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{
-      background:"#0B0F1A",
-      backgroundImage:`
-        linear-gradient(rgba(79,110,247,.04) 1px,transparent 1px),
-        linear-gradient(90deg,rgba(79,110,247,.04) 1px,transparent 1px)`,
+    <div style={{
+      minHeight:"100vh",background:"#0B0F1A",
+      backgroundImage:`linear-gradient(rgba(79,110,247,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(79,110,247,.04) 1px,transparent 1px)`,
       backgroundSize:"48px 48px"
     }}>
+      <style>{NAV_CSS}</style>
+
+      {/* Landing nav */}
+      <nav className="auth-nav">
+        <button className="auth-nav-logo" onClick={onBack} style={{background:"none",border:"none",padding:0}}>
+          <GaleaMark size={26} bg="#0B0F1A" />
+          <span className="auth-nav-arena">Arena</span>
+          <span className="auth-nav-rest">Solutions Platform</span>
+        </button>
+        <div className="auth-nav-links">
+          <a href="#" onClick={onBack}>Features</a>
+          <a href="#" onClick={onBack}>Lifecycle</a>
+          <a href="#" onClick={onBack}>Pricing</a>
+        </div>
+      </nav>
+
+      <div className="flex items-center justify-center p-4" style={{minHeight:"calc(100vh - 60px)"}}>
       <div className="w-full max-w-md">
         {logo}
 
@@ -684,6 +707,7 @@ function AuthScreen({ onAuth, onBack }) {
             {errorBox}
           </div>
         )}
+      </div>
       </div>
     </div>
   );
