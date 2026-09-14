@@ -1,15 +1,16 @@
 import { useState, useEffect } from "react";
 import {
   Activity, AlertTriangle, Briefcase, CalendarDays, Check, CheckCircle2,
-  ChevronRight, ClipboardList, Clock, Code2, FolderOpen, Heart, Inbox,
-  Layers, ListChecks, PauseCircle, SlidersHorizontal, Tag, Target, UserCheck,
-  Users, X, XCircle, Zap,
+  ChevronRight, ClipboardList, Clock, Code2, FolderOpen, Heart, Headphones,
+  Inbox, Layers, ListChecks, PauseCircle, SlidersHorizontal, Smile, Tag,
+  Target, ThumbsUp, UserCheck, Users, X, XCircle, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useCases } from "../hooks/useCaseHooks.js";
 import { useApplications } from "../hooks/useCaseHooks.js";
+import { useProjects } from "../hooks/useCoreHooks.js";
 import { useFollowedClients } from "../hooks/useProfileHooks.js";
 import { useNotifications } from "../hooks/useNotificationHooks.js";
 import { useActivityFeed, useFeedPrefs, useGlobalActivity } from "../hooks/useActivityHooks.js";
@@ -32,6 +33,8 @@ function Dashboard({ auth, onNavigate }) {
   const _dashVisCfg = useVisibilitySettings();
   const cases = filterCasesByVisibility(_rawCases, auth, _dashVisCfg);
   const { templates: lcTemplates } = useLifecycleTemplates();
+  const { projects: allProjects } = useProjects();
+  const [hdRatings, setHdRatings] = useState([]);
   const { applications } = useApplications();
   const [applyingToCase, setApplying]   = useState(null);
   const [clientFilter, setClientFilter] = useState(null); // { id, name } | null
@@ -60,6 +63,22 @@ function Dashboard({ auth, onNavigate }) {
         setRatedCaseIds(new Set((data ?? []).map(r => r.case_id)));
       });
   }, [auth.isConsultant, auth.user?.id]);
+
+  // Fetch ratings for help desk cases (client satisfaction)
+  useEffect(() => {
+    if (cases.length === 0) return;
+    const hdProjectIds = new Set(
+      (allProjects ?? []).filter(p => p.project_type === 'help_desk').map(p => p.id)
+    );
+    const hdCaseIds = cases
+      .filter(c => c.project_id && hdProjectIds.has(c.project_id))
+      .map(c => c.id);
+    if (hdCaseIds.length === 0) { setHdRatings([]); return; }
+    supabase.from('case_ratings')
+      .select('case_id, scores, rater_role')
+      .in('case_id', hdCaseIds)
+      .then(({ data }) => setHdRatings(data ?? []));
+  }, [cases, allProjects]);
 
   // Pre-compute filtered sets
   const myApplications   = applications.filter(a => a.consultant_id === auth.user?.id);
@@ -803,6 +822,177 @@ function Dashboard({ auth, onNavigate }) {
           })()}
         </>
       )}
+
+      {/* ── Help Desk KPIs ── */}
+      {(() => {
+        const hdProjectIds = new Set(
+          (allProjects ?? []).filter(p => p.project_type === 'help_desk').map(p => p.id)
+        );
+        const hdCases = cases.filter(c => c.project_id && hdProjectIds.has(c.project_id));
+        if (hdCases.length === 0) return null;
+
+        const now = Date.now();
+        const TERMINAL = ['completed', 'cancelled'];
+
+        function caseStats(list) {
+          const open     = list.filter(c => !TERMINAL.includes(c.status)).length;
+          const resolved = list.filter(c => c.status === 'completed').length;
+          const overdue  = list.filter(c =>
+            !TERMINAL.includes(c.status) && c.due_date && new Date(c.due_date).getTime() < now
+          ).length;
+          const caseIds  = new Set(list.map(c => c.id));
+          const relevant = hdRatings.filter(r => caseIds.has(r.case_id));
+          const scores   = relevant.map(r => {
+            const vals = Object.values(r.scores ?? {}).filter(v => typeof v === 'number');
+            return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+          }).filter(s => s != null);
+          const csat = scores.length ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10 : null;
+          return { open, resolved, overdue, csat, total: list.length };
+        }
+
+        const summary = caseStats(hdCases);
+
+        // Group by project
+        const byProject = {};
+        hdCases.forEach(c => {
+          if (!byProject[c.project_id]) {
+            const proj = allProjects.find(p => p.id === c.project_id);
+            byProject[c.project_id] = { project: proj, cases: [] };
+          }
+          byProject[c.project_id].cases.push(c);
+        });
+
+        // Group by customer (client_id)
+        const byClient = {};
+        hdCases.forEach(c => {
+          if (!c.client_id) return;
+          if (!byClient[c.client_id]) {
+            byClient[c.client_id] = {
+              name: (Array.isArray(c.client?.client_profiles) ? c.client.client_profiles[0]?.company_name : c.client?.client_profiles?.company_name) || c.client?.full_name || 'Unknown',
+              cases: [],
+            };
+          }
+          byClient[c.client_id].cases.push(c);
+        });
+
+        const csatColor = (v) => v == null ? 'text-gray-400' : v >= 4 ? 'text-green-600' : v >= 3 ? 'text-amber-600' : 'text-red-500';
+        const csatBg    = (v) => v == null ? 'bg-gray-50 border-gray-100' : v >= 4 ? 'bg-green-50 border-green-100' : v >= 3 ? 'bg-amber-50 border-amber-100' : 'bg-red-50 border-red-100';
+
+        function StatTile({ label, value, sub, color = 'text-gray-900' }) {
+          return (
+            <div className="flex-1 min-w-0 bg-gray-50 border border-gray-100 rounded-xl p-3 text-center">
+              <div className={`text-2xl font-bold leading-none ${color}`}>{value ?? '—'}</div>
+              {sub && <div className="text-xs text-gray-400 mt-0.5">{sub}</div>}
+              <div className="text-xs text-gray-500 mt-1 font-medium">{label}</div>
+            </div>
+          );
+        }
+
+        function GroupCard({ title, avatarChar, stats }) {
+          return (
+            <div className={`border rounded-xl p-4 ${csatBg(stats.csat)}`}>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs flex-shrink-0">
+                  {avatarChar}
+                </div>
+                <span className="text-sm font-semibold text-gray-800 truncate flex-1">{title}</span>
+                {stats.csat != null && (
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${stats.csat >= 4 ? 'bg-green-100 text-green-700' : stats.csat >= 3 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'}`}>
+                    ★ {stats.csat}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <div className="text-base font-bold text-blue-600">{stats.open}</div>
+                  <div className="text-xs text-gray-400">Open</div>
+                </div>
+                <div>
+                  <div className="text-base font-bold text-green-600">{stats.resolved}</div>
+                  <div className="text-xs text-gray-400">Resolved</div>
+                </div>
+                <div>
+                  <div className={`text-base font-bold ${stats.overdue > 0 ? 'text-red-500' : 'text-gray-400'}`}>{stats.overdue}</div>
+                  <div className="text-xs text-gray-400">Overdue</div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mt-6">
+            {/* Header */}
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Headphones className="w-4 h-4 text-indigo-500" />
+                <h2 className="text-base font-bold text-gray-900">Help Desk</h2>
+                <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg">{hdCases.length} tickets</span>
+              </div>
+              {summary.overdue > 0 && (
+                <span className="flex items-center gap-1 text-xs font-semibold text-red-600 bg-red-50 border border-red-100 px-2.5 py-1 rounded-lg">
+                  <AlertTriangle className="w-3 h-3" /> {summary.overdue} overdue
+                </span>
+              )}
+            </div>
+
+            {/* Summary KPI row */}
+            <div className="p-5 border-b border-gray-100">
+              <div className="flex gap-3">
+                <StatTile label="Open" value={summary.open} color="text-blue-600" />
+                <StatTile label="Resolved" value={summary.resolved} color="text-green-600" />
+                <StatTile label="Overdue" value={summary.overdue} color={summary.overdue > 0 ? 'text-red-500' : 'text-gray-400'} />
+                <StatTile
+                  label="Avg CSAT"
+                  value={summary.csat != null ? `${summary.csat}/5` : '—'}
+                  sub={summary.csat != null ? (summary.csat >= 4 ? '😊 Good' : summary.csat >= 3 ? '😐 Fair' : '😟 Low') : 'no ratings'}
+                  color={csatColor(summary.csat)}
+                />
+              </div>
+            </div>
+
+            {/* By Project */}
+            {Object.keys(byProject).length > 0 && (
+              <div className="p-5 border-b border-gray-100">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">By Project</p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {Object.entries(byProject).map(([pid, { project, cases: pc }]) => {
+                    const s = caseStats(pc);
+                    return (
+                      <GroupCard
+                        key={pid}
+                        title={project?.name ?? 'Unknown Project'}
+                        avatarChar={(project?.name ?? 'P')[0].toUpperCase()}
+                        stats={s}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* By Customer */}
+            {Object.keys(byClient).length > 0 && (
+              <div className="p-5">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">By Customer</p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {Object.entries(byClient).map(([cid, { name, cases: cc }]) => {
+                    const s = caseStats(cc);
+                    return (
+                      <GroupCard
+                        key={cid}
+                        title={name}
+                        avatarChar={name[0].toUpperCase()}
+                        stats={s}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ── Activity Feed ── */}
       <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-100">
