@@ -216,7 +216,7 @@ const GATE_CONDITIONS = [
     key: "spec_generated",
     label: "Functional spec generated",
     description: "A functional specification has been created in the Spec tab",
-    check: (c, d) => !!(c.specification && c.specification.length > 20),
+    check: (c, d) => !!(d.spec?.content && d.spec.content.length > 20),
     fixHint: "Go to the Spec tab and generate or write a specification",
   },
   {
