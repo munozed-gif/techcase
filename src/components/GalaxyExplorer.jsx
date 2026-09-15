@@ -342,7 +342,7 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
             </div>
           </div>
           {/* Case detail card */}
-          <div style={{ background: '#EEF5FF', border: '1px solid rgba(26,75,140,0.18)', borderRadius: 14, padding: '14px', flex: 1 }}>
+          <div style={{ background: 'rgba(26,75,140,0.04)', border: '1px solid rgba(26,75,140,0.18)', borderRadius: 14, padding: '14px', flex: 1 }}>
             <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 19, fontWeight: 800, color: '#0F172A', lineHeight: 1.2, marginBottom: 6 }}>{cs.title}</div>
             {cs.description && <div style={{ fontSize: 11, color: '#4A6B9A', lineHeight: 1.5, marginBottom: 10 }}>{cs.description.slice(0, 140)}{cs.description.length > 140 ? '…' : ''}</div>}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 10 }}>
@@ -384,7 +384,7 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
   ];
 
   return (
-    <div style={{ background: '#EEF5FF', borderRadius: 20, border: '1.5px solid rgba(26,75,140,0.15)', overflow: 'hidden', marginBottom: 20, boxShadow: '0 4px 24px rgba(37,99,235,0.08)', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 180px)', minHeight: 560 }}>
+    <div style={{ background: '#ffffff', borderRadius: 20, border: '1.5px solid rgba(26,75,140,0.15)', overflow: 'hidden', marginBottom: 20, boxShadow: '0 4px 24px rgba(37,99,235,0.08)', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 180px)', minHeight: 560 }}>
       <style>{KEYFRAME}</style>
 
       {/* Header bar */}
@@ -414,7 +414,7 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
       {/* Body */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* Solar system — left, large panel */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#EEF5FF', opacity: fading ? 0 : 1, transition: 'opacity .16s', position: 'relative' }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#ffffff', opacity: fading ? 0 : 1, transition: 'opacity .16s', position: 'relative' }}>
           {renderSystem()}
         </div>
         {/* Sidebar — right, fixed-width panel */}
