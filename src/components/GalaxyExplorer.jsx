@@ -92,7 +92,7 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
   });
   const customers = Object.values(customerMap).slice(0, 8);
 
-  const SYS = 420;
+  const SYS = 540;
   const R1  = Math.round(SYS * 0.20);
   const R2  = Math.round(SYS * 0.32);
   const R3  = Math.round(SYS * 0.44);
