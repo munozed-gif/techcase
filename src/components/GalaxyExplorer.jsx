@@ -70,7 +70,7 @@ function Chip({ children, color = '#1A4B8C', bg = 'rgba(26,75,140,0.07)', border
   );
 }
 
-export function GalaxyExplorer({ openCases, applications, auth, onApply, appliedCaseIds }) {
+export function GalaxyExplorer({ openCases, applications, auth, onApply, appliedCaseIds, platformLogoUrl }) {
   const [level, setLevel]             = useState(1);
   const [selCustomer, setSelCustomer] = useState(null);
   const [selCase, setSelCase]         = useState(null);
@@ -116,9 +116,12 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
       return (
         <div style={{ position: 'relative', width: SYS, height: SYS, flexShrink: 0 }}>
           {ring(R1)}
-          {/* Center: Arena logo */}
-          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(135deg,#1A4B8C,#2563EB)', border: '3px solid rgba(37,99,235,0.25)', boxShadow: '0 0 22px rgba(37,99,235,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
-            <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 24, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>A</span>
+          {/* Center: Platform logo */}
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 56, height: 56, borderRadius: '50%', background: platformLogoUrl ? '#fff' : 'linear-gradient(135deg,#1A4B8C,#2563EB)', border: '3px solid rgba(37,99,235,0.25)', boxShadow: '0 0 22px rgba(37,99,235,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, overflow: 'hidden' }}>
+            {platformLogoUrl
+              ? <img src={platformLogoUrl} alt="Platform" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 4 }} />
+              : <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 24, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>A</span>
+            }
           </div>
           {customers.map((cust, i) => (
             <OrbNode key={cust.id} r={R1} slotIdx={i} total={customers.length} dur={20} size={44}

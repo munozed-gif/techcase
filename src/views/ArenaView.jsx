@@ -9,7 +9,7 @@ import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useCases, useApplications, useRatings } from "../hooks/useCaseHooks.js";
 import { useProjects } from "../hooks/useCoreHooks.js";
-import { usePlanConfig, useSystemSettings, useVisibilitySettings } from "../hooks/useSystemSettings.jsx";
+import { usePlanConfig, useSystemSettings, useVisibilitySettings, usePlatformBranding } from "../hooks/useSystemSettings.jsx";
 import { logEvent, notify } from "../lib/utils.js";
 import { Badge, Spinner, TrustBadge, TierProgressBar, VouchingPanel } from "../components/ProfileComponents.jsx";
 import { ConsultantProfileView } from "../components/ConsultantProfileView.jsx";
@@ -840,6 +840,7 @@ function ArenaView({ auth }) {
   const { templates: arenaLcTemplates } = useLifecycleTemplates();
   const [caseSort, setCaseSort] = useState('match');
   const [caseCarouselIdx, setCaseCarouselIdx] = useState(_arenaCaseIdx);
+  const branding = usePlatformBranding();
 
   function toggleCompare(id) {
     setCompareSet(prev =>
@@ -1709,6 +1710,7 @@ function ArenaView({ auth }) {
           auth={auth}
           onApply={c => setApplying(c)}
           appliedCaseIds={appliedCaseIds}
+          platformLogoUrl={branding.logoUrl}
         />
       )}
 
