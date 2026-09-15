@@ -2218,6 +2218,12 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                   <Badge className={PRIORITY_COLORS[caseData.priority]}>{PRIORITY_LABEL_KEYS[caseData.priority] ? t(PRIORITY_LABEL_KEYS[caseData.priority]) : cap(caseData.priority)}</Badge>
                   {caseData.is_confidential && <span className="px-2 py-0.5 bg-gray-800 text-white rounded-lg text-xs font-semibold">{t("case.badge_private")}</span>}
                   {caseData.nda_required && <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">{t("case.badge_nda")}</span>}
+                  {caseData.application_mode === "team" && (
+                    <span className="flex items-center gap-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-semibold"><Users size={9}/> Teams only</span>
+                  )}
+                  {caseData.application_mode === "individual" && (
+                    <span className="flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-600 rounded-lg text-xs font-semibold"><Users size={9}/> Individual only</span>
+                  )}
                   {(() => {
                     const v = visCfg.getCaseVisibility(caseData.id, caseData.client_id);
                     if (v === 'private')      return <span className="px-2 py-0.5 bg-gray-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1"><Lock size={9}/>{t('case.vis_private')}</span>;

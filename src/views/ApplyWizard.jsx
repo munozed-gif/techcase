@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Briefcase, Check, CheckCircle2, FileText, PenLine, X } from "lucide-react";
+import { Briefcase, Check, CheckCircle2, FileText, PenLine, Users, X } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { usePlanConfig } from "../hooks/useSystemSettings.jsx";
@@ -13,7 +13,13 @@ import { UpgradeModal } from "./SystemSettingsView.jsx";
 function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
   const { t } = useT();
   const planCfg = usePlanConfig();
+
+  const appMode = caseData.application_mode ?? "both";
+  const allowsTeam       = appMode === "team" || appMode === "both";
+  const allowsIndividual = appMode === "individual" || appMode === "both";
+
   const APPLY_STEPS = [
+    ...(allowsTeam ? [{ id: "team_pick", label: "Team", Icon: Users, desc: "Apply as individual or with a team" }] : []),
     { id: "brief",  label: t("apply.step0_label"), Icon: FileText,     desc: t("apply.step0_desc") },
     { id: "pitch",  label: t("apply.step1_label"), Icon: PenLine,      desc: t("apply.step1_desc") },
     { id: "terms",  label: t("apply.step2_label"), Icon: Briefcase,    desc: t("apply.step2_desc") },
@@ -27,7 +33,35 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
   const [availLoading, setAvailLoading] = useState(true);
   const [upgradeModal, setUpgradeModal] = useState(null);
 
+  // Team selection state
+  const [applyAs, setApplyAs] = useState(allowsIndividual ? "individual" : "team");
+  const [myTeams, setMyTeams] = useState([]);
+  const [selectedTeamId, setSelectedTeamId] = useState("");
+
   const TERMINAL = ["completed", "cancelled", "terminated", "closed", "approved"];
+
+  // Fetch user's accepted teams for team-apply mode
+  useEffect(() => {
+    if (!allowsTeam) return;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: memberRows } = await supabase
+        .from("consultant_team_members")
+        .select("team_id")
+        .eq("user_id", user.id)
+        .eq("status", "accepted");
+      const ids = (memberRows ?? []).map(r => r.team_id);
+      if (ids.length > 0) {
+        const { data: teamData } = await supabase
+          .from("consultant_teams")
+          .select("id, name")
+          .in("id", ids);
+        setMyTeams(teamData ?? []);
+        if (appMode === "team" && teamData?.length > 0) setSelectedTeamId(teamData[0].id);
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -75,6 +109,7 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
           return;
         }
       }
+      const isTeamApp = applyAs === "team" && selectedTeamId;
       const { error } = await supabase.from("applications").insert({
         case_id: caseData.id,
         consultant_id: user.id,
@@ -82,6 +117,8 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
         proposed_rate: terms.proposed_rate ? Number(terms.proposed_rate) : null,
         time_commitment: Number(terms.time_commitment),
         max_available_at_submission: maxAvailable,
+        application_type: isTeamApp ? "team" : "individual",
+        team_id: isTeamApp ? selectedTeamId : null,
       });
       if (error) throw error;
       onComplete();
@@ -118,8 +155,54 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-4">
 
-        {/* Step 0 — Case Brief */}
-        {step === 0 && (
+        {/* Step — Team / Individual picker */}
+        {APPLY_STEPS[step]?.id === "team_pick" && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">How would you like to apply?</h2>
+            <p className="text-sm text-gray-500 mb-5">This case accepts team applications. Choose to apply alone or as a team.</p>
+            <div className="space-y-3">
+              {allowsIndividual && (
+                <button onClick={() => setApplyAs("individual")}
+                  className={`w-full flex items-center gap-3 p-4 border-2 rounded-xl text-left transition-all ${applyAs === "individual" ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-blue-200"}`}>
+                  <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${applyAs === "individual" ? "border-blue-500 bg-blue-500" : "border-gray-300"}`} />
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Individual Application</p>
+                    <p className="text-xs text-gray-500">Apply on your own</p>
+                  </div>
+                </button>
+              )}
+              <button onClick={() => setApplyAs("team")}
+                className={`w-full flex items-center gap-3 p-4 border-2 rounded-xl text-left transition-all ${applyAs === "team" ? "border-indigo-500 bg-indigo-50" : "border-gray-200 hover:border-indigo-200"}`}>
+                <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${applyAs === "team" ? "border-indigo-500 bg-indigo-500" : "border-gray-300"}`} />
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Team Application</p>
+                  <p className="text-xs text-gray-500">Apply with a consultant team you belong to</p>
+                </div>
+              </button>
+              {applyAs === "team" && (
+                <div className="mt-3">
+                  {myTeams.length === 0 ? (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+                      You don't have any teams yet. Go to your Profile → Teams tab to create or join one first.
+                    </div>
+                  ) : (
+                    <>
+                      <label className="text-xs font-medium text-gray-600 mb-1 block">Select your team</label>
+                      <select value={selectedTeamId} onChange={e => setSelectedTeamId(e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                        <option value="">— Choose a team —</option>
+                        {myTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      </select>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Step — Case Brief */}
+        {APPLY_STEPS[step]?.id === "brief" && (
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("apply.step0_label")}</h2>
             <p className="text-sm text-gray-500 mb-5">{t("apply.brief_desc")}</p>
@@ -167,8 +250,8 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
           </>
         )}
 
-        {/* Step 1 — Your Pitch */}
-        {step === 1 && (
+        {/* Step — Your Pitch */}
+        {APPLY_STEPS[step]?.id === "pitch" && (
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("apply.step1_label")}</h2>
             <p className="text-sm text-gray-500 mb-5">{t("apply.pitch_desc")}</p>
@@ -179,8 +262,8 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
           </>
         )}
 
-        {/* Step 2 — Terms */}
-        {step === 2 && (
+        {/* Step — Terms */}
+        {APPLY_STEPS[step]?.id === "terms" && (
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("apply.step2_label")}</h2>
             <p className="text-sm text-gray-500 mb-5">{t("apply.terms_desc")}</p>
@@ -240,8 +323,8 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
           </>
         )}
 
-        {/* Step 3 — Review */}
-        {step === 3 && (
+        {/* Step — Review */}
+        {APPLY_STEPS[step]?.id === "review" && (
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("apply.review_h2")}</h2>
             <p className="text-sm text-gray-500 mb-5">{t("apply.review_desc")}</p>
@@ -253,6 +336,18 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
                   <p className="text-sm text-gray-500 mt-0.5">{caseData.client.client_profiles.company_name}</p>
                 )}
               </div>
+              {allowsTeam && (
+                <div className="border border-gray-100 rounded-xl p-4">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Application Type</p>
+                  {applyAs === "team" && selectedTeamId ? (
+                    <p className="text-sm font-semibold text-indigo-700 flex items-center gap-1.5">
+                      <Users size={13} /> Team — {myTeams.find(t => t.id === selectedTeamId)?.name}
+                    </p>
+                  ) : (
+                    <p className="text-sm font-semibold text-gray-900">Individual</p>
+                  )}
+                </div>
+              )}
               <div className="border border-gray-100 rounded-xl p-4">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t("apply.step1_label")}</p>
                 {pitch.cover_letter
@@ -291,7 +386,7 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
         </button>
         {!isLast ? (
           <button onClick={() => setSt(s => s + 1)}
-            disabled={step === 2 && maxAvailable === 0}
+            disabled={(APPLY_STEPS[step]?.id === "terms" && maxAvailable === 0) || (APPLY_STEPS[step]?.id === "team_pick" && applyAs === "team" && !selectedTeamId)}
             className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-colors shadow-md disabled:opacity-40 disabled:cursor-not-allowed">
             {t("action.continue")}
           </button>

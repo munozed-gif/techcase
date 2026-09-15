@@ -120,7 +120,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   const [wizardProjects, setWizardProjects]         = useState([]);
 
   const _visCfg = useVisibilitySettings();
-  const [basics, setBasics] = useState({ title: initialData?.title ?? "", description: initialData?.description ?? "", priority: initialData?.priority ?? "medium", area_sap: initialData?.area_sap ?? "", area_industry: initialData?.area_industry ?? "", is_confidential: initialData?.is_confidential ?? false, nda_required: initialData?.nda_required ?? false, min_trust_level: initialData?.min_trust_level ?? null });
+  const [basics, setBasics] = useState({ title: initialData?.title ?? "", description: initialData?.description ?? "", priority: initialData?.priority ?? "medium", area_sap: initialData?.area_sap ?? "", area_industry: initialData?.area_industry ?? "", is_confidential: initialData?.is_confidential ?? false, nda_required: initialData?.nda_required ?? false, min_trust_level: initialData?.min_trust_level ?? null, application_mode: initialData?.application_mode ?? "both" });
   const [caseVisMode, setCaseVisMode] = useState(() => {
     if (initialData?.id) return _visCfg.getCaseVisibility(initialData.id, null);
     const clientId = auth.isClient ? auth.user?.id : null;
@@ -624,6 +624,26 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                     <span className="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 w-full">
                       {t("label.status")}: <span className="font-semibold text-blue-600">{t("status.open")}</span> {t("case.status_auto")}
                     </span>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Who can apply?</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { value: "both",       label: "Everyone",     desc: "Individual or team" },
+                      { value: "individual", label: "Individual",   desc: "Single consultants only" },
+                      { value: "team",       label: "Teams only",   desc: "Requires a team" },
+                    ].map(opt => {
+                      const sel = basics.application_mode === opt.value;
+                      return (
+                        <button key={opt.value} type="button"
+                          onClick={() => setBasics(p => ({ ...p, application_mode: opt.value }))}
+                          className={`flex flex-col p-3 rounded-xl border text-left transition-all ${sel ? "border-indigo-400 bg-indigo-50" : "border-gray-200 hover:border-indigo-200 hover:bg-gray-50"}`}>
+                          <span className={`text-xs font-semibold ${sel ? "text-indigo-700" : "text-gray-700"}`}>{opt.label}</span>
+                          <span className="text-[10px] text-gray-400 mt-0.5">{opt.desc}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">

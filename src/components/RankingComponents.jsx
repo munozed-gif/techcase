@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { AlertTriangle, Check, RotateCcw, Star, Trophy, Wand2 } from "lucide-react";
+import { AlertTriangle, Check, RotateCcw, Star, Trophy, Users, Wand2 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { computeApplicantScore, useApplicantRanking } from "../hooks/useRankingHooks.js";
@@ -297,11 +297,25 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-sm text-gray-900">{app.consultant?.full_name}</span>
+                      {app.application_type === "team" && app.team && (
+                        <span className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded-full">
+                          <Users size={9} /> {app.team.name}
+                        </span>
+                      )}
                       {conflict && (
                         <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded"><AlertTriangle size={9} className="inline mr-0.5" />{t("rank.overcommitted")}</span>
                       )}
                     </div>
                     <div className="text-xs text-gray-400">{profile?.headline ?? (profile?.years_experience ? `${profile.years_experience}y exp` : "")}</div>
+                    {app.application_type === "team" && app.team?.members?.length > 0 && (
+                      <div className="flex items-center gap-1 mt-1 flex-wrap">
+                        {app.team.members.filter(m => m.status === "accepted").map(m => (
+                          <span key={m.id} className="text-[10px] text-indigo-600 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded-full">
+                            {m.member?.full_name ?? m.email}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="text-right flex-shrink-0">
                     <div className="font-black text-gray-900 text-lg">{app.totalScore}<span className="text-xs font-normal text-gray-400">/100</span></div>

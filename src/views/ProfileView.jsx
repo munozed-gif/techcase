@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import {
   Briefcase, Camera, Check, ChevronLeft, ChevronRight, DollarSign, Globe,
-  GraduationCap, Pencil, Plane, Star, Trash2, X,
+  GraduationCap, Mail, Pencil, Plane, Plus, Star, Trash2, UserMinus, Users, X,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
@@ -18,6 +18,7 @@ import { ConsultantProfileView } from "../components/ConsultantProfileView.jsx";
 import { fmtDate, fmt, AVAIL_LABEL_KEYS, EXPERTISE_LABEL_KEYS, WORK_MODE_LABEL_KEYS } from "../lib/uiUtils.jsx";
 import { ROLE_COLORS, SAP_AREAS, INDUSTRY_AREAS } from "../lib/businessConstants.js";
 import { useRatings } from "../hooks/useCaseHooks.js";
+import { useConsultantTeams } from "../hooks/useTeamHooks.js";
 
 function ProfileView({ auth, compact = false }) {
   const { t, lang, setLang } = useT();
@@ -27,6 +28,14 @@ function ProfileView({ auth, compact = false }) {
   const { profile, availability, loading, profileError, updateProfile, uploadPhoto, addCustomer, updateCustomer, deleteCustomer, addProject, updateProject, deleteProject, addWorkAuth } =
     useConsultantProfile(auth.user?.id, realProfileId);
   const { ratings, avgRating } = useRatings(auth.user?.id);
+  const { teams, pendingInvites, createTeam, inviteMember, respondToInvite, removeMember, leaveTeam, deleteTeam } = useConsultantTeams(auth.user?.id);
+  const [teamForm, setTeamForm] = useState({ name: "", desc: "" });
+  const [showCreateTeam, setShowCreateTeam] = useState(false);
+  const [creatingTeam, setCreatingTeam] = useState(false);
+  const [expandedTeam, setExpandedTeam] = useState(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteError, setInviteError] = useState("");
+  const [inviting, setInviting] = useState(false);
   const [profileTab, setProfileTab] = useState("experience");
   const pvCarouselRef = useRef(null);
   const pvCarouselScrolling = useRef(false);
@@ -99,6 +108,7 @@ function ProfileView({ auth, compact = false }) {
   const tabs = [
     { id: "experience", label: t("profile.tab_experience"), icon: Briefcase,     count: null },
     { id: "skills",     label: t("profile.tab_skills"),     icon: GraduationCap, count: profile?.skills?.length > 0 ? profile.skills.length : null },
+    { id: "teams",      label: "Teams",                     icon: Users,          count: teams.length > 0 ? teams.length : null },
   ];
 
   const pvTabStatus = (() => {
@@ -686,6 +696,196 @@ function ProfileView({ auth, compact = false }) {
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
                     {savingExp ? t("profile.saving") : t("profile.add_auth")}
                   </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Teams ── */}
+          {tab.id === "teams" && (
+            <div className="space-y-5">
+
+              {/* Pending invitations */}
+              {pendingInvites.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Pending Invitations</p>
+                  {pendingInvites.map(inv => (
+                    <div key={inv.id} className="flex items-center gap-3 border border-amber-200 bg-amber-50 rounded-xl p-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900">{inv.team?.name}</p>
+                        {inv.team?.owner?.full_name && (
+                          <p className="text-xs text-gray-500">from {inv.team.owner.full_name}</p>
+                        )}
+                      </div>
+                      <button onClick={() => respondToInvite(inv.id, true)}
+                        className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg">
+                        Accept
+                      </button>
+                      <button onClick={() => respondToInvite(inv.id, false)}
+                        className="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 text-xs font-semibold rounded-lg hover:bg-gray-50">
+                        Decline
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* My teams list */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">My Teams</p>
+                  <button onClick={() => setShowCreateTeam(p => !p)}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg">
+                    <Plus size={12} /> New Team
+                  </button>
+                </div>
+
+                {/* Create team form */}
+                {showCreateTeam && (
+                  <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-3 space-y-3">
+                    <p className="text-sm font-semibold text-indigo-800">Create a new team</p>
+                    <input
+                      placeholder="Team name *"
+                      value={teamForm.name}
+                      onChange={e => setTeamForm(p => ({ ...p, name: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                    />
+                    <input
+                      placeholder="Short description (optional)"
+                      value={teamForm.desc}
+                      onChange={e => setTeamForm(p => ({ ...p, desc: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <button onClick={() => { setShowCreateTeam(false); setTeamForm({ name: "", desc: "" }); }}
+                        className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+                      <button disabled={!teamForm.name.trim() || creatingTeam}
+                        onClick={async () => {
+                          setCreatingTeam(true);
+                          try {
+                            await createTeam(teamForm.name, teamForm.desc, auth.user?.email ?? "");
+                            setShowCreateTeam(false);
+                            setTeamForm({ name: "", desc: "" });
+                          } catch (e) { alert(e.message); }
+                          setCreatingTeam(false);
+                        }}
+                        className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50">
+                        {creatingTeam ? "Creating…" : "Create"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {teams.length === 0 && !showCreateTeam && (
+                  <p className="text-sm text-gray-400">No teams yet. Create one to apply to cases as a group.</p>
+                )}
+
+                <div className="space-y-3">
+                  {teams.map(team => {
+                    const isOwner = team.members?.some(m => m.user_id === auth.user?.id && m.role === "owner");
+                    const accepted = (team.members ?? []).filter(m => m.status === "accepted");
+                    const pending  = (team.members ?? []).filter(m => m.status === "pending");
+                    const isExpanded = expandedTeam === team.id;
+                    return (
+                      <div key={team.id} className="border border-gray-100 rounded-xl overflow-hidden">
+                        {/* Team header */}
+                        <div className="flex items-center gap-3 p-3 bg-gray-50 cursor-pointer hover:bg-gray-100"
+                          onClick={() => setExpandedTeam(isExpanded ? null : team.id)}>
+                          <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm flex-shrink-0">
+                            {team.name[0].toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 truncate">{team.name}</p>
+                            {team.description && <p className="text-xs text-gray-400 truncate">{team.description}</p>}
+                          </div>
+                          <span className="text-xs text-gray-400 flex-shrink-0">{accepted.length} member{accepted.length !== 1 ? 's' : ''}</span>
+                          {isOwner && <span className="text-[10px] font-semibold px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full flex-shrink-0">Owner</span>}
+                        </div>
+
+                        {/* Expanded: members + invite */}
+                        {isExpanded && (
+                          <div className="p-3 space-y-3 border-t border-gray-100">
+                            {/* Member list */}
+                            <div className="space-y-2">
+                              {accepted.map(m => (
+                                <div key={m.id} className="flex items-center gap-2">
+                                  <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-700 flex-shrink-0">
+                                    {(m.member?.full_name ?? m.email)[0].toUpperCase()}
+                                  </div>
+                                  <span className="text-xs text-gray-700 flex-1 min-w-0 truncate">
+                                    {m.member?.full_name ?? m.email}
+                                    {m.role === "owner" && <span className="ml-1 text-indigo-500">(owner)</span>}
+                                  </span>
+                                  {isOwner && m.user_id !== auth.user?.id && (
+                                    <button onClick={() => removeMember(m.id)}
+                                      className="text-red-400 hover:text-red-600 flex-shrink-0"><UserMinus size={13} /></button>
+                                  )}
+                                </div>
+                              ))}
+                              {pending.map(m => (
+                                <div key={m.id} className="flex items-center gap-2 opacity-60">
+                                  <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-400 flex-shrink-0">
+                                    {m.email[0].toUpperCase()}
+                                  </div>
+                                  <span className="text-xs text-gray-500 flex-1 min-w-0 truncate">{m.email}</span>
+                                  <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full flex-shrink-0">Pending</span>
+                                  {isOwner && (
+                                    <button onClick={() => removeMember(m.id)}
+                                      className="text-red-400 hover:text-red-600 flex-shrink-0"><X size={12} /></button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Invite by email */}
+                            {isOwner && (
+                              <div className="border-t border-gray-100 pt-3">
+                                <p className="text-xs font-medium text-gray-500 mb-2">Invite by email</p>
+                                <div className="flex gap-2">
+                                  <input
+                                    type="email"
+                                    placeholder="colleague@email.com"
+                                    value={inviteEmail}
+                                    onChange={e => { setInviteEmail(e.target.value); setInviteError(""); }}
+                                    className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                  />
+                                  <button disabled={!inviteEmail.trim() || inviting}
+                                    onClick={async () => {
+                                      setInviting(true);
+                                      setInviteError("");
+                                      try {
+                                        await inviteMember(team.id, team.name, inviteEmail);
+                                        setInviteEmail("");
+                                      } catch (e) { setInviteError(e.message); }
+                                      setInviting(false);
+                                    }}
+                                    className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg disabled:opacity-50">
+                                    <Mail size={11} /> {inviting ? "…" : "Invite"}
+                                  </button>
+                                </div>
+                                {inviteError && <p className="text-xs text-red-500 mt-1">{inviteError}</p>}
+                                <p className="text-[10px] text-gray-400 mt-1">
+                                  If they're not on the platform yet, they'll see the invitation when they sign up.
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Leave / Delete */}
+                            <div className="flex gap-2 border-t border-gray-100 pt-3">
+                              {!isOwner && (
+                                <button onClick={() => leaveTeam(team.id)}
+                                  className="text-xs text-red-500 hover:text-red-700 underline">Leave team</button>
+                              )}
+                              {isOwner && (
+                                <button onClick={() => { if (window.confirm(`Delete team "${team.name}"? This cannot be undone.`)) deleteTeam(team.id); }}
+                                  className="text-xs text-red-500 hover:text-red-700 underline">Delete team</button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
