@@ -6,8 +6,8 @@ import {
   ExternalLink, FileCode2, FileText, FolderKanban, FolderOpen, Globe,
   Handshake, ListChecks, Lock, Mail, Palette, Pencil, Phone, Plus, Receipt,
   RefreshCw, RotateCcw, Search, Settings, Shield, SlidersHorizontal,
-  Sparkles, Tag, Trash2, TrendingUp, User, UserCheck, UserCog, Users, X,
-  XCircle, Zap,
+  Monitor, Sparkles, Tag, Trash2, TrendingUp, User, UserCheck, UserCog,
+  Users, X, XCircle, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
@@ -1194,6 +1194,55 @@ function SettingsGenerationTab({ ssCtx }) {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Interactive Prototype */}
+          <div className="border-t border-gray-100 pt-4">
+            <label className="flex items-center justify-between gap-4 cursor-pointer select-none">
+              <div>
+                <p className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                  <Monitor size={13} className="text-indigo-500" /> Generate Interactive Prototype
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5">Claude generates a navigable HTML prototype saved in the Documents tab</p>
+              </div>
+              <button type="button"
+                onClick={() => setForm(prev => ({
+                  ...prev,
+                  profiles: {
+                    ...prev.profiles,
+                    [activeProfile]: { ...prev.profiles[activeProfile], prototype_enabled: !prev.profiles[activeProfile].prototype_enabled },
+                  },
+                }))}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${form.profiles[activeProfile].prototype_enabled ? 'bg-indigo-600' : 'bg-gray-200'}`}
+                role="switch" aria-checked={!!form.profiles[activeProfile].prototype_enabled}>
+                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${form.profiles[activeProfile].prototype_enabled ? 'translate-x-5' : 'translate-x-0'}`} />
+              </button>
+            </label>
+            {form.profiles[activeProfile].prototype_enabled && (
+              <div className="mt-3 pl-1">
+                <p className="text-xs font-medium text-gray-600 mb-2">Prototype Style</p>
+                <div className="flex gap-2 flex-wrap">
+                  {[
+                    { value: 'fiori',     label: 'SAP Fiori',  desc: 'Fiori shell bar, cards & tables' },
+                    { value: 'wireframe', label: 'Wireframe',  desc: 'Low-fidelity grey boxes & labels' },
+                    { value: 'branded',   label: 'Branded',    desc: 'TechCase Arena dark theme' },
+                  ].map(s => {
+                    const sel = (form.profiles[activeProfile].prototype_style ?? 'fiori') === s.value;
+                    return (
+                      <button key={s.value}
+                        onClick={() => setForm(prev => ({
+                          ...prev,
+                          profiles: { ...prev.profiles, [activeProfile]: { ...prev.profiles[activeProfile], prototype_style: s.value } },
+                        }))}
+                        className={`flex flex-col px-3 py-2 rounded-lg border text-left transition-all ${sel ? 'border-indigo-400 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600 hover:border-indigo-200 hover:bg-gray-50'}`}>
+                        <span className="text-xs font-semibold">{s.label}</span>
+                        <span className="text-[10px] text-gray-400 mt-0.5">{s.desc}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

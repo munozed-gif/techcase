@@ -4,7 +4,7 @@ import {
   Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight,
   ClipboardList, Clock, Code2, ExternalLink, Eye, FileImage, FileText,
   Flag, FolderOpen, Globe, Handshake, Inbox, Layers, LayoutTemplate, Link,
-  Link2, ListChecks, Lock, MessageSquare, Paperclip, PauseCircle, Pencil,
+  Link2, ListChecks, Lock, MessageSquare, Monitor, Paperclip, PauseCircle, Pencil,
   Play, Receipt, RotateCcw, Search, SlidersHorizontal, Sparkles, Star,
   Target, Trash2, TrendingUp, Upload, User, UserCheck, UserPlus, Users,
   Wand2, X, XCircle, Zap,
@@ -3333,11 +3333,16 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                     {/* V9 Documents Tab */}
                     {tab.id === "documents" && (() => {
         const AI_NAME_PREFIXES = ['SpecA_', 'SpecB_', 'SpecC_', 'FuncSpec_'];
+        const isPrototype = d =>
+          d.notes?.includes('[Prototype]') || d.file_name?.startsWith('Prototype_');
         const isAiDoc = d =>
-          d.notes?.toLowerCase().includes('auto-generated') ||
-          AI_NAME_PREFIXES.some(p => d.file_name?.startsWith(p));
-        const aiDocs   = documents.filter(d => isAiDoc(d));
-        const caseDocs = documents.filter(d => !isAiDoc(d));
+          !isPrototype(d) && (
+            d.notes?.toLowerCase().includes('auto-generated') ||
+            AI_NAME_PREFIXES.some(p => d.file_name?.startsWith(p))
+          );
+        const protoDocs = documents.filter(d => isPrototype(d));
+        const aiDocs    = documents.filter(d => isAiDoc(d));
+        const caseDocs  = documents.filter(d => !isPrototype(d) && !isAiDoc(d));
         const DOC_ICON = doc => doc.file_type?.includes("pdf")
           ? <FileText className="w-4 h-4 text-red-400" />
           : doc.file_type?.includes("image")
@@ -3379,6 +3384,36 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         );
         return (
           <div className="space-y-6">
+            {/* ── Interactive Prototypes ── */}
+            {protoDocs.length > 0 && (
+              <SectionHeader Icon={Monitor} iconClass="text-indigo-500" label="Interactive Prototypes" count={protoDocs.length} accent="border-indigo-100">
+                <div className="space-y-2">
+                  {protoDocs.map(doc => (
+                    <div key={doc.id} className="flex items-center gap-3 p-3 border border-indigo-100 rounded-xl bg-indigo-50/40 hover:bg-indigo-50">
+                      <Monitor className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm text-gray-800 truncate">{doc.file_name}</p>
+                        <div className="text-xs text-gray-400 mt-0.5">
+                          {doc.file_size_kb ? `${doc.file_size_kb} KB · ` : ""}
+                          {fmtDate(doc.created_at)}
+                        </div>
+                      </div>
+                      <button onClick={() => openDocInNewTab(doc)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 flex-shrink-0">
+                        <ExternalLink className="w-3 h-3" /> Open Prototype
+                      </button>
+                      {(auth.isAdmin || auth.isManager) && (
+                        <button onClick={() => deleteDocument(doc.id, doc.file_url)}
+                          className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded border border-red-100 hover:bg-red-50 flex-shrink-0">
+                          {t("action.remove")}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </SectionHeader>
+            )}
+
             {/* ── AI Generated ── */}
             <SectionHeader Icon={Sparkles} iconClass="text-violet-400" label="AI Generated" count={aiDocs.length} accent="border-violet-100">
               {aiDocs.length === 0

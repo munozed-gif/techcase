@@ -1384,7 +1384,7 @@ ${mdToHtml(markdownContent)}
   async function saveAllSpecsAsDocuments(specA, specB, specC, sap, proposal) {
     setSavingDoc(true);
     try {
-      const SPEC_PREFIXES = ['SpecA_CustomABAP', 'SpecB_StandardSAP', 'SpecC_PropuestaCliente'];
+      const SPEC_PREFIXES = ['SpecA_CustomABAP', 'SpecB_StandardSAP', 'SpecC_PropuestaCliente', 'Prototype_'];
       if (deleteDocument && documents?.length) {
         const oldDocs = documents.filter(d =>
           d.file_name && SPEC_PREFIXES.some(p => d.file_name.startsWith(p))
@@ -1996,6 +1996,43 @@ TOTAL:||Total|[amount]|
 Use realistic Z object names matching the customer's described solution for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM/COL values.${buildSectionConstraint('spec_c', genProfile)}${buildGenSuffix(genProfile)}`;
   }
 
+  function buildPrototypePrompt(specA, specB, style) {
+    const styleGuide = style === 'wireframe'
+      ? `Use a low-fidelity wireframe visual style: white/light-gray backgrounds (#F5F5F5), gray borders (#CCCCCC), dark gray text (#333333), placeholder boxes for images, no gradients or shadows. Label everything clearly. Use a simple sans-serif font.`
+      : style === 'branded'
+      ? `Use a dark branded theme: background #0B0F1A, card surfaces #1A2235, accent color #4F6EF7 (blue), text white and rgba(255,255,255,0.7), rounded-xl cards, subtle blue glow effects on CTAs.`
+      : `Use SAP Fiori visual design: shell bar at top with sapUiGlobalBackground (#F7F7F7), Fiori blue (#0070F2) for primary actions, SAP font "72" fallback to system sans-serif, card-style tiles, standard Fiori list items with separator lines, table with column headers in gray, footer toolbar for actions.`;
+
+    return `You are a UI/UX prototype generator. Generate a SINGLE complete self-contained HTML file that is an interactive multi-screen prototype for this SAP case.
+
+Case: ${caseData.title}
+SAP Module: ${caseData.area_sap ?? ''}
+Industry: ${caseData.area_industry ?? ''}
+Description: ${caseData.description ?? ''}
+
+Spec A (Custom ABAP approach):
+${specA.slice(0, 1500)}
+
+Spec B (Standard SAP approach):
+${specB.slice(0, 1000)}
+
+REQUIREMENTS:
+1. Generate 4 screens: Overview, Main Process Screen, Detail/Form Screen, Confirmation/Result Screen
+2. Each screen has a header with the app title and breadcrumb showing which screen you're on
+3. Navigation: "Next" and "Back" buttons move between screens; a top nav bar shows screen tabs
+4. The content of each screen should reflect the ACTUAL SAP process described in the spec — use real SAP field names, transaction codes, and table column headers from the spec
+5. ${styleGuide}
+6. ALL CSS and JavaScript must be inline in the single HTML file — no external dependencies
+7. The prototype must work offline; no fetch calls or external URLs
+8. Each screen transition uses a simple fade or slide animation (CSS transition, no libraries)
+9. Screen 1 (Overview): show key case metadata fields, a process summary card, and a "Start Process" button
+10. Screen 2 (Main List/Transaction): show a realistic SAP-style list or form based on the spec — table with sample data rows or input form with real field names
+11. Screen 3 (Detail/Form): show a detail view or configuration form with real SAP parameters from the spec
+12. Screen 4 (Confirmation): show a success state with key output data and action buttons (Save, Print, Back to Overview)
+
+OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No explanation, no markdown fences, no text before or after the HTML.`;
+  }
+
   async function handleGenerateSpecs({ autoSubmit = false, genProfile = null } = {}) {
     if (!genProfile) {
       // Show profile picker modal; actual generation runs after modal confirm
@@ -2031,6 +2068,27 @@ Use realistic Z object names matching the customer's described solution for ${ca
         logEvent('spec.generated', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, metadata: { model: genModel } });
       } catch (_) {}
       await saveAllSpecsAsDocuments(specA, specB, specC, sapCheck, proposalCheck);
+
+      // Generate interactive prototype if enabled for this profile
+      if (genProfile?.prototype_enabled) {
+        try {
+          const protoStyle = genProfile.prototype_style ?? 'fiori';
+          const protoHtml = await callClaude({
+            model: genModel,
+            system: 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.',
+            messages: [{ role: 'user', content: buildPrototypePrompt(specA, specB, protoStyle) }],
+            max_tokens: 6000,
+          });
+          const safeName = (caseData.title ?? 'Prototype').replace(/[^a-z0-9]/gi, '_');
+          const dateStr  = new Date().toISOString().slice(0, 10);
+          const fileName = `Prototype_${safeName}_${dateStr}.html`;
+          const blob = new Blob([protoHtml], { type: 'text/html' });
+          const file = new File([blob], fileName, { type: 'text/html' });
+          await addDocument(file, '[Prototype] Interactive prototype (auto-generated)');
+          if (refetchDocuments) await refetchDocuments();
+        } catch (_) { /* prototype failure is non-fatal */ }
+      }
+
       if (autoSubmit) await refetch();
     } catch (e) {
       setAiError(e.message);
