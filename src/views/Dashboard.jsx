@@ -945,7 +945,7 @@ function Dashboard({ auth, onNavigate }) {
                 <StatTile
                   label="Avg CSAT"
                   value={summary.csat != null ? `${summary.csat}/5` : '—'}
-                  sub={summary.csat != null ? (summary.csat >= 4 ? '😊 Good' : summary.csat >= 3 ? '😐 Fair' : '😟 Low') : 'no ratings'}
+                  sub={summary.csat != null ? (summary.csat >= 4 ? 'Good' : summary.csat >= 3 ? 'Fair' : 'Low') : 'no ratings'}
                   color={csatColor(summary.csat)}
                 />
               </div>
