@@ -1169,15 +1169,6 @@ function ArenaView({ auth }) {
           </div>
         </div>
 
-        {/* Galaxy Explorer — three-level drill-down */}
-        <GalaxyExplorer
-          openCases={openCases}
-          applications={applications}
-          auth={auth}
-          onApply={c => setApplying(c)}
-          appliedCaseIds={appliedCaseIds}
-        />
-
         {/* Case cards – peek scroll-snap carousel, same style as outer */}
         <div style={{ position:'relative' }}>
           {safeIdx > 0 && (
@@ -1709,6 +1700,17 @@ function ArenaView({ auth }) {
           </div>
         );
       })()}
+
+      {/* Galaxy Explorer — independent, above both carousels */}
+      {openCases.length > 0 && (
+        <GalaxyExplorer
+          openCases={openCases}
+          applications={applications}
+          auth={auth}
+          onApply={c => setApplying(c)}
+          appliedCaseIds={appliedCaseIds}
+        />
+      )}
 
       {/* Section Carousel */}
       {(() => {
