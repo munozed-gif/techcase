@@ -2431,6 +2431,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 const bgColor = state === "past" ? "#F8FAFC"
                   : state === "current" ? color + "0D"
                   : "#FFFFFF";
+                const WIcon = getStageIcon(s.key);
 
                 return (
                   <div key={s.key}
@@ -2439,9 +2440,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       onClick={() => !isActive && pipelineScrollTo(displayIdx)}>
 
                       {/* Watermark icon */}
-                      {(() => { const WIcon = getStageIcon(s.key); return (
-                        <WIcon size={120} style={{ position: "absolute", bottom: 12, right: -10, opacity: 0.055, color: state === "current" ? color : "#94A3B8", pointerEvents: "none", zIndex: 0, flexShrink: 0 }} />
-                      ); })()}
+                      <WIcon size={120} style={{ position: "absolute", bottom: 12, right: -10, opacity: 0.055, color: state === "current" ? color : "#94A3B8", pointerEvents: "none", zIndex: 0, flexShrink: 0 }} />
 
                       {/* Card header */}
                       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", borderBottom: "1px solid #F1F5F9", background: isActive ? (state === "current" ? color + "12" : "#F8FAFC") : "#FAFAFA", flexShrink: 0, position: "relative", zIndex: 1 }}>
