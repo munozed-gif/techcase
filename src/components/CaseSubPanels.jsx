@@ -1,4 +1,5 @@
 import { useState, useEffect, Fragment } from "react";
+import DOMPurify from "dompurify";
 import {
   AlertTriangle, Archive, BarChart2, Check, CheckCircle2, Clock, Code2,
   FileText, Flag, FolderOpen, Inbox, ListChecks, Paperclip, Pause, Play,
