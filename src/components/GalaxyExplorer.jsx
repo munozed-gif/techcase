@@ -112,7 +112,7 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
   function renderSystem() {
     // Always render all 4 decorative rings
     const allRings = () => [R1, R2, R3, R4].map(r => (
-      <div key={r} style={{ position: 'absolute', borderRadius: '50%', border: `1px dashed rgba(26,75,140,${r === R1 ? '0.12' : r === R2 ? '0.10' : r === R3 ? '0.08' : '0.05'})`, top: '50%', left: '50%', width: r * 2, height: r * 2, transform: 'translate(-50%,-50%)' }} />
+      <div key={r} style={{ position: 'absolute', borderRadius: '50%', border: `1px dashed rgba(140,140,140,${r === R1 ? '0.35' : r === R2 ? '0.28' : r === R3 ? '0.22' : '0.16'})`, top: '50%', left: '50%', width: r * 2, height: r * 2, transform: 'translate(-50%,-50%)' }} />
     ));
 
     if (level === 1) {
