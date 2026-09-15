@@ -90,7 +90,7 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
     }
     customerMap[cid].cases.push(c);
   });
-  const customers = Object.values(customerMap).slice(0, 8);
+  const customers = Object.values(customerMap);
 
   const SYS = 540;
   const R1  = Math.round(SYS * 0.20);
@@ -126,12 +126,14 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
               : <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 34, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>A</span>
             }
           </div>
-          {/* Distribute customers across R2/R3 */}
+          {/* Distribute customers across R2/R3/R4 */}
           {customers.map((cust, i) => {
-            const r = customers.length <= 4 ? R2 : (i % 2 === 0 ? R2 : R3);
-            const groupTotal = customers.length <= 4 ? customers.length : Math.ceil(customers.length / 2);
-            const slotIdx = customers.length <= 4 ? i : Math.floor(i / 2);
-            const dur = r === R2 ? 22 : 30;
+            const rings = customers.length <= 4 ? [R2] : customers.length <= 8 ? [R2, R3] : [R2, R3, R4];
+            const ringIdx = i % rings.length;
+            const r = rings[ringIdx];
+            const groupTotal = Math.ceil(customers.length / rings.length);
+            const slotIdx = Math.floor(i / rings.length);
+            const dur = r === R2 ? 22 : r === R3 ? 30 : 38;
             return (
               <OrbNode key={cust.id} r={r} slotIdx={slotIdx} total={groupTotal} dur={dur} size={60}
                 onClick={() => navigate(2, cust)}>
