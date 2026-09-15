@@ -6,7 +6,7 @@ import {
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
-import { Spinner, TrustBadge, TierProgressBar, VouchingPanel, PlanUsageCard, ResumeImporter } from "./ProfileComponents.jsx";
+import { Spinner, TrustBadge, TierProgressBar, VouchingPanel, PlanUsageCard, ResumeImporter, ConsultantProjectsHierarchy } from "./ProfileComponents.jsx";
 import { PersonAvatar } from "../views/Projects.jsx";
 
 function ConsultantProfileView({ userId, onBack }) {
