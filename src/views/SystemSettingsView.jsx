@@ -1001,7 +1001,11 @@ function SettingsGenerationTab({ ssCtx }) {
       for (const pk of ["basic", "standard", "full"]) {
         const def = GENERATION_PROFILE_DEFAULTS.profiles[pk] ?? {};
         const sto = stored.profiles?.[pk] ?? {};
-        const p = { additional_instructions: sto.additional_instructions ?? def.additional_instructions ?? "" };
+        const p = {
+          additional_instructions: sto.additional_instructions ?? def.additional_instructions ?? "",
+          prototype_enabled: sto.prototype_enabled ?? false,
+          prototype_style:   sto.prototype_style   ?? 'fiori',
+        };
         for (const dk of GEN_DOCS.map(d => d.key)) {
           p[dk] = { ...(def[dk] ?? {}), ...(sto[dk] ?? {}) };
         }
