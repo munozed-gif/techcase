@@ -9,7 +9,7 @@ import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useCases, useApplications, useRatings } from "../hooks/useCaseHooks.js";
 import { useProjects } from "../hooks/useCoreHooks.js";
-import { usePlanConfig, useSystemSettings, useVisibilitySettings, usePlatformBranding } from "../hooks/useSystemSettings.jsx";
+import { usePlanConfig, useSystemSettings, useVisibilitySettings, usePlatformBranding, usePermissions } from "../hooks/useSystemSettings.jsx";
 import { logEvent, notify } from "../lib/utils.js";
 import { Badge, Spinner, TrustBadge, TierProgressBar, VouchingPanel } from "../components/ProfileComponents.jsx";
 import { ConsultantProfileView } from "../components/ConsultantProfileView.jsx";
@@ -838,6 +838,7 @@ function ArenaView({ auth }) {
   const { shortlist, toggle: toggleShortlist, isShortlisted } = useConsultantShortlist();
   const { applications, reviewApplication, refetch: refetchApps } = useApplications();
   const { templates: arenaLcTemplates } = useLifecycleTemplates();
+  const { can } = usePermissions(auth);
   const [caseSort, setCaseSort] = useState('match');
   const [caseCarouselIdx, setCaseCarouselIdx] = useState(_arenaCaseIdx);
   const branding = usePlatformBranding();
@@ -875,6 +876,8 @@ function ArenaView({ auth }) {
     // Fall back to "estimated" for templates that predate the is_arena field
     const isArenaStage = arenaKeys.length > 0 ? arenaKeys.includes(c.status) : c.status === "estimated";
     if (!isArenaStage || (c.case_assignments && c.case_assignments.length > 0)) return false;
+    // Clients only see their own cases unless arena_see_all_cases is enabled
+    if (auth.isClient && !can('arena_see_all_cases') && c.client_id !== auth.user?.id) return false;
     const vis = visCfg.getCaseVisibility(c.id, c.client_id);
     if (vis === 'private') return false;
     if (vis === 'invite-only') {
