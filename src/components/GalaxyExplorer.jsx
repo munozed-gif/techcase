@@ -414,7 +414,7 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
       {/* Body */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* Solar system — left, large panel */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', opacity: fading ? 0 : 1, transition: 'opacity .16s', position: 'relative' }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#EEF5FF', opacity: fading ? 0 : 1, transition: 'opacity .16s', position: 'relative' }}>
           {renderSystem()}
         </div>
         {/* Sidebar — right, fixed-width panel */}
