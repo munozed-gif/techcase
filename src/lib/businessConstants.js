@@ -289,6 +289,20 @@ const GATE_CONDITIONS = [
     check: (c, d) => !!c.client_rating,
     fixHint: "Request a rating from the client via the feedback button",
   },
+  {
+    key: "spec_approved",
+    label: "Spec approved",
+    description: "The functional specification has been reviewed and approved",
+    check: (c, d) => d.spec?.status === "approved",
+    fixHint: "Have a manager approve the functional spec in the Spec tab",
+  },
+  {
+    key: "activities_created",
+    label: "Activities created",
+    description: "At least one activity has been created for this case",
+    check: (c, d) => (d.activities?.length ?? 0) > 0,
+    fixHint: "Create activities in the Implementation tab",
+  },
 ];
 
 // ── Stripe / pricing defaults ─────────────────────────────────

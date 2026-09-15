@@ -264,7 +264,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const lifecycleKey = effectiveLifecycle?.preset ?? effectiveLifecycle?.key ?? "standard";
 
   // Gate runtime data bundle (same shape as GATE_CONDITIONS checks)
-  const gateData = { milestones, timeEntries, documents, invoices, activities, applications };
+  const gateData = { milestones, timeEntries, documents, invoices, activities, applications, spec: caseSpec };
 
   // Returns { blockers: [...], warnings: [...] } for a given target status
   function checkTransitionGates(toStatus) {
