@@ -92,7 +92,7 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
   });
   const customers = Object.values(customerMap).slice(0, 8);
 
-  const SYS = 260;
+  const SYS = 420;
   const R1  = Math.round(SYS * 0.30);
   const R2  = Math.round(SYS * 0.46);
 
@@ -109,7 +109,7 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
   // ── SOLAR SYSTEM ──────────────────────────────────────────
   function renderSystem() {
     const ring = (r, extra = {}) => (
-      <div style={{ position: 'absolute', borderRadius: '50%', border: '1px dashed rgba(37,99,235,0.18)', top: '50%', left: '50%', width: r * 2, height: r * 2, transform: 'translate(-50%,-50%)', ...extra }} />
+      <div style={{ position: 'absolute', borderRadius: '50%', border: '1px dashed rgba(100,160,255,0.25)', top: '50%', left: '50%', width: r * 2, height: r * 2, transform: 'translate(-50%,-50%)', ...extra }} />
     );
 
     if (level === 1) {
@@ -117,16 +117,16 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
         <div style={{ position: 'relative', width: SYS, height: SYS, flexShrink: 0 }}>
           {ring(R1)}
           {/* Center: Platform logo */}
-          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 56, height: 56, borderRadius: '50%', background: platformLogoUrl ? '#fff' : 'linear-gradient(135deg,#1A4B8C,#2563EB)', border: '3px solid rgba(37,99,235,0.25)', boxShadow: '0 0 22px rgba(37,99,235,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 80, height: 80, borderRadius: '50%', background: platformLogoUrl ? '#fff' : 'linear-gradient(135deg,#1A4B8C,#2563EB)', border: '3px solid rgba(37,99,235,0.25)', boxShadow: '0 0 28px rgba(37,99,235,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, overflow: 'hidden' }}>
             {platformLogoUrl
-              ? <img src={platformLogoUrl} alt="Platform" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 4 }} />
-              : <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 24, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>A</span>
+              ? <img src={platformLogoUrl} alt="Platform" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 6 }} />
+              : <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 34, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>A</span>
             }
           </div>
           {customers.map((cust, i) => (
-            <OrbNode key={cust.id} r={R1} slotIdx={i} total={customers.length} dur={20} size={44}
+            <OrbNode key={cust.id} r={R1} slotIdx={i} total={customers.length} dur={20} size={60}
               onClick={() => navigate(2, cust)}>
-              <AvatarCircle src={cust.client?.avatar_url} name={cust.companyName} color={ORB_COLORS[i % ORB_COLORS.length]} fontSize={13} />
+              <AvatarCircle src={cust.client?.avatar_url} name={cust.companyName} color={ORB_COLORS[i % ORB_COLORS.length]} fontSize={17} />
             </OrbNode>
           ))}
         </div>
@@ -141,15 +141,15 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
         <div style={{ position: 'relative', width: SYS, height: SYS, flexShrink: 0 }}>
           {ring(R1)}
           {outer.length > 0 && ring(R2)}
-          <CenterAvatar client={selCustomer?.client} companyName={selCustomer?.companyName} onClick={() => navigate(1)} size={58} />
+          <CenterAvatar client={selCustomer?.client} companyName={selCustomer?.companyName} onClick={() => navigate(1)} size={80} />
           {inner.map((cs, i) => (
-            <OrbNode key={cs.id} r={R1} slotIdx={i} total={inner.length} dur={14} size={40}
+            <OrbNode key={cs.id} r={R1} slotIdx={i} total={inner.length} dur={14} size={54}
               onClick={() => navigate(3, selCustomer, cs)} highlight={selCase?.id === cs.id}>
               <CaseNode c={cs} idx={i} />
             </OrbNode>
           ))}
           {outer.map((cs, i) => (
-            <OrbNode key={cs.id} r={R2} slotIdx={i} total={outer.length} dur={24} size={38}
+            <OrbNode key={cs.id} r={R2} slotIdx={i} total={outer.length} dur={24} size={50}
               onClick={() => navigate(3, selCustomer, cs)} highlight={selCase?.id === cs.id}>
               <CaseNode c={cs} idx={inner.length + i} />
             </OrbNode>
@@ -169,30 +169,30 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
         <div style={{ position: 'relative', width: SYS, height: SYS, flexShrink: 0 }}>
           {ring(R1)}
           {outer.length > 0 && ring(R2)}
-          <CenterAvatar client={selCustomer?.client} companyName={selCustomer?.companyName} onClick={() => navigate(2, selCustomer)} size={58} />
+          <CenterAvatar client={selCustomer?.client} companyName={selCustomer?.companyName} onClick={() => navigate(2, selCustomer)} size={80} />
           {inner.map((app, i) => {
             const name = app.consultant?.full_name ?? 'C';
             return (
-              <OrbNode key={app.consultant_id} r={R1} slotIdx={i} total={innerTotal} dur={10} size={34}>
-                <AvatarCircle src={app.consultant?.avatar_url} name={name} color={ORB_COLORS[i % ORB_COLORS.length]} fontSize={10} />
+              <OrbNode key={app.consultant_id} r={R1} slotIdx={i} total={innerTotal} dur={10} size={46}>
+                <AvatarCircle src={app.consultant?.avatar_url} name={name} color={ORB_COLORS[i % ORB_COLORS.length]} fontSize={13} />
               </OrbNode>
             );
           })}
           {myApp && (
-            <OrbNode r={R1} slotIdx={inner.length} total={innerTotal} dur={10} size={34} highlight>
-              <div style={{ width: '100%', height: '100%', background: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: '#fff' }}>You</div>
+            <OrbNode r={R1} slotIdx={inner.length} total={innerTotal} dur={10} size={46} highlight>
+              <div style={{ width: '100%', height: '100%', background: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#fff' }}>You</div>
             </OrbNode>
           )}
           {outer.map((app, i) => {
             const name = app.consultant?.full_name ?? 'C';
             return (
-              <OrbNode key={app.consultant_id} r={R2} slotIdx={i} total={outer.length} dur={17} size={30}>
-                <AvatarCircle src={app.consultant?.avatar_url} name={name} color={ORB_COLORS[(inner.length + i) % ORB_COLORS.length]} fontSize={9} />
+              <OrbNode key={app.consultant_id} r={R2} slotIdx={i} total={outer.length} dur={17} size={40}>
+                <AvatarCircle src={app.consultant?.avatar_url} name={name} color={ORB_COLORS[(inner.length + i) % ORB_COLORS.length]} fontSize={11} />
               </OrbNode>
             );
           })}
           {caseApps.length === 0 && (
-            <div style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 10, color: '#6B8AB8', whiteSpace: 'nowrap' }}>
+            <div style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 10, color: 'rgba(187,222,251,0.55)', whiteSpace: 'nowrap' }}>
               No applicants yet — be first
             </div>
           )}
@@ -330,11 +330,11 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
   ];
 
   return (
-    <div style={{ background: '#EEF5FF', borderRadius: 20, border: '1.5px solid rgba(26,75,140,0.15)', overflow: 'hidden', marginBottom: 20, boxShadow: '0 4px 24px rgba(37,99,235,0.08)' }}>
+    <div style={{ background: '#EEF5FF', borderRadius: 20, border: '1.5px solid rgba(26,75,140,0.15)', overflow: 'hidden', marginBottom: 20, boxShadow: '0 4px 24px rgba(37,99,235,0.08)', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 180px)', minHeight: 560 }}>
       <style>{KEYFRAME}</style>
 
       {/* Header bar */}
-      <div style={{ padding: '12px 18px', borderBottom: '1px solid rgba(26,75,140,0.1)', display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(26,75,140,0.04)' }}>
+      <div style={{ padding: '12px 18px', borderBottom: '1px solid rgba(26,75,140,0.1)', display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(26,75,140,0.04)', flexShrink: 0 }}>
         {level > 1 && (
           <button onClick={() => level === 2 ? navigate(1) : navigate(2, selCustomer)}
             style={{ background: 'rgba(26,75,140,0.08)', border: '1px solid rgba(26,75,140,0.18)', borderRadius: 7, color: '#1A4B8C', fontSize: 11, fontWeight: 600, padding: '4px 10px', cursor: 'pointer', flexShrink: 0 }}>
@@ -358,14 +358,14 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
       </div>
 
       {/* Body */}
-      <div style={{ display: 'flex', gap: 0, minHeight: 310 }}>
-        {/* Solar system panel */}
-        <div style={{ padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid rgba(26,75,140,0.1)', flexShrink: 0, opacity: fading ? 0 : 1, transition: 'opacity .16s' }}>
-          {renderSystem()}
-        </div>
-        {/* Sidebar */}
-        <div style={{ flex: 1, minWidth: 0, padding: '12px 14px', display: 'flex', flexDirection: 'column', overflowY: 'auto', maxHeight: 380, opacity: fading ? 0 : 1, transition: 'opacity .16s' }}>
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        {/* Sidebar — left, wide panel */}
+        <div style={{ flex: 1, minWidth: 0, padding: '16px 20px', display: 'flex', flexDirection: 'column', overflowY: 'auto', borderRight: '1px solid rgba(26,75,140,0.1)', opacity: fading ? 0 : 1, transition: 'opacity .16s' }}>
           {renderSidebar()}
+        </div>
+        {/* Solar system — right, fixed-width panel */}
+        <div style={{ width: SYS + 60, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#040C1C', opacity: fading ? 0 : 1, transition: 'opacity .16s', position: 'relative' }}>
+          {renderSystem()}
         </div>
       </div>
     </div>
