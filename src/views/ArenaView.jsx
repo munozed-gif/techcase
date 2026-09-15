@@ -23,6 +23,7 @@ import { useLeaderboard } from "../hooks/useNotificationHooks.js";
 import { useConsultantProfile } from "../hooks/useProfileHooks.js";
 import { ApplyWizard } from "./ApplyWizard.jsx";
 import { PersonAvatar, ProjectAvatar, UserAvatar } from "./Projects.jsx";
+import { GalaxyExplorer } from "../components/GalaxyExplorer.jsx";
 
 function useConsultantShortlist() {
   const [shortlist, setShortlist] = useState(() => {
@@ -1167,6 +1168,15 @@ function ArenaView({ auth }) {
             ))}
           </div>
         </div>
+
+        {/* Galaxy Explorer — three-level drill-down */}
+        <GalaxyExplorer
+          openCases={openCases}
+          applications={applications}
+          auth={auth}
+          onApply={c => setApplying(c)}
+          appliedCaseIds={appliedCaseIds}
+        />
 
         {/* Case cards – peek scroll-snap carousel, same style as outer */}
         <div style={{ position:'relative' }}>

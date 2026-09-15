@@ -1,0 +1,379 @@
+import { useState } from "react";
+
+const ORB_COLORS = ['#10B981','#3B82F6','#8B5CF6','#EC4899','#F59E0B','#0EA5E9','#F97316','#EF4444'];
+
+const KEYFRAME = `
+@keyframes galaxy-orbit {
+  from { transform: rotate(var(--start)) translateX(var(--r)) rotate(calc(-1 * var(--start))); }
+  to   { transform: rotate(calc(var(--start) + 360deg)) translateX(var(--r)) rotate(calc(-1 * (var(--start) + 360deg))); }
+}`;
+
+function OrbNode({ r, slotIdx, total, dur = 14, size = 40, onClick, highlight, children }) {
+  const startDeg = (slotIdx / Math.max(total, 1)) * 360;
+  return (
+    <div style={{
+      position: 'absolute', top: '50%', left: '50%', width: 0, height: 0,
+      animation: `galaxy-orbit ${dur}s linear infinite`,
+      '--start': `${startDeg}deg`, '--r': `${r}px`, zIndex: 2,
+    }}>
+      <div onClick={onClick} style={{
+        position: 'absolute', width: size, height: size, margin: -size / 2, borderRadius: '50%',
+        border: highlight ? '2.5px solid #2563EB' : '2px solid rgba(255,255,255,0.55)',
+        boxShadow: highlight ? '0 0 14px rgba(37,99,235,0.5)' : '0 2px 8px rgba(0,0,0,0.18)',
+        overflow: 'hidden', cursor: onClick ? 'pointer' : 'default',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff',
+        transition: 'border-color .2s, box-shadow .2s',
+      }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function AvatarCircle({ src, name, size = 36, color = '#2563EB', fontSize = 13 }) {
+  const initials = (name ?? '??').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  return src
+    ? <img src={src} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+    : <div style={{ width: '100%', height: '100%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize, fontWeight: 700, color: '#fff', fontFamily: "'Barlow Condensed',sans-serif" }}>{initials}</div>;
+}
+
+function CenterAvatar({ client, companyName, onClick, size = 58 }) {
+  return (
+    <div onClick={onClick} style={{
+      position: 'absolute', top: '50%', left: '50%',
+      transform: 'translate(-50%,-50%)',
+      width: size, height: size, borderRadius: '50%',
+      border: '2px solid rgba(37,99,235,0.3)',
+      boxShadow: '0 0 20px rgba(37,99,235,0.2)',
+      overflow: 'hidden', cursor: onClick ? 'pointer' : 'default',
+      zIndex: 10, background: '#fff',
+    }}>
+      <AvatarCircle src={client?.avatar_url} name={companyName} size={size} color="#2563EB" fontSize={Math.round(size * 0.3)} />
+    </div>
+  );
+}
+
+function StatTile({ value, label }) {
+  return (
+    <div style={{ flex: 1, background: 'rgba(37,99,235,0.06)', borderRadius: 8, padding: '8px', textAlign: 'center' }}>
+      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 22, fontWeight: 800, color: '#1A4B8C' }}>{value}</div>
+      <div style={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6B8AB8' }}>{label}</div>
+    </div>
+  );
+}
+
+function Chip({ children, color = '#1A4B8C', bg = 'rgba(26,75,140,0.07)', border = 'rgba(26,75,140,0.2)' }) {
+  return (
+    <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 99, background: bg, border: `1px solid ${border}`, color }}>
+      {children}
+    </span>
+  );
+}
+
+export function GalaxyExplorer({ openCases, applications, auth, onApply, appliedCaseIds }) {
+  const [level, setLevel]             = useState(1);
+  const [selCustomer, setSelCustomer] = useState(null);
+  const [selCase, setSelCase]         = useState(null);
+  const [fading, setFading]           = useState(false);
+
+  // Group open cases by customer
+  const customerMap = {};
+  openCases.forEach(c => {
+    const cid = c.client_id;
+    if (!customerMap[cid]) {
+      customerMap[cid] = {
+        id: cid,
+        client: c.client,
+        cases: [],
+        companyName: c.client?.client_profiles?.company_name || c.client?.full_name || 'Client',
+      };
+    }
+    customerMap[cid].cases.push(c);
+  });
+  const customers = Object.values(customerMap).slice(0, 8);
+
+  const SYS = 260;
+  const R1  = Math.round(SYS * 0.30);
+  const R2  = Math.round(SYS * 0.46);
+
+  function navigate(nextLevel, cust = null, cs = null) {
+    setFading(true);
+    setTimeout(() => {
+      setLevel(nextLevel);
+      setSelCustomer(cust);
+      setSelCase(cs);
+      setFading(false);
+    }, 160);
+  }
+
+  // ── SOLAR SYSTEM ──────────────────────────────────────────
+  function renderSystem() {
+    const ring = (r, extra = {}) => (
+      <div style={{ position: 'absolute', borderRadius: '50%', border: '1px dashed rgba(37,99,235,0.18)', top: '50%', left: '50%', width: r * 2, height: r * 2, transform: 'translate(-50%,-50%)', ...extra }} />
+    );
+
+    if (level === 1) {
+      return (
+        <div style={{ position: 'relative', width: SYS, height: SYS, flexShrink: 0 }}>
+          {ring(R1)}
+          {/* Center: Arena logo */}
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(135deg,#1A4B8C,#2563EB)', border: '3px solid rgba(37,99,235,0.25)', boxShadow: '0 0 22px rgba(37,99,235,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
+            <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 24, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>A</span>
+          </div>
+          {customers.map((cust, i) => (
+            <OrbNode key={cust.id} r={R1} slotIdx={i} total={customers.length} dur={20} size={44}
+              onClick={() => navigate(2, cust)}>
+              <AvatarCircle src={cust.client?.avatar_url} name={cust.companyName} color={ORB_COLORS[i % ORB_COLORS.length]} fontSize={13} />
+            </OrbNode>
+          ))}
+        </div>
+      );
+    }
+
+    if (level === 2) {
+      const custCases = selCustomer?.cases ?? [];
+      const inner = custCases.slice(0, 4);
+      const outer = custCases.slice(4, 10);
+      return (
+        <div style={{ position: 'relative', width: SYS, height: SYS, flexShrink: 0 }}>
+          {ring(R1)}
+          {outer.length > 0 && ring(R2)}
+          <CenterAvatar client={selCustomer?.client} companyName={selCustomer?.companyName} onClick={() => navigate(1)} size={58} />
+          {inner.map((cs, i) => (
+            <OrbNode key={cs.id} r={R1} slotIdx={i} total={inner.length} dur={14} size={40}
+              onClick={() => navigate(3, selCustomer, cs)} highlight={selCase?.id === cs.id}>
+              <CaseNode c={cs} idx={i} />
+            </OrbNode>
+          ))}
+          {outer.map((cs, i) => (
+            <OrbNode key={cs.id} r={R2} slotIdx={i} total={outer.length} dur={24} size={38}
+              onClick={() => navigate(3, selCustomer, cs)} highlight={selCase?.id === cs.id}>
+              <CaseNode c={cs} idx={inner.length + i} />
+            </OrbNode>
+          ))}
+        </div>
+      );
+    }
+
+    if (level === 3) {
+      const caseApps = selCase?.applications ?? [];
+      const myApp    = caseApps.find(a => a.consultant_id === auth.user?.id);
+      const others   = caseApps.filter(a => a.consultant_id !== auth.user?.id);
+      const inner    = others.slice(0, 3);
+      const outer    = others.slice(3, 9);
+      const innerTotal = inner.length + (myApp ? 1 : 0);
+      return (
+        <div style={{ position: 'relative', width: SYS, height: SYS, flexShrink: 0 }}>
+          {ring(R1)}
+          {outer.length > 0 && ring(R2)}
+          <CenterAvatar client={selCustomer?.client} companyName={selCustomer?.companyName} onClick={() => navigate(2, selCustomer)} size={58} />
+          {inner.map((app, i) => {
+            const name = app.consultant?.full_name ?? 'C';
+            return (
+              <OrbNode key={app.consultant_id} r={R1} slotIdx={i} total={innerTotal} dur={10} size={34}>
+                <AvatarCircle src={app.consultant?.avatar_url} name={name} color={ORB_COLORS[i % ORB_COLORS.length]} fontSize={10} />
+              </OrbNode>
+            );
+          })}
+          {myApp && (
+            <OrbNode r={R1} slotIdx={inner.length} total={innerTotal} dur={10} size={34} highlight>
+              <div style={{ width: '100%', height: '100%', background: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: '#fff' }}>You</div>
+            </OrbNode>
+          )}
+          {outer.map((app, i) => {
+            const name = app.consultant?.full_name ?? 'C';
+            return (
+              <OrbNode key={app.consultant_id} r={R2} slotIdx={i} total={outer.length} dur={17} size={30}>
+                <AvatarCircle src={app.consultant?.avatar_url} name={name} color={ORB_COLORS[(inner.length + i) % ORB_COLORS.length]} fontSize={9} />
+              </OrbNode>
+            );
+          })}
+          {caseApps.length === 0 && (
+            <div style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 10, color: '#6B8AB8', whiteSpace: 'nowrap' }}>
+              No applicants yet — be first
+            </div>
+          )}
+        </div>
+      );
+    }
+  }
+
+  // ── SIDEBAR ────────────────────────────────────────────────
+  function renderSidebar() {
+    if (level === 1) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '8px 4px' }}>
+          <div style={{ textAlign: 'center', padding: '12px 0 8px' }}>
+            <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 20, fontWeight: 700, color: '#1A4B8C', marginBottom: 4 }}>
+              {customers.length} {customers.length === 1 ? 'Customer' : 'Customers'} · {openCases.length} Open
+            </div>
+            <div style={{ fontSize: 12, color: '#6B8AB8' }}>Click a customer to explore their cases</div>
+          </div>
+          {customers.map((cust, i) => (
+            <div key={cust.id} onClick={() => navigate(2, cust)}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', background: 'rgba(26,75,140,0.04)', border: '1px solid rgba(26,75,140,0.1)', borderRadius: 10, cursor: 'pointer' }}>
+              <div style={{ width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: ORB_COLORS[i % ORB_COLORS.length], display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff' }}>
+                {cust.client?.avatar_url ? <img src={cust.client.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : cust.companyName.slice(0, 2).toUpperCase()}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#1A4B8C', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cust.companyName}</div>
+                <div style={{ fontSize: 10, color: '#6B8AB8' }}>{cust.cases.length} case{cust.cases.length !== 1 ? 's' : ''}</div>
+              </div>
+              <span style={{ fontSize: 16, color: 'rgba(26,75,140,0.3)' }}>›</span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    if (level === 2) {
+      const cust = selCustomer;
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '4px 4px' }}>
+          {/* Customer card */}
+          <div style={{ background: 'rgba(26,75,140,0.04)', border: '1px solid rgba(26,75,140,0.12)', borderRadius: 14, padding: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+              <div style={{ width: 46, height: 46, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: '#fff', border: '2px solid rgba(37,99,235,0.3)' }}>
+                {cust.client?.avatar_url ? <img src={cust.client.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : cust.companyName.slice(0, 2).toUpperCase()}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 17, fontWeight: 700, color: '#1A4B8C', lineHeight: 1.1 }}>{cust.companyName}</div>
+                {cust.client?.email && <div style={{ fontSize: 10, color: '#6B8AB8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cust.client.email}</div>}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <StatTile value={cust.cases.length} label="Open Cases" />
+              <StatTile value={cust.cases.filter(c => appliedCaseIds.has(c.id)).length} label="Applied" />
+            </div>
+          </div>
+          {/* Cases list */}
+          <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#6B8AB8', paddingLeft: 2 }}>Cases — click to drill in</div>
+          {cust.cases.map((cs, i) => {
+            const applied = appliedCaseIds.has(cs.id);
+            return (
+              <div key={cs.id} onClick={() => navigate(3, cust, cs)}
+                style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 12px', background: 'rgba(26,75,140,0.04)', border: `1px solid ${applied ? 'rgba(5,150,105,0.3)' : 'rgba(26,75,140,0.1)'}`, borderRadius: 10, cursor: 'pointer' }}>
+                <div style={{ width: 26, height: 26, borderRadius: 6, background: ORB_COLORS[i % ORB_COLORS.length], display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{i + 1}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#1A4B8C', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cs.title}</div>
+                  <div style={{ fontSize: 10, color: applied ? '#059669' : '#6B8AB8' }}>
+                    {cs.applications?.length ?? 0} applied{applied ? ' · ✓ You applied' : ''}
+                  </div>
+                </div>
+                <span style={{ fontSize: 16, color: 'rgba(26,75,140,0.3)', flexShrink: 0 }}>›</span>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    if (level === 3) {
+      const cs     = selCase;
+      const cust   = selCustomer;
+      const applied = appliedCaseIds.has(cs.id);
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '4px 4px' }}>
+          {/* Customer mini-card */}
+          <div style={{ background: 'rgba(26,75,140,0.04)', border: '1px solid rgba(26,75,140,0.1)', borderRadius: 12, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 34, height: 34, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff' }}>
+              {cust.client?.avatar_url ? <img src={cust.client.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : cust.companyName.slice(0, 2).toUpperCase()}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#1A4B8C', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cust.companyName}</div>
+              {cust.client?.email && <div style={{ fontSize: 10, color: '#6B8AB8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cust.client.email}</div>}
+            </div>
+          </div>
+          {/* Case detail card */}
+          <div style={{ background: '#EEF5FF', border: '1px solid rgba(26,75,140,0.18)', borderRadius: 14, padding: '14px', flex: 1 }}>
+            <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 19, fontWeight: 800, color: '#0F172A', lineHeight: 1.2, marginBottom: 6 }}>{cs.title}</div>
+            {cs.description && <div style={{ fontSize: 11, color: '#4A6B9A', lineHeight: 1.5, marginBottom: 10 }}>{cs.description.slice(0, 140)}{cs.description.length > 140 ? '…' : ''}</div>}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 10 }}>
+              {cs.budget        && <Chip color="#059669" bg="rgba(5,150,105,0.08)" border="rgba(5,150,105,0.25)">${Number(cs.budget).toLocaleString()}</Chip>}
+              {cs.area_sap      && <Chip color="#0066CC" bg="rgba(0,102,204,0.07)" border="rgba(0,102,204,0.22)">{cs.area_sap}</Chip>}
+              {cs.area_industry && <Chip color="#0369A1" bg="rgba(3,105,161,0.07)" border="rgba(3,105,161,0.22)">{cs.area_industry}</Chip>}
+            </div>
+            {(cs.skills_required?.length ?? 0) > 0 && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#6B8AB8', marginBottom: 4 }}>Skills</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {cs.skills_required.slice(0, 5).map(sk => (
+                    <span key={sk} style={{ fontSize: 10, padding: '2px 7px', borderRadius: 6, background: 'rgba(37,99,235,0.07)', border: '1px solid rgba(37,99,235,0.18)', color: '#1A4B8C' }}>{sk}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <StatTile value={cs.applications?.length ?? 0} label="Applied" />
+              {cs.time_commitment && <StatTile value={`${cs.time_commitment}%`} label="Commit" />}
+            </div>
+            {auth.isConsultant && (
+              applied
+                ? <div style={{ textAlign: 'center', padding: '10px', background: 'rgba(5,150,105,0.08)', border: '1px solid rgba(5,150,105,0.3)', borderRadius: 10, color: '#059669', fontSize: 13, fontWeight: 600 }}>✓ Application submitted</div>
+                : <button onClick={() => onApply(cs)} style={{ width: '100%', background: 'linear-gradient(135deg,#1A4B8C,#2563EB)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 700, padding: '11px', cursor: 'pointer', boxShadow: '0 4px 16px rgba(37,99,235,0.3)' }}>
+                    Apply to this case →
+                  </button>
+            )}
+          </div>
+        </div>
+      );
+    }
+  }
+
+  const breadcrumbs = [
+    { label: 'Overview', onClick: () => navigate(1) },
+    { label: selCustomer?.companyName ?? null, onClick: () => level >= 2 && navigate(2, selCustomer) },
+    { label: selCase?.title ? (selCase.title.length > 22 ? selCase.title.slice(0, 22) + '…' : selCase.title) : null, onClick: null },
+  ];
+
+  return (
+    <div style={{ background: '#EEF5FF', borderRadius: 20, border: '1.5px solid rgba(26,75,140,0.15)', overflow: 'hidden', marginBottom: 20, boxShadow: '0 4px 24px rgba(37,99,235,0.08)' }}>
+      <style>{KEYFRAME}</style>
+
+      {/* Header bar */}
+      <div style={{ padding: '12px 18px', borderBottom: '1px solid rgba(26,75,140,0.1)', display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(26,75,140,0.04)' }}>
+        {level > 1 && (
+          <button onClick={() => level === 2 ? navigate(1) : navigate(2, selCustomer)}
+            style={{ background: 'rgba(26,75,140,0.08)', border: '1px solid rgba(26,75,140,0.18)', borderRadius: 7, color: '#1A4B8C', fontSize: 11, fontWeight: 600, padding: '4px 10px', cursor: 'pointer', flexShrink: 0 }}>
+            ‹ Back
+          </button>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, flex: 1, overflow: 'hidden' }}>
+          {breadcrumbs.map((bc, i) => bc.label && (
+            <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, overflow: 'hidden' }}>
+              {i > 0 && <span style={{ fontSize: 10, color: 'rgba(26,75,140,0.3)', flexShrink: 0 }}>›</span>}
+              <span onClick={bc.onClick ?? undefined}
+                style={{ fontSize: 11, fontWeight: i + 1 === level ? 700 : 500, color: i + 1 === level ? '#1A4B8C' : 'rgba(26,75,140,0.45)', cursor: bc.onClick && i + 1 < level ? 'pointer' : 'default', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
+                {bc.label}
+              </span>
+            </span>
+          ))}
+        </div>
+        <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#6B8AB8', flexShrink: 0 }}>
+          {level === 1 ? 'Galaxy View' : level === 2 ? 'Customer' : 'Case Detail'}
+        </span>
+      </div>
+
+      {/* Body */}
+      <div style={{ display: 'flex', gap: 0, minHeight: 310 }}>
+        {/* Solar system panel */}
+        <div style={{ padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid rgba(26,75,140,0.1)', flexShrink: 0, opacity: fading ? 0 : 1, transition: 'opacity .16s' }}>
+          {renderSystem()}
+        </div>
+        {/* Sidebar */}
+        <div style={{ flex: 1, minWidth: 0, padding: '12px 14px', display: 'flex', flexDirection: 'column', overflowY: 'auto', maxHeight: 380, opacity: fading ? 0 : 1, transition: 'opacity .16s' }}>
+          {renderSidebar()}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CaseNode({ c, idx }) {
+  const abbr = (c.title ?? '').trim().split(/\s+/).slice(0, 2).map(w => w[0] ?? '').join('').toUpperCase() || `C${idx + 1}`;
+  return (
+    <div style={{ width: '100%', height: '100%', background: ORB_COLORS[idx % ORB_COLORS.length], display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#fff', fontFamily: "'Barlow Condensed',sans-serif" }}>
+      {abbr}
+    </div>
+  );
+}
