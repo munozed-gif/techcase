@@ -359,13 +359,13 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
 
       {/* Body */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* Sidebar — left, wide panel */}
-        <div style={{ flex: 1, minWidth: 0, padding: '16px 20px', display: 'flex', flexDirection: 'column', overflowY: 'auto', borderRight: '1px solid rgba(26,75,140,0.1)', opacity: fading ? 0 : 1, transition: 'opacity .16s' }}>
-          {renderSidebar()}
-        </div>
-        {/* Solar system — right, fixed-width panel */}
-        <div style={{ width: SYS + 60, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#040C1C', opacity: fading ? 0 : 1, transition: 'opacity .16s', position: 'relative' }}>
+        {/* Solar system — left, large panel */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#040C1C', opacity: fading ? 0 : 1, transition: 'opacity .16s', position: 'relative' }}>
           {renderSystem()}
+        </div>
+        {/* Sidebar — right, fixed-width panel */}
+        <div style={{ width: SYS + 60, flexShrink: 0, minWidth: 0, padding: '16px 20px', display: 'flex', flexDirection: 'column', overflowY: 'auto', borderLeft: '1px solid rgba(26,75,140,0.1)', opacity: fading ? 0 : 1, transition: 'opacity .16s' }}>
+          {renderSidebar()}
         </div>
       </div>
     </div>
