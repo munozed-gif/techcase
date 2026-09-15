@@ -209,7 +209,7 @@ const GATE_CONDITIONS = [
     key: "consultant_assigned",
     label: "Consultant assigned",
     description: "At least one consultant has been accepted on this case",
-    check: (c, d) => !!(c.assignee_id || d.applications?.some(a => a.status === "accepted")),
+    check: (c, d) => !!(d.applications?.some(a => a.status === "accepted") || (c.case_assignments?.length ?? 0) > 0),
     fixHint: "Go to the Arena tab and accept a consultant application",
   },
   {
@@ -237,7 +237,7 @@ const GATE_CONDITIONS = [
     key: "budget_defined",
     label: "Budget defined",
     description: "An estimated budget or effort has been set",
-    check: (c, d) => !!(c.budget_estimated || c.budget || c.effort_days),
+    check: (c, d) => !!(c.budget),
     fixHint: "Set an estimated budget or effort in the case details",
   },
   {
@@ -286,7 +286,7 @@ const GATE_CONDITIONS = [
     key: "client_rating",
     label: "Client rating submitted",
     description: "The client has submitted a satisfaction rating",
-    check: (c, d) => !!c.client_rating,
+    check: (c, d) => !!(c.client_rating ?? c.csat_score),
     fixHint: "Request a rating from the client via the feedback button",
   },
   {
