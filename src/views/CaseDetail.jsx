@@ -2435,11 +2435,16 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 return (
                   <div key={s.key}
                     style={{ flex: "0 0 calc(33.333% - 8px)", width: "calc(33.333% - 8px)", maxWidth: "calc(33.333% - 8px)", minWidth: 0, overflow: "hidden", scrollSnapAlign: "center", scrollSnapStop: "always", opacity: isActive ? 1 : 0.5, transform: isActive ? "scale(1)" : "scale(0.97)", transition: "opacity .25s, transform .25s" }}>
-                    <div style={{ borderRadius: 12, border: `1px solid ${isActive ? borderColor : "#E2E8F0"}`, background: bgColor, overflow: "hidden", width: "100%", boxSizing: "border-box", height: 320, display: "flex", flexDirection: "column", boxShadow: isActive ? "0 4px 20px rgba(0,0,0,.08)" : "none", transition: "box-shadow .25s", cursor: isActive ? "default" : "pointer" }}
+                    <div style={{ borderRadius: 12, border: `1px solid ${isActive ? borderColor : "#E2E8F0"}`, background: bgColor, overflow: "hidden", width: "100%", boxSizing: "border-box", height: 320, display: "flex", flexDirection: "column", boxShadow: isActive ? "0 4px 20px rgba(0,0,0,.08)" : "none", transition: "box-shadow .25s", cursor: isActive ? "default" : "pointer", position: "relative" }}
                       onClick={() => !isActive && pipelineScrollTo(displayIdx)}>
 
+                      {/* Watermark icon */}
+                      {(() => { const WIcon = getStageIcon(s.key); return (
+                        <WIcon size={120} style={{ position: "absolute", bottom: 12, right: -10, opacity: 0.055, color: state === "current" ? color : "#94A3B8", pointerEvents: "none", zIndex: 0, flexShrink: 0 }} />
+                      ); })()}
+
                       {/* Card header */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", borderBottom: "1px solid #F1F5F9", background: isActive ? (state === "current" ? color + "12" : "#F8FAFC") : "#FAFAFA", flexShrink: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", borderBottom: "1px solid #F1F5F9", background: isActive ? (state === "current" ? color + "12" : "#F8FAFC") : "#FAFAFA", flexShrink: 0, position: "relative", zIndex: 1 }}>
                         {/* State dot */}
                         {state === "past"
                           ? <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#22C55E", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Check size={9} color="white" strokeWidth={3} /></div>
@@ -2457,7 +2462,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       </div>
 
                       {/* Card body */}
-                      <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12, flex: 1, overflowY: "auto" }}>
+                      <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12, flex: 1, overflowY: "auto", position: "relative", zIndex: 1 }}>
                         {/* Gate checklist */}
                         {gateItems.length > 0 ? (
                           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
