@@ -229,12 +229,86 @@ function computeTeamScore(app, caseData, profileMap, allRatings, allAssignments,
       ? `${caseOverlap.matched}/${caseOverlap.total} case skills covered`
       : "No skill requirements";
 
+  // ── Per-member individual breakdowns (for UI table) ───────────────────────
+  const memberBreakdowns = assignedIds.map(memberId => {
+    const mp = profileMap[memberId];
+    const memberRoleAssigns = roleAssignments.filter(ra => ra.consultant_id === memberId);
+    const memberRoleLabels = memberRoleAssigns.map(ra => {
+      const role = requiredRoles.find(r => r.id === ra.role_id);
+      return role?.label ?? null;
+    }).filter(Boolean);
+
+    // Skill: avg role-fit across this member's assigned roles
+    const memberRoleFits = memberRoleAssigns.map(ra => {
+      const role = requiredRoles.find(r => r.id === ra.role_id);
+      if (!role) return null;
+      const o = _skillOverlap(mp?.skills ?? [], role.required_skills ?? []);
+      return o ? { ...o, roleLabel: role.label } : null;
+    }).filter(Boolean);
+    const memberRoleFitRatio = memberRoleFits.length > 0
+      ? memberRoleFits.reduce((s, o) => s + o.ratio, 0) / memberRoleFits.length
+      : 0.5;
+    const memberSkillMatches = memberRoleFits.reduce((s, o) => s + o.matched, 0);
+    const memberSkillTotal   = memberRoleFits.reduce((s, o) => s + o.total, 0);
+    const memberSkillPts = Math.round(memberRoleFitRatio * W.skills);
+
+    // Rating
+    const myR = allRatings.filter(r => r.consultant_id === memberId);
+    const memberAvgRating = myR.length ? myR.reduce((s, r) => s + r.score, 0) / myR.length : 0;
+    const memberRatingPts = myR.length ? Math.round((memberAvgRating / 5) * W.rating) : 0;
+
+    // Client familiarity
+    const mClientWork = (allAssignments ?? []).filter(a => a.consultant_id === memberId && a.case?.client_id === caseData.client_id);
+    const mFamiliarityPts = mClientWork.length ? W.clientFamiliarity : 0;
+
+    // Client rating
+    const mClientCaseIds = new Set(mClientWork.map(a => a.case_id));
+    const mClientRatings = myR.filter(r => mClientCaseIds.has(r.case_id));
+    const mClientAvg = mClientRatings.length ? mClientRatings.reduce((s, r) => s + r.score, 0) / mClientRatings.length : 0;
+    const mClientRatingPts = mClientRatings.length ? Math.round((mClientAvg / 5) * W.clientRating) : 0;
+
+    // Experience
+    const mExp = mp?.years_experience ?? 0;
+    const mExpRatio = minExp === 0 ? 1 : mExp >= minExp * 1.5 ? 1 : mExp >= minExp ? 0.8 : mExp >= minExp * 0.75 ? 0.4 : 0;
+    const mExpPts = Math.round(mExpRatio * W.experience);
+
+    // Rate: member profile rate vs fair share of proposed total
+    const mRate = mp?.hourly_rate ?? 0;
+    const fairShare = assignedIds.length > 0 && proposed ? proposed / assignedIds.length : 0;
+    let mRateRatio = 0.5;
+    if (fairShare > 0 && mRate > 0) {
+      const r = fairShare / mRate;
+      mRateRatio = r <= 0.9 ? 1 : r <= 1.0 ? 0.8 : r <= 1.15 ? 0.5 : 0.2;
+    }
+    const mRatePts = Math.round(mRateRatio * W.rate);
+
+    const memberSubtotal = memberSkillPts + memberRatingPts + mFamiliarityPts + mClientRatingPts + mExpPts + mRatePts;
+    const memberMaxSubtotal = W.skills + W.rating + W.clientFamiliarity + W.clientRating + W.experience + W.rate;
+
+    return {
+      memberId,
+      memberName: memberRoleAssigns[0]?.consultant_name ?? mp?.full_name ?? "Unknown",
+      assignedRoleLabels: memberRoleLabels,
+      breakdown: {
+        skills:            { pts: memberSkillPts,    max: W.skills,            detail: memberSkillTotal > 0 ? `${memberSkillMatches}/${memberSkillTotal}` : "—" },
+        rating:            { pts: memberRatingPts,   max: W.rating,            detail: myR.length ? `${memberAvgRating.toFixed(1)}★ (${myR.length})` : "—" },
+        clientFamiliarity: { pts: mFamiliarityPts,   max: W.clientFamiliarity, detail: mClientWork.length ? `${mClientWork.length}× client` : "—" },
+        clientRating:      { pts: mClientRatingPts,  max: W.clientRating,      detail: mClientRatings.length ? `${mClientAvg.toFixed(1)}★` : "—" },
+        experience:        { pts: mExpPts,           max: W.experience,        detail: `${mExp}y` },
+        rate:              { pts: mRatePts,          max: W.rate,              detail: mRate ? `$${mRate}/hr` : "—" },
+      },
+      subtotal: memberSubtotal,
+      maxSubtotal: memberMaxSubtotal,
+    };
+  });
+
   return {
     ...app,
     totalScore: total,
     teamScoring: true,
     roleDetails,
     assignedIds,
+    memberBreakdowns,
     breakdown: {
       skills: {
         pts: skillPts, max: W.skills,

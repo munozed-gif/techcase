@@ -85,6 +85,91 @@ function CaseFeedbackModal({ caseData, onClose }) {
 }
 
 const RANKING_CRITERIA = ["skills", "rating", "clientFamiliarity", "clientRating", "experience", "rate", "commitment"];
+const MEMBER_CRITERIA  = ["skills", "rating", "clientFamiliarity", "clientRating", "experience", "rate"];
+const MEMBER_COL_LABEL = { skills: "Skills", rating: "Rating", clientFamiliarity: "Cli.Exp", clientRating: "Cli.Rat", experience: "Exp", rate: "Rate" };
+
+function ScoreCell({ pts, max, detail, bold = false }) {
+  const pct = max > 0 ? Math.round((pts / max) * 100) : 0;
+  const clr = pct >= 80 ? "#22c55e" : pct >= 50 ? "#3b82f6" : pct >= 25 ? "#f59e0b" : "#ef4444";
+  return (
+    <td className="py-2 px-1 text-center align-top" title={`${pts}/${max} — ${detail}`}>
+      <div className={`text-[11px] ${bold ? "font-black" : "font-bold"}`} style={{ color: clr }}>
+        {pts}<span className="text-[9px] font-normal" style={{ color: "#d1d5db" }}>/{max}</span>
+      </div>
+      <div className="h-1 bg-gray-100 rounded-full overflow-hidden mt-0.5 mx-auto" style={{ width: 36 }}>
+        <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: clr }} />
+      </div>
+      <div className="text-[8px] text-gray-400 truncate mt-0.5 mx-auto" style={{ maxWidth: 48 }}>{detail}</div>
+    </td>
+  );
+}
+
+function TeamMemberTable({ members, teamBreakdown, totalScore, liveAvailability, t }) {
+  if (!members.length) return null;
+  return (
+    <div className="mb-4 bg-white/60 rounded-xl p-3 overflow-x-auto">
+      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Member Evaluations</p>
+      <table className="w-full" style={{ minWidth: 480 }}>
+        <thead>
+          <tr>
+            <th className="text-left pb-1.5 pr-3 text-[9px] font-bold text-gray-400 uppercase">Member</th>
+            {MEMBER_CRITERIA.map(k => (
+              <th key={k} className="text-center pb-1.5 px-1 text-[9px] font-bold text-gray-400 uppercase" style={{ minWidth: 52 }}>
+                {MEMBER_COL_LABEL[k]}
+              </th>
+            ))}
+            <th className="text-right pb-1.5 pl-2 text-[9px] font-bold text-gray-400 uppercase">Sub</th>
+          </tr>
+        </thead>
+        <tbody>
+          {members.map((m, mi) => {
+            const avail = liveAvailability?.[m.memberId];
+            return (
+              <tr key={m.memberId} className="border-t border-gray-100">
+                <td className="py-2 pr-3 align-top">
+                  <div className="font-semibold text-gray-900 text-xs truncate" style={{ maxWidth: 110 }}>{m.memberName}</div>
+                  {m.assignedRoleLabels.length > 0 && (
+                    <div className="text-[9px] text-indigo-600 font-medium mt-0.5 truncate" style={{ maxWidth: 110 }}>
+                      {m.assignedRoleLabels.join(" · ")}
+                    </div>
+                  )}
+                  {avail !== undefined && (
+                    <div className={`text-[9px] font-medium mt-0.5 ${avail < 20 ? "text-red-500" : avail < 50 ? "text-amber-500" : "text-green-600"}`}>
+                      {avail}% free
+                    </div>
+                  )}
+                </td>
+                {MEMBER_CRITERIA.map(k => (
+                  <ScoreCell key={k} {...m.breakdown[k]} />
+                ))}
+                <td className="py-2 pl-2 text-right align-top">
+                  <div className="font-black text-blue-700 text-sm">{m.subtotal}</div>
+                  <div className="text-[9px] text-gray-400">/{m.maxSubtotal}</div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+        <tfoot>
+          <tr className="border-t-2 border-blue-200 bg-blue-50/40">
+            <td className="py-2 pr-3 align-top">
+              <div className="font-bold text-blue-800 text-xs">Team Total</div>
+              <div className="text-[9px] text-gray-400">{members.length} members</div>
+            </td>
+            {MEMBER_CRITERIA.map(k => {
+              const c = teamBreakdown[k];
+              return <ScoreCell key={k} pts={c.pts} max={c.max} detail={c.detailKey ? t(c.detailKey) : c.detail} bold />;
+            })}
+            <td className="py-2 pl-2 text-right align-top">
+              <div className="font-black text-blue-700 text-xl">{totalScore}</div>
+              <div className="text-[9px] text-gray-400">/100</div>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  );
+}
 
 function ApplicantRankingSection({ caseData, auth, applications, reviewApplication }) {
   const { t } = useT();
@@ -148,11 +233,17 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
           ? `${app.time_commitment ?? 0}% of ${live}% (lead)`
           : `${app.time_commitment ?? 0}% of ${live}% now (${Math.round(ratio * 100)}%)`;
 
+        const memberBreakdowns = (app.memberBreakdowns ?? []).map(m => ({
+          ...m,
+          liveAvailability: liveAvailability[m.memberId],
+        }));
+
         return {
           ...app,
           liveAvailability: live,
           overcommitted: (app.time_commitment ?? 0) > live + overcommitTolerance || memberOvercommitted,
           totalScore: app.totalScore - oldCommit + commitPts,
+          memberBreakdowns,
           breakdown: {
             ...app.breakdown,
             commitment: {
@@ -255,32 +346,18 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                 <div className="text-xs text-gray-400">{t("rank.pts")}</div>
               </div>
             </div>
-            {/* Role-fit breakdown for team applications */}
-            {best.teamScoring && best.roleDetails?.length > 0 && (
-              <div className="mb-4 bg-white/60 rounded-xl p-3 space-y-1.5">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Role assignments</p>
-                {best.roleDetails.map((rd, ri) => {
-                  const pct = rd.total > 0 ? Math.round((rd.matched / rd.total) * 100) : null;
-                  const barColor = rd.unassigned ? "#ef4444" : pct === null ? "#94a3b8" : pct >= 80 ? "#22c55e" : pct >= 50 ? "#3b82f6" : "#f59e0b";
-                  return (
-                    <div key={ri} className="flex items-center gap-2 text-xs">
-                      <span className="w-24 shrink-0 text-gray-600 font-medium truncate">{rd.roleLabel}</span>
-                      <span className="flex-1 min-w-0 truncate text-gray-800">{rd.unassigned ? <span className="text-red-500 italic">Unassigned</span> : rd.memberName}</span>
-                      {!rd.unassigned && rd.total > 0 && (
-                        <>
-                          <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden shrink-0">
-                            <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: barColor }} />
-                          </div>
-                          <span className="text-[10px] font-bold shrink-0" style={{ color: barColor }}>{rd.matched}/{rd.total}</span>
-                        </>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+            {/* Team: per-member evaluation table */}
+            {best.teamScoring && (
+              <TeamMemberTable
+                members={best.memberBreakdowns ?? []}
+                teamBreakdown={best.breakdown}
+                totalScore={best.totalScore}
+                liveAvailability={liveAvailability}
+                t={t}
+              />
             )}
-            {/* Live availability row for best */}
-            {hasLive && (
+            {/* Team: commitment + live availability row */}
+            {best.teamScoring && hasLive && (
               <div className={`flex items-center gap-3 mb-4 px-3 py-2 rounded-xl text-xs font-medium ${
                 best.overcommitted
                   ? "bg-red-50 border border-red-200 text-red-700"
@@ -292,24 +369,58 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                 }
               </div>
             )}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-              {RANKING_CRITERIA.map(key => {
-                const c = best.breakdown[key];
-                const pct = Math.round((c.pts / c.max) * 100);
-                return (
-                  <div key={key} className="bg-white/80 rounded-xl p-2.5">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide truncate">{t(c.labelKey)}</span>
-                      <span className="text-xs font-bold text-blue-700 ml-1 flex-shrink-0">{c.pts}/{c.max}</span>
-                    </div>
-                    <div className="h-1 bg-gray-100 rounded-full mb-1">
-                      <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: pct >= 80 ? "#22c55e" : pct >= 50 ? "#3b82f6" : pct >= 25 ? "#f59e0b" : "#ef4444" }} />
-                    </div>
-                    <div className="text-[10px] text-gray-400 truncate">{c.detailKey ? t(c.detailKey) : c.detail}</div>
+            {/* Team: commitment score tile (separate from table) */}
+            {best.teamScoring && (() => {
+              const c = best.breakdown.commitment;
+              const pct = Math.round((c.pts / c.max) * 100);
+              return (
+                <div className="bg-white/80 rounded-xl p-2.5 mb-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{t(c.labelKey)}</span>
+                    <span className="text-xs font-bold text-blue-700">{c.pts}/{c.max}</span>
                   </div>
-                );
-              })}
-            </div>
+                  <div className="h-1 bg-gray-100 rounded-full mb-1">
+                    <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: pct >= 80 ? "#22c55e" : pct >= 50 ? "#3b82f6" : pct >= 25 ? "#f59e0b" : "#ef4444" }} />
+                  </div>
+                  <div className="text-[10px] text-gray-400">{c.detailKey ? t(c.detailKey) : c.detail}</div>
+                </div>
+              );
+            })()}
+            {/* Individual: 7-tile criteria grid + availability */}
+            {!best.teamScoring && (
+              <>
+                {hasLive && (
+                  <div className={`flex items-center gap-3 mb-4 px-3 py-2 rounded-xl text-xs font-medium ${
+                    best.overcommitted
+                      ? "bg-red-50 border border-red-200 text-red-700"
+                      : "bg-white/70 text-gray-600"
+                  }`}>
+                    {best.overcommitted
+                      ? <><AlertTriangle size={13} className="inline mr-1 flex-shrink-0" /><span>{t("assign.avail_conflict").replace("{pct}", best.time_commitment).replace("{free}", best.liveAvailability)}</span></>
+                      : <><Check size={13} className="inline mr-1 flex-shrink-0" /><span>{t("assign.avail_current").replace("{free}", best.liveAvailability).replace("{pct}", best.time_commitment)}</span></>
+                    }
+                  </div>
+                )}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                  {RANKING_CRITERIA.map(key => {
+                    const c = best.breakdown[key];
+                    const pct = Math.round((c.pts / c.max) * 100);
+                    return (
+                      <div key={key} className="bg-white/80 rounded-xl p-2.5">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide truncate">{t(c.labelKey)}</span>
+                          <span className="text-xs font-bold text-blue-700 ml-1 flex-shrink-0">{c.pts}/{c.max}</span>
+                        </div>
+                        <div className="h-1 bg-gray-100 rounded-full mb-1">
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: pct >= 80 ? "#22c55e" : pct >= 50 ? "#3b82f6" : pct >= 25 ? "#f59e0b" : "#ef4444" }} />
+                        </div>
+                        <div className="text-[10px] text-gray-400 truncate">{c.detailKey ? t(c.detailKey) : c.detail}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
             {(auth.isAdmin || auth.isManager) && best.status === "pending" && (
               <button onClick={() => reviewApplication(best.id, "accepted")}
                 className="w-full py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">
@@ -346,26 +457,22 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                           <Users size={9} /> {app.team.name}
                         </span>
                       )}
-                      {app.teamScoring && app.roleDetails?.length > 0 && (
-                        <div className="w-full mt-1.5 space-y-0.5">
-                          {app.roleDetails.map((rd, ri) => {
-                            const pct = rd.total > 0 ? Math.round((rd.matched / rd.total) * 100) : null;
-                            const color = rd.unassigned ? "text-red-500"
-                              : pct === null ? "text-gray-400"
-                              : pct >= 80 ? "text-green-600"
-                              : pct >= 50 ? "text-blue-600"
-                              : "text-amber-600";
+                      {app.teamScoring && (app.memberBreakdowns ?? []).length > 0 && (
+                        <div className="w-full mt-1.5 flex flex-wrap gap-1.5">
+                          {app.memberBreakdowns.map(m => {
+                            const pct = m.maxSubtotal > 0 ? Math.round((m.subtotal / m.maxSubtotal) * 100) : 0;
+                            const clr = pct >= 80 ? "text-green-700 bg-green-50 border-green-200"
+                              : pct >= 50 ? "text-blue-700 bg-blue-50 border-blue-200"
+                              : pct >= 25 ? "text-amber-700 bg-amber-50 border-amber-200"
+                              : "text-red-700 bg-red-50 border-red-200";
+                            const liveAvail = hasLive ? liveAvailability[m.memberId] : undefined;
                             return (
-                              <div key={ri} className="flex items-center gap-1.5 text-[10px]">
-                                <span className="font-semibold text-gray-600 min-w-0 shrink-0">{rd.roleLabel}:</span>
-                                {rd.unassigned
-                                  ? <span className="text-red-500 italic">Unassigned</span>
-                                  : <span className={`font-medium ${color}`}>{rd.memberName}</span>
-                                }
-                                {!rd.unassigned && rd.total > 0 && (
-                                  <span className={`ml-auto shrink-0 font-bold ${color}`}>{rd.matched}/{rd.total} skills</span>
-                                )}
-                              </div>
+                              <span key={m.memberId} className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold ${clr}`}>
+                                <span>{m.memberName.split(" ")[0]}</span>
+                                <span className="opacity-60">·</span>
+                                <span>{m.subtotal}/{m.maxSubtotal}</span>
+                                {liveAvail !== undefined && <span className="opacity-60 font-normal">({liveAvail}%)</span>}
+                              </span>
                             );
                           })}
                         </div>
