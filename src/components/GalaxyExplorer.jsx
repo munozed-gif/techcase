@@ -142,13 +142,14 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
       <div key={r} style={{ position: 'absolute', borderRadius: '50%', border: `1px dashed rgba(140,140,140,${r === R1 ? '0.35' : r === R2 ? '0.28' : r === R3 ? '0.22' : '0.16'})`, top: '50%', left: '50%', width: r * 2, height: r * 2, transform: 'translate(-50%,-50%)' }} />
     ));
 
-    // 3 staggered radar waves expanding from center to outer ring
+    // 3 staggered radar waves expanding from center to R3 (stays inside container)
+    // R4 * 2 = 604px overflows the 540px system div; R3 * 2 = 474px fits cleanly
     const radarWaves = () => [0, 1.5, 3.0].map(delay => (
       <div key={`rw-${delay}`} style={{
         position: 'absolute', top: '50%', left: '50%',
-        width: R4 * 2, height: R4 * 2,
+        width: R3 * 2, height: R3 * 2,
         borderRadius: '50%',
-        border: '1.5px solid rgba(37,99,235,0.45)',
+        border: '1px solid rgba(37,99,235,0.38)',
         pointerEvents: 'none',
         animation: `galaxy-radar-pulse 4.5s ease-out infinite`,
         animationDelay: `${delay}s`,
