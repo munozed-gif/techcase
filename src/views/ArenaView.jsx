@@ -945,7 +945,8 @@ function ArenaView({ auth }) {
 
     function renderCard(c) {
       const companyName = c.client?.client_profiles?.company_name || c.client?.full_name;
-      const alreadyApplied = appliedCaseIds.has(c.id);
+      const alreadyApplied = appliedCaseIds.has(c.id)
+        || (c.applications ?? []).some(a => a.consultant_id === auth.user?.id);
       const appCount = c.applications?.length ?? 0;
       const appsSorted = [...(c.applications ?? [])].sort((a, b) => new Date(a.submitted_at) - new Date(b.submitted_at));
       const score = matchScore(c);

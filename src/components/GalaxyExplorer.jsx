@@ -365,7 +365,7 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
             )}
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
               <StatTile value={cs.applications?.length ?? 0} label="Applied" />
-              {cs.time_commitment && <StatTile value={`${cs.time_commitment}%`} label="Commit" />}
+              {!!cs.time_commitment && <StatTile value={`${cs.time_commitment}%`} label="Commit" />}
             </div>
             {auth.isConsultant && (
               applied
