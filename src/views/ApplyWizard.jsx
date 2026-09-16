@@ -33,7 +33,19 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
   const [teamMembers, setTeamMembers] = useState([]);
   // role_assignments: { [role_id]: { consultant_id, consultant_name } }
   const [roleAssignments, setRoleAssignments] = useState({});
-  const requiredRoles = caseData.required_roles ?? [];
+  // Always fetch fresh required_roles from DB — caseData prop can be stale
+  const [freshRequiredRoles, setFreshRequiredRoles] = useState(null);
+  const requiredRoles = freshRequiredRoles ?? caseData.required_roles ?? [];
+
+  useEffect(() => {
+    if (!caseData.id) return;
+    supabase.from("cases")
+      .select("required_roles")
+      .eq("id", caseData.id)
+      .maybeSingle()
+      .then(({ data }) => { if (data) setFreshRequiredRoles(data.required_roles ?? []); });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caseData.id]);
 
   // Derived — must be after all state declarations to avoid TDZ
   const showRoleAssign = allowsTeam && applyAs === "team" && selectedTeamId && requiredRoles.length > 0;
