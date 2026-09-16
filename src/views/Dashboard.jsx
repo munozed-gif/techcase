@@ -275,7 +275,7 @@ function Dashboard({ auth, onNavigate }) {
           setSelectedCase(p => ({ ...p, status }));
         }}
         onDelete={async () => { await deleteCase(selectedCase.id); setSelectedCase(null); }}
-        onUpdate={async (payload) => { await updateCase(selectedCase.id, payload); setSelectedCase(p => ({ ...p, ...payload })); }}
+        onUpdate={async (id, payload) => { await updateCase(id, payload); setSelectedCase(p => ({ ...p, ...payload })); }}
       />
     );
   }
