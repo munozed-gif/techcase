@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Check, CheckCircle2, DollarSign, FileText, Flag, GraduationCap, Layers,
   LayoutTemplate, Link, Lock, MapPin, MessageSquare, Search, Settings,
@@ -88,6 +88,282 @@ function CatalogMultiSelect({ options = [], selected = [], onChange, color = "bl
   );
 }
 
+const SENIORITY_OPTS = ["Any", "Junior", "Mid", "Senior", "Expert"];
+
+function RequiredRolesBuilder({ roles, onChange, catalogSkills, applicationMode }) {
+  const [expandedRow, setExpandedRow] = useState(null); // role id with skill picker open
+  const [teamMatch, setTeamMatch] = useState(null); // { total, full, partial, teams[] }
+  const [matchLoading, setMatchLoading] = useState(false);
+  const debounceRef = useRef(null);
+
+  function addRole() {
+    onChange(prev => [...prev, {
+      id: crypto.randomUUID(),
+      label: "",
+      description: "",
+      required_skills: [],
+      seniority: "Any",
+      time_pct: 50,
+    }]);
+  }
+  function removeRole(id) { onChange(prev => prev.filter(r => r.id !== id)); }
+  function updateRole(id, field, value) {
+    onChange(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
+  }
+
+  // Live team match — debounced 600ms after any role change
+  useEffect(() => {
+    const filled = roles.filter(r => r.label.trim());
+    if (filled.length === 0) { setTeamMatch(null); return; }
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setMatchLoading(true);
+      try {
+        const TERMINAL = ["completed", "cancelled", "terminated", "closed", "approved"];
+        // Fetch all accepted teams with their members' skills + availability
+        const { data: memberRows } = await supabase
+          .from("consultant_team_members")
+          .select("team_id, user_id, consultant_teams(id, name)")
+          .eq("status", "accepted");
+        if (!memberRows?.length) { setTeamMatch({ total: 0, full: 0, partial: 0, teams: [] }); setMatchLoading(false); return; }
+
+        const allMemberIds = [...new Set(memberRows.map(m => m.user_id).filter(Boolean))];
+        const [{ data: profiles }, { data: activeAssignments }] = await Promise.all([
+          supabase.from("consultant_profiles")
+            .select("id, skills, external_occupancy_pct")
+            .in("id", allMemberIds),
+          supabase.from("case_assignments")
+            .select("consultant_id, time_commitment, case:case_id(status)")
+            .in("consultant_id", allMemberIds),
+        ]);
+        const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]));
+        const availMap = {};
+        for (const id of allMemberIds) {
+          const ext = profileMap[id]?.external_occupancy_pct ?? 0;
+          const act = (activeAssignments ?? [])
+            .filter(a => a.consultant_id === id && !TERMINAL.includes(a.case?.status))
+            .reduce((s, a) => s + (a.time_commitment ?? 0), 0);
+          availMap[id] = Math.max(0, 100 - ext - act);
+        }
+
+        // Group members by team
+        const teamMap = {};
+        for (const m of memberRows) {
+          const tid = m.team_id;
+          if (!teamMap[tid]) teamMap[tid] = { id: tid, name: m.consultant_teams?.name ?? tid, members: [] };
+          if (m.user_id) teamMap[tid].members.push({ user_id: m.user_id, skills: profileMap[m.user_id]?.skills ?? [], avail: availMap[m.user_id] ?? 0 });
+        }
+
+        // Score each team against filled roles
+        const results = [];
+        for (const team of Object.values(teamMap)) {
+          let rolesMatched = 0;
+          for (const role of filled) {
+            const reqSkills = role.required_skills ?? [];
+            const timePct = role.time_pct ?? 50;
+            // Find best member for this role
+            const candidate = team.members.find(m =>
+              m.avail >= timePct &&
+              (reqSkills.length === 0 || reqSkills.some(s => m.skills.includes(s)))
+            );
+            if (candidate) rolesMatched++;
+          }
+          const matchPct = filled.length > 0 ? Math.round((rolesMatched / filled.length) * 100) : 0;
+          if (matchPct > 0) results.push({ id: team.id, name: team.name, matchPct, rolesMatched, total: filled.length });
+        }
+        results.sort((a, b) => b.matchPct - a.matchPct);
+        setTeamMatch({
+          total: results.length,
+          full: results.filter(t => t.matchPct === 100).length,
+          partial: results.filter(t => t.matchPct > 0 && t.matchPct < 100).length,
+          teams: results.slice(0, 5),
+        });
+      } catch (_) { setTeamMatch(null); }
+      setMatchLoading(false);
+    }, 600);
+    return () => clearTimeout(debounceRef.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(roles)]);
+
+  const showPanel = applicationMode === "team" || applicationMode === "both";
+  if (!showPanel) return null;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-semibold text-gray-800">Required Roles</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">Each role will be assigned to a team member during the application. Leave empty for open-team apply.</p>
+        </div>
+        <button type="button" onClick={addRole}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-xl hover:bg-indigo-700 transition-colors whitespace-nowrap">
+          <span className="text-base leading-none">+</span> Add Role
+        </button>
+      </div>
+
+      <div className="flex gap-4 items-start">
+        {/* ── Role Table ── */}
+        <div className="flex-1 min-w-0">
+          {roles.length === 0 ? (
+            <div className="border-2 border-dashed border-gray-200 rounded-xl py-8 text-center">
+              <p className="text-xs text-gray-400 italic">No roles defined — team applies freely</p>
+            </div>
+          ) : (
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              {/* Table header */}
+              <div className="grid grid-cols-[1.8rem_1fr_6rem_5rem_3rem] gap-2 bg-gray-50 px-3 py-2 border-b border-gray-200">
+                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">#</span>
+                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Role</span>
+                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Seniority</span>
+                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Time %</span>
+                <span />
+              </div>
+
+              {/* Rows */}
+              {roles.map((role, idx) => (
+                <div key={role.id}
+                  className={`border-b border-gray-100 last:border-0 ${expandedRow === role.id ? "bg-indigo-50/30" : "hover:bg-gray-50/60"} transition-colors`}>
+                  {/* Main row */}
+                  <div className="grid grid-cols-[1.8rem_1fr_6rem_5rem_3rem] gap-2 items-center px-3 py-2">
+                    <span className="text-xs font-bold text-indigo-400 tabular-nums">#{idx + 1}</span>
+                    <div className="min-w-0">
+                      <input
+                        value={role.label}
+                        onChange={e => updateRole(role.id, "label", e.target.value)}
+                        placeholder="e.g. ABAP Lead"
+                        className="w-full text-sm font-medium text-gray-900 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-indigo-400 focus:outline-none py-0.5 placeholder-gray-300"
+                      />
+                      {/* Skills chips summary — click to expand */}
+                      <button type="button" onClick={() => setExpandedRow(expandedRow === role.id ? null : role.id)}
+                        className="mt-1 flex flex-wrap gap-1 items-center group">
+                        {role.required_skills.length > 0
+                          ? role.required_skills.slice(0, 3).map(s => (
+                            <span key={s} className="px-1.5 py-0.5 bg-violet-50 text-violet-700 border border-violet-100 rounded text-[10px] font-medium">{s}</span>
+                          ))
+                          : <span className="text-[10px] text-gray-400 italic group-hover:text-indigo-400">+ add skills</span>
+                        }
+                        {role.required_skills.length > 3 && (
+                          <span className="text-[10px] text-gray-400">+{role.required_skills.length - 3}</span>
+                        )}
+                      </button>
+                    </div>
+                    <select
+                      value={role.seniority ?? "Any"}
+                      onChange={e => updateRole(role.id, "seniority", e.target.value)}
+                      className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                      {SENIORITY_OPTS.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number" min="5" max="100" step="5"
+                        value={role.time_pct ?? 50}
+                        onChange={e => updateRole(role.id, "time_pct", Math.min(100, Math.max(5, Number(e.target.value))))}
+                        className="w-12 text-xs border border-gray-200 rounded-lg px-1.5 py-1.5 text-center bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 tabular-nums"
+                      />
+                      <span className="text-[10px] text-gray-400">%</span>
+                    </div>
+                    <button type="button" onClick={() => removeRole(role.id)}
+                      className="text-gray-300 hover:text-red-500 transition-colors justify-self-center">
+                      <X size={14} />
+                    </button>
+                  </div>
+
+                  {/* Expanded skill picker */}
+                  {expandedRow === role.id && (
+                    <div className="px-3 pb-3 border-t border-indigo-100 bg-white">
+                      <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mt-2 mb-1.5">Skills required for this role</p>
+                      <input
+                        value={role.description}
+                        onChange={e => updateRole(role.id, "description", e.target.value)}
+                        placeholder="Brief description (optional)"
+                        className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                      />
+                      <CatalogMultiSelect
+                        options={catalogSkills}
+                        selected={role.required_skills}
+                        onChange={val => updateRole(role.id, "required_skills", val)}
+                        color="violet"
+                        placeholder="Filter skills…"
+                      />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── Live Team Match Panel ── */}
+        <div className="w-48 flex-shrink-0">
+          <div className={`rounded-xl border p-3 transition-colors ${
+            matchLoading ? "border-gray-200 bg-gray-50" :
+            !teamMatch ? "border-gray-200 bg-gray-50" :
+            teamMatch.full > 0 ? "border-green-200 bg-green-50" :
+            teamMatch.partial > 0 ? "border-amber-200 bg-amber-50" :
+            "border-red-200 bg-red-50"
+          }`}>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 mb-2">Team Availability</p>
+
+            {roles.filter(r => r.label.trim()).length === 0 ? (
+              <p className="text-[11px] text-gray-400 italic">Add roles to see matches</p>
+            ) : matchLoading ? (
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                <span className="text-[11px] text-gray-400">Checking…</span>
+              </div>
+            ) : !teamMatch ? (
+              <p className="text-[11px] text-gray-400">—</p>
+            ) : (
+              <div className="space-y-2">
+                {/* Summary counts */}
+                <div className="flex gap-2">
+                  <div className="text-center">
+                    <p className={`text-xl font-bold tabular-nums leading-none ${teamMatch.full > 0 ? "text-green-600" : "text-gray-400"}`}>{teamMatch.full}</p>
+                    <p className="text-[9px] text-gray-500 mt-0.5">Full match</p>
+                  </div>
+                  <div className="w-px bg-gray-200" />
+                  <div className="text-center">
+                    <p className={`text-xl font-bold tabular-nums leading-none ${teamMatch.partial > 0 ? "text-amber-500" : "text-gray-400"}`}>{teamMatch.partial}</p>
+                    <p className="text-[9px] text-gray-500 mt-0.5">Partial</p>
+                  </div>
+                </div>
+
+                {/* Top teams list */}
+                {teamMatch.teams.length > 0 && (
+                  <div className="space-y-1.5 pt-1 border-t border-gray-200">
+                    {teamMatch.teams.map(team => (
+                      <div key={team.id} className="space-y-0.5">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-[10px] font-medium text-gray-700 truncate">{team.name}</span>
+                          <span className={`text-[10px] font-bold tabular-nums whitespace-nowrap ${
+                            team.matchPct === 100 ? "text-green-600" : team.matchPct >= 50 ? "text-amber-500" : "text-red-500"
+                          }`}>{team.matchPct}%</span>
+                        </div>
+                        <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full transition-all ${
+                            team.matchPct === 100 ? "bg-green-500" : team.matchPct >= 50 ? "bg-amber-400" : "bg-red-400"
+                          }`} style={{ width: `${team.matchPct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                    {teamMatch.total > 5 && (
+                      <p className="text-[9px] text-gray-400 text-center pt-0.5">+{teamMatch.total - 5} more teams</p>
+                    )}
+                  </div>
+                )}
+
+                {teamMatch.total === 0 && (
+                  <p className="text-[11px] text-red-500 font-medium">No teams available for these requirements</p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, initialData = null, initialProjectId = null, presetData = null }) {
   const { t } = useT();
   const { settings: catalogSettings } = useSystemSettings();
@@ -121,12 +397,11 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
 
   const _visCfg = useVisibilitySettings();
   const [basics, setBasics] = useState({ title: initialData?.title ?? "", description: initialData?.description ?? "", priority: initialData?.priority ?? "medium", area_sap: initialData?.area_sap ?? "", area_industry: initialData?.area_industry ?? "", is_confidential: initialData?.is_confidential ?? false, nda_required: initialData?.nda_required ?? false, min_trust_level: initialData?.min_trust_level ?? null, application_mode: initialData?.application_mode ?? "both" });
-  const [requiredRoles, setRequiredRoles] = useState(initialData?.required_roles ?? []);
-  function addRole() {
-    setRequiredRoles(r => [...r, { id: crypto.randomUUID(), label: "", description: "", required_skills: [] }]);
-  }
-  function removeRole(id) { setRequiredRoles(r => r.filter(x => x.id !== id)); }
-  function updateRole(id, field, value) { setRequiredRoles(r => r.map(x => x.id === id ? { ...x, [field]: value } : x)); }
+  const [requiredRoles, setRequiredRoles] = useState(
+    (initialData?.required_roles ?? []).map(r => ({
+      seniority: "Any", time_pct: 50, ...r,
+    }))
+  );
   const [caseVisMode, setCaseVisMode] = useState(() => {
     if (initialData?.id) return _visCfg.getCaseVisibility(initialData.id, null);
     const clientId = auth.isClient ? auth.user?.id : null;
@@ -653,52 +928,12 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                     })}
                   </div>
                 </div>
-                {(basics.application_mode === "team" || basics.application_mode === "both") && (
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Required Roles</label>
-                        <p className="text-[11px] text-gray-400">Define the areas each team member must cover. The same consultant can fill multiple roles.</p>
-                      </div>
-                      <button type="button" onClick={addRole}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-xl hover:bg-indigo-700">
-                        <span className="text-base leading-none">+</span> Add role
-                      </button>
-                    </div>
-                    {requiredRoles.length === 0 && (
-                      <p className="text-xs text-gray-400 italic py-2">No required roles yet — team can apply freely.</p>
-                    )}
-                    <div className="space-y-3">
-                      {requiredRoles.map((role, idx) => (
-                        <div key={role.id} className="border border-indigo-100 rounded-xl p-3 bg-indigo-50/40 space-y-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-indigo-400 w-5 flex-shrink-0">#{idx + 1}</span>
-                            <input value={role.label} onChange={e => updateRole(role.id, "label", e.target.value)}
-                              placeholder="Role label, e.g. ABAP Lead"
-                              className="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white" />
-                            <button type="button" onClick={() => removeRole(role.id)}
-                              className="text-gray-400 hover:text-red-500 transition-colors p-1">
-                              <X size={14} />
-                            </button>
-                          </div>
-                          <input value={role.description} onChange={e => updateRole(role.id, "description", e.target.value)}
-                            placeholder="Brief description (optional)"
-                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white" />
-                          <div>
-                            <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide mb-1">Required skills for this role</p>
-                            <CatalogMultiSelect
-                              options={catalogSkills}
-                              selected={role.required_skills}
-                              onChange={val => updateRole(role.id, "required_skills", val)}
-                              color="violet"
-                              placeholder="Filter skills…"
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <RequiredRolesBuilder
+                  roles={requiredRoles}
+                  onChange={setRequiredRoles}
+                  catalogSkills={catalogSkills}
+                  applicationMode={basics.application_mode}
+                />
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.sap_area")}</label>
