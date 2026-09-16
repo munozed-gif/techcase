@@ -167,7 +167,7 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
           {radarWaves()}
           {/* Center: Nova animated logo */}
           <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 10 }}>
-            <NovaLandingMark size={90} />
+            <NovaLandingMark size={130} />
           </div>
           {/* Distribute customers across R2/R3/R4 */}
           {customers.map((cust, i) => {
