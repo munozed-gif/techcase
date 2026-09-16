@@ -31,8 +31,10 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
   const [myTeams, setMyTeams] = useState([]);
   const [selectedTeamId, setSelectedTeamId] = useState("");
   const [teamMembers, setTeamMembers] = useState([]);
-  // role_assignments: { [role_id]: { consultant_id, consultant_name } }
+  // role_assignments: { [role_id]: { consultant_id, consultant_name, rate } }
   const [roleAssignments, setRoleAssignments] = useState({});
+  // live availability per team member { [user_id]: pct_free }
+  const [memberAvailability, setMemberAvailability] = useState({});
   // Always fetch fresh required_roles from DB — caseData prop can be stale
   const [freshRequiredRoles, setFreshRequiredRoles] = useState(null);
   const requiredRoles = freshRequiredRoles ?? caseData.required_roles ?? [];
@@ -83,9 +85,9 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch accepted team members + their skills when team is selected
+  // Fetch accepted team members + their skills + live availability when team is selected
   useEffect(() => {
-    if (!selectedTeamId) { setTeamMembers([]); return; }
+    if (!selectedTeamId) { setTeamMembers([]); setMemberAvailability({}); return; }
     (async () => {
       const { data: memberRows } = await supabase
         .from("consultant_team_members")
@@ -95,35 +97,52 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
       const memberIds = (memberRows ?? []).map(m => m.user_id).filter(Boolean);
       let profileMap = {};
       let usersMap = {};
+      let assignments = [];
       if (memberIds.length > 0) {
-        const [{ data: profiles }, { data: usersRows }] = await Promise.all([
-          supabase.from("consultant_profiles").select("id, full_name, headline, skills").in("id", memberIds),
+        const [{ data: profiles }, { data: usersRows }, { data: activeAssignments }] = await Promise.all([
+          supabase.from("consultant_profiles")
+            .select("id, full_name, headline, skills, external_occupancy_pct")
+            .in("id", memberIds),
           supabase.from("users").select("id, full_name, email, avatar_url").in("id", memberIds),
+          supabase.from("case_assignments")
+            .select("consultant_id, time_commitment, case:case_id(status)")
+            .in("consultant_id", memberIds),
         ]);
         for (const p of (profiles ?? [])) profileMap[p.id] = p;
         for (const u of (usersRows ?? [])) usersMap[u.id] = u;
+        assignments = activeAssignments ?? [];
+        // Compute live availability per member
+        const availMap = {};
+        for (const id of memberIds) {
+          const extPct = profileMap[id]?.external_occupancy_pct ?? 0;
+          const activePct = assignments
+            .filter(a => a.consultant_id === id && !TERMINAL.includes(a.case?.status))
+            .reduce((sum, a) => sum + (a.time_commitment ?? 0), 0);
+          availMap[id] = Math.max(0, 100 - extPct - activePct);
+        }
+        setMemberAvailability(availMap);
       }
       const members = (memberRows ?? []).map(m => ({
         user_id: m.user_id,
         email: m.email,
-        // public.users.full_name is always populated from auth signup; consultant_profiles.full_name may be null
         full_name: usersMap[m.user_id]?.full_name || profileMap[m.user_id]?.full_name || m.email,
         skills: profileMap[m.user_id]?.skills ?? [],
       }));
       setTeamMembers(members);
-      // Auto-suggest: for each role, pick the member with the most skill overlaps
+      // Auto-suggest: pick member with most skill overlaps per role; skip 0%-free members if alternatives exist
       if (requiredRoles.length > 0 && members.length > 0) {
         const suggestions = {};
         for (const role of requiredRoles) {
           const reqSkills = role.required_skills ?? [];
-          if (reqSkills.length === 0) continue;
           let best = null, bestScore = -1;
           for (const m of members) {
-            const score = (m.skills ?? []).filter(s => reqSkills.includes(s)).length;
+            const skillScore = (m.skills ?? []).filter(s => reqSkills.includes(s)).length;
+            const avail = memberAvailability[m.user_id] ?? 100;
+            const score = skillScore * 2 + (avail > 0 ? 1 : 0); // availability tiebreaker
             if (score > bestScore) { bestScore = score; best = m; }
           }
-          if (best && bestScore >= 0) {
-            suggestions[role.id] = { consultant_id: best.user_id, consultant_name: best.full_name };
+          if (best) {
+            suggestions[role.id] = { consultant_id: best.user_id, consultant_name: best.full_name, rate: "" };
           }
         }
         setRoleAssignments(suggestions);
@@ -157,6 +176,15 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Auto-fill proposed_rate from sum of role rates when reaching the terms step
+  useEffect(() => {
+    if (APPLY_STEPS[step]?.id !== "terms" || applyAs !== "team") return;
+    const sum = Object.values(roleAssignments).reduce((s, a) => s + (Number(a.rate) || 0), 0);
+    if (sum > 0 && !terms.proposed_rate) setTerms(p => ({ ...p, proposed_rate: String(sum) }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
+  const roleRateTotal = Object.values(roleAssignments).reduce((s, a) => s + (Number(a.rate) || 0), 0);
   const isLast = step === APPLY_STEPS.length - 1;
 
   async function handleSubmit() {
@@ -189,13 +217,16 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
             role_id: r.id,
             role_label: r.label,
             ...(roleAssignments[r.id] ?? { consultant_id: null, consultant_name: null }),
+            rate: roleAssignments[r.id]?.rate ? Number(roleAssignments[r.id].rate) : null,
           }))
         : [];
+      const computedRate = isTeamApp && roleRateTotal > 0 ? roleRateTotal : null;
+      const finalRate = terms.proposed_rate ? Number(terms.proposed_rate) : computedRate;
       const { error } = await supabase.from("applications").insert({
         case_id: caseData.id,
         consultant_id: user.id,
         cover_letter: pitch.cover_letter || null,
-        proposed_rate: terms.proposed_rate ? Number(terms.proposed_rate) : null,
+        proposed_rate: finalRate,
         time_commitment: Number(terms.time_commitment),
         max_available_at_submission: maxAvailable,
         application_type: isTeamApp ? "team" : "individual",
@@ -288,53 +319,112 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">Assign Team Members to Roles</h2>
             <p className="text-sm text-gray-500 mb-5">
-              This case requires specific roles to be covered. Assign a team member to each one.
-              The same person can cover multiple roles.
-              {teamMembers.length > 0 && " 💡 Pre-filled based on skill match."}
+              Assign a team member and their rate to each required role. The same person can cover multiple roles.
+              {teamMembers.length > 0 && " Pre-filled based on skill match and availability."}
             </p>
             <div className="space-y-4">
               {requiredRoles.map(role => {
                 const assigned = roleAssignments[role.id];
+                const assignedMember = assigned ? teamMembers.find(m => m.user_id === assigned.consultant_id) : null;
+                const avail = assigned ? (memberAvailability[assigned.consultant_id] ?? null) : null;
+                const availBar = avail === 0 ? "#ef4444" : avail < 30 ? "#f59e0b" : "#22c55e";
                 return (
-                  <div key={role.id} className="border border-gray-200 rounded-xl p-4 bg-gray-50/60">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900">{role.label}</p>
-                        {role.description && <p className="text-xs text-gray-400 mt-0.5">{role.description}</p>}
+                  <div key={role.id} className={`border-2 rounded-xl p-4 transition-all ${assigned ? "border-indigo-200 bg-indigo-50/30" : "border-gray-200 bg-gray-50/50"}`}>
+                    {/* Role header */}
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-bold text-gray-900">{role.label}</p>
+                          {assigned && <span className="px-1.5 py-0.5 bg-green-100 text-green-700 border border-green-200 rounded text-[10px] font-bold">✓ Assigned</span>}
+                        </div>
+                        {role.description && <p className="text-xs text-gray-500 mt-0.5">{role.description}</p>}
                         {role.required_skills?.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1.5">
-                            {role.required_skills.map(s => (
-                              <span key={s} className="px-1.5 py-0.5 bg-violet-50 text-violet-700 border border-violet-100 rounded text-[10px] font-medium">{s}</span>
-                            ))}
+                            {role.required_skills.map(s => {
+                              const matched = (assignedMember?.skills ?? []).some(ms =>
+                                ms.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(ms.toLowerCase())
+                              );
+                              return (
+                                <span key={s} className={`px-1.5 py-0.5 border rounded text-[10px] font-medium ${matched ? "bg-green-50 text-green-700 border-green-200" : "bg-violet-50 text-violet-700 border-violet-100"}`}>{s}</span>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
-                      {assigned && (
-                        <span className="flex-shrink-0 px-2 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded-lg text-[10px] font-bold">✓ assigned</span>
-                      )}
                     </div>
-                    <select
-                      value={assigned?.consultant_id ?? ""}
-                      onChange={e => {
-                        const m = teamMembers.find(m => m.user_id === e.target.value);
-                        if (m) setRoleAssignments(r => ({ ...r, [role.id]: { consultant_id: m.user_id, consultant_name: m.full_name } }));
-                        else setRoleAssignments(r => { const n = { ...r }; delete n[role.id]; return n; });
-                      }}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
-                      <option value="">— Assign a team member —</option>
-                      {teamMembers.map(m => {
-                        const overlap = (m.skills ?? []).filter(s => (role.required_skills ?? []).includes(s)).length;
-                        return (
-                          <option key={m.user_id} value={m.user_id}>
-                            {m.full_name}{overlap > 0 ? ` ★ ${overlap} matching skill${overlap > 1 ? "s" : ""}` : ""}
-                          </option>
-                        );
-                      })}
-                    </select>
+
+                    {/* Consultant selector */}
+                    <div className="mb-3">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1 block">Consultant</label>
+                      <select
+                        value={assigned?.consultant_id ?? ""}
+                        onChange={e => {
+                          const m = teamMembers.find(m => m.user_id === e.target.value);
+                          if (m) setRoleAssignments(r => ({ ...r, [role.id]: { consultant_id: m.user_id, consultant_name: m.full_name, rate: r[role.id]?.rate ?? "" } }));
+                          else setRoleAssignments(r => { const n = { ...r }; delete n[role.id]; return n; });
+                        }}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                        <option value="">— Assign a team member —</option>
+                        {teamMembers.map(m => {
+                          const overlap = (m.skills ?? []).filter(s => (role.required_skills ?? []).some(rs =>
+                            rs.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(rs.toLowerCase())
+                          )).length;
+                          const mAvail = memberAvailability[m.user_id];
+                          const parts = [m.full_name];
+                          if (overlap > 0) parts.push(`★ ${overlap} skill${overlap > 1 ? "s" : ""}`);
+                          if (mAvail !== undefined) parts.push(`${mAvail}% free`);
+                          if (mAvail === 0) parts.push("FULLY BOOKED");
+                          return (
+                            <option key={m.user_id} value={m.user_id}>{parts.join("  ·  ")}</option>
+                          );
+                        })}
+                      </select>
+                    </div>
+
+                    {/* Assigned member: availability bar + rate input */}
+                    {assigned && (
+                      <div className="space-y-3">
+                        {avail !== null && (
+                          <div className={`rounded-lg px-3 py-2 ${avail === 0 ? "bg-red-50 border border-red-200" : avail < 30 ? "bg-amber-50 border border-amber-100" : "bg-green-50 border border-green-100"}`}>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: availBar }}>Availability</span>
+                              <span className="text-xs font-black" style={{ color: availBar }}>{avail}% free</span>
+                            </div>
+                            <div className="h-1.5 bg-white/70 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full transition-all" style={{ width: `${avail}%`, backgroundColor: availBar }} />
+                            </div>
+                            {avail === 0 && (
+                              <p className="text-[10px] text-red-600 mt-1 font-medium">Fully committed — cannot be assigned to this case.</p>
+                            )}
+                          </div>
+                        )}
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1 block">Rate for this role</label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium select-none">$</span>
+                            <input
+                              type="number" min="0" step="5"
+                              value={assigned.rate}
+                              onChange={e => setRoleAssignments(r => ({ ...r, [role.id]: { ...r[role.id], rate: e.target.value } }))}
+                              placeholder="e.g. 150"
+                              className="w-full border border-gray-200 rounded-xl pl-7 pr-14 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs select-none">/hr</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
+            {/* Total rate summary */}
+            {roleRateTotal > 0 && (
+              <div className="mt-3 flex items-center justify-between px-4 py-3 bg-blue-50 border border-blue-100 rounded-xl">
+                <span className="text-sm font-medium text-blue-700">Total team rate</span>
+                <span className="text-sm font-black text-blue-800">${roleRateTotal.toLocaleString()}/hr</span>
+              </div>
+            )}
           </>
         )}
 
@@ -404,9 +494,19 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("apply.step2_label")}</h2>
             <p className="text-sm text-gray-500 mb-5">{t("apply.terms_desc")}</p>
-            <Input label={t("apply.rate_label")} type="number" value={terms.proposed_rate}
+            <Input label={applyAs === "team" ? "Total team rate ($/hr)" : t("apply.rate_label")} type="number" value={terms.proposed_rate}
               onChange={e => setTerms(p => ({ ...p, proposed_rate: e.target.value }))}
               placeholder={t("apply.ph_rate_eg")} />
+            {applyAs === "team" && roleRateTotal > 0 && (
+              <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                <span>From role rates:</span>
+                <span className="font-semibold text-indigo-700">${roleRateTotal.toLocaleString()}/hr total</span>
+                {terms.proposed_rate && Number(terms.proposed_rate) !== roleRateTotal && (
+                  <button onClick={() => setTerms(p => ({ ...p, proposed_rate: String(roleRateTotal) }))}
+                    className="text-blue-600 hover:underline font-medium">reset to sum</button>
+                )}
+              </div>
+            )}
 
             {/* Availability cap indicator */}
             <div className={`mt-4 mb-4 rounded-xl p-4 ${maxAvailable === 0 ? "bg-red-50 border border-red-200" : "bg-blue-50 border border-blue-100"}`}>
@@ -486,15 +586,32 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
                           <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Role assignments</p>
                           {requiredRoles.map(r => {
                             const a = roleAssignments[r.id];
+                            const avail = a ? (memberAvailability[a.consultant_id] ?? null) : null;
                             return (
-                              <div key={r.id} className="flex items-center gap-2 text-xs">
-                                <span className="font-medium text-gray-700 min-w-0">{r.label}:</span>
-                                <span className={a ? "text-indigo-700 font-semibold" : "text-gray-400 italic"}>
-                                  {a ? a.consultant_name : "Unassigned"}
-                                </span>
+                              <div key={r.id} className="flex items-center justify-between gap-2 text-xs py-1 border-b border-gray-50 last:border-0">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="font-medium text-gray-600 shrink-0">{r.label}:</span>
+                                  <span className={a ? "text-indigo-700 font-semibold truncate" : "text-gray-400 italic"}>
+                                    {a ? a.consultant_name : "Unassigned"}
+                                  </span>
+                                  {avail !== null && (
+                                    <span className={`shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded ${avail === 0 ? "bg-red-100 text-red-600" : avail < 30 ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700"}`}>
+                                      {avail}% free
+                                    </span>
+                                  )}
+                                </div>
+                                {a?.rate && (
+                                  <span className="shrink-0 font-semibold text-gray-700">${Number(a.rate).toLocaleString()}/hr</span>
+                                )}
                               </div>
                             );
                           })}
+                          {roleRateTotal > 0 && (
+                            <div className="flex items-center justify-between pt-1.5 text-xs font-bold text-blue-800">
+                              <span>Total rate</span>
+                              <span>${roleRateTotal.toLocaleString()}/hr</span>
+                            </div>
+                          )}
                         </div>
                       )}
                     </>
@@ -544,7 +661,10 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
             disabled={
               (APPLY_STEPS[step]?.id === "terms" && maxAvailable === 0) ||
               (APPLY_STEPS[step]?.id === "team_pick" && applyAs === "team" && !selectedTeamId) ||
-              (APPLY_STEPS[step]?.id === "role_assign" && requiredRoles.some(r => !roleAssignments[r.id]))
+              (APPLY_STEPS[step]?.id === "role_assign" && (
+                requiredRoles.some(r => !roleAssignments[r.id]) ||
+                Object.values(roleAssignments).some(a => (memberAvailability[a.consultant_id] ?? 100) === 0)
+              ))
             }
             className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-colors shadow-md disabled:opacity-40 disabled:cursor-not-allowed">
             {t("action.continue")}
