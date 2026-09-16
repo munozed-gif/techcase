@@ -1268,6 +1268,41 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                 </div>
               )}
 
+              {/* Application mode + required roles summary */}
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Who can apply</p>
+                <div className="flex items-center gap-2 mb-3">
+                  {basics.application_mode === "team"       && <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-semibold">👥 Teams only</span>}
+                  {basics.application_mode === "individual" && <span className="px-2.5 py-1 bg-gray-100 text-gray-600 border border-gray-200 rounded-lg text-xs font-semibold">🧑 Individual only</span>}
+                  {(basics.application_mode === "both" || !basics.application_mode) && <span className="px-2.5 py-1 bg-green-50 text-green-700 border border-green-200 rounded-lg text-xs font-semibold">👥 Teams & Individual</span>}
+                </div>
+                {requiredRoles.filter(r => r.label.trim()).length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-xs text-gray-500 font-medium">Required roles ({requiredRoles.filter(r => r.label.trim()).length})</p>
+                    {requiredRoles.filter(r => r.label.trim()).map((role, i) => (
+                      <div key={role.id} className="flex items-start gap-2 text-sm">
+                        <span className="text-xs font-bold text-indigo-400 w-5 flex-shrink-0 mt-0.5">#{i + 1}</span>
+                        <div className="min-w-0">
+                          <span className="font-medium text-gray-900">{role.label}</span>
+                          {role.description && <span className="text-gray-400 text-xs ml-2">{role.description}</span>}
+                          {role.required_skills?.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {role.required_skills.map(s => (
+                                <span key={s} className="px-1.5 py-0.5 bg-violet-50 text-violet-700 border border-violet-100 rounded text-[10px] font-medium">{s}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  (basics.application_mode === "team" || basics.application_mode === "both") && (
+                    <p className="text-xs text-gray-400 italic">No required roles defined — team can apply freely.</p>
+                  )
+                )}
+              </div>
+
             </div>
             {/* Create as Confirmed — shown to any role with confirmed-stage permission */}
             {canConfirmOnCreate && !isEdit && (
