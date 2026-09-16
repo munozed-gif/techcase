@@ -3080,9 +3080,6 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           )}
         </div>
       )}
-                    {showSaveAsTemplate && (
-        <SaveCaseAsTemplateModal caseData={caseData} onClose={() => setShowSaveAsTemplate(false)} />
-      )}
 
                     {/* Milestones Tab */}
                     {tab.id === "milestones" && (
@@ -5209,6 +5206,9 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             </div>
           </div>
         </div>
+      )}
+      {showSaveAsTemplate && (
+        <SaveCaseAsTemplateModal caseData={caseData} onClose={() => setShowSaveAsTemplate(false)} />
       )}
     </div>
   );

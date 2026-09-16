@@ -110,11 +110,12 @@ function useApplications(caseId = null) {
           consultant_profiles(headline, skills, hourly_rate, years_experience,
             external_occupancy_pct, travel_available)),
         case:case_id(id, title, status, project:project_id(id, name, avatar_url, client:client_id(id, avatar_url)), client:client_id(id, avatar_url, client_profiles(company_name))),
-        team:team_id(id, name, members:consultant_team_members(id, user_id, email, role, status, member:user_id(id, full_name, avatar_url)))
+        team:team_id(id, name, members:consultant_team_members(id, user_id, email, role, status))
       `)
       .order("submitted_at", { ascending: false });
     if (caseId) query = query.eq("case_id", caseId);
-    const { data } = await query;
+    const { data, error } = await query;
+    if (error) console.error("useApplications fetchApps:", error.message, error.details);
     setApplications(data ?? []);
     setLoading(false);
   }, [caseId]);
