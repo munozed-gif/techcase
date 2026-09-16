@@ -44,6 +44,7 @@ import { SAP_ENV_TYPE_META } from "../components/SapPanels.jsx";
 import { useCaseSpecification } from "../hooks/useNotificationHooks.js";
 import { GENERATION_CONTEXT_DEFAULTS } from "../lib/constants.js";
 import { SaveCaseAsTemplateModal } from "./CaseTemplates.jsx";
+import { CreateCaseWizard } from "../components/CreateCaseWizard.jsx";
 import { PersonAvatar, ProjectAvatar } from "./Projects.jsx";
 import { ClientRatingModal, RatingModal } from "./SystemSettingsView.jsx";
 import {
