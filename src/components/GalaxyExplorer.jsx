@@ -13,9 +13,9 @@ if (typeof document !== 'undefined') {
   to   { transform: rotate(calc(var(--start) + 360deg)) translateX(var(--r)) rotate(calc(-1 * (var(--start) + 360deg))); }
 }
 @keyframes galaxy-radar-pulse {
-  0%   { transform: translate(-50%, -50%) scale(0.04); opacity: 0.45; }
+  0%   { transform: scale(0.04); opacity: 0.45; }
   50%  { opacity: 0.18; }
-  100% { transform: translate(-50%, -50%) scale(1);    opacity: 0; }
+  100% { transform: scale(1);    opacity: 0; }
 }`;
 }
 
@@ -142,14 +142,17 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
       <div key={r} style={{ position: 'absolute', borderRadius: '50%', border: `1px dashed rgba(140,140,140,${r === R1 ? '0.35' : r === R2 ? '0.28' : r === R3 ? '0.22' : '0.16'})`, top: '50%', left: '50%', width: r * 2, height: r * 2, transform: 'translate(-50%,-50%)' }} />
     ));
 
-    // 3 staggered radar waves — subtle scanning pulse, stays inside container
+    // 3 staggered radar waves — centered via margin so they're safe even if keyframe isn't found
+    // opacity:0 default means a missing keyframe renders nothing instead of a static ring
     const radarWaves = () => [0, 1.5, 3.0].map(delay => (
       <div key={`rw-${delay}`} style={{
         position: 'absolute', top: '50%', left: '50%',
         width: R3 * 2, height: R3 * 2,
+        marginLeft: -R3, marginTop: -R3,
         borderRadius: '50%',
         border: '1px solid rgba(37,99,235,0.22)',
         pointerEvents: 'none',
+        opacity: 0,
         animation: `galaxy-radar-pulse 3.8s ease-out infinite`,
         animationDelay: `${delay}s`,
         zIndex: 1,
