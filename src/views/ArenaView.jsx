@@ -850,26 +850,6 @@ function ArenaView({ auth }) {
     );
   }
 
-  useEffect(() => {
-    const TERMINAL = ["completed", "cancelled", "terminated", "closed", "approved"];
-    const allIds = [...new Set(
-      openCases.flatMap(c => (c.applications ?? []).map(a => a.consultant_id).filter(Boolean))
-    )];
-    if (allIds.length === 0) { setConsultantCaseCounts({}); return; }
-    supabase.from("case_assignments")
-      .select("consultant_id, case:case_id(status)")
-      .in("consultant_id", allIds)
-      .then(({ data }) => {
-        const counts = {};
-        for (const row of (data ?? [])) {
-          if (TERMINAL.includes(row.case?.status)) continue;
-          counts[row.consultant_id] = (counts[row.consultant_id] ?? 0) + 1;
-        }
-        setConsultantCaseCounts(counts);
-      });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openCases]);
-
   async function handleArenaReviewApplication(appId, appStatus, notes) {
     await reviewApplication(appId, appStatus, notes);
     if (appStatus === "accepted" && arenaSelectedCase) {
@@ -913,6 +893,27 @@ function ArenaView({ auth }) {
   const myApplications  = applications.filter(a => a.consultant_id === auth.user?.id);
   const appliedCaseIds  = new Set(myApplications.map(a => a.case_id));
   const canViewRanking  = auth.isAdmin || auth.isManager || auth.isClient;
+
+  // Fetch active case assignment counts for all applicants visible in the solar systems
+  useEffect(() => {
+    const TERMINAL = ["completed", "cancelled", "terminated", "closed", "approved"];
+    const allIds = [...new Set(
+      openCases.flatMap(c => (c.applications ?? []).map(a => a.consultant_id).filter(Boolean))
+    )];
+    if (allIds.length === 0) { setConsultantCaseCounts({}); return; }
+    supabase.from("case_assignments")
+      .select("consultant_id, case:case_id(status)")
+      .in("consultant_id", allIds)
+      .then(({ data }) => {
+        const counts = {};
+        for (const row of (data ?? [])) {
+          if (TERMINAL.includes(row.case?.status)) continue;
+          counts[row.consultant_id] = (counts[row.consultant_id] ?? 0) + 1;
+        }
+        setConsultantCaseCounts(counts);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openCases]);
 
   const renderCases = () => {
     if (casesLoading) return <Spinner />;
