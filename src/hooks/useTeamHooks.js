@@ -20,16 +20,18 @@ function useConsultantTeams(userId) {
     const memberTeamIds = (memberRows ?? []).map(r => r.team_id);
 
     // Step 2: fetch teams created by user OR where they are a member
-    const teamIds = [...new Set([...memberTeamIds])];
-    const teamsQuery = supabase
-      .from("consultant_teams")
-      .select(`*, members:consultant_team_members(id, user_id, email, role, status, member:user_id(id, full_name, avatar_url, email))`)
-      .order("created_at", { ascending: false });
+    // Note: .order() must come AFTER filters (.or/.eq) — keep them in one chain each
+    const TEAM_SELECT = `*, members:consultant_team_members(id, user_id, email, role, status, member:user_id(id, full_name, avatar_url, email))`;
+    const teamIds = [...new Set(memberTeamIds)];
 
     const [teamsResult, invitesResult] = await Promise.all([
       teamIds.length > 0
-        ? teamsQuery.or(`created_by.eq.${userId},id.in.(${teamIds.join(",")})`)
-        : teamsQuery.eq("created_by", userId),
+        ? supabase.from("consultant_teams").select(TEAM_SELECT)
+            .or(`created_by.eq.${userId},id.in.(${teamIds.join(",")})`)
+            .order("created_at", { ascending: false })
+        : supabase.from("consultant_teams").select(TEAM_SELECT)
+            .eq("created_by", userId)
+            .order("created_at", { ascending: false }),
       supabase
         .from("consultant_team_members")
         .select(`id, role, invited_at, team:team_id(id, name, description, created_by, owner:created_by(id, full_name))`)
