@@ -37,7 +37,7 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
   const [memberAvailability, setMemberAvailability] = useState({});
   // Always fetch fresh required_roles from DB — caseData prop can be stale
   const [freshRequiredRoles, setFreshRequiredRoles] = useState(null);
-  const requiredRoles = freshRequiredRoles ?? caseData.required_roles ?? [];
+  const requiredRoles = (freshRequiredRoles ?? caseData.required_roles ?? []).filter(Boolean);
 
   useEffect(() => {
     if (!caseData.id) return;
@@ -137,7 +137,7 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
           let best = null, bestScore = -1;
           for (const m of members) {
             const skillScore = (m.skills ?? []).filter(s => reqSkills.includes(s)).length;
-            const avail = memberAvailability[m.user_id] ?? 100;
+            const avail = availMap[m.user_id] ?? 100;
             const score = skillScore * 2 + (avail > 0 ? 1 : 0); // availability tiebreaker
             if (score > bestScore) { bestScore = score; best = m; }
           }
