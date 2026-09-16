@@ -2,11 +2,17 @@ import { useState } from "react";
 
 const ORB_COLORS = ['#10B981','#3B82F6','#8B5CF6','#EC4899','#F59E0B','#0EA5E9','#F97316','#EF4444'];
 
-const KEYFRAME = `
+// Inject keyframe once at module load — injecting inside component JSX resets animations on every re-render
+if (typeof document !== 'undefined' && !document.getElementById('galaxy-orbit-kf')) {
+  const _kf = document.createElement('style');
+  _kf.id = 'galaxy-orbit-kf';
+  _kf.textContent = `
 @keyframes galaxy-orbit {
   from { transform: rotate(var(--start)) translateX(var(--r)) rotate(calc(-1 * var(--start))); }
   to   { transform: rotate(calc(var(--start) + 360deg)) translateX(var(--r)) rotate(calc(-1 * (var(--start) + 360deg))); }
 }`;
+  document.head.appendChild(_kf);
+}
 
 function OrbNode({ r, slotIdx, total, dur = 14, size = 40, onClick, highlight, children, caseCount }) {
   const startDeg = (slotIdx / Math.max(total, 1)) * 360;
@@ -152,7 +158,7 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
             const dur = r === R2 ? 22 : r === R3 ? 30 : 38;
             return (
               <OrbNode key={cust.id} r={r} slotIdx={slotIdx} total={groupTotal} dur={dur} size={60}
-                onClick={() => navigate(2, cust)}>
+                onClick={() => navigate(2, cust)} caseCount={cust.cases.length}>
                 <AvatarCircle src={cust.client?.avatar_url} name={cust.companyName} color={ORB_COLORS[i % ORB_COLORS.length]} fontSize={17} />
               </OrbNode>
             );
@@ -172,19 +178,22 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
           <CenterAvatar client={selCustomer?.client} companyName={selCustomer?.companyName} onClick={() => navigate(1)} size={80} />
           {r1cases.map((cs, i) => (
             <OrbNode key={cs.id} r={R2} slotIdx={i} total={r1cases.length} dur={14} size={54}
-              onClick={() => navigate(3, selCustomer, cs)} highlight={selCase?.id === cs.id}>
+              onClick={() => navigate(3, selCustomer, cs)} highlight={selCase?.id === cs.id}
+              caseCount={cs.applications?.length ?? 0}>
               <CaseNode c={cs} idx={i} />
             </OrbNode>
           ))}
           {r2cases.map((cs, i) => (
             <OrbNode key={cs.id} r={R3} slotIdx={i} total={r2cases.length} dur={22} size={50}
-              onClick={() => navigate(3, selCustomer, cs)} highlight={selCase?.id === cs.id}>
+              onClick={() => navigate(3, selCustomer, cs)} highlight={selCase?.id === cs.id}
+              caseCount={cs.applications?.length ?? 0}>
               <CaseNode c={cs} idx={r1cases.length + i} />
             </OrbNode>
           ))}
           {r3cases.map((cs, i) => (
             <OrbNode key={cs.id} r={R4} slotIdx={i} total={r3cases.length} dur={32} size={46}
-              onClick={() => navigate(3, selCustomer, cs)} highlight={selCase?.id === cs.id}>
+              onClick={() => navigate(3, selCustomer, cs)} highlight={selCase?.id === cs.id}
+              caseCount={cs.applications?.length ?? 0}>
               <CaseNode c={cs} idx={r1cases.length + r2cases.length + i} />
             </OrbNode>
           ))}
@@ -418,8 +427,6 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
 
   return (
     <div style={{ background: '#ffffff', borderRadius: 20, border: '1.5px solid rgba(26,75,140,0.15)', overflow: 'hidden', marginBottom: 20, boxShadow: '0 4px 24px rgba(37,99,235,0.08)', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 180px)', minHeight: 560 }}>
-      <style>{KEYFRAME}</style>
-
       {/* Header bar */}
       <div style={{ padding: '12px 18px', borderBottom: '1px solid rgba(26,75,140,0.1)', display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(26,75,140,0.04)', flexShrink: 0 }}>
         {level > 1 && (

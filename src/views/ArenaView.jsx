@@ -25,6 +25,18 @@ import { ApplyWizard } from "./ApplyWizard.jsx";
 import { PersonAvatar, ProjectAvatar, UserAvatar } from "./Projects.jsx";
 import { GalaxyExplorer } from "../components/GalaxyExplorer.jsx";
 
+// Inject arena orbit keyframe once at module load — inside JSX re-creates the style on every render and resets animations
+if (typeof document !== 'undefined' && !document.getElementById('arena-orbit-kf')) {
+  const _kf = document.createElement('style');
+  _kf.id = 'arena-orbit-kf';
+  _kf.textContent = `
+@keyframes arena-solar-orbit {
+  from { transform: rotate(var(--start)) translateX(var(--r)) rotate(calc(-1 * var(--start))); }
+  to   { transform: rotate(calc(var(--start) + 360deg)) translateX(var(--r)) rotate(calc(-1 * (var(--start) + 360deg))); }
+}`;
+  document.head.appendChild(_kf);
+}
+
 function useConsultantShortlist() {
   const [shortlist, setShortlist] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem('consultant_shortlist') || '[]')); }
@@ -1198,14 +1210,6 @@ function ArenaView({ auth }) {
 
     return (
       <div>
-        <style>{`
-          @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&display=swap');
-          @keyframes arena-solar-orbit {
-            from { transform: rotate(var(--start)) translateX(var(--r)) rotate(calc(-1 * var(--start))); }
-            to   { transform: rotate(calc(var(--start) + 360deg)) translateX(var(--r)) rotate(calc(-1 * (var(--start) + 360deg))); }
-          }
-        `}</style>
-
         {/* Sort bar */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14, flexWrap:'wrap', gap:8 }}>
           <span style={{ fontSize:12, color:'#6B8AB8', fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase' }}>
