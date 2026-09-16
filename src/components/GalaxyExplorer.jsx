@@ -8,7 +8,7 @@ const KEYFRAME = `
   to   { transform: rotate(calc(var(--start) + 360deg)) translateX(var(--r)) rotate(calc(-1 * (var(--start) + 360deg))); }
 }`;
 
-function OrbNode({ r, slotIdx, total, dur = 14, size = 40, onClick, highlight, children }) {
+function OrbNode({ r, slotIdx, total, dur = 14, size = 40, onClick, highlight, children, caseCount }) {
   const startDeg = (slotIdx / Math.max(total, 1)) * 360;
   return (
     <div style={{
@@ -16,15 +16,31 @@ function OrbNode({ r, slotIdx, total, dur = 14, size = 40, onClick, highlight, c
       animation: `galaxy-orbit ${dur}s linear infinite`,
       '--start': `${startDeg}deg`, '--r': `${r}px`, zIndex: 2,
     }}>
-      <div onClick={onClick} style={{
-        position: 'absolute', width: size, height: size, margin: -size / 2, borderRadius: '50%',
-        border: highlight ? '2.5px solid #2563EB' : '2px solid rgba(255,255,255,0.55)',
-        boxShadow: highlight ? '0 0 14px rgba(37,99,235,0.5)' : '0 2px 8px rgba(0,0,0,0.18)',
-        overflow: 'hidden', cursor: onClick ? 'pointer' : 'default',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff',
-        transition: 'border-color .2s, box-shadow .2s',
-      }}>
-        {children}
+      <div style={{ position: 'absolute', width: size, height: size, margin: -size / 2 }}>
+        <div onClick={onClick} style={{
+          width: size, height: size, borderRadius: '50%',
+          border: highlight ? '2.5px solid #2563EB' : '2px solid rgba(255,255,255,0.55)',
+          boxShadow: highlight ? '0 0 14px rgba(37,99,235,0.5)' : '0 2px 8px rgba(0,0,0,0.18)',
+          overflow: 'hidden', cursor: onClick ? 'pointer' : 'default',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff',
+          transition: 'border-color .2s, box-shadow .2s',
+        }}>
+          {children}
+        </div>
+        {caseCount != null && caseCount > 0 && (
+          <div style={{
+            position: 'absolute', top: -3, right: -3,
+            minWidth: 14, height: 14, borderRadius: 99,
+            background: caseCount >= 5 ? '#EF4444' : caseCount >= 3 ? '#F59E0B' : '#10B981',
+            border: '1.5px solid #fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 8, fontWeight: 800, color: '#fff', lineHeight: 1,
+            padding: '0 2px', fontFamily: 'system-ui,sans-serif',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+          }}>
+            {caseCount}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -70,7 +86,7 @@ function Chip({ children, color = '#1A4B8C', bg = 'rgba(26,75,140,0.07)', border
   );
 }
 
-export function GalaxyExplorer({ openCases, applications, auth, onApply, appliedCaseIds, platformLogoUrl }) {
+export function GalaxyExplorer({ openCases, applications, auth, onApply, appliedCaseIds, platformLogoUrl, consultantCaseCounts = {} }) {
   const [level, setLevel]             = useState(1);
   const [selCustomer, setSelCustomer] = useState(null);
   const [selCase, setSelCase]         = useState(null);
@@ -189,22 +205,22 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
           {allRings()}
           <CenterAvatar client={selCustomer?.client} companyName={selCustomer?.companyName} onClick={() => navigate(2, selCustomer)} size={80} />
           {r1apps.map((app, i) => (
-            <OrbNode key={app.consultant_id} r={R2} slotIdx={i} total={r1Total} dur={10} size={46}>
+            <OrbNode key={app.consultant_id} r={R2} slotIdx={i} total={r1Total} dur={10} size={46} caseCount={consultantCaseCounts[app.consultant_id] ?? 0}>
               <AvatarCircle src={app.consultant?.avatar_url} name={app.consultant?.full_name ?? 'C'} color={ORB_COLORS[i % ORB_COLORS.length]} fontSize={13} />
             </OrbNode>
           ))}
           {myApp && (
-            <OrbNode r={R2} slotIdx={r1apps.length} total={r1Total} dur={10} size={46} highlight>
+            <OrbNode r={R2} slotIdx={r1apps.length} total={r1Total} dur={10} size={46} highlight caseCount={consultantCaseCounts[auth.user?.id] ?? 0}>
               <div style={{ width: '100%', height: '100%', background: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#fff' }}>You</div>
             </OrbNode>
           )}
           {r2apps.map((app, i) => (
-            <OrbNode key={app.consultant_id} r={R3} slotIdx={i} total={r2apps.length} dur={17} size={42}>
+            <OrbNode key={app.consultant_id} r={R3} slotIdx={i} total={r2apps.length} dur={17} size={42} caseCount={consultantCaseCounts[app.consultant_id] ?? 0}>
               <AvatarCircle src={app.consultant?.avatar_url} name={app.consultant?.full_name ?? 'C'} color={ORB_COLORS[(r1apps.length + i) % ORB_COLORS.length]} fontSize={12} />
             </OrbNode>
           ))}
           {r3apps.map((app, i) => (
-            <OrbNode key={app.consultant_id} r={R4} slotIdx={i} total={r3apps.length} dur={26} size={38}>
+            <OrbNode key={app.consultant_id} r={R4} slotIdx={i} total={r3apps.length} dur={26} size={38} caseCount={consultantCaseCounts[app.consultant_id] ?? 0}>
               <AvatarCircle src={app.consultant?.avatar_url} name={app.consultant?.full_name ?? 'C'} color={ORB_COLORS[(r1apps.length + r2apps.length + i) % ORB_COLORS.length]} fontSize={11} />
             </OrbNode>
           ))}

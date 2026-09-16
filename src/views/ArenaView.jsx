@@ -1006,7 +1006,7 @@ function ArenaView({ auth }) {
           <div style={{ position:'absolute', top:'50%', left:'50%', width:0, height:0,
             animation:`arena-solar-orbit ${dur}s linear infinite`,
             '--start':`${startDeg}deg`, '--r':`${r}px` }}>
-            <div style={{ position:'relative', width:26, height:26, margin:-13 }}>
+            <div style={{ position:'absolute', width:26, height:26, margin:-13 }}>
               <div style={{ width:26, height:26, borderRadius:'50%', background:color,
                 border: isYou ? '2px solid #2563EB' : '2px solid rgba(255,255,255,0.5)',
                 boxShadow: isYou ? '0 0 7px rgba(37,99,235,0.35)' : '0 1px 3px rgba(0,0,0,0.15)',
@@ -1763,6 +1763,7 @@ function ArenaView({ auth }) {
           onApply={c => !appliedCaseIds.has(c.id) && setApplying(c)}
           appliedCaseIds={appliedCaseIds}
           platformLogoUrl={branding.logoUrl}
+          consultantCaseCounts={consultantCaseCounts}
         />
       )}
 
