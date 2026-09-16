@@ -841,6 +841,7 @@ function ArenaView({ auth }) {
   const { can } = usePermissions(auth);
   const [caseSort, setCaseSort] = useState('match');
   const [caseCarouselIdx, setCaseCarouselIdx] = useState(_arenaCaseIdx);
+  const [consultantCaseCounts, setConsultantCaseCounts] = useState({}); // { [consultant_id]: activeCount }
   const branding = usePlatformBranding();
 
   function toggleCompare(id) {
@@ -848,6 +849,26 @@ function ArenaView({ auth }) {
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
   }
+
+  useEffect(() => {
+    const TERMINAL = ["completed", "cancelled", "terminated", "closed", "approved"];
+    const allIds = [...new Set(
+      openCases.flatMap(c => (c.applications ?? []).map(a => a.consultant_id).filter(Boolean))
+    )];
+    if (allIds.length === 0) { setConsultantCaseCounts({}); return; }
+    supabase.from("case_assignments")
+      .select("consultant_id, case:case_id(status)")
+      .in("consultant_id", allIds)
+      .then(({ data }) => {
+        const counts = {};
+        for (const row of (data ?? [])) {
+          if (TERMINAL.includes(row.case?.status)) continue;
+          counts[row.consultant_id] = (counts[row.consultant_id] ?? 0) + 1;
+        }
+        setConsultantCaseCounts(counts);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openCases]);
 
   async function handleArenaReviewApplication(appId, appStatus, notes) {
     await reviewApplication(appId, appStatus, notes);
@@ -978,18 +999,34 @@ function ArenaView({ auth }) {
       const innerSlots = Math.min(2, otherCount);
       const outerSlots = Math.min(5, Math.max(0, otherCount - innerSlots));
 
-      function OrbiterNode({ label, color, r, slotIdx, total, dur, isYou }) {
+      function OrbiterNode({ label, color, r, slotIdx, total, dur, isYou, caseCount }) {
         const startDeg = (slotIdx / Math.max(total, 1)) * 360 + (r === lbInnerR ? 0 : 40);
         return (
           <div style={{ position:'absolute', top:'50%', left:'50%', width:0, height:0,
             animation:`arena-solar-orbit ${dur}s linear infinite`,
             '--start':`${startDeg}deg`, '--r':`${r}px` }}>
-            <div style={{ position:'absolute', width:26, height:26, margin:-13, borderRadius:'50%', background:color,
-              border: isYou ? '2px solid #2563EB' : '2px solid rgba(255,255,255,0.5)',
-              boxShadow: isYou ? '0 0 7px rgba(37,99,235,0.35)' : '0 1px 3px rgba(0,0,0,0.15)',
-              display:'flex', alignItems:'center', justifyContent:'center',
-              fontFamily:"'Barlow Condensed',sans-serif", fontSize:8, fontWeight:700, color:'#fff' }}>
-              {label}
+            <div style={{ position:'relative', width:26, height:26, margin:-13 }}>
+              <div style={{ width:26, height:26, borderRadius:'50%', background:color,
+                border: isYou ? '2px solid #2563EB' : '2px solid rgba(255,255,255,0.5)',
+                boxShadow: isYou ? '0 0 7px rgba(37,99,235,0.35)' : '0 1px 3px rgba(0,0,0,0.15)',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                fontFamily:"'Barlow Condensed',sans-serif", fontSize:8, fontWeight:700, color:'#fff' }}>
+                {label}
+              </div>
+              {caseCount != null && caseCount > 0 && (
+                <div style={{
+                  position:'absolute', top:-4, right:-4,
+                  minWidth:13, height:13, borderRadius:99,
+                  background: caseCount >= 5 ? '#EF4444' : caseCount >= 3 ? '#F59E0B' : '#10B981',
+                  border:'1.5px solid #fff',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  fontSize:7, fontWeight:800, color:'#fff', lineHeight:1,
+                  padding:'0 2px', fontFamily:'system-ui,sans-serif',
+                  boxShadow:'0 1px 3px rgba(0,0,0,0.2)',
+                }}>
+                  {caseCount}
+                </div>
+              )}
             </div>
           </div>
         );
@@ -1074,9 +1111,16 @@ function ArenaView({ auth }) {
                   <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:46, height:46, borderRadius:'50%', background:'#fff', border:'2px solid rgba(37,99,235,0.22)', boxShadow:'0 2px 8px rgba(37,99,235,0.12)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', zIndex:10 }}>
                     <ProjectAvatar project={c.project ?? { name: companyName || c.title, client: c.client }} size={34} />
                   </div>
-                  {[...Array(innerSlots)].map((_, i) => <OrbiterNode key={`in${i}`} label={`#${i+1}`} color={orbColors[i%orbColors.length]} r={lbInnerR} slotIdx={i} total={innerSlots+(alreadyApplied?1:0)} dur={10} isYou={false} />)}
-                  {alreadyApplied && <OrbiterNode label="You" color="#3B82F6" r={lbInnerR} slotIdx={innerSlots} total={innerSlots+1} dur={10} isYou={true} />}
-                  {[...Array(outerSlots)].map((_, i) => <OrbiterNode key={`out${i}`} label={`#${innerSlots+i+1}`} color={orbColors[(innerSlots+i)%orbColors.length]} r={lbOuterR} slotIdx={i} total={Math.max(outerSlots,1)} dur={17} isYou={false} />)}
+                  {[...Array(innerSlots)].map((_, i) => {
+                    const cid = appsSorted[i]?.consultant_id;
+                    return <OrbiterNode key={`in${i}`} label={`#${i+1}`} color={orbColors[i%orbColors.length]} r={lbInnerR} slotIdx={i} total={innerSlots+(alreadyApplied?1:0)} dur={10} isYou={false} caseCount={cid ? (consultantCaseCounts[cid] ?? 0) : null} />;
+                  })}
+                  {alreadyApplied && <OrbiterNode label="You" color="#3B82F6" r={lbInnerR} slotIdx={innerSlots} total={innerSlots+1} dur={10} isYou={true} caseCount={consultantCaseCounts[auth.user?.id] ?? 0} />}
+                  {[...Array(outerSlots)].map((_, i) => {
+                    const globalIdx = innerSlots + i;
+                    const cid = appsSorted[globalIdx]?.consultant_id;
+                    return <OrbiterNode key={`out${i}`} label={`#${globalIdx+1}`} color={orbColors[globalIdx%orbColors.length]} r={lbOuterR} slotIdx={i} total={Math.max(outerSlots,1)} dur={17} isYou={false} caseCount={cid ? (consultantCaseCounts[cid] ?? 0) : null} />;
+                  })}
                   {daysLeft != null && (
                     <div style={{ position:'absolute', bottom:0, left:'50%', transform:'translateX(-50%)', fontSize:7, fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase', color:tc, whiteSpace:'nowrap' }}>
                       {daysLeft === 1 ? '1 day' : `${daysLeft} days`} left
