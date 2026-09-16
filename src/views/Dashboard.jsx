@@ -90,13 +90,15 @@ function Dashboard({ auth, onNavigate }) {
   );
   const TRUST_ORDER = ['starter', 'silver', 'gold', 'platinum'];
   const _userTrustIdx = TRUST_ORDER.indexOf(auth.profile?.trust_level ?? 'starter');
+  const _hasApplied = (c) => appliedCaseIds.has(c.id)
+    || (c.applications ?? []).some(a => a.consultant_id === auth.user?.id);
   const availableCases = cases.filter(c => {
     const lcStages = getLifecycleStages(c.case_lifecycle, lcTemplates);
     const arenaKeys = lcStages.filter(s => s.is_arena).map(s => s.key);
     const isArenaStage = arenaKeys.length > 0 ? arenaKeys.includes(c.status) : c.status === 'estimated';
     if (!isArenaStage) return false;
     if (c.case_assignments && c.case_assignments.length > 0) return false;
-    if (appliedCaseIds.has(c.id)) return false;
+    if (_hasApplied(c)) return false;
     const vis = _dashVisCfg.getCaseVisibility(c.id, c.client_id);
     if (vis === 'private') return false;
     if (vis === 'invite-only') {
@@ -111,7 +113,7 @@ function Dashboard({ auth, onNavigate }) {
     const arenaKeys = lcStages.filter(s => s.is_arena).map(s => s.key);
     const isArenaStage = arenaKeys.length > 0 ? arenaKeys.includes(c.status) : c.status === 'estimated';
     return isArenaStage &&
-      !appliedCaseIds.has(c.id) &&
+      !_hasApplied(c) &&
       !(c.case_assignments && c.case_assignments.length > 0) &&
       c.min_trust_level &&
       TRUST_ORDER.indexOf(c.min_trust_level) > _userTrustIdx;
@@ -574,7 +576,7 @@ function Dashboard({ auth, onNavigate }) {
                 <div className="flex items-center gap-2 ml-3 flex-shrink-0">
                   <Badge className={PRIORITY_COLORS[c.priority]}>{PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}</Badge>
                   <Badge className={STATUS_COLORS[c.status]}>{STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(fmt(c.status))}</Badge>
-                  {activeStat.id === "open" && auth.isConsultant && !appliedCaseIds.has(c.id) && (
+                  {activeStat.id === "open" && auth.isConsultant && !_hasApplied(c) && (
                     <button onClick={() => setApplying(c)}
                       className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors">
                       {t("arena.apply")}
@@ -729,10 +731,13 @@ function Dashboard({ auth, onNavigate }) {
                               )}
                             </div>
                           </div>
-                          <button onClick={() => setApplying(c)}
-                            className="flex-shrink-0 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm">
-                            {t("arena.apply")}
-                          </button>
+                          {_hasApplied(c)
+                            ? <span className="flex-shrink-0 px-4 py-2 bg-green-50 text-green-700 text-xs font-bold rounded-xl border border-green-200">✓ {t("arena.applied")}</span>
+                            : <button onClick={() => setApplying(c)}
+                                className="flex-shrink-0 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm">
+                                {t("arena.apply")}
+                              </button>
+                          }
                         </div>
                       </div>
                     );
