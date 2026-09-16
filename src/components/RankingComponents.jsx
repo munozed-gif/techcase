@@ -424,7 +424,7 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
             {(auth.isAdmin || auth.isManager) && best.status === "pending" && (
               <button onClick={() => reviewApplication(best.id, "accepted")}
                 className="w-full py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">
-                {t("rank.accept_top")}
+                {t(best.teamScoring ? "rank.accept_top_team" : "rank.accept_top")}
               </button>
             )}
           </div>
@@ -530,7 +530,7 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                 {app.cover_letter && <p className="text-xs text-gray-500 mb-2 line-clamp-1 italic">"{app.cover_letter}"</p>}
                 {(auth.isAdmin || auth.isManager) && app.status === "pending" && (
                   <div className="flex gap-2">
-                    <button onClick={() => reviewApplication(app.id, "accepted")} className="px-3 py-1 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">{t("action.accept")}</button>
+                    <button onClick={() => reviewApplication(app.id, "accepted")} className="px-3 py-1 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">{app.teamScoring ? t("rank.accept_top_team") : t("action.accept")}</button>
                     <button onClick={() => reviewApplication(app.id, "rejected")} className="px-3 py-1 bg-red-100 text-red-700 text-xs rounded-lg hover:bg-red-200">{t("action.reject")}</button>
                     <button onClick={() => reviewApplication(app.id, "under_review")} className="px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-lg hover:bg-blue-200">{t("action.review")}</button>
                   </div>
