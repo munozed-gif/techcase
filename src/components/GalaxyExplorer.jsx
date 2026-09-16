@@ -13,8 +13,8 @@ if (typeof document !== 'undefined') {
   to   { transform: rotate(calc(var(--start) + 360deg)) translateX(var(--r)) rotate(calc(-1 * (var(--start) + 360deg))); }
 }
 @keyframes galaxy-radar-pulse {
-  0%   { transform: scale(0.04); opacity: 0.45; }
-  50%  { opacity: 0.18; }
+  0%   { transform: scale(0.04); opacity: 0.75; }
+  60%  { opacity: 0.35; }
   100% { transform: scale(1);    opacity: 0; }
 }`;
 }
@@ -150,7 +150,7 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
         width: R3 * 2, height: R3 * 2,
         marginLeft: -R3, marginTop: -R3,
         borderRadius: '50%',
-        border: '1px solid rgba(37,99,235,0.22)',
+        border: '1.5px solid rgba(37,99,235,0.55)',
         pointerEvents: 'none',
         opacity: 0,
         animation: `galaxy-radar-pulse 3.8s ease-out infinite`,
