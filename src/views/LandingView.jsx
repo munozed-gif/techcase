@@ -1,6 +1,38 @@
 import { useEffect } from "react";
 
-// GALEA MANDALORIA — Corinthian dome + Mandalorian T-visor combined mark
+// ─── Nova Logo Mark ─────────────────────────────────────────────────────────
+const _NOVA_ORBS = [
+  { s:   0, r: 54, d:  9, z: 13, c: '#2563EB', gr: 7, gc: 'rgba(37,99,235,0.55)' },
+  { s: 195, r: 54, d:  9, z: 10, c: '#60A5FA', gr: 5, gc: 'rgba(96,165,250,0.45)' },
+  { s: 100, r: 74, d: 16, z: 11, c: '#3B82F6', gr: 6, gc: 'rgba(59,130,246,0.45)' },
+  { s: 280, r: 74, d: 16, z:  8, c: '#93C5FD', gr: 4, gc: 'rgba(147,197,253,0.4)' },
+];
+function NovaLandingMark({ size = 28 }) {
+  const sc = size / 152;
+  const orb = Math.round(52 * sc);
+  const d1  = Math.round(108 * sc);
+  const d2  = Math.round(148 * sc);
+  const fs  = Math.max(8, Math.round(30 * sc));
+  return (
+    <div style={{ position:'relative', width:size, height:size, flexShrink:0 }}>
+      <div style={{ position:'absolute', top:'50%', left:'50%', width:d1, height:d1, marginTop:-d1/2, marginLeft:-d1/2, borderRadius:'50%', border:'1px solid rgba(79,110,247,0.35)', pointerEvents:'none' }} />
+      <div style={{ position:'absolute', top:'50%', left:'50%', width:d2, height:d2, marginTop:-d2/2, marginLeft:-d2/2, borderRadius:'50%', border:'1px solid rgba(79,110,247,0.18)', pointerEvents:'none' }} />
+      <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:orb, height:orb, borderRadius:'50%', background:'radial-gradient(circle at 36% 33%,#4F6EF7 0%,#0D1F3C 78%)', boxShadow:`0 2px 10px rgba(79,110,247,0.55)`, display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, color:'#fff', fontSize:fs, zIndex:10, userSelect:'none', letterSpacing:'-.04em' }}>A</div>
+      {_NOVA_ORBS.slice(0, 3).map((o, i) => {
+        const r = Math.max(4, Math.round(o.r * sc));
+        const z = Math.max(3, Math.round(o.z * sc));
+        const gr = Math.max(2, Math.round(o.gr * sc));
+        return (
+          <div key={i} style={{ position:'absolute', top:'50%', left:'50%', width:0, height:0, animation:`nova-lmark ${o.d}s linear infinite`, '--nls':`${o.s}deg`, '--nlr':`${r}px`, zIndex:2 }}>
+            <div style={{ position:'absolute', width:z, height:z, top:-z/2, left:-z/2, borderRadius:'50%', background:o.c, boxShadow:`0 0 ${gr}px ${o.gc}` }} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// GALEA MANDALORIA — kept for reference / external use
 // bg prop matches the surface the SVG sits on (T-visor fill must match background)
 export function GaleaMark({ size = 22, bg = "#0B0F1A" }) {
   return (
@@ -34,6 +66,14 @@ export function GaleaMark({ size = 22, bg = "#0B0F1A" }) {
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@keyframes nova-lmark {
+  from { transform: rotate(var(--nls,0deg)) translateX(var(--nlr,10px)) rotate(calc(-1*var(--nls,0deg))); }
+  to   { transform: rotate(calc(var(--nls,0deg)+360deg)) translateX(var(--nlr,10px)) rotate(calc(-1*(var(--nls,0deg)+360deg))); }
+}
+@keyframes arena-orb {
+  from { transform: rotate(var(--as,0deg)) translateX(var(--ar,60px)) rotate(calc(-1*var(--as,0deg))); }
+  to   { transform: rotate(calc(var(--as,0deg)+360deg)) translateX(var(--ar,60px)) rotate(calc(-1*(var(--as,0deg)+360deg))); }
+}
 #arena-landing {position:fixed;inset:0;overflow-y:auto;z-index:9999;font-family:'Inter',system-ui,sans-serif;background:#F8FAFF;color:#0B0F1A;line-height:1.6;}
 #arena-landing *,#arena-landing *::before,#arena-landing *::after{box-sizing:border-box;margin:0;padding:0;}
 #arena-landing a{color:inherit;text-decoration:none;}
@@ -212,6 +252,27 @@ const CSS = `
 #arena-landing .price-cta-filled:hover{background:var(--accent-d);transform:translateY(-1px);}
 @media(max-width:800px){#arena-landing .pricing-grid{grid-template-columns:1fr;max-width:400px;}}
 
+#arena-landing .arena-showcase{background:#060c16;padding:96px 24px;position:relative;overflow:hidden;}
+#arena-landing .arena-showcase::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 65% 50%,rgba(37,99,235,.12) 0%,transparent 65%),linear-gradient(rgba(37,99,235,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(37,99,235,.04) 1px,transparent 1px);background-size:100% 100%,48px 48px,48px 48px;}
+#arena-landing .arena-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;position:relative;z-index:1;}
+#arena-landing .arena-tag{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#60A5FA;margin-bottom:16px;}
+#arena-landing .arena-inner h2{color:#fff;margin-bottom:16px;}
+#arena-landing .arena-inner .section-sub{color:rgba(255,255,255,.5);margin-bottom:32px;}
+#arena-landing .arena-bullets{display:flex;flex-direction:column;gap:14px;}
+#arena-landing .arena-bullet{display:flex;align-items:flex-start;gap:12px;padding:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;transition:border-color .2s;}
+#arena-landing .arena-bullet:hover{border-color:rgba(37,99,235,.35);}
+#arena-landing .arena-bullet-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;}
+#arena-landing .arena-bullet-text strong{display:block;font-size:.88rem;font-weight:700;color:#fff;margin-bottom:3px;}
+#arena-landing .arena-bullet-text span{font-size:.78rem;color:rgba(255,255,255,.45);line-height:1.5;}
+#arena-landing .arena-visual{display:flex;align-items:center;justify-content:center;}
+#arena-landing .arena-system{position:relative;width:380px;height:380px;flex-shrink:0;}
+#arena-landing .arena-ring{position:absolute;top:50%;left:50%;border-radius:50%;pointer-events:none;}
+#arena-landing .arena-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle at 36% 33%,#4F6EF7 0%,#0D1F3C 78%);box-shadow:0 0 0 8px rgba(79,110,247,.12),0 6px 28px rgba(79,110,247,.5);display:flex;align-items:center;justify-content:center;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;color:#fff;z-index:10;user-select:none;letter-spacing:-.03em;}
+#arena-landing .arena-dot{position:absolute;top:50%;left:50%;width:0;height:0;}
+#arena-landing .arena-dot-inner{position:absolute;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.5rem;font-weight:700;color:#fff;}
+#arena-landing .arena-label{position:absolute;font-size:.58rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;}
+@media(max-width:900px){#arena-landing .arena-inner{grid-template-columns:1fr;}#arena-landing .arena-visual{display:none;}}
+
 #arena-landing .cta-section{background:linear-gradient(135deg,#0B0F1A,#111829);padding:100px 24px;text-align:center;position:relative;overflow:hidden;}
 #arena-landing .cta-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:600px;height:300px;background:radial-gradient(ellipse,rgba(79,110,247,.15) 0%,transparent 70%);pointer-events:none;}
 #arena-landing .cta-section h2{color:#fff;max-width:560px;margin:0 auto 16px;position:relative;z-index:1;}
@@ -284,11 +345,12 @@ export function LandingView({ onSignIn }) {
       {/* NAV */}
       <nav>
         <div className="nav-logo">
-          <GaleaMark size={26} bg="#0B0F1A" />
+          <NovaLandingMark size={32} />
           <span className="logo-arena">Arena</span>
           <span className="logo-rest">Solutions Platform</span>
         </div>
         <div className="nav-links">
+          <a href="#arena">Arena</a>
           <a href="#features">Features</a>
           <a href="#lifecycle">Lifecycle</a>
           <a href="#roles">Roles</a>
@@ -307,10 +369,10 @@ export function LandingView({ onSignIn }) {
         <div className="hero-glow2" />
         <div className="hero-inner">
           <div>
-            <div className="hero-badge">SAP Consulting Platform · 2026</div>
+            <div className="hero-badge">Arena · Consultant Marketplace · 2026</div>
             <div className="hero-name">Solutions Platform</div>
-            <h1><em style={{fontSize:"1.2em",display:"block",lineHeight:1}}>Arena</em>SAP Consulting,<br />Engineered.</h1>
-            <p className="hero-sub">Arena gives consulting firms and their clients a unified workspace — from ticket triage to full project delivery, with every role in sync and every stage governed.</p>
+            <h1><em style={{fontSize:"1.2em",display:"block",lineHeight:1}}>Arena</em>Connect. Engage.<br />Deliver.</h1>
+            <p className="hero-sub">Arena is the orbital marketplace at the heart of our platform — connecting clients with vetted SAP consultants through a visual, intelligent, team-based workflow. From first contact to final delivery.</p>
             <div className="hero-actions">
               <button className="btn-hero btn-hero-primary" onClick={onSignIn}>Start free trial →</button>
               <a href="#demo" className="btn-hero btn-hero-outline">▶ Watch demo</a>
@@ -322,45 +384,53 @@ export function LandingView({ onSignIn }) {
                 <div className="avatar-dot">SC</div>
                 <div className="avatar-dot">DK</div>
               </div>
-              <span>Trusted by 200+ SAP consulting teams worldwide</span>
+              <span>1,200+ consultants matched across 340+ companies</span>
             </div>
           </div>
           <div className="browser-wrap fade-in">
             <div className="browser">
               <div className="browser-bar">
                 <div className="browser-dots"><span /><span /><span /></div>
-                <div className="browser-url">app.arenasolution.io/cases/SAP-00312</div>
+                <div className="browser-url">app.arenasolution.io/arena</div>
               </div>
-              <div className="browser-content">
-                <div style={{fontSize:".6rem",color:"rgba(255,255,255,.3)",marginBottom:"8px",fontFamily:"'JetBrains Mono',monospace"}}>SAP-00312 · MM Purchase Order Workflow</div>
-                <div className="mock-pipeline">
-                  <div className="mock-stage done">✓ New</div>
-                  <div className="mock-stage done">✓ Triage</div>
-                  <div className="mock-stage active">◉ In Analysis</div>
-                  <div className="mock-stage future">In Progress</div>
-                  <div className="mock-stage future">Testing</div>
-                  <div className="mock-stage future">Resolved</div>
-                </div>
-                <div className="mock-card">
-                  <div className="mock-card-title">MM Purchase Order Approval Workflow Not Triggering</div>
-                  <div className="mock-meta">
-                    <span className="mock-chip chip-red">Critical</span>
-                    <span className="mock-chip chip-blue">SAP MM</span>
-                    <span className="mock-chip chip-amber">In Analysis</span>
-                  </div>
-                  <div className="mock-progress"><div className="mock-progress-bar" style={{width:"35%"}} /></div>
-                  <div className="mock-row">
-                    <div className="mock-avatar-row">
-                      <div className="mock-av">CR</div>
-                      <div className="mock-av">MT</div>
+              <div className="browser-content" style={{minHeight:260,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#07111F",gap:16,padding:"20px 16px"}}>
+                {/* Mini Arena orbital demo */}
+                <div style={{position:"relative",width:200,height:200,flexShrink:0}}>
+                  {/* Rings */}
+                  {[64,100,136].map((d,i) => (
+                    <div key={d} style={{position:"absolute",top:"50%",left:"50%",width:d,height:d,marginTop:-d/2,marginLeft:-d/2,borderRadius:"50%",border:`1px ${i===0?"solid":"dashed"} rgba(79,110,247,${[0.3,0.2,0.12][i]})`,pointerEvents:"none"}} />
+                  ))}
+                  {/* Center */}
+                  <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:38,height:38,borderRadius:"50%",background:"radial-gradient(circle at 36% 33%,#4F6EF7,#0D1F3C 78%)",boxShadow:"0 0 0 4px rgba(79,110,247,.15),0 4px 18px rgba(79,110,247,.5)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:800,color:"#fff",fontSize:14,zIndex:10}}>A</div>
+                  {/* Inner orbiters — clients */}
+                  {[{s:0,c:"#10B981",l:"AC"},{s:140,c:"#F59E0B",l:"MC"},{s:260,c:"#6366F1",l:"GI"}].map((o,i) => (
+                    <div key={i} style={{position:"absolute",top:"50%",left:"50%",width:0,height:0,animation:`arena-orb ${9+i*2}s linear infinite`,['--as']:`${o.s}deg`,['--ar']:"32px",zIndex:2}}>
+                      <div style={{position:"absolute",width:22,height:22,top:-11,left:-11,borderRadius:"50%",background:o.c,boxShadow:`0 0 6px ${o.c}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:".45rem",fontWeight:700,color:"#fff"}}>{o.l}</div>
                     </div>
-                    <span>Est. 16h · Due Aug 20</span>
-                  </div>
+                  ))}
+                  {/* Outer orbiters — consultants */}
+                  {[{s:20,c:"#2563EB",l:"CR"},{s:100,c:"#60A5FA",l:"AJ"},{s:200,c:"#3B82F6",l:"ST"},{s:300,c:"#93C5FD",l:"MK"}].map((o,i) => (
+                    <div key={i} style={{position:"absolute",top:"50%",left:"50%",width:0,height:0,animation:`arena-orb ${14+i*3}s linear infinite`,['--as']:`${o.s}deg`,['--ar']:"50px",zIndex:2}}>
+                      <div style={{position:"absolute",width:18,height:18,top:-9,left:-9,borderRadius:"50%",background:o.c,boxShadow:`0 0 5px ${o.c}60`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:".4rem",fontWeight:700,color:"#fff"}}>{o.l}</div>
+                    </div>
+                  ))}
+                  {/* Outermost — cases */}
+                  {[{s:45,c:"rgba(245,158,11,1)"},{s:165,c:"rgba(239,68,68,1)"},{s:285,c:"rgba(16,185,129,1)"}].map((o,i) => (
+                    <div key={i} style={{position:"absolute",top:"50%",left:"50%",width:0,height:0,animation:`arena-orb ${20+i*2}s linear infinite`,['--as']:`${o.s}deg`,['--ar']:"68px",zIndex:2}}>
+                      <div style={{position:"absolute",width:10,height:10,top:-5,left:-5,borderRadius:"50%",background:o.c,boxShadow:`0 0 4px ${o.c}`}} />
+                    </div>
+                  ))}
                 </div>
-                <div className="mock-sidebar">
-                  <div className="mock-sidebar-item"><div className="mock-sidebar-label">Project</div><div className="mock-sidebar-value">S/4HANA Migration</div></div>
-                  <div className="mock-sidebar-item"><div className="mock-sidebar-label">Client</div><div className="mock-sidebar-value">Acme Corp</div></div>
-                  <div className="mock-sidebar-item"><div className="mock-sidebar-label">SLA</div><div className="mock-sidebar-value" style={{color:"#6EE7B7"}}>On Track</div></div>
+                <div style={{display:"flex",gap:12,flexWrap:"wrap",justifyContent:"center"}}>
+                  {[{l:"3 clients",c:"#10B981"},{l:"4 consultants",c:"#3B82F6"},{l:"3 open cases",c:"#F59E0B"}].map(t => (
+                    <div key={t.l} style={{display:"flex",alignItems:"center",gap:4,fontSize:".58rem",fontWeight:600,color:"rgba(255,255,255,.55)"}}>
+                      <div style={{width:6,height:6,borderRadius:"50%",background:t.c,boxShadow:`0 0 4px ${t.c}`}} />{t.l}
+                    </div>
+                  ))}
+                </div>
+                <div style={{display:"flex",gap:6}}>
+                  <div style={{fontSize:".6rem",fontWeight:600,padding:"3px 10px",borderRadius:6,background:"rgba(79,110,247,.15)",border:"1px solid rgba(79,110,247,.35)",color:"#A5B4FC"}}>Galaxy Explorer</div>
+                  <div style={{fontSize:".6rem",fontWeight:600,padding:"3px 10px",borderRadius:6,background:"rgba(16,185,129,.1)",border:"1px solid rgba(16,185,129,.25)",color:"#6EE7B7"}}>Apply as Team →</div>
                 </div>
               </div>
             </div>
@@ -510,6 +580,63 @@ export function LandingView({ onSignIn }) {
                 <div className="feat-title">Transition Gates & SLA</div>
                 <div className="feat-desc">Block or warn on stage transitions until conditions are met. SLA timers run per lifecycle phase. Never miss a commitment again.</div>
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ARENA SHOWCASE */}
+      <section className="arena-showcase" id="arena">
+        <div className="arena-inner">
+          <div>
+            <div className="arena-tag">Arena · Principal Feature</div>
+            <h2 style={{color:"#fff"}}>Your orbital talent<br />marketplace.</h2>
+            <p className="section-sub" style={{color:"rgba(255,255,255,.5)",marginBottom:32}}>Arena is the command center for connecting clients with the right SAP consultants — through an immersive, visual orbital interface that brings the entire talent network to life.</p>
+            <div className="arena-bullets">
+              {[
+                {icon:"🌌",bg:"rgba(37,99,235,.15)",title:"Galaxy Explorer",desc:"Navigate clients, cases, and consultants through an animated orbital system. Click any node to drill into their universe."},
+                {icon:"🤝",bg:"rgba(16,185,129,.12)",title:"Team Applications",desc:"Form consulting teams, assign roles with skill validation, and apply to open cases as a unit — not just solo."},
+                {icon:"🎯",bg:"rgba(245,158,11,.12)",title:"Smart Matching",desc:"Skill-to-role enforcement ensures only qualified consultants are assigned. AI auto-suggests the best fit from your team."},
+                {icon:"📡",bg:"rgba(139,92,246,.12)",title:"Live Discovery",desc:"Radar pulse animations signal active opportunity scanning. New cases surface in real time across your orbital network."},
+              ].map(b => (
+                <div key={b.title} className="arena-bullet">
+                  <div className="arena-bullet-icon" style={{background:b.bg}}>{b.icon}</div>
+                  <div className="arena-bullet-text"><strong>{b.title}</strong><span>{b.desc}</span></div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="arena-visual">
+            {/* Large animated Arena orbital system */}
+            <div className="arena-system">
+              {/* Rings */}
+              {[{d:90,style:"dashed",op:.28},{d:150,style:"dashed",op:.2},{d:220,style:"solid",op:.16},{d:310,style:"dashed",op:.1}].map((ring,i) => (
+                <div key={i} className="arena-ring" style={{width:ring.d,height:ring.d,marginTop:-ring.d/2,marginLeft:-ring.d/2,border:`1.5px ${ring.style} rgba(37,99,235,${ring.op})`}} />
+              ))}
+              {/* Center */}
+              <div className="arena-center" style={{width:64,height:64,fontSize:22}}>A</div>
+              {/* Inner ring — clients */}
+              {[{s:0,c:"#10B981",l:"Acme",initials:"AC",d:11},{s:120,c:"#F59E0B",l:"Meridian",initials:"MC",d:13},{s:240,c:"#6366F1",l:"Global",initials:"GI",d:15}].map((o,i) => (
+                <div key={i} className="arena-dot" style={{animation:`arena-orb ${o.d}s linear infinite`,['--as']:`${o.s}deg`,['--ar']:"45px",zIndex:2}}>
+                  <div className="arena-dot-inner" style={{width:28,height:28,top:-14,left:-14,background:o.c,boxShadow:`0 0 10px ${o.c}80`}}>{o.initials}</div>
+                </div>
+              ))}
+              {/* Mid ring — consultants */}
+              {[{s:15,c:"#2563EB",l:"CR",d:18},{s:85,c:"#60A5FA",l:"AJ",d:22},{s:160,c:"#3B82F6",l:"ST",d:20},{s:235,c:"#93C5FD",l:"MK",d:25},{s:310,c:"#2563EB",l:"PL",d:19}].map((o,i) => (
+                <div key={i} className="arena-dot" style={{animation:`arena-orb ${o.d}s linear infinite`,['--as']:`${o.s}deg`,['--ar']:"75px",zIndex:2}}>
+                  <div className="arena-dot-inner" style={{width:24,height:24,top:-12,left:-12,background:o.c,boxShadow:`0 0 7px ${o.c}60`}}>{o.l}</div>
+                </div>
+              ))}
+              {/* Outer ring — cases/opportunities */}
+              {[{s:30,c:"rgba(239,68,68,.9)"},{s:100,c:"rgba(245,158,11,.9)"},{s:180,c:"rgba(16,185,129,.9)"},{s:260,c:"rgba(99,102,241,.9)"},{s:330,c:"rgba(239,68,68,.7)"}].map((o,i) => (
+                <div key={i} className="arena-dot" style={{animation:`arena-orb ${28+i*3}s linear infinite`,['--as']:`${o.s}deg`,['--ar']:"110px",zIndex:2}}>
+                  <div style={{position:"absolute",width:10,height:10,top:-5,left:-5,borderRadius:"50%",background:o.c,boxShadow:`0 0 6px ${o.c}`}} />
+                </div>
+              ))}
+              {/* Labels */}
+              <div className="arena-label" style={{top:"16%",left:"50%",transform:"translateX(-50%)",color:"rgba(96,165,250,.7)"}}>Consultants</div>
+              <div className="arena-label" style={{bottom:"12%",left:"50%",transform:"translateX(-50%)",color:"rgba(16,185,129,.7)"}}>Clients</div>
+              <div className="arena-label" style={{top:"50%",right:"2%",transform:"translateY(-50%)",color:"rgba(245,158,11,.6)"}}>Cases</div>
             </div>
           </div>
         </div>
@@ -671,10 +798,10 @@ export function LandingView({ onSignIn }) {
       <footer>
         <div className="footer-inner">
           <div>
-            <div className="footer-logo"><GaleaMark size={28} bg="#060910" /><span className="logo-arena">Arena</span><span className="logo-rest">Solutions Platform</span></div>
+            <div className="footer-logo"><NovaLandingMark size={36} /><span className="logo-arena">Arena</span><span className="logo-rest">Solutions Platform</span></div>
             <div className="footer-tagline">The operating system for SAP consulting teams. Structured support, every stage governed, every role in sync.</div>
           </div>
-          <div className="footer-col"><h4>Product</h4><a href="#features">Features</a><a href="#lifecycle">Lifecycle Engine</a><a href="#roles">Roles</a><a href="#pricing">Pricing</a></div>
+          <div className="footer-col"><h4>Product</h4><a href="#arena">Arena Marketplace</a><a href="#features">Features</a><a href="#lifecycle">Lifecycle Engine</a><a href="#roles">Roles</a><a href="#pricing">Pricing</a></div>
           <div className="footer-col"><h4>Company</h4><a href="#">About</a><a href="#">Blog</a><a href="#">Careers</a><a href="#">Contact</a></div>
           <div className="footer-col"><h4>Legal</h4><a href="#">Privacy Policy</a><a href="#">Terms of Service</a><a href="#">Security</a></div>
         </div>

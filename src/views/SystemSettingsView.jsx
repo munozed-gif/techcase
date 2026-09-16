@@ -34,6 +34,46 @@ import { AbapTemplatesSection } from "../components/SapPanels.jsx";
 import { SlaView } from "./OperationsViews.jsx";
 import { ConsultantProfilePanel } from "./ArenaView.jsx";
 
+// Nova Logo preview for settings branding section
+if (typeof document !== 'undefined') {
+  let _kf = document.getElementById('nova-logo-kf');
+  if (!_kf) { _kf = document.createElement('style'); _kf.id = 'nova-logo-kf'; document.head.appendChild(_kf); }
+  if (!_kf.textContent.includes('nova-orbit')) {
+    _kf.textContent = `@keyframes nova-orbit {
+  from { transform: rotate(var(--ns,0deg)) translateX(var(--nr,36px)) rotate(calc(-1*var(--ns,0deg))); }
+  to   { transform: rotate(calc(var(--ns,0deg)+360deg)) translateX(var(--nr,36px)) rotate(calc(-1*(var(--ns,0deg)+360deg))); }
+}`;
+  }
+}
+const _SETTINGS_NOVA = [
+  { s:  0, r:54, d:9,  z:13, c:'#2563EB', gr:7, gc:'rgba(37,99,235,0.48)' },
+  { s:195, r:54, d:9,  z:10, c:'#60A5FA', gr:5, gc:'rgba(96,165,250,0.4)'  },
+  { s:100, r:74, d:16, z:11, c:'#3B82F6', gr:6, gc:'rgba(59,130,246,0.4)'  },
+  { s:280, r:74, d:16, z:8,  c:'#93C5FD', gr:4, gc:'rgba(147,197,253,0.35)'},
+];
+function NovaSettingsLogo({ size = 80 }) {
+  const sc = size / 152;
+  const orb = Math.round(52 * sc);
+  const d1  = Math.round(108 * sc);
+  const d2  = Math.round(148 * sc);
+  const fs  = Math.round(30 * sc);
+  return (
+    <div style={{ position:'relative', width:size, height:size, flexShrink:0 }}>
+      <div style={{ position:'absolute', top:'50%', left:'50%', width:d1, height:d1, marginTop:-d1/2, marginLeft:-d1/2, borderRadius:'50%', border:'1px solid rgba(37,99,235,0.22)', pointerEvents:'none' }} />
+      <div style={{ position:'absolute', top:'50%', left:'50%', width:d2, height:d2, marginTop:-d2/2, marginLeft:-d2/2, borderRadius:'50%', border:'1px solid rgba(37,99,235,0.11)', pointerEvents:'none' }} />
+      <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:orb, height:orb, borderRadius:'50%', background:'radial-gradient(circle at 36% 33%,#3B82F6 0%,#0D1F3C 78%)', boxShadow:'0 4px 22px rgba(37,99,235,0.55)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'Barlow Condensed',sans-serif", fontWeight:800, color:'#fff', fontSize:fs, zIndex:10, userSelect:'none' }}>A</div>
+      {_SETTINGS_NOVA.map((o, i) => {
+        const r = Math.round(o.r * sc); const z = Math.max(4, Math.round(o.z * sc)); const gr = Math.max(2, Math.round(o.gr * sc));
+        return (
+          <div key={i} style={{ position:'absolute', top:'50%', left:'50%', width:0, height:0, animation:`nova-orbit ${o.d}s linear infinite`, '--ns':`${o.s}deg`, '--nr':`${r}px`, zIndex:2 }}>
+            <div style={{ position:'absolute', width:z, height:z, top:-z/2, left:-z/2, borderRadius:'50%', background:o.c, boxShadow:`0 1px 4px rgba(0,0,0,.15),0 0 ${gr}px ${o.gc}` }} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function UpgradeModal({ onClose, title, message, roleType, planKey, auth }) {
   const planCfg = usePlanConfig();
   const [loading, setLoading] = useState(false);
@@ -722,6 +762,20 @@ function SettingsPlatformTab({ ssCtx }) {
                 className="mt-2 h-10 object-contain rounded border border-gray-100 p-1"
                 onError={e => { e.currentTarget.style.display = 'none'; }} />
             )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Arena Logo (Nova)</label>
+            <div className="flex items-center gap-6 p-4 rounded-xl border border-gray-100 bg-[#0C1828]">
+              <NovaSettingsLogo size={80} />
+              <div>
+                <div className="text-white font-bold text-sm mb-0.5">{form.platform_name || "Arena"}</div>
+                <div className="text-blue-300 text-xs">Solutions Platform</div>
+                <div className="text-[11px] text-blue-400/60 mt-2">Used in sidebar &amp; navigation</div>
+              </div>
+              <div className="ml-auto">
+                <NovaSettingsLogo size={36} />
+              </div>
+            </div>
           </div>
         </div>
       </div>
