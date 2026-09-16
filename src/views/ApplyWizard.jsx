@@ -109,6 +109,11 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
           return;
         }
       }
+      // Duplicate guard — prevent re-applying to the same case
+      const { data: existing } = await supabase.from("applications")
+        .select("id").eq("case_id", caseData.id).eq("consultant_id", user.id).maybeSingle();
+      if (existing) { alert("You have already applied to this case."); setSubmit(false); return; }
+
       const isTeamApp = applyAs === "team" && selectedTeamId;
       const { error } = await supabase.from("applications").insert({
         case_id: caseData.id,

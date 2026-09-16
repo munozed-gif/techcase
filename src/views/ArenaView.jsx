@@ -1711,7 +1711,7 @@ function ArenaView({ auth }) {
           openCases={openCases}
           applications={applications}
           auth={auth}
-          onApply={c => setApplying(c)}
+          onApply={c => !appliedCaseIds.has(c.id) && setApplying(c)}
           appliedCaseIds={appliedCaseIds}
           platformLogoUrl={branding.logoUrl}
         />

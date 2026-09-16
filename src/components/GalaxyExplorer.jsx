@@ -330,7 +330,8 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
     if (level === 3) {
       const cs     = selCase;
       const cust   = selCustomer;
-      const applied = appliedCaseIds.has(cs.id);
+      const applied = appliedCaseIds.has(cs.id)
+        || (cs.applications ?? []).some(a => a.consultant_id === auth.user?.id);
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '4px 4px' }}>
           {/* Customer mini-card */}
