@@ -898,7 +898,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               <>
                 <Textarea label={t("label.description")} value={basics.description}
                   onChange={e => setBasics(p => ({ ...p, description: e.target.value }))}
-                  placeholder={t("case.ph_requirements")} />
+                  placeholder={t("case.ph_requirements")} rows={8} />
                 <div className="grid grid-cols-2 gap-3">
                   <Select label={t("label.priority")} value={basics.priority}
                     onChange={e => setBasics(p => ({ ...p, priority: e.target.value }))}
