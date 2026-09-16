@@ -2,7 +2,7 @@ import { useState } from "react";
 
 const ORB_COLORS = ['#10B981','#3B82F6','#8B5CF6','#EC4899','#F59E0B','#0EA5E9','#F97316','#EF4444'];
 
-// Inject keyframe once at module load — injecting inside component JSX resets animations on every re-render
+// Inject keyframes once at module load — injecting inside component JSX resets animations on every re-render
 if (typeof document !== 'undefined' && !document.getElementById('galaxy-orbit-kf')) {
   const _kf = document.createElement('style');
   _kf.id = 'galaxy-orbit-kf';
@@ -10,6 +10,11 @@ if (typeof document !== 'undefined' && !document.getElementById('galaxy-orbit-kf
 @keyframes galaxy-orbit {
   from { transform: rotate(var(--start)) translateX(var(--r)) rotate(calc(-1 * var(--start))); }
   to   { transform: rotate(calc(var(--start) + 360deg)) translateX(var(--r)) rotate(calc(-1 * (var(--start) + 360deg))); }
+}
+@keyframes galaxy-radar-pulse {
+  0%   { transform: translate(-50%, -50%) scale(0.04); opacity: 0.72; }
+  75%  { opacity: 0.14; }
+  100% { transform: translate(-50%, -50%) scale(1);    opacity: 0; }
 }`;
   document.head.appendChild(_kf);
 }
@@ -137,10 +142,25 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
       <div key={r} style={{ position: 'absolute', borderRadius: '50%', border: `1px dashed rgba(140,140,140,${r === R1 ? '0.35' : r === R2 ? '0.28' : r === R3 ? '0.22' : '0.16'})`, top: '50%', left: '50%', width: r * 2, height: r * 2, transform: 'translate(-50%,-50%)' }} />
     ));
 
+    // 3 staggered radar waves expanding from center to outer ring
+    const radarWaves = () => [0, 1.5, 3.0].map(delay => (
+      <div key={`rw-${delay}`} style={{
+        position: 'absolute', top: '50%', left: '50%',
+        width: R4 * 2, height: R4 * 2,
+        borderRadius: '50%',
+        border: '1.5px solid rgba(37,99,235,0.45)',
+        pointerEvents: 'none',
+        animation: `galaxy-radar-pulse 4.5s ease-out infinite`,
+        animationDelay: `${delay}s`,
+        zIndex: 1,
+      }} />
+    ));
+
     if (level === 1) {
       return (
         <div style={{ position: 'relative', width: SYS, height: SYS, flexShrink: 0 }}>
           {allRings()}
+          {radarWaves()}
           {/* Center: Platform logo */}
           <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 80, height: 80, borderRadius: '50%', background: platformLogoUrl ? '#fff' : 'linear-gradient(135deg,#1A4B8C,#2563EB)', border: '3px solid rgba(37,99,235,0.2)', boxShadow: '0 0 24px rgba(37,99,235,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, overflow: 'hidden' }}>
             {platformLogoUrl
@@ -175,6 +195,7 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
       return (
         <div style={{ position: 'relative', width: SYS, height: SYS, flexShrink: 0 }}>
           {allRings()}
+          {radarWaves()}
           <CenterAvatar client={selCustomer?.client} companyName={selCustomer?.companyName} onClick={() => navigate(1)} size={80} />
           {r1cases.map((cs, i) => (
             <OrbNode key={cs.id} r={R2} slotIdx={i} total={r1cases.length} dur={14} size={54}
@@ -212,6 +233,7 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
       return (
         <div style={{ position: 'relative', width: SYS, height: SYS, flexShrink: 0 }}>
           {allRings()}
+          {radarWaves()}
           <CenterAvatar client={selCustomer?.client} companyName={selCustomer?.companyName} onClick={() => navigate(2, selCustomer)} size={80} />
           {r1apps.map((app, i) => (
             <OrbNode key={app.consultant_id} r={R2} slotIdx={i} total={r1Total} dur={10} size={46} caseCount={consultantCaseCounts[app.consultant_id] ?? 0}>
