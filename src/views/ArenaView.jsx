@@ -1125,14 +1125,12 @@ function ArenaView({ auth }) {
                     <ProjectAvatar project={c.project ?? { name: companyName || c.title, client: c.client }} size={34} />
                   </div>
                   {[...Array(innerSlots)].map((_, i) => {
-                    const cid = appsSorted[i]?.consultant_id;
-                    return <OrbiterNode key={`in${i}`} label={`#${i+1}`} color={orbColors[i%orbColors.length]} r={lbInnerR} slotIdx={i} total={innerSlots+(alreadyApplied?1:0)} dur={10} isYou={false} caseCount={cid ? (consultantCaseCounts[cid] ?? 0) : null} />;
+                    return <OrbiterNode key={`in${i}`} label={`#${i+1}`} color={orbColors[i%orbColors.length]} r={lbInnerR} slotIdx={i} total={innerSlots+(alreadyApplied?1:0)} dur={10} isYou={false} />;
                   })}
-                  {alreadyApplied && <OrbiterNode label="You" color="#3B82F6" r={lbInnerR} slotIdx={innerSlots} total={innerSlots+1} dur={10} isYou={true} caseCount={consultantCaseCounts[auth.user?.id] ?? 0} />}
+                  {alreadyApplied && <OrbiterNode label="You" color="#3B82F6" r={lbInnerR} slotIdx={innerSlots} total={innerSlots+1} dur={10} isYou={true} />}
                   {[...Array(outerSlots)].map((_, i) => {
                     const globalIdx = innerSlots + i;
-                    const cid = appsSorted[globalIdx]?.consultant_id;
-                    return <OrbiterNode key={`out${i}`} label={`#${globalIdx+1}`} color={orbColors[globalIdx%orbColors.length]} r={lbOuterR} slotIdx={i} total={Math.max(outerSlots,1)} dur={17} isYou={false} caseCount={cid ? (consultantCaseCounts[cid] ?? 0) : null} />;
+                    return <OrbiterNode key={`out${i}`} label={`#${globalIdx+1}`} color={orbColors[globalIdx%orbColors.length]} r={lbOuterR} slotIdx={i} total={Math.max(outerSlots,1)} dur={17} isYou={false} />;
                   })}
                   {daysLeft != null && (
                     <div style={{ position:'absolute', bottom:0, left:'50%', transform:'translateX(-50%)', fontSize:7, fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase', color:tc, whiteSpace:'nowrap' }}>

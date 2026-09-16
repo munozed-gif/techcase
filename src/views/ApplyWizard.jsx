@@ -141,7 +141,8 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
             const score = skillScore * 2 + (avail > 0 ? 1 : 0); // availability tiebreaker
             if (score > bestScore) { bestScore = score; best = m; }
           }
-          if (best) {
+          // Only auto-assign when the member actually has the required skills
+          if (best && (reqSkills.length === 0 || bestScore >= 2)) {
             suggestions[role.id] = { consultant_id: best.user_id, consultant_name: best.full_name, rate: "" };
           }
         }
@@ -354,32 +355,73 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
                     </div>
 
                     {/* Consultant selector */}
-                    <div className="mb-3">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1 block">Consultant</label>
-                      <select
-                        value={assigned?.consultant_id ?? ""}
-                        onChange={e => {
-                          const m = teamMembers.find(m => m.user_id === e.target.value);
-                          if (m) setRoleAssignments(r => ({ ...r, [role.id]: { consultant_id: m.user_id, consultant_name: m.full_name, rate: r[role.id]?.rate ?? "" } }));
-                          else setRoleAssignments(r => { const n = { ...r }; delete n[role.id]; return n; });
-                        }}
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
-                        <option value="">— Assign a team member —</option>
-                        {teamMembers.map(m => {
-                          const overlap = (m.skills ?? []).filter(s => (role.required_skills ?? []).some(rs =>
-                            rs.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(rs.toLowerCase())
-                          )).length;
-                          const mAvail = memberAvailability[m.user_id];
-                          const parts = [m.full_name];
-                          if (overlap > 0) parts.push(`★ ${overlap} skill${overlap > 1 ? "s" : ""}`);
-                          if (mAvail !== undefined) parts.push(`${mAvail}% free`);
-                          if (mAvail === 0) parts.push("FULLY BOOKED");
-                          return (
-                            <option key={m.user_id} value={m.user_id}>{parts.join("  ·  ")}</option>
-                          );
-                        })}
-                      </select>
-                    </div>
+                    {(() => {
+                      const reqSkills = role.required_skills ?? [];
+                      const hasReq = reqSkills.length > 0;
+                      const skillOverlap = m => (m.skills ?? []).filter(s => reqSkills.some(rs =>
+                        rs.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(rs.toLowerCase())
+                      )).length;
+                      const qualified    = hasReq ? teamMembers.filter(m => skillOverlap(m) > 0) : teamMembers;
+                      const notQualified = hasReq ? teamMembers.filter(m => skillOverlap(m) === 0) : [];
+                      const fmtMember = (m, ov) => {
+                        const mAvail = memberAvailability[m.user_id];
+                        const parts = [m.full_name];
+                        if (ov > 0) parts.push(`★ ${ov} skill${ov > 1 ? 's' : ''}`);
+                        if (mAvail !== undefined) parts.push(`${mAvail}% free`);
+                        if (mAvail === 0) parts.push('FULLY BOOKED');
+                        return parts.join('  ·  ');
+                      };
+                      return (
+                        <div className="mb-3">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1 block">Consultant</label>
+                          {hasReq && qualified.length === 0 && (
+                            <div className="mb-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700 font-medium">
+                              ⚠ No team member has the required skills for this role. Add a qualified consultant to your team first.
+                            </div>
+                          )}
+                          <select
+                            value={assigned?.consultant_id ?? ""}
+                            onChange={e => {
+                              const m = teamMembers.find(m => m.user_id === e.target.value);
+                              if (m) {
+                                if (hasReq && skillOverlap(m) === 0) return; // block non-qualified
+                                setRoleAssignments(r => ({ ...r, [role.id]: { consultant_id: m.user_id, consultant_name: m.full_name, rate: r[role.id]?.rate ?? "" } }));
+                              } else {
+                                setRoleAssignments(r => { const n = { ...r }; delete n[role.id]; return n; });
+                              }
+                            }}
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                            <option value="">— Assign a team member —</option>
+                            {!hasReq ? (
+                              teamMembers.map(m => {
+                                const mAvail = memberAvailability[m.user_id];
+                                const parts = [m.full_name];
+                                if (mAvail !== undefined) parts.push(`${mAvail}% free`);
+                                if (mAvail === 0) parts.push('FULLY BOOKED');
+                                return <option key={m.user_id} value={m.user_id}>{parts.join('  ·  ')}</option>;
+                              })
+                            ) : (
+                              <>
+                                {qualified.length > 0 && (
+                                  <optgroup label="✓ Eligible — Skills Match">
+                                    {qualified.map(m => (
+                                      <option key={m.user_id} value={m.user_id}>{fmtMember(m, skillOverlap(m))}</option>
+                                    ))}
+                                  </optgroup>
+                                )}
+                                {notQualified.length > 0 && (
+                                  <optgroup label="✗ Not Eligible — Missing Required Skills">
+                                    {notQualified.map(m => (
+                                      <option key={m.user_id} value={m.user_id} disabled>{m.full_name} — no matching skills</option>
+                                    ))}
+                                  </optgroup>
+                                )}
+                              </>
+                            )}
+                          </select>
+                        </div>
+                      );
+                    })()}
 
                     {/* Assigned member: availability bar + rate input */}
                     {assigned && (
@@ -663,7 +705,17 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
               (APPLY_STEPS[step]?.id === "team_pick" && applyAs === "team" && !selectedTeamId) ||
               (APPLY_STEPS[step]?.id === "role_assign" && (
                 requiredRoles.some(r => !roleAssignments[r.id]) ||
-                Object.values(roleAssignments).some(a => (memberAvailability[a.consultant_id] ?? 100) === 0)
+                Object.values(roleAssignments).some(a => (memberAvailability[a.consultant_id] ?? 100) === 0) ||
+                requiredRoles.some(r => {
+                  const reqSkills = r.required_skills ?? [];
+                  if (!reqSkills.length) return false;
+                  const a = roleAssignments[r.id];
+                  if (!a) return false;
+                  const m = teamMembers.find(m => m.user_id === a.consultant_id);
+                  return !m || (m.skills ?? []).filter(s => reqSkills.some(rs =>
+                    rs.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(rs.toLowerCase())
+                  )).length === 0;
+                })
               ))
             }
             className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-colors shadow-md disabled:opacity-40 disabled:cursor-not-allowed">
