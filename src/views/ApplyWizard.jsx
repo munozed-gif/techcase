@@ -94,17 +94,20 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
         .eq("status", "accepted");
       const memberIds = (memberRows ?? []).map(m => m.user_id).filter(Boolean);
       let profileMap = {};
+      let usersMap = {};
       if (memberIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("consultant_profiles")
-          .select("id, full_name, headline, skills")
-          .in("id", memberIds);
+        const [{ data: profiles }, { data: usersRows }] = await Promise.all([
+          supabase.from("consultant_profiles").select("id, full_name, headline, skills").in("id", memberIds),
+          supabase.from("users").select("id, full_name, email, avatar_url").in("id", memberIds),
+        ]);
         for (const p of (profiles ?? [])) profileMap[p.id] = p;
+        for (const u of (usersRows ?? [])) usersMap[u.id] = u;
       }
       const members = (memberRows ?? []).map(m => ({
         user_id: m.user_id,
         email: m.email,
-        full_name: profileMap[m.user_id]?.full_name ?? m.email,
+        // public.users.full_name is always populated from auth signup; consultant_profiles.full_name may be null
+        full_name: usersMap[m.user_id]?.full_name || profileMap[m.user_id]?.full_name || m.email,
         skills: profileMap[m.user_id]?.skills ?? [],
       }));
       setTeamMembers(members);
