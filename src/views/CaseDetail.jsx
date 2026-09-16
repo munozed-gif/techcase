@@ -28,7 +28,7 @@ import {
   ProjectFieldEditor,
   getStageIcon, CaseLifecycleTrack, LifecycleFlowDiagram,
   SpecificationTab, GenerationProfileModal,
-  buildContextString, buildSectionConstraint, buildGenSuffix, openHtmlInNewTab,
+  buildContextString, buildSectionConstraint, buildGenSuffix, openHtmlInNewTab, htmlStringToPdfBlob,
 } from "../components/CaseSubPanels.jsx";
 import { TimeLogPanel } from "../components/TimeLogPanel.jsx";
 import { CaseFilesPanel } from "../components/CaseFilesPanel.jsx";

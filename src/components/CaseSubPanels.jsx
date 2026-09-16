@@ -3154,4 +3154,4 @@ Respond with ONLY a valid JSON object, no markdown fences:
   return null;
 }
 
-export { ProjectFieldEditor, STAGE_ICON_MAP, getStageIcon, CaseLifecycleTrack, LifecycleFlowDiagram, renderMarkdown, buildContextString, buildSectionConstraint, buildGenSuffix, GenerationProfileModal, openHtmlInNewTab, SpecificationTab };
+export { ProjectFieldEditor, STAGE_ICON_MAP, getStageIcon, CaseLifecycleTrack, LifecycleFlowDiagram, renderMarkdown, buildContextString, buildSectionConstraint, buildGenSuffix, GenerationProfileModal, openHtmlInNewTab, SpecificationTab, htmlStringToPdfBlob };
