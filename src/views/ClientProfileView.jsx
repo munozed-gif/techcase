@@ -14,7 +14,7 @@ import { useCases } from "../hooks/useCaseHooks.js";
 import { usePlanConfig, useSystemSettings, useVisibilitySettings } from "../hooks/useSystemSettings.jsx";
 import { logEvent, notify } from "../lib/utils.js";
 import { Badge, Spinner, TrustBadge } from "../components/ProfileComponents.jsx";
-import { EmptyState, Input, Modal, Textarea } from "../components/ui.jsx";
+import { EmptyState, Input, Modal, Select, Textarea } from "../components/ui.jsx";
 import { AbapStandardsPanel, ProjectSapEnvPanel, SapIntegrationPanel, useClientProfile } from "../components/SapPanels.jsx";
 import { DbConnectionsList, SapProfileFields, SapProfileBadges } from "../views/OperationsViews.jsx";
 import { ROLE_LABEL_KEYS, SLA_DEFAULT_TYPES, cap, fmt, fmtDate, makeDefaultMatrix } from "../lib/uiUtils.jsx";
