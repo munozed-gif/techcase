@@ -2732,6 +2732,9 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               {caseData.nda_required && (
                 <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-lg text-xs font-semibold">{t("case.badge_nda")}</span>
               )}
+              {caseData.application_mode === 'team'       && <span className="flex items-center gap-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-semibold"><Users size={9}/> Teams only</span>}
+              {caseData.application_mode === 'individual' && <span className="flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-600 rounded-lg text-xs font-semibold"><User size={9}/> Individual only</span>}
+              {(caseData.application_mode === 'both' || !caseData.application_mode) && <span className="flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-700 rounded-lg text-xs font-semibold"><Users size={9}/> Teams & Individual</span>}
               {(() => {
                 const v = visCfg.getCaseVisibility(caseData.id, caseData.client_id);
                 if (v === 'private')     return <span className="px-2 py-0.5 bg-gray-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1"><Lock size={9}/>{t('case.vis_private')}</span>;
