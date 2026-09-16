@@ -2,21 +2,21 @@ import { useState } from "react";
 
 const ORB_COLORS = ['#10B981','#3B82F6','#8B5CF6','#EC4899','#F59E0B','#0EA5E9','#F97316','#EF4444'];
 
-// Inject keyframes once at module load — injecting inside component JSX resets animations on every re-render
-if (typeof document !== 'undefined' && !document.getElementById('galaxy-orbit-kf')) {
-  const _kf = document.createElement('style');
-  _kf.id = 'galaxy-orbit-kf';
+// Always write both keyframes so adding galaxy-radar-pulse doesn't get skipped
+// by a stale style element that was injected before this keyframe existed
+if (typeof document !== 'undefined') {
+  let _kf = document.getElementById('galaxy-orbit-kf');
+  if (!_kf) { _kf = document.createElement('style'); _kf.id = 'galaxy-orbit-kf'; document.head.appendChild(_kf); }
   _kf.textContent = `
 @keyframes galaxy-orbit {
   from { transform: rotate(var(--start)) translateX(var(--r)) rotate(calc(-1 * var(--start))); }
   to   { transform: rotate(calc(var(--start) + 360deg)) translateX(var(--r)) rotate(calc(-1 * (var(--start) + 360deg))); }
 }
 @keyframes galaxy-radar-pulse {
-  0%   { transform: translate(-50%, -50%) scale(0.04); opacity: 0.72; }
-  75%  { opacity: 0.14; }
+  0%   { transform: translate(-50%, -50%) scale(0.04); opacity: 0.45; }
+  50%  { opacity: 0.18; }
   100% { transform: translate(-50%, -50%) scale(1);    opacity: 0; }
 }`;
-  document.head.appendChild(_kf);
 }
 
 function OrbNode({ r, slotIdx, total, dur = 14, size = 40, onClick, highlight, children, caseCount }) {
@@ -142,16 +142,15 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
       <div key={r} style={{ position: 'absolute', borderRadius: '50%', border: `1px dashed rgba(140,140,140,${r === R1 ? '0.35' : r === R2 ? '0.28' : r === R3 ? '0.22' : '0.16'})`, top: '50%', left: '50%', width: r * 2, height: r * 2, transform: 'translate(-50%,-50%)' }} />
     ));
 
-    // 3 staggered radar waves expanding from center to R3 (stays inside container)
-    // R4 * 2 = 604px overflows the 540px system div; R3 * 2 = 474px fits cleanly
+    // 3 staggered radar waves — subtle scanning pulse, stays inside container
     const radarWaves = () => [0, 1.5, 3.0].map(delay => (
       <div key={`rw-${delay}`} style={{
         position: 'absolute', top: '50%', left: '50%',
         width: R3 * 2, height: R3 * 2,
         borderRadius: '50%',
-        border: '1px solid rgba(37,99,235,0.38)',
+        border: '1px solid rgba(37,99,235,0.22)',
         pointerEvents: 'none',
-        animation: `galaxy-radar-pulse 4.5s ease-out infinite`,
+        animation: `galaxy-radar-pulse 3.8s ease-out infinite`,
         animationDelay: `${delay}s`,
         zIndex: 1,
       }} />
