@@ -12,13 +12,27 @@ function useConsultantTeams(userId) {
     if (!background) setLoading(true);
 
     try {
-      // 1. My teams (created by me)
-      const { data: teamsData } = await supabase
+      // 1. Teams created by me OR where I'm an accepted member
+      const { data: memberOf } = await supabase
+        .from("consultant_team_members")
+        .select("team_id")
+        .eq("user_id", userId)
+        .eq("status", "accepted");
+
+      const memberTeamIds = (memberOf ?? []).map(r => r.team_id);
+
+      let teamsQuery = supabase
         .from("consultant_teams")
         .select("*")
-        .eq("created_by", userId)
         .order("created_at", { ascending: false });
 
+      if (memberTeamIds.length > 0) {
+        teamsQuery = teamsQuery.or(`created_by.eq.${userId},id.in.(${memberTeamIds.join(",")})`);
+      } else {
+        teamsQuery = teamsQuery.eq("created_by", userId);
+      }
+
+      const { data: teamsData } = await teamsQuery;
       const myTeams = teamsData ?? [];
 
       // 2. Members for those teams (separate query — avoids nested FK select issues)
