@@ -13,12 +13,13 @@ import { useClientTeamMembers, useDbConnections, useProjects, useSlaConfig } fro
 import { useCases } from "../hooks/useCaseHooks.js";
 import { usePlanConfig, useSystemSettings, useVisibilitySettings } from "../hooks/useSystemSettings.jsx";
 import { logEvent, notify } from "../lib/utils.js";
-import { Badge, Spinner, TrustBadge } from "../components/ProfileComponents.jsx";
+import { Badge, Spinner, TrustBadge, PlanUsageCard } from "../components/ProfileComponents.jsx";
 import { EmptyState, Input, Modal, Select, Textarea } from "../components/ui.jsx";
 import { AbapStandardsPanel, ProjectSapEnvPanel, SapIntegrationPanel, useClientProfile } from "../components/SapPanels.jsx";
 import { DbConnectionsList, SapProfileFields, SapProfileBadges } from "../views/OperationsViews.jsx";
-import { ROLE_LABEL_KEYS, SLA_DEFAULT_TYPES, cap, fmt, fmtDate, makeDefaultMatrix } from "../lib/uiUtils.jsx";
+import { ROLE_LABEL_KEYS, SLA_DEFAULT_TYPES, SlaMatrixEditor, cap, fmt, fmtDate, makeDefaultMatrix } from "../lib/uiUtils.jsx";
 import { DEFAULT_ACTIVITY_PHASES, ROLE_COLORS, STATUS_COLORS } from "../lib/businessConstants.js";
+import { CaseDefaultsPanel, AssignmentSettingsPanel } from "../views/SettingsSubViews.jsx";
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
 
 function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
