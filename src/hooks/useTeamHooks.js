@@ -11,13 +11,25 @@ function useConsultantTeams(userId) {
     if (!userId) { setLoading(false); return; }
     if (!background) setLoading(true);
 
-    // Query teams directly — RLS policy (created_by = auth.uid() OR member row exists)
-    // handles scoping without a fragile two-step lookup.
+    // Step 1: get all team IDs the user belongs to (any status)
+    const { data: memberRows } = await supabase
+      .from("consultant_team_members")
+      .select("team_id")
+      .eq("user_id", userId);
+
+    const memberTeamIds = (memberRows ?? []).map(r => r.team_id);
+
+    // Step 2: fetch teams created by user OR where they are a member
+    const teamIds = [...new Set([...memberTeamIds])];
+    const teamsQuery = supabase
+      .from("consultant_teams")
+      .select(`*, members:consultant_team_members(id, user_id, email, role, status, member:user_id(id, full_name, avatar_url, email))`)
+      .order("created_at", { ascending: false });
+
     const [teamsResult, invitesResult] = await Promise.all([
-      supabase
-        .from("consultant_teams")
-        .select(`*, members:consultant_team_members(id, user_id, email, role, status, member:user_id(id, full_name, avatar_url, email))`)
-        .order("created_at", { ascending: false }),
+      teamIds.length > 0
+        ? teamsQuery.or(`created_by.eq.${userId},id.in.(${teamIds.join(",")})`)
+        : teamsQuery.eq("created_by", userId),
       supabase
         .from("consultant_team_members")
         .select(`id, role, invited_at, team:team_id(id, name, description, created_by, owner:created_by(id, full_name))`)
