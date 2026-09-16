@@ -121,6 +121,12 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
 
   const _visCfg = useVisibilitySettings();
   const [basics, setBasics] = useState({ title: initialData?.title ?? "", description: initialData?.description ?? "", priority: initialData?.priority ?? "medium", area_sap: initialData?.area_sap ?? "", area_industry: initialData?.area_industry ?? "", is_confidential: initialData?.is_confidential ?? false, nda_required: initialData?.nda_required ?? false, min_trust_level: initialData?.min_trust_level ?? null, application_mode: initialData?.application_mode ?? "both" });
+  const [requiredRoles, setRequiredRoles] = useState(initialData?.required_roles ?? []);
+  function addRole() {
+    setRequiredRoles(r => [...r, { id: crypto.randomUUID(), label: "", description: "", required_skills: [] }]);
+  }
+  function removeRole(id) { setRequiredRoles(r => r.filter(x => x.id !== id)); }
+  function updateRole(id, field, value) { setRequiredRoles(r => r.map(x => x.id === id ? { ...x, [field]: value } : x)); }
   const [caseVisMode, setCaseVisMode] = useState(() => {
     if (initialData?.id) return _visCfg.getCaseVisibility(initialData.id, null);
     const clientId = auth.isClient ? auth.user?.id : null;
@@ -380,6 +386,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         languages_required: quals.languages_required.length ? quals.languages_required : null,
         security_clearance: quals.security_clearance,
         ...interview,
+        required_roles: requiredRoles.filter(r => r.label.trim()),
       };
       if (isEdit) {
         await onSave(payload);
@@ -646,6 +653,52 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                     })}
                   </div>
                 </div>
+                {(basics.application_mode === "team" || basics.application_mode === "both") && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Required Roles</label>
+                        <p className="text-[11px] text-gray-400">Define the areas each team member must cover. The same consultant can fill multiple roles.</p>
+                      </div>
+                      <button type="button" onClick={addRole}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-xl hover:bg-indigo-700">
+                        <span className="text-base leading-none">+</span> Add role
+                      </button>
+                    </div>
+                    {requiredRoles.length === 0 && (
+                      <p className="text-xs text-gray-400 italic py-2">No required roles yet — team can apply freely.</p>
+                    )}
+                    <div className="space-y-3">
+                      {requiredRoles.map((role, idx) => (
+                        <div key={role.id} className="border border-indigo-100 rounded-xl p-3 bg-indigo-50/40 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-indigo-400 w-5 flex-shrink-0">#{idx + 1}</span>
+                            <input value={role.label} onChange={e => updateRole(role.id, "label", e.target.value)}
+                              placeholder="Role label, e.g. ABAP Lead"
+                              className="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white" />
+                            <button type="button" onClick={() => removeRole(role.id)}
+                              className="text-gray-400 hover:text-red-500 transition-colors p-1">
+                              <X size={14} />
+                            </button>
+                          </div>
+                          <input value={role.description} onChange={e => updateRole(role.id, "description", e.target.value)}
+                            placeholder="Brief description (optional)"
+                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white" />
+                          <div>
+                            <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide mb-1">Required skills for this role</p>
+                            <CatalogMultiSelect
+                              options={catalogSkills}
+                              selected={role.required_skills}
+                              onChange={val => updateRole(role.id, "required_skills", val)}
+                              color="violet"
+                              placeholder="Filter skills…"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.sap_area")}</label>

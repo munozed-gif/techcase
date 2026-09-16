@@ -302,6 +302,15 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                           <Users size={9} /> {app.team.name}
                         </span>
                       )}
+                      {app.application_type === "team" && app.role_assignments?.length > 0 && (
+                        <div className="w-full mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+                          {app.role_assignments.map((ra, ri) => (
+                            <span key={ri} className="text-[10px] text-gray-500">
+                              <span className="font-semibold text-gray-700">{ra.role_label}</span>: {ra.consultant_name ?? "—"}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                       {conflict && (
                         <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded"><AlertTriangle size={9} className="inline mr-0.5" />{t("rank.overcommitted")}</span>
                       )}

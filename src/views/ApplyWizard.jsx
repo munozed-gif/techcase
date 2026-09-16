@@ -18,8 +18,10 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
   const allowsTeam       = appMode === "team" || appMode === "both";
   const allowsIndividual = appMode === "individual" || appMode === "both";
 
+  const showRoleAssign = allowsTeam && applyAs === "team" && selectedTeamId && requiredRoles.length > 0;
   const APPLY_STEPS = [
     ...(allowsTeam ? [{ id: "team_pick", label: "Team", Icon: Users, desc: "Apply as individual or with a team" }] : []),
+    ...(showRoleAssign ? [{ id: "role_assign", label: "Roles", Icon: Users, desc: "Assign team members to required roles" }] : []),
     { id: "brief",  label: t("apply.step0_label"), Icon: FileText,     desc: t("apply.step0_desc") },
     { id: "pitch",  label: t("apply.step1_label"), Icon: PenLine,      desc: t("apply.step1_desc") },
     { id: "terms",  label: t("apply.step2_label"), Icon: Briefcase,    desc: t("apply.step2_desc") },
@@ -37,6 +39,10 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
   const [applyAs, setApplyAs] = useState(allowsIndividual ? "individual" : "team");
   const [myTeams, setMyTeams] = useState([]);
   const [selectedTeamId, setSelectedTeamId] = useState("");
+  const [teamMembers, setTeamMembers] = useState([]);
+  // role_assignments: { [role_id]: { consultant_id, consultant_name } }
+  const [roleAssignments, setRoleAssignments] = useState({});
+  const requiredRoles = caseData.required_roles ?? [];
 
   const TERMINAL = ["completed", "cancelled", "terminated", "closed", "approved"];
 
@@ -62,6 +68,52 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Fetch accepted team members + their skills when team is selected
+  useEffect(() => {
+    if (!selectedTeamId) { setTeamMembers([]); return; }
+    (async () => {
+      const { data: memberRows } = await supabase
+        .from("consultant_team_members")
+        .select("user_id, email, role")
+        .eq("team_id", selectedTeamId)
+        .eq("status", "accepted");
+      const memberIds = (memberRows ?? []).map(m => m.user_id).filter(Boolean);
+      let profileMap = {};
+      if (memberIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("consultant_profiles")
+          .select("id, full_name, headline, skills")
+          .in("id", memberIds);
+        for (const p of (profiles ?? [])) profileMap[p.id] = p;
+      }
+      const members = (memberRows ?? []).map(m => ({
+        user_id: m.user_id,
+        email: m.email,
+        full_name: profileMap[m.user_id]?.full_name ?? m.email,
+        skills: profileMap[m.user_id]?.skills ?? [],
+      }));
+      setTeamMembers(members);
+      // Auto-suggest: for each role, pick the member with the most skill overlaps
+      if (requiredRoles.length > 0 && members.length > 0) {
+        const suggestions = {};
+        for (const role of requiredRoles) {
+          const reqSkills = role.required_skills ?? [];
+          if (reqSkills.length === 0) continue;
+          let best = null, bestScore = -1;
+          for (const m of members) {
+            const score = (m.skills ?? []).filter(s => reqSkills.includes(s)).length;
+            if (score > bestScore) { bestScore = score; best = m; }
+          }
+          if (best && bestScore >= 0) {
+            suggestions[role.id] = { consultant_id: best.user_id, consultant_name: best.full_name };
+          }
+        }
+        setRoleAssignments(suggestions);
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTeamId]);
 
   useEffect(() => {
     (async () => {
@@ -115,6 +167,13 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
       if (existing) { alert("You have already applied to this case."); setSubmit(false); return; }
 
       const isTeamApp = applyAs === "team" && selectedTeamId;
+      const roleAssignmentsArr = isTeamApp && requiredRoles.length > 0
+        ? requiredRoles.map(r => ({
+            role_id: r.id,
+            role_label: r.label,
+            ...(roleAssignments[r.id] ?? { consultant_id: null, consultant_name: null }),
+          }))
+        : [];
       const { error } = await supabase.from("applications").insert({
         case_id: caseData.id,
         consultant_id: user.id,
@@ -124,6 +183,7 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
         max_available_at_submission: maxAvailable,
         application_type: isTeamApp ? "team" : "individual",
         team_id: isTeamApp ? selectedTeamId : null,
+        role_assignments: roleAssignmentsArr.length > 0 ? roleAssignmentsArr : null,
       });
       if (error) throw error;
       onComplete();
@@ -202,6 +262,61 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
                   )}
                 </div>
               )}
+            </div>
+          </>
+        )}
+
+        {/* Step — Role Assignments */}
+        {APPLY_STEPS[step]?.id === "role_assign" && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Assign Team Members to Roles</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              This case requires specific roles to be covered. Assign a team member to each one.
+              The same person can cover multiple roles.
+              {teamMembers.length > 0 && " 💡 Pre-filled based on skill match."}
+            </p>
+            <div className="space-y-4">
+              {requiredRoles.map(role => {
+                const assigned = roleAssignments[role.id];
+                return (
+                  <div key={role.id} className="border border-gray-200 rounded-xl p-4 bg-gray-50/60">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">{role.label}</p>
+                        {role.description && <p className="text-xs text-gray-400 mt-0.5">{role.description}</p>}
+                        {role.required_skills?.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {role.required_skills.map(s => (
+                              <span key={s} className="px-1.5 py-0.5 bg-violet-50 text-violet-700 border border-violet-100 rounded text-[10px] font-medium">{s}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {assigned && (
+                        <span className="flex-shrink-0 px-2 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded-lg text-[10px] font-bold">✓ assigned</span>
+                      )}
+                    </div>
+                    <select
+                      value={assigned?.consultant_id ?? ""}
+                      onChange={e => {
+                        const m = teamMembers.find(m => m.user_id === e.target.value);
+                        if (m) setRoleAssignments(r => ({ ...r, [role.id]: { consultant_id: m.user_id, consultant_name: m.full_name } }));
+                        else setRoleAssignments(r => { const n = { ...r }; delete n[role.id]; return n; });
+                      }}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                      <option value="">— Assign a team member —</option>
+                      {teamMembers.map(m => {
+                        const overlap = (m.skills ?? []).filter(s => (role.required_skills ?? []).includes(s)).length;
+                        return (
+                          <option key={m.user_id} value={m.user_id}>
+                            {m.full_name}{overlap > 0 ? ` ★ ${overlap} matching skill${overlap > 1 ? "s" : ""}` : ""}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                );
+              })}
             </div>
           </>
         )}
@@ -345,9 +460,27 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
                 <div className="border border-gray-100 rounded-xl p-4">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Application Type</p>
                   {applyAs === "team" && selectedTeamId ? (
-                    <p className="text-sm font-semibold text-indigo-700 flex items-center gap-1.5">
-                      <Users size={13} /> Team — {myTeams.find(t => t.id === selectedTeamId)?.name}
-                    </p>
+                    <>
+                      <p className="text-sm font-semibold text-indigo-700 flex items-center gap-1.5">
+                        <Users size={13} /> Team — {myTeams.find(t => t.id === selectedTeamId)?.name}
+                      </p>
+                      {requiredRoles.length > 0 && (
+                        <div className="mt-3 space-y-1.5">
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Role assignments</p>
+                          {requiredRoles.map(r => {
+                            const a = roleAssignments[r.id];
+                            return (
+                              <div key={r.id} className="flex items-center gap-2 text-xs">
+                                <span className="font-medium text-gray-700 min-w-0">{r.label}:</span>
+                                <span className={a ? "text-indigo-700 font-semibold" : "text-gray-400 italic"}>
+                                  {a ? a.consultant_name : "Unassigned"}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <p className="text-sm font-semibold text-gray-900">Individual</p>
                   )}
@@ -391,7 +524,11 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
         </button>
         {!isLast ? (
           <button onClick={() => setSt(s => s + 1)}
-            disabled={(APPLY_STEPS[step]?.id === "terms" && maxAvailable === 0) || (APPLY_STEPS[step]?.id === "team_pick" && applyAs === "team" && !selectedTeamId)}
+            disabled={
+              (APPLY_STEPS[step]?.id === "terms" && maxAvailable === 0) ||
+              (APPLY_STEPS[step]?.id === "team_pick" && applyAs === "team" && !selectedTeamId) ||
+              (APPLY_STEPS[step]?.id === "role_assign" && requiredRoles.some(r => !roleAssignments[r.id]))
+            }
             className="px-7 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-colors shadow-md disabled:opacity-40 disabled:cursor-not-allowed">
             {t("action.continue")}
           </button>
