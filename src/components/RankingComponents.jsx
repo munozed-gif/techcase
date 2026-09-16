@@ -99,7 +99,12 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
   const recalculate = useCallback(async () => {
     if (!applications.length) return;
     setRecalculating(true);
-    const ids = [...new Set(applications.map(a => a.consultant_id))];
+    // Include team member IDs so live availability covers every assigned consultant
+    const applicantIds = [...new Set(applications.map(a => a.consultant_id))];
+    const teamMemberIds = [...new Set(
+      applications.flatMap(a => (a.role_assignments ?? []).map(ra => ra.consultant_id).filter(Boolean))
+    )];
+    const ids = [...new Set([...applicantIds, ...teamMemberIds])];
     const [{ data: profiles }, { data: assignments }] = await Promise.all([
       supabase.from("consultant_profiles")
         .select("id, external_occupancy_pct")
@@ -134,17 +139,26 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
         const commitPts = !app.time_commitment ? 0
           : ratio >= 0.8 ? 5 : ratio >= 0.6 ? 4 : ratio >= 0.4 ? 3 : ratio >= 0.2 ? 2 : 1;
         const oldCommit = app.breakdown.commitment.pts;
+
+        // For team apps: also check if any assigned member is overcommitted
+        const memberOvercommitted = app.teamScoring && (app.assignedIds ?? []).some(
+          id => id !== app.consultant_id && (liveAvailability[id] ?? 100) < overcommitTolerance
+        );
+        const leadDetail = app.teamScoring
+          ? `${app.time_commitment ?? 0}% of ${live}% (lead)`
+          : `${app.time_commitment ?? 0}% of ${live}% now (${Math.round(ratio * 100)}%)`;
+
         return {
           ...app,
           liveAvailability: live,
-          overcommitted: (app.time_commitment ?? 0) > live + overcommitTolerance,
+          overcommitted: (app.time_commitment ?? 0) > live + overcommitTolerance || memberOvercommitted,
           totalScore: app.totalScore - oldCommit + commitPts,
           breakdown: {
             ...app.breakdown,
             commitment: {
               ...app.breakdown.commitment,
               pts: commitPts,
-              detail: `${app.time_commitment ?? 0}% of ${live}% now (${Math.round(ratio * 100)}%)`,
+              detail: leadDetail,
             },
           },
         };
@@ -224,17 +238,47 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
               <PersonAvatar name={best.consultant?.full_name} avatarUrl={best.consultant?.avatar_url} size={48} />
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-gray-900">{best.consultant?.full_name}</div>
-                <div className="text-xs text-gray-500">
-                  {(Array.isArray(best.consultant?.consultant_profiles)
-                    ? best.consultant.consultant_profiles[0]
-                    : best.consultant?.consultant_profiles)?.headline ?? ""}
-                </div>
+                {best.teamScoring ? (
+                  <div className="text-xs text-indigo-600 font-semibold flex items-center gap-1 mt-0.5">
+                    <Users size={10} /> Team application · {best.assignedIds?.length ?? 0} members
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-500">
+                    {(Array.isArray(best.consultant?.consultant_profiles)
+                      ? best.consultant.consultant_profiles[0]
+                      : best.consultant?.consultant_profiles)?.headline ?? ""}
+                  </div>
+                )}
               </div>
               <div className="text-right flex-shrink-0">
                 <div className="text-2xl font-black text-blue-700">{best.totalScore}</div>
                 <div className="text-xs text-gray-400">{t("rank.pts")}</div>
               </div>
             </div>
+            {/* Role-fit breakdown for team applications */}
+            {best.teamScoring && best.roleDetails?.length > 0 && (
+              <div className="mb-4 bg-white/60 rounded-xl p-3 space-y-1.5">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Role assignments</p>
+                {best.roleDetails.map((rd, ri) => {
+                  const pct = rd.total > 0 ? Math.round((rd.matched / rd.total) * 100) : null;
+                  const barColor = rd.unassigned ? "#ef4444" : pct === null ? "#94a3b8" : pct >= 80 ? "#22c55e" : pct >= 50 ? "#3b82f6" : "#f59e0b";
+                  return (
+                    <div key={ri} className="flex items-center gap-2 text-xs">
+                      <span className="w-24 shrink-0 text-gray-600 font-medium truncate">{rd.roleLabel}</span>
+                      <span className="flex-1 min-w-0 truncate text-gray-800">{rd.unassigned ? <span className="text-red-500 italic">Unassigned</span> : rd.memberName}</span>
+                      {!rd.unassigned && rd.total > 0 && (
+                        <>
+                          <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden shrink-0">
+                            <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: barColor }} />
+                          </div>
+                          <span className="text-[10px] font-bold shrink-0" style={{ color: barColor }}>{rd.matched}/{rd.total}</span>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             {/* Live availability row for best */}
             {hasLive && (
               <div className={`flex items-center gap-3 mb-4 px-3 py-2 rounded-xl text-xs font-medium ${
@@ -302,13 +346,28 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                           <Users size={9} /> {app.team.name}
                         </span>
                       )}
-                      {app.application_type === "team" && app.role_assignments?.length > 0 && (
-                        <div className="w-full mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
-                          {app.role_assignments.map((ra, ri) => (
-                            <span key={ri} className="text-[10px] text-gray-500">
-                              <span className="font-semibold text-gray-700">{ra.role_label}</span>: {ra.consultant_name ?? "—"}
-                            </span>
-                          ))}
+                      {app.teamScoring && app.roleDetails?.length > 0 && (
+                        <div className="w-full mt-1.5 space-y-0.5">
+                          {app.roleDetails.map((rd, ri) => {
+                            const pct = rd.total > 0 ? Math.round((rd.matched / rd.total) * 100) : null;
+                            const color = rd.unassigned ? "text-red-500"
+                              : pct === null ? "text-gray-400"
+                              : pct >= 80 ? "text-green-600"
+                              : pct >= 50 ? "text-blue-600"
+                              : "text-amber-600";
+                            return (
+                              <div key={ri} className="flex items-center gap-1.5 text-[10px]">
+                                <span className="font-semibold text-gray-600 min-w-0 shrink-0">{rd.roleLabel}:</span>
+                                {rd.unassigned
+                                  ? <span className="text-red-500 italic">Unassigned</span>
+                                  : <span className={`font-medium ${color}`}>{rd.memberName}</span>
+                                }
+                                {!rd.unassigned && rd.total > 0 && (
+                                  <span className={`ml-auto shrink-0 font-bold ${color}`}>{rd.matched}/{rd.total} skills</span>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                       {conflict && (
