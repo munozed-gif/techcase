@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { NovaLandingMark } from "../views/LandingView.jsx";
 
 const ORB_COLORS = ['#10B981','#3B82F6','#8B5CF6','#EC4899','#F59E0B','#0EA5E9','#F97316','#EF4444'];
 
@@ -164,12 +165,9 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
         <div style={{ position: 'relative', width: SYS, height: SYS, flexShrink: 0 }}>
           {allRings()}
           {radarWaves()}
-          {/* Center: Platform logo */}
-          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 80, height: 80, borderRadius: '50%', background: platformLogoUrl ? '#fff' : 'linear-gradient(135deg,#1A4B8C,#2563EB)', border: '3px solid rgba(37,99,235,0.2)', boxShadow: '0 0 24px rgba(37,99,235,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, overflow: 'hidden' }}>
-            {platformLogoUrl
-              ? <img src={platformLogoUrl} alt="Platform" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 6 }} />
-              : <span style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 34, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>A</span>
-            }
+          {/* Center: Nova animated logo */}
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 10 }}>
+            <NovaLandingMark size={90} />
           </div>
           {/* Distribute customers across R2/R3/R4 */}
           {customers.map((cust, i) => {
