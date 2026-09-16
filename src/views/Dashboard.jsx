@@ -35,7 +35,7 @@ function Dashboard({ auth, onNavigate }) {
   const { templates: lcTemplates } = useLifecycleTemplates();
   const { projects: allProjects } = useProjects();
   const [hdRatings, setHdRatings] = useState([]);
-  const { applications } = useApplications();
+  const { applications, refetch: refetchApps } = useApplications();
   const [applyingToCase, setApplying]   = useState(null);
   const [clientFilter, setClientFilter] = useState(null); // { id, name } | null
   const [activeTab, setActiveTab]       = useState(null);
@@ -286,7 +286,7 @@ function Dashboard({ auth, onNavigate }) {
         <ApplyWizard
           caseData={applyingToCase}
           auth={auth}
-          onComplete={() => setApplying(null)}
+          onComplete={() => { refetchApps(); setApplying(null); }}
           onCancel={() => setApplying(null)}
         />
       </div>
