@@ -11,37 +11,71 @@ function useConsultantTeams(userId) {
     if (!userId) { setLoading(false); return; }
     if (!background) setLoading(true);
 
-    // Step 1: get all team IDs the user belongs to (any status)
-    const { data: memberRows } = await supabase
-      .from("consultant_team_members")
-      .select("team_id")
-      .eq("user_id", userId);
+    try {
+      // 1. My teams (created by me)
+      const { data: teamsData } = await supabase
+        .from("consultant_teams")
+        .select("*")
+        .eq("created_by", userId)
+        .order("created_at", { ascending: false });
 
-    const memberTeamIds = (memberRows ?? []).map(r => r.team_id);
+      const myTeams = teamsData ?? [];
 
-    // Step 2: fetch teams created by user OR where they are a member
-    // Note: .order() must come AFTER filters (.or/.eq) — keep them in one chain each
-    const TEAM_SELECT = `*, members:consultant_team_members(id, user_id, email, role, status, member:user_id(id, full_name, avatar_url, email))`;
-    const teamIds = [...new Set(memberTeamIds)];
+      // 2. Members for those teams (separate query — avoids nested FK select issues)
+      if (myTeams.length > 0) {
+        const { data: membersData } = await supabase
+          .from("consultant_team_members")
+          .select("id, team_id, user_id, email, role, status")
+          .in("team_id", myTeams.map(t => t.id));
 
-    const [teamsResult, invitesResult] = await Promise.all([
-      teamIds.length > 0
-        ? supabase.from("consultant_teams").select(TEAM_SELECT)
-            .or(`created_by.eq.${userId},id.in.(${teamIds.join(",")})`)
-            .order("created_at", { ascending: false })
-        : supabase.from("consultant_teams").select(TEAM_SELECT)
-            .eq("created_by", userId)
-            .order("created_at", { ascending: false }),
-      supabase
+        // Fetch user info for members who have a user_id
+        const memberUserIds = [...new Set((membersData ?? []).map(m => m.user_id).filter(Boolean))];
+        let userMap = {};
+        if (memberUserIds.length > 0) {
+          const { data: usersData } = await supabase
+            .from("users")
+            .select("id, full_name, avatar_url, email")
+            .in("id", memberUserIds);
+          (usersData ?? []).forEach(u => { userMap[u.id] = u; });
+        }
+
+        const byTeam = {};
+        (membersData ?? []).forEach(m => {
+          if (!byTeam[m.team_id]) byTeam[m.team_id] = [];
+          byTeam[m.team_id].push({ ...m, member: userMap[m.user_id] ?? null });
+        });
+        myTeams.forEach(t => { t.members = byTeam[t.id] ?? []; });
+      }
+
+      // 3. Pending invites to me
+      const { data: invitesData } = await supabase
         .from("consultant_team_members")
-        .select(`id, role, invited_at, team:team_id(id, name, description, created_by, owner:created_by(id, full_name))`)
+        .select("id, role, invited_at, team_id")
         .eq("user_id", userId)
-        .eq("status", "pending"),
-    ]);
+        .eq("status", "pending");
 
-    setTeams(teamsResult.data ?? []);
-    setPendingInvites(invitesResult.data ?? []);
-    setLoading(false);
+      // Fetch team info for invites
+      const inviteTeamIds = (invitesData ?? []).map(i => i.team_id);
+      let inviteTeamMap = {};
+      if (inviteTeamIds.length > 0) {
+        const { data: invTeams } = await supabase
+          .from("consultant_teams")
+          .select("id, name, description, created_by")
+          .in("id", inviteTeamIds);
+        (invTeams ?? []).forEach(t => { inviteTeamMap[t.id] = t; });
+      }
+      const pendingInvitesFull = (invitesData ?? []).map(i => ({
+        ...i,
+        team: inviteTeamMap[i.team_id] ?? null,
+      }));
+
+      setTeams(myTeams);
+      setPendingInvites(pendingInvitesFull);
+    } catch (err) {
+      console.error("useConsultantTeams fetchAll:", err);
+    } finally {
+      setLoading(false);
+    }
   }, [userId]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
