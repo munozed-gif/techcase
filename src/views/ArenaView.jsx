@@ -37,6 +37,33 @@ if (typeof document !== 'undefined' && !document.getElementById('arena-orbit-kf'
   document.head.appendChild(_kf);
 }
 
+// Orbit constants for the carousel card mini solar system
+const LB_SYS    = 150;
+const LB_INNER_R = LB_SYS * 0.24; // 36
+const LB_OUTER_R = LB_SYS * 0.36; // 54
+const LB_TIME_R  = LB_SYS * 0.46; // 69
+
+// Defined at module level so React never sees a new component type on re-render
+// (defining inside a render/map causes unmount+remount on every parent update, resetting the animation)
+function OrbiterNode({ label, color, r, slotIdx, total, dur, isYou }) {
+  const startDeg = (slotIdx / Math.max(total, 1)) * 360 + (r === LB_INNER_R ? 0 : 40);
+  return (
+    <div style={{ position:'absolute', top:'50%', left:'50%', width:0, height:0,
+      animation:`arena-solar-orbit ${dur}s linear infinite`,
+      '--start':`${startDeg}deg`, '--r':`${r}px` }}>
+      <div style={{ position:'absolute', width:26, height:26, margin:-13 }}>
+        <div style={{ width:26, height:26, borderRadius:'50%', background:color,
+          border: isYou ? '2px solid #2563EB' : '2px solid rgba(255,255,255,0.5)',
+          boxShadow: isYou ? '0 0 7px rgba(37,99,235,0.35)' : '0 1px 3px rgba(0,0,0,0.15)',
+          display:'flex', alignItems:'center', justifyContent:'center',
+          fontFamily:"'Barlow Condensed',sans-serif", fontSize:8, fontWeight:700, color:'#fff' }}>
+          {label}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function useConsultantShortlist() {
   const [shortlist, setShortlist] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem('consultant_shortlist') || '[]')); }
@@ -1004,46 +1031,11 @@ function ArenaView({ auth }) {
       );
 
       // Leaderboard (solar) data for this card
-      const lbSys = 150;
-      const lbInnerR = lbSys * 0.24, lbOuterR = lbSys * 0.36, lbTimeR = lbSys * 0.46;
-      const lbCirc = 2 * Math.PI * lbTimeR;
+      const lbCirc = 2 * Math.PI * LB_TIME_R;
       const lbFilled = timePct != null ? lbCirc * timePct : 0;
       const otherCount = Math.max(0, appCount - (alreadyApplied ? 1 : 0));
       const innerSlots = Math.min(2, otherCount);
       const outerSlots = Math.min(5, Math.max(0, otherCount - innerSlots));
-
-      function OrbiterNode({ label, color, r, slotIdx, total, dur, isYou, caseCount }) {
-        const startDeg = (slotIdx / Math.max(total, 1)) * 360 + (r === lbInnerR ? 0 : 40);
-        return (
-          <div style={{ position:'absolute', top:'50%', left:'50%', width:0, height:0,
-            animation:`arena-solar-orbit ${dur}s linear infinite`,
-            '--start':`${startDeg}deg`, '--r':`${r}px` }}>
-            <div style={{ position:'absolute', width:26, height:26, margin:-13 }}>
-              <div style={{ width:26, height:26, borderRadius:'50%', background:color,
-                border: isYou ? '2px solid #2563EB' : '2px solid rgba(255,255,255,0.5)',
-                boxShadow: isYou ? '0 0 7px rgba(37,99,235,0.35)' : '0 1px 3px rgba(0,0,0,0.15)',
-                display:'flex', alignItems:'center', justifyContent:'center',
-                fontFamily:"'Barlow Condensed',sans-serif", fontSize:8, fontWeight:700, color:'#fff' }}>
-                {label}
-              </div>
-              {caseCount != null && caseCount > 0 && (
-                <div style={{
-                  position:'absolute', top:-4, right:-4,
-                  minWidth:13, height:13, borderRadius:99,
-                  background: caseCount >= 5 ? '#EF4444' : caseCount >= 3 ? '#F59E0B' : '#10B981',
-                  border:'1.5px solid #fff',
-                  display:'flex', alignItems:'center', justifyContent:'center',
-                  fontSize:7, fontWeight:800, color:'#fff', lineHeight:1,
-                  padding:'0 2px', fontFamily:'system-ui,sans-serif',
-                  boxShadow:'0 1px 3px rgba(0,0,0,0.2)',
-                }}>
-                  {caseCount}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      }
 
       return (
         <div style={{ background:'#EEF5FF', borderRadius:22, border:'1px solid #BFDBFE', overflow:'hidden', position:'relative', boxShadow:'0 4px 20px rgba(37,99,235,0.08)', height:'100%', display:'flex', flexDirection:'column' }}>
@@ -1108,16 +1100,16 @@ function ArenaView({ auth }) {
             <div style={{ display:'flex', gap:12, alignItems:'flex-start', flexWrap:'wrap', background:'rgba(26,75,140,0.04)', borderRadius:14, padding:'10px 12px', border:'1px solid rgba(26,75,140,0.09)' }}>
               {/* Solar system */}
               <div style={{ display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                <div style={{ position:'relative', width:lbSys, height:lbSys }}>
-                  {[lbInnerR, lbOuterR].map(r => (
+                <div style={{ position:'relative', width:LB_SYS, height:LB_SYS }}>
+                  {[LB_INNER_R, LB_OUTER_R].map(r => (
                     <div key={r} style={{ position:'absolute', borderRadius:'50%', border:'1px solid rgba(26,75,140,0.1)', top:'50%', left:'50%', width:r*2, height:r*2, transform:'translate(-50%,-50%)' }} />
                   ))}
-                  <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%', overflow:'visible' }} viewBox={`0 0 ${lbSys} ${lbSys}`}>
-                    <circle cx={lbSys/2} cy={lbSys/2} r={lbTimeR} fill="none" stroke="rgba(26,75,140,0.07)" strokeWidth="3.5"/>
+                  <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%', overflow:'visible' }} viewBox={`0 0 ${LB_SYS} ${LB_SYS}`}>
+                    <circle cx={LB_SYS/2} cy={LB_SYS/2} r={LB_TIME_R} fill="none" stroke="rgba(26,75,140,0.07)" strokeWidth="3.5"/>
                     {timePct != null && (
-                      <circle cx={lbSys/2} cy={lbSys/2} r={lbTimeR} fill="none" stroke={tc} strokeWidth="3.5"
+                      <circle cx={LB_SYS/2} cy={LB_SYS/2} r={LB_TIME_R} fill="none" stroke={tc} strokeWidth="3.5"
                         strokeDasharray={`${lbFilled.toFixed(1)} ${(lbCirc-lbFilled).toFixed(1)}`}
-                        strokeLinecap="round" transform={`rotate(-90 ${lbSys/2} ${lbSys/2})`}
+                        strokeLinecap="round" transform={`rotate(-90 ${LB_SYS/2} ${LB_SYS/2})`}
                         style={{ filter:`drop-shadow(0 0 4px ${tc}88)` }}/>
                     )}
                   </svg>
@@ -1125,12 +1117,12 @@ function ArenaView({ auth }) {
                     <ProjectAvatar project={c.project ?? { name: companyName || c.title, client: c.client }} size={34} />
                   </div>
                   {[...Array(innerSlots)].map((_, i) => {
-                    return <OrbiterNode key={`in${i}`} label={`#${i+1}`} color={orbColors[i%orbColors.length]} r={lbInnerR} slotIdx={i} total={innerSlots+(alreadyApplied?1:0)} dur={10} isYou={false} />;
+                    return <OrbiterNode key={`in${i}`} label={`#${i+1}`} color={orbColors[i%orbColors.length]} r={LB_INNER_R} slotIdx={i} total={innerSlots+(alreadyApplied?1:0)} dur={10} isYou={false} />;
                   })}
-                  {alreadyApplied && <OrbiterNode label="You" color="#3B82F6" r={lbInnerR} slotIdx={innerSlots} total={innerSlots+1} dur={10} isYou={true} />}
+                  {alreadyApplied && <OrbiterNode label="You" color="#3B82F6" r={LB_INNER_R} slotIdx={innerSlots} total={innerSlots+1} dur={10} isYou={true} />}
                   {[...Array(outerSlots)].map((_, i) => {
                     const globalIdx = innerSlots + i;
-                    return <OrbiterNode key={`out${i}`} label={`#${globalIdx+1}`} color={orbColors[globalIdx%orbColors.length]} r={lbOuterR} slotIdx={i} total={Math.max(outerSlots,1)} dur={17} isYou={false} />;
+                    return <OrbiterNode key={`out${i}`} label={`#${globalIdx+1}`} color={orbColors[globalIdx%orbColors.length]} r={LB_OUTER_R} slotIdx={i} total={Math.max(outerSlots,1)} dur={17} isYou={false} />;
                   })}
                   {daysLeft != null && (
                     <div style={{ position:'absolute', bottom:0, left:'50%', transform:'translateX(-50%)', fontSize:7, fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase', color:tc, whiteSpace:'nowrap' }}>
