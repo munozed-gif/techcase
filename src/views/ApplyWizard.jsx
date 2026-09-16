@@ -18,15 +18,6 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
   const allowsTeam       = appMode === "team" || appMode === "both";
   const allowsIndividual = appMode === "individual" || appMode === "both";
 
-  const showRoleAssign = allowsTeam && applyAs === "team" && selectedTeamId && requiredRoles.length > 0;
-  const APPLY_STEPS = [
-    ...(allowsTeam ? [{ id: "team_pick", label: "Team", Icon: Users, desc: "Apply as individual or with a team" }] : []),
-    ...(showRoleAssign ? [{ id: "role_assign", label: "Roles", Icon: Users, desc: "Assign team members to required roles" }] : []),
-    { id: "brief",  label: t("apply.step0_label"), Icon: FileText,     desc: t("apply.step0_desc") },
-    { id: "pitch",  label: t("apply.step1_label"), Icon: PenLine,      desc: t("apply.step1_desc") },
-    { id: "terms",  label: t("apply.step2_label"), Icon: Briefcase,    desc: t("apply.step2_desc") },
-    { id: "review", label: t("apply.step3_label"), Icon: CheckCircle2, desc: t("apply.step3_desc") },
-  ];
   const [step, setSt]           = useState(0);
   const [submitting, setSubmit] = useState(false);
   const [pitch, setPitch]       = useState({ cover_letter: "" });
@@ -43,6 +34,17 @@ function ApplyWizard({ caseData, auth, onComplete, onCancel }) {
   // role_assignments: { [role_id]: { consultant_id, consultant_name } }
   const [roleAssignments, setRoleAssignments] = useState({});
   const requiredRoles = caseData.required_roles ?? [];
+
+  // Derived — must be after all state declarations to avoid TDZ
+  const showRoleAssign = allowsTeam && applyAs === "team" && selectedTeamId && requiredRoles.length > 0;
+  const APPLY_STEPS = [
+    ...(allowsTeam ? [{ id: "team_pick", label: "Team", Icon: Users, desc: "Apply as individual or with a team" }] : []),
+    ...(showRoleAssign ? [{ id: "role_assign", label: "Roles", Icon: Users, desc: "Assign team members to required roles" }] : []),
+    { id: "brief",  label: t("apply.step0_label"), Icon: FileText,     desc: t("apply.step0_desc") },
+    { id: "pitch",  label: t("apply.step1_label"), Icon: PenLine,      desc: t("apply.step1_desc") },
+    { id: "terms",  label: t("apply.step2_label"), Icon: Briefcase,    desc: t("apply.step2_desc") },
+    { id: "review", label: t("apply.step3_label"), Icon: CheckCircle2, desc: t("apply.step3_desc") },
+  ];
 
   const TERMINAL = ["completed", "cancelled", "terminated", "closed", "approved"];
 
