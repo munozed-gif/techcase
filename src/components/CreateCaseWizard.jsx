@@ -38,7 +38,7 @@ const SLA_PRESETS = [
 
 // PROJECT_STEPS moved inside CreateProjectWizard to allow t() calls
 
-const EXPRESS_STEP_IDS = [0, 1, 2, 4, 8];
+const EXPRESS_STEP_IDS = [0, 1, 2, 3, 9];
 
 function CatalogMultiSelect({ options = [], selected = [], onChange, color = "blue", placeholder = "Search…" }) {
   const [filter, setFilter] = useState("");
@@ -376,14 +376,15 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   const catalogLangs  = catalogSettings["catalog_languages"] ?? LANG_DEFAULTS;
   const isEdit = !!initialData;
   const CREATE_CASE_STEPS = [
-    { id: "project",        label: t("cs.step_project"),   Icon: Layers,         desc: "Link to a project" },
-    { id: "basics",         label: t("cs.step_basics"),    Icon: FileText,       desc: "Title & description" },
-    { id: "scope",          label: t("cs.step_scope"),     Icon: DollarSign,     desc: "Budget, dates & skills" },
-    { id: "arrangement",    label: t("cs.step_work"),      Icon: MapPin,         desc: "Remote, on-site or hybrid" },
-    { id: "roles",          label: t("cs.step_roles"),     Icon: UsersRound,     desc: "Key user & head hunters" },
-    { id: "qualifications", label: t("cs.step_reqs"),      Icon: GraduationCap,  desc: "Certifications & languages" },
-    { id: "interview",      label: t("cs.step_interview"), Icon: MessageSquare,  desc: "Evaluation preferences" },
-    { id: "milestones",     label: t("cs.step_milestones"),Icon: Flag,           desc: "Key deliverables" },
+    { id: "project",        label: t("cs.step_project"),    Icon: Layers,         desc: "Link to a project" },
+    { id: "basics",         label: t("cs.step_basics"),     Icon: FileText,       desc: "Title & description" },
+    { id: "visibility",     label: "Visibility",            Icon: Lock,           desc: "Access & application settings" },
+    { id: "scope",          label: t("cs.step_scope"),      Icon: DollarSign,     desc: "Budget, dates & skills" },
+    { id: "arrangement",    label: t("cs.step_work"),       Icon: MapPin,         desc: "Remote, on-site or hybrid" },
+    { id: "roles",          label: t("cs.step_roles"),      Icon: UsersRound,     desc: "Key user & head hunters" },
+    { id: "qualifications", label: t("cs.step_reqs"),       Icon: GraduationCap,  desc: "Certifications & languages" },
+    { id: "interview",      label: t("cs.step_interview"),  Icon: MessageSquare,  desc: "Evaluation preferences" },
+    { id: "milestones",     label: t("cs.step_milestones"), Icon: Flag,           desc: "Key deliverables" },
     { id: "review",         label: t("cs.step_review"),    Icon: CheckCircle2,   desc: "Confirm & create" },
   ];
   const EXPRESS_CASE_STEPS = CREATE_CASE_STEPS.filter((_, i) => EXPRESS_STEP_IDS.includes(i));
@@ -392,7 +393,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   const [creating, setCreating] = useState(false);
   const [upgradeModal, setUpgradeModal] = useState(null);
 
-  const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId);
+  const [selectedProjectId, setSelectedProjectId] = useState(initialData?.project_id ?? initialProjectId);
   const [wizardProjects, setWizardProjects]         = useState([]);
 
   const _visCfg = useVisibilitySettings();
@@ -908,99 +909,172 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                     </span>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Who can apply?</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { value: "both",       label: "Everyone",     desc: "Individual or team" },
-                      { value: "individual", label: "Individual",   desc: "Single consultants only" },
-                      { value: "team",       label: "Teams only",   desc: "Requires a team" },
-                    ].map(opt => {
-                      const sel = basics.application_mode === opt.value;
-                      return (
-                        <button key={opt.value} type="button"
-                          onClick={() => setBasics(p => ({ ...p, application_mode: opt.value }))}
-                          className={`flex flex-col p-3 rounded-xl border text-left transition-all ${sel ? "border-indigo-400 bg-indigo-50" : "border-gray-200 hover:border-indigo-200 hover:bg-gray-50"}`}>
-                          <span className={`text-xs font-semibold ${sel ? "text-indigo-700" : "text-gray-700"}`}>{opt.label}</span>
-                          <span className="text-[10px] text-gray-400 mt-0.5">{opt.desc}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <RequiredRolesBuilder
-                  roles={requiredRoles}
-                  onChange={setRequiredRoles}
-                  catalogSkills={catalogSkills}
-                  applicationMode={basics.application_mode}
-                />
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.sap_area")}</label>
-                    <select value={basics.area_sap}
-                      onChange={e => setBasics(p => ({ ...p, area_sap: e.target.value }))}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option value="">{t("case.sap_area_none")}</option>
-                      {(catalogSettings?.["catalog_sap_areas"] ?? SAP_AREAS).map(a => <option key={a} value={a}>{a}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.industry")}</label>
-                    <select value={basics.area_industry}
-                      onChange={e => setBasics(p => ({ ...p, area_industry: e.target.value }))}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                      <option value="">{t("proj.select_industry")}</option>
-                      {(catalogSettings?.["catalog_industries"] ?? INDUSTRY_AREAS).map(a => <option key={a} value={a}>{a}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div className="border-t border-gray-100 pt-4 mt-2">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{t("case.visibility")}</p>
-                  <div className="flex gap-2 mb-3">
-                    {[
-                      { id: 'public',      label: t('case.vis_public'),  desc: t('case.vis_pub_desc'),  active: 'border-green-500 bg-green-50 text-green-800' },
-                      { id: 'private',     label: t('case.vis_private'), desc: t('case.vis_priv_desc'), active: 'border-gray-600 bg-gray-700 text-white' },
-                      { id: 'invite-only', label: t('case.vis_invite'),  desc: t('case.vis_inv_desc'),  active: 'border-blue-500 bg-blue-50 text-blue-800' },
-                    ].map(opt => (
-                      <button key={opt.id} type="button" onClick={() => setCaseVisMode(opt.id)}
-                        className={`flex-1 p-2.5 rounded-xl border-2 text-left transition-all ${caseVisMode === opt.id ? opt.active : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-                        <div className="text-xs font-bold mb-0.5">{opt.label}</div>
-                        <div className={`text-[10px] leading-tight ${caseVisMode === opt.id ? 'opacity-80' : 'text-gray-400'}`}>{opt.desc}</div>
-                      </button>
-                    ))}
-                  </div>
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" checked={basics.nda_required}
-                      onChange={e => setBasics(p => ({ ...p, nda_required: e.target.checked }))}
-                      className="w-4 h-4 rounded accent-blue-600" />
-                    <span className="text-sm text-gray-700 font-medium">{t("case.nda")}</span>
-                    <span className="text-xs text-gray-400">{t("case.nda_desc")}</span>
-                  </label>
-                </div>
-                {(auth.isAdmin || auth.isManager) && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Minimum Consultant Level
-                    </label>
-                    <p className="text-xs text-gray-400 mb-2">Restrict which consultants can see this case based on their trust tier.</p>
-                    <select
-                      value={basics.min_trust_level ?? ''}
-                      onChange={e => setBasics(p => ({ ...p, min_trust_level: e.target.value || null }))}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
-                      <option value="">Any level (default)</option>
-                      <option value="silver">Silver and above</option>
-                      <option value="gold">Gold and above</option>
-                      <option value="platinum">Platinum only</option>
-                    </select>
-                  </div>
-                )}
+                <label className="flex items-center gap-3 cursor-pointer mt-1">
+                  <input type="checkbox" checked={basics.nda_required}
+                    onChange={e => setBasics(p => ({ ...p, nda_required: e.target.checked }))}
+                    className="w-4 h-4 rounded accent-blue-600" />
+                  <span className="text-sm text-gray-700 font-medium">{t("case.nda")}</span>
+                  <span className="text-xs text-gray-400">{t("case.nda_desc")}</span>
+                </label>
               </>
             )}
           </>
         )}
 
-        {/* ── Step 2: Scope ── */}
-        {step === 2 && (
+        {/* ── Step 2: Visibility ── */}
+        {step === 2 && mode !== "express" && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Visibility & Access</h2>
+            <p className="text-sm text-gray-500 mb-5">Control who can see and apply to this case.</p>
+
+            {/* Case visibility */}
+            <div className="mb-5">
+              <p className="text-sm font-semibold text-gray-700 mb-2">{t("case.visibility")}</p>
+              <div className="flex gap-2">
+                {[
+                  { id: 'public',      label: t('case.vis_public'),  desc: t('case.vis_pub_desc'),  active: 'border-green-500 bg-green-50 text-green-800' },
+                  { id: 'private',     label: t('case.vis_private'), desc: t('case.vis_priv_desc'), active: 'border-gray-600 bg-gray-700 text-white' },
+                  { id: 'invite-only', label: t('case.vis_invite'),  desc: t('case.vis_inv_desc'),  active: 'border-blue-500 bg-blue-50 text-blue-800' },
+                ].map(opt => (
+                  <button key={opt.id} type="button" onClick={() => setCaseVisMode(opt.id)}
+                    className={`flex-1 p-3 rounded-xl border-2 text-left transition-all ${caseVisMode === opt.id ? opt.active : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                    <div className="text-xs font-bold mb-0.5">{opt.label}</div>
+                    <div className={`text-[10px] leading-tight ${caseVisMode === opt.id ? 'opacity-80' : 'text-gray-400'}`}>{opt.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Confidential + NDA */}
+            <div className="border border-gray-100 rounded-xl p-4 mb-5 space-y-3">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Confidentiality</p>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={basics.is_confidential}
+                  onChange={e => setBasics(p => ({ ...p, is_confidential: e.target.checked }))}
+                  className="w-4 h-4 rounded accent-blue-600" />
+                <div>
+                  <span className="text-sm text-gray-700 font-medium">Confidential case</span>
+                  <p className="text-xs text-gray-400">Hides client name and sensitive details from consultants until accepted.</p>
+                </div>
+              </label>
+            </div>
+
+            {/* Who can apply */}
+            <div className="mb-5">
+              <p className="text-sm font-semibold text-gray-700 mb-1">Who can apply?</p>
+              <p className="text-xs text-gray-400 mb-3">Choose whether this case accepts individual consultants, teams, or both.</p>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: "both",       label: "Everyone",   desc: "Individual or team", icon: "👥" },
+                  { value: "individual", label: "Individual", desc: "Single consultants only", icon: "🧑" },
+                  { value: "team",       label: "Teams only", desc: "Requires a team", icon: "🤝" },
+                ].map(opt => {
+                  const sel = basics.application_mode === opt.value;
+                  return (
+                    <button key={opt.value} type="button"
+                      onClick={() => setBasics(p => ({ ...p, application_mode: opt.value }))}
+                      className={`flex flex-col items-start p-3 rounded-xl border-2 text-left transition-all ${sel ? "border-indigo-400 bg-indigo-50" : "border-gray-200 hover:border-indigo-200 hover:bg-gray-50"}`}>
+                      <span className="text-lg mb-1">{opt.icon}</span>
+                      <span className={`text-xs font-semibold ${sel ? "text-indigo-700" : "text-gray-700"}`}>{opt.label}</span>
+                      <span className="text-[10px] text-gray-400 mt-0.5">{opt.desc}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Required Roles (team match builder) */}
+            <RequiredRolesBuilder
+              roles={requiredRoles}
+              onChange={setRequiredRoles}
+              catalogSkills={catalogSkills}
+              applicationMode={basics.application_mode}
+            />
+
+            {/* Classification */}
+            <div className="grid grid-cols-2 gap-3 mt-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.sap_area")}</label>
+                <select value={basics.area_sap}
+                  onChange={e => setBasics(p => ({ ...p, area_sap: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">{t("case.sap_area_none")}</option>
+                  {(catalogSettings?.["catalog_sap_areas"] ?? SAP_AREAS).map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t("label.industry")}</label>
+                <select value={basics.area_industry}
+                  onChange={e => setBasics(p => ({ ...p, area_industry: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">{t("proj.select_industry")}</option>
+                  {(catalogSettings?.["catalog_industries"] ?? INDUSTRY_AREAS).map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Minimum trust level — admin/manager only */}
+            {(auth.isAdmin || auth.isManager) && (
+              <div className="mt-4 border border-gray-100 rounded-xl p-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Consultant Level</label>
+                <p className="text-xs text-gray-400 mb-2">Restrict which consultants can see this case based on their trust tier.</p>
+                <select
+                  value={basics.min_trust_level ?? ''}
+                  onChange={e => setBasics(p => ({ ...p, min_trust_level: e.target.value || null }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+                  <option value="">Any level (default)</option>
+                  <option value="silver">Silver and above</option>
+                  <option value="gold">Gold and above</option>
+                  <option value="platinum">Platinum only</option>
+                </select>
+              </div>
+            )}
+          </>
+        )}
+        {step === 2 && mode === "express" && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Visibility & Access</h2>
+            <p className="text-sm text-gray-500 mb-5">Control who can see and apply to this case.</p>
+            <div className="flex gap-2 mb-4">
+              {[
+                { id: 'public',      label: t('case.vis_public'),  desc: t('case.vis_pub_desc'),  active: 'border-green-500 bg-green-50 text-green-800' },
+                { id: 'private',     label: t('case.vis_private'), desc: t('case.vis_priv_desc'), active: 'border-gray-600 bg-gray-700 text-white' },
+                { id: 'invite-only', label: t('case.vis_invite'),  desc: t('case.vis_inv_desc'),  active: 'border-blue-500 bg-blue-50 text-blue-800' },
+              ].map(opt => (
+                <button key={opt.id} type="button" onClick={() => setCaseVisMode(opt.id)}
+                  className={`flex-1 p-2.5 rounded-xl border-2 text-left transition-all ${caseVisMode === opt.id ? opt.active : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                  <div className="text-xs font-bold mb-0.5">{opt.label}</div>
+                  <div className={`text-[10px] leading-tight ${caseVisMode === opt.id ? 'opacity-80' : 'text-gray-400'}`}>{opt.desc}</div>
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {[
+                { value: "both",       label: "Everyone",   desc: "Individual or team", icon: "👥" },
+                { value: "individual", label: "Individual", desc: "Single consultants only", icon: "🧑" },
+                { value: "team",       label: "Teams only", desc: "Requires a team", icon: "🤝" },
+              ].map(opt => {
+                const sel = basics.application_mode === opt.value;
+                return (
+                  <button key={opt.value} type="button"
+                    onClick={() => setBasics(p => ({ ...p, application_mode: opt.value }))}
+                    className={`flex flex-col items-start p-3 rounded-xl border-2 text-left transition-all ${sel ? "border-indigo-400 bg-indigo-50" : "border-gray-200 hover:border-indigo-200"}`}>
+                    <span className="text-base mb-0.5">{opt.icon}</span>
+                    <span className={`text-xs font-semibold ${sel ? "text-indigo-700" : "text-gray-700"}`}>{opt.label}</span>
+                    <span className="text-[10px] text-gray-400">{opt.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-xs text-blue-700 flex items-start gap-2">
+              <Zap className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+              <span>{t("case.express_note")}</span>
+            </div>
+          </>
+        )}
+
+        {/* ── Step 3: Scope ── */}
+        {step === 3 && (
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("case.step2_h2")}</h2>
             <p className="text-sm text-gray-500 mb-5">
@@ -1119,8 +1193,8 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
           </>
         )}
 
-        {/* ── Step 3: Work Arrangement ── */}
-        {step === 3 && (
+        {/* ── Step 4: Work Arrangement ── */}
+        {step === 4 && (
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("case.step3_h2")}</h2>
             <p className="text-sm text-gray-500 mb-5">{t("case.step3_desc")}</p>
@@ -1165,8 +1239,8 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
           </>
         )}
 
-        {/* ── Step 4: Roles & People ── */}
-        {step === 4 && (
+        {/* ── Step 5: Roles & People ── */}
+        {step === 5 && (
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("case.step4_h2")}</h2>
             <p className="text-sm text-gray-500 mb-5">{t("case.step4_desc")}</p>
@@ -1252,8 +1326,8 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
           </>
         )}
 
-        {/* ── Step 5: Qualifications / Requirements ── */}
-        {step === 5 && (
+        {/* ── Step 6: Qualifications / Requirements ── */}
+        {step === 6 && (
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("case.step5_h2")}</h2>
             <p className="text-sm text-gray-500 mb-5">{t("case.step5_desc")}</p>
@@ -1297,8 +1371,8 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
           </>
         )}
 
-        {/* ── Step 6: Interview Preferences ── */}
-        {step === 6 && (
+        {/* ── Step 7: Interview Preferences ── */}
+        {step === 7 && (
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("case.step6_h2")}</h2>
             <p className="text-sm text-gray-500 mb-5">{t("case.step6_desc")}</p>
@@ -1364,8 +1438,8 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
           </>
         )}
 
-        {/* ── Step 7: Milestones ── */}
-        {step === 7 && (
+        {/* ── Step 8: Milestones ── */}
+        {step === 8 && (
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("case.step7_h2")}</h2>
             <p className="text-sm text-gray-500 mb-5">{t("case.step7_desc")}</p>
@@ -1405,8 +1479,8 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
           </>
         )}
 
-        {/* ── Step 8: Review ── */}
-        {step === 8 && (
+        {/* ── Step 9: Review ── */}
+        {step === 9 && (
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("case.step8_h2")}</h2>
             <p className="text-sm text-gray-500 mb-5">{t("case.step8_desc")}</p>
@@ -1503,23 +1577,30 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                 </div>
               )}
 
-              {/* Application mode + required roles summary */}
+              {/* Visibility & access summary */}
               <div className="border border-gray-100 rounded-xl p-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Who can apply</p>
-                <div className="flex items-center gap-2 mb-3">
-                  {basics.application_mode === "team"       && <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-semibold">👥 Teams only</span>}
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Visibility & Access</p>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {caseVisMode === "public"      && <span className="px-2.5 py-1 bg-green-50 text-green-700 border border-green-200 rounded-lg text-xs font-semibold">🌐 Public</span>}
+                  {caseVisMode === "private"     && <span className="px-2.5 py-1 bg-gray-700 text-white rounded-lg text-xs font-semibold">🔒 Private</span>}
+                  {caseVisMode === "invite-only" && <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs font-semibold">✉️ Invite only</span>}
+                  {basics.application_mode === "team"       && <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-semibold">🤝 Teams only</span>}
                   {basics.application_mode === "individual" && <span className="px-2.5 py-1 bg-gray-100 text-gray-600 border border-gray-200 rounded-lg text-xs font-semibold">🧑 Individual only</span>}
                   {(basics.application_mode === "both" || !basics.application_mode) && <span className="px-2.5 py-1 bg-green-50 text-green-700 border border-green-200 rounded-lg text-xs font-semibold">👥 Teams & Individual</span>}
+                  {basics.is_confidential && <span className="px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-xs font-semibold">🔐 Confidential</span>}
+                  {basics.nda_required   && <span className="px-2.5 py-1 bg-red-50 text-red-700 border border-red-200 rounded-lg text-xs font-semibold">📋 NDA required</span>}
+                  {basics.min_trust_level && <span className="px-2.5 py-1 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-lg text-xs font-semibold capitalize">⭐ {basics.min_trust_level}+</span>}
                 </div>
-                {requiredRoles.filter(r => r.label.trim()).length > 0 ? (
-                  <div className="space-y-2">
+                {requiredRoles.filter(r => r.label.trim()).length > 0 && (
+                  <div className="border-t border-gray-100 pt-3 space-y-2">
                     <p className="text-xs text-gray-500 font-medium">Required roles ({requiredRoles.filter(r => r.label.trim()).length})</p>
                     {requiredRoles.filter(r => r.label.trim()).map((role, i) => (
                       <div key={role.id} className="flex items-start gap-2 text-sm">
                         <span className="text-xs font-bold text-indigo-400 w-5 flex-shrink-0 mt-0.5">#{i + 1}</span>
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <span className="font-medium text-gray-900">{role.label}</span>
-                          {role.description && <span className="text-gray-400 text-xs ml-2">{role.description}</span>}
+                          {role.seniority && role.seniority !== "Any" && <span className="ml-2 px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-[10px]">{role.seniority}</span>}
+                          {role.time_pct && <span className="ml-1 text-xs text-gray-400">{role.time_pct}%</span>}
                           {role.required_skills?.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-1">
                               {role.required_skills.map(s => (
@@ -1531,10 +1612,6 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                       </div>
                     ))}
                   </div>
-                ) : (
-                  (basics.application_mode === "team" || basics.application_mode === "both") && (
-                    <p className="text-xs text-gray-400 italic">No required roles defined — team can apply freely.</p>
-                  )
                 )}
               </div>
 
@@ -1583,7 +1660,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
           {step === 0 ? <><X size={13} className="mr-1 inline" />{t("action.cancel")}</> : `← ${t("action.back")}`}
         </button>
         <div className="flex items-center gap-3">
-          {step === 7 && mode !== "express" && (
+          {step === 8 && mode !== "express" && (
             <button onClick={nextStep} className="px-4 py-2.5 text-sm text-gray-400 hover:text-gray-600 border border-gray-200 rounded-xl">
               {t("action.skip")}
             </button>
