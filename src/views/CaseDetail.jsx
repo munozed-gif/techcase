@@ -27,7 +27,7 @@ import { CaseFeedbackModal, ApplicantRankingSection } from "../components/Rankin
 import {
   ProjectFieldEditor,
   getStageIcon, CaseLifecycleTrack, LifecycleFlowDiagram,
-  SpecificationTab,
+  SpecificationTab, GenerationProfileModal,
 } from "../components/CaseSubPanels.jsx";
 import { TimeLogPanel } from "../components/TimeLogPanel.jsx";
 import { CaseFilesPanel } from "../components/CaseFilesPanel.jsx";
