@@ -363,6 +363,20 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
                 </div>
               </div>
             )}
+            <div style={{ marginBottom: 8 }}>
+              {(() => {
+                const m = cs.application_mode;
+                const [color, bg, border, label] =
+                  m === 'team'       ? ['#4F46E5','rgba(79,70,229,0.08)','rgba(79,70,229,0.25)','👥 Teams only']
+                  : m === 'individual' ? ['#475569','rgba(71,85,105,0.08)','rgba(71,85,105,0.2)','🧑 Individual only']
+                  :                      ['#059669','rgba(5,150,105,0.08)','rgba(5,150,105,0.25)','👥 Teams & Individual'];
+                return (
+                  <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 9px', borderRadius: 99, border: `1px solid ${border}`, color, background: bg }}>
+                    {label}
+                  </span>
+                );
+              })()}
+            </div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
               <StatTile value={cs.applications?.length ?? 0} label="Applied" />
               {!!cs.time_commitment && <StatTile value={`${cs.time_commitment}%`} label="Commit" />}

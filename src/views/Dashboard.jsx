@@ -709,6 +709,9 @@ function Dashboard({ auth, onNavigate }) {
                               <Badge className={PRIORITY_COLORS[c.priority]}>{PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}</Badge>
                               {c.area_sap      && <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">{c.area_sap}</span>}
                               {c.area_industry && <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded-lg text-xs font-medium">{c.area_industry}</span>}
+                              {c.application_mode === 'team'       && <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-medium">👥 Teams only</span>}
+                              {c.application_mode === 'individual' && <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-lg text-xs font-medium">🧑 Individual only</span>}
+                              {(c.application_mode === 'both' || !c.application_mode) && <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded-lg text-xs font-medium">👥 Teams & Individual</span>}
                             </div>
                             {/* Company + follow button */}
                             {companyName && (

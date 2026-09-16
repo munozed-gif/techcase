@@ -1048,6 +1048,9 @@ function ArenaView({ auth }) {
               {c.budget        && chip('#059669','rgba(5,150,105,0.3)','rgba(5,150,105,0.07)', `$${Number(c.budget).toLocaleString()}`)}
               {daysLeft != null && chip(dayChipColor, dayChipBorder, dayChipBg, daysLeft === 1 ? '1 day left' : `${daysLeft} days left`)}
               {companyName     && chip('#1A4B8C','rgba(26,75,140,0.25)','rgba(26,75,140,0.06)', companyName)}
+              {c.application_mode === 'team'       && chip('#4F46E5','rgba(79,70,229,0.3)','rgba(79,70,229,0.07)', '👥 Teams only')}
+              {c.application_mode === 'individual' && chip('#475569','rgba(71,85,105,0.3)','rgba(71,85,105,0.07)', '🧑 Individual only')}
+              {(c.application_mode === 'both' || !c.application_mode) && chip('#059669','rgba(5,150,105,0.25)','rgba(5,150,105,0.06)', '👥 Teams & Individual')}
             </div>
             <div style={{ height:1, background:'rgba(26,75,140,0.1)' }} />
 
