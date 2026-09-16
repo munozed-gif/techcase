@@ -132,7 +132,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
   }
 
   return (
-    <aside className="w-64 text-white flex flex-col h-screen fixed left-0 top-0 z-40" style={{background:"#0B0F1A",backgroundImage:"linear-gradient(rgba(79,110,247,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(79,110,247,.06) 1px,transparent 1px)",backgroundSize:"48px 48px"}}>
+    <aside className="w-64 text-white flex flex-col h-screen fixed left-0 top-0 z-40" style={{background:"#111829",backgroundImage:"linear-gradient(rgba(79,110,247,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(79,110,247,.07) 1px,transparent 1px)",backgroundSize:"48px 48px"}}>
       {/* Logo */}
       <div className="py-5 px-4 border-b border-blue-900 flex flex-col items-center gap-2">
         <NovaLogo size={80} />
