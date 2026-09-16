@@ -1,13 +1,23 @@
 import { useEffect } from "react";
 
 // ─── Nova Logo Mark ─────────────────────────────────────────────────────────
+// Module-level injection so the keyframe is available even when LandingView isn't mounted
+if (typeof document !== 'undefined') {
+  let _kf = document.getElementById('nova-lmark-kf');
+  if (!_kf) { _kf = document.createElement('style'); _kf.id = 'nova-lmark-kf'; document.head.appendChild(_kf); }
+  _kf.textContent = `@keyframes nova-lmark {
+  from { transform: rotate(var(--nls,0deg)) translateX(var(--nlr,10px)) rotate(calc(-1*var(--nls,0deg))); }
+  to   { transform: rotate(calc(var(--nls,0deg)+360deg)) translateX(var(--nlr,10px)) rotate(calc(-1*(var(--nls,0deg)+360deg))); }
+}`;
+}
+
 const _NOVA_ORBS = [
   { s:   0, r: 54, d:  9, z: 13, c: '#2563EB', gr: 7, gc: 'rgba(37,99,235,0.55)' },
   { s: 195, r: 54, d:  9, z: 10, c: '#60A5FA', gr: 5, gc: 'rgba(96,165,250,0.45)' },
   { s: 100, r: 74, d: 16, z: 11, c: '#3B82F6', gr: 6, gc: 'rgba(59,130,246,0.45)' },
   { s: 280, r: 74, d: 16, z:  8, c: '#93C5FD', gr: 4, gc: 'rgba(147,197,253,0.4)' },
 ];
-function NovaLandingMark({ size = 28 }) {
+export function NovaLandingMark({ size = 28 }) {
   const sc = size / 152;
   const orb = Math.round(52 * sc);
   const d1  = Math.round(108 * sc);

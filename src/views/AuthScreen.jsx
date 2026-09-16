@@ -9,7 +9,7 @@ import { usePlatformBranding, useSystemSettings } from "../hooks/useSystemSettin
 import { Input } from "../components/ui.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { ROLE_PERMISSIONS_DEFAULTS } from "../lib/constants.js";
-import { GaleaMark } from "./LandingView.jsx";
+import { NovaLandingMark } from "./LandingView.jsx";
 
 // AuthScreen — sign-in, sign-up wizard, password reset
 
@@ -298,10 +298,10 @@ function AuthScreen({ onAuth, onBack }) {
   const logo = (
     <div className="text-center mb-8">
       <div className="inline-flex items-center justify-center mb-4">
-        <img src={branding.logoUrl} width="80" height="80" alt={branding.platformName} style={{objectFit:"contain"}}/>
+        <NovaLandingMark size={88} />
       </div>
-      <h1 className="text-2xl font-bold text-[#1C3557]">{branding.platformName}</h1>
-      <p className="text-blue-500 mt-1 text-sm">{branding.tagline}</p>
+      <h1 className="text-2xl font-bold text-white">{branding.platformName}</h1>
+      <p className="text-blue-400 mt-1 text-sm">{branding.tagline}</p>
     </div>
   );
 
@@ -386,7 +386,7 @@ function AuthScreen({ onAuth, onBack }) {
       {/* Landing nav */}
       <nav className="auth-nav">
         <button className="auth-nav-logo" onClick={onBack} style={{background:"none",border:"none",padding:0}}>
-          <GaleaMark size={26} bg="#0B0F1A" />
+          <NovaLandingMark size={32} />
           <span className="auth-nav-arena">Arena</span>
           <span className="auth-nav-rest">Solutions Platform</span>
         </button>
