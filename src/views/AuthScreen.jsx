@@ -377,9 +377,9 @@ function AuthScreen({ onAuth, onBack }) {
 
   return (
     <div style={{
-      minHeight:"100vh",background:"#0B0F1A",
-      backgroundImage:`linear-gradient(rgba(79,110,247,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(79,110,247,.04) 1px,transparent 1px)`,
-      backgroundSize:"48px 48px"
+      minHeight:"100vh", background:"#0B0F1A",
+      backgroundImage:"radial-gradient(circle at 70% -10%,rgba(79,110,247,.22) 0%,transparent 65%),linear-gradient(rgba(79,110,247,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(79,110,247,.07) 1px,transparent 1px)",
+      backgroundSize:"100% 100%,48px 48px,48px 48px"
     }}>
       <style>{NAV_CSS}</style>
 
