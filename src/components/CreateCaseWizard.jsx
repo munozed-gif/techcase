@@ -1019,16 +1019,15 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               <p className="text-xs text-gray-400 mb-3">Choose whether this case accepts individual consultants, teams, or both.</p>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { value: "both",       label: "Everyone",   desc: "Individual or team", icon: "👥" },
-                  { value: "individual", label: "Individual", desc: "Single consultants only", icon: "🧑" },
-                  { value: "team",       label: "Teams only", desc: "Requires a team", icon: "🤝" },
+                  { value: "both",       label: "Everyone",   desc: "Individual or team" },
+                  { value: "individual", label: "Individual", desc: "Single consultants only" },
+                  { value: "team",       label: "Teams only", desc: "Requires a team" },
                 ].map(opt => {
                   const sel = basics.application_mode === opt.value;
                   return (
                     <button key={opt.value} type="button"
                       onClick={() => setBasics(p => ({ ...p, application_mode: opt.value }))}
                       className={`flex flex-col items-start p-3 rounded-xl border-2 text-left transition-all ${sel ? "border-indigo-400 bg-indigo-50" : "border-gray-200 hover:border-indigo-200 hover:bg-gray-50"}`}>
-                      <span className="text-lg mb-1">{opt.icon}</span>
                       <span className={`text-xs font-semibold ${sel ? "text-indigo-700" : "text-gray-700"}`}>{opt.label}</span>
                       <span className="text-[10px] text-gray-400 mt-0.5">{opt.desc}</span>
                     </button>
@@ -1104,16 +1103,15 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
             </div>
             <div className="grid grid-cols-3 gap-2 mb-4">
               {[
-                { value: "both",       label: "Everyone",   desc: "Individual or team", icon: "👥" },
-                { value: "individual", label: "Individual", desc: "Single consultants only", icon: "🧑" },
-                { value: "team",       label: "Teams only", desc: "Requires a team", icon: "🤝" },
+                { value: "both",       label: "Everyone",   desc: "Individual or team" },
+                { value: "individual", label: "Individual", desc: "Single consultants only" },
+                { value: "team",       label: "Teams only", desc: "Requires a team" },
               ].map(opt => {
                 const sel = basics.application_mode === opt.value;
                 return (
                   <button key={opt.value} type="button"
                     onClick={() => setBasics(p => ({ ...p, application_mode: opt.value }))}
                     className={`flex flex-col items-start p-3 rounded-xl border-2 text-left transition-all ${sel ? "border-indigo-400 bg-indigo-50" : "border-gray-200 hover:border-indigo-200"}`}>
-                    <span className="text-base mb-0.5">{opt.icon}</span>
                     <span className={`text-xs font-semibold ${sel ? "text-indigo-700" : "text-gray-700"}`}>{opt.label}</span>
                     <span className="text-[10px] text-gray-400">{opt.desc}</span>
                   </button>
