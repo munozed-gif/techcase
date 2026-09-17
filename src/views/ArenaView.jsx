@@ -879,6 +879,7 @@ function ArenaView({ auth }) {
   const { templates: arenaLcTemplates } = useLifecycleTemplates();
   const { can } = usePermissions(auth);
   const [caseSort, setCaseSort] = useState('match');
+  const [hhOnly, setHhOnly]     = useState(false);
   const [caseCarouselIdx, setCaseCarouselIdx] = useState(_arenaCaseIdx);
   const [consultantCaseCounts, setConsultantCaseCounts] = useState({}); // { [consultant_id]: activeCount }
   const branding = usePlatformBranding();
@@ -984,11 +985,24 @@ function ArenaView({ auth }) {
 
     if (openCases.length === 0) return (
       <div className="bg-blue-50 rounded-2xl p-12 text-center text-blue-400 text-sm border border-blue-100">
-        {t("arena.no_cases")}
+        {auth.isHeadhunter ? (
+          <div className="space-y-2">
+            <div style={{ fontSize:28 }}>🎯</div>
+            <div className="font-bold text-blue-700 text-base">No open cases right now</div>
+            <div className="text-blue-500 text-xs max-w-xs mx-auto leading-relaxed">
+              Public headhunter-flagged cases appear here automatically.
+              For private engagements, a manager must invite you to the case — contact them directly.
+            </div>
+          </div>
+        ) : t("arena.no_cases")}
       </div>
     );
 
-    const sorted = [...openCases].sort((a, b) => {
+    const visibleCases = auth.isHeadhunter && hhOnly
+      ? openCases.filter(c => c.is_head_hunter)
+      : openCases;
+
+    const sorted = [...visibleCases].sort((a, b) => {
       if (caseSort === 'match')    return (matchScore(b) ?? 0) - (matchScore(a) ?? 0);
       if (caseSort === 'deadline') {
         const da = a.due_date ? new Date(a.due_date) : new Date(9e15);
@@ -1100,6 +1114,7 @@ function ArenaView({ auth }) {
               {c.budget        && chip('#059669','rgba(5,150,105,0.3)','rgba(5,150,105,0.07)', `$${Number(c.budget).toLocaleString()}`)}
               {daysLeft != null && chip(dayChipColor, dayChipBorder, dayChipBg, daysLeft === 1 ? '1 day left' : `${daysLeft} days left`)}
               {companyName     && chip('#1A4B8C','rgba(26,75,140,0.25)','rgba(26,75,140,0.06)', companyName)}
+              {c.is_head_hunter && chip('#7C3AED','rgba(124,58,237,0.3)','rgba(124,58,237,0.07)', '🎯 HH Managed')}
               {c.application_mode === 'team'       && chip('#4F46E5','rgba(79,70,229,0.3)','rgba(79,70,229,0.07)', '👥 Teams only')}
               {c.application_mode === 'individual' && chip('#475569','rgba(71,85,105,0.3)','rgba(71,85,105,0.07)', '🧑 Individual only')}
               {(c.application_mode === 'both' || !c.application_mode) && chip('#059669','rgba(5,150,105,0.25)','rgba(5,150,105,0.06)', '👥 Teams & Individual')}
@@ -1257,9 +1272,17 @@ function ArenaView({ auth }) {
       <div>
         {/* Sort bar */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14, flexWrap:'wrap', gap:8 }}>
-          <span style={{ fontSize:12, color:'#6B8AB8', fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase' }}>
-            {sorted.length === 1 ? t('arena.open_count_one') : t('arena.open_count_many').replace('{n}', sorted.length)}
-          </span>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <span style={{ fontSize:12, color:'#6B8AB8', fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase' }}>
+              {sorted.length === 1 ? t('arena.open_count_one') : t('arena.open_count_many').replace('{n}', sorted.length)}
+            </span>
+            {auth.isHeadhunter && (
+              <button onClick={() => { setHhOnly(v => !v); scrollToCase(0); }}
+                style={{ display:'flex', alignItems:'center', gap:5, background: hhOnly ? 'rgba(139,92,246,0.12)' : 'rgba(139,92,246,0.05)', border:`1px solid ${hhOnly ? 'rgba(139,92,246,0.4)' : 'rgba(139,92,246,0.2)'}`, borderRadius:99, color: hhOnly ? '#7C3AED' : '#9B80D4', fontSize:11, fontWeight:700, letterSpacing:'0.05em', padding:'4px 10px', cursor:'pointer', transition:'all .15s' }}>
+                🎯 HH Cases {hhOnly ? '✕' : ''}
+              </button>
+            )}
+          </div>
           <div style={{ display:'flex', gap:5, alignItems:'center' }}>
             <span style={{ fontSize:11, color:'#6B8AB8', textTransform:'uppercase', letterSpacing:'0.1em', marginRight:2 }}>Sort</span>
             {['match','deadline','budget'].map(key => (
@@ -1270,6 +1293,16 @@ function ArenaView({ auth }) {
             ))}
           </div>
         </div>
+        {/* HH filter zero-state */}
+        {auth.isHeadhunter && hhOnly && sorted.length === 0 && (
+          <div className="bg-purple-50 rounded-2xl p-10 text-center border border-purple-100 mb-4">
+            <div style={{ fontSize:24 }}>🎯</div>
+            <div className="font-bold text-purple-700 text-sm mt-2">No headhunter-flagged cases open right now</div>
+            <div className="text-purple-400 text-xs mt-1">
+              <button onClick={() => setHhOnly(false)} className="underline hover:text-purple-600">Show all cases</button>
+            </div>
+          </div>
+        )}
 
         {/* Case cards – peek scroll-snap carousel, same style as outer */}
         <div style={{ position:'relative' }}>
