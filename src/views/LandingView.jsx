@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 // ─── Nova Logo Mark ─────────────────────────────────────────────────────────
 // Module-level injection so the keyframe is available even when LandingView isn't mounted
@@ -73,6 +73,138 @@ export function GaleaMark({ size = 22, bg = "#0B0F1A" }) {
     </svg>
   );
 }
+
+// ─── Landing-page bilingual strings (en / es) ───────────────────────────────
+const LANDING_STRINGS = {
+  en: {
+    nav_arena:"Arena", nav_features:"Features", nav_lifecycle:"Lifecycle",
+    nav_roles:"Roles", nav_pricing:"Pricing", nav_signin:"Sign in", nav_start:"Get started →",
+    lang_btn:"ES",
+    hero_badge:"Arena · Consultant Marketplace · 2026",
+    hero_name:"Solutions Platform",
+    hero_h1a:"Connect. Engage.", hero_h1b:"Deliver.",
+    hero_sub:"Arena is the orbital marketplace at the heart of our platform — connecting clients with vetted SAP consultants through a visual, intelligent, team-based workflow. From first contact to final delivery.",
+    hero_trial:"Start free trial →", hero_demo:"▶ Watch demo",
+    hero_trust:"1,200+ consultants matched across 340+ companies",
+    stats_cases:"Cases managed to date", stats_cos:"Companies onboarded", stats_sla:"% SLA compliance rate",
+    feat_tag:"Platform Features",
+    feat_h2a:"Everything a consulting team needs.", feat_h2b:"Nothing it doesn't.",
+    feat_sub:"From the first support ticket to final delivery — Arena orchestrates every step with structured lifecycles, role-based access, and full auditability.",
+    f1t:"Structured Case Lifecycles", f1d:"Every ticket follows a governed pipeline. Transition gates block premature moves; role permissions control who can advance each stage.",
+    f2t:"Consultant Marketplace", f2d:"Browse verified SAP consultants by skill, rate, and availability. Apply, shortlist, compare, and assign — all in one place.",
+    f3t:"Project Management", f3d:"Group cases under client projects with budgets, milestones, and inherited lifecycle templates. Full visibility from kickoff to closure.",
+    f4t:"Time Logging & Approval", f4d:"Consultants log hours per case. Managers approve or query. Billing reports export instantly, reconciled with SLA thresholds.",
+    f5t:"AI-Powered Specifications", f5d:"Claude generates functional specs from case context. Clients approve, consultants build to them. Full traceability from requirement to resolution.",
+    f6t:"Transition Gates & SLA", f6d:"Block or warn on stage transitions until conditions are met. SLA timers run per lifecycle phase. Never miss a commitment again.",
+    arena_tag:"Arena · Principal Feature",
+    arena_h2:"Your orbital talent marketplace.",
+    arena_sub:"Arena is the command center for connecting clients with the right SAP consultants — through an immersive, visual orbital interface that brings the entire talent network to life.",
+    ab1t:"Galaxy Explorer", ab1d:"Navigate clients, cases, and consultants through an animated orbital system. Click any node to drill into their universe.",
+    ab2t:"Team Applications", ab2d:"Form consulting teams, assign roles with skill validation, and apply to open cases as a unit — not just solo.",
+    ab3t:"Smart Matching", ab3d:"Skill-to-role enforcement ensures only qualified consultants are assigned. AI auto-suggests the best fit from your team.",
+    ab4t:"Live Discovery", ab4d:"Radar pulse animations signal active opportunity scanning. New cases surface in real time across your orbital network.",
+    lc_tag:"Lifecycle Engine", lc_h2:"One platform, every kind of support.",
+    lc_sub:"Pre-built lifecycle templates for SAP support and IT help desk — or build your own with custom stages, gates, and role rules.",
+    roles_tag:"Role-Based Platform", roles_h2:"Built for every stakeholder.",
+    roles_sub:"Each role gets exactly the right view, permissions, and tools.",
+    r1n:"Manager",    r1d:"Full oversight of cases, projects, consultants, and billing. Approves time, transitions, and specs.",    r1p:["All cases","Approve time","Reports","Invoicing"],
+    r2n:"Client",     r2d:"Creates cases, tracks project progress, approves specs, views reports, and manages invoices.",           r2p:["Create cases","Approve specs","Lifecycle view"],
+    r3n:"Consultant", r3d:"Works on assigned cases, logs time, adds activities, uploads documents, and submits specs.",            r3p:["Log time","Activities","Docs upload"],
+    r4n:"Internal Consultant", r4d:"Senior capacity: access to internal specs, dev plan generation, and advanced activity editing.", r4p:["Dev plans","Internal docs","All activities"],
+    r5n:"Key User",   r5d:"Client-side power user who validates testing phases, approves specs, and manages team signups.",        r5p:["Testing stage","Approve specs","Team signup"],
+    r6n:"Project Manager", r6d:"Cross-project visibility, time approval, lifecycle configuration, and full reporting access.",    r6p:["All projects","Approve time","Reports"],
+    r7n:"Final User", r7d:"End users who submit tickets, track status, and view documentation relevant to their cases.",           r7p:["View docs","Lifecycle view","Comments"],
+    r8n:"Headhunter", r8d:"Staffing specialists who can apply to open cases and match consultants to client requirements.",        r8p:["Apply to cases","Arena access"],
+    video_tag:"See it in action", video_h2:"Watch the platform in 3 minutes.",
+    video_sub:"From ticket creation to resolution — see how Arena guides every stakeholder through a structured, governed process.",
+    video_lbl:"Arena Solutions Platform Demo · 3:24",
+    testi_tag:"Customer Stories", testi_h2:"What teams are saying.",
+    pricing_tag:"Pricing", pricing_h2:"Simple, honest pricing.",
+    pricing_sub:"No hidden seats, no module add-ons. One plan, one price, full platform access per team size.",
+    p1n:"Starter", p1period:"Up to 10 users · billed annually",
+    p1f:["2 lifecycle templates","Unlimited cases & projects","Time logging & approval","Basic SLA tracking","Document management"],
+    p2n:"Professional", p2period:"Up to 50 users · billed annually", p2badge:"Most popular",
+    p2f:["Unlimited lifecycle templates","AI-powered specifications","Consultant marketplace (Arena)","Advanced SLA & transition gates","Full reporting & billing export","Role-based access control"],
+    p3n:"Enterprise", p3period:"Unlimited users · dedicated support", p3custom:"Custom",
+    p3f:["Everything in Professional","SAP BTP / S/4HANA integration","Custom lifecycle builder","SSO & advanced security","Dedicated customer success","SLA uptime guarantee"],
+    btn_start:"Get started", btn_trial:"Start free trial", btn_contact:"Contact sales",
+    cta_tag:"Get started today",
+    cta_h2:"Ready to transform your SAP support operation?",
+    cta_p:"14-day free trial. No credit card. Full platform access from day one.",
+    trusted_by:"Trusted by",
+    footer_tagline:"The operating system for SAP consulting teams. Structured support, every stage governed, every role in sync.",
+    f_product:"Product", f_company:"Company", f_legal:"Legal",
+    f_arena:"Arena Marketplace", f_features:"Features", f_lifecycle:"Lifecycle Engine", f_roles:"Roles", f_pricing:"Pricing",
+    f_about:"About", f_blog:"Blog", f_careers:"Careers", f_contact:"Contact",
+    f_privacy:"Privacy Policy", f_terms:"Terms of Service", f_security:"Security",
+    copy1:"© 2026 Arena Solutions Platform. All rights reserved.",
+    copy2:"Built for SAP consulting teams worldwide.",
+  },
+  es: {
+    nav_arena:"Arena", nav_features:"Características", nav_lifecycle:"Ciclo de Vida",
+    nav_roles:"Roles", nav_pricing:"Precios", nav_signin:"Iniciar sesión", nav_start:"Comenzar →",
+    lang_btn:"EN",
+    hero_badge:"Arena · Mercado de Consultores · 2026",
+    hero_name:"Plataforma de Soluciones",
+    hero_h1a:"Conecta. Involucra.", hero_h1b:"Entrega.",
+    hero_sub:"Arena es el mercado orbital en el centro de nuestra plataforma — conectando clientes con consultores SAP verificados a través de un flujo de trabajo visual, inteligente y basado en equipos. Desde el primer contacto hasta la entrega final.",
+    hero_trial:"Iniciar prueba gratuita →", hero_demo:"▶ Ver demo",
+    hero_trust:"Más de 1,200 consultores asignados en más de 340 empresas",
+    stats_cases:"Casos gestionados hasta la fecha", stats_cos:"Empresas registradas", stats_sla:"% tasa de cumplimiento SLA",
+    feat_tag:"Características de la Plataforma",
+    feat_h2a:"Todo lo que un equipo de consultoría necesita.", feat_h2b:"Nada más.",
+    feat_sub:"Desde el primer ticket de soporte hasta la entrega final — Arena orquesta cada paso con ciclos de vida estructurados, acceso basado en roles y trazabilidad completa.",
+    f1t:"Ciclos de Vida Estructurados", f1d:"Cada ticket sigue una cadena gobernada. Las puertas de transición bloquean movimientos prematuros; los permisos controlan quién puede avanzar cada etapa.",
+    f2t:"Mercado de Consultores", f2d:"Explora consultores SAP verificados por habilidad, tarifa y disponibilidad. Aplica, preselecciona, compara y asigna — todo en un solo lugar.",
+    f3t:"Gestión de Proyectos", f3d:"Agrupa casos bajo proyectos con presupuestos, hitos y plantillas heredadas. Visibilidad total desde el inicio hasta el cierre.",
+    f4t:"Registro de Tiempo y Aprobación", f4d:"Los consultores registran horas por caso. Los gerentes aprueban. Los reportes se exportan al instante, conciliados con los umbrales SLA.",
+    f5t:"Especificaciones con IA", f5d:"Claude genera especificaciones funcionales del contexto del caso. Los clientes aprueban, los consultores construyen. Trazabilidad completa.",
+    f6t:"Puertas de Transición y SLA", f6d:"Bloquea o advierte en transiciones hasta que se cumplan las condiciones. Los temporizadores SLA corren por fase. Nunca pierdas un compromiso.",
+    arena_tag:"Arena · Característica Principal",
+    arena_h2:"Tu mercado de talento orbital.",
+    arena_sub:"Arena es el centro de comando para conectar clientes con los consultores SAP adecuados — a través de una interfaz orbital visual e inmersiva que da vida a toda la red de talento.",
+    ab1t:"Galaxy Explorer", ab1d:"Navega clientes, casos y consultores a través de un sistema orbital animado. Haz clic en cualquier nodo para explorar su universo.",
+    ab2t:"Aplicaciones en Equipo", ab2d:"Forma equipos de consultoría, asigna roles con validación de habilidades y aplica a casos abiertos como unidad.",
+    ab3t:"Asignación Inteligente", ab3d:"La aplicación de habilidades por rol garantiza que solo se asignen consultores calificados. La IA sugiere automáticamente el mejor candidato.",
+    ab4t:"Descubrimiento en Vivo", ab4d:"Las animaciones de pulso radar señalan el escaneo activo de oportunidades. Nuevos casos emergen en tiempo real en tu red orbital.",
+    lc_tag:"Motor de Ciclo de Vida", lc_h2:"Una plataforma, todo tipo de soporte.",
+    lc_sub:"Plantillas de ciclo de vida preconfiguradas para soporte SAP y mesa de ayuda de TI — o crea las tuyas con etapas, puertas y reglas de rol personalizadas.",
+    roles_tag:"Plataforma Basada en Roles", roles_h2:"Construida para cada parte interesada.",
+    roles_sub:"Cada rol obtiene exactamente la vista, los permisos y las herramientas correctas.",
+    r1n:"Gerente",    r1d:"Supervisión completa de casos, proyectos, consultores y facturación. Aprueba tiempo, transiciones y especificaciones.", r1p:["Todos los casos","Aprobar tiempo","Reportes","Facturación"],
+    r2n:"Cliente",    r2d:"Crea casos, hace seguimiento del progreso, aprueba especificaciones, ve reportes y gestiona facturas.",               r2p:["Crear casos","Aprobar espec.","Vista de ciclo"],
+    r3n:"Consultor",  r3d:"Trabaja en casos asignados, registra tiempo, agrega actividades, sube documentos y envía especificaciones.",         r3p:["Registrar tiempo","Actividades","Subir docs"],
+    r4n:"Consultor Interno", r4d:"Capacidad senior: acceso a especificaciones internas, generación de planes de desarrollo y edición avanzada.", r4p:["Planes de dev","Docs internos","Todas las act."],
+    r5n:"Usuario Clave", r5d:"Usuario avanzado del lado del cliente que valida fases de prueba, aprueba especificaciones y gestiona registros.", r5p:["Etapa de pruebas","Aprobar espec.","Registro de equipo"],
+    r6n:"Gerente de Proyecto", r6d:"Visibilidad entre proyectos, aprobación de tiempo, configuración de ciclos de vida y acceso completo a reportes.", r6p:["Todos los proyectos","Aprobar tiempo","Reportes"],
+    r7n:"Usuario Final", r7d:"Usuarios finales que envían tickets, rastrean el estado y ven documentación relevante para sus casos.",             r7p:["Ver docs","Vista de ciclo","Comentarios"],
+    r8n:"Headhunter",  r8d:"Especialistas en personal que pueden aplicar a casos abiertos y asignar consultores a los requisitos del cliente.",  r8p:["Aplicar a casos","Acceso Arena"],
+    video_tag:"Míralo en acción", video_h2:"Mira la plataforma en 3 minutos.",
+    video_sub:"Desde la creación del ticket hasta la resolución — ve cómo Arena guía a cada parte interesada a través de un proceso estructurado y gobernado.",
+    video_lbl:"Demo de Arena Solutions Platform · 3:24",
+    testi_tag:"Historias de Clientes", testi_h2:"Lo que dicen los equipos.",
+    pricing_tag:"Precios", pricing_h2:"Precios simples y honestos.",
+    pricing_sub:"Sin asientos ocultos ni módulos adicionales. Un plan, un precio, acceso completo a la plataforma por tamaño de equipo.",
+    p1n:"Básico", p1period:"Hasta 10 usuarios · facturado anualmente",
+    p1f:["2 plantillas de ciclo de vida","Casos y proyectos ilimitados","Registro de tiempo y aprobación","Seguimiento básico de SLA","Gestión de documentos"],
+    p2n:"Profesional", p2period:"Hasta 50 usuarios · facturado anualmente", p2badge:"Más popular",
+    p2f:["Plantillas de ciclo de vida ilimitadas","Especificaciones con IA","Mercado de consultores (Arena)","SLA avanzado y puertas de transición","Exportación de reportes y facturación","Control de acceso basado en roles"],
+    p3n:"Empresa", p3period:"Usuarios ilimitados · soporte dedicado", p3custom:"Personalizado",
+    p3f:["Todo en Profesional","Integración SAP BTP / S/4HANA","Constructor de ciclo de vida personalizado","SSO y seguridad avanzada","Éxito del cliente dedicado","Garantía de disponibilidad SLA"],
+    btn_start:"Comenzar", btn_trial:"Iniciar prueba gratuita", btn_contact:"Contactar ventas",
+    cta_tag:"Comienza hoy",
+    cta_h2:"¿Listo para transformar tu operación de soporte SAP?",
+    cta_p:"14 días de prueba gratuita. Sin tarjeta de crédito. Acceso completo desde el primer día.",
+    trusted_by:"Con la confianza de",
+    footer_tagline:"El sistema operativo para equipos de consultoría SAP. Soporte estructurado, cada etapa gobernada, cada rol sincronizado.",
+    f_product:"Producto", f_company:"Empresa", f_legal:"Legal",
+    f_arena:"Mercado Arena", f_features:"Características", f_lifecycle:"Motor de Ciclo de Vida", f_roles:"Roles", f_pricing:"Precios",
+    f_about:"Nosotros", f_blog:"Blog", f_careers:"Empleos", f_contact:"Contacto",
+    f_privacy:"Política de Privacidad", f_terms:"Términos de Servicio", f_security:"Seguridad",
+    copy1:"© 2026 Arena Solutions Platform. Todos los derechos reservados.",
+    copy2:"Construido para equipos de consultoría SAP en todo el mundo.",
+  },
+};
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -308,6 +440,16 @@ const CSS = `
 `;
 
 export function LandingView({ onSignIn }) {
+  const [lang, setLang] = useState(() => {
+    try { const s = localStorage.getItem("tc_lang"); return s === "es" ? "es" : "en"; } catch { return "en"; }
+  });
+  function tl(k) { return LANDING_STRINGS[lang]?.[k] ?? LANDING_STRINGS.en[k] ?? k; }
+  function toggleLang() {
+    const next = lang === "en" ? "es" : "en";
+    setLang(next);
+    try { localStorage.setItem("tc_lang", next); } catch {}
+  }
+
   useEffect(() => {
     const root = document.getElementById("arena-landing");
 
@@ -357,18 +499,19 @@ export function LandingView({ onSignIn }) {
         <div className="nav-logo">
           <NovaLandingMark size={32} />
           <span className="logo-arena">Arena</span>
-          <span className="logo-rest">Solutions Platform</span>
+          <span className="logo-rest">{tl("hero_name")}</span>
         </div>
         <div className="nav-links">
-          <a href="#arena">Arena</a>
-          <a href="#features">Features</a>
-          <a href="#lifecycle">Lifecycle</a>
-          <a href="#roles">Roles</a>
-          <a href="#pricing">Pricing</a>
+          <a href="#arena">{tl("nav_arena")}</a>
+          <a href="#features">{tl("nav_features")}</a>
+          <a href="#lifecycle">{tl("nav_lifecycle")}</a>
+          <a href="#roles">{tl("nav_roles")}</a>
+          <a href="#pricing">{tl("nav_pricing")}</a>
         </div>
         <div className="nav-cta">
-          <button className="btn-ghost" onClick={onSignIn}>Sign in</button>
-          <button className="btn-primary" onClick={onSignIn}>Get started →</button>
+          <button className="btn-ghost" onClick={toggleLang} style={{minWidth:40,fontWeight:700,letterSpacing:".04em"}}>{tl("lang_btn")}</button>
+          <button className="btn-ghost" onClick={onSignIn}>{tl("nav_signin")}</button>
+          <button className="btn-primary" onClick={onSignIn}>{tl("nav_start")}</button>
         </div>
       </nav>
 
@@ -379,13 +522,13 @@ export function LandingView({ onSignIn }) {
         <div className="hero-glow2" />
         <div className="hero-inner">
           <div>
-            <div className="hero-badge">Arena · Consultant Marketplace · 2026</div>
-            <div className="hero-name">Solutions Platform</div>
-            <h1><em style={{fontSize:"1.2em",display:"block",lineHeight:1}}>Arena</em>Connect. Engage.<br />Deliver.</h1>
-            <p className="hero-sub">Arena is the orbital marketplace at the heart of our platform — connecting clients with vetted SAP consultants through a visual, intelligent, team-based workflow. From first contact to final delivery.</p>
+            <div className="hero-badge">{tl("hero_badge")}</div>
+            <div className="hero-name">{tl("hero_name")}</div>
+            <h1><em style={{fontSize:"1.2em",display:"block",lineHeight:1}}>Arena</em>{tl("hero_h1a")}<br />{tl("hero_h1b")}</h1>
+            <p className="hero-sub">{tl("hero_sub")}</p>
             <div className="hero-actions">
-              <button className="btn-hero btn-hero-primary" onClick={onSignIn}>Start free trial →</button>
-              <a href="#demo" className="btn-hero btn-hero-outline">▶ Watch demo</a>
+              <button className="btn-hero btn-hero-primary" onClick={onSignIn}>{tl("hero_trial")}</button>
+              <a href="#demo" className="btn-hero btn-hero-outline">{tl("hero_demo")}</a>
             </div>
             <div className="hero-trust">
               <div className="hero-trust-dots">
@@ -394,7 +537,7 @@ export function LandingView({ onSignIn }) {
                 <div className="avatar-dot">SC</div>
                 <div className="avatar-dot">DK</div>
               </div>
-              <span>1,200+ consultants matched across 340+ companies</span>
+              <span>{tl("hero_trust")}</span>
             </div>
           </div>
           <div className="browser-wrap fade-in">
@@ -451,7 +594,7 @@ export function LandingView({ onSignIn }) {
       {/* LOGO STRIP */}
       <div className="logo-strip">
         <div className="logo-strip-inner">
-          <span className="logo-strip-label">Trusted by</span>
+          <span className="logo-strip-label">{tl("trusted_by")}</span>
           {["Acme Corporation","TechStart LLC","Global Industries","Meridian Consulting","NovaSAP GmbH","Apex Solutions"].map(c => (
             <span key={c} className="logo-company">{c}</span>
           ))}
@@ -461,18 +604,18 @@ export function LandingView({ onSignIn }) {
       {/* STATS */}
       <section className="stats">
         <div className="stats-inner">
-          <div className="stat-item fade-in"><div className="stat-num" data-target="12400">0</div><div className="stat-label">Cases managed to date</div></div>
-          <div className="stat-item fade-in"><div className="stat-num" data-target="340">0</div><div className="stat-label">Companies onboarded</div></div>
-          <div className="stat-item fade-in"><div className="stat-num" data-target="98">0</div><div className="stat-label">% SLA compliance rate</div></div>
+          <div className="stat-item fade-in"><div className="stat-num" data-target="12400">0</div><div className="stat-label">{tl("stats_cases")}</div></div>
+          <div className="stat-item fade-in"><div className="stat-num" data-target="340">0</div><div className="stat-label">{tl("stats_cos")}</div></div>
+          <div className="stat-item fade-in"><div className="stat-num" data-target="98">0</div><div className="stat-label">{tl("stats_sla")}</div></div>
         </div>
       </section>
 
       {/* FEATURES */}
       <section className="section" id="features">
         <div className="section-inner">
-          <div className="section-tag">Platform Features</div>
-          <h2>Everything a consulting team needs.<br />Nothing it doesn't.</h2>
-          <p className="section-sub">From the first support ticket to final delivery — Arena orchestrates every step with structured lifecycles, role-based access, and full auditability.</p>
+          <div className="section-tag">{tl("feat_tag")}</div>
+          <h2>{tl("feat_h2a")}<br />{tl("feat_h2b")}</h2>
+          <p className="section-sub">{tl("feat_sub")}</p>
           <div className="features-grid">
             <div className="feat-card fade-in">
               <div className="feat-mockup">
@@ -489,8 +632,8 @@ export function LandingView({ onSignIn }) {
               </div>
               <div className="feat-body">
                 <div className="feat-icon">🔁</div>
-                <div className="feat-title">Structured Case Lifecycles</div>
-                <div className="feat-desc">Every ticket follows a governed pipeline. Transition gates block premature moves; role permissions control who can advance each stage.</div>
+                <div className="feat-title">{tl("f1t")}</div>
+                <div className="feat-desc">{tl("f1d")}</div>
               </div>
             </div>
             <div className="feat-card fade-in">
@@ -507,8 +650,8 @@ export function LandingView({ onSignIn }) {
               </div>
               <div className="feat-body">
                 <div className="feat-icon">🏟</div>
-                <div className="feat-title">Consultant Marketplace</div>
-                <div className="feat-desc">Browse verified SAP consultants by skill, rate, and availability. Apply, shortlist, compare, and assign — all in one place.</div>
+                <div className="feat-title">{tl("f2t")}</div>
+                <div className="feat-desc">{tl("f2d")}</div>
               </div>
             </div>
             <div className="feat-card fade-in">
@@ -528,8 +671,8 @@ export function LandingView({ onSignIn }) {
               </div>
               <div className="feat-body">
                 <div className="feat-icon">📁</div>
-                <div className="feat-title">Project Management</div>
-                <div className="feat-desc">Group cases under client projects with budgets, milestones, and inherited lifecycle templates. Full visibility from kickoff to closure.</div>
+                <div className="feat-title">{tl("f3t")}</div>
+                <div className="feat-desc">{tl("f3d")}</div>
               </div>
             </div>
             <div className="feat-card fade-in">
@@ -550,8 +693,8 @@ export function LandingView({ onSignIn }) {
               </div>
               <div className="feat-body">
                 <div className="feat-icon">⏱</div>
-                <div className="feat-title">Time Logging & Approval</div>
-                <div className="feat-desc">Consultants log hours per case. Managers approve or query. Billing reports export instantly, reconciled with SLA thresholds.</div>
+                <div className="feat-title">{tl("f4t")}</div>
+                <div className="feat-desc">{tl("f4d")}</div>
               </div>
             </div>
             <div className="feat-card fade-in">
@@ -570,8 +713,8 @@ export function LandingView({ onSignIn }) {
               </div>
               <div className="feat-body">
                 <div className="feat-icon">📄</div>
-                <div className="feat-title">AI-Powered Specifications</div>
-                <div className="feat-desc">Claude generates functional specs from case context. Clients approve, consultants build to them. Full traceability from requirement to resolution.</div>
+                <div className="feat-title">{tl("f5t")}</div>
+                <div className="feat-desc">{tl("f5d")}</div>
               </div>
             </div>
             <div className="feat-card fade-in">
@@ -587,8 +730,8 @@ export function LandingView({ onSignIn }) {
               </div>
               <div className="feat-body">
                 <div className="feat-icon">🔒</div>
-                <div className="feat-title">Transition Gates & SLA</div>
-                <div className="feat-desc">Block or warn on stage transitions until conditions are met. SLA timers run per lifecycle phase. Never miss a commitment again.</div>
+                <div className="feat-title">{tl("f6t")}</div>
+                <div className="feat-desc">{tl("f6d")}</div>
               </div>
             </div>
           </div>
@@ -599,19 +742,19 @@ export function LandingView({ onSignIn }) {
       <section className="arena-showcase" id="arena">
         <div className="arena-inner">
           <div>
-            <div className="arena-tag">Arena · Principal Feature</div>
-            <h2 style={{color:"#fff"}}>Your orbital talent<br />marketplace.</h2>
-            <p className="section-sub" style={{color:"rgba(255,255,255,.5)",marginBottom:32}}>Arena is the command center for connecting clients with the right SAP consultants — through an immersive, visual orbital interface that brings the entire talent network to life.</p>
+            <div className="arena-tag">{tl("arena_tag")}</div>
+            <h2 style={{color:"#fff"}}>{tl("arena_h2")}</h2>
+            <p className="section-sub" style={{color:"rgba(255,255,255,.5)",marginBottom:32}}>{tl("arena_sub")}</p>
             <div className="arena-bullets">
               {[
-                {icon:"🌌",bg:"rgba(37,99,235,.15)",title:"Galaxy Explorer",desc:"Navigate clients, cases, and consultants through an animated orbital system. Click any node to drill into their universe."},
-                {icon:"🤝",bg:"rgba(16,185,129,.12)",title:"Team Applications",desc:"Form consulting teams, assign roles with skill validation, and apply to open cases as a unit — not just solo."},
-                {icon:"🎯",bg:"rgba(245,158,11,.12)",title:"Smart Matching",desc:"Skill-to-role enforcement ensures only qualified consultants are assigned. AI auto-suggests the best fit from your team."},
-                {icon:"📡",bg:"rgba(139,92,246,.12)",title:"Live Discovery",desc:"Radar pulse animations signal active opportunity scanning. New cases surface in real time across your orbital network."},
+                {icon:"🌌",bg:"rgba(37,99,235,.15)",tk:"ab1t",dk:"ab1d"},
+                {icon:"🤝",bg:"rgba(16,185,129,.12)",tk:"ab2t",dk:"ab2d"},
+                {icon:"🎯",bg:"rgba(245,158,11,.12)",tk:"ab3t",dk:"ab3d"},
+                {icon:"📡",bg:"rgba(139,92,246,.12)",tk:"ab4t",dk:"ab4d"},
               ].map(b => (
-                <div key={b.title} className="arena-bullet">
+                <div key={b.tk} className="arena-bullet">
                   <div className="arena-bullet-icon" style={{background:b.bg}}>{b.icon}</div>
-                  <div className="arena-bullet-text"><strong>{b.title}</strong><span>{b.desc}</span></div>
+                  <div className="arena-bullet-text"><strong>{tl(b.tk)}</strong><span>{tl(b.dk)}</span></div>
                 </div>
               ))}
             </div>
@@ -655,9 +798,9 @@ export function LandingView({ onSignIn }) {
       {/* LIFECYCLE */}
       <section className="lifecycle-section" id="lifecycle">
         <div className="lifecycle-inner">
-          <div className="section-tag" style={{color:"#818CF8"}}>Lifecycle Engine</div>
-          <h2>One platform, every kind of support.</h2>
-          <p className="section-sub">Pre-built lifecycle templates for SAP support and IT help desk — or build your own with custom stages, gates, and role rules.</p>
+          <div className="section-tag" style={{color:"#818CF8"}}>{tl("lc_tag")}</div>
+          <h2>{tl("lc_h2")}</h2>
+          <p className="section-sub">{tl("lc_sub")}</p>
           <div className="pipeline-scroll">
             <div className="pipeline-track">
               {[{n:1,l:"New\nRequest",c:"#6366F1",t:"#A5B4FC",bg:"rgba(99,102,241,.1)"},{n:2,l:"Triage",c:"#F59E0B",t:"#FCD34D",bg:"rgba(245,158,11,.1)"},{n:3,l:"In\nAnalysis",c:"#3B82F6",t:"#93C5FD",bg:"rgba(59,130,246,.1)"},{n:4,l:"In\nProgress",c:"#8B5CF6",t:"#C4B5FD",bg:"rgba(139,92,246,.1)"},{n:5,l:"Testing /\nValidation",c:"#06B6D4",t:"#67E8F9",bg:"rgba(6,182,212,.1)"},{n:6,l:"Resolved",c:"#10B981",t:"#6EE7B7",bg:"rgba(16,185,129,.1)"},{n:7,l:"Closed",c:"#6B7280",t:"#D1D5DB",bg:"rgba(107,114,128,.1)"}].map(s => (
@@ -694,25 +837,25 @@ export function LandingView({ onSignIn }) {
       {/* ROLES */}
       <section className="section" id="roles">
         <div className="section-inner">
-          <div className="section-tag">Role-Based Platform</div>
-          <h2>Built for every stakeholder.</h2>
-          <p className="section-sub">Each role gets exactly the right view, permissions, and tools.</p>
+          <div className="section-tag">{tl("roles_tag")}</div>
+          <h2>{tl("roles_h2")}</h2>
+          <p className="section-sub">{tl("roles_sub")}</p>
           <div className="roles-grid">
             {[
-              {e:"👔",n:"Manager",d:"Full oversight of cases, projects, consultants, and billing. Approves time, transitions, and specs.",p:["All cases","Approve time","Reports","Invoicing"],bg:"rgba(79,110,247,.1)"},
-              {e:"🏢",n:"Client",d:"Creates cases, tracks project progress, approves specs, views reports, and manages invoices.",p:["Create cases","Approve specs","Lifecycle view"],bg:"rgba(16,185,129,.1)"},
-              {e:"💼",n:"Consultant",d:"Works on assigned cases, logs time, adds activities, uploads documents, and submits specs.",p:["Log time","Activities","Docs upload"],bg:"rgba(139,92,246,.1)"},
-              {e:"🔬",n:"Internal Consultant",d:"Senior capacity: access to internal specs, dev plan generation, and advanced activity editing.",p:["Dev plans","Internal docs","All activities"],bg:"rgba(6,182,212,.1)"},
-              {e:"🗝",n:"Key User",d:"Client-side power user who validates testing phases, approves specs, and manages team signups.",p:["Testing stage","Approve specs","Team signup"],bg:"rgba(245,158,11,.1)"},
-              {e:"📊",n:"Project Manager",d:"Cross-project visibility, time approval, lifecycle configuration, and full reporting access.",p:["All projects","Approve time","Reports"],bg:"rgba(239,68,68,.1)"},
-              {e:"👤",n:"Final User",d:"End users who submit tickets, track status, and view documentation relevant to their cases.",p:["View docs","Lifecycle view","Comments"],bg:"rgba(107,114,128,.1)"},
-              {e:"🎯",n:"Headhunter",d:"Staffing specialists who can apply to open cases and match consultants to client requirements.",p:["Apply to cases","Arena access"],bg:"rgba(236,72,153,.1)"},
+              {e:"👔",nk:"r1n",dk:"r1d",pk:"r1p",bg:"rgba(79,110,247,.1)"},
+              {e:"🏢",nk:"r2n",dk:"r2d",pk:"r2p",bg:"rgba(16,185,129,.1)"},
+              {e:"💼",nk:"r3n",dk:"r3d",pk:"r3p",bg:"rgba(139,92,246,.1)"},
+              {e:"🔬",nk:"r4n",dk:"r4d",pk:"r4p",bg:"rgba(6,182,212,.1)"},
+              {e:"🗝",nk:"r5n",dk:"r5d",pk:"r5p",bg:"rgba(245,158,11,.1)"},
+              {e:"📊",nk:"r6n",dk:"r6d",pk:"r6p",bg:"rgba(239,68,68,.1)"},
+              {e:"👤",nk:"r7n",dk:"r7d",pk:"r7p",bg:"rgba(107,114,128,.1)"},
+              {e:"🎯",nk:"r8n",dk:"r8d",pk:"r8p",bg:"rgba(236,72,153,.1)"},
             ].map(r => (
-              <div key={r.n} className="role-card fade-in">
+              <div key={r.nk} className="role-card fade-in">
                 <div className="role-avatar" style={{background:r.bg}}>{r.e}</div>
-                <div className="role-name">{r.n}</div>
-                <div className="role-desc">{r.d}</div>
-                <div className="role-perms">{r.p.map(p => <span key={p} className="role-perm">{p}</span>)}</div>
+                <div className="role-name">{tl(r.nk)}</div>
+                <div className="role-desc">{tl(r.dk)}</div>
+                <div className="role-perms">{tl(r.pk).map(p => <span key={p} className="role-perm">{p}</span>)}</div>
               </div>
             ))}
           </div>
@@ -722,14 +865,14 @@ export function LandingView({ onSignIn }) {
       {/* VIDEO */}
       <section className="video-section" id="demo">
         <div className="section-inner" style={{textAlign:"center"}}>
-          <div className="section-tag" style={{textAlign:"center"}}>See it in action</div>
-          <h2 style={{margin:"0 auto 12px"}}>Watch the platform in 3 minutes.</h2>
-          <p className="section-sub" style={{margin:"0 auto 36px"}}>From ticket creation to resolution — see how Arena guides every stakeholder through a structured, governed process.</p>
+          <div className="section-tag" style={{textAlign:"center"}}>{tl("video_tag")}</div>
+          <h2 style={{margin:"0 auto 12px"}}>{tl("video_h2")}</h2>
+          <p className="section-sub" style={{margin:"0 auto 36px"}}>{tl("video_sub")}</p>
           <div className="video-wrap">
             <div className="video-inner">
               <div className="video-grid-bg" />
               <div className="play-btn"><svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div>
-              <div className="video-overlay-text"><div className="video-label">Arena Solutions Platform Demo · 3:24</div></div>
+              <div className="video-overlay-text"><div className="video-label">{tl("video_lbl")}</div></div>
             </div>
           </div>
         </div>
@@ -738,8 +881,8 @@ export function LandingView({ onSignIn }) {
       {/* TESTIMONIALS */}
       <section className="section">
         <div className="section-inner">
-          <div className="section-tag">Customer Stories</div>
-          <h2>What teams are saying.</h2>
+          <div className="section-tag">{tl("testi_tag")}</div>
+          <h2>{tl("testi_h2")}</h2>
           <div className="testimonials-grid">
             {[
               {q:"Before Arena, our SAP support was chaotic — emails, spreadsheets, missed SLAs. Now every ticket has a clear owner, a governed lifecycle, and we know exactly where we stand at any moment.",n:"Laura Martinez",r:"Head of IT",c:"Acme Corporation",i:"LM",g:"linear-gradient(135deg,#4F6EF7,#818CF8)"},
@@ -762,31 +905,31 @@ export function LandingView({ onSignIn }) {
       {/* PRICING */}
       <section className="pricing-section" id="pricing">
         <div className="section-inner" style={{textAlign:"center"}}>
-          <div className="section-tag" style={{textAlign:"center"}}>Pricing</div>
-          <h2 style={{margin:"0 auto 12px"}}>Simple, honest pricing.</h2>
-          <p className="section-sub" style={{margin:"0 auto 48px"}}>No hidden seats, no module add-ons. One plan, one price, full platform access per team size.</p>
+          <div className="section-tag" style={{textAlign:"center"}}>{tl("pricing_tag")}</div>
+          <h2 style={{margin:"0 auto 12px"}}>{tl("pricing_h2")}</h2>
+          <p className="section-sub" style={{margin:"0 auto 48px"}}>{tl("pricing_sub")}</p>
           <div className="pricing-grid">
             <div className="price-card fade-in">
-              <div className="price-name">Starter</div>
+              <div className="price-name">{tl("p1n")}</div>
               <div className="price-amount">$149<small>/mo</small></div>
-              <div className="price-period">Up to 10 users · billed annually</div>
-              <ul className="price-features">{["2 lifecycle templates","Unlimited cases & projects","Time logging & approval","Basic SLA tracking","Document management"].map(f=><li key={f}>{f}</li>)}</ul>
-              <button className="price-cta price-cta-outline" onClick={onSignIn}>Get started</button>
+              <div className="price-period">{tl("p1period")}</div>
+              <ul className="price-features">{tl("p1f").map(f=><li key={f}>{f}</li>)}</ul>
+              <button className="price-cta price-cta-outline" onClick={onSignIn}>{tl("btn_start")}</button>
             </div>
             <div className="price-card featured fade-in">
-              <div className="price-badge">Most popular</div>
-              <div className="price-name">Professional</div>
+              <div className="price-badge">{tl("p2badge")}</div>
+              <div className="price-name">{tl("p2n")}</div>
               <div className="price-amount">$399<small>/mo</small></div>
-              <div className="price-period">Up to 50 users · billed annually</div>
-              <ul className="price-features">{["Unlimited lifecycle templates","AI-powered specifications","Consultant marketplace (Arena)","Advanced SLA & transition gates","Full reporting & billing export","Role-based access control"].map(f=><li key={f}>{f}</li>)}</ul>
-              <button className="price-cta price-cta-filled" onClick={onSignIn}>Start free trial</button>
+              <div className="price-period">{tl("p2period")}</div>
+              <ul className="price-features">{tl("p2f").map(f=><li key={f}>{f}</li>)}</ul>
+              <button className="price-cta price-cta-filled" onClick={onSignIn}>{tl("btn_trial")}</button>
             </div>
             <div className="price-card fade-in">
-              <div className="price-name">Enterprise</div>
-              <div className="price-amount" style={{fontSize:"2rem"}}>Custom</div>
-              <div className="price-period">Unlimited users · dedicated support</div>
-              <ul className="price-features">{["Everything in Professional","SAP BTP / S/4HANA integration","Custom lifecycle builder","SSO & advanced security","Dedicated customer success","SLA uptime guarantee"].map(f=><li key={f}>{f}</li>)}</ul>
-              <button className="price-cta price-cta-outline" onClick={onSignIn}>Contact sales</button>
+              <div className="price-name">{tl("p3n")}</div>
+              <div className="price-amount" style={{fontSize:"2rem"}}>{tl("p3custom")}</div>
+              <div className="price-period">{tl("p3period")}</div>
+              <ul className="price-features">{tl("p3f").map(f=><li key={f}>{f}</li>)}</ul>
+              <button className="price-cta price-cta-outline" onClick={onSignIn}>{tl("btn_contact")}</button>
             </div>
           </div>
         </div>
@@ -795,11 +938,11 @@ export function LandingView({ onSignIn }) {
       {/* CTA */}
       <section className="cta-section">
         <div className="cta-glow" />
-        <div className="section-tag" style={{color:"#818CF8",textAlign:"center"}}>Get started today</div>
-        <h2>Ready to transform your<br />SAP support operation?</h2>
-        <p>14-day free trial. No credit card. Full platform access from day one.</p>
+        <div className="section-tag" style={{color:"#818CF8",textAlign:"center"}}>{tl("cta_tag")}</div>
+        <h2>{tl("cta_h2")}</h2>
+        <p>{tl("cta_p")}</p>
         <div className="cta-actions">
-          <button className="btn-hero btn-hero-primary" onClick={onSignIn}>Start free trial →</button>
+          <button className="btn-hero btn-hero-primary" onClick={onSignIn}>{tl("hero_trial")}</button>
           <button className="btn-hero btn-hero-outline" onClick={onSignIn}>Schedule a demo</button>
         </div>
       </section>
@@ -808,16 +951,16 @@ export function LandingView({ onSignIn }) {
       <footer>
         <div className="footer-inner">
           <div>
-            <div className="footer-logo"><NovaLandingMark size={36} /><span className="logo-arena">Arena</span><span className="logo-rest">Solutions Platform</span></div>
-            <div className="footer-tagline">The operating system for SAP consulting teams. Structured support, every stage governed, every role in sync.</div>
+            <div className="footer-logo"><NovaLandingMark size={36} /><span className="logo-arena">Arena</span><span className="logo-rest">{tl("hero_name")}</span></div>
+            <div className="footer-tagline">{tl("footer_tagline")}</div>
           </div>
-          <div className="footer-col"><h4>Product</h4><a href="#arena">Arena Marketplace</a><a href="#features">Features</a><a href="#lifecycle">Lifecycle Engine</a><a href="#roles">Roles</a><a href="#pricing">Pricing</a></div>
-          <div className="footer-col"><h4>Company</h4><a href="#">About</a><a href="#">Blog</a><a href="#">Careers</a><a href="#">Contact</a></div>
-          <div className="footer-col"><h4>Legal</h4><a href="#">Privacy Policy</a><a href="#">Terms of Service</a><a href="#">Security</a></div>
+          <div className="footer-col"><h4>{tl("f_product")}</h4><a href="#arena">{tl("f_arena")}</a><a href="#features">{tl("f_features")}</a><a href="#lifecycle">{tl("f_lifecycle")}</a><a href="#roles">{tl("f_roles")}</a><a href="#pricing">{tl("f_pricing")}</a></div>
+          <div className="footer-col"><h4>{tl("f_company")}</h4><a href="#">{tl("f_about")}</a><a href="#">{tl("f_blog")}</a><a href="#">{tl("f_careers")}</a><a href="#">{tl("f_contact")}</a></div>
+          <div className="footer-col"><h4>{tl("f_legal")}</h4><a href="#">{tl("f_privacy")}</a><a href="#">{tl("f_terms")}</a><a href="#">{tl("f_security")}</a></div>
         </div>
         <div className="footer-bottom">
-          <div className="footer-copy">© 2026 Arena Solutions Platform. All rights reserved.</div>
-          <div className="footer-copy">Built for SAP consulting teams worldwide.</div>
+          <div className="footer-copy">{tl("copy1")}</div>
+          <div className="footer-copy">{tl("copy2")}</div>
         </div>
       </footer>
     </div>
