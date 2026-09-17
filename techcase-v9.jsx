@@ -689,7 +689,7 @@ export default function App() {
     <SystemSettingsProvider>
       <LanguageProvider userId={auth.user?.id} initialLang={auth.profile?.language_pref}>
         <StartDateMonitor auth={auth} />
-        <div className="min-h-screen bg-[#EAF4FD]">
+        <div className="min-h-screen" style={{background:"#0B0F1A",backgroundImage:"radial-gradient(circle at 75% -5%,rgba(79,110,247,.22) 0%,transparent 60%),linear-gradient(rgba(79,110,247,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(79,110,247,.07) 1px,transparent 1px)",backgroundSize:"100% 100%,48px 48px,48px 48px"}}>
           <Sidebar
             role={auth.role}
             activeView={activeView}
