@@ -907,9 +907,9 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               <p className="text-sm font-medium text-gray-700 mb-2">Case Type</p>
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { value: "case",          label: "Consulting Case",  icon: "📋", desc: "Standard consulting engagement" },
-                  { value: "ticket",        label: "Support Ticket",   icon: "🎫", desc: "Help desk / support request" },
-                  { value: "resource_need", label: "Resource Need",    icon: "🤝", desc: "Headhunter staffing need" },
+                  { value: "case",          label: "Consulting Case", desc: "Standard consulting engagement" },
+                  { value: "ticket",        label: "Support Ticket",  desc: "Help desk / support request" },
+                  { value: "resource_need", label: "Resource Need",   desc: "Headhunter staffing need" },
                 ].map(opt => (
                   <button key={opt.value} type="button"
                     onClick={() => setBasics(p => ({ ...p, case_type: opt.value }))}
@@ -917,7 +917,6 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                       basics.case_type === opt.value
                         ? "border-blue-500 bg-blue-50"
                         : "border-gray-200 hover:border-gray-300"}`}>
-                    <div className="text-lg mb-1">{opt.icon}</div>
                     <div className="font-semibold text-sm text-gray-900">{opt.label}</div>
                     <div className="text-xs text-gray-400 mt-0.5 leading-tight">{opt.desc}</div>
                   </button>
@@ -1555,7 +1554,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                                     r.conducted_by === "headhunter"
                                       ? "border-indigo-500 bg-indigo-50 text-indigo-700"
                                       : "border-gray-200 text-gray-500 hover:border-gray-300"}`}>
-                                  🎯 Headhunter
+                                  Headhunter
                                 </button>
                                 <button type="button"
                                   onClick={() => setIntv(p => ({
@@ -1568,7 +1567,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                                     r.conducted_by === "client_team"
                                       ? "border-emerald-500 bg-emerald-50 text-emerald-700"
                                       : "border-gray-200 text-gray-500 hover:border-gray-300"}`}>
-                                  👥 Client Team
+                                  Client Team
                                 </button>
                               </div>
                             </div>
