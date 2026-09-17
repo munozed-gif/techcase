@@ -37,13 +37,14 @@ function useHeadhunterData(userId) {
 
       // 2. Their applications
       if (candidateIds.length > 0) {
-        const { data: apps } = await supabase
+        const { data: apps, error: appsErr } = await supabase
           .from("applications")
           .select(`id, consultant_id, case_id, status, submitted_at, proposed_rate, cover_letter,
             case:case_id(id, title, status, client:client_id(id, avatar_url, client_profiles(company_name))),
             consultant:consultant_id(id, full_name, avatar_url)`)
           .in("consultant_id", candidateIds)
           .order("submitted_at", { ascending: false });
+        if (appsErr) console.error("HH applications query error:", appsErr.message, appsErr.details);
         setApplications(apps ?? []);
       } else {
         setApplications([]);
@@ -121,7 +122,7 @@ export function HeadhunterDashboard({ auth, onNavigate }) {
   const planConf   = usePlanConfig(auth);
   const planType   = ROLE_TO_PLAN_TYPE[auth.profile?.role ?? "headhunter"];
   const planKey    = auth.profile?.plan_tier ?? "free";
-  const planLabel  = PLAN_BADGE[planKey] ?? cap(planKey);
+  const planLabel  = cap(planKey);
 
   const placed     = applications.filter(a => a.status === "accepted");
   const active     = applications.filter(a => a.status === "pending" || a.status === "under_review");
