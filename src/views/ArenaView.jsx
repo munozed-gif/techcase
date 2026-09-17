@@ -22,6 +22,7 @@ import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
 import { useLeaderboard } from "../hooks/useNotificationHooks.js";
 import { useConsultantProfile } from "../hooks/useProfileHooks.js";
 import { ApplyWizard } from "./ApplyWizard.jsx";
+import { HHProposalWizard } from "../components/HHProposalWizard.jsx";
 import { PersonAvatar, ProjectAvatar, UserAvatar } from "./Projects.jsx";
 import { GalaxyExplorer } from "../components/GalaxyExplorer.jsx";
 
@@ -852,6 +853,7 @@ let _arenaCaseIdx = 0; // persists carousel position across ArenaView remounts
 function ArenaView({ auth }) {
   const { t } = useT();
   const visCfg = useVisibilitySettings();
+  const { settings: arenaSettings } = useSystemSettings();
   const [arenaTab, setArenaTab]             = useState("cases");
   const arenaCarouselRef = useRef(null);
   const arenaCarouselScrolling = useRef(false);
@@ -868,7 +870,8 @@ function ArenaView({ auth }) {
       return next;
     });
   }
-  const [applyingToCase, setApplying]       = useState(null);
+  const [applyingToCase, setApplying]         = useState(null);
+  const [proposingToCase, setProposing]       = useState(null);
   const [arenaSelectedCase, setArenaSelected] = useState(null);
   const [profileView, setProfileView]       = useState(null);  // consultant id for drawer
   const [compareSet, setCompareSet]         = useState([]);    // ids selected for compare
@@ -879,19 +882,25 @@ function ArenaView({ auth }) {
   const { templates: arenaLcTemplates } = useLifecycleTemplates();
   const { can } = usePermissions(auth);
   const [caseSort, setCaseSort] = useState('match');
-  const [hhOnly, setHhOnly]     = useState(false);
+  const [hhOnly, setHhOnly]     = useState(() => !!auth?.isHeadhunter);
   const [caseCarouselIdx, setCaseCarouselIdx] = useState(_arenaCaseIdx);
   const [consultantCaseCounts, setConsultantCaseCounts] = useState({}); // { [consultant_id]: activeCount }
   const branding = usePlatformBranding();
 
   // ── Headhunter: my managed candidates for smart matching ─────────────────
   const [hhCandidates, setHhCandidates] = useState([]);
+  const [myProposalCaseIds, setMyProposalCaseIds] = useState(new Set());
   useEffect(() => {
     if (!auth.isHeadhunter || !auth.user?.id) return;
     supabase.from("users")
       .select("id, full_name, avatar_url, consultant_profiles(skills, hourly_rate, years_experience, availability_status)")
       .eq("headhunter_id", auth.user.id)
       .then(({ data }) => setHhCandidates(data ?? []));
+    supabase.from("hh_proposals")
+      .select("case_id")
+      .eq("headhunter_id", auth.user.id)
+      .neq("status", "withdrawn")
+      .then(({ data }) => setMyProposalCaseIds(new Set((data ?? []).map(p => p.case_id))));
   }, [auth.isHeadhunter, auth.user?.id]);
 
   function toggleCompare(id) {
@@ -998,8 +1007,18 @@ function ArenaView({ auth }) {
       </div>
     );
 
+    const hhSettings = arenaSettings["headhunter_settings"] ?? {};
+    const hhSeeAll          = hhSettings.see_all_public_cases   ?? false;
+    const hhSeeResourceNeed = hhSettings.see_resource_needs     ?? true;
+    const hhCanApply        = hhSettings.apply_to_unassigned    ?? true;
+
     const visibleCases = auth.isHeadhunter && hhOnly
-      ? openCases.filter(c => c.is_head_hunter)
+      ? openCases.filter(c => {
+          if (hhSeeAll) return true;
+          const isHhUnassigned = c.is_head_hunter && !c.head_hunter_id && hhCanApply;
+          const isResourceNeed = c.case_type === "resource_need" && hhSeeResourceNeed;
+          return isHhUnassigned || isResourceNeed;
+        })
       : openCases;
 
     const sorted = [...visibleCases].sort((a, b) => {
@@ -1205,7 +1224,7 @@ function ArenaView({ auth }) {
               </div>
             </div>
 
-            {/* Apply CTA */}
+            {/* Apply CTA — consultant */}
             {auth.isConsultant && (
               alreadyApplied ? (
                 <button disabled style={{ width:'100%', background:'rgba(5,150,105,0.1)', border:'1px solid rgba(5,150,105,0.3)', borderRadius:12, color:'#059669', fontSize:14, fontWeight:600, padding:'11px', cursor:'default', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
@@ -1218,6 +1237,32 @@ function ArenaView({ auth }) {
                 </button>
               )
             )}
+
+            {/* Apply to manage CTA — headhunter */}
+            {auth.isHeadhunter && hhCanApply && (() => {
+              const alreadyProposed = myProposalCaseIds.has(c.id);
+              const isAssigned = !!c.head_hunter_id;
+              if (isAssigned) {
+                return (
+                  <div style={{ width:'100%', background:'rgba(139,92,246,0.07)', border:'1px solid rgba(139,92,246,0.2)', borderRadius:12, color:'#7C3AED', fontSize:12, fontWeight:600, padding:'10px', textAlign:'center' }}>
+                    Headhunter assigned
+                  </div>
+                );
+              }
+              if (alreadyProposed) {
+                return (
+                  <button disabled style={{ width:'100%', background:'rgba(139,92,246,0.08)', border:'1px solid rgba(139,92,246,0.25)', borderRadius:12, color:'#7C3AED', fontSize:13, fontWeight:600, padding:'11px', cursor:'default', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                    <Check size={13} />Proposal submitted
+                  </button>
+                );
+              }
+              return (
+                <button onClick={() => setProposing(c)}
+                  style={{ width:'100%', background:'linear-gradient(135deg,#5B21B6,#7C3AED)', border:'none', borderRadius:12, color:'#fff', fontSize:13, fontWeight:700, padding:'11px', cursor:'pointer', boxShadow:'0 4px 16px rgba(124,58,237,0.3)', display:'flex', alignItems:'center', justifyContent:'center', gap:7 }}>
+                  <Crosshair size={14} />Apply to Manage
+                </button>
+              );
+            })()}
 
             {/* ── Headhunter: Smart Matching panel ── */}
             {auth.isHeadhunter && hhCandidates.length > 0 && (() => {
@@ -1748,6 +1793,20 @@ function ArenaView({ auth }) {
           onCancel={() => setApplying(null)}
         />
       </div>
+    );
+  }
+
+  if (proposingToCase) {
+    return (
+      <HHProposalWizard
+        caseData={proposingToCase}
+        auth={auth}
+        onComplete={() => {
+          setMyProposalCaseIds(prev => new Set([...prev, proposingToCase.id]));
+          setProposing(null);
+        }}
+        onCancel={() => setProposing(null)}
+      />
     );
   }
 

@@ -303,6 +303,13 @@ const GATE_CONDITIONS = [
     check: (c, d) => (d.activities?.length ?? 0) > 0,
     fixHint: "Create activities in the Implementation tab",
   },
+  {
+    key: "hh_assigned",
+    label: "Headhunter assigned",
+    description: "A headhunter must be assigned before this case can proceed",
+    check: (c, d) => !c.is_head_hunter || !!c.head_hunter_id,
+    fixHint: "Accept a headhunter proposal in the HH Proposals tab",
+  },
 ];
 
 // ── Stripe / pricing defaults ─────────────────────────────────

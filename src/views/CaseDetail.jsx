@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Activity, AlertTriangle, Archive, BadgeCheck, BarChart2, Briefcase,
   Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight,
-  ClipboardList, Clock, Code2, ExternalLink, Eye, FileImage, FileText,
+  ClipboardList, Clock, Code2, Crosshair, ExternalLink, Eye, FileImage, FileText,
   Flag, FolderOpen, Globe, Handshake, Inbox, Layers, LayoutTemplate, Link,
   Link2, ListChecks, Lock, MessageSquare, Monitor, Paperclip, PauseCircle, Pencil,
   Play, Receipt, RotateCcw, Search, SlidersHorizontal, Sparkles, Star,
@@ -201,6 +201,37 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [savingLc, setSavingLc] = useState(false);
   const { templates: caseLcTemplates, getTemplateStages: getCaseTmplStages } = useLifecycleTemplates();
   const { spec: caseSpec } = useCaseSpecification(caseData.id, auth.user?.id);
+  const [hhProposals, setHhProposals] = useState([]);
+  const [hhProposalsSaving, setHhProposalsSaving] = useState(false);
+
+  useEffect(() => {
+    if (!caseData.is_head_hunter) return;
+    supabase.from("hh_proposals")
+      .select("*, headhunter:headhunter_id(id, full_name, avatar_url)")
+      .eq("case_id", caseData.id)
+      .order("submitted_at", { ascending: false })
+      .then(({ data }) => setHhProposals(data ?? []));
+  }, [caseData.id, caseData.is_head_hunter]);
+
+  async function reviewHhProposal(proposalId, newStatus) {
+    setHhProposalsSaving(true);
+    const updates = { status: newStatus, reviewed_at: new Date().toISOString(), reviewed_by: auth.user?.id };
+    await supabase.from("hh_proposals").update(updates).eq("id", proposalId);
+    if (newStatus === "accepted") {
+      const proposal = hhProposals.find(p => p.id === proposalId);
+      if (proposal) {
+        await supabase.from("cases").update({ head_hunter_id: proposal.headhunter_id }).eq("id", caseData.id);
+        await supabase.from("hh_proposals").update({ status: "rejected", reviewed_at: new Date().toISOString(), reviewed_by: auth.user?.id })
+          .eq("case_id", caseData.id).neq("id", proposalId).eq("status", "pending");
+        onUpdate?.({ ...caseData, head_hunter_id: proposal.headhunter_id });
+      }
+    }
+    const { data } = await supabase.from("hh_proposals")
+      .select("*, headhunter:headhunter_id(id, full_name, avatar_url)")
+      .eq("case_id", caseData.id).order("submitted_at", { ascending: false });
+    setHhProposals(data ?? []);
+    setHhProposalsSaving(false);
+  }
 
   useEffect(() => {
     if (!caseData.client_id) return;
@@ -265,7 +296,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const lifecycleKey = effectiveLifecycle?.preset ?? effectiveLifecycle?.key ?? "standard";
 
   // Gate runtime data bundle (same shape as GATE_CONDITIONS checks)
-  const gateData = { milestones, timeEntries, documents, invoices, activities, applications, spec: caseSpec };
+  const gateData = { milestones, timeEntries, documents, invoices, activities, applications, spec: caseSpec, hhProposals };
 
   // Returns { blockers: [...], warnings: [...] } for a given target status
   function checkTransitionGates(toStatus) {
@@ -2118,6 +2149,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
     { id: "documents",  label: t("case.tab_docs"),       icon: Paperclip,     count: documents.length || null },
     { id: "time",       label: t("case.tab_time"),       icon: Clock,         count: `${totalTimeHours.toFixed(1)}h` },
     ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "applications", label: t("case.tab_applicants"), icon: Users, count: applications.length }] : []),
+    ...(caseData.is_head_hunter && (auth.isAdmin || auth.isManager || auth.isClient) ? [{ id: "hh_proposals", label: "HH Proposals", icon: Crosshair, count: hhProposals.filter(p => p.status === "pending").length || null }] : []),
     ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "lifecycle", label: t("case.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
     { id: "spec",           label: t("case.tab_spec"),         icon: FileText, count: null },
     ...((auth.isAdmin || auth.isManager || auth.isConsultant) && caseData.status === 'in_progress'
@@ -2154,6 +2186,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         case "activities":     r[tab.id] = activities.length === 0 ? "none" : allActivitiesDone ? "complete" : "in_progress"; break;
         case "time":           r[tab.id] = totalTimeHours > 0 ? "in_progress" : "none"; break;
         case "applications":   r[tab.id] = applications.length > 0 ? "complete" : "none"; break;
+        case "hh_proposals":   r[tab.id] = hhProposals.some(p => p.status === "accepted") ? "complete" : hhProposals.length > 0 ? "in_progress" : "none"; break;
         case "subcases":       r[tab.id] = subCases.length > 0 ? "in_progress" : "none"; break;
         case "spec":           r[tab.id] = documents.some(d => d.category === "spec" || d.doc_type === "spec" || (d.name ?? "").toLowerCase().includes("spec") || (d.file_name ?? "").toLowerCase().includes("spec")) ? "complete" : "none"; break;
         case "implementation": r[tab.id] = caseData.implementation_status === "complete" ? "complete" : caseData.implementation_status ? "in_progress" : "none"; break;
@@ -3340,6 +3373,123 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           reviewApplication={handleReviewApplication}
         />
       )}
+
+                    {/* HH Proposals Tab */}
+                    {tab.id === "hh_proposals" && caseData.is_head_hunter && (auth.isAdmin || auth.isManager || auth.isClient) && (() => {
+        const accepted = hhProposals.find(p => p.status === "accepted");
+        const pending  = hhProposals.filter(p => p.status === "pending");
+        const others   = hhProposals.filter(p => !["pending","accepted"].includes(p.status));
+        return (
+          <div className="space-y-4">
+            {/* Assigned HH banner */}
+            {caseData.head_hunter_id ? (
+              <div className="bg-violet-50 border border-violet-200 rounded-xl px-4 py-3 flex items-center gap-3">
+                <Crosshair size={16} className="text-violet-600 flex-shrink-0" />
+                <div>
+                  <span className="text-sm font-bold text-violet-800">Headhunter assigned</span>
+                  {accepted && <span className="text-sm text-violet-700 ml-2">{accepted.headhunter?.full_name}</span>}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
+                <AlertTriangle size={16} className="text-amber-600 flex-shrink-0" />
+                <span className="text-sm font-semibold text-amber-800">No headhunter assigned yet. Accept a proposal below to assign one.</span>
+              </div>
+            )}
+
+            {/* Pending proposals */}
+            {pending.length > 0 && (
+              <div>
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Pending ({pending.length})</div>
+                <div className="space-y-3">
+                  {pending.map(p => (
+                    <div key={p.id} className="border border-gray-200 rounded-xl p-4 bg-white space-y-2">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-400 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                            {(p.headhunter?.full_name ?? "?").split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold text-gray-900">{p.headhunter?.full_name ?? "Unknown"}</div>
+                            <div className="text-xs text-gray-400">{new Date(p.submitted_at).toLocaleDateString()}</div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button disabled={hhProposalsSaving || !!caseData.head_hunter_id}
+                            onClick={() => reviewHhProposal(p.id, "rejected")}
+                            className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                            Reject
+                          </button>
+                          <button disabled={hhProposalsSaving || !!caseData.head_hunter_id}
+                            onClick={() => reviewHhProposal(p.id, "accepted")}
+                            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                            Accept
+                          </button>
+                        </div>
+                      </div>
+                      {p.message && <p className="text-sm text-gray-600 leading-relaxed">{p.message}</p>}
+                      <div className="flex gap-4 text-xs text-gray-500">
+                        {p.candidate_count_estimate && <span>Estimated candidates: <strong className="text-gray-800">{p.candidate_count_estimate}</strong></span>}
+                        {p.proposed_commission_pct  && <span>Commission: <strong className="text-gray-800">{p.proposed_commission_pct}%</strong></span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Accepted */}
+            {accepted && (
+              <div>
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Accepted</div>
+                <div className="border border-green-200 rounded-xl p-4 bg-green-50">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-400 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                      {(accepted.headhunter?.full_name ?? "?").split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">{accepted.headhunter?.full_name}</div>
+                      <div className="text-xs text-gray-500">Accepted {accepted.reviewed_at ? new Date(accepted.reviewed_at).toLocaleDateString() : ""}</div>
+                    </div>
+                    <span className="ml-auto px-2 py-0.5 rounded-full text-xs font-bold bg-green-200 text-green-800">Assigned</span>
+                  </div>
+                  {accepted.message && <p className="text-sm text-gray-600 mt-2 leading-relaxed">{accepted.message}</p>}
+                  <div className="flex gap-4 text-xs text-gray-500 mt-2">
+                    {accepted.candidate_count_estimate && <span>Estimated candidates: <strong className="text-gray-800">{accepted.candidate_count_estimate}</strong></span>}
+                    {accepted.proposed_commission_pct  && <span>Commission: <strong className="text-gray-800">{accepted.proposed_commission_pct}%</strong></span>}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Other (rejected/withdrawn) */}
+            {others.length > 0 && (
+              <div>
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Other</div>
+                <div className="space-y-2">
+                  {others.map(p => (
+                    <div key={p.id} className="flex items-center gap-3 px-4 py-2.5 border border-gray-100 rounded-xl bg-gray-50">
+                      <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs font-bold flex-shrink-0">
+                        {(p.headhunter?.full_name ?? "?").split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase()}
+                      </div>
+                      <span className="text-sm text-gray-600 flex-1">{p.headhunter?.full_name}</span>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${p.status === "rejected" ? "bg-red-100 text-red-600" : "bg-gray-200 text-gray-500"}`}>{p.status}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {hhProposals.length === 0 && (
+              <div className="text-center py-10 text-gray-400">
+                <Crosshair size={28} className="mx-auto mb-2 text-gray-300" />
+                <div className="text-sm">No headhunter proposals yet</div>
+                <div className="text-xs mt-1">Headhunters will submit proposals from the Arena.</div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
                     {/* V9 Documents Tab */}
                     {tab.id === "documents" && (() => {

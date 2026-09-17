@@ -3865,20 +3865,79 @@ function SettingsPlatformCombinedTab({ ssCtx }) {
   );
 }
 
+function SettingsHeadhunterTab({ ssCtx }) {
+  const raw = ssCtx.settings["headhunter_settings"] ?? {};
+  const cfg = {
+    see_all_public_cases:   raw.see_all_public_cases   ?? false,
+    see_resource_needs:     raw.see_resource_needs     ?? true,
+    apply_to_unassigned:    raw.apply_to_unassigned    ?? true,
+    default_commission_pct: raw.default_commission_pct ?? 15,
+  };
+
+  function toggle(key) {
+    ssCtx.setSetting("headhunter_settings", { ...cfg, [key]: !cfg[key] });
+  }
+  function setNum(key, val) {
+    ssCtx.setSetting("headhunter_settings", { ...cfg, [key]: parseFloat(val) || 0 });
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-base font-bold text-gray-900 mb-1">Headhunter Permissions</h2>
+        <p className="text-sm text-gray-500">Control what headhunters can see and do in the Arena.</p>
+      </div>
+
+      <div className="space-y-3">
+        {[
+          { key: "see_all_public_cases",   label: "See all public cases",   desc: "Headhunters can browse every public case, not just HH-managed or resource-need ones." },
+          { key: "see_resource_needs",     label: "See resource-need cases", desc: "Headhunters can view and propose for cases typed as Resource Need." },
+          { key: "apply_to_unassigned",    label: "Apply to unassigned HH cases", desc: "Headhunters can submit proposals for public HH-managed cases that have no headhunter assigned yet." },
+        ].map(({ key, label, desc }) => (
+          <div key={key} className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
+            <button
+              onClick={() => toggle(key)}
+              className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 mt-0.5 ${cfg[key] ? "bg-violet-600" : "bg-gray-300"}`}
+              role="switch" aria-checked={cfg[key]}>
+              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${cfg[key] ? "translate-x-5" : ""}`} />
+            </button>
+            <div>
+              <div className="text-sm font-semibold text-gray-800">{label}</div>
+              <div className="text-xs text-gray-500 mt-0.5">{desc}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+        <label className="text-sm font-semibold text-gray-800 block mb-1">Default commission %</label>
+        <p className="text-xs text-gray-500 mb-3">Pre-filled commission percentage when a headhunter submits a proposal.</p>
+        <input
+          type="number" min="0" max="100" step="0.5"
+          value={cfg.default_commission_pct}
+          onChange={e => setNum("default_commission_pct", e.target.value)}
+          className="w-32 px-3 py-2 border border-gray-200 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-violet-400"
+        />
+      </div>
+    </div>
+  );
+}
+
 function SystemSettingsView({ auth, onNavigate }) {
   const { t } = useT();
   const [activeTab, setActiveTab] = useState("people");
   const ssCtx = useSystemSettings();
 
   const TABS = [
-    { id: "people",     label: "People",         Icon: Users },
-    { id: "plans",      label: "Plans",          Icon: CreditCard },
-    { id: "pricing",    label: "Pricing",        Icon: DollarSign },
-    { id: "workflow",   label: "Workflow",        Icon: TrendingUp },
-    { id: "catalog",    label: "Catalog",         Icon: Tag },
-    { id: "generation", label: "AI & Generation", Icon: Zap },
-    { id: "abap",       label: "ABAP Templates",  Icon: FileCode2 },
-    { id: "platform",   label: "Platform",        Icon: Sparkles },
+    { id: "people",      label: "People",          Icon: Users },
+    { id: "plans",       label: "Plans",           Icon: CreditCard },
+    { id: "pricing",     label: "Pricing",         Icon: DollarSign },
+    { id: "workflow",    label: "Workflow",         Icon: TrendingUp },
+    { id: "catalog",     label: "Catalog",          Icon: Tag },
+    { id: "generation",  label: "AI & Generation",  Icon: Zap },
+    { id: "abap",        label: "ABAP Templates",   Icon: FileCode2 },
+    { id: "headhunter",  label: "Headhunter",       Icon: Crosshair },
+    { id: "platform",    label: "Platform",         Icon: Sparkles },
   ];
 
   return (
@@ -3901,14 +3960,15 @@ function SystemSettingsView({ auth, onNavigate }) {
         ))}
       </div>
 
-      {activeTab === "people"     && <SettingsPeopleTab ssCtx={ssCtx} auth={auth} onNavigate={onNavigate} />}
-      {activeTab === "plans"      && <SettingsPlansTab ssCtx={ssCtx} auth={auth} />}
-      {activeTab === "pricing"    && <SettingsPricingTab ssCtx={ssCtx} auth={auth} />}
-      {activeTab === "workflow"   && <SettingsWorkflowTab auth={auth} ssCtx={ssCtx} />}
-      {activeTab === "catalog"    && <SettingsCatalogTab ssCtx={ssCtx} />}
-      {activeTab === "generation" && <SettingsGenerationTab ssCtx={ssCtx} />}
-      {activeTab === "abap"       && <AbapTemplatesSection auth={auth} />}
-      {activeTab === "platform"   && <SettingsPlatformCombinedTab ssCtx={ssCtx} />}
+      {activeTab === "people"      && <SettingsPeopleTab ssCtx={ssCtx} auth={auth} onNavigate={onNavigate} />}
+      {activeTab === "plans"       && <SettingsPlansTab ssCtx={ssCtx} auth={auth} />}
+      {activeTab === "pricing"     && <SettingsPricingTab ssCtx={ssCtx} auth={auth} />}
+      {activeTab === "workflow"    && <SettingsWorkflowTab auth={auth} ssCtx={ssCtx} />}
+      {activeTab === "catalog"     && <SettingsCatalogTab ssCtx={ssCtx} />}
+      {activeTab === "generation"  && <SettingsGenerationTab ssCtx={ssCtx} />}
+      {activeTab === "abap"        && <AbapTemplatesSection auth={auth} />}
+      {activeTab === "headhunter"  && <SettingsHeadhunterTab ssCtx={ssCtx} />}
+      {activeTab === "platform"    && <SettingsPlatformCombinedTab ssCtx={ssCtx} />}
     </div>
   );
 }
