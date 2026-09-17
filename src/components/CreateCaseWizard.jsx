@@ -397,7 +397,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   const [wizardProjects, setWizardProjects]         = useState([]);
 
   const _visCfg = useVisibilitySettings();
-  const [basics, setBasics] = useState({ title: initialData?.title ?? "", description: initialData?.description ?? "", priority: initialData?.priority ?? "medium", area_sap: initialData?.area_sap ?? "", area_industry: initialData?.area_industry ?? "", is_confidential: initialData?.is_confidential ?? false, nda_required: initialData?.nda_required ?? false, min_trust_level: initialData?.min_trust_level ?? null, application_mode: initialData?.application_mode ?? "both" });
+  const [basics, setBasics] = useState({ title: initialData?.title ?? "", description: initialData?.description ?? "", priority: initialData?.priority ?? "medium", area_sap: initialData?.area_sap ?? "", area_industry: initialData?.area_industry ?? "", is_confidential: initialData?.is_confidential ?? false, nda_required: initialData?.nda_required ?? false, min_trust_level: initialData?.min_trust_level ?? null, application_mode: initialData?.application_mode ?? "both", case_type: initialData?.case_type ?? "case" });
   const [requiredRoles, setRequiredRoles] = useState(
     (initialData?.required_roles ?? []).map(r => ({
       seniority: "Any", time_pct: 50, ...r,
@@ -415,17 +415,20 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   const [arrangement, setArr] = useState({ work_mode: initialData?.work_mode ?? "remote", work_location: initialData?.work_location ?? "", travel_required: initialData?.travel_required ?? false });
 
   // Step 4: Roles & People
-  const [roles, setRoles] = useState({ key_user_email: initialData?.key_user_email ?? "", is_head_hunter: initialData?.is_head_hunter ?? false, head_hunter_name: initialData?.head_hunter_name ?? "" });
+  const [roles, setRoles] = useState({ key_user_email: initialData?.key_user_email ?? "", is_head_hunter: initialData?.is_head_hunter ?? false, head_hunter_name: initialData?.head_hunter_name ?? "", head_hunter_id: initialData?.head_hunter_id ?? null });
   const [keyUsers, setKeyUsers]     = useState([]);   // { user_id, full_name, email, area }
   const [kuSearch, setKuSearch]     = useState("");
   const [kuResults, setKuResults]   = useState([]);
   const [kuSearching, setKuSearching] = useState(false);
+  const [hhSearch, setHhSearch]     = useState(initialData?.head_hunter_name ?? "");
+  const [hhResults, setHhResults]   = useState([]);
+  const [hhSearching, setHhSearching] = useState(false);
 
   // Step 5: Qualifications
   const [quals, setQuals] = useState({ certifications_required: initialData?.certifications_required ?? [], min_years_experience: initialData?.min_years_experience ?? "", languages_required: initialData?.languages_required ?? [], security_clearance: initialData?.security_clearance ?? false });
 
   // Step 6: Interview
-  const [interview, setIntv] = useState({ interview_required: initialData?.interview_required ?? false, interview_format: initialData?.interview_format ?? "video", interview_rounds: initialData?.interview_rounds ?? 1, technical_assessment: initialData?.technical_assessment ?? false });
+  const [interview, setIntv] = useState({ interview_required: initialData?.interview_required ?? false, interview_format: initialData?.interview_format ?? "video", interview_rounds: initialData?.interview_rounds ?? 1, technical_assessment: initialData?.technical_assessment ?? false, rounds_config: initialData?.interview_rounds_config ?? [] });
   const [milestones, setMs] = useState([]);
   const [mlForm, setMlForm] = useState({ title: "", due_date: "", description: "" });
   const [clients, setClients] = useState([]);
@@ -631,6 +634,31 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   function removeKeyUser(uid) { setKeyUsers(p => p.filter(ku => ku.user_id !== uid)); }
   function updateKuArea(uid, area) { setKeyUsers(p => p.map(ku => ku.user_id === uid ? { ...ku, area } : ku)); }
 
+  async function searchHeadhunters(q) {
+    setHhSearch(q);
+    setRoles(p => ({ ...p, head_hunter_id: null, head_hunter_name: q }));
+    if (!q.trim()) { setHhResults([]); return; }
+    setHhSearching(true);
+    const { data } = await supabase.from("users")
+      .select("id, full_name, email")
+      .eq("role", "headhunter")
+      .or(`full_name.ilike.%${q}%,email.ilike.%${q}%`)
+      .limit(6);
+    setHhResults(data ?? []);
+    setHhSearching(false);
+  }
+  function selectHeadhunter(u) {
+    setRoles(p => ({ ...p, head_hunter_id: u.id, head_hunter_name: u.full_name }));
+    setHhSearch(u.full_name);
+    setHhResults([]);
+  }
+
+  function syncRoundsConfig(count, isHh, existingConfig) {
+    return Array.from({ length: count }, (_, i) =>
+      existingConfig[i] ?? { round: i + 1, conducted_by: isHh ? "headhunter" : "client_team", interviewer_name: "" }
+    );
+  }
+
   async function handleCreate() {
     setCreating(true);
     try {
@@ -661,7 +689,11 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         min_years_experience: quals.min_years_experience ? parseInt(quals.min_years_experience, 10) : null,
         languages_required: quals.languages_required.length ? quals.languages_required : null,
         security_clearance: quals.security_clearance,
-        ...interview,
+        interview_required: interview.interview_required,
+        interview_format: interview.interview_format,
+        interview_rounds: interview.interview_rounds,
+        technical_assessment: interview.technical_assessment,
+        interview_rounds_config: interview.rounds_config,
         required_roles: requiredRoles.filter(r => r.label.trim()),
       };
       if (isEdit) {
@@ -870,6 +902,29 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                 </button>
               </div>
             )}
+            {/* Case Type */}
+            <div className="mb-4">
+              <p className="text-sm font-medium text-gray-700 mb-2">Case Type</p>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { value: "case",          label: "Consulting Case",  icon: "📋", desc: "Standard consulting engagement" },
+                  { value: "ticket",        label: "Support Ticket",   icon: "🎫", desc: "Help desk / support request" },
+                  { value: "resource_need", label: "Resource Need",    icon: "🤝", desc: "Headhunter staffing need" },
+                ].map(opt => (
+                  <button key={opt.value} type="button"
+                    onClick={() => setBasics(p => ({ ...p, case_type: opt.value }))}
+                    className={`text-left p-3 border-2 rounded-xl transition-all ${
+                      basics.case_type === opt.value
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:border-gray-300"}`}>
+                    <div className="text-lg mb-1">{opt.icon}</div>
+                    <div className="font-semibold text-sm text-gray-900">{opt.label}</div>
+                    <div className="text-xs text-gray-400 mt-0.5 leading-tight">{opt.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <Input label={`${t("label.title")} *`} value={basics.title}
               onChange={e => setBasics(p => ({ ...p, title: e.target.value }))}
               placeholder={t("case.ph_title_eg")} />
@@ -1318,9 +1373,49 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                 <span className="text-sm text-gray-700 font-medium">{t("case.hh_managed")}</span>
               </label>
               {roles.is_head_hunter && (
-                <Input label={t("case.hh_name_label")} value={roles.head_hunter_name}
-                  onChange={e => setRoles(p => ({ ...p, head_hunter_name: e.target.value }))}
-                  placeholder={t("case.ph_agency_eg")} />
+                <div className="relative mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t("case.hh_name_label")}</label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={hhSearch}
+                      onChange={e => searchHeadhunters(e.target.value)}
+                      placeholder="Search by headhunter name…"
+                      className="w-full border border-gray-200 rounded-xl pl-9 pr-9 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {roles.head_hunter_id && (
+                      <button type="button"
+                        onClick={() => { setRoles(p => ({ ...p, head_hunter_id: null, head_hunter_name: "" })); setHhSearch(""); setHhResults([]); }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  {roles.head_hunter_id && (
+                    <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                      <Check className="w-3 h-3" /> Linked to platform account
+                    </p>
+                  )}
+                  {hhSearching && <p className="text-xs text-gray-400 mt-1">Searching…</p>}
+                  {hhResults.length > 0 && (
+                    <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+                      {hhResults.map(u => (
+                        <button key={u.id} type="button"
+                          onClick={() => selectHeadhunter(u)}
+                          className="w-full text-left px-4 py-3 hover:bg-blue-50 flex items-center gap-3">
+                          <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600 shrink-0">
+                            {u.full_name?.[0]?.toUpperCase() ?? "?"}
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{u.full_name}</div>
+                            <div className="text-xs text-gray-400">{u.email}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </>
@@ -1379,7 +1474,16 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
 
             <label className="flex items-center gap-3 cursor-pointer mb-5">
               <input type="checkbox" checked={interview.interview_required}
-                onChange={e => setIntv(p => ({ ...p, interview_required: e.target.checked }))}
+                onChange={e => {
+                  const on = e.target.checked;
+                  setIntv(p => ({
+                    ...p,
+                    interview_required: on,
+                    rounds_config: on && !p.rounds_config.length
+                      ? syncRoundsConfig(p.interview_rounds, roles.is_head_hunter, [])
+                      : p.rounds_config,
+                  }));
+                }}
                 className="w-4 h-4 rounded accent-blue-600" />
               <span className="text-sm text-gray-700 font-medium">{t("case.intv_required")}</span>
             </label>
@@ -1411,10 +1515,14 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                 {/* Rounds */}
                 <div className="mb-5">
                   <p className="text-sm font-medium text-gray-700 mb-2">{t("case.intv_rounds")}</p>
-                  <div className="flex gap-3">
+                  <div className="flex gap-3 mb-4">
                     {[1, 2, 3].map(n => (
                       <button key={n} type="button"
-                        onClick={() => setIntv(p => ({ ...p, interview_rounds: n }))}
+                        onClick={() => setIntv(p => ({
+                          ...p,
+                          interview_rounds: n,
+                          rounds_config: syncRoundsConfig(n, roles.is_head_hunter, p.rounds_config),
+                        }))}
                         className={`w-12 h-12 rounded-xl border-2 font-bold text-sm transition-all ${
                           interview.interview_rounds === n
                             ? "border-blue-500 bg-blue-50 text-blue-700"
@@ -1423,6 +1531,66 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
                       </button>
                     ))}
                   </div>
+
+                  {/* Per-round ownership */}
+                  {(() => {
+                    const cfg = interview.rounds_config.length
+                      ? interview.rounds_config
+                      : syncRoundsConfig(interview.interview_rounds, roles.is_head_hunter, []);
+                    return (
+                      <div className="space-y-3">
+                        {cfg.map((r, i) => (
+                          <div key={i} className="border border-gray-100 rounded-xl p-4">
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Round {r.round}</span>
+                              <div className="flex gap-2">
+                                <button type="button"
+                                  onClick={() => setIntv(p => ({
+                                    ...p,
+                                    rounds_config: p.rounds_config.map((rc, ri) =>
+                                      ri === i ? { ...rc, conducted_by: "headhunter", interviewer_name: "" } : rc
+                                    ),
+                                  }))}
+                                  className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all ${
+                                    r.conducted_by === "headhunter"
+                                      ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                                      : "border-gray-200 text-gray-500 hover:border-gray-300"}`}>
+                                  🎯 Headhunter
+                                </button>
+                                <button type="button"
+                                  onClick={() => setIntv(p => ({
+                                    ...p,
+                                    rounds_config: p.rounds_config.map((rc, ri) =>
+                                      ri === i ? { ...rc, conducted_by: "client_team" } : rc
+                                    ),
+                                  }))}
+                                  className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all ${
+                                    r.conducted_by === "client_team"
+                                      ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                                      : "border-gray-200 text-gray-500 hover:border-gray-300"}`}>
+                                  👥 Client Team
+                                </button>
+                              </div>
+                            </div>
+                            {r.conducted_by === "client_team" && (
+                              <input
+                                type="text"
+                                value={r.interviewer_name ?? ""}
+                                onChange={e => setIntv(p => ({
+                                  ...p,
+                                  rounds_config: p.rounds_config.map((rc, ri) =>
+                                    ri === i ? { ...rc, interviewer_name: e.target.value } : rc
+                                  ),
+                                }))}
+                                placeholder="Interviewer name (optional)"
+                                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Technical assessment */}
