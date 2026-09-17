@@ -396,6 +396,14 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   const [selectedProjectId, setSelectedProjectId] = useState(initialData?.project_id ?? initialProjectId);
   const [wizardProjects, setWizardProjects]         = useState([]);
 
+  // Reset case_type when project changes and the selected type is no longer valid
+  useEffect(() => {
+    const proj = wizardProjects.find(p => p.id === selectedProjectId);
+    if (basics.case_type === "ticket" && proj?.project_type !== "help_desk") {
+      setBasics(prev => ({ ...prev, case_type: "case" }));
+    }
+  }, [selectedProjectId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const _visCfg = useVisibilitySettings();
   const [basics, setBasics] = useState({ title: initialData?.title ?? "", description: initialData?.description ?? "", priority: initialData?.priority ?? "medium", area_sap: initialData?.area_sap ?? "", area_industry: initialData?.area_industry ?? "", is_confidential: initialData?.is_confidential ?? false, nda_required: initialData?.nda_required ?? false, min_trust_level: initialData?.min_trust_level ?? null, application_mode: initialData?.application_mode ?? "both", case_type: initialData?.case_type ?? "case" });
   const [requiredRoles, setRequiredRoles] = useState(
@@ -452,7 +460,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   const { templates: lcTemplates } = useLifecycleTemplates();
 
   useEffect(() => {
-    let q = supabase.from("projects").select("id, name, status, area_sap, case_lifecycle, client_id, client:client_id(full_name, client_profiles(company_name))").eq("status", "active").order("name");
+    let q = supabase.from("projects").select("id, name, status, area_sap, case_lifecycle, project_type, client_id, client:client_id(full_name, client_profiles(company_name))").eq("status", "active").order("name");
     if (auth.isClient) q = q.eq("client_id", auth.user?.id);
     q.then(({ data }) => setWizardProjects(data ?? []));
   }, [auth.user?.id]);
@@ -903,26 +911,60 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               </div>
             )}
             {/* Case Type */}
-            <div className="mb-4">
-              <p className="text-sm font-medium text-gray-700 mb-2">Case Type</p>
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { value: "case",          label: "Consulting Case", desc: "Standard consulting engagement" },
-                  { value: "ticket",        label: "Support Ticket",  desc: "Help desk / support request" },
-                  { value: "resource_need", label: "Resource Need",   desc: "Headhunter staffing need" },
-                ].map(opt => (
-                  <button key={opt.value} type="button"
-                    onClick={() => setBasics(p => ({ ...p, case_type: opt.value }))}
-                    className={`text-left p-3 border-2 rounded-xl transition-all ${
-                      basics.case_type === opt.value
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200 hover:border-gray-300"}`}>
-                    <div className="font-semibold text-sm text-gray-900">{opt.label}</div>
-                    <div className="text-xs text-gray-400 mt-0.5 leading-tight">{opt.desc}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
+            {(() => {
+              const selectedProject = wizardProjects.find(p => p.id === selectedProjectId);
+              const isHelpDesk = selectedProject?.project_type === "help_desk";
+              const caseTypeOptions = [
+                {
+                  value: "case",
+                  label: "Consulting Case",
+                  desc: "Standard consulting engagement",
+                  disabled: false,
+                  disabledReason: null,
+                },
+                {
+                  value: "ticket",
+                  label: "Support Ticket",
+                  desc: "Help desk / support request",
+                  disabled: !isHelpDesk,
+                  disabledReason: "Only available for Help Desk projects",
+                },
+                {
+                  value: "resource_need",
+                  label: "Resource Need",
+                  desc: "Headhunter staffing need",
+                  disabled: !auth.isHeadhunter,
+                  disabledReason: "Only available to headhunter users",
+                },
+              ];
+              return (
+                <div className="mb-4">
+                  <p className="text-sm font-medium text-gray-700 mb-2">Case Type</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    {caseTypeOptions.map(opt => {
+                      const isActive = basics.case_type === opt.value;
+                      return (
+                        <button key={opt.value} type="button"
+                          disabled={opt.disabled}
+                          onClick={() => !opt.disabled && setBasics(p => ({ ...p, case_type: opt.value }))}
+                          title={opt.disabled ? opt.disabledReason : undefined}
+                          className={`text-left p-3 border-2 rounded-xl transition-all relative ${
+                            opt.disabled
+                              ? "border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed"
+                              : isActive
+                                ? "border-blue-500 bg-blue-50"
+                                : "border-gray-200 hover:border-gray-300"}`}>
+                          <div className={`font-semibold text-sm ${opt.disabled ? "text-gray-400" : "text-gray-900"}`}>{opt.label}</div>
+                          <div className="text-xs text-gray-400 mt-0.5 leading-tight">
+                            {opt.disabled ? opt.disabledReason : opt.desc}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
 
             <Input label={`${t("label.title")} *`} value={basics.title}
               onChange={e => setBasics(p => ({ ...p, title: e.target.value }))}
