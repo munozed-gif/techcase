@@ -15,6 +15,7 @@ import {
   ProfileCompleteWizard, ProfileOnboardingScreen,
 } from "../components/ProfileComponents.jsx";
 import { ConsultantProfileView } from "../components/ConsultantProfileView.jsx";
+import { Input, Select, Textarea } from "../components/ui.jsx";
 import { fmtDate, fmt, AVAIL_LABEL_KEYS, EXPERTISE_LABEL_KEYS, WORK_MODE_LABEL_KEYS } from "../lib/uiUtils.jsx";
 import { ROLE_COLORS, SAP_AREAS, INDUSTRY_AREAS } from "../lib/businessConstants.js";
 import { useRatings } from "../hooks/useCaseHooks.js";
