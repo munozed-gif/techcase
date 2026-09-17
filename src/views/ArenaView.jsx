@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   BarChart2, Bookmark, BookmarkCheck, Briefcase, Building2, Check,
   CheckCircle2, ChevronLeft, ChevronRight, Crosshair, ExternalLink,
-  LayoutGrid, Lock, Mail, Phone, Send, Star, Trophy, User, X,
+  LayoutGrid, Lock, Mail, Phone, Send, Star, Trophy, User, Users, X,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
@@ -987,7 +987,7 @@ function ArenaView({ auth }) {
       <div className="bg-blue-50 rounded-2xl p-12 text-center text-blue-400 text-sm border border-blue-100">
         {auth.isHeadhunter ? (
           <div className="space-y-2">
-            <div style={{ fontSize:28 }}>🎯</div>
+            <Crosshair size={28} className="mx-auto mb-2 text-blue-400" />
             <div className="font-bold text-blue-700 text-base">No open cases right now</div>
             <div className="text-blue-500 text-xs max-w-xs mx-auto leading-relaxed">
               Public headhunter-flagged cases appear here automatically.
@@ -1114,10 +1114,10 @@ function ArenaView({ auth }) {
               {c.budget        && chip('#059669','rgba(5,150,105,0.3)','rgba(5,150,105,0.07)', `$${Number(c.budget).toLocaleString()}`)}
               {daysLeft != null && chip(dayChipColor, dayChipBorder, dayChipBg, daysLeft === 1 ? '1 day left' : `${daysLeft} days left`)}
               {companyName     && chip('#1A4B8C','rgba(26,75,140,0.25)','rgba(26,75,140,0.06)', companyName)}
-              {c.is_head_hunter && chip('#7C3AED','rgba(124,58,237,0.3)','rgba(124,58,237,0.07)', '🎯 HH Managed')}
-              {c.application_mode === 'team'       && chip('#4F46E5','rgba(79,70,229,0.3)','rgba(79,70,229,0.07)', '👥 Teams only')}
-              {c.application_mode === 'individual' && chip('#475569','rgba(71,85,105,0.3)','rgba(71,85,105,0.07)', '🧑 Individual only')}
-              {(c.application_mode === 'both' || !c.application_mode) && chip('#059669','rgba(5,150,105,0.25)','rgba(5,150,105,0.06)', '👥 Teams & Individual')}
+              {c.is_head_hunter && chip('#7C3AED','rgba(124,58,237,0.3)','rgba(124,58,237,0.07)', <span style={{display:'inline-flex',alignItems:'center',gap:3}}><Crosshair size={9}/>HH Managed</span>)}
+              {c.application_mode === 'team'       && chip('#4F46E5','rgba(79,70,229,0.3)','rgba(79,70,229,0.07)', <span style={{display:'inline-flex',alignItems:'center',gap:3}}><Users size={9}/>Teams only</span>)}
+              {c.application_mode === 'individual' && chip('#475569','rgba(71,85,105,0.3)','rgba(71,85,105,0.07)', <span style={{display:'inline-flex',alignItems:'center',gap:3}}><User size={9}/>Individual only</span>)}
+              {(c.application_mode === 'both' || !c.application_mode) && chip('#059669','rgba(5,150,105,0.25)','rgba(5,150,105,0.06)', <span style={{display:'inline-flex',alignItems:'center',gap:3}}><Users size={9}/>Teams & Individual</span>)}
             </div>
             <div style={{ height:1, background:'rgba(26,75,140,0.1)' }} />
 
@@ -1279,7 +1279,7 @@ function ArenaView({ auth }) {
             {auth.isHeadhunter && (
               <button onClick={() => { setHhOnly(v => !v); scrollToCase(0); }}
                 style={{ display:'flex', alignItems:'center', gap:5, background: hhOnly ? 'rgba(139,92,246,0.12)' : 'rgba(139,92,246,0.05)', border:`1px solid ${hhOnly ? 'rgba(139,92,246,0.4)' : 'rgba(139,92,246,0.2)'}`, borderRadius:99, color: hhOnly ? '#7C3AED' : '#9B80D4', fontSize:11, fontWeight:700, letterSpacing:'0.05em', padding:'4px 10px', cursor:'pointer', transition:'all .15s' }}>
-                🎯 HH Cases {hhOnly ? '✕' : ''}
+                <Crosshair size={11}/> HH Cases {hhOnly && <X size={9}/>}
               </button>
             )}
           </div>
@@ -1296,7 +1296,7 @@ function ArenaView({ auth }) {
         {/* HH filter zero-state */}
         {auth.isHeadhunter && hhOnly && sorted.length === 0 && (
           <div className="bg-purple-50 rounded-2xl p-10 text-center border border-purple-100 mb-4">
-            <div style={{ fontSize:24 }}>🎯</div>
+            <Crosshair size={24} className="mx-auto text-purple-400 mb-2" />
             <div className="font-bold text-purple-700 text-sm mt-2">No headhunter-flagged cases open right now</div>
             <div className="text-purple-400 text-xs mt-1">
               <button onClick={() => setHhOnly(false)} className="underline hover:text-purple-600">Show all cases</button>
