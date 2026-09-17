@@ -831,6 +831,91 @@ function Dashboard({ auth, onNavigate }) {
         </>
       )}
 
+      {/* ── Headhunter Overview (manager / admin) ── */}
+      {(auth.isAdmin || auth.isManager) && (() => {
+        const hhCases = cases.filter(c => c.is_head_hunter);
+        if (!hhCases.length) return null;
+
+        const TERMINAL = ['closed', 'cancelled', 'completed'];
+        const activeHhCases = hhCases.filter(c => !TERMINAL.includes(c.status));
+
+        // Group by headhunter
+        const hhMap = {};
+        hhCases.forEach(c => {
+          const name = c.head_hunter_name || 'Unknown';
+          if (!hhMap[name]) hhMap[name] = { name, id: c.head_hunter_id, total: 0, active: 0, caseIds: new Set() };
+          hhMap[name].total++;
+          if (!TERMINAL.includes(c.status)) hhMap[name].active++;
+          hhMap[name].caseIds.add(c.id);
+        });
+
+        // Count applications + placements per headhunter
+        Object.values(hhMap).forEach(hh => {
+          const hhApps = applications.filter(a => hh.caseIds.has(a.case_id));
+          hh.apps    = hhApps.length;
+          hh.placed  = hhApps.filter(a => a.status === 'accepted').length;
+        });
+
+        const rows = Object.values(hhMap).sort((a, b) => b.active - a.active);
+
+        return (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mt-6">
+            <div className="p-5 border-b border-gray-100 flex items-center gap-2">
+              <Users className="w-4 h-4 text-indigo-500" />
+              <h2 className="text-base font-bold text-gray-900">Headhunter Overview</h2>
+              <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-lg">{hhCases.length} cases</span>
+            </div>
+
+            {/* Summary tiles */}
+            <div className="grid grid-cols-3 gap-4 p-5 border-b border-gray-50">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-gray-900">{hhCases.length}</div>
+                <div className="text-xs text-gray-400 mt-0.5">Total HH Cases</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-indigo-600">{activeHhCases.length}</div>
+                <div className="text-xs text-gray-400 mt-0.5">Active</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-gray-900">{rows.length}</div>
+                <div className="text-xs text-gray-400 mt-0.5">Headhunters</div>
+              </div>
+            </div>
+
+            {/* Per-headhunter breakdown */}
+            <div className="divide-y divide-gray-50">
+              {rows.map(hh => (
+                <div key={hh.name} className="flex items-center justify-between px-5 py-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-700 shrink-0">
+                      {hh.name[0]?.toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-gray-900 truncate">{hh.name}</div>
+                      <div className="text-xs text-gray-400">{hh.total} case{hh.total !== 1 ? 's' : ''}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 shrink-0 ml-3">
+                    <div className="text-right">
+                      <div className="text-sm font-semibold text-indigo-600">{hh.active}</div>
+                      <div className="text-[10px] text-gray-400">active</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-semibold text-gray-700">{hh.apps}</div>
+                      <div className="text-[10px] text-gray-400">applications</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-semibold text-green-600">{hh.placed}</div>
+                      <div className="text-[10px] text-gray-400">placed</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── Help Desk KPIs ── */}
       {(() => {
         const hdProjectIds = new Set(
