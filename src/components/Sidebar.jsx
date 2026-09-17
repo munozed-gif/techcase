@@ -1,7 +1,7 @@
 import {
   BarChart2, Bell, ClipboardList, Clock, Database, FolderOpen, Handshake,
   Layers, LayoutDashboard, LayoutGrid, LayoutTemplate, Receipt, Search,
-  SlidersHorizontal, Target, User, UserCheck,
+  SlidersHorizontal, Target, User, UserCheck, UsersRound,
 } from "lucide-react";
 import { useT } from "../i18n/index.jsx";
 import { usePlatformBranding, useVisibilitySettings } from "../hooks/useSystemSettings.jsx";
@@ -117,8 +117,12 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       { id: "kanban",    Icon: LayoutGrid,      labelKey: "nav.kanban" },
     ],
     headhunter: [
-      { id: "arena",       Icon: Target,    labelKey: "nav.arena" },
-      { id: "consultants", Icon: UserCheck, labelKey: "nav.consultants" },
+      { id: "dashboard",     Icon: LayoutDashboard, labelKey: "nav.dashboard" },
+      { id: "hh-candidates", Icon: UsersRound,      labelKey: "nav.hh_candidates" },
+      { id: "hh-pipeline",   Icon: LayoutGrid,      labelKey: "nav.hh_pipeline" },
+      { id: "hh-placements", Icon: UserCheck,       labelKey: "nav.hh_placements" },
+      { id: "arena",         Icon: Target,           labelKey: "nav.arena" },
+      { id: "consultants",   Icon: Handshake,        labelKey: "nav.consultants" },
     ],
   };
 

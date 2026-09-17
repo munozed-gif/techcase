@@ -883,6 +883,16 @@ function ArenaView({ auth }) {
   const [consultantCaseCounts, setConsultantCaseCounts] = useState({}); // { [consultant_id]: activeCount }
   const branding = usePlatformBranding();
 
+  // ── Headhunter: my managed candidates for smart matching ─────────────────
+  const [hhCandidates, setHhCandidates] = useState([]);
+  useEffect(() => {
+    if (!auth.isHeadhunter || !auth.user?.id) return;
+    supabase.from("users")
+      .select("id, full_name, avatar_url, consultant_profiles(skills, hourly_rate, years_experience, availability_status)")
+      .eq("headhunter_id", auth.user.id)
+      .then(({ data }) => setHhCandidates(data ?? []));
+  }, [auth.isHeadhunter, auth.user?.id]);
+
   function toggleCompare(id) {
     setCompareSet(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
@@ -1193,6 +1203,51 @@ function ArenaView({ auth }) {
                 </button>
               )
             )}
+
+            {/* ── Headhunter: Smart Matching panel ── */}
+            {auth.isHeadhunter && hhCandidates.length > 0 && (() => {
+              const req = c.skills_required ?? [];
+              function hhMatchScore(cand) {
+                const prof = Array.isArray(cand.consultant_profiles) ? cand.consultant_profiles[0] : cand.consultant_profiles;
+                const skills = (prof?.skills ?? []).map(s => String(s).toLowerCase());
+                const reqLow = req.map(s => String(s).toLowerCase());
+                if (reqLow.length === 0) return 50;
+                const hits = reqLow.filter(s => skills.includes(s)).length;
+                return Math.round(Math.max(5, Math.min(100, (hits / reqLow.length) * 70 + 30)));
+              }
+              const ranked = [...hhCandidates]
+                .map(cd => ({ ...cd, _score: hhMatchScore(cd) }))
+                .sort((a, b) => b._score - a._score)
+                .slice(0, 4);
+              const alreadyAppliedIds = new Set(
+                applications.filter(a => a.case_id === c.id).map(a => a.consultant_id)
+              );
+              return (
+                <div style={{ background:'rgba(139,92,246,0.05)', border:'1px solid rgba(139,92,246,0.18)', borderRadius:12, padding:'10px 12px' }}>
+                  <div style={{ fontSize:9, fontWeight:700, color:'#7C3AED', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:8, display:'flex', alignItems:'center', gap:5 }}>
+                    <Star size={10} /> My Best Candidates for this case
+                  </div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+                    {ranked.map((cd, ri) => {
+                      const applied = alreadyAppliedIds.has(cd.id);
+                      const scoreColor = cd._score >= 70 ? '#059669' : cd._score >= 40 ? '#D97706' : '#64748B';
+                      const initials = (cd.full_name ?? "?").split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase();
+                      return (
+                        <div key={cd.id} style={{ display:'flex', alignItems:'center', gap:7, background:'white', borderRadius:9, padding:'5px 9px', border:'1px solid rgba(139,92,246,0.12)' }}>
+                          <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:12, fontWeight:700, width:14, textAlign:'center', color:ri===0?'#D97706':ri===1?'#6B8AB8':'#B4B4B4' }}>{ri+1}</div>
+                          <div style={{ width:20, height:20, borderRadius:'50%', background:`linear-gradient(135deg,#8B5CF6,#C084FC)`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:7, fontWeight:700, color:'#fff', flexShrink:0, overflow:'hidden' }}>
+                            {cd.avatar_url ? <img src={cd.avatar_url} alt={cd.full_name} style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : initials}
+                          </div>
+                          <span style={{ flex:1, fontSize:10, color:'#334155', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{cd.full_name}</span>
+                          <span style={{ fontSize:10, fontWeight:700, color:scoreColor }}>{cd._score}%</span>
+                          {applied && <span style={{ fontSize:8, background:'rgba(5,150,105,0.1)', color:'#059669', borderRadius:4, padding:'1px 5px', fontWeight:600 }}>Applied</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       );

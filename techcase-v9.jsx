@@ -117,6 +117,7 @@ import {
 
 
 import { ConsultantProfileView } from "./src/components/ConsultantProfileView.jsx";
+import { HeadhunterDashboard, HeadhunterCandidates, HeadhunterPipeline, HeadhunterPlacements } from "./src/views/HeadhunterViews.jsx";
 
 
 import { NotificationBell } from "./src/components/NotificationBell.jsx";
@@ -633,7 +634,12 @@ export default function App() {
 
   function renderView() {
     switch (activeView) {
-      case "dashboard":      return <Dashboard auth={auth} onNavigate={setActiveView} />;
+      case "dashboard":      return auth.isHeadhunter
+                               ? <HeadhunterDashboard auth={auth} onNavigate={setActiveView} />
+                               : <Dashboard auth={auth} onNavigate={setActiveView} />;
+      case "hh-candidates":  return auth.isHeadhunter ? <HeadhunterCandidates auth={auth} /> : <Dashboard auth={auth} />;
+      case "hh-pipeline":    return auth.isHeadhunter ? <HeadhunterPipeline auth={auth} /> : <Dashboard auth={auth} />;
+      case "hh-placements":  return auth.isHeadhunter ? <HeadhunterPlacements auth={auth} /> : <Dashboard auth={auth} />;
       case "projects":       return <ProjectsView auth={auth} initialProjectId={pendingProjectId} />;
       case "cases":          return <CasesView auth={auth} initialCaseId={pendingCaseId} />;
       case "my-cases":       return <CasesView auth={auth} initialCaseId={pendingCaseId} />;
