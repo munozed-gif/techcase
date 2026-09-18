@@ -953,8 +953,8 @@ function ApplyTemplateModal({ projectId, clientId, userId, onClose, onDone }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col" style={{height: 'min(90vh, 720px)', minHeight: '480px'}}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-blue-50"><LayoutTemplate size={18} className="text-blue-600" /></div>
             <div>
@@ -965,7 +965,7 @@ function ApplyTemplateModal({ projectId, clientId, userId, onClose, onDone }) {
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-600"><X size={18} /></button>
         </div>
 
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 min-h-0 overflow-hidden">
           {/* Left: template list */}
           <div className="w-72 border-r border-gray-100 flex flex-col overflow-hidden flex-shrink-0">
             <div className="p-3 border-b border-gray-100 flex flex-wrap gap-1">
@@ -1053,7 +1053,7 @@ function ApplyTemplateModal({ projectId, clientId, userId, onClose, onDone }) {
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between flex-shrink-0">
           <p className={`text-sm ${error ? 'text-red-600' : 'text-gray-500'}`}>
             {error ?? (() => {
               if (!selCount) return 'Select items to apply';
