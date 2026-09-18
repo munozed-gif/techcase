@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import {
-  Activity, Bell, Check, CheckCircle2, Clock, Database, DollarSign,
+  Activity, AlertCircle, Bell, Check, CheckCircle2, Clock, Database, DollarSign,
   Download, FileText, FolderOpen, Mail, Pencil, Phone, SlidersHorizontal,
-  Target, Trash2, User, Users, XCircle,
+  Target, Trash2, User, Users, X, XCircle,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
@@ -1193,6 +1193,8 @@ function ClientTeamList({ client, auth }) {
   const [showAdd, setShowAdd]      = useState(false);
   const [form, setForm]            = useState({ full_name: "", email: "", role_title: "", phone: "", is_primary: false, system_role: "" });
   const [saving, setSaving]        = useState(false);
+  const [addError, setAddError]    = useState(null);
+  const [addLinkedUser, setAddLinkedUser] = useState(null);
   const [editingId, setEditingId]  = useState(null);
   const [editForm, setEditForm]    = useState({});
   const [savingEdit, setSavingEdit] = useState(false);
@@ -1213,11 +1215,14 @@ function ClientTeamList({ client, auth }) {
   async function handleAdd() {
     if (!form.full_name || !form.email) return;
     setSaving(true);
+    setAddError(null);
+    setAddLinkedUser(null);
     try {
-      await addMember(form);
+      const result = await addMember(form);
       setForm({ full_name: "", email: "", role_title: "", phone: "", is_primary: false });
       setShowAdd(false);
-    } catch (e) { alert(e.message); }
+      if (result?.existingUser) setAddLinkedUser(result.existingUser);
+    } catch (e) { setAddError(e.message); }
     setSaving(false);
   }
 
@@ -1282,12 +1287,23 @@ function ClientTeamList({ client, auth }) {
           <p className="text-sm text-gray-400">{members.length === 1 ? t("team.count_one") : t("team.count_many").replace("{n}", members.length)}</p>
         </div>
         {(auth.isAdmin || auth.isManager || auth.isClient) && (
-          <button onClick={() => setShowAdd(p => !p)}
+          <button onClick={() => { setShowAdd(p => !p); setAddError(null); }}
             className="px-4 py-2 text-sm bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700">
             {t("team.add_btn")}
           </button>
         )}
       </div>
+
+      {addLinkedUser && (
+        <div className="flex items-start gap-2 px-4 py-3 mb-4 rounded-xl bg-green-50 border border-green-200 text-sm text-green-800">
+          <CheckCircle2 size={15} className="text-green-500 mt-0.5 flex-shrink-0" />
+          <span>
+            <strong>{addLinkedUser.full_name}</strong> was added and automatically linked to their existing platform account
+            {addLinkedUser.role ? ` (${addLinkedUser.role})` : ''}.
+          </span>
+          <button onClick={() => setAddLinkedUser(null)} className="ml-auto text-green-400 hover:text-green-600 flex-shrink-0"><X size={13} /></button>
+        </div>
+      )}
 
       {showAdd && (
         <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-3">
@@ -1295,7 +1311,7 @@ function ClientTeamList({ client, auth }) {
             <Input label={t("team.name_label")} value={form.full_name}
               onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder={t("contact.ph_name")} />
             <Input label={t("team.email_label")} type="email" value={form.email}
-              onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder={t("contact.ph_email")} />
+              onChange={e => { setForm(p => ({ ...p, email: e.target.value })); setAddError(null); }} placeholder={t("contact.ph_email")} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Input label="Job Title" value={form.role_title}
@@ -1321,8 +1337,13 @@ function ClientTeamList({ client, auth }) {
               className="rounded accent-blue-600" />
             {t("team.primary_label")}
           </label>
+          {addError && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700">
+              <AlertCircle size={13} className="flex-shrink-0" />{addError}
+            </div>
+          )}
           <div className="flex justify-end gap-3">
-            <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
+            <button onClick={() => { setShowAdd(false); setAddError(null); }} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
             <button onClick={handleAdd} disabled={saving}
               className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
               {saving ? t("team.adding") : t("team.add_action")}

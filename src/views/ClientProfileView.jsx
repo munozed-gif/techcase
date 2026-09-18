@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  Activity, Building2, Camera, Check, CheckCircle2, ChevronLeft,
+  Activity, AlertCircle, Building2, Camera, Check, CheckCircle2, ChevronLeft,
   ChevronRight, ClipboardList, Clock, Code2, CreditCard, Database,
   DollarSign, Eye, FileText, Globe, Layers, Link, Loader2, Lock, Mail,
   Pencil, Phone, Settings, SlidersHorizontal, Trash2, TrendingUp, User,
-  UserCheck, Users, XCircle,
+  UserCheck, Users, X, XCircle,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
@@ -105,6 +105,8 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
   const [showAddMember, setShowAddMember] = useState(false);
   const [memberForm, setMemberForm] = useState({ full_name: "", email: "", role_title: "", phone: "", is_primary: false, system_role: "" });
   const [savingMember, setSavingMember] = useState(false);
+  const [memberAddError, setMemberAddError] = useState(null);
+  const [memberLinkedUser, setMemberLinkedUser] = useState(null);
   const [editingMemberId, setEditingMemberId] = useState(null);
   const [editMemberForm, setEditMemberForm] = useState({});
   const [savingEditMember, setSavingEditMember] = useState(false);
@@ -229,11 +231,14 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
   async function handleAddMember() {
     if (!memberForm.full_name || !memberForm.email) return;
     setSavingMember(true);
+    setMemberAddError(null);
+    setMemberLinkedUser(null);
     try {
-      await addMember(memberForm);
+      const result = await addMember(memberForm);
       setMemberForm({ full_name: "", email: "", role_title: "", phone: "", is_primary: false });
       setShowAddMember(false);
-    } catch (e) { alert(e.message); }
+      if (result?.existingUser) setMemberLinkedUser(result.existingUser);
+    } catch (e) { setMemberAddError(e.message); }
     setSavingMember(false);
   }
 
@@ -889,11 +894,22 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
               <h2 className="font-bold text-gray-900">{t("team.title")}</h2>
               <p className="text-sm text-gray-400 mt-0.5">{t("team.subtitle")}</p>
             </div>
-            <button onClick={() => setShowAddMember(p => !p)}
+            <button onClick={() => { setShowAddMember(p => !p); setMemberAddError(null); }}
               className="px-4 py-2 text-sm bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700">
               {t("team.add_btn")}
             </button>
           </div>
+
+          {memberLinkedUser && (
+            <div className="flex items-start gap-2 px-4 py-3 mb-4 rounded-xl bg-green-50 border border-green-200 text-sm text-green-800">
+              <CheckCircle2 size={15} className="text-green-500 mt-0.5 flex-shrink-0" />
+              <span>
+                <strong>{memberLinkedUser.full_name}</strong> was added and linked to their existing platform account
+                {memberLinkedUser.role ? ` (${memberLinkedUser.role})` : ''}.
+              </span>
+              <button onClick={() => setMemberLinkedUser(null)} className="ml-auto text-green-400 hover:text-green-600 flex-shrink-0"><X size={13} /></button>
+            </div>
+          )}
 
           {showAddMember && (
             <div className="bg-gray-50 rounded-xl p-4 mb-5 space-y-3">
@@ -901,7 +917,7 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
                 <Input label={t("team.name_label")} value={memberForm.full_name}
                   onChange={e => setMemberForm(p => ({ ...p, full_name: e.target.value }))} placeholder={t("contact.ph_name")} />
                 <Input label={t("team.email_label")} type="email" value={memberForm.email}
-                  onChange={e => setMemberForm(p => ({ ...p, email: e.target.value }))} placeholder={t("contact.ph_email")} />
+                  onChange={e => { setMemberForm(p => ({ ...p, email: e.target.value })); setMemberAddError(null); }} placeholder={t("contact.ph_email")} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <Input label="Job Title" value={memberForm.role_title}
@@ -927,8 +943,13 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
                   className="rounded accent-blue-600" />
                 {t("team.primary_label")}
               </label>
+              {memberAddError && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700">
+                  <AlertCircle size={13} className="flex-shrink-0" />{memberAddError}
+                </div>
+              )}
               <div className="flex justify-end gap-3">
-                <button onClick={() => setShowAddMember(false)} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
+                <button onClick={() => { setShowAddMember(false); setMemberAddError(null); }} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
                 <button onClick={handleAddMember} disabled={savingMember}
                   className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
                   {savingMember ? t("team.adding") : t("team.add_action")}

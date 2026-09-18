@@ -183,9 +183,30 @@ function useClientTeamMembers(clientId) {
   }, [clientId]);
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
   async function addMember(member) {
-    const { error } = await supabase.from("client_team_members").insert({ ...member, client_id: clientId });
+    // Block duplicate email in this client's team
+    const { data: dup } = await supabase
+      .from("client_team_members")
+      .select("id")
+      .eq("client_id", clientId)
+      .ilike("email", member.email.trim())
+      .maybeSingle();
+    if (dup) throw new Error("This email is already a member of this client's team.");
+
+    // Check if the email already has a platform account
+    const { data: existingUser } = await supabase
+      .from("users")
+      .select("id, full_name, role")
+      .ilike("email", member.email.trim())
+      .maybeSingle();
+
+    const { error } = await supabase.from("client_team_members").insert({
+      ...member,
+      client_id: clientId,
+      status: existingUser ? "active" : (member.status ?? "invited"),
+    });
     if (error) throw error;
     await fetchMembers();
+    return { existingUser: existingUser ?? null };
   }
   async function updateMember(id, updates) {
     const { error } = await supabase.from("client_team_members").update(updates).eq("id", id);
