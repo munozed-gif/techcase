@@ -198,6 +198,32 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
             .select('id');
           if (casesError) throw new Error(`Project created, but cases failed: ${casesError.message}`);
           if (!inserted?.length) throw new Error(`Project created, but 0 cases were linked — try adding cases manually from the project.`);
+
+          // Insert case_activities for template cases that carry activities
+          const activitiesToInsert = [];
+          templateCases.forEach((item, idx) => {
+            if (!item.activities?.length) return;
+            const caseId = inserted[idx]?.id;
+            if (!caseId) return;
+            item.activities.forEach(act => {
+              activitiesToInsert.push({
+                case_id:       caseId,
+                title:         act.title,
+                description:   act.description || null,
+                est_hours:     act.est_hours ? Number(act.est_hours) : null,
+                sort_order:    act.sort_order ?? 1,
+                task_no:       act.sort_order ?? 1,
+                activity_type: 'task',
+                status:        'pending',
+                progress_pct:  0,
+              });
+            });
+          });
+          if (activitiesToInsert.length > 0) {
+            const { error: actErr } = await supabase.from('case_activities').insert(activitiesToInsert);
+            if (actErr) console.warn('Activities insert warning:', actErr.message);
+          }
+
           onComplete(newProject, inserted.length);
         } else {
           onComplete(newProject, 0);
@@ -316,7 +342,14 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                           <p className="text-xs text-gray-500 leading-snug line-clamp-2">{tmpl.description}</p>
                         )}
                         {tmpl.items?.length > 0 && (
-                          <p className="text-xs text-blue-500 mt-1.5 font-medium">{tmpl.items.length} phase{tmpl.items.length !== 1 ? 's' : ''} / cases</p>
+                          <p className="text-xs text-blue-500 mt-1.5 font-medium">
+                            {tmpl.items.length} phase{tmpl.items.length !== 1 ? 's' : ''}
+                            {tmpl.items.some(i => i.activities?.length) && (
+                              <span className="text-gray-400 ml-1">
+                                · {tmpl.items.reduce((s, i) => s + (i.activities?.length ?? 0), 0)} activities
+                              </span>
+                            )}
+                          </p>
                         )}
                       </div>
                       {isSelected && <CheckCircle2 size={18} className="text-blue-500 shrink-0 mt-0.5" />}
@@ -327,6 +360,9 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                           <div key={idx} className="flex items-center gap-2 text-xs text-blue-800">
                             <span className="w-4 h-4 rounded-full bg-blue-200 text-blue-700 flex items-center justify-center font-bold text-[9px] shrink-0">{idx + 1}</span>
                             <span className="truncate">{item.title}</span>
+                            {item.activities?.length > 0 && (
+                              <span className="text-blue-300 shrink-0">{item.activities.length} act.</span>
+                            )}
                             {item.est_hours && <span className="ml-auto text-blue-400 shrink-0">{item.est_hours}h</span>}
                           </div>
                         ))}
