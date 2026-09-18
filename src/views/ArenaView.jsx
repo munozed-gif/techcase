@@ -890,6 +890,7 @@ function ArenaView({ auth }) {
   // ── Headhunter: my managed candidates for smart matching ─────────────────
   const [hhCandidates, setHhCandidates] = useState([]);
   const [myProposalCaseIds, setMyProposalCaseIds] = useState(new Set());
+  const [myProposals, setMyProposals] = useState({}); // { [case_id]: proposal_id }
   useEffect(() => {
     if (!auth.isHeadhunter || !auth.user?.id) return;
     supabase.from("users")
@@ -897,10 +898,15 @@ function ArenaView({ auth }) {
       .eq("headhunter_id", auth.user.id)
       .then(({ data }) => setHhCandidates(data ?? []));
     supabase.from("hh_proposals")
-      .select("case_id")
+      .select("id, case_id, status")
       .eq("headhunter_id", auth.user.id)
       .neq("status", "withdrawn")
-      .then(({ data }) => setMyProposalCaseIds(new Set((data ?? []).map(p => p.case_id))));
+      .then(({ data }) => {
+        setMyProposalCaseIds(new Set((data ?? []).map(p => p.case_id)));
+        const map = {};
+        (data ?? []).forEach(p => { map[p.case_id] = { id: p.id, status: p.status }; });
+        setMyProposals(map);
+      });
   }, [auth.isHeadhunter, auth.user?.id]);
 
   function toggleCompare(id) {
@@ -1250,10 +1256,32 @@ function ArenaView({ auth }) {
                 );
               }
               if (alreadyProposed) {
+                const proposal = myProposals[c.id];
+                const status = proposal?.status ?? "pending";
+                const statusColors = {
+                  pending:  { bg:'rgba(139,92,246,0.08)', border:'rgba(139,92,246,0.25)', text:'#7C3AED', label:'Proposal pending' },
+                  accepted: { bg:'rgba(5,150,105,0.08)',  border:'rgba(5,150,105,0.3)',   text:'#059669', label:'Proposal accepted' },
+                  rejected: { bg:'rgba(220,38,38,0.08)',  border:'rgba(220,38,38,0.25)',  text:'#DC2626', label:'Proposal rejected' },
+                };
+                const sc = statusColors[status] ?? statusColors.pending;
                 return (
-                  <button disabled style={{ width:'100%', background:'rgba(139,92,246,0.08)', border:'1px solid rgba(139,92,246,0.25)', borderRadius:12, color:'#7C3AED', fontSize:13, fontWeight:600, padding:'11px', cursor:'default', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
-                    <Check size={13} />Proposal submitted
-                  </button>
+                  <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                    <div style={{ width:'100%', background:sc.bg, border:`1px solid ${sc.border}`, borderRadius:12, color:sc.text, fontSize:12, fontWeight:600, padding:'9px 12px', display:'flex', alignItems:'center', justifyContent:'center', gap:6, boxSizing:'border-box' }}>
+                      <Check size={13} />{sc.label}
+                    </div>
+                    {status === "pending" && (
+                      <button
+                        onClick={async () => {
+                          if (!proposal?.id) return;
+                          await supabase.from("hh_proposals").update({ status: "withdrawn" }).eq("id", proposal.id);
+                          setMyProposalCaseIds(prev => { const s = new Set(prev); s.delete(c.id); return s; });
+                          setMyProposals(prev => { const m = { ...prev }; delete m[c.id]; return m; });
+                        }}
+                        style={{ width:'100%', background:'transparent', border:'1px solid #E2E8F0', borderRadius:10, color:'#94A3B8', fontSize:11, fontWeight:600, padding:'7px', cursor:'pointer', boxSizing:'border-box' }}>
+                        Withdraw
+                      </button>
+                    )}
+                  </div>
                 );
               }
               return (

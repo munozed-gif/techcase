@@ -532,7 +532,10 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
       const next = EXPRESS_STEP_IDS[expressIdx + 1];
       if (next !== undefined) setSt(next);
     } else {
-      setSt(s => s + 1);
+      // Skip interview step (7) for resource_need cases
+      const next = step + 1;
+      if (next === 7 && basics.case_type === "resource_need") setSt(8);
+      else setSt(next);
     }
   }
   function prevStep() {
@@ -542,7 +545,10 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
     } else {
       if (step === 0) { onCancel(); return; }
       if (step === 1 && auth.isHeadhunter) { onCancel(); return; }
-      setSt(s => s - 1);
+      // Skip interview step (7) going backwards for resource_need cases
+      const prev = step - 1;
+      if (prev === 7 && basics.case_type === "resource_need") setSt(6);
+      else setSt(prev);
     }
   }
 

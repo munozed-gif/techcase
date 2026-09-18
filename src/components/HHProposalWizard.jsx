@@ -42,7 +42,7 @@ export function HHProposalWizard({ caseData, auth, onComplete, onCancel }) {
       setSaving(false);
       return;
     }
-    await notify(caseData.client_id ?? null, "New headhunter proposal", `${auth.user.full_name ?? "A headhunter"} submitted a proposal for "${title}".`, { case_id: caseData.id, event_type: "hh_proposal" }).catch(() => {});
+    await notify(caseData.client_id ?? null, "New headhunter proposal", `${auth.user.full_name ?? "A headhunter"} submitted a proposal for "${title}".`).catch(() => {});
     onComplete?.();
   }
 

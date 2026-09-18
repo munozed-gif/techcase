@@ -68,10 +68,13 @@ function CasesView({ auth, initialCaseId }) {
   }, [initialCaseId, initialCaseOpened, loading, cases]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Consultants and key users see only their linked cases.
+  // Headhunters see resource-need cases or cases assigned to them.
   const visibleCases = auth.isConsultant
     ? cases.filter(c => c.case_assignments?.some(a => a.consultant_id === auth.user?.id))
     : auth.isKeyUser
     ? cases.filter(c => c.case_key_users?.some(ku => ku.user_id === auth.user?.id))
+    : auth.isHeadhunter
+    ? cases.filter(c => c.case_type === "resource_need" || c.head_hunter_id === auth.user?.id)
     : cases;
 
   // ── Client / Project chip data (admin+manager only) ──────────────────────

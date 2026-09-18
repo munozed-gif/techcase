@@ -19,6 +19,7 @@ function useHeadhunterData(userId) {
   const [candidates, setCandidates]     = useState([]);
   const [applications, setApplications] = useState([]);
   const [sourcedCases, setSourcedCases] = useState([]);
+  const [proposals, setProposals]       = useState([]);
   const [loading, setLoading]           = useState(true);
 
   const fetch = useCallback(async () => {
@@ -35,7 +36,7 @@ function useHeadhunterData(userId) {
       const candidateIds = (cands ?? []).map(c => c.id);
       setCandidates(cands ?? []);
 
-      // 2. Their applications
+      // 2. Their candidate applications
       if (candidateIds.length > 0) {
         const { data: apps, error: appsErr } = await supabase
           .from("applications")
@@ -50,23 +51,28 @@ function useHeadhunterData(userId) {
         setApplications([]);
       }
 
-      // 3. Cases attributed to this headhunter
-      const profile = await supabase.from("users").select("full_name").eq("id", userId).single();
-      if (profile?.data?.full_name) {
-        const { data: sc } = await supabase
-          .from("cases")
-          .select("id, title, status, created_at, client:client_id(id, avatar_url, client_profiles(company_name))")
-          .eq("is_head_hunter", true)
-          .ilike("head_hunter_name", profile.data.full_name);
-        setSourcedCases(sc ?? []);
-      }
+      // 3. Cases assigned to this headhunter (via FK)
+      const { data: sc } = await supabase
+        .from("cases")
+        .select("id, title, status, case_type, created_at, client:client_id(id, avatar_url, client_profiles(company_name))")
+        .or(`head_hunter_id.eq.${userId},and(is_head_hunter.eq.true,head_hunter_id.eq.${userId})`);
+      setSourcedCases(sc ?? []);
+
+      // 4. HH proposals submitted by this headhunter
+      const { data: props } = await supabase
+        .from("hh_proposals")
+        .select(`id, status, submitted_at, proposed_commission_pct, reviewed_at,
+          case:case_id(id, title, status, case_type, client:client_id(id, client_profiles(company_name)))`)
+        .eq("headhunter_id", userId)
+        .order("submitted_at", { ascending: false });
+      setProposals(props ?? []);
     } finally {
       setLoading(false);
     }
   }, [userId]);
 
   useEffect(() => { fetch(); }, [fetch]);
-  return { candidates, applications, sourcedCases, loading, refetch: fetch };
+  return { candidates, applications, sourcedCases, proposals, loading, refetch: fetch };
 }
 
 // ─── Pill component ───────────────────────────────────────────────────────────
@@ -118,16 +124,17 @@ function AppBadge({ status }) {
 // 1.  HEADHUNTER DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
 export function HeadhunterDashboard({ auth, onNavigate }) {
-  const { candidates, applications, sourcedCases, loading } = useHeadhunterData(auth.user?.id);
+  const { candidates, applications, sourcedCases, proposals, loading, refetch } = useHeadhunterData(auth.user?.id);
   const planConf   = usePlanConfig(auth);
-  const planType   = ROLE_TO_PLAN_TYPE[auth.profile?.role ?? "headhunter"];
   const planKey    = auth.profile?.plan_tier ?? "free";
   const planLabel  = cap(planKey);
 
-  const placed     = applications.filter(a => a.status === "accepted");
-  const active     = applications.filter(a => a.status === "pending" || a.status === "under_review");
-  const successPct = applications.length
-    ? Math.round((placed.length / applications.length) * 100)
+  const placed           = applications.filter(a => a.status === "accepted");
+  const active           = applications.filter(a => a.status === "pending" || a.status === "under_review");
+  const pendingProposals = proposals.filter(p => p.status === "pending");
+  const acceptedProposals = proposals.filter(p => p.status === "accepted");
+  const successPct = (applications.length + proposals.length)
+    ? Math.round(((placed.length + acceptedProposals.length) / (applications.length + proposals.length)) * 100)
     : 0;
 
   if (loading) return <div className="flex items-center justify-center py-24"><Spinner /></div>;
@@ -138,7 +145,7 @@ export function HeadhunterDashboard({ auth, onNavigate }) {
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-black text-gray-900">
-            Welcome, {auth.profile?.full_name?.split(" ")[0] ?? "Headhunter"} 👋
+            Welcome, {auth.profile?.full_name?.split(" ")[0] ?? "Headhunter"}
           </h1>
           <p className="text-gray-500 text-sm mt-0.5">Your talent placement overview</p>
         </div>
@@ -155,92 +162,134 @@ export function HeadhunterDashboard({ auth, onNavigate }) {
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiTile label="Candidates" value={candidates.length} sub="in your roster" icon={Users} color="blue" />
-        <KpiTile label="Active Applications" value={active.length} sub="pending / in review" icon={Clock} color="amber" />
-        <KpiTile label="Placements" value={placed.length} sub="accepted by clients" icon={UserCheck} color="green" />
-        <KpiTile label="Success Rate" value={`${successPct}%`} sub={`${applications.length} total apps`} icon={TrendingUp} color="purple" />
+        <KpiTile label="Active Applications" value={active.length} sub={`+ ${pendingProposals.length} pending proposals`} icon={Clock} color="amber" />
+        <KpiTile label="Placements" value={placed.length + acceptedProposals.length} sub={`${placed.length} placements · ${acceptedProposals.length} cases assigned`} icon={UserCheck} color="green" />
+        <KpiTile label="Success Rate" value={`${successPct}%`} sub={`${applications.length + proposals.length} total`} icon={TrendingUp} color="purple" />
       </div>
 
-      {/* Sourced cases + quick actions */}
+      {/* Main content grid */}
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Recent candidate applications */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
-            <div className="font-bold text-gray-900 flex items-center gap-2">
-              <Activity size={16} className="text-blue-500" /> Recent Applications
+        {/* Left column: applications + proposals */}
+        <div className="lg:col-span-2 flex flex-col gap-6">
+          {/* Recent candidate applications */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+              <div className="font-bold text-gray-900 flex items-center gap-2">
+                <Activity size={16} className="text-blue-500" /> Recent Applications
+              </div>
+              <button onClick={() => onNavigate?.("hh-pipeline")}
+                className="text-xs text-blue-600 font-semibold hover:underline flex items-center gap-1">
+                Full pipeline <ChevronRight size={13} />
+              </button>
             </div>
-            <button onClick={() => onNavigate?.("hh-pipeline")}
-              className="text-xs text-blue-600 font-semibold hover:underline flex items-center gap-1">
-              Full pipeline <ChevronRight size={13} />
-            </button>
+            {applications.length === 0 ? (
+              <div className="text-center py-10 text-gray-400 text-sm">
+                <Briefcase size={28} className="mx-auto mb-2 opacity-20" />
+                No applications yet. Apply your candidates to open cases in Arena.
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50">
+                {applications.slice(0, 5).map(app => {
+                  const company = app.case?.client?.client_profiles?.[0]?.company_name ?? app.case?.client?.client_profiles?.company_name;
+                  return (
+                    <div key={app.id} className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors">
+                      <PersonAvatar name={app.consultant?.full_name ?? "?"} avatarUrl={app.consultant?.avatar_url} size={36} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-gray-800 truncate">{app.consultant?.full_name ?? "Consultant"}</div>
+                        <div className="text-xs text-gray-400 truncate">{app.case?.title}{company ? ` · ${company}` : ""}</div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <AppBadge status={app.status} />
+                        <span className="text-[10px] text-gray-400">{fmtDate(app.submitted_at)}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-          {applications.length === 0 ? (
-            <div className="text-center py-12 text-gray-400 text-sm">
-              <Briefcase size={32} className="mx-auto mb-3 opacity-20" />
-              No applications yet. Apply your candidates to open cases in Arena.
+
+          {/* My HH Proposals */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+              <div className="font-bold text-gray-900 flex items-center gap-2">
+                <Target size={16} className="text-purple-500" /> My Case Proposals
+              </div>
+              <span className="text-xs text-gray-400">{proposals.length} total</span>
             </div>
-          ) : (
-            <div className="divide-y divide-gray-50">
-              {applications.slice(0, 6).map(app => {
-                const cand = candidates.find(c => c.id === app.consultant_id);
-                const company = app.case?.client?.client_profiles?.[0]?.company_name ?? app.case?.client?.client_profiles?.company_name;
-                return (
-                  <div key={app.id} className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors">
-                    <PersonAvatar name={app.consultant?.full_name ?? "?"} avatarUrl={app.consultant?.avatar_url} size={36} />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-gray-800 truncate">
-                        {app.consultant?.full_name ?? "Consultant"}
+            {proposals.length === 0 ? (
+              <div className="text-center py-10 text-gray-400 text-sm">
+                <Target size={28} className="mx-auto mb-2 opacity-20" />
+                No proposals yet. Apply to manage cases from Arena.
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50">
+                {proposals.slice(0, 5).map(p => {
+                  const company = p.case?.client?.client_profiles?.[0]?.company_name ?? p.case?.client?.client_profiles?.company_name;
+                  const badge = {
+                    pending:   { cls: "bg-amber-100 text-amber-700",  label: "Pending" },
+                    accepted:  { cls: "bg-green-100 text-green-700",  label: "Accepted" },
+                    rejected:  { cls: "bg-red-100 text-red-600",      label: "Rejected" },
+                    withdrawn: { cls: "bg-gray-100 text-gray-500",    label: "Withdrawn" },
+                  }[p.status] ?? { cls: "bg-gray-100 text-gray-500", label: cap(p.status) };
+                  return (
+                    <div key={p.id} className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors">
+                      <div className="w-9 h-9 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center flex-shrink-0">
+                        <Briefcase size={15} className="text-purple-500" />
                       </div>
-                      <div className="text-xs text-gray-400 truncate">
-                        {app.case?.title} {company ? `· ${company}` : ""}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-gray-800 truncate">{p.case?.title ?? "Untitled"}</div>
+                        <div className="text-xs text-gray-400 truncate">{company ?? ""}{p.proposed_commission_pct ? ` · ${p.proposed_commission_pct}% commission` : ""}</div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.cls}`}>{badge.label}</span>
+                        <span className="text-[10px] text-gray-400">{fmtDate(p.submitted_at)}</span>
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <AppBadge status={app.status} />
-                      <span className="text-[10px] text-gray-400">{fmtDate(app.submitted_at)}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Quick actions */}
+        {/* Right column */}
         <div className="flex flex-col gap-4">
-          {/* Sourced cases */}
+          {/* Assigned cases */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
             <div className="font-bold text-gray-900 text-sm mb-3 flex items-center gap-2">
-              <Target size={14} className="text-purple-500" /> Cases Attributed to You
+              <Target size={14} className="text-purple-500" /> My Assigned Cases
             </div>
             {sourcedCases.length === 0 ? (
-              <p className="text-xs text-gray-400">No attributed cases yet.</p>
+              <p className="text-xs text-gray-400">No cases assigned to you yet.</p>
             ) : (
               <div className="space-y-2">
-                {sourcedCases.slice(0, 3).map(c => {
+                {sourcedCases.slice(0, 4).map(c => {
                   const co = c.client?.client_profiles?.[0]?.company_name ?? c.client?.client_profiles?.company_name;
                   return (
                     <div key={c.id} className="text-xs flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${c.status === "closed" ? "bg-gray-300" : "bg-green-400"}`} />
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${["closed","completed","cancelled"].includes(c.status) ? "bg-gray-300" : "bg-green-400"}`} />
                       <span className="font-medium text-gray-700 truncate">{c.title}</span>
                       {co && <span className="text-gray-400 flex-shrink-0">· {co}</span>}
                     </div>
                   );
                 })}
-                {sourcedCases.length > 3 && (
+                {sourcedCases.length > 4 && (
                   <button onClick={() => onNavigate?.("hh-placements")}
                     className="text-xs text-blue-600 hover:underline mt-1">
-                    +{sourcedCases.length - 3} more
+                    +{sourcedCases.length - 4} more
                   </button>
                 )}
               </div>
             )}
           </div>
 
-          {/* Action buttons */}
+          {/* Quick actions */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2">
             <div className="font-bold text-gray-900 text-sm mb-3">Quick Actions</div>
             {[
               { label: "Browse Open Cases",    icon: Target,     view: "arena",         color: "blue" },
+              { label: "Resource Needs",        icon: Briefcase,  view: "cases",         color: "violet" },
               { label: "My Talent Roster",     icon: Users,      view: "hh-candidates", color: "purple" },
               { label: "Placement Pipeline",   icon: LayoutGrid, view: "hh-pipeline",   color: "amber" },
               { label: "Placement History",    icon: UserCheck,  view: "hh-placements", color: "green" },
