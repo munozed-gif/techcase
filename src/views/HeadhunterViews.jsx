@@ -600,19 +600,13 @@ export function HeadhunterPlacements({ auth }) {
   const { applications, sourcedCases, loading } = useHeadhunterData(auth.user?.id);
   const [tab, setTab] = useState("placed");
 
-  // Commission settings — persisted per headhunter in localStorage
+  // Commission rate & hours — persisted in localStorage (per-device preference)
   const lsKey = `hh_comm_${auth.user?.id}`;
   const [commRate, setCommRate] = useState(() => {
     try { return parseFloat(localStorage.getItem(`${lsKey}_rate`) ?? "15"); } catch { return 15; }
   });
   const [commHours, setCommHours] = useState(() => {
     try { return parseInt(localStorage.getItem(`${lsKey}_hours`) ?? "160", 10); } catch { return 160; }
-  });
-  const [commStatuses, setCommStatuses] = useState(() => {
-    try {
-      const s = localStorage.getItem(`${lsKey}_statuses`);
-      return s ? JSON.parse(s) : {};
-    } catch { return {}; }
   });
 
   const placed = applications.filter(a => a.status === "accepted");
@@ -622,18 +616,27 @@ export function HeadhunterPlacements({ auth }) {
     return Math.round(rate * commHours * (commRate / 100));
   }
 
-  function getCommStatus(appId) {
-    return commStatuses[appId]?.status ?? "pending";
+  function getCommStatus(app) {
+    return app.headhunter_commission_paid ? "paid" : "pending";
   }
 
-  function toggleCommStatus(appId, amount) {
-    const newStatus = getCommStatus(appId) === "paid" ? "pending" : "paid";
-    const updated = {
-      ...commStatuses,
-      [appId]: { status: newStatus, amount, paidAt: newStatus === "paid" ? new Date().toISOString() : null },
-    };
-    setCommStatuses(updated);
-    try { localStorage.setItem(`${lsKey}_statuses`, JSON.stringify(updated)); } catch {}
+  async function toggleCommStatus(app, amount) {
+    const nowPaid = !app.headhunter_commission_paid;
+    // Optimistic local update via the applications array in the shared hook
+    // We write directly to the row; the hook will re-fetch on next mount.
+    await supabase.from("applications").update({
+      headhunter_commission_paid: nowPaid,
+      headhunter_commission_paid_at: nowPaid ? new Date().toISOString() : null,
+      headhunter_commission_amount: nowPaid ? amount : null,
+    }).eq("id", app.id);
+    // Mirror in localStorage as a quick-read cache
+    try {
+      const cached = JSON.parse(localStorage.getItem(`${lsKey}_statuses`) ?? "{}");
+      cached[app.id] = { status: nowPaid ? "paid" : "pending", amount, paidAt: nowPaid ? new Date().toISOString() : null };
+      localStorage.setItem(`${lsKey}_statuses`, JSON.stringify(cached));
+    } catch {}
+    // Force UI refresh by mutating app in-place (placed is derived from applications state in parent hook)
+    app.headhunter_commission_paid = nowPaid;
   }
 
   function saveCommRate(v) {
@@ -649,9 +652,9 @@ export function HeadhunterPlacements({ auth }) {
   }
 
   const totalComm   = placed.reduce((s, a) => s + (calcComm(a.proposed_rate) ?? 0), 0);
-  const paidComm    = placed.filter(a => getCommStatus(a.id) === "paid").reduce((s, a) => s + (calcComm(a.proposed_rate) ?? 0), 0);
+  const paidComm    = placed.filter(a => a.headhunter_commission_paid).reduce((s, a) => s + (calcComm(a.proposed_rate) ?? 0), 0);
   const pendingComm = totalComm - paidComm;
-  const paidCount   = placed.filter(a => getCommStatus(a.id) === "paid").length;
+  const paidCount   = placed.filter(a => a.headhunter_commission_paid).length;
 
   const tabs = [
     { id: "placed",      label: "Placed Candidates", count: placed.length },
@@ -716,7 +719,7 @@ export function HeadhunterPlacements({ auth }) {
                 {placed.map(app => {
                   const company = app.case?.client?.client_profiles?.[0]?.company_name ?? app.case?.client?.client_profiles?.company_name;
                   const comm    = calcComm(app.proposed_rate);
-                  const isPaid  = getCommStatus(app.id) === "paid";
+                  const isPaid  = getCommStatus(app);
                   return (
                     <tr key={app.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-5 py-3">
@@ -742,7 +745,7 @@ export function HeadhunterPlacements({ auth }) {
                       </td>
                       <td className="px-4 py-3">
                         {comm != null && (
-                          <button onClick={() => toggleCommStatus(app.id, comm)}
+                          <button onClick={() => toggleCommStatus(app, comm)}
                             className={`text-xs font-semibold px-2.5 py-1 rounded-lg whitespace-nowrap transition-all ${
                               isPaid
                                 ? "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -833,8 +836,8 @@ export function HeadhunterPlacements({ auth }) {
                 <tbody className="divide-y divide-gray-50">
                   {placed.map(app => {
                     const comm   = calcComm(app.proposed_rate);
-                    const isPaid = getCommStatus(app.id) === "paid";
-                    const paidAt = commStatuses[app.id]?.paidAt;
+                    const isPaid = getCommStatus(app);
+                    const paidAt = app.headhunter_commission_paid_at;
                     return (
                       <tr key={app.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-5 py-3">
@@ -853,7 +856,7 @@ export function HeadhunterPlacements({ auth }) {
                             : <span className="text-gray-400 text-xs">—</span>}
                         </td>
                         <td className="px-4 py-3">
-                          <button onClick={() => toggleCommStatus(app.id, comm)}
+                          <button onClick={() => toggleCommStatus(app, comm)}
                             className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-all cursor-pointer ${isPaid ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-amber-100 text-amber-700 hover:bg-amber-200"}`}>
                             {isPaid ? "Paid" : "Pending"}
                           </button>

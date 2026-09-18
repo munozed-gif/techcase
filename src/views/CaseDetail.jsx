@@ -3404,6 +3404,15 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               </div>
             )}
 
+            {/* Empty state */}
+            {hhProposals.length === 0 && (
+              <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                <Crosshair size={32} className="mx-auto mb-3 text-gray-300" />
+                <p className="text-sm font-semibold text-gray-500">No proposals yet</p>
+                <p className="text-xs text-gray-400 mt-1">Headhunters can apply to manage this case from the Arena.</p>
+              </div>
+            )}
+
             {/* Pending proposals */}
             {pending.length > 0 && (
               <div>

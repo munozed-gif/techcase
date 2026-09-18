@@ -106,7 +106,7 @@ function useApplications(caseId = null) {
       .from("applications")
       .select(`
         *,
-        consultant:consultant_id(id, full_name, email, avatar_url,
+        consultant:consultant_id(id, full_name, email, avatar_url, headhunter_id,
           consultant_profiles(headline, skills, hourly_rate, years_experience,
             external_occupancy_pct, travel_available)),
         case:case_id(id, title, status, project:project_id(id, name, avatar_url, client:client_id(id, avatar_url)), client:client_id(id, avatar_url, client_profiles(company_name))),
@@ -149,6 +149,12 @@ function useApplications(caseId = null) {
           time_commitment: app.time_commitment,
         });
         notify(app.consultant_id, "Application accepted", "Your application has been accepted. You are now assigned to the case.");
+        const hhId = app.consultant?.headhunter_id;
+        if (hhId) {
+          const consultantName = app.consultant?.full_name ?? "A candidate";
+          const caseTitle = app.case?.title ?? "a case";
+          notify(hhId, "Candidate placed", `${consultantName} was accepted on "${caseTitle}". A commission may be due.`);
+        }
       }
     } else if (status === "rejected") {
       const app = applications.find(a => a.id === appId);

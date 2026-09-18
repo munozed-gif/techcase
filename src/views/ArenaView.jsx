@@ -1027,6 +1027,16 @@ function ArenaView({ auth }) {
         })
       : openCases;
 
+    if (auth.isHeadhunter && visibleCases.length === 0 && openCases.length > 0) return (
+      <div style={{ background:'rgba(139,92,246,0.05)', border:'1px solid rgba(139,92,246,0.15)', borderRadius:16, padding:'40px 24px', textAlign:'center' }}>
+        <Crosshair size={32} style={{ margin:'0 auto 12px', color:'rgba(124,58,237,0.4)' }} />
+        <div style={{ fontWeight:700, color:'#5B21B6', marginBottom:6 }}>No matching cases</div>
+        <div style={{ fontSize:12, color:'#7C3AED', opacity:0.7, maxWidth:280, margin:'0 auto', lineHeight:1.6 }}>
+          The current headhunter settings filter out all open cases. Ask your admin to adjust the headhunter visibility settings, or turn off the HH-only filter above.
+        </div>
+      </div>
+    );
+
     const sorted = [...visibleCases].sort((a, b) => {
       if (caseSort === 'match')    return (matchScore(b) ?? 0) - (matchScore(a) ?? 0);
       if (caseSort === 'deadline') {
