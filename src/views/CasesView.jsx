@@ -56,7 +56,7 @@ function CasesView({ auth, initialCaseId }) {
     return () => clearTimeout(debounceRef.current);
   }, [search]);
 
-  const { cases: _rawCasesCV, loading, createCase, updateCase, deleteCase, refetch } = useCases({
+  const { cases: _rawCasesCV, loading, createCase, updateCase, deleteCase, refetch, hasMore, loadMore } = useCases({
     search: debouncedSearch || undefined,
     client_id: auth.isClient ? auth.user?.id : undefined,
   });
@@ -498,6 +498,16 @@ function CasesView({ auth, initialCaseId }) {
               })()}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Load more */}
+      {hasMore && (
+        <div className="mt-4 text-center">
+          <button onClick={loadMore} disabled={loading}
+            className="px-5 py-2 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+            {loading ? "Loading…" : "Load more"}
+          </button>
         </div>
       )}
 

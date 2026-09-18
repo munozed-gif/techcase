@@ -35,11 +35,15 @@ function useAuth() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const meta = user.user_metadata ?? {};
+        const role = meta.role || "consultant";
+        // Roles that go through admin approval; auto-approve only trusted admin/manager/client paths
+        const SELF_APPROVED = ["admin", "manager", "client"];
         await supabase.from("users").insert({
           id: user.id,
           email: user.email,
           full_name: meta.full_name || user.email.split("@")[0],
-          role: meta.role || "consultant",
+          role,
+          verification_status: SELF_APPROVED.includes(role) ? "approved" : "pending",
         });
         const { data: retry } = await supabase
           .from("users")

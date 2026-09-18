@@ -2161,7 +2161,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
     { id: "milestones", label: t("case.tab_milestones"), icon: Flag,          count: `${doneMilestones}/${milestones.length}` },
     { id: "comments",   label: t("case.tab_comments"),   icon: MessageSquare, count: comments.length },
     { id: "subcases",   label: t("case.tab_subcases"),   icon: Layers,        count: subCases.length },
-    { id: "documents",  label: t("case.tab_docs"),       icon: Paperclip,     count: documents.length || null },
+    { id: "documents",  label: t("case.tab_docs"),       icon: Paperclip,     count: (documents.length + caseFilesForSpec.length) || null },
     { id: "time",       label: t("case.tab_time"),       icon: Clock,         count: `${totalTimeHours.toFixed(1)}h` },
     ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "applications", label: t("case.tab_applicants"), icon: Users, count: applications.length }] : []),
     ...(caseData.is_head_hunter && (auth.isAdmin || auth.isManager || auth.isClient || auth.isHeadhunter) ? [{ id: "hh_proposals", label: "HH Proposals", icon: Crosshair, count: auth.isHeadhunter ? null : (hhProposals.filter(p => p.status === "pending").length || null) }] : []),

@@ -12,7 +12,7 @@ import { Input, Modal, Select, Textarea } from "../components/ui.jsx";
 function InvoicesView({ auth }) {
   const { t } = useT();
   const clientFilter = auth.isClient ? { client_id: auth.user?.id } : {};
-  const { invoices, loading, createInvoice, updateInvoice, deleteInvoice } = useInvoices(clientFilter);
+  const { invoices, loading, hasMore, loadMore, createInvoice, updateInvoice, deleteInvoice } = useInvoices(clientFilter);
   const [statusFilter, setStatusFilter] = useState("");
   const [showCreate, setShowCreate]     = useState(false);
   const [form, setForm]                 = useState({ invoice_number: "", amount: "", status: "draft", due_date: "", notes: "", case_id: "", client_id: "" });
@@ -162,6 +162,16 @@ function InvoicesView({ auth }) {
           </tbody>
         </table>
       </div>
+
+      {/* Load more */}
+      {hasMore && (
+        <div className="mt-4 text-center">
+          <button onClick={loadMore} disabled={loading}
+            className="px-5 py-2 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+            {loading ? "Loading…" : "Load more"}
+          </button>
+        </div>
+      )}
 
       {/* Create Invoice Modal */}
       <Modal open={showCreate} onClose={() => { setShowCreate(false); setCreateError(""); }} title={t("invoices.new_title")}>

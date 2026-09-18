@@ -5,10 +5,15 @@ import { logEvent, notify, notifyCaseParticipants, notifyManagers } from "../lib
 // useCases, useApplications, useRatings
 
 function useCases(filters = {}) {
-  const [cases, setCases]     = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState(null);
+  const [cases, setCases]         = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState(null);
+  const [totalCount, setTotalCount] = useState(0);
+  const [limit, setLimit]         = useState(20);
   const filterKey = JSON.stringify(filters);
+
+  // Reset to first page whenever filters change
+  useEffect(() => { setLimit(20); }, [filterKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchCases = useCallback(async () => {
     setLoading(true);
@@ -23,20 +28,21 @@ function useCases(filters = {}) {
         case_key_users(user_id, area, users:user_id(full_name, email, role)),
         applications(consultant_id, submitted_at, consultant:consultant_id(full_name, avatar_url)),
         project:project_id(id, name, avatar_url, client:client_id(id, avatar_url))
-      `)
-      .order("created_at", { ascending: false });
+      `, { count: "exact" })
+      .order("created_at", { ascending: false })
+      .limit(limit);
 
     if (filters.status)    query = query.eq("status", filters.status);
     if (filters.priority)  query = query.eq("priority", filters.priority);
     if (filters.search)    query = query.ilike("title", `%${filters.search}%`);
     if (filters.client_id) query = query.eq("client_id", filters.client_id);
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
     if (error) setError(error.message);
-    else setCases(data ?? []);
+    else { setCases(data ?? []); setTotalCount(count ?? 0); }
     setLoading(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterKey]);
+  }, [filterKey, limit]);
 
   useEffect(() => { fetchCases(); }, [fetchCases]);
 
@@ -93,7 +99,10 @@ function useCases(filters = {}) {
     await fetchCases();
   }
 
-  return { cases, loading, error, createCase, updateCase, deleteCase, refetch: fetchCases };
+  const hasMoreCases = cases.length < totalCount;
+  function loadMoreCases() { setLimit(l => l + 20); }
+
+  return { cases, loading, error, totalCount, hasMore: hasMoreCases, loadMore: loadMoreCases, createCase, updateCase, deleteCase, refetch: fetchCases };
 }
 
 function useApplications(caseId = null) {
