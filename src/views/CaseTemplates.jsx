@@ -914,8 +914,37 @@ function ApplyTemplateModal({ projectId, clientId, userId, onClose, onDone }) {
         status:          'open',
         created_by:      userId,
       }));
-      const { error: dbErr } = await supabase.from('cases').insert(rows);
+      const { data: inserted, error: dbErr } = await supabase.from('cases').insert(rows).select('id');
       if (dbErr) throw new Error(dbErr.message);
+
+      // Insert case_activities for items that carry activities
+      if (inserted?.length) {
+        const activitiesToInsert = [];
+        selected.forEach((item, idx) => {
+          if (!item.activities?.length) return;
+          const caseId = inserted[idx]?.id;
+          if (!caseId) return;
+          item.activities.forEach(act => {
+            activitiesToInsert.push({
+              case_id:       caseId,
+              title:         act.title,
+              description:   act.description || null,
+              est_hours:     act.est_hours ? Number(act.est_hours) : null,
+              sort_order:    act.sort_order ?? 1,
+              task_no:       act.sort_order ?? 1,
+              phase:         act.phase || null,
+              activity_type: 'task',
+              status:        'pending',
+              progress_pct:  0,
+            });
+          });
+        });
+        if (activitiesToInsert.length > 0) {
+          const { error: actErr } = await supabase.from('case_activities').insert(activitiesToInsert);
+          if (actErr) console.warn('Activities insert warning:', actErr.message);
+        }
+      }
+
       onDone();
     } catch (e) { setError(e.message); setApplying(false); }
   }
@@ -960,7 +989,12 @@ function ApplyTemplateModal({ projectId, clientId, userId, onClose, onDone }) {
                   </div>
                   <p className="text-sm font-semibold text-gray-900 leading-tight">{tmpl.name}</p>
                   <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{tmpl.description}</p>
-                  <p className="text-xs text-gray-400 mt-1">{(tmpl.items ?? []).length} items</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {(tmpl.items ?? []).length} phases
+                    {(tmpl.items ?? []).some(i => i.activities?.length) && (
+                      <span className="ml-1">· {(tmpl.items ?? []).reduce((s, i) => s + (i.activities?.length ?? 0), 0)} activities</span>
+                    )}
+                  </p>
                 </button>
               ))}
               {!loading && filtered.length === 0 && (
@@ -1003,8 +1037,11 @@ function ApplyTemplateModal({ projectId, clientId, userId, onClose, onDone }) {
                         <div className="flex items-center gap-3 mt-1.5">
                           {item.area_sap && <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">{item.area_sap}</span>}
                           {item.est_hours && <span className="text-xs text-gray-400">{item.est_hours}h</span>}
+                          {item.activities?.length > 0 && (
+                            <span className="text-xs text-blue-500 font-medium">{item.activities.length} activities</span>
+                          )}
                           {item.priority && item.priority !== 'medium' && (
-                            <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${['high','urgent'].includes(item.priority) ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>{item.priority}</span>
+                            <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${['high','urgent','critical'].includes(item.priority) ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>{item.priority}</span>
                           )}
                         </div>
                       </div>
@@ -1018,7 +1055,11 @@ function ApplyTemplateModal({ projectId, clientId, userId, onClose, onDone }) {
 
         <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
           <p className={`text-sm ${error ? 'text-red-600' : 'text-gray-500'}`}>
-            {error ?? (selCount > 0 ? `${selCount} case${selCount === 1 ? '' : 's'} will be created in this project` : 'Select items to apply')}
+            {error ?? (() => {
+              if (!selCount) return 'Select items to apply';
+              const totalActs = items.filter(it => it._selected).reduce((s, it) => s + (it.activities?.length ?? 0), 0);
+              return `${selCount} case${selCount === 1 ? '' : 's'}${totalActs > 0 ? ` + ${totalActs} activities` : ''} will be created`;
+            })()}
           </p>
           <div className="flex items-center gap-3">
             <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl">{t("action.cancel")}</button>
