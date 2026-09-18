@@ -202,7 +202,6 @@ function useClientTeamMembers(clientId) {
     const { error } = await supabase.from("client_team_members").insert({
       ...member,
       client_id: clientId,
-      status: existingUser ? "active" : (member.status ?? "invited"),
     });
     if (error) throw error;
     await fetchMembers();
