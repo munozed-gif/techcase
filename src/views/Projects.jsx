@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
-import { useProjects, useProjectDbConnections } from "../hooks/useCoreHooks.js";
+import { useProjects, useProjectDbConnections, useProjectTemplates } from "../hooks/useCoreHooks.js";
 import { useCases } from "../hooks/useCaseHooks.js";
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
 import { usePlanConfig, useSystemSettings } from "../hooks/useSystemSettings.jsx";
@@ -21,7 +21,7 @@ import { OnboardingRoadmap } from "./OnboardingViews.jsx";
 import { CaseDetail } from "./CaseDetail.jsx";
 import { SapProfileBadges, SapProfileFields } from "./OperationsViews.jsx";
 import { ProjectSapEnvPanel } from "../components/SapPanels.jsx";
-import { ApplyTemplateModal, SaveTemplateModal } from "./CaseTemplates.jsx";
+import { ApplyTemplateModal, SaveTemplateModal, BUILT_IN_PROJECT_TEMPLATES } from "./CaseTemplates.jsx";
 import {
   LIFECYCLE_PRESETS, SAP_AREAS, INDUSTRY_AREAS, ROLE_COLORS, PROJECT_TYPES,
   PRIORITY_COLORS, STATUS_COLORS,
@@ -64,7 +64,10 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
   const catalogProjectTypes  = catalogSettings["catalog_project_types"] ?? PROJECT_TYPES.map(p => p.value);
   const activeProjectTypes   = PROJECT_TYPES.filter(p => catalogProjectTypes.includes(p.value));
   const isEdit = !!initialData;
+  const { templates: customTemplates } = useProjectTemplates();
+  const ALL_TEMPLATES = [...BUILT_IN_PROJECT_TEMPLATES, ...customTemplates];
   const ALL_PROJECT_STEPS = [
+    { id: "template",     label: "Template",                 Icon: LayoutTemplate,    desc: "Start from a pre-built template or skip" },
     { id: "basics",       label: t("proj.rev_basics"),      Icon: FileText,          desc: t("proj.step_basics_desc") },
     { id: "scope",        label: t("proj.rev_scope"),        Icon: DollarSign,        desc: t("proj.step_scope_desc") },
     { id: "objectives",   label: t("proj.rev_objectives"),   Icon: Target,            desc: t("proj.step_objectives_desc") },
@@ -73,7 +76,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
     { id: "import_plan",  label: "Import Plan",              Icon: Upload,            desc: "Auto-create cases from a document" },
     { id: "review",       label: t("apply.step3_label"),     Icon: CheckCircle2,      desc: t("proj.step_review_desc") },
   ];
-  const PROJECT_STEPS = isEdit ? ALL_PROJECT_STEPS.filter(s => s.id !== 'import_plan') : ALL_PROJECT_STEPS;
+  const PROJECT_STEPS = isEdit ? ALL_PROJECT_STEPS.filter(s => s.id !== 'import_plan' && s.id !== 'template') : ALL_PROJECT_STEPS;
   const [step, setSt] = useState(0);
   const [creating, setCreating] = useState(false);
 
@@ -87,7 +90,11 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
   const [team, setTeam] = useState({ stakeholder_name: initialData?.stakeholder_name ?? "", stakeholder_email: initialData?.stakeholder_email ?? "", billing_contact_name: initialData?.billing_contact_name ?? "", billing_contact_email: initialData?.billing_contact_email ?? "", expected_consultants: initialData?.expected_consultants ?? "" });
   // Step 4: Requirements
   const [reqs, setReqs] = useState({ skills_required: initialData?.skills_required ?? [], work_mode: initialData?.work_mode ?? "remote", compliance_notes: initialData?.compliance_notes ?? "", priority: initialData?.priority ?? "medium" });
-  // Step 5: Import Plan
+  // Step: Template
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [templateCases, setTemplateCases]       = useState([]);
+  const [tplCat, setTplCat]                     = useState('All');
+  // Step 5: Import Plan (now step 6)
   const [planFile, setPlanFile]             = useState(null);
   const [extracting, setExtracting]         = useState(false);
   const [extractedCases, setExtractedCases] = useState(null);
@@ -118,6 +125,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
     if (!skipPending) {
       setSkipPending(true);
       setStepError(
+        stepId === 'template'   ? "Starting from a blank project — you can apply a template later from the project detail." :
         stepId === 'objectives' ? "You're skipping Objectives — goals, deliverables, and success criteria can be added later from the project detail." :
         stepId === 'team'       ? "You're skipping Team Contacts — stakeholder and billing info can be completed later." :
                                   "You're skipping this step — it can be filled in later from the project detail."
@@ -157,9 +165,20 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
       } else {
         const newProject = await createProject({ ...payload, created_by: auth.user?.id });
         if (!newProject?.id) throw new Error("Project was saved but its ID could not be confirmed — cases were not imported. Open the project and add cases manually.");
-        if (extractedCases && extractedCases.length > 0) {
-          const clientId = auth.isClient ? auth.user?.id : (scopeData.client_id || null);
-          const caseRows = extractedCases.map(c => ({
+        const clientId = auth.isClient ? auth.user?.id : (scopeData.client_id || null);
+        const allCases = [
+          ...templateCases.map(item => ({
+            title:           item.title,
+            description:     item.description || null,
+            priority:        ['low','medium','high','critical','urgent'].includes(item.priority) ? (item.priority === 'critical' ? 'high' : item.priority) : 'medium',
+            area_sap:        item.area_sap || null,
+            estimated_hours: item.est_hours ? Number(item.est_hours) : null,
+            project_id:      newProject.id,
+            client_id:       clientId,
+            status:          'open',
+            created_by:      auth.user?.id,
+          })),
+          ...(extractedCases ?? []).map(c => ({
             title:           String(c.title ?? 'Untitled case'),
             description:     c.description || null,
             priority:        ['low','medium','high','urgent'].includes(c.priority) ? c.priority : 'medium',
@@ -170,13 +189,15 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
             client_id:       clientId,
             status:          'open',
             created_by:      auth.user?.id,
-          }));
+          })),
+        ];
+        if (allCases.length > 0) {
           const { data: inserted, error: casesError } = await supabase
             .from('cases')
-            .insert(caseRows)
+            .insert(allCases)
             .select('id');
           if (casesError) throw new Error(`Project created, but cases failed: ${casesError.message}`);
-          if (!inserted?.length) throw new Error(`Project created, but 0 cases were linked — the database may be blocking the insert. Try adding cases manually from the project.`);
+          if (!inserted?.length) throw new Error(`Project created, but 0 cases were linked — try adding cases manually from the project.`);
           onComplete(newProject, inserted.length);
         } else {
           onComplete(newProject, 0);
@@ -253,10 +274,85 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
 
-        {/* ── Step 0: Basics ── */}
-        {step === 0 && (
+        {/* ── Step: Template ── */}
+        {stepId === 'template' && (
           <>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("proj.step0_h2")}</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Start from a Template</h2>
+            <p className="text-sm text-gray-500 mb-4">Pick a template to pre-populate cases, or skip to start blank.</p>
+            {/* Category chips */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              {['All', ...Array.from(new Set(ALL_TEMPLATES.map(tmpl => tmpl.category).filter(Boolean)))].map(cat => (
+                <button key={cat} type="button"
+                  onClick={() => setTplCat(cat)}
+                  className={`px-3 py-1 text-xs font-semibold rounded-full border transition-all ${
+                    tplCat === cat
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-500 border-gray-200 hover:border-blue-300'
+                  }`}>{cat}</button>
+              ))}
+            </div>
+            {/* Template grid */}
+            <div className="grid gap-3">
+              {ALL_TEMPLATES.filter(tmpl => tplCat === 'All' || tmpl.category === tplCat).map(tmpl => {
+                const isSelected = selectedTemplate?.id === tmpl.id;
+                return (
+                  <button key={tmpl.id} type="button"
+                    onClick={() => {
+                      if (isSelected) { setSelectedTemplate(null); setTemplateCases([]); }
+                      else            { setSelectedTemplate(tmpl); setTemplateCases(tmpl.items ?? []); }
+                    }}
+                    className={`text-left p-4 border-2 rounded-xl transition-all ${
+                      isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300 bg-white'
+                    }`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="font-semibold text-sm text-gray-900">{tmpl.name}</span>
+                          {tmpl.category && (
+                            <span className="px-2 py-0.5 text-[10px] font-semibold bg-gray-100 text-gray-500 rounded-full shrink-0">{tmpl.category}</span>
+                          )}
+                        </div>
+                        {tmpl.description && (
+                          <p className="text-xs text-gray-500 leading-snug line-clamp-2">{tmpl.description}</p>
+                        )}
+                        {tmpl.items?.length > 0 && (
+                          <p className="text-xs text-blue-500 mt-1.5 font-medium">{tmpl.items.length} phase{tmpl.items.length !== 1 ? 's' : ''} / cases</p>
+                        )}
+                      </div>
+                      {isSelected && <CheckCircle2 size={18} className="text-blue-500 shrink-0 mt-0.5" />}
+                    </div>
+                    {isSelected && tmpl.items?.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-blue-100 space-y-1">
+                        {tmpl.items.slice(0, 4).map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-2 text-xs text-blue-800">
+                            <span className="w-4 h-4 rounded-full bg-blue-200 text-blue-700 flex items-center justify-center font-bold text-[9px] shrink-0">{idx + 1}</span>
+                            <span className="truncate">{item.title}</span>
+                            {item.est_hours && <span className="ml-auto text-blue-400 shrink-0">{item.est_hours}h</span>}
+                          </div>
+                        ))}
+                        {tmpl.items.length > 4 && (
+                          <p className="text-[10px] text-blue-400 pl-6">+ {tmpl.items.length - 4} more…</p>
+                        )}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            {selectedTemplate && (
+              <button type="button"
+                onClick={() => { setSelectedTemplate(null); setTemplateCases([]); }}
+                className="mt-3 text-xs text-gray-400 hover:text-gray-600 underline">
+                Clear selection
+              </button>
+            )}
+          </>
+        )}
+
+        {/* ── Step: Basics ── */}
+        {stepId === 'basics' && (
+          <>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("proj.step0_h2") || "Project Basics"}</h2>
             <p className="text-sm text-gray-500 mb-5">{t("proj.step0_desc")}</p>
             <Input label={t("proj.name_label")} value={basics.name}
               onChange={e => setBasics(p => ({ ...p, name: e.target.value }))}
@@ -335,8 +431,8 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
           </>
         )}
 
-        {/* ── Step 1: Scope ── */}
-        {step === 1 && (
+        {/* ── Step: Scope ── */}
+        {stepId === 'scope' && (
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("proj.step1_h2")}</h2>
             <p className="text-sm text-gray-500 mb-5">{t("proj.step1_desc")}</p>
@@ -387,8 +483,8 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
           </>
         )}
 
-        {/* ── Step 2: Objectives ── */}
-        {step === 2 && (
+        {/* ── Step: Objectives ── */}
+        {stepId === 'objectives' && (
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("proj.step2_h2")}</h2>
             <p className="text-sm text-gray-500 mb-5">{t("proj.step2_desc")}</p>
@@ -417,8 +513,8 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
           </>
         )}
 
-        {/* ── Step 3: Team ── */}
-        {step === 3 && (
+        {/* ── Step: Team ── */}
+        {stepId === 'team' && (
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("proj.step3_h2")}</h2>
             <p className="text-sm text-gray-500 mb-5">{t("proj.step3_desc")}</p>
@@ -450,8 +546,8 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
           </>
         )}
 
-        {/* ── Step 4: Requirements ── */}
-        {step === 4 && (
+        {/* ── Step: Requirements ── */}
+        {stepId === 'requirements' && (
           <>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">{t("proj.step4_h2")}</h2>
             <p className="text-sm text-gray-500 mb-5">{t("proj.step4_desc")}</p>
@@ -698,6 +794,19 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                 </div>
               )}
 
+              {/* Template card */}
+              {selectedTemplate && (
+                <div className="border border-blue-100 rounded-xl p-4 bg-blue-50">
+                  <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-2">
+                    <LayoutTemplate size={12} className="inline mr-1.5" />Template — {templateCases.length} case{templateCases.length !== 1 ? 's' : ''} will be created
+                  </p>
+                  <p className="text-sm font-semibold text-gray-900">{selectedTemplate.name}</p>
+                  {selectedTemplate.category && (
+                    <span className="inline-block mt-1 px-2 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-600 rounded-full">{selectedTemplate.category}</span>
+                  )}
+                </div>
+              )}
+
               {/* Imported cases card */}
               {extractedCases && extractedCases.length > 0 && (
                 <div className="border border-violet-100 rounded-xl p-4 bg-violet-50">
@@ -746,7 +855,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
             {step === 0 ? <><X size={13} className="mr-1 inline" />{t("action.cancel")}</> : `← ${t("action.back")}`}
           </button>
           <div className="flex items-center gap-3">
-            {(stepId === 'objectives' || stepId === 'team' || stepId === 'import_plan') && (
+            {(stepId === 'template' || stepId === 'objectives' || stepId === 'team' || stepId === 'import_plan') && (
               <button onClick={handleSkip}
                 className={`px-4 py-2.5 text-sm border rounded-xl transition-colors ${
                   skipPending
@@ -755,7 +864,9 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                 }`}>
                 {skipPending
                   ? "Skip anyway →"
-                  : stepId === 'import_plan' ? "Skip for now" : t("action.skip")}
+                  : stepId === 'import_plan' ? "Skip for now"
+                  : stepId === 'template'    ? "Start blank"
+                  : t("action.skip")}
               </button>
             )}
             {!isLast ? (
@@ -765,7 +876,12 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                     ? "bg-red-500 hover:bg-red-600 ring-2 ring-red-300"
                     : "bg-blue-600 hover:bg-blue-700"
                 }`}>
-                {stepId === 'import_plan' && extractedCases?.length ? `Continue with ${extractedCases.length} case${extractedCases.length !== 1 ? 's' : ''}` : t("action.continue")}
+                {stepId === 'template' && selectedTemplate
+                  ? `Use "${selectedTemplate.name}" →`
+                  : stepId === 'import_plan' && extractedCases?.length
+                    ? `Continue with ${extractedCases.length} case${extractedCases.length !== 1 ? 's' : ''}`
+                    : t("action.continue")
+                }
               </button>
             ) : (
               <button onClick={handleCreate} disabled={creating}
@@ -775,7 +891,10 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                     : "bg-blue-600 hover:bg-blue-700"
                 }`}>
                 {creating
-                  ? (isEdit ? t("state.saving") : (extractedCases?.length ? `Creating project + ${extractedCases.length} cases…` : t("state.creating")))
+                  ? (isEdit ? t("state.saving") : (() => {
+                      const total = (templateCases?.length ?? 0) + (extractedCases?.length ?? 0);
+                      return total > 0 ? `Creating project + ${total} case${total !== 1 ? 's' : ''}…` : t("state.creating");
+                    })())
                   : createError
                     ? <><AlertTriangle size={13} className="mr-1 inline" />Try again</>
                     : (isEdit ? <><Check size={13} className="mr-1 inline" />{t("action.save_changes")}</> : <><Check size={13} className="mr-1 inline" />{t("proj.create")}</>)

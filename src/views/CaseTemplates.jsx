@@ -79,6 +79,24 @@ const BUILT_IN_PROJECT_TEMPLATES = [
       { id: 'ro-9', title: 'Go-Live Support & Hypercare',           description: 'On-site and remote support during the post-go-live stabilization period.',         priority: 'high',   area_sap: '',      est_hours: 16, sort_order: 8 },
     ],
   },
+  {
+    id: 'builtin-platform-launch',
+    name: 'Platform v1.0 Launch',
+    description: 'Full software platform build from discovery to public release — 9 phases covering design, architecture, development, QA, and launch preparation.',
+    category: 'Software Development',
+    is_builtin: true,
+    items: [
+      { id: 'plp-1', title: 'Discovery & Strategy',        description: 'Define problem statement, personas, competitive analysis, and MVP scope. Align all stakeholders before a single pixel is drawn.',                                            priority: 'high',     area_sap: '', est_hours: 40,  sort_order: 0 },
+      { id: 'plp-2', title: 'Product Design',              description: 'Information architecture, wireframes, design system, high-fidelity mockups for all screens, interactive prototype, and usability testing with real users.',                   priority: 'high',     area_sap: '', est_hours: 120, sort_order: 1 },
+      { id: 'plp-3', title: 'Technical Architecture',      description: 'Tech stack decisions, full database schema design, API contracts, authorization model, infrastructure plan, CI/CD pipeline, and OWASP security threat model.',               priority: 'high',     area_sap: '', est_hours: 60,  sort_order: 2 },
+      { id: 'plp-4', title: 'Foundation Build',            description: 'Repository setup, CI/CD live, authentication system, core DB tables, base UI component library, navigation shell, error tracking, and staging environment deployed.',         priority: 'high',     area_sap: '', est_hours: 160, sort_order: 3 },
+      { id: 'plp-5', title: 'Core Feature Development',   description: 'Two-week sprints building all primary features. Sprint demos at end of each sprint. Includes CRUD flows, dashboards, notifications, file uploads, search, and admin panel.', priority: 'high',     area_sap: '', est_hours: 320, sort_order: 4 },
+      { id: 'plp-6', title: 'Polish & Hardening',          description: 'Responsive audit, accessibility (WCAG AA), empty/error/loading states, onboarding flow, performance optimization (Lighthouse 90+), copy review, and i18n setup.',           priority: 'medium',   area_sap: '', est_hours: 100, sort_order: 5 },
+      { id: 'plp-7', title: 'QA & Testing',                description: 'Test plan, functional testing across all roles, cross-browser and cross-device, role-based access audit, UAT with beta users, security review, and load testing.',           priority: 'high',     area_sap: '', est_hours: 100, sort_order: 6 },
+      { id: 'plp-8', title: 'Launch Preparation',          description: 'Production infrastructure, domain/SSL, monitoring and alerting, backup and recovery, Terms of Service, Privacy Policy, support channel, go-to-market announcement.',         priority: 'high',     area_sap: '', est_hours: 80,  sort_order: 7 },
+      { id: 'plp-9', title: 'v1.0 Release',               description: 'Staged soft launch with 24-48h monitoring window, public launch, support inbox triage, post-launch report, user feedback collection, and v1.1 roadmap planning session.',    priority: 'critical', area_sap: '', est_hours: 40,  sort_order: 8 },
+    ],
+  },
 ];
 
 const SAP_TEMPLATES = [
