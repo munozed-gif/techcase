@@ -118,11 +118,12 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
     ],
     headhunter: [
       { id: "dashboard",     Icon: LayoutDashboard, labelKey: "nav.dashboard" },
+      { id: "cases",         Icon: FolderOpen,      labelKey: "nav.resource_needs" },
       { id: "hh-candidates", Icon: UsersRound,      labelKey: "nav.hh_candidates" },
       { id: "hh-pipeline",   Icon: LayoutGrid,      labelKey: "nav.hh_pipeline" },
       { id: "hh-placements", Icon: UserCheck,       labelKey: "nav.hh_placements" },
-      { id: "arena",         Icon: Target,           labelKey: "nav.arena" },
-      { id: "consultants",   Icon: Handshake,        labelKey: "nav.consultants" },
+      { id: "arena",         Icon: Target,          labelKey: "nav.arena" },
+      { id: "consultants",   Icon: Handshake,       labelKey: "nav.consultants" },
     ],
   };
 

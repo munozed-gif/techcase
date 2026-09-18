@@ -389,7 +389,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   ];
   const EXPRESS_CASE_STEPS = CREATE_CASE_STEPS.filter((_, i) => EXPRESS_STEP_IDS.includes(i));
   const [mode, setMode]     = useState(isEdit ? "advanced" : null);
-  const [step, setSt]       = useState(initialProjectId ? 1 : 0);
+  const [step, setSt]       = useState(initialProjectId || auth.isHeadhunter ? 1 : 0);
   const [creating, setCreating] = useState(false);
   const [upgradeModal, setUpgradeModal] = useState(null);
 
@@ -405,7 +405,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   }, [selectedProjectId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const _visCfg = useVisibilitySettings();
-  const [basics, setBasics] = useState({ title: initialData?.title ?? "", description: initialData?.description ?? "", priority: initialData?.priority ?? "medium", area_sap: initialData?.area_sap ?? "", area_industry: initialData?.area_industry ?? "", is_confidential: initialData?.is_confidential ?? false, nda_required: initialData?.nda_required ?? false, min_trust_level: initialData?.min_trust_level ?? null, application_mode: initialData?.application_mode ?? "both", case_type: initialData?.case_type ?? "case" });
+  const [basics, setBasics] = useState({ title: initialData?.title ?? "", description: initialData?.description ?? "", priority: initialData?.priority ?? "medium", area_sap: initialData?.area_sap ?? "", area_industry: initialData?.area_industry ?? "", is_confidential: initialData?.is_confidential ?? false, nda_required: initialData?.nda_required ?? false, min_trust_level: initialData?.min_trust_level ?? null, application_mode: initialData?.application_mode ?? "both", case_type: initialData?.case_type ?? (auth.isHeadhunter ? "resource_need" : "case") });
   const [requiredRoles, setRequiredRoles] = useState(
     (initialData?.required_roles ?? []).map(r => ({
       seniority: "Any", time_pct: 50, ...r,
@@ -541,6 +541,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
       setSt(EXPRESS_STEP_IDS[expressIdx - 1]);
     } else {
       if (step === 0) { onCancel(); return; }
+      if (step === 1 && auth.isHeadhunter) { onCancel(); return; }
       setSt(s => s - 1);
     }
   }

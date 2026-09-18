@@ -240,6 +240,12 @@ function CasesView({ auth, initialCaseId }) {
             {t("cases.new")}
           </button>
         )}
+        {auth.isHeadhunter && (
+          <button onClick={() => setShowCreate(true)}
+            className="bg-violet-600 hover:bg-violet-700 text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
+            New Resource Need
+          </button>
+        )}
       </div>
 
       {/* Search + saved toggle */}
