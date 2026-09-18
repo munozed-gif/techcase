@@ -57,7 +57,7 @@ function NovaLogo({ size = 80 }) {
   );
 }
 
-function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, auth, onSearchOpen }) {
+function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, auth, onSearchOpen, mobileOpen, onMobileClose }) {
   const { t, lang, setLang } = useT();
   const sidebarVisCfg = useVisibilitySettings();
   const branding = usePlatformBranding();
@@ -90,6 +90,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       { id: "consultants",     Icon: UserCheck,         labelKey: "nav.consultants" },
       { id: "db-connections",  Icon: Database,          labelKey: "nav.db_connections" },
       { id: "team-members",    Icon: Handshake,         labelKey: "nav.team_members" },
+      { id: "reports",         Icon: BarChart2,          labelKey: "nav.reports" },
       { id: "audit_log",       Icon: ClipboardList,     labelKey: "log.nav" },
       { id: "templates",       Icon: LayoutTemplate,    labelKey: "nav.templates" },
       { id: "approvals",       Icon: UserCheck,         labelKey: "nav.approvals" },
@@ -125,6 +126,26 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       { id: "arena",         Icon: Target,          labelKey: "nav.arena" },
       { id: "consultants",   Icon: Handshake,       labelKey: "nav.consultants" },
     ],
+    final_user: [
+      { id: "dashboard", Icon: LayoutDashboard, labelKey: "nav.dashboard" },
+      { id: "my-cases",  Icon: FolderOpen,      labelKey: "nav.my_cases" },
+      { id: "kanban",    Icon: LayoutGrid,      labelKey: "nav.kanban" },
+    ],
+    internal_consultant: [
+      { id: "dashboard", Icon: LayoutDashboard, labelKey: "nav.dashboard" },
+      { id: "my-cases",  Icon: FolderOpen,      labelKey: "nav.my_cases" },
+      { id: "arena",     Icon: Target,          labelKey: "nav.arena" },
+      { id: "kanban",    Icon: LayoutGrid,      labelKey: "nav.kanban" },
+      { id: "time",      Icon: Clock,           labelKey: "nav.time" },
+    ],
+    project_manager: [
+      { id: "dashboard",    Icon: LayoutDashboard, labelKey: "nav.dashboard" },
+      { id: "cases",        Icon: FolderOpen,      labelKey: "nav.cases" },
+      { id: "projects",     Icon: Layers,          labelKey: "nav.projects" },
+      { id: "kanban",       Icon: LayoutGrid,      labelKey: "nav.kanban" },
+      { id: "time",         Icon: Clock,           labelKey: "nav.time" },
+      { id: "team-members", Icon: Handshake,       labelKey: "nav.team_members" },
+    ],
   };
 
   let items = navItems[role] ?? [];
@@ -137,7 +158,12 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
   }
 
   return (
-    <aside className="w-64 text-white flex flex-col h-screen fixed left-0 top-0 z-40" style={{background:"#0B0F1A",backgroundImage:"radial-gradient(circle at 50% -10%,rgba(79,110,247,.22) 0%,transparent 65%),linear-gradient(rgba(79,110,247,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(79,110,247,.07) 1px,transparent 1px)",backgroundSize:"100% 100%,48px 48px,48px 48px"}}>
+    <>
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={onMobileClose} />
+      )}
+    <aside className={`w-64 text-white flex flex-col h-screen fixed left-0 top-0 z-40 transition-transform duration-200 ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`} style={{background:"#0B0F1A",backgroundImage:"radial-gradient(circle at 50% -10%,rgba(79,110,247,.22) 0%,transparent 65%),linear-gradient(rgba(79,110,247,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(79,110,247,.07) 1px,transparent 1px)",backgroundSize:"100% 100%,48px 48px,48px 48px"}}>
       {/* Logo */}
       <div className="py-5 px-4 border-b border-blue-900 flex flex-col items-center gap-2">
         <NovaLogo size={80} />
@@ -234,6 +260,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
         </button>
       </div>
     </aside>
+    </>
   );
 }
 

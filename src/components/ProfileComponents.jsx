@@ -28,6 +28,23 @@ function PendingApprovalScreen({ auth }) {
   const { t } = useT();
   const isRejected = auth.profile?.verification_status === 'rejected';
   const rejectionReason = auth.profile?.rejection_reason;
+  const [checking, setChecking] = useState(false);
+
+  useEffect(() => {
+    if (!auth.user?.id || isRejected) return;
+    const channel = supabase.channel(`approval-${auth.user.id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'users', filter: `id=eq.${auth.user.id}` },
+        (payload) => { if (payload.new?.verification_status === 'approved') window.location.reload(); })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [auth.user?.id, isRejected]);
+
+  async function recheckStatus() {
+    setChecking(true);
+    const { data } = await supabase.from("users").select("verification_status").eq("id", auth.user?.id).single();
+    if (data?.verification_status === 'approved') window.location.reload();
+    setChecking(false);
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -66,6 +83,10 @@ function PendingApprovalScreen({ auth }) {
               <p className="text-xs text-gray-500 capitalize">{auth.profile?.role}</p>
             </div>
             <p className="text-xs text-gray-400">This usually takes 1–2 business days.</p>
+            <button onClick={recheckStatus} disabled={checking}
+              className="text-xs text-blue-500 hover:text-blue-700 disabled:opacity-50 transition-colors">
+              {checking ? "Checking…" : "Check approval status"}
+            </button>
           </>
         )}
         {(() => {

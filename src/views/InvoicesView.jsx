@@ -15,9 +15,11 @@ function InvoicesView({ auth }) {
   const { invoices, loading, createInvoice, updateInvoice, deleteInvoice } = useInvoices(clientFilter);
   const [statusFilter, setStatusFilter] = useState("");
   const [showCreate, setShowCreate]     = useState(false);
-  const [form, setForm]                 = useState({ invoice_number: "", amount: "", status: "draft", due_date: "", notes: "", case_id: "" });
+  const [form, setForm]                 = useState({ invoice_number: "", amount: "", status: "draft", due_date: "", notes: "", case_id: "", client_id: "" });
   const [saving, setSaving]             = useState(false);
+  const [createError, setCreateError]   = useState("");
   const [cases, setCases]               = useState([]);
+  const [clients, setClients]           = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -25,6 +27,10 @@ function InvoicesView({ auth }) {
       if (auth.isClient) q = q.eq("client_id", auth.user?.id);
       const { data } = await q;
       setCases(data ?? []);
+      if (auth.isAdmin || auth.isManager) {
+        const { data: cls } = await supabase.from("users").select("id, full_name, client_profiles(company_name)").eq("role", "client").order("full_name");
+        setClients(cls ?? []);
+      }
     })();
   }, [auth]);
 
@@ -34,17 +40,22 @@ function InvoicesView({ auth }) {
   const totalOutstanding = invoices.filter(i => ["sent","overdue"].includes(i.status)).reduce((s, i) => s + (i.amount ?? 0), 0);
 
   async function handleCreate() {
+    setCreateError("");
+    const clientId = auth.isClient ? auth.user?.id : (form.client_id || null);
+    if (!clientId && (auth.isAdmin || auth.isManager)) {
+      setCreateError("Please select a client."); return;
+    }
     setSaving(true);
     try {
       await createInvoice({
         ...form,
         amount: Number(form.amount),
-        client_id: auth.isClient ? auth.user?.id : form.client_id,
+        client_id: clientId,
         invoice_number: form.invoice_number || `INV-${Date.now()}`,
       });
       setShowCreate(false);
-      setForm({ invoice_number: "", amount: "", status: "draft", due_date: "", notes: "", case_id: "" });
-    } catch (e) { alert(e.message); }
+      setForm({ invoice_number: "", amount: "", status: "draft", due_date: "", notes: "", case_id: "", client_id: "" });
+    } catch (e) { setCreateError(e.message); }
     setSaving(false);
   }
 
@@ -130,7 +141,7 @@ function InvoicesView({ auth }) {
                           {t("action.mark_paid")}
                         </button>
                       )}
-                      {(inv.status === "sent" || inv.status === "draft") && (
+                      {inv.status === "sent" && (
                         <button onClick={() => updateInvoice(inv.id, { status: "overdue" })}
                           className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded border border-red-100 hover:bg-red-100">
                           {t("invoices.overdue")}
@@ -153,7 +164,21 @@ function InvoicesView({ auth }) {
       </div>
 
       {/* Create Invoice Modal */}
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title={t("invoices.new_title")}>
+      <Modal open={showCreate} onClose={() => { setShowCreate(false); setCreateError(""); }} title={t("invoices.new_title")}>
+        {(auth.isAdmin || auth.isManager) && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
+            <select value={form.client_id} onChange={e => setForm(p => ({ ...p, client_id: e.target.value }))}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              <option value="">Select client…</option>
+              {clients.map(cl => (
+                <option key={cl.id} value={cl.id}>
+                  {cl.client_profiles?.[0]?.company_name ?? cl.client_profiles?.company_name ?? cl.full_name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <Input label={t("invoices.number")} value={form.invoice_number}
           onChange={e => setForm(p => ({ ...p, invoice_number: e.target.value }))}
           placeholder={t("invoices.ph_number")} />
@@ -177,6 +202,9 @@ function InvoicesView({ auth }) {
         <Textarea label={t("label.notes")} value={form.notes}
           onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
           placeholder={t("invoices.notes_ph")} />
+        {createError && (
+          <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700 mt-2">{createError}</div>
+        )}
         <div className="flex justify-end gap-3 mt-2">
           <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
           <button onClick={handleCreate} disabled={saving}

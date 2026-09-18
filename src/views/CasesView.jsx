@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Building2, Calendar, CalendarDays, CalendarRange, CheckCircle2,
   ChevronDown, ClipboardList, Code2, Download, FolderKanban, FolderOpen,
@@ -48,8 +48,16 @@ function CasesView({ auth, initialCaseId }) {
     setProjectFilter(""); // reset project when client changes
   }
 
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+  const debounceRef = useRef(null);
+  useEffect(() => {
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [search]);
+
   const { cases: _rawCasesCV, loading, createCase, updateCase, deleteCase, refetch } = useCases({
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     client_id: auth.isClient ? auth.user?.id : undefined,
   });
   const _casesViewVisCfg = useVisibilitySettings();
@@ -163,11 +171,13 @@ function CasesView({ auth, initialCaseId }) {
     setBulkProcessing(true);
     setBulkStatusOpen(false);
     const ids = [...selectedCases];
-    await supabase.from('cases').update({ status: newStatus }).in('id', ids);
-    ids.forEach(id => logEvent('case.status_bulk_changed', { entityType: 'case', entityId: id, newValue: newStatus }));
-    setSelectedCases(new Set());
+    try {
+      await supabase.from('cases').update({ status: newStatus }).in('id', ids);
+      ids.forEach(id => logEvent('case.status_bulk_changed', { entityType: 'case', entityId: id, newValue: newStatus }));
+      setSelectedCases(new Set());
+      refetch();
+    } catch {}
     setBulkProcessing(false);
-    refetch();
   }
   function handleBulkExport() {
     const headers = ['ID', 'Title', 'Status', 'Client', 'Created'];
@@ -185,12 +195,14 @@ function CasesView({ auth, initialCaseId }) {
   async function handleBulkDelete() {
     setBulkProcessing(true);
     const ids = [...selectedCases];
-    await supabase.from('cases').delete().in('id', ids);
-    ids.forEach(id => logEvent('case.deleted_bulk', { entityType: 'case', entityId: id }));
-    setSelectedCases(new Set());
-    setShowDeleteConfirm(false);
+    try {
+      await supabase.from('cases').delete().in('id', ids);
+      ids.forEach(id => logEvent('case.deleted_bulk', { entityType: 'case', entityId: id }));
+      setSelectedCases(new Set());
+      setShowDeleteConfirm(false);
+      refetch();
+    } catch {}
     setBulkProcessing(false);
-    refetch();
   }
 
   if (loading) return <Spinner />;
@@ -237,7 +249,7 @@ function CasesView({ auth, initialCaseId }) {
           <h1 className="text-2xl font-bold text-gray-900">{t("cases.title")}</h1>
           <p className="text-gray-500 text-sm mt-1">{t(displayed.length !== 1 ? "count.case_many" : "count.case_one").replace("{n}", displayed.length)}</p>
         </div>
-        {(auth.isAdmin || auth.isManager || auth.isClient || auth.isKeyUser) && (
+        {(auth.isAdmin || auth.isManager || auth.isClient) && (
           <button onClick={() => setShowCreate(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
             {t("cases.new")}

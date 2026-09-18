@@ -550,6 +550,7 @@ export default function App() {
   const [onboardingRole, setOnboarding]   = useState(null); // role string or null
   const unreadCount                       = useUnreadCount();
   const [searchOpen, setSearchOpen]       = useState(false);
+  const [sidebarOpen, setSidebarOpen]     = useState(false);
   const [pendingCaseId, setPendingCaseId] = useState(null);
   const [pendingProjectId, setPendingProjectId] = useState(null);
   const [pendingUserId, setPendingUserId] = useState(null);
@@ -649,7 +650,7 @@ export default function App() {
                                : auth.isConsultant ? <ConsultantProfileView /> : <ProfileView auth={auth} />;
       case "consultants":    return <ConsultantsView auth={auth} />;
       case "users":          return auth.isAdmin ? <UsersView /> : <Dashboard auth={auth} />;
-      case "reports":        return auth.isAdmin ? <ReportsView /> : <Dashboard auth={auth} />;
+      case "reports":        return (auth.isAdmin || auth.isManager) ? <ReportsView /> : <Dashboard auth={auth} />;
       case "sla":            return (auth.isAdmin || auth.isManager) ? <SlaView auth={auth} /> : <Dashboard auth={auth} />;
       case "db-connections": return <DbConnectionsView auth={auth} />;
       case "team-members":   return <ClientTeamView auth={auth} />;
@@ -699,12 +700,14 @@ export default function App() {
           <Sidebar
             role={auth.role}
             activeView={activeView}
-            onNav={setActiveView}
+            onNav={v => { setActiveView(v); setSidebarOpen(false); }}
             onSignOut={handleSignOut}
             profile={auth.profile}
             unreadCount={unreadCount}
             auth={auth}
             onSearchOpen={() => setSearchOpen(true)}
+            mobileOpen={sidebarOpen}
+            onMobileClose={() => setSidebarOpen(false)}
           />
           {searchOpen && (
             <GlobalSearch
@@ -719,8 +722,16 @@ export default function App() {
               onClose={() => setSearchOpen(false)}
             />
           )}
-          <main className="ml-64 p-8 min-h-screen">
-            <div className="max-w-5xl mx-auto">
+          <main className="md:ml-64 p-4 md:p-8 min-h-screen">
+            {/* Mobile hamburger */}
+            <button onClick={() => setSidebarOpen(true)}
+              className="md:hidden fixed top-4 left-4 z-20 w-10 h-10 flex items-center justify-center rounded-xl bg-[#0B0F1A] text-white shadow-lg"
+              aria-label="Open menu">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <rect y="3" width="20" height="2" rx="1"/><rect y="9" width="20" height="2" rx="1"/><rect y="15" width="20" height="2" rx="1"/>
+              </svg>
+            </button>
+            <div className="max-w-5xl mx-auto pt-12 md:pt-0">
               <ErrorBoundary key={activeView}>
                 {renderView()}
               </ErrorBoundary>

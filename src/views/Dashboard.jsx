@@ -249,7 +249,11 @@ function Dashboard({ auth, onNavigate }) {
     })(),
   };
 
-  const myStats    = statDefs[auth.role] ?? [];
+  const myStats    = statDefs[auth.role]
+    ?? (auth.role === "internal_consultant" ? statDefs.consultant : null)
+    ?? (auth.role === "project_manager"     ? statDefs.manager    : null)
+    ?? (auth.role === "final_user"          ? statDefs.key_user   : null)
+    ?? [];
   const activeStat = myStats.find(s => s.id === activeTab);
 
   const colorMap = {

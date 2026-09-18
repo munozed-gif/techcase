@@ -10,6 +10,7 @@ import {
   Users, X, XCircle, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
+import { createClient } from "@supabase/supabase-js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useSystemSettings, useVisibilitySettings, usePlanConfig, usePlatformBranding } from "../hooks/useSystemSettings.jsx";
@@ -3947,7 +3948,7 @@ function SystemSettingsView({ auth, onNavigate }) {
         <p className="text-gray-500 text-sm mt-1">{t("settings.subtitle")}</p>
       </div>
 
-      <div className="flex border-b border-gray-200 mb-6">
+      <div className="flex border-b border-gray-200 mb-6 overflow-x-auto">
         {TABS.map(({ id, label, Icon: Ic }) => (
           <button key={id} onClick={() => setActiveTab(id)}
             className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold whitespace-nowrap transition-colors border-b-2 -mb-px ${

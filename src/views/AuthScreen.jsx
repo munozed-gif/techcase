@@ -55,6 +55,10 @@ function AuthScreen({ onAuth, onBack }) {
   const [magicCode, setMagicCode]     = useState("");
   const [magicVerifying, setMagicVerifying] = useState(false);
   const [loading, setLoad]          = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotLoad, setForgotLoad] = useState(false);
   const auth = useAuth();
   const { settings: ssSettings } = useSystemSettings();
   const rolePermMatrix = ssSettings["role_permissions"] ?? {};
@@ -103,10 +107,20 @@ function AuthScreen({ onAuth, onBack }) {
 
   // ── Sign in ──────────────────────────────────────────────────
   async function handleSignIn() {
+    if (loading) return;
     setError(""); setLoad(true);
     try { await auth.signIn(siEmail, siPass); onAuth(null); }
     catch (e) { setError(e.message); }
     setLoad(false);
+  }
+
+  async function handleForgotPassword() {
+    if (!forgotEmail.trim() || forgotLoad) return;
+    setForgotLoad(true);
+    const { error: err } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), { redirectTo: window.location.origin });
+    setForgotLoad(false);
+    if (err) { setError(err.message); return; }
+    setForgotSent(true);
   }
 
   // ── Look up pre-registered key/final user by email ────────────
@@ -405,15 +419,47 @@ function AuthScreen({ onAuth, onBack }) {
         {mode === "signin" && (
           <div className="rounded-2xl shadow-xl p-8" style={{background:"#D6E8F7"}}>
             {tabs}
-            <Input label={t("auth.email")} type="email" value={siEmail}
-              onChange={e => setSiEmail(e.target.value)} placeholder={t("auth.ph_email")} />
-            <Input label={t("auth.password")} type="password" value={siPass}
-              onChange={e => setSiPass(e.target.value)} placeholder={t("auth.ph_password_dots")} />
-            {errorBox}
-            <button onClick={handleSignIn} disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 mt-2">
-              {loading ? t("auth.signing_in") : t("action.sign_in")}
-            </button>
+            {forgotMode ? (
+              forgotSent ? (
+                <div className="text-center py-4 space-y-3">
+                  <div className="text-green-700 font-semibold text-sm">Reset link sent!</div>
+                  <p className="text-xs text-gray-600">Check your email for a password reset link.</p>
+                  <button onClick={() => { setForgotMode(false); setForgotSent(false); setForgotEmail(""); }}
+                    className="text-xs text-blue-600 hover:underline">Back to sign in</button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-700 mb-4">Enter your email and we'll send you a reset link.</p>
+                  <Input label={t("auth.email")} type="email" value={forgotEmail}
+                    onChange={e => setForgotEmail(e.target.value)} placeholder={t("auth.ph_email")}
+                    onKeyDown={e => e.key === "Enter" && handleForgotPassword()} />
+                  {errorBox}
+                  <button onClick={handleForgotPassword} disabled={forgotLoad}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 mt-2">
+                    {forgotLoad ? "Sending…" : "Send reset link"}
+                  </button>
+                  <button onClick={() => { setForgotMode(false); setError(""); }}
+                    className="w-full text-sm text-gray-500 hover:text-gray-700 mt-2 py-1">Back to sign in</button>
+                </>
+              )
+            ) : (
+              <>
+                <Input label={t("auth.email")} type="email" value={siEmail}
+                  onChange={e => setSiEmail(e.target.value)} placeholder={t("auth.ph_email")} />
+                <Input label={t("auth.password")} type="password" value={siPass}
+                  onChange={e => setSiPass(e.target.value)} placeholder={t("auth.ph_password_dots")}
+                  onKeyDown={e => e.key === "Enter" && handleSignIn()} />
+                {errorBox}
+                <button onClick={handleSignIn} disabled={loading}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50 mt-2">
+                  {loading ? t("auth.signing_in") : t("action.sign_in")}
+                </button>
+                <button onClick={() => { setForgotMode(true); setForgotEmail(siEmail); setError(""); }}
+                  className="w-full text-xs text-gray-500 hover:text-blue-600 mt-3 py-1 text-center transition-colors">
+                  Forgot password?
+                </button>
+              </>
+            )}
           </div>
         )}
 

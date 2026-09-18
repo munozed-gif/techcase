@@ -204,6 +204,8 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [hhProposals, setHhProposals] = useState([]);
   const [hhProposalsSaving, setHhProposalsSaving] = useState(false);
 
+  const [caseFilesForSpec, setCaseFilesForSpec] = useState([]);
+
   useEffect(() => {
     if (!caseData.is_head_hunter) return;
     supabase.from("hh_proposals")
@@ -212,6 +214,12 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
       .order("submitted_at", { ascending: false })
       .then(({ data }) => setHhProposals(data ?? []));
   }, [caseData.id, caseData.is_head_hunter]);
+
+  useEffect(() => {
+    if (!caseData.id) return;
+    supabase.from("case_files").select("id, file_name, name").eq("case_id", caseData.id)
+      .then(({ data }) => setCaseFilesForSpec(data ?? []));
+  }, [caseData.id]);
 
   async function reviewHhProposal(proposalId, newStatus) {
     setHhProposalsSaving(true);
@@ -383,7 +391,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
     setSavingLc(true);
     try {
       await onUpdate(caseData.id, { case_lifecycle: { preset: lcMode } });
-    } catch (e) { alert(e.message); }
+    } catch (e) { console.error("Save lifecycle failed:", e.message); }
     setSavingLc(false);
   }
 
@@ -2156,7 +2164,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
     { id: "documents",  label: t("case.tab_docs"),       icon: Paperclip,     count: documents.length || null },
     { id: "time",       label: t("case.tab_time"),       icon: Clock,         count: `${totalTimeHours.toFixed(1)}h` },
     ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "applications", label: t("case.tab_applicants"), icon: Users, count: applications.length }] : []),
-    ...(caseData.is_head_hunter && (auth.isAdmin || auth.isManager || auth.isClient) ? [{ id: "hh_proposals", label: "HH Proposals", icon: Crosshair, count: hhProposals.filter(p => p.status === "pending").length || null }] : []),
+    ...(caseData.is_head_hunter && (auth.isAdmin || auth.isManager || auth.isClient || auth.isHeadhunter) ? [{ id: "hh_proposals", label: "HH Proposals", icon: Crosshair, count: auth.isHeadhunter ? null : (hhProposals.filter(p => p.status === "pending").length || null) }] : []),
     ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "lifecycle", label: t("case.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
     { id: "spec",           label: t("case.tab_spec"),         icon: FileText, count: null },
     ...((auth.isAdmin || auth.isManager || auth.isConsultant) && caseData.status === 'in_progress'
@@ -2195,7 +2203,11 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         case "applications":   r[tab.id] = applications.length > 0 ? "complete" : "none"; break;
         case "hh_proposals":   r[tab.id] = hhProposals.some(p => p.status === "accepted") ? "complete" : hhProposals.length > 0 ? "in_progress" : "none"; break;
         case "subcases":       r[tab.id] = subCases.length > 0 ? "in_progress" : "none"; break;
-        case "spec":           r[tab.id] = documents.some(d => d.category === "spec" || d.doc_type === "spec" || (d.name ?? "").toLowerCase().includes("spec") || (d.file_name ?? "").toLowerCase().includes("spec")) ? "complete" : "none"; break;
+        case "spec": {
+          const inDocs  = documents.some(d => d.category === "spec" || d.doc_type === "spec" || (d.name ?? "").toLowerCase().includes("spec") || (d.file_name ?? "").toLowerCase().includes("spec"));
+          const inFiles = caseFilesForSpec.some(f => (f.file_name ?? f.name ?? "").toLowerCase().includes("spec"));
+          r[tab.id] = (inDocs || inFiles) ? "complete" : "none"; break;
+        }
         case "implementation": r[tab.id] = caseData.implementation_status === "complete" ? "complete" : caseData.implementation_status ? "in_progress" : "none"; break;
         default:               r[tab.id] = "none";
       }
@@ -3382,7 +3394,28 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
       )}
 
                     {/* HH Proposals Tab */}
-                    {tab.id === "hh_proposals" && caseData.is_head_hunter && (auth.isAdmin || auth.isManager || auth.isClient) && (() => {
+                    {tab.id === "hh_proposals" && caseData.is_head_hunter && (auth.isAdmin || auth.isManager || auth.isClient || auth.isHeadhunter) && (() => {
+                    if (auth.isHeadhunter) {
+                      const myProposal = hhProposals[0];
+                      const statusMeta = { pending: { bg:"bg-amber-50", border:"border-amber-200", text:"text-amber-800", label:"Pending review" }, accepted: { bg:"bg-green-50", border:"border-green-200", text:"text-green-800", label:"Accepted — you are assigned" }, rejected: { bg:"bg-red-50", border:"border-red-200", text:"text-red-800", label:"Not selected" }, withdrawn: { bg:"bg-gray-50", border:"border-gray-200", text:"text-gray-600", label:"Withdrawn" } };
+                      const sm = statusMeta[myProposal?.status] ?? statusMeta.pending;
+                      if (!myProposal) return <div className="text-center py-12 text-gray-400 text-sm"><Crosshair size={28} className="mx-auto mb-3 text-gray-300" /><p>You have not submitted a proposal for this case yet.</p></div>;
+                      return (
+                        <div className="space-y-3">
+                          <div className={`rounded-xl px-4 py-3 border ${sm.bg} ${sm.border} flex items-center gap-2`}>
+                            <Crosshair size={15} className={sm.text} />
+                            <span className={`text-sm font-semibold ${sm.text}`}>{sm.label}</span>
+                          </div>
+                          {myProposal.message && <p className="text-sm text-gray-600 leading-relaxed">{myProposal.message}</p>}
+                          <div className="flex gap-4 text-xs text-gray-500">
+                            {myProposal.candidate_count_estimate && <span>Estimated candidates: <strong>{myProposal.candidate_count_estimate}</strong></span>}
+                            {myProposal.proposed_commission_pct && <span>Commission: <strong>{myProposal.proposed_commission_pct}%</strong></span>}
+                            <span>Submitted: <strong>{new Date(myProposal.submitted_at).toLocaleDateString()}</strong></span>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (() => {
         const accepted = hhProposals.find(p => p.status === "accepted");
         const pending  = hhProposals.filter(p => p.status === "pending");
         const others   = hhProposals.filter(p => !["pending","accepted"].includes(p.status));
@@ -3505,7 +3538,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             )}
           </div>
         );
-      })()}
+      })(); })()}
 
                     {/* V9 Documents Tab */}
                     {tab.id === "documents" && (() => {
