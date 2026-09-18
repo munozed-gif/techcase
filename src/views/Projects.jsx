@@ -213,6 +213,7 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
                 est_hours:     act.est_hours ? Number(act.est_hours) : null,
                 sort_order:    act.sort_order ?? 1,
                 task_no:       act.sort_order ?? 1,
+                phase:         act.phase || null,
                 activity_type: 'task',
                 status:        'pending',
                 progress_pct:  0,
