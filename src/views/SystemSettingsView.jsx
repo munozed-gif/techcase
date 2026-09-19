@@ -135,7 +135,7 @@ function SettingsUsersTab() {
   const [resetSent, setResetSent] = useState({});
   const [search, setSearch]     = useState("");
 
-  const ROLES = ["admin", "manager", "consultant", "client", "key_user", "headhunter", "final_user"];
+  const ROLES = ["admin", "manager", "consultant", "client", "key_user", "headhunter", "final_user", "dispatch", "area_leader"];
 
   async function loadUsers() {
     const { data } = await supabase.from("users").select("*").order("created_at", { ascending: false });
@@ -882,7 +882,7 @@ function SettingsPlatformTab({ ssCtx }) {
 function SettingsRolesTab({ ssCtx }) {
   const { t } = useT();
 
-  const ALL_ROLES = ["admin", "manager", "consultant", "client", "key_user", "headhunter", "final_user"];
+  const ALL_ROLES = ["admin", "manager", "consultant", "client", "key_user", "headhunter", "final_user", "dispatch", "area_leader"];
   const CAPABILITIES = Object.keys(ROLE_PERMISSIONS_DEFAULTS);
 
   const [matrix, setMatrix] = useState(null);
@@ -2568,7 +2568,7 @@ function SettingsInvoiceTab({ ssCtx }) {
 // ── People tab — users + permissions combined ─────────────────
 function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
   const { t } = useT();
-  const ALL_ROLES = ["admin", "manager", "consultant", "client", "key_user", "headhunter", "final_user"];
+  const ALL_ROLES = ["admin", "manager", "consultant", "client", "key_user", "headhunter", "final_user", "dispatch", "area_leader"];
   const CAPS = Object.keys(ROLE_PERMISSIONS_DEFAULTS);
 
   const PERSONA_TABS = [
