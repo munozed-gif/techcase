@@ -3924,6 +3924,152 @@ function SettingsHeadhunterTab({ ssCtx }) {
   );
 }
 
+function SettingsAreaLeadersTab({ ssCtx }) {
+  const catalogSettings = ssCtx?.settings ?? {};
+  const availableAreas = catalogSettings["catalog_sap_areas"] ?? SAP_AREAS;
+
+  const [leaders, setLeaders]     = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [editing, setEditing]     = useState(null); // { user_id, full_name, areas: [] }
+  const [addArea, setAddArea]     = useState("");
+  const [saving, setSaving]       = useState(false);
+  const [toast, setToast]         = useState(null);
+
+  useEffect(() => { loadLeaders(); }, []);
+
+  async function loadLeaders() {
+    setLoading(true);
+    const [{ data: users }, { data: areaRows }] = await Promise.all([
+      supabase.from("users").select("id, full_name, email").eq("role", "area_leader").order("full_name"),
+      supabase.from("area_leader_areas").select("user_id, area_sap"),
+    ]);
+    const areaMap = {};
+    (areaRows ?? []).forEach(r => {
+      if (!areaMap[r.user_id]) areaMap[r.user_id] = [];
+      areaMap[r.user_id].push(r.area_sap);
+    });
+    setLeaders((users ?? []).map(u => ({ ...u, areas: areaMap[u.id] ?? [] })));
+    setLoading(false);
+  }
+
+  function openEdit(leader) {
+    setEditing({ ...leader, user_id: leader.id, areas: [...leader.areas] });
+    setAddArea("");
+  }
+
+  async function removeArea(area) {
+    if (!editing) return;
+    setSaving(true);
+    await supabase.from("area_leader_areas")
+      .delete()
+      .eq("user_id", editing.user_id)
+      .eq("area_sap", area);
+    setEditing(p => ({ ...p, areas: p.areas.filter(a => a !== area) }));
+    setLeaders(p => p.map(l => l.id === editing.user_id ? { ...l, areas: l.areas.filter(a => a !== area) } : l));
+    setSaving(false);
+  }
+
+  async function addAreaToLeader() {
+    if (!editing || !addArea) return;
+    if (editing.areas.includes(addArea)) { setAddArea(""); return; }
+    setSaving(true);
+    await supabase.from("area_leader_areas").insert({ user_id: editing.user_id, area_sap: addArea });
+    const newAreas = [...editing.areas, addArea];
+    setEditing(p => ({ ...p, areas: newAreas }));
+    setLeaders(p => p.map(l => l.id === editing.user_id ? { ...l, areas: newAreas } : l));
+    setAddArea("");
+    setSaving(false);
+  }
+
+  if (loading) return <div className="flex justify-center py-20"><Spinner /></div>;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-base font-bold text-gray-900 mb-0.5">Area Leaders</h2>
+        <p className="text-sm text-gray-500">Assign SAP module areas to each area leader. Leaders are auto-assigned to cases in their modules.</p>
+      </div>
+
+      {leaders.length === 0 ? (
+        <div className="text-center py-16 text-gray-400 bg-gray-50 rounded-2xl border border-gray-100">
+          <Users size={36} className="mx-auto mb-3 opacity-30" />
+          <p className="text-sm">No area leaders yet. Create users with the <strong>Area Leader</strong> role first.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {leaders.map(leader => (
+            <div key={leader.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-start gap-4">
+              <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                <span className="text-indigo-700 font-bold text-sm">{leader.full_name?.[0]?.toUpperCase() ?? "?"}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-gray-900 text-sm">{leader.full_name}</div>
+                <div className="text-xs text-gray-400 mb-2">{leader.email}</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {leader.areas.length === 0 && (
+                    <span className="text-xs text-gray-400 italic">No areas assigned</span>
+                  )}
+                  {leader.areas.map(area => (
+                    <span key={area} className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs rounded-lg border border-indigo-100">
+                      {area}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <button onClick={() => openEdit(leader)}
+                className="flex-shrink-0 px-3 py-1.5 text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors">
+                Manage Areas
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Edit modal */}
+      {editing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={e => { if (e.target === e.currentTarget) setEditing(null); }}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-900">{editing.full_name}</h3>
+                <p className="text-xs text-gray-400 mt-0.5">SAP area assignments</p>
+              </div>
+              <button onClick={() => setEditing(null)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X size={16} /></button>
+            </div>
+
+            <div className="space-y-2">
+              {editing.areas.length === 0 && <p className="text-sm text-gray-400 italic">No areas assigned yet.</p>}
+              {editing.areas.map(area => (
+                <div key={area} className="flex items-center justify-between px-3 py-2 bg-indigo-50 rounded-xl border border-indigo-100">
+                  <span className="text-sm text-indigo-800">{area}</span>
+                  <button onClick={() => removeArea(area)} disabled={saving}
+                    className="p-1 rounded hover:bg-indigo-100 text-indigo-400 hover:text-red-500 transition-colors">
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="border-t border-gray-100 pt-4 flex gap-2">
+              <select value={addArea} onChange={e => setAddArea(e.target.value)}
+                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                <option value="">— select area —</option>
+                {availableAreas.filter(a => !editing.areas.includes(a)).map(a => (
+                  <option key={a} value={a}>{a}</option>
+                ))}
+              </select>
+              <button onClick={addAreaToLeader} disabled={saving || !addArea}
+                className="px-4 py-2 text-sm bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-40 transition-colors">
+                <Plus size={15} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SystemSettingsView({ auth, onNavigate }) {
   const { t } = useT();
   const [activeTab, setActiveTab] = useState("people");
@@ -3937,6 +4083,7 @@ function SystemSettingsView({ auth, onNavigate }) {
     { id: "catalog",     label: "Catalog",          Icon: Tag },
     { id: "generation",  label: "AI & Generation",  Icon: Zap },
     { id: "abap",        label: "ABAP Templates",   Icon: FileCode2 },
+    { id: "area_leaders", label: "Area Leaders",     Icon: UserCog },
     { id: "headhunter",  label: "Headhunter",       Icon: Crosshair },
     { id: "platform",    label: "Platform",         Icon: Sparkles },
   ];
@@ -3968,6 +4115,7 @@ function SystemSettingsView({ auth, onNavigate }) {
       {activeTab === "catalog"     && <SettingsCatalogTab ssCtx={ssCtx} />}
       {activeTab === "generation"  && <SettingsGenerationTab ssCtx={ssCtx} />}
       {activeTab === "abap"        && <AbapTemplatesSection auth={auth} />}
+      {activeTab === "area_leaders" && <SettingsAreaLeadersTab ssCtx={ssCtx} />}
       {activeTab === "headhunter"  && <SettingsHeadhunterTab ssCtx={ssCtx} />}
       {activeTab === "platform"    && <SettingsPlatformCombinedTab ssCtx={ssCtx} />}
     </div>
