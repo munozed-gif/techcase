@@ -8,14 +8,21 @@
 ALTER TABLE cases ADD COLUMN IF NOT EXISTS key_user_id uuid REFERENCES users(id) ON DELETE SET NULL;
 CREATE INDEX IF NOT EXISTS cases_key_user_id_idx ON cases(key_user_id);
 
--- 2. Backfill: if any key_user accounts already exist in users table,
---    link them to matching cases immediately.
-UPDATE cases c
-SET key_user_id = u.id
-FROM users u
-WHERE u.email = c.key_user_email
-  AND u.role = 'key_user'
-  AND c.key_user_id IS NULL;
+-- 2. Backfill: only runs if the old key_user_email column exists (dev→prod migration safety)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'cases' AND column_name = 'key_user_email'
+  ) THEN
+    UPDATE cases c
+    SET key_user_id = u.id
+    FROM users u
+    WHERE u.email = c.key_user_email
+      AND u.role = 'key_user'
+      AND c.key_user_id IS NULL;
+  END IF;
+END $$;
 
 -- 3. (Optional) RLS policy — key users can read cases they are linked to.
 --    Skip if you manage all access client-side.
