@@ -118,6 +118,8 @@ import {
 
 import { ConsultantProfileView } from "./src/components/ConsultantProfileView.jsx";
 import { HeadhunterDashboard, HeadhunterCandidates, HeadhunterPipeline, HeadhunterPlacements } from "./src/views/HeadhunterViews.jsx";
+import DispatchView from "./src/views/DispatchView.jsx";
+import AreaLeaderView from "./src/views/AreaLeaderView.jsx";
 
 
 import { NotificationBell } from "./src/components/NotificationBell.jsx";
@@ -673,6 +675,9 @@ export default function App() {
       case "invoices":       return <InvoicesView auth={auth} />;
       case "kanban":         return <KanbanView auth={auth} />;
       case "time":           return <TimeEntriesView auth={auth} />;
+      case "dispatch-queue": return <DispatchView auth={auth} />;
+      case "leader-cases":   return <AreaLeaderView auth={auth} onNav={setActiveView} />;
+      case "spec-review":    return <div className="p-8 text-gray-500">Spec review coming soon.</div>;
       default:               return <Dashboard auth={auth} />;
     }
   }

@@ -795,7 +795,7 @@ function CaseDefaultsPanel({ profile, updateProfile }) {
 }
 
 const AS_DEFAULTS = {
-  auto_assign_enabled: false, application_window_days: 7, min_applicants: 3,
+  auto_assign_enabled: false, leader_auto_assign_enabled: false, application_window_days: 7, min_applicants: 3,
   require_manager_approval: true, prefer_known_consultants: true,
   allow_new_consultants: true, max_hourly_rate: "", preferred_expertise_level: "any",
   max_overcommitment_tolerance: 0, notify_on_new_application: true, notify_on_auto_assign: true,
@@ -879,6 +879,11 @@ function AssignmentSettingsPanel({ profile, updateProfile }) {
                 desc={t("as.mgr_approval_desc")} />
             </div>
           )}
+          <Toggle
+            field="leader_auto_assign_enabled"
+            label={t("as.leader_auto_enabled")}
+            desc={t("as.leader_auto_enabled_desc")}
+          />
         </div>
       </div>
 

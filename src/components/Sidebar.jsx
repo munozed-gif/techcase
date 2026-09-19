@@ -1,6 +1,6 @@
 import {
-  BarChart2, Bell, ClipboardList, Clock, Database, FolderOpen, Handshake,
-  Layers, LayoutDashboard, LayoutGrid, LayoutTemplate, Receipt, Search,
+  BarChart2, Bell, ClipboardCheck, ClipboardList, Clock, Database, FolderOpen, Handshake,
+  Inbox, Layers, LayoutDashboard, LayoutGrid, LayoutTemplate, Receipt, Search,
   SlidersHorizontal, Target, User, UserCheck, UsersRound,
 } from "lucide-react";
 import { useT } from "../i18n/index.jsx";
@@ -145,6 +145,16 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       { id: "kanban",       Icon: LayoutGrid,      labelKey: "nav.kanban" },
       { id: "time",         Icon: Clock,           labelKey: "nav.time" },
       { id: "team-members", Icon: Handshake,       labelKey: "nav.team_members" },
+    ],
+    dispatch: [
+      { id: "dashboard",      Icon: LayoutDashboard, labelKey: "nav.dashboard" },
+      { id: "dispatch-queue", Icon: Inbox,           labelKey: "nav.dispatch_queue" },
+      { id: "team-members",   Icon: Handshake,       labelKey: "nav.team_members" },
+    ],
+    area_leader: [
+      { id: "dashboard",    Icon: LayoutDashboard, labelKey: "nav.dashboard" },
+      { id: "leader-cases", Icon: FolderOpen,      labelKey: "nav.leader_cases" },
+      { id: "spec-review",  Icon: ClipboardCheck,  labelKey: "nav.spec_review" },
     ],
   };
 
