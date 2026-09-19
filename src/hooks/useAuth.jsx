@@ -24,11 +24,21 @@ function useAuth() {
   const CLIENT_TEAM_ROLES = ['key_user', 'final_user', 'internal_consultant', 'project_manager'];
 
   async function fetchProfile(userId) {
-    let { data } = await supabase
+    // Fetch base user row first (no join — avoids PostgREST schema-cache issues on fresh DBs)
+    let { data, error } = await supabase
       .from("users")
-      .select("*, consultant_profiles(*), client_profiles(*)")
+      .select("*")
       .eq("id", userId)
       .single();
+
+    if (data) {
+      // Fetch nested profiles separately so a missing FK cache doesn't block the base row
+      const [{ data: cp }, { data: clp }] = await Promise.all([
+        supabase.from("consultant_profiles").select("*").eq("id", userId).maybeSingle(),
+        supabase.from("client_profiles").select("*").eq("id", userId).maybeSingle(),
+      ]);
+      data = { ...data, consultant_profiles: cp ?? null, client_profiles: clp ?? null };
+    }
 
     if (!data) {
       // Trigger may have failed — try creating the public.users row client-side
@@ -46,11 +56,14 @@ function useAuth() {
           verification_status: SELF_APPROVED.includes(role) ? "approved" : "pending",
         });
         const { data: retry } = await supabase
-          .from("users")
-          .select("*, consultant_profiles(*), client_profiles(*)")
-          .eq("id", userId)
-          .single();
-        data = retry;
+          .from("users").select("*").eq("id", userId).single();
+        if (retry) {
+          const [{ data: cp }, { data: clp }] = await Promise.all([
+            supabase.from("consultant_profiles").select("*").eq("id", userId).maybeSingle(),
+            supabase.from("client_profiles").select("*").eq("id", userId).maybeSingle(),
+          ]);
+          data = { ...retry, consultant_profiles: cp ?? null, client_profiles: clp ?? null };
+        }
       }
     }
 
