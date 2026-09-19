@@ -4,8 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "vite",
+    "dev:prod": "vite --mode production",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "schema:test": "bash scripts/apply-schema-to-test.sh"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.47.0",
