@@ -123,6 +123,8 @@ function useAuth() {
     isKeyUser:    profile?.role === "key_user",
     isHeadhunter: profile?.role === "headhunter",
     isFinalUser:  profile?.role === "final_user",
+    isDispatch:   profile?.role === "dispatch",
+    isAreaLeader: profile?.role === "area_leader",
   };
 }
 

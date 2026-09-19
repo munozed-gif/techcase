@@ -2478,6 +2478,11 @@ const TRANSLATIONS = {
     "smtp.save_settings":    "Save Settings",
     "smtp.saved":            "Saved ✓",
     "smtp.sending":          "Sending…",
+    "nav.dispatch_queue":    "Dispatch Queue",
+    "nav.leader_cases":      "My Area Cases",
+    "nav.spec_review":       "Spec Review",
+    "as.leader_auto_enabled":      "Auto-assign Area Leader",
+    "as.leader_auto_enabled_desc": "Automatically assign the best available area leader when a case is created. If off, Dispatch handles manual assignment.",
   },
   es: {
     // Navigation
@@ -4954,6 +4959,11 @@ const TRANSLATIONS = {
     "smtp.save_settings":    "Guardar Configuración",
     "smtp.saved":            "Guardado ✓",
     "smtp.sending":          "Enviando…",
+    "nav.dispatch_queue":    "Cola de Despacho",
+    "nav.leader_cases":      "Casos de Mi Área",
+    "nav.spec_review":       "Revisión de Specs",
+    "as.leader_auto_enabled":      "Asignación Automática de Líder de Área",
+    "as.leader_auto_enabled_desc": "Asigna automáticamente el mejor líder de área disponible al crear un caso. Si está desactivado, el Despacho realiza la asignación manual.",
   },
 };
 
