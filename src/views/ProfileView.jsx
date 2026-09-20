@@ -56,7 +56,33 @@ function ProfileView({ auth, compact = false }) {
   const [form, setForm]             = useState({});
   const [saving, setSaving]         = useState(false);
   const fileRef = useRef();
-  const { isDark, setTheme } = useTheme();
+  const { isDark, theme, setTheme } = useTheme();
+  const themeOnEditStart = useRef(theme);
+  const [pendingTheme, setPendingTheme] = useState(theme);
+
+  // Capture the current theme whenever editing opens
+  useEffect(() => {
+    if (editing) {
+      themeOnEditStart.current = theme;
+      setPendingTheme(theme);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing]);
+
+  // Live-preview the theme in the DOM without persisting
+  function previewAppearance(t) {
+    setPendingTheme(t);
+    document.documentElement.classList.toggle("arena-dark", t !== "light");
+  }
+
+  // Cancel editing — revert any unpersisted theme preview
+  function cancelEdit() {
+    if (pendingTheme !== themeOnEditStart.current) {
+      document.documentElement.classList.toggle("arena-dark", themeOnEditStart.current !== "light");
+      setPendingTheme(themeOnEditStart.current);
+    }
+    setEditing(false);
+  }
 
   useEffect(() => {
     if (!editing) setForm({
@@ -86,6 +112,8 @@ function ProfileView({ auth, compact = false }) {
         external_occupancy_pct: Number(form.external_occupancy_pct) || 0,
       });
       if (preferred_lang && preferred_lang !== lang) setLang(preferred_lang);
+      // Persist theme only now (was just a preview until save)
+      if (pendingTheme !== theme) await setTheme(pendingTheme);
       setEditing(false);
     } catch (e) { alert(e.message); }
     setSaving(false);
@@ -234,7 +262,7 @@ function ProfileView({ auth, compact = false }) {
               )}
             </div>
           </div>
-          <button onClick={() => setEditing(p => !p)}
+          <button onClick={() => editing ? cancelEdit() : setEditing(true)}
             className="px-4 py-2 text-sm font-medium rounded-xl transition-colors"
             style={{border:'1px solid var(--t-border)',color:'var(--t-text)',background:'var(--t-tab-inactive)'}}>
             {editing ? t("profile.cancel") : t("profile.edit")}
@@ -271,7 +299,7 @@ function ProfileView({ auth, compact = false }) {
       {/* Compact mode: show edit toggle button in a slim bar */}
       {compact && (
         <div className="flex justify-end mb-4">
-          <button onClick={() => setEditing(p => !p)}
+          <button onClick={() => editing ? cancelEdit() : setEditing(true)}
             className="px-4 py-2 text-sm font-medium rounded-xl transition-colors"
             style={{border:'1px solid var(--t-border)',color:'var(--t-text)',background:'var(--t-tab-inactive)'}}>
             {editing ? t("profile.cancel") : t("profile.edit")}
@@ -367,21 +395,23 @@ function ProfileView({ auth, compact = false }) {
 
           {/* Appearance */}
           <div className="mb-4">
-            <div className="text-sm font-medium text-gray-700 mb-2">Appearance</div>
+            <div className="text-sm font-medium mb-2" style={{color:'var(--t-text2)'}}>Appearance</div>
             <div className="flex gap-2">
-              <button onClick={() => setTheme("dark")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${isDark ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-gray-200 text-gray-600 hover:border-blue-400"}`}>
+              <button onClick={() => previewAppearance("dark")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${pendingTheme !== "light" ? "bg-blue-600 border-blue-600 text-white" : "border-gray-200 text-gray-600 hover:border-blue-400"}`}
+                style={pendingTheme !== "light" ? {} : {background:'var(--t-card-bg)'}}>
                 🌙 Dark
               </button>
-              <button onClick={() => setTheme("light")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${!isDark ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-gray-200 text-gray-600 hover:border-blue-400"}`}>
+              <button onClick={() => previewAppearance("light")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${pendingTheme === "light" ? "bg-blue-600 border-blue-600 text-white" : "border-gray-200 text-gray-600 hover:border-blue-400"}`}
+                style={pendingTheme === "light" ? {} : {background:'var(--t-card-bg)'}}>
                 ☀️ Light
               </button>
             </div>
           </div>
 
           <div className="flex justify-end gap-3">
-            <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
+            <button onClick={cancelEdit} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
             <button onClick={handleSave} disabled={saving}
               className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
               {saving ? t("profile.saving") : t("profile.save_changes")}
