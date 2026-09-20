@@ -8,6 +8,7 @@ import {
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
+import { useTheme } from "../context/ThemeContext.jsx";
 import { useCases } from "../hooks/useCaseHooks.js";
 import { useApplications } from "../hooks/useCaseHooks.js";
 import { useProjects } from "../hooks/useCoreHooks.js";
@@ -28,6 +29,7 @@ import { ClientRatingModal } from "./SystemSettingsView.jsx";
 
 function Dashboard({ auth, onNavigate }) {
   const { t } = useT();
+  const { isDark } = useTheme();
   const { settings: catalogSettings } = useSystemSettings();
   const { cases: _rawCases, loading: casesLoading, updateCase, deleteCase } = useCases();
   const _dashVisCfg = useVisibilitySettings();
@@ -1233,11 +1235,11 @@ function Dashboard({ auth, onNavigate }) {
           <>
             {/* ── 1. Status Snapshot ── */}
             {SNAP_STATUSES.length > 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-                <div className="px-4 pt-4 pb-3 border-b border-gray-100 flex items-center gap-2">
-                  <Layers className="w-3.5 h-3.5 text-gray-400" />
-                  <span className="text-sm font-bold text-gray-900">Pipeline</span>
-                  <span className="ml-auto text-xs text-gray-400">{scopedCases.length} total</span>
+              <div className="rounded-2xl shadow-sm" style={{background:'var(--t-card-bg)',border:'1px solid var(--t-border)'}}>
+                <div className="px-4 pt-4 pb-3 flex items-center gap-2" style={{borderBottom:'1px solid var(--t-border)'}}>
+                  <Layers className="w-3.5 h-3.5" style={{color:'var(--t-text2)'}} />
+                  <span className="text-sm font-bold" style={{color:'var(--t-text)'}}>Pipeline</span>
+                  <span className="ml-auto text-xs" style={{color:'var(--t-text2)'}}>{scopedCases.length} total</span>
                 </div>
                 <div className="p-3 grid grid-cols-3 gap-1.5">
                   {SNAP_STATUSES.map(s => {
@@ -1247,7 +1249,7 @@ function Dashboard({ auth, onNavigate }) {
                         style={{ background: s.bg }}>
                         <Icon size={14} style={{ color: s.color }} />
                         <span className="text-lg font-bold leading-none" style={{ color: s.color }}>{s.count}</span>
-                        <span className="text-[9px] leading-none text-gray-500 truncate w-full text-center">{s.label}</span>
+                        <span className="text-[9px] leading-none truncate w-full text-center" style={{color:'var(--t-text2)'}}>{s.label}</span>
                       </div>
                     );
                   })}
