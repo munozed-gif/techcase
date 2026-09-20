@@ -2500,12 +2500,12 @@ function ProjectsView({ auth, initialProjectId }) {
           ...(overdueProjects.length > 0 ? [{ val: "__overdue__", label: "Overdue", Icon: AlertCircle, color: "red", count: overdueProjects.length }] : []),
         ].filter(s => s.val === "" || s.count > 0);
         const colorMap = {
-          blue:   { icon: "bg-blue-100 text-blue-600",   active: "bg-blue-50 border-blue-400",   num: "text-blue-700" },
-          green:  { icon: "bg-green-100 text-green-600", active: "bg-green-50 border-green-400", num: "text-green-700" },
-          teal:   { icon: "bg-teal-100 text-teal-600",   active: "bg-teal-50 border-teal-400",   num: "text-teal-700" },
-          yellow: { icon: "bg-yellow-100 text-yellow-600",active: "bg-yellow-50 border-yellow-400",num: "text-yellow-700" },
-          red:    { icon: "bg-red-100 text-red-600",     active: "bg-red-50 border-red-400",     num: "text-red-700" },
-          gray:   { icon: "bg-gray-100 text-gray-500",   active: "bg-gray-50 border-gray-400",   num: "text-gray-700" },
+          blue:   { iconBg: 'rgba(37,99,235,0.15)',   iconClr: '#60A5FA', activeBg: 'rgba(37,99,235,0.20)',   activeBdr: 'rgba(96,165,250,0.7)',   numClr: '#60A5FA' },
+          green:  { iconBg: 'rgba(16,185,129,0.15)',  iconClr: '#4ADE80', activeBg: 'rgba(16,185,129,0.20)',  activeBdr: 'rgba(74,222,128,0.7)',   numClr: '#4ADE80' },
+          teal:   { iconBg: 'rgba(20,184,166,0.15)',  iconClr: '#2DD4BF', activeBg: 'rgba(20,184,166,0.20)',  activeBdr: 'rgba(45,212,191,0.7)',   numClr: '#2DD4BF' },
+          yellow: { iconBg: 'rgba(245,158,11,0.15)',  iconClr: '#FCD34D', activeBg: 'rgba(245,158,11,0.20)',  activeBdr: 'rgba(253,224,71,0.7)',   numClr: '#FCD34D' },
+          red:    { iconBg: 'rgba(239,68,68,0.15)',   iconClr: '#F87171', activeBg: 'rgba(239,68,68,0.20)',   activeBdr: 'rgba(248,113,113,0.7)',  numClr: '#F87171' },
+          gray:   { iconBg: 'rgba(100,116,139,0.18)', iconClr: '#94A3B8', activeBg: 'rgba(100,116,139,0.22)', activeBdr: 'rgba(156,163,175,0.55)', numClr: '#94A3B8' },
         };
         return (
           <div className="flex gap-3 mb-6 overflow-x-auto px-1 py-1 -mx-1 -mt-1" style={{ scrollbarWidth: "none" }}>
@@ -2515,15 +2515,16 @@ function ProjectsView({ auth, initialProjectId }) {
               return (
                 <button key={s.val}
                   onClick={() => setStatusFilter(f => f === s.val ? "" : s.val)}
-                  className={`text-left rounded-xl px-4 py-3 shadow-sm border-2 transition-all flex items-center gap-3 flex-shrink-0 ${
-                    isActive ? `${cm.active} shadow-none` : "bg-white border-gray-100 hover:shadow-md hover:border-gray-200"
-                  }`}>
-                  <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 ${cm.icon}`}>
+                  className="text-left rounded-xl px-4 py-3 border-2 transition-all flex items-center gap-3 flex-shrink-0"
+                  style={isActive
+                    ? { background: cm.activeBg, borderColor: cm.activeBdr }
+                    : { background: 'rgba(15,30,55,0.5)', borderColor: 'rgba(100,160,220,0.2)' }}>
+                  <div style={{ background: cm.iconBg, color: cm.iconClr, width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <s.Icon className="w-4 h-4" />
                   </div>
                   <div>
-                    <div className={`text-xl font-bold leading-none ${isActive ? cm.num : "text-gray-900"}`}>{s.count}</div>
-                    <div className="text-xs text-gray-500 mt-0.5 whitespace-nowrap">{s.label}</div>
+                    <div style={{ color: isActive ? cm.numClr : '#DCE8F4' }} className="text-xl font-bold leading-none">{s.count}</div>
+                    <div className="text-xs mt-0.5 whitespace-nowrap" style={{ color: '#7090B0' }}>{s.label}</div>
                   </div>
                 </button>
               );
