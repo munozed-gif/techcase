@@ -5282,7 +5282,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
       })()}
 
       {showEditWizard && (
-        <div className="fixed top-0 bottom-0 right-0 left-64 z-50 bg-[#EAF4FD] overflow-y-auto p-6">
+        <div className="fixed top-0 bottom-0 right-0 left-64 z-50 overflow-y-auto p-6" style={{background:'var(--ad-bg,#EAF4FD)'}}>
           <CreateCaseWizard
             auth={auth}
             initialData={caseData}

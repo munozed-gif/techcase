@@ -110,12 +110,12 @@ export function HHProposalWizard({ caseData, auth, onComplete, onCancel }) {
                   <div style={{ fontSize:11, fontWeight:700, color:'var(--t-text2)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Required skills</div>
                   <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
                     {caseData.skills_required.map(s => (
-                      <span key={s} style={{ fontSize:11, padding:'3px 8px', borderRadius:99, background:'#EFF6FF', color:'#2563EB', fontWeight:600 }}>{s}</span>
+                      <span key={s} style={{ fontSize:11, padding:'3px 8px', borderRadius:99, background:'rgba(37,99,235,0.1)', color:'var(--t-text-accent)', fontWeight:600 }}>{s}</span>
                     ))}
                   </div>
                 </div>
               )}
-              <div style={{ background:'#EFF6FF', borderRadius:10, padding:'12px 14px', border:'1px solid #BFDBFE', fontSize:12, color:'#1D4ED8', lineHeight:1.5 }}>
+              <div style={{ background:'rgba(37,99,235,0.07)', borderRadius:10, padding:'12px 14px', border:'1px solid rgba(37,99,235,0.2)', fontSize:12, color:'var(--t-text-accent)', lineHeight:1.5 }}>
                 By submitting this proposal you are indicating your interest in managing the recruitment process for this case. The client or manager will review all proposals before assigning a headhunter.
               </div>
             </div>
@@ -180,7 +180,7 @@ export function HHProposalWizard({ caseData, auth, onComplete, onCancel }) {
                 <Row label="Commission" value={form.proposed_commission_pct ? `${form.proposed_commission_pct}%` : "—"} />
               </div>
               {error && (
-                <div style={{ background:'#FEF2F2', border:'1px solid #FECACA', borderRadius:10, padding:'10px 14px', fontSize:12, color:'#DC2626' }}>{error}</div>
+                <div style={{ background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.25)', borderRadius:10, padding:'10px 14px', fontSize:12, color:'var(--ad-red,#DC2626)' }}>{error}</div>
               )}
             </div>
           )}
