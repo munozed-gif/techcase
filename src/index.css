@@ -270,6 +270,17 @@
 .arena-dark .text-red-700,
 .arena-dark .text-red-600 { color: var(--ad-red) !important; }
 
+/* ── White opacity variants (bg-white/10 … bg-white/90) ── */
+.arena-dark .bg-white\/10,
+.arena-dark .bg-white\/20,
+.arena-dark .bg-white\/30,
+.arena-dark .bg-white\/40,
+.arena-dark .bg-white\/50,
+.arena-dark .bg-white\/60,
+.arena-dark .bg-white\/70,
+.arena-dark .bg-white\/80,
+.arena-dark .bg-white\/90 { background-color: var(--ad-inner) !important; }
+
 /* ── Hover states ── */
 .arena-dark .hover\:bg-gray-50:hover  { background-color: var(--ad-card)  !important; }
 .arena-dark .hover\:bg-gray-100:hover { background-color: var(--ad-inner) !important; }

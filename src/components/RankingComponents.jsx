@@ -107,7 +107,7 @@ function ScoreCell({ pts, max, detail, bold = false }) {
 function TeamMemberTable({ members, teamBreakdown, totalScore, liveAvailability, t }) {
   if (!members.length) return null;
   return (
-    <div className="mb-4 bg-white/60 rounded-xl p-3 overflow-x-auto">
+    <div className="mb-4 bg-white/60 rounded-xl p-3 overflow-x-auto" style={{background:'var(--t-tab-inactive)'}}>
       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Member Evaluations</p>
       <table className="w-full" style={{ minWidth: 480 }}>
         <thead>
@@ -361,8 +361,8 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
               <div className={`flex items-center gap-3 mb-4 px-3 py-2 rounded-xl text-xs font-medium ${
                 best.overcommitted
                   ? "bg-red-50 border border-red-200 text-red-700"
-                  : "bg-white/70 text-gray-600"
-              }`}>
+                  : "text-gray-600"
+              }`} style={!best.overcommitted?{background:'var(--t-tab-inactive)'}:{}}>
                 {best.overcommitted
                   ? <><AlertTriangle size={13} className="inline mr-1 flex-shrink-0" /><span>{t("assign.avail_conflict").replace("{pct}", best.time_commitment).replace("{free}", best.liveAvailability)}</span></>
                   : <><Check size={13} className="inline mr-1 flex-shrink-0" /><span>{t("assign.avail_current").replace("{free}", best.liveAvailability).replace("{pct}", best.time_commitment)}</span></>
@@ -374,7 +374,7 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
               const c = best.breakdown.commitment;
               const pct = Math.round((c.pts / c.max) * 100);
               return (
-                <div className="bg-white/80 rounded-xl p-2.5 mb-4">
+                <div className="rounded-xl p-2.5 mb-4" style={{background:'var(--t-tab-inactive)'}}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{t(c.labelKey)}</span>
                     <span className="text-xs font-bold text-blue-700">{c.pts}/{c.max}</span>
@@ -393,8 +393,8 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                   <div className={`flex items-center gap-3 mb-4 px-3 py-2 rounded-xl text-xs font-medium ${
                     best.overcommitted
                       ? "bg-red-50 border border-red-200 text-red-700"
-                      : "bg-white/70 text-gray-600"
-                  }`}>
+                      : "text-gray-600"
+                  }`} style={!best.overcommitted?{background:'var(--t-tab-inactive)'}:{}}>
                     {best.overcommitted
                       ? <><AlertTriangle size={13} className="inline mr-1 flex-shrink-0" /><span>{t("assign.avail_conflict").replace("{pct}", best.time_commitment).replace("{free}", best.liveAvailability)}</span></>
                       : <><Check size={13} className="inline mr-1 flex-shrink-0" /><span>{t("assign.avail_current").replace("{free}", best.liveAvailability).replace("{pct}", best.time_commitment)}</span></>
@@ -406,7 +406,7 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                     const c = best.breakdown[key];
                     const pct = Math.round((c.pts / c.max) * 100);
                     return (
-                      <div key={key} className="bg-white/80 rounded-xl p-2.5">
+                      <div key={key} className="rounded-xl p-2.5" style={{background:'var(--t-tab-inactive)'}}>
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide truncate">{t(c.labelKey)}</span>
                           <span className="text-xs font-bold text-blue-700 ml-1 flex-shrink-0">{c.pts}/{c.max}</span>
