@@ -1166,16 +1166,16 @@ function Dashboard({ auth, onNavigate }) {
 
         // 1 — Status Snapshot
         const SNAP_STATUSES = [
-          { key: "open",            Icon: Inbox,         color: "#16a34a", bg: "#f0fdf4" },
-          { key: "estimated",       Icon: ClipboardList, color: "#0d9488", bg: "#f0fdfa" },
-          { key: "assigned",        Icon: UserCheck,     color: "#7c3aed", bg: "#faf5ff" },
-          { key: "in_progress",     Icon: Zap,           color: "#2563eb", bg: "#eff6ff" },
-          { key: "on_hold",         Icon: PauseCircle,   color: "#b45309", bg: "#fffbeb" },
-          { key: "technical_test",  Icon: Code2,         color: "#0891b2", bg: "#ecfeff" },
-          { key: "functional_test", Icon: ListChecks,    color: "#d97706", bg: "#fffbeb" },
-          { key: "user_test",       Icon: Users,         color: "#ea580c", bg: "#fff7ed" },
-          { key: "completed",       Icon: CheckCircle2,  color: "#4b5563", bg: "#f9fafb" },
-          { key: "cancelled",       Icon: XCircle,       color: "#dc2626", bg: "#fef2f2" },
+          { key: "open",            Icon: Inbox,         color: "#16a34a", bg: isDark ? "rgba(22,163,74,.15)"   : "#f0fdf4" },
+          { key: "estimated",       Icon: ClipboardList, color: "#0d9488", bg: isDark ? "rgba(13,148,136,.15)"  : "#f0fdfa" },
+          { key: "assigned",        Icon: UserCheck,     color: "#7c3aed", bg: isDark ? "rgba(124,58,237,.15)"  : "#faf5ff" },
+          { key: "in_progress",     Icon: Zap,           color: "#2563eb", bg: isDark ? "rgba(37,99,235,.15)"   : "#eff6ff" },
+          { key: "on_hold",         Icon: PauseCircle,   color: "#b45309", bg: isDark ? "rgba(180,83,9,.15)"    : "#fffbeb" },
+          { key: "technical_test",  Icon: Code2,         color: "#0891b2", bg: isDark ? "rgba(8,145,178,.15)"   : "#ecfeff" },
+          { key: "functional_test", Icon: ListChecks,    color: "#d97706", bg: isDark ? "rgba(217,119,6,.15)"   : "#fffbeb" },
+          { key: "user_test",       Icon: Users,         color: "#ea580c", bg: isDark ? "rgba(234,88,12,.15)"   : "#fff7ed" },
+          { key: "completed",       Icon: CheckCircle2,  color: isDark ? "#9ca3af" : "#4b5563", bg: isDark ? "rgba(75,85,99,.15)"    : "#f9fafb" },
+          { key: "cancelled",       Icon: XCircle,       color: "#dc2626", bg: isDark ? "rgba(220,38,38,.15)"   : "#fef2f2" },
         ].map(s => ({ ...s, label: STATUS_LABEL_KEYS[s.key] ? t(STATUS_LABEL_KEYS[s.key]) : cap(fmt(s.key)), count: scopedCases.filter(c => c.status === s.key).length }))
          .filter(s => s.count > 0);
 
