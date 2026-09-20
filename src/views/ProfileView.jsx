@@ -199,7 +199,7 @@ function ProfileView({ auth, compact = false }) {
     <div>
       {/* Profile Header — hidden when embedded inside ConsultantProfileView */}
       {!compact && (
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+      <div className="rounded-2xl shadow-sm p-6 mb-6" style={{background:'var(--t-card-bg)',border:'1px solid var(--t-border)'}}>
         <div className="flex items-start gap-5">
           <div className="relative group cursor-pointer" onClick={() => !uploadingPhoto && fileRef.current?.click()}>
             <div className="w-20 h-20 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 text-2xl font-bold overflow-hidden">
@@ -215,8 +215,8 @@ function ProfileView({ auth, compact = false }) {
             <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
           </div>
           <div className="flex-1">
-            <h1 className="text-xl font-bold text-gray-900">{auth.profile?.full_name}</h1>
-            <p className="text-gray-500 text-sm">{profile?.headline || t("profile.headline_ph")}</p>
+            <h1 className="text-xl font-bold" style={{color:'var(--t-text)'}}>{auth.profile?.full_name}</h1>
+            <p className="text-sm" style={{color:'var(--t-text2)'}}>{profile?.headline || t("profile.headline_ph")}</p>
             <div className="flex items-center gap-3 mt-2 flex-wrap text-sm text-gray-500">
               {avgRating && (
                 <span className="flex items-center gap-1">
@@ -235,7 +235,8 @@ function ProfileView({ auth, compact = false }) {
             </div>
           </div>
           <button onClick={() => setEditing(p => !p)}
-            className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-xl hover:bg-gray-50">
+            className="px-4 py-2 text-sm font-medium rounded-xl transition-colors"
+            style={{border:'1px solid var(--t-border)',color:'var(--t-text)',background:'var(--t-tab-inactive)'}}>
             {editing ? t("profile.cancel") : t("profile.edit")}
           </button>
         </div>
@@ -271,7 +272,8 @@ function ProfileView({ auth, compact = false }) {
       {compact && (
         <div className="flex justify-end mb-4">
           <button onClick={() => setEditing(p => !p)}
-            className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-xl hover:bg-gray-50">
+            className="px-4 py-2 text-sm font-medium rounded-xl transition-colors"
+            style={{border:'1px solid var(--t-border)',color:'var(--t-text)',background:'var(--t-tab-inactive)'}}>
             {editing ? t("profile.cancel") : t("profile.edit")}
           </button>
         </div>
