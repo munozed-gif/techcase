@@ -651,7 +651,7 @@ export default function App() {
       case "arena":          return <ArenaView auth={auth} />;
       case "profile":        return pendingUserId
                                ? <ConsultantProfileView userId={pendingUserId} onBack={() => { setActiveView("settings"); setPendingUserId(null); }} />
-                               : auth.isConsultant ? <ConsultantProfileView /> : <ProfileView auth={auth} />;
+                               : <ProfileView auth={auth} />;
       case "consultants":    return <ConsultantsView auth={auth} />;
       case "users":          return auth.isAdmin ? <UsersView /> : <Dashboard auth={auth} />;
       case "reports":        return (auth.isAdmin || auth.isManager) ? <ReportsView /> : <Dashboard auth={auth} />;
