@@ -309,6 +309,8 @@ import {
   SystemSettingsProvider, useSystemSettings, usePermissions,
 } from "./src/hooks/useSystemSettings.jsx";
 
+import { ThemeProvider } from "./src/context/ThemeContext.jsx";
+
 import {
   UpgradeModal,
   SettingsUsersTab, SettingsPhasesTab, SettingsCatalogTab,
@@ -698,10 +700,11 @@ export default function App() {
   }
 
   return (
+    <ThemeProvider initialTheme={auth.profile?.ui_theme ?? "dark"} userId={auth.user?.id}>
     <SystemSettingsProvider>
       <LanguageProvider userId={auth.user?.id} initialLang={auth.profile?.language_pref}>
         <StartDateMonitor auth={auth} />
-        <div className="arena-dark min-h-screen bg-[#EAF4FD]">
+        <div className="min-h-screen bg-[#EAF4FD]">
           <Sidebar
             role={auth.role}
             activeView={activeView}
@@ -745,6 +748,7 @@ export default function App() {
         </div>
       </LanguageProvider>
     </SystemSettingsProvider>
+    </ThemeProvider>
   );
 }
 

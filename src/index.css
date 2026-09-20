@@ -8,6 +8,87 @@
    Sidebar is left unchanged (already dark).
 ═══════════════════════════════════════════════════════════════ */
 
+/* ── Theme tokens: used by inline styles via var(--t-*) ─────────
+   Light values live on :root; .arena-dark overrides them.
+   This is what makes the profile theme toggle work.
+───────────────────────────────────────────────────────────────── */
+:root {
+  /* Inline-style backgrounds */
+  --t-card-bg:            #ffffff;
+  --t-tab-active:         #F8FAFC;
+  --t-tab-inactive:       #FAFAFA;
+  --t-tab-border:         #F1F5F9;
+  --t-arrow-bg:           #ffffff;
+  --t-arrow-border:       #CBD5E1;
+  --t-pill-bar:           #ffffff;
+  --t-pill-inactive-bg:   #ffffff;
+  --t-pill-inactive-bdr:  #E2E8F0;
+  --t-row-bg:             rgba(26,75,140,0.04);
+  --t-row-border:         rgba(26,75,140,0.1);
+  /* Text */
+  --t-text:               #0F172A;
+  --t-text2:              #64748B;
+  --t-text-accent:        #1A4B8C;
+  /* Borders */
+  --t-border:             #E2E8F0;
+  --t-border-active:      #CBD5E1;
+  /* Badges */
+  --t-badge-act-bg:       #DBEAFE;
+  --t-badge-act-color:    #2563EB;
+  --t-badge-inact-bg:     #F1F5F9;
+  --t-badge-inact-color:  #94A3B8;
+  /* Mark-done button */
+  --t-done-bg:            #F0FDF4;
+  --t-done-border:        #BBF7D0;
+  --t-done-color:         #16A34A;
+  /* Active pill tab */
+  --t-pill-act-bg:        #1A4B8C;
+  --t-pill-act-border:    #1A4B8C;
+  --t-pill-act-color:     #ffffff;
+  /* Galaxy explorer */
+  --t-galaxy-bg:          #ffffff;
+  --t-orb-avatar:         #ffffff;
+}
+
+.arena-dark {
+  /* Inline-style backgrounds */
+  --t-card-bg:            #0C1522;
+  --t-tab-active:         rgba(37,99,235,0.1);
+  --t-tab-inactive:       rgba(15,30,55,0.6);
+  --t-tab-border:         rgba(100,160,220,0.12);
+  --t-arrow-bg:           #1A2F44;
+  --t-arrow-border:       rgba(100,160,220,0.25);
+  --t-pill-bar:           rgba(12,21,34,0.8);
+  --t-pill-inactive-bg:   rgba(15,30,55,0.5);
+  --t-pill-inactive-bdr:  rgba(100,160,220,0.22);
+  --t-row-bg:             rgba(15,30,55,0.5);
+  --t-row-border:         rgba(100,160,220,0.15);
+  /* Text */
+  --t-text:               #DCE8F4;
+  --t-text2:              #7090B0;
+  --t-text-accent:        #60A5FA;
+  /* Borders */
+  --t-border:             rgba(100,160,220,0.15);
+  --t-border-active:      rgba(100,160,220,0.4);
+  /* Badges */
+  --t-badge-act-bg:       rgba(37,99,235,0.3);
+  --t-badge-act-color:    #60A5FA;
+  --t-badge-inact-bg:     rgba(100,116,139,0.2);
+  --t-badge-inact-color:  #7090B0;
+  /* Mark-done button */
+  --t-done-bg:            rgba(16,185,129,0.15);
+  --t-done-border:        rgba(52,211,153,0.4);
+  --t-done-color:         #34D399;
+  /* Active pill tab */
+  --t-pill-act-bg:        #2563EB;
+  --t-pill-act-border:    #3B82F6;
+  --t-pill-act-color:     #ffffff;
+  /* Galaxy explorer */
+  --t-galaxy-bg:          #0C1522;
+  --t-orb-avatar:         #1A2F44;
+}
+
+/* ── Dark-theme palette (Tailwind class overrides below) ───── */
 :root {
   --ad-bg:        #05080F;
   --ad-panel:     #0C1522;

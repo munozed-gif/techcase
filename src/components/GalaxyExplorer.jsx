@@ -34,7 +34,7 @@ function OrbNode({ r, slotIdx, total, dur = 14, size = 40, onClick, highlight, c
           border: highlight ? '2.5px solid #2563EB' : '2px solid rgba(255,255,255,0.55)',
           boxShadow: highlight ? '0 0 14px rgba(37,99,235,0.5)' : '0 2px 8px rgba(0,0,0,0.18)',
           overflow: 'hidden', cursor: onClick ? 'pointer' : 'default',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1A2F44',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--t-orb-avatar)',
           transition: 'border-color .2s, box-shadow .2s',
         }}>
           {children}
@@ -74,7 +74,7 @@ function CenterAvatar({ client, companyName, onClick, size = 58 }) {
       border: '2px solid rgba(37,99,235,0.3)',
       boxShadow: '0 0 20px rgba(37,99,235,0.2)',
       overflow: 'hidden', cursor: onClick ? 'pointer' : 'default',
-      zIndex: 10, background: '#1A2F44',
+      zIndex: 10, background: 'var(--t-orb-avatar)',
     }}>
       <AvatarCircle src={client?.avatar_url} name={companyName} size={size} color="#2563EB" fontSize={Math.round(size * 0.3)} />
     </div>
@@ -84,13 +84,13 @@ function CenterAvatar({ client, companyName, onClick, size = 58 }) {
 function StatTile({ value, label }) {
   return (
     <div style={{ flex: 1, background: 'rgba(37,99,235,0.06)', borderRadius: 8, padding: '8px', textAlign: 'center' }}>
-      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 22, fontWeight: 800, color: '#60A5FA' }}>{value}</div>
+      <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 22, fontWeight: 800, color: 'var(--t-text-accent)' }}>{value}</div>
       <div style={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6B8AB8' }}>{label}</div>
     </div>
   );
 }
 
-function Chip({ children, color = '#60A5FA', bg = 'rgba(15,30,55,0.5)', border = 'rgba(100,160,220,0.25)' }) {
+function Chip({ children, color = 'var(--t-text-accent)', bg = 'var(--t-row-bg)', border = 'var(--t-row-border)' }) {
   return (
     <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 99, background: bg, border: `1px solid ${border}`, color }}>
       {children}
@@ -272,22 +272,22 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '8px 4px' }}>
           <div style={{ textAlign: 'center', padding: '12px 0 8px' }}>
-            <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 20, fontWeight: 700, color: '#60A5FA', marginBottom: 4 }}>
+            <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 20, fontWeight: 700, color: 'var(--t-text-accent)', marginBottom: 4 }}>
               {customers.length} {customers.length === 1 ? 'Customer' : 'Customers'} · {openCases.length} Open
             </div>
             <div style={{ fontSize: 12, color: '#6B8AB8' }}>Click a customer to explore their cases</div>
           </div>
           {customers.map((cust, i) => (
             <div key={cust.id} onClick={() => navigate(2, cust)}
-              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', background: 'rgba(15,30,55,0.5)', border: '1px solid rgba(100,160,220,0.15)', borderRadius: 10, cursor: 'pointer' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', background: 'var(--t-row-bg)', border: '1px solid var(--t-row-border)', borderRadius: 10, cursor: 'pointer' }}>
               <div style={{ width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: ORB_COLORS[i % ORB_COLORS.length], display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff' }}>
                 {cust.client?.avatar_url ? <img src={cust.client.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : cust.companyName.slice(0, 2).toUpperCase()}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#60A5FA', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cust.companyName}</div>
-                <div style={{ fontSize: 10, color: '#6B8AB8' }}>{cust.cases.length} case{cust.cases.length !== 1 ? 's' : ''}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-accent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cust.companyName}</div>
+                <div style={{ fontSize: 10, color: 'var(--t-text2)' }}>{cust.cases.length} case{cust.cases.length !== 1 ? 's' : ''}</div>
               </div>
-              <span style={{ fontSize: 16, color: 'rgba(100,160,220,0.5)' }}>›</span>
+              <span style={{ fontSize: 16, color: 'var(--t-text2)' }}>›</span>
             </div>
           ))}
         </div>
@@ -303,15 +303,15 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '4px 4px' }}>
           {/* Customer card */}
-          <div style={{ background: 'rgba(15,30,55,0.5)', border: '1px solid rgba(100,160,220,0.2)', borderRadius: 14, padding: '14px' }}>
+          <div style={{ background: 'var(--t-row-bg)', border: '1px solid var(--t-border-active)', borderRadius: 14, padding: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
               <div style={{ width: 46, height: 46, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: '#fff', border: '2px solid rgba(37,99,235,0.3)' }}>
                 {cust.client?.avatar_url ? <img src={cust.client.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : cust.companyName.slice(0, 2).toUpperCase()}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 17, fontWeight: 700, color: '#60A5FA', lineHeight: 1.1 }}>{cust.companyName}</div>
+                <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 17, fontWeight: 700, color: 'var(--t-text-accent)', lineHeight: 1.1 }}>{cust.companyName}</div>
                 {cust.client?.full_name && cust.client.full_name !== cust.companyName && (
-                  <div style={{ fontSize: 11, color: '#7090B0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cust.client.full_name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--t-text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cust.client.full_name}</div>
                 )}
                 {cust.client?.email && <div style={{ fontSize: 10, color: '#6B8AB8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cust.client.email}</div>}
               </div>
@@ -346,7 +346,7 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
                 <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#6B8AB8', marginBottom: 4 }}>Skills Needed</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                   {allSkills.slice(0, 8).map(sk => (
-                    <span key={sk} style={{ fontSize: 10, padding: '2px 7px', borderRadius: 6, background: 'rgba(37,99,235,0.15)', border: '1px solid rgba(37,99,235,0.3)', color: '#60A5FA' }}>{sk}</span>
+                    <span key={sk} style={{ fontSize: 10, padding: '2px 7px', borderRadius: 6, background: 'var(--t-row-bg)', border: '1px solid var(--t-row-border)', color: 'var(--t-text-accent)' }}>{sk}</span>
                   ))}
                   {allSkills.length > 8 && <span style={{ fontSize: 10, color: '#6B8AB8' }}>+{allSkills.length - 8}</span>}
                 </div>
@@ -359,15 +359,15 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
             const applied = appliedCaseIds.has(cs.id);
             return (
               <div key={cs.id} onClick={() => navigate(3, cust, cs)}
-                style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 12px', background: 'rgba(15,30,55,0.5)', border: `1px solid ${applied ? 'rgba(5,150,105,0.3)' : 'rgba(100,160,220,0.15)'}`, borderRadius: 10, cursor: 'pointer' }}>
+                style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 12px', background: 'var(--t-row-bg)', border: `1px solid ${applied ? 'rgba(5,150,105,0.3)' : 'var(--t-row-border)'}`, borderRadius: 10, cursor: 'pointer' }}>
                 <div style={{ width: 26, height: 26, borderRadius: 6, background: ORB_COLORS[i % ORB_COLORS.length], display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{i + 1}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: '#60A5FA', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cs.title}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t-text-accent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cs.title}</div>
                   <div style={{ fontSize: 10, color: applied ? '#059669' : '#6B8AB8' }}>
                     {cs.applications?.length ?? 0} applied{applied ? ' · ✓ You applied' : ''}
                   </div>
                 </div>
-                <span style={{ fontSize: 16, color: 'rgba(100,160,220,0.5)', flexShrink: 0 }}>›</span>
+                <span style={{ fontSize: 16, color: 'var(--t-text2)', flexShrink: 0 }}>›</span>
               </div>
             );
           })}
@@ -383,19 +383,19 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '4px 4px' }}>
           {/* Customer mini-card */}
-          <div style={{ background: 'rgba(15,30,55,0.5)', border: '1px solid rgba(100,160,220,0.15)', borderRadius: 12, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ background: 'var(--t-row-bg)', border: '1px solid var(--t-row-border)', borderRadius: 12, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 34, height: 34, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff' }}>
               {cust.client?.avatar_url ? <img src={cust.client.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : cust.companyName.slice(0, 2).toUpperCase()}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#60A5FA', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cust.companyName}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t-text-accent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cust.companyName}</div>
               {cust.client?.email && <div style={{ fontSize: 10, color: '#6B8AB8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cust.client.email}</div>}
             </div>
           </div>
           {/* Case detail card */}
-          <div style={{ background: 'rgba(15,30,55,0.5)', border: '1px solid rgba(100,160,220,0.25)', borderRadius: 14, padding: '14px', flex: 1 }}>
-            <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 19, fontWeight: 800, color: '#DCE8F4', lineHeight: 1.2, marginBottom: 6 }}>{cs.title}</div>
-            {cs.description && <div style={{ fontSize: 11, color: '#7090B0', lineHeight: 1.5, marginBottom: 10 }}>{cs.description.slice(0, 140)}{cs.description.length > 140 ? '…' : ''}</div>}
+          <div style={{ background: 'var(--t-row-bg)', border: '1px solid var(--t-border)', borderRadius: 14, padding: '14px', flex: 1 }}>
+            <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: 19, fontWeight: 800, color: 'var(--t-text)', lineHeight: 1.2, marginBottom: 6 }}>{cs.title}</div>
+            {cs.description && <div style={{ fontSize: 11, color: 'var(--t-text2)', lineHeight: 1.5, marginBottom: 10 }}>{cs.description.slice(0, 140)}{cs.description.length > 140 ? '…' : ''}</div>}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 10 }}>
               {cs.budget        && <Chip color="#059669" bg="rgba(5,150,105,0.08)" border="rgba(5,150,105,0.25)">${Number(cs.budget).toLocaleString()}</Chip>}
               {cs.area_sap      && <Chip color="#0066CC" bg="rgba(0,102,204,0.07)" border="rgba(0,102,204,0.22)">{cs.area_sap}</Chip>}
@@ -406,7 +406,7 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
                 <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#6B8AB8', marginBottom: 4 }}>Skills</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                   {cs.skills_required.slice(0, 5).map(sk => (
-                    <span key={sk} style={{ fontSize: 10, padding: '2px 7px', borderRadius: 6, background: 'rgba(37,99,235,0.15)', border: '1px solid rgba(37,99,235,0.3)', color: '#60A5FA' }}>{sk}</span>
+                    <span key={sk} style={{ fontSize: 10, padding: '2px 7px', borderRadius: 6, background: 'var(--t-row-bg)', border: '1px solid var(--t-row-border)', color: 'var(--t-text-accent)' }}>{sk}</span>
                   ))}
                 </div>
               </div>
@@ -449,21 +449,21 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
   ];
 
   return (
-    <div style={{ background: '#0C1522', borderRadius: 20, border: '1.5px solid rgba(100,160,220,0.2)', overflow: 'hidden', marginBottom: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 180px)', minHeight: 560 }}>
+    <div style={{ background: 'var(--t-galaxy-bg)', borderRadius: 20, border: '1.5px solid var(--t-border)', overflow: 'hidden', marginBottom: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 180px)', minHeight: 560 }}>
       {/* Header bar */}
-      <div style={{ padding: '12px 18px', borderBottom: '1px solid rgba(100,160,220,0.15)', display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(15,30,55,0.6)', flexShrink: 0 }}>
+      <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--t-border)', display: 'flex', alignItems: 'center', gap: 10, background: 'var(--t-tab-inactive)', flexShrink: 0 }}>
         {level > 1 && (
           <button onClick={() => level === 2 ? navigate(1) : navigate(2, selCustomer)}
-            style={{ background: 'rgba(15,30,55,0.5)', border: '1px solid rgba(100,160,220,0.25)', borderRadius: 7, color: '#60A5FA', fontSize: 11, fontWeight: 600, padding: '4px 10px', cursor: 'pointer', flexShrink: 0 }}>
+            style={{ background: 'var(--t-pill-inactive-bg)', border: '1px solid var(--t-border-active)', borderRadius: 7, color: 'var(--t-text-accent)', fontSize: 11, fontWeight: 600, padding: '4px 10px', cursor: 'pointer', flexShrink: 0 }}>
             ‹ Back
           </button>
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, flex: 1, overflow: 'hidden' }}>
           {breadcrumbs.map((bc, i) => bc.label && (
             <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, overflow: 'hidden' }}>
-              {i > 0 && <span style={{ fontSize: 10, color: 'rgba(100,160,220,0.4)', flexShrink: 0 }}>›</span>}
+              {i > 0 && <span style={{ fontSize: 10, color: 'var(--t-text2)', flexShrink: 0 }}>›</span>}
               <span onClick={bc.onClick ?? undefined}
-                style={{ fontSize: 11, fontWeight: i + 1 === level ? 700 : 500, color: i + 1 === level ? '#60A5FA' : 'rgba(96,165,250,0.45)', cursor: bc.onClick && i + 1 < level ? 'pointer' : 'default', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
+                style={{ fontSize: 11, fontWeight: i + 1 === level ? 700 : 500, color: i + 1 === level ? 'var(--t-text-accent)' : 'var(--t-text2)', cursor: bc.onClick && i + 1 < level ? 'pointer' : 'default', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
                 {bc.label}
               </span>
             </span>
@@ -477,11 +477,11 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
       {/* Body */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* Solar system — left, large panel */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0C1522', opacity: fading ? 0 : 1, transition: 'opacity .16s', position: 'relative' }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--t-galaxy-bg)', opacity: fading ? 0 : 1, transition: 'opacity .16s', position: 'relative' }}>
           {renderSystem()}
         </div>
         {/* Sidebar — right, fixed-width panel */}
-        <div style={{ width: 320, flexShrink: 0, minWidth: 0, padding: '16px 20px', display: 'flex', flexDirection: 'column', overflowY: 'auto', borderLeft: '1px solid rgba(100,160,220,0.15)', opacity: fading ? 0 : 1, transition: 'opacity .16s' }}>
+        <div style={{ width: 320, flexShrink: 0, minWidth: 0, padding: '16px 20px', display: 'flex', flexDirection: 'column', overflowY: 'auto', borderLeft: '1px solid var(--t-border)', opacity: fading ? 0 : 1, transition: 'opacity .16s' }}>
           {renderSidebar()}
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTheme } from "../context/ThemeContext.jsx";
 import {
   Briefcase, Camera, Check, ChevronLeft, ChevronRight, DollarSign, Globe,
   GraduationCap, Mail, Pencil, Plane, Plus, Star, Trash2, UserMinus, Users, X,
@@ -55,6 +56,7 @@ function ProfileView({ auth, compact = false }) {
   const [form, setForm]             = useState({});
   const [saving, setSaving]         = useState(false);
   const fileRef = useRef();
+  const { isDark, setTheme } = useTheme();
 
   useEffect(() => {
     if (!editing) setForm({
@@ -360,6 +362,22 @@ function ProfileView({ auth, compact = false }) {
               className="rounded accent-blue-600" />
             {t("label.travel")}
           </label>
+
+          {/* Appearance */}
+          <div className="mb-4">
+            <div className="text-sm font-medium text-gray-700 mb-2">Appearance</div>
+            <div className="flex gap-2">
+              <button onClick={() => setTheme("dark")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${isDark ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-gray-200 text-gray-600 hover:border-blue-400"}`}>
+                🌙 Dark
+              </button>
+              <button onClick={() => setTheme("light")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${!isDark ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-gray-200 text-gray-600 hover:border-blue-400"}`}>
+                ☀️ Light
+              </button>
+            </div>
+          </div>
+
           <div className="flex justify-end gap-3">
             <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
             <button onClick={handleSave} disabled={saving}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTheme } from "../context/ThemeContext.jsx";
 import {
   Activity, AlertCircle, Building2, Camera, Check, CheckCircle2, ChevronLeft,
   ChevronRight, ClipboardList, Clock, Code2, CreditCard, Database,
@@ -73,6 +74,7 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm]       = useState({});
   const [saving, setSaving]   = useState(false);
+  const { isDark, setTheme } = useTheme();
   const [clientAvatarUrl, setClientAvatarUrl] = useState(auth.profile?.avatar_url ?? null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarInputRef = useRef(null);
@@ -485,6 +487,21 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          {/* Appearance */}
+          <div className="mt-4">
+            <div className="text-sm font-medium text-gray-700 mb-2">Appearance</div>
+            <div className="flex gap-2">
+              <button onClick={() => setTheme("dark")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${isDark ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-gray-200 text-gray-600 hover:border-blue-400"}`}>
+                🌙 Dark
+              </button>
+              <button onClick={() => setTheme("light")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${!isDark ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-gray-200 text-gray-600 hover:border-blue-400"}`}>
+                ☀️ Light
+              </button>
             </div>
           </div>
 
