@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // ─── Nova Logo Mark ─────────────────────────────────────────────────────────
 // Module-level injection so the keyframe is available even when LandingView isn't mounted
@@ -437,7 +437,323 @@ const CSS = `
 
 #arena-landing .fade-in{opacity:0;transform:translateY(24px);transition:opacity .6s ease,transform .6s ease;}
 #arena-landing .fade-in.visible{opacity:1;transform:translateY(0);}
+
+/* ── DEMO CAROUSEL ───────────────────────────────────────────────────── */
+#arena-landing .dc-section{padding:8px 24px 80px;}
+#arena-landing .dc-dots{display:flex;justify-content:center;gap:7px;margin-bottom:32px;}
+#arena-landing .dc-dot{height:6px;width:6px;border-radius:3px;border:none;padding:0;background:rgba(100,160,220,0.25);cursor:pointer;transition:all .25s;}
+#arena-landing .dc-dot.on{width:28px;background:#2563EB;}
+#arena-landing .dc-slides{max-width:1020px;margin:0 auto;}
+#arena-landing .dc-slide{display:none;grid-template-columns:1fr 1fr;gap:52px;align-items:center;}
+#arena-landing .dc-slide.on{display:grid;animation:dc-fadeUp .35s ease forwards;}
+@keyframes dc-fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+@media(max-width:660px){#arena-landing .dc-slide{grid-template-columns:1fr;gap:28px;}}
+#arena-landing .dc-tag{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#F59E0B;margin-bottom:10px;}
+#arena-landing .dc-slide h2{font-family:'DM Serif Display',Georgia,serif;font-size:clamp(24px,3.5vw,36px);line-height:1.15;color:#DCE8F4;text-wrap:balance;letter-spacing:-0.01em;margin-bottom:14px;}
+#arena-landing .dc-slide p{color:#7090B0;font-size:15px;line-height:1.7;margin-bottom:22px;}
+#arena-landing .dc-flist{list-style:none;display:flex;flex-direction:column;gap:10px;}
+#arena-landing .dc-flist li{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#7090B0;line-height:1.5;}
+#arena-landing .dc-fdot{width:18px;height:18px;border-radius:50%;flex-shrink:0;background:rgba(34,211,238,0.08);border:1.5px solid rgba(34,211,238,0.4);display:flex;align-items:center;justify-content:center;}
+#arena-landing .dc-prog-wrap{max-width:1020px;margin:18px auto 0;height:2px;background:rgba(100,160,220,0.1);border-radius:1px;overflow:hidden;}
+#arena-landing .dc-prog-fill{height:100%;background:#2563EB;transition:width .08s linear;}
+#arena-landing .dc-mockup{background:#0D1E30;border:1px solid rgba(100,160,220,0.12);border-radius:14px;overflow:hidden;box-shadow:0 2px 0 rgba(100,160,220,0.06),0 24px 64px rgba(0,0,0,.5);}
+#arena-landing .dc-chrome{background:#132436;border-bottom:1px solid rgba(100,160,220,0.1);padding:9px 12px;display:flex;align-items:center;gap:7px;}
+#arena-landing .dc-chrdot{width:8px;height:8px;border-radius:50%;}
+#arena-landing .dc-urlbar{flex:1;height:20px;background:#1A2F44;border-radius:4px;margin:0 7px;display:flex;align-items:center;padding:0 8px;}
+#arena-landing .dc-urlstr{font-size:9px;color:rgba(100,160,220,0.4);}
+#arena-landing .dc-body{padding:14px;min-height:250px;}
+#arena-landing .dc-badge{display:inline-flex;font-size:9px;font-weight:600;padding:2px 7px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;}
+#arena-landing .dc-b-blue{background:rgba(37,99,235,0.18);color:#60A5FA;}
+#arena-landing .dc-b-amber{background:rgba(245,158,11,0.15);color:#F59E0B;}
+#arena-landing .dc-b-green{background:rgba(16,185,129,0.14);color:#10B981;}
+#arena-landing .dc-b-purple{background:rgba(167,139,250,0.14);color:#A78BFA;}
+#arena-landing .dc-b-gray{background:rgba(100,160,220,0.08);color:#7090B0;}
+#arena-landing .dc-area{display:inline-flex;font-size:9px;color:#405870;background:#1A2F44;padding:2px 6px;border-radius:4px;}
+#arena-landing .dc-stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:12px;}
+#arena-landing .dc-stat{background:#132436;border:1px solid rgba(100,160,220,0.1);border-radius:9px;padding:10px;}
+#arena-landing .dc-stat-lbl{font-size:9px;color:#405870;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
+#arena-landing .dc-stat-val{font-size:20px;font-weight:700;color:#DCE8F4;font-variant-numeric:tabular-nums;line-height:1;}
+#arena-landing .dc-stat-delta{font-size:9px;color:#10B981;margin-top:3px;}
+#arena-landing .dc-case-row{display:flex;align-items:center;gap:7px;padding:7px 0;border-bottom:1px solid rgba(100,160,220,0.07);}
+#arena-landing .dc-case-row:last-child{border-bottom:none;}
+#arena-landing .dc-case-title{flex:1;font-size:10px;font-weight:500;color:#DCE8F4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#arena-landing .dc-rank-item{display:flex;align-items:center;gap:9px;padding:9px 10px;background:#132436;border-radius:9px;margin-bottom:7px;border:1px solid rgba(100,160,220,0.08);}
+#arena-landing .dc-rank-item.top{background:rgba(37,99,235,0.08);border-color:rgba(37,99,235,0.35);}
+#arena-landing .dc-rank-n{font-size:10px;font-weight:700;color:#405870;width:14px;flex-shrink:0;}
+#arena-landing .dc-rank-av{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;}
+#arena-landing .dc-rank-info{flex:1;min-width:0;}
+#arena-landing .dc-rank-name{font-size:10px;font-weight:600;color:#DCE8F4;}
+#arena-landing .dc-skill-tags{display:flex;gap:3px;flex-wrap:wrap;margin-top:3px;}
+#arena-landing .dc-stag{font-size:8px;padding:1px 5px;border-radius:3px;background:#1A2F44;color:#7090B0;}
+#arena-landing .dc-bar-wrap{height:2px;background:#1A2F44;border-radius:1px;overflow:hidden;margin-top:4px;}
+#arena-landing .dc-bar{height:100%;background:#2563EB;border-radius:1px;transition:width .9s ease;}
+#arena-landing .dc-rank-pts{font-size:17px;font-weight:800;color:#60A5FA;flex-shrink:0;}
+#arena-landing .dc-rank-item:not(.top) .dc-rank-pts{font-size:14px;color:#7090B0;}
+#arena-landing .dc-lc-track{position:relative;margin-bottom:14px;padding-top:6px;}
+#arena-landing .dc-lc-line{position:absolute;top:20px;left:10%;right:10%;height:2px;background:rgba(100,160,220,0.1);}
+#arena-landing .dc-lc-done{position:absolute;top:20px;left:10%;width:55%;height:2px;background:#2563EB;}
+#arena-landing .dc-lc-stages{display:flex;justify-content:space-between;position:relative;z-index:1;}
+#arena-landing .dc-lc-stage{display:flex;flex-direction:column;align-items:center;gap:5px;}
+#arena-landing .dc-lc-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+#arena-landing .dc-lc-dot.done{background:#2563EB;}
+#arena-landing .dc-lc-dot.current{background:transparent;border:2px solid #2563EB;box-shadow:0 0 0 3px rgba(37,99,235,0.2);}
+#arena-landing .dc-lc-dot.pending{background:#132436;border:2px solid rgba(100,160,220,0.15);}
+#arena-landing .dc-lc-lbl{font-size:8px;color:#405870;white-space:nowrap;}
+#arena-landing .dc-cc{background:#132436;border:1px solid rgba(37,99,235,0.3);border-radius:10px;padding:12px;}
+#arena-landing .dc-cc-title{font-size:11px;font-weight:600;color:#DCE8F4;margin-bottom:8px;}
+#arena-landing .dc-cc-meta{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;}
+#arena-landing .dc-cc-fields{display:flex;gap:16px;}
+#arena-landing .dc-cc-f-lbl{font-size:8px;color:#405870;margin-bottom:2px;}
+#arena-landing .dc-cc-f-val{font-size:10px;font-weight:600;color:#DCE8F4;}
+#arena-landing .dc-arena-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+#arena-landing .dc-arena-card{background:#132436;border:1px solid rgba(100,160,220,0.1);border-radius:10px;padding:10px;}
+#arena-landing .dc-arena-card.ft{background:rgba(37,99,235,0.07);border-color:rgba(37,99,235,0.4);}
+#arena-landing .dc-a-tag{font-size:8px;font-weight:700;color:#F59E0B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;}
+#arena-landing .dc-a-title{font-size:10px;font-weight:600;color:#DCE8F4;line-height:1.35;margin-bottom:6px;}
+#arena-landing .dc-a-foot{display:flex;align-items:center;justify-content:space-between;margin-top:8px;}
+#arena-landing .dc-a-match{font-size:12px;font-weight:700;color:#10B981;}
+#arena-landing .dc-a-apply{font-size:9px;font-weight:600;padding:3px 9px;background:#2563EB;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;}
+#arena-landing .dc-a-apply.ghost{background:#1A2F44;color:#7090B0;}
+#arena-landing .dc-a-more{display:flex;align-items:center;justify-content:center;border:1px dashed rgba(100,160,220,0.15);border-radius:10px;padding:10px;font-size:9px;color:#405870;}
+@media(prefers-reduced-motion:reduce){#arena-landing .dc-slide.on{animation:none;}#arena-landing .dc-bar{transition:none;}}
 `;
+
+const CHECK_SVG = (
+  <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+    <path d="M1.5 4l1.8 1.8L6.5 2" stroke="#22D3EE" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+const DONE_SVG = (
+  <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+    <path d="M1.5 4.5l2 2L7.5 2" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+function DemoCarousel() {
+  const TOTAL = 4;
+  const DURATION = 5200;
+  const TICK = 80;
+  const [cur, setCur] = useState(0);
+  const [barsOn, setBarsOn] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const elapsedRef = useRef(0);
+
+  useEffect(() => {
+    if (cur === 1) { setBarsOn(false); const t = setTimeout(() => setBarsOn(true), 300); return () => clearTimeout(t); }
+    setBarsOn(false);
+  }, [cur]);
+
+  useEffect(() => {
+    if (paused) return;
+    elapsedRef.current = 0;
+    setProgress(0);
+    const progTimer = setInterval(() => {
+      elapsedRef.current += TICK;
+      setProgress(Math.min((elapsedRef.current / DURATION) * 100, 100));
+    }, TICK);
+    const slideTimer = setTimeout(() => {
+      setCur(c => (c + 1) % TOTAL);
+    }, DURATION);
+    return () => { clearInterval(progTimer); clearTimeout(slideTimer); };
+  }, [paused, cur]);
+
+  function goTo(n) { setCur(n); }
+
+  return (
+    <section className="dc-section" id="demo" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+      <nav className="dc-dots" aria-label="Product tour navigation">
+        {["Dashboard","Ranking","Lifecycle","Arena"].map((lbl, i) => (
+          <button key={i} className={`dc-dot${cur===i?" on":""}`} aria-label={lbl} onClick={() => goTo(i)} />
+        ))}
+      </nav>
+
+      <div className="dc-slides">
+
+        {/* Slide 0 — Dashboard */}
+        <div className={`dc-slide${cur===0?" on":""}`}>
+          <div>
+            <div className="dc-tag">Command center</div>
+            <h2>Your full pipeline, live</h2>
+            <p>From open cases to assigned specialists — every SAP engagement tracked in one place, with real-time status.</p>
+            <ul className="dc-flist">
+              <li><span className="dc-fdot">{CHECK_SVG}</span>Real-time case status across all SAP modules</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>Team capacity and workload at a glance</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>Instant alerts when consultants apply</li>
+            </ul>
+          </div>
+          <div className="dc-mockup">
+            <div className="dc-chrome">
+              <div className="dc-chrdot" style={{background:"#FF5F57"}} /><div className="dc-chrdot" style={{background:"#FFBD2E"}} /><div className="dc-chrdot" style={{background:"#28C940"}} />
+              <div className="dc-urlbar"><span className="dc-urlstr">techcase.app/dashboard</span></div>
+            </div>
+            <div className="dc-body">
+              <div className="dc-stat-grid">
+                <div className="dc-stat"><div className="dc-stat-lbl">Active Cases</div><div className="dc-stat-val">12</div><div className="dc-stat-delta">↑ 3 this week</div></div>
+                <div className="dc-stat"><div className="dc-stat-lbl">Consultants</div><div className="dc-stat-val">48</div><div className="dc-stat-delta">7 available now</div></div>
+                <div className="dc-stat"><div className="dc-stat-lbl">Fill Rate</div><div className="dc-stat-val">94%</div><div className="dc-stat-delta">↑ 2% vs last mo.</div></div>
+              </div>
+              <div>
+                <div className="dc-case-row"><div className="dc-case-title">SAP FICO — Q4 Close Migration</div><span className="dc-area">FICO</span><span className="dc-badge dc-b-blue">In Progress</span></div>
+                <div className="dc-case-row"><div className="dc-case-title">MM/SD Integration — Logistics Hub</div><span className="dc-area">MM/SD</span><span className="dc-badge dc-b-amber">Estimated</span></div>
+                <div className="dc-case-row"><div className="dc-case-title">S/4HANA Upgrade — Pilot Phase</div><span className="dc-area">S/4HANA</span><span className="dc-badge dc-b-purple">Open</span></div>
+                <div className="dc-case-row"><div className="dc-case-title">SAP Basis — Infrastructure Review</div><span className="dc-area">Basis</span><span className="dc-badge dc-b-green">Assigned</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Slide 1 — Ranking */}
+        <div className={`dc-slide${cur===1?" on":""}`}>
+          <div>
+            <div className="dc-tag">Smart matching</div>
+            <h2>AI ranks the right fit, automatically</h2>
+            <p>Every applicant is scored across skills, trust level, client familiarity, and rate. The best match surfaces first — no manual sifting.</p>
+            <ul className="dc-flist">
+              <li><span className="dc-fdot">{CHECK_SVG}</span>Weighted scoring: skills, rating, experience, hourly rate</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>Familiarity bonus for consultants who know your stack</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>One-click auto-assign when the window closes</li>
+            </ul>
+          </div>
+          <div className="dc-mockup">
+            <div className="dc-chrome">
+              <div className="dc-chrdot" style={{background:"#FF5F57"}} /><div className="dc-chrdot" style={{background:"#FFBD2E"}} /><div className="dc-chrdot" style={{background:"#28C940"}} />
+              <div className="dc-urlbar"><span className="dc-urlstr">techcase.app/cases/fico-q4/ranking</span></div>
+            </div>
+            <div className="dc-body">
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                <span style={{fontSize:10,color:"#7090B0"}}>3 applicants scored</span>
+                <button style={{fontSize:9,padding:"4px 12px",background:"#2563EB",color:"#fff",border:"none",borderRadius:6,fontFamily:"inherit",fontWeight:600,cursor:"pointer"}}>Auto-assign ✦</button>
+              </div>
+              {[
+                {n:"#1",av:"MR",avBg:"rgba(37,99,235,0.18)",avC:"#60A5FA",name:"María Rodríguez",skills:["SAP FICO","S/4HANA","IFRS"],w:94,pts:94,top:true},
+                {n:"#2",av:"JL",avBg:"rgba(167,139,250,0.12)",avC:"#A78BFA",name:"James Liu",skills:["SAP FICO","BW Analytics"],w:87,pts:87,top:false},
+                {n:"#3",av:"AT",avBg:"rgba(16,185,129,0.1)",avC:"#10B981",name:"Ana Torres",skills:["SAP FICO","CPI Integration"],w:82,pts:82,top:false},
+              ].map(r => (
+                <div key={r.n} className={`dc-rank-item${r.top?" top":""}`}>
+                  <div className="dc-rank-n">{r.n}</div>
+                  <div className="dc-rank-av" style={{background:r.avBg,color:r.avC}}>{r.av}</div>
+                  <div className="dc-rank-info">
+                    <div className="dc-rank-name">{r.name}</div>
+                    <div className="dc-skill-tags">{r.skills.map(s => <span key={s} className="dc-stag">{s}</span>)}</div>
+                    <div className="dc-bar-wrap"><div className="dc-bar" style={{width: barsOn ? r.w+"%" : "0%"}} /></div>
+                  </div>
+                  <div className="dc-rank-pts">{r.pts}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Slide 2 — Lifecycle */}
+        <div className={`dc-slide${cur===2?" on":""}`}>
+          <div>
+            <div className="dc-tag">Full lifecycle</div>
+            <h2>Every stage tracked, nothing slips</h2>
+            <p>From the first brief to final sign-off. Configurable lifecycle templates with gate conditions, AI-generated specs, and automated transitions.</p>
+            <ul className="dc-flist">
+              <li><span className="dc-fdot">{CHECK_SVG}</span>Custom stage flows per project type</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>Gate conditions: documents, approvals, key user sign-off</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>AI functional spec generation at key milestones</li>
+            </ul>
+          </div>
+          <div className="dc-mockup">
+            <div className="dc-chrome">
+              <div className="dc-chrdot" style={{background:"#FF5F57"}} /><div className="dc-chrdot" style={{background:"#FFBD2E"}} /><div className="dc-chrdot" style={{background:"#28C940"}} />
+              <div className="dc-urlbar"><span className="dc-urlstr">techcase.app/cases/fico-q4</span></div>
+            </div>
+            <div className="dc-body">
+              <div className="dc-lc-track">
+                <div className="dc-lc-line" /><div className="dc-lc-done" />
+                <div className="dc-lc-stages">
+                  {[
+                    {lbl:"Open",state:"done"},{lbl:"Estimated",state:"done"},{lbl:"Assigned",state:"done"},
+                    {lbl:"In Progress",state:"current"},{lbl:"Review",state:"pending"},{lbl:"Done",state:"pending"},
+                  ].map(s => (
+                    <div key={s.lbl} className="dc-lc-stage">
+                      <div className={`dc-lc-dot ${s.state}`}>
+                        {s.state==="done" && DONE_SVG}
+                        {s.state==="current" && <div style={{width:8,height:8,borderRadius:"50%",background:"#2563EB"}} />}
+                      </div>
+                      <div className="dc-lc-lbl" style={s.state!=="pending"?{color:"#60A5FA"}:{}}>{s.lbl}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="dc-cc">
+                <div className="dc-cc-title">SAP FICO — Q4 Close Migration</div>
+                <div className="dc-cc-meta">
+                  <span className="dc-badge dc-b-blue">In Progress</span>
+                  <span className="dc-badge dc-b-amber">High Priority</span>
+                  <span className="dc-area">SAP FICO</span>
+                </div>
+                <div className="dc-cc-fields">
+                  <div><div className="dc-cc-f-lbl">Consultant</div><div className="dc-cc-f-val">María Rodríguez</div></div>
+                  <div><div className="dc-cc-f-lbl">Due date</div><div className="dc-cc-f-val">Oct 31, 2026</div></div>
+                  <div><div className="dc-cc-f-lbl">Spec status</div><div className="dc-cc-f-val" style={{color:"#22D3EE"}}>✓ Approved</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Slide 3 — Arena */}
+        <div className={`dc-slide${cur===3?" on":""}`}>
+          <div>
+            <div className="dc-tag">Consultant arena</div>
+            <h2>Your next project is waiting</h2>
+            <p>Browse open cases matched to your SAP expertise. See your match score before applying — focus your energy where it counts.</p>
+            <ul className="dc-flist">
+              <li><span className="dc-fdot">{CHECK_SVG}</span>Cases ranked by your personal skill match score</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>Confidential cases accessible after NDA acceptance</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>Form teams for large implementation projects</li>
+            </ul>
+          </div>
+          <div className="dc-mockup">
+            <div className="dc-chrome">
+              <div className="dc-chrdot" style={{background:"#FF5F57"}} /><div className="dc-chrdot" style={{background:"#FFBD2E"}} /><div className="dc-chrdot" style={{background:"#28C940"}} />
+              <div className="dc-urlbar"><span className="dc-urlstr">techcase.app/arena</span></div>
+            </div>
+            <div className="dc-body">
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                <span style={{fontSize:10,color:"#7090B0"}}>14 cases match your profile</span>
+                <div style={{display:"flex",gap:4}}>
+                  <span className="dc-badge dc-b-blue" style={{cursor:"pointer"}}>All</span>
+                  <span className="dc-badge dc-b-gray" style={{cursor:"pointer"}}>FICO</span>
+                  <span className="dc-badge dc-b-gray" style={{cursor:"pointer"}}>S/4HANA</span>
+                </div>
+              </div>
+              <div className="dc-arena-grid">
+                <div className="dc-arena-card ft">
+                  <div className="dc-a-tag">Best match</div>
+                  <div className="dc-a-title">FICO Chart of Accounts Restructure</div>
+                  <span className="dc-badge dc-b-amber" style={{fontSize:8}}>High Priority</span>
+                  <div className="dc-a-foot"><span className="dc-a-match">97% match</span><button className="dc-a-apply">Apply Now</button></div>
+                </div>
+                <div className="dc-arena-card">
+                  <div className="dc-a-tag" style={{color:"#7090B0"}}>SAP FICO</div>
+                  <div className="dc-a-title">Tax Compliance Automation</div>
+                  <span className="dc-badge dc-b-blue" style={{fontSize:8}}>Open</span>
+                  <div className="dc-a-foot"><span className="dc-a-match" style={{color:"#60A5FA"}}>89%</span><button className="dc-a-apply ghost">Apply</button></div>
+                </div>
+                <div className="dc-arena-card">
+                  <div className="dc-a-tag" style={{color:"#7090B0"}}>S/4HANA</div>
+                  <div className="dc-a-title">ERP Migration Readiness Review</div>
+                  <span className="dc-badge dc-b-purple" style={{fontSize:8}}>New</span>
+                  <div className="dc-a-foot"><span className="dc-a-match" style={{color:"#60A5FA"}}>84%</span><button className="dc-a-apply ghost">Apply</button></div>
+                </div>
+                <div className="dc-a-more">+11 more cases</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div className="dc-prog-wrap"><div className="dc-prog-fill" style={{width: progress+"%"}} /></div>
+    </section>
+  );
+}
 
 export function LandingView({ onSignIn }) {
   const [lang, setLang] = useState(() => {
@@ -862,21 +1178,8 @@ export function LandingView({ onSignIn }) {
         </div>
       </section>
 
-      {/* VIDEO */}
-      <section className="video-section" id="demo">
-        <div className="section-inner" style={{textAlign:"center"}}>
-          <div className="section-tag" style={{textAlign:"center"}}>{tl("video_tag")}</div>
-          <h2 style={{margin:"0 auto 12px"}}>{tl("video_h2")}</h2>
-          <p className="section-sub" style={{margin:"0 auto 36px"}}>{tl("video_sub")}</p>
-          <div className="video-wrap">
-            <div className="video-inner">
-              <div className="video-grid-bg" />
-              <div className="play-btn"><svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div>
-              <div className="video-overlay-text"><div className="video-label">{tl("video_lbl")}</div></div>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* DEMO CAROUSEL */}
+      <DemoCarousel />
 
       {/* TESTIMONIALS */}
       <section className="section">
