@@ -1,3 +1,184 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ═══════════════════════════════════════════════════════════════
+   Arena Dark Theme  — activated by .arena-dark on the app root
+   Palette mirrors the demo / promo video screens.
+   Sidebar is left unchanged (already dark).
+═══════════════════════════════════════════════════════════════ */
+
+:root {
+  --ad-bg:        #05080F;
+  --ad-panel:     #0C1522;
+  --ad-card:      #132436;
+  --ad-inner:     #1A2F44;
+  --ad-inner2:    #213549;
+  --ad-blo:       rgba(100,160,220,0.07);
+  --ad-b:         rgba(100,160,220,0.13);
+  --ad-bhi:       rgba(100,160,220,0.22);
+  --ad-text:      #DCE8F4;
+  --ad-text2:     #7090B0;
+  --ad-text3:     #405870;
+  --ad-blue:      #4F6EF7;
+  --ad-blue2:     #2563EB;
+  --ad-amber:     #F59E0B;
+  --ad-green:     #10B981;
+  --ad-cyan:      #22D3EE;
+  --ad-red:       #F87171;
+}
+
+/* ── Page background ── */
+.arena-dark { background-color: var(--ad-bg) !important; }
+.arena-dark [class*="EAF4FD"] { background-color: var(--ad-bg) !important; }
+
+/* ── Loading spinner ── */
+.arena-dark.min-h-screen { background-color: var(--ad-bg) !important; }
+
+/* ── White panels / cards ── */
+.arena-dark .bg-white { background-color: var(--ad-panel) !important; }
+
+/* ── Gray surface hierarchy ── */
+.arena-dark .bg-gray-50  { background-color: var(--ad-card)   !important; }
+.arena-dark .bg-gray-100 { background-color: var(--ad-inner)  !important; }
+.arena-dark .bg-gray-200 { background-color: var(--ad-inner2) !important; }
+
+/* ── Text ── */
+.arena-dark .text-gray-900,
+.arena-dark .text-gray-800 { color: var(--ad-text)  !important; }
+.arena-dark .text-gray-700 { color: #B0C8DF         !important; }
+.arena-dark .text-gray-600 { color: var(--ad-text2) !important; }
+.arena-dark .text-gray-500 { color: var(--ad-text2) !important; }
+.arena-dark .text-gray-400 { color: var(--ad-text3) !important; }
+.arena-dark .text-gray-300 { color: var(--ad-text3) !important; }
+
+/* ── Borders ── */
+.arena-dark .border-gray-50,
+.arena-dark .border-gray-100 { border-color: var(--ad-blo) !important; }
+.arena-dark .border-gray-200 { border-color: var(--ad-b)   !important; }
+.arena-dark .border-gray-300 { border-color: var(--ad-bhi) !important; }
+
+/* ── Dividers (divide-y etc.) ── */
+.arena-dark .divide-y > * + * { border-color: var(--ad-blo) !important; }
+.arena-dark hr { border-color: var(--ad-blo) !important; }
+
+/* ── Blue family ── */
+.arena-dark .bg-blue-50   { background-color: rgba(37,99,235,0.07)  !important; }
+.arena-dark .bg-blue-100  { background-color: rgba(37,99,235,0.14)  !important; }
+.arena-dark .bg-blue-200  { background-color: rgba(37,99,235,0.22)  !important; }
+.arena-dark .bg-blue-600  { background-color: var(--ad-blue2)        !important; }
+.arena-dark .bg-blue-700  { background-color: #1D4ED8                !important; }
+.arena-dark .text-blue-800,
+.arena-dark .text-blue-700 { color: #60A5FA !important; }
+.arena-dark .text-blue-600 { color: #60A5FA !important; }
+.arena-dark .text-blue-500 { color: #93C5FD !important; }
+.arena-dark .text-blue-400 { color: #93C5FD !important; }
+.arena-dark .text-blue-300 { color: #BFDBFE !important; }
+.arena-dark .border-blue-50,
+.arena-dark .border-blue-100 { border-color: rgba(37,99,235,0.15) !important; }
+.arena-dark .border-blue-200 { border-color: rgba(37,99,235,0.30) !important; }
+.arena-dark .border-blue-300 { border-color: rgba(37,99,235,0.45) !important; }
+
+/* ── Indigo family ── */
+.arena-dark .bg-indigo-50  { background-color: rgba(99,102,241,0.08)  !important; }
+.arena-dark .bg-indigo-100 { background-color: rgba(99,102,241,0.15)  !important; }
+.arena-dark .bg-indigo-200 { background-color: rgba(99,102,241,0.22)  !important; }
+.arena-dark .text-indigo-700 { color: #A5B4FC !important; }
+.arena-dark .text-indigo-600 { color: #A5B4FC !important; }
+.arena-dark .border-indigo-200 { border-color: rgba(99,102,241,0.28) !important; }
+
+/* ── Violet / purple ── */
+.arena-dark .bg-violet-100  { background-color: rgba(139,92,246,0.15) !important; }
+.arena-dark .text-violet-700 { color: #C4B5FD !important; }
+.arena-dark .bg-purple-100   { background-color: rgba(168,85,247,0.15) !important; }
+.arena-dark .text-purple-600,
+.arena-dark .text-purple-700 { color: #D8B4FE !important; }
+
+/* ── Green / emerald / teal ── */
+.arena-dark .bg-green-50   { background-color: rgba(16,185,129,0.07)  !important; }
+.arena-dark .bg-green-100  { background-color: rgba(34,197,94,0.13)   !important; }
+.arena-dark .text-green-700,
+.arena-dark .text-green-600 { color: #4ADE80 !important; }
+.arena-dark .border-green-200 { border-color: rgba(16,185,129,0.25) !important; }
+.arena-dark .bg-emerald-100  { background-color: rgba(16,185,129,0.13) !important; }
+.arena-dark .text-emerald-700,
+.arena-dark .text-emerald-600 { color: #34D399 !important; }
+.arena-dark .bg-teal-100  { background-color: rgba(20,184,166,0.13) !important; }
+.arena-dark .text-teal-700 { color: #2DD4BF !important; }
+
+/* ── Amber / yellow / orange ── */
+.arena-dark .bg-yellow-100 { background-color: rgba(245,158,11,0.13) !important; }
+.arena-dark .text-yellow-700,
+.arena-dark .text-yellow-600 { color: #FCD34D !important; }
+.arena-dark .bg-amber-100  { background-color: rgba(245,158,11,0.13) !important; }
+.arena-dark .text-amber-700,
+.arena-dark .text-amber-600 { color: #FCD34D !important; }
+.arena-dark .bg-orange-100  { background-color: rgba(249,115,22,0.13) !important; }
+.arena-dark .text-orange-700 { color: #FDBA74 !important; }
+
+/* ── Cyan ── */
+.arena-dark .bg-cyan-100  { background-color: rgba(6,182,212,0.13) !important; }
+.arena-dark .text-cyan-700,
+.arena-dark .text-cyan-600 { color: #67E8F9 !important; }
+
+/* ── Red ── */
+.arena-dark .bg-red-50  { background-color: rgba(239,68,68,0.08)  !important; }
+.arena-dark .bg-red-100 { background-color: rgba(239,68,68,0.15)  !important; }
+.arena-dark .text-red-700,
+.arena-dark .text-red-600 { color: var(--ad-red) !important; }
+
+/* ── Hover states ── */
+.arena-dark .hover\:bg-gray-50:hover  { background-color: var(--ad-card)  !important; }
+.arena-dark .hover\:bg-gray-100:hover { background-color: var(--ad-inner) !important; }
+.arena-dark .hover\:bg-blue-50:hover  { background-color: rgba(37,99,235,0.1) !important; }
+.arena-dark .hover\:bg-white:hover    { background-color: var(--ad-inner) !important; }
+.arena-dark .hover\:text-gray-900:hover { color: var(--ad-text) !important; }
+.arena-dark .hover\:shadow-sm:hover,
+.arena-dark .hover\:shadow:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.5) !important; }
+
+/* ── Shadows ── */
+.arena-dark .shadow-sm { box-shadow: 0 1px 3px rgba(0,0,0,0.45)  !important; }
+.arena-dark .shadow    { box-shadow: 0 2px 8px rgba(0,0,0,0.55)  !important; }
+.arena-dark .shadow-lg { box-shadow: 0 4px 20px rgba(0,0,0,0.65) !important; }
+.arena-dark .shadow-xl { box-shadow: 0 8px 32px rgba(0,0,0,0.7)  !important; }
+
+/* ── Inputs, textareas, selects ── */
+.arena-dark input:not([type="checkbox"]):not([type="radio"]),
+.arena-dark textarea,
+.arena-dark select {
+  background-color: var(--ad-card)  !important;
+  color:            var(--ad-text)  !important;
+  border-color:     var(--ad-b)     !important;
+}
+.arena-dark input::placeholder,
+.arena-dark textarea::placeholder { color: var(--ad-text3) !important; opacity: 1; }
+.arena-dark input:focus,
+.arena-dark textarea:focus,
+.arena-dark select:focus {
+  border-color: var(--ad-blue) !important;
+  box-shadow: 0 0 0 2px rgba(79,110,247,0.25) !important;
+  outline: none !important;
+}
+
+/* ── Tables ── */
+.arena-dark thead,
+.arena-dark th {
+  background-color: var(--ad-card)  !important;
+  color:            var(--ad-text2) !important;
+  border-color:     var(--ad-blo)   !important;
+}
+.arena-dark td  { border-color: var(--ad-blo) !important; }
+.arena-dark tr:hover td { background-color: var(--ad-inner) !important; }
+
+/* ── Ring / focus ring ── */
+.arena-dark .focus\:ring-blue-500:focus { --tw-ring-color: var(--ad-blue); }
+
+/* ── Global Search modal ── */
+.arena-dark .fixed.inset-0 > .bg-white,
+.arena-dark .bg-white.rounded-2xl { background-color: var(--ad-panel) !important; }
+
+/* ── Scrollbars ── */
+.arena-dark ::-webkit-scrollbar       { width: 5px; height: 5px; }
+.arena-dark ::-webkit-scrollbar-track { background: transparent; }
+.arena-dark ::-webkit-scrollbar-thumb { background: var(--ad-bhi); border-radius: 3px; }
+.arena-dark ::-webkit-scrollbar-thumb:hover { background: rgba(100,160,220,0.35); }

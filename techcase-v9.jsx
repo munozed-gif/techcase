@@ -577,7 +577,7 @@ export default function App() {
 
   if (auth.loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="arena-dark min-h-screen flex items-center justify-center bg-gray-50">
         <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
       </div>
     );
@@ -609,7 +609,7 @@ export default function App() {
 
   // Show role-specific onboarding wizard for new signups — full-screen, no sidebar
   if (onboardingRole && auth.user) {
-    const bg = "min-h-screen bg-[#EAF4FD] p-6";
+    const bg = "arena-dark min-h-screen bg-[#EAF4FD] p-6";
     let inner;
     if (onboardingRole === "consultant") {
       inner = <ConsultantOnboardingView auth={auth} onComplete={() => completeOnboarding("profile")} />;
@@ -701,7 +701,7 @@ export default function App() {
     <SystemSettingsProvider>
       <LanguageProvider userId={auth.user?.id} initialLang={auth.profile?.language_pref}>
         <StartDateMonitor auth={auth} />
-        <div className="min-h-screen bg-[#EAF4FD]">
+        <div className="arena-dark min-h-screen bg-[#EAF4FD]">
           <Sidebar
             role={auth.role}
             activeView={activeView}
