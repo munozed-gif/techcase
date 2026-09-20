@@ -1576,14 +1576,14 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
           <div style={{ position:'relative' }}>
             {carouselIdx > 0 && (
               <button onClick={() => scrollTo(carouselIdx - 1)}
-                style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid rgba(100,160,220,0.25)', background:'#1A2F44', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.4)', marginTop:-20 }}>
-                <ChevronLeft size={16} style={{color:'#7090B0'}}/>
+                style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid var(--t-arrow-border)', background:'var(--t-arrow-bg)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.15)', marginTop:-20 }}>
+                <ChevronLeft size={16} style={{color:'var(--t-text2)'}}/>
               </button>
             )}
             {carouselIdx < projectTabs.length - 1 && (
               <button onClick={() => scrollTo(carouselIdx + 1)}
-                style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid rgba(100,160,220,0.25)', background:'#1A2F44', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.4)', marginTop:-20 }}>
-                <ChevronRight size={16} style={{color:'#7090B0'}}/>
+                style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid var(--t-arrow-border)', background:'var(--t-arrow-bg)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.15)', marginTop:-20 }}>
+                <ChevronRight size={16} style={{color:'var(--t-text2)'}}/>
               </button>
             )}
             <div ref={projCarouselRef} onScroll={onScroll}
@@ -1595,21 +1595,21 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                 return (
                   <div key={tab.id}
                     style={{ flex:'0 0 calc(100% - 120px)', width:'calc(100% - 120px)', maxWidth:'calc(100% - 120px)', minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity:isActive?1:0.5, transform:isActive?'scale(1)':'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
-                    <div style={{ borderRadius:12, border:`1px solid ${isActive?'rgba(96,165,250,0.3)':'rgba(100,160,220,0.15)'}`, background:'#0C1522', overflow:'hidden', width:'100%', boxSizing:'border-box', height:700, display:'flex', flexDirection:'column', boxShadow:isActive?'0 4px 20px rgba(0,0,0,.5)':'none', transition:'box-shadow .25s' }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', borderBottom:'1px solid rgba(100,160,220,0.1)', background:isActive?'rgba(37,99,235,0.1)':'rgba(15,30,55,0.6)', flexShrink:0, cursor:isActive?'default':'pointer' }}
+                    <div style={{ borderRadius:12, border:`1px solid ${isActive?'var(--t-border-active)':'var(--t-border)'}`, background:'var(--t-card-bg)', overflow:'hidden', width:'100%', boxSizing:'border-box', height:700, display:'flex', flexDirection:'column', boxShadow:isActive?'0 4px 20px rgba(0,0,0,.12)':'none', transition:'box-shadow .25s' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', borderBottom:'1px solid var(--t-tab-border)', background:isActive?'var(--t-tab-active)':'var(--t-tab-inactive)', flexShrink:0, cursor:isActive?'default':'pointer' }}
                         onClick={() => !isActive && scrollTo(i)}>
                         {st === "complete"
                           ? <div style={{width:16,height:16,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={9} color="white" strokeWidth={3}/></div>
                           : st === "in_progress"
                             ? <div style={{width:8,height:8,borderRadius:'50%',background:'#3B82F6',flexShrink:0,marginRight:2}}/>
-                            : <div style={{width:8,height:8,borderRadius:'50%',background:'rgba(100,160,220,0.3)',flexShrink:0,marginRight:2}}/>}
-                        <Icon size={13} style={{color:isActive?'#60A5FA':'#7090B0',flexShrink:0}}/>
-                        <span style={{flex:1,fontSize:12,fontWeight:700,color:isActive?'#DCE8F4':'#7090B0',minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{tab.label}</span>
-                        {tab.count !== null && <span style={{fontSize:10,fontWeight:600,padding:'1px 6px',borderRadius:99,background:isActive?'rgba(37,99,235,0.3)':'rgba(100,116,139,0.2)',color:isActive?'#60A5FA':'#7090B0',flexShrink:0}}>{tab.count}</span>}
+                            : <div style={{width:8,height:8,borderRadius:'50%',background:'var(--t-badge-inact-bg)',flexShrink:0,marginRight:2}}/>}
+                        <Icon size={13} style={{color:isActive?'var(--t-text-accent)':'var(--t-text2)',flexShrink:0}}/>
+                        <span style={{flex:1,fontSize:12,fontWeight:700,color:isActive?'var(--t-text)':'var(--t-text2)',minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{tab.label}</span>
+                        {tab.count !== null && <span style={{fontSize:10,fontWeight:600,padding:'1px 6px',borderRadius:99,background:isActive?'var(--t-badge-act-bg)':'var(--t-badge-inact-bg)',color:isActive?'var(--t-badge-act-color)':'var(--t-badge-inact-color)',flexShrink:0}}>{tab.count}</span>}
                         {isActive && tab.id !== "lifecycle" && (
                           <button onClick={e => { e.stopPropagation(); setProjManualComplete(tab.id, st !== "complete"); }}
                             title={st === "complete" ? "Mark incomplete" : "Mark complete"}
-                            style={{ flexShrink:0,display:'flex',alignItems:'center',gap:3,fontSize:10,fontWeight:600,padding:'2px 7px',borderRadius:99,border:`1px solid ${st==="complete"?'#BBF7D0':'#E2E8F0'}`,background:st==="complete"?'#F0FDF4':'#F8FAFC',color:st==="complete"?'#16A34A':'#94A3B8',cursor:'pointer',transition:'all .15s',whiteSpace:'nowrap' }}>
+                            style={{ flexShrink:0,display:'flex',alignItems:'center',gap:3,fontSize:10,fontWeight:600,padding:'2px 7px',borderRadius:99,border:`1px solid ${st==="complete"?'var(--t-done-border)':'var(--t-pill-inactive-bdr)'}`,background:st==="complete"?'var(--t-done-bg)':'var(--t-tab-inactive)',color:st==="complete"?'var(--t-done-color)':'var(--t-text2)',cursor:'pointer',transition:'all .15s',whiteSpace:'nowrap' }}>
                             <Check size={9} strokeWidth={3}/>
                             {st === "complete" ? "Done" : "Mark done"}
                           </button>
@@ -2257,19 +2257,19 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
             </div>
 
             {/* Footer pill bar */}
-            <div style={{ marginTop:10, background:'rgba(12,21,34,0.8)', borderRadius:12, border:'1px solid rgba(100,160,220,0.15)', padding:'10px 14px', display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none' }}>
+            <div style={{ marginTop:10, background:'var(--t-pill-bar)', borderRadius:12, border:'1px solid var(--t-border)', padding:'10px 14px', display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none' }}>
               {projectTabs.map((tab, i) => {
                 const Icon = tab.icon;
                 const isActive = tab.id === activeTab;
                 const st = projTabStatus[tab.id];
                 return (
                   <button key={tab.id} onClick={() => scrollTo(i)}
-                    style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'#3B82F6':st==="complete"?'rgba(74,222,128,0.45)':'rgba(100,160,220,0.22)'}`, background:isActive?'#2563EB':st==="complete"?'rgba(16,185,129,0.15)':'rgba(15,30,55,0.5)', color:isActive?'white':st==="complete"?'#4ADE80':'#7090B0', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
+                    style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'var(--t-pill-act-border)':st==="complete"?'var(--t-done-border)':'var(--t-pill-inactive-bdr)'}`, background:isActive?'var(--t-pill-act-bg)':st==="complete"?'var(--t-done-bg)':'var(--t-pill-inactive-bg)', color:isActive?'var(--t-pill-act-color)':st==="complete"?'var(--t-done-color)':'var(--t-text2)', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
                     {st === "complete" && !isActive
                       ? <div style={{width:13,height:13,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={8} color="white" strokeWidth={3}/></div>
                       : <Icon size={11}/>}
                     <span>{tab.label}</span>
-                    {tab.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)':st==="complete"?'rgba(16,185,129,0.2)':'rgba(100,116,139,0.15)',color:isActive?'rgba(255,255,255,.7)':st==="complete"?'#4ADE80':'#7090B0'}}>{tab.count}</span>}
+                    {tab.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)':st==="complete"?'var(--t-done-bg)':'var(--t-badge-inact-bg)',color:isActive?'rgba(255,255,255,.7)':st==="complete"?'var(--t-done-color)':'var(--t-badge-inact-color)'}}>{tab.count}</span>}
                   </button>
                 );
               })}
