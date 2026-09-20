@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "../lib/supabase.js";
 
-const ThemeCtx = createContext({ isDark: true, theme: "dark", setTheme: () => {} });
+const ThemeCtx = createContext({ isDark: true, theme: "dark", setTheme: () => {}, previewTheme: () => {} });
 
 export function ThemeProvider({ initialTheme, userId, children }) {
   const [theme, setThemeState] = useState(() => {
@@ -29,6 +29,7 @@ export function ThemeProvider({ initialTheme, userId, children }) {
     }
   }, [theme]);
 
+  // Full persist: updates state + localStorage + Supabase
   async function setTheme(t) {
     setThemeState(t);
     try { localStorage.setItem("ui_theme", t); } catch {}
@@ -37,8 +38,13 @@ export function ThemeProvider({ initialTheme, userId, children }) {
     }
   }
 
+  // Preview only: updates state + DOM class without any persistence
+  function previewTheme(t) {
+    setThemeState(t);
+  }
+
   return (
-    <ThemeCtx.Provider value={{ isDark: theme !== "light", theme, setTheme }}>
+    <ThemeCtx.Provider value={{ isDark: theme !== "light", theme, setTheme, previewTheme }}>
       {children}
     </ThemeCtx.Provider>
   );

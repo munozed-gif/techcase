@@ -56,31 +56,23 @@ function ProfileView({ auth, compact = false }) {
   const [form, setForm]             = useState({});
   const [saving, setSaving]         = useState(false);
   const fileRef = useRef();
-  const { isDark, theme, setTheme } = useTheme();
+  const { isDark, theme, setTheme, previewTheme } = useTheme();
   const themeOnEditStart = useRef(theme);
-  const [pendingTheme, setPendingTheme] = useState(theme);
 
-  // Capture the current theme whenever editing opens
+  // Capture the committed theme whenever editing opens
   useEffect(() => {
-    if (editing) {
-      themeOnEditStart.current = theme;
-      setPendingTheme(theme);
-    }
+    if (editing) themeOnEditStart.current = theme;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing]);
 
-  // Live-preview the theme in the DOM without persisting
+  // Live-preview: updates React state + DOM class — no persistence
   function previewAppearance(t) {
-    setPendingTheme(t);
-    document.documentElement.classList.toggle("arena-dark", t !== "light");
+    previewTheme(t);
   }
 
   // Cancel editing — revert any unpersisted theme preview
   function cancelEdit() {
-    if (pendingTheme !== themeOnEditStart.current) {
-      document.documentElement.classList.toggle("arena-dark", themeOnEditStart.current !== "light");
-      setPendingTheme(themeOnEditStart.current);
-    }
+    if (theme !== themeOnEditStart.current) previewTheme(themeOnEditStart.current);
     setEditing(false);
   }
 
@@ -113,7 +105,7 @@ function ProfileView({ auth, compact = false }) {
       });
       if (preferred_lang && preferred_lang !== lang) setLang(preferred_lang);
       // Persist theme only now (was just a preview until save)
-      if (pendingTheme !== theme) await setTheme(pendingTheme);
+      if (theme !== themeOnEditStart.current) await setTheme(theme);
       setEditing(false);
     } catch (e) { alert(e.message); }
     setSaving(false);
@@ -398,13 +390,13 @@ function ProfileView({ auth, compact = false }) {
             <div className="text-sm font-medium mb-2" style={{color:'var(--t-text2)'}}>Appearance</div>
             <div className="flex gap-2">
               <button onClick={() => previewAppearance("dark")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${pendingTheme !== "light" ? "bg-blue-600 border-blue-600 text-white" : "border-gray-200 text-gray-600 hover:border-blue-400"}`}
-                style={pendingTheme !== "light" ? {} : {background:'var(--t-card-bg)'}}>
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${isDark ? "bg-blue-600 border-blue-600 text-white" : "border-gray-200 text-gray-600 hover:border-blue-400"}`}
+                style={isDark ? {} : {background:'var(--t-card-bg)'}}>
                 🌙 Dark
               </button>
               <button onClick={() => previewAppearance("light")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${pendingTheme === "light" ? "bg-blue-600 border-blue-600 text-white" : "border-gray-200 text-gray-600 hover:border-blue-400"}`}
-                style={pendingTheme === "light" ? {} : {background:'var(--t-card-bg)'}}>
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${!isDark ? "bg-blue-600 border-blue-600 text-white" : "border-gray-200 text-gray-600 hover:border-blue-400"}`}
+                style={!isDark ? {} : {background:'var(--t-card-bg)'}}>
                 ☀️ Light
               </button>
             </div>
