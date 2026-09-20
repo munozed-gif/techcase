@@ -9,6 +9,7 @@ import { useT } from "../i18n/index.jsx";
 import { callClaude, logEvent } from "../lib/utils.js";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { usePlanConfig, usePlatformBranding } from "../hooks/useSystemSettings.jsx";
+import { useTheme } from "../context/ThemeContext.jsx";
 import { Select } from "./ui.jsx";
 import { DEFAULT_PLAN_CONFIG, PLAN_BADGE, ROLE_TO_PLAN_TYPE } from "../lib/businessConstants.js";
 
@@ -299,8 +300,9 @@ function ResumeImporter({ onExtracted }) {
   const [done, setDone]         = useState(false);
   const [error, setError]       = useState("");
   const [selected, setSelected] = useState(new Set(RESUME_SECTIONS.map(s => s.key)));
-  const [pending, setPending]   = useState(null); // extracted data waiting for user confirmation
+  const [pending, setPending]   = useState(null);
   const fileRef                 = useRef(null);
+  const { isDark }              = useTheme();
 
   function toggleSection(key) {
     setSelected(prev => {
@@ -406,19 +408,20 @@ function ResumeImporter({ onExtracted }) {
   }
 
   return (
-    <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-4 mb-2">
+    <div className="rounded-2xl border p-4 mb-2"
+      style={{borderColor:'var(--t-border)',background:isDark?'rgba(79,110,247,.08)':'linear-gradient(135deg,#eff6ff,#eef2ff)'}}>
       <div className="flex items-center gap-2 mb-3">
-        <Sparkles className="w-4 h-4 text-blue-600 flex-shrink-0" />
-        <span className="text-sm font-semibold text-blue-900">Fill with AI</span>
-        <span className="text-xs text-blue-400 ml-1">optional · takes ~5 sec</span>
+        <Sparkles className="w-4 h-4 text-blue-500 flex-shrink-0" />
+        <span className="text-sm font-semibold" style={{color:'var(--t-text)'}}>Fill with AI</span>
+        <span className="text-xs ml-1" style={{color:'var(--t-text2)'}}>optional · takes ~5 sec</span>
       </div>
 
       {/* Preview / confirm step */}
       {pending ? (
-        <div className="bg-white rounded-2xl border border-blue-200 p-4">
+        <div className="rounded-2xl border p-4" style={{background:'var(--t-card-bg)',borderColor:'var(--t-border)'}}>
           <div className="flex items-center gap-2 mb-3">
-            <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
-            <span className="text-sm font-semibold text-blue-900">Found in your resume</span>
+            <FileText className="w-4 h-4 text-blue-500 flex-shrink-0" />
+            <span className="text-sm font-semibold" style={{color:'var(--t-text)'}}>Found in your resume</span>
           </div>
           <div className="space-y-3 mb-4">
             {buildPreviewRows(pending).map(row => (
@@ -426,28 +429,30 @@ function ResumeImporter({ onExtracted }) {
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-gray-800">{row.label}</span>
+                    <span className="text-xs font-semibold" style={{color:'var(--t-text)'}}>{row.label}</span>
                     {row.count !== null && (
-                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-md">{row.count}</span>
+                      <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-md"
+                        style={{background:'var(--t-tab-inactive)',color:'var(--t-text)'}}>{row.count}</span>
                     )}
                   </div>
                   {row.detail.map((d, i) => (
-                    <p key={i} className="text-[11px] text-gray-500 mt-0.5 truncate">{d}</p>
+                    <p key={i} className="text-[11px] mt-0.5 truncate" style={{color:'var(--t-text2)'}}>{d}</p>
                   ))}
                 </div>
               </div>
             ))}
             {buildPreviewRows(pending).length === 0 && (
-              <p className="text-xs text-gray-400">Nothing useful was found — try pasting the text instead.</p>
+              <p className="text-xs" style={{color:'var(--t-text2)'}}>Nothing useful was found — try pasting the text instead.</p>
             )}
           </div>
-          <div className="flex gap-2 pt-3 border-t border-gray-100">
+          <div className="flex gap-2 pt-3 border-t" style={{borderColor:'var(--t-border)'}}>
             <button onClick={handleConfirm}
               className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5" />Apply to profile
             </button>
             <button onClick={handleDiscard}
-              className="px-4 py-2 border border-gray-200 text-xs font-semibold text-gray-600 rounded-xl hover:bg-gray-50 transition-colors">
+              className="px-4 py-2 text-xs font-semibold rounded-xl transition-colors"
+              style={{border:'1px solid var(--t-border)',color:'var(--t-text)',background:'var(--t-tab-inactive)'}}>
               Discard
             </button>
           </div>
@@ -455,18 +460,17 @@ function ResumeImporter({ onExtracted }) {
       ) : (
         <>
           {/* Section selector */}
-          <p className="text-[11px] font-semibold text-blue-700 mb-1.5 uppercase tracking-wide">What to extract</p>
+          <p className="text-[11px] font-semibold mb-1.5 uppercase tracking-wide" style={{color:'var(--t-text2)'}}>What to extract</p>
           <div className="flex flex-wrap gap-1.5 mb-3">
             {RESUME_SECTIONS.map(s => {
               const Icon = SectionIcons[s.icon] ?? Sparkles;
               const active = selected.has(s.key);
               return (
                 <button key={s.key} onClick={() => toggleSection(s.key)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
-                    active
-                      ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                      : "bg-white text-blue-500 border-blue-200 hover:border-blue-400"
-                  }`}>
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all"
+                  style={active
+                    ? {background:'#2563eb',color:'#fff',borderColor:'#2563eb'}
+                    : {background:'var(--t-tab-inactive)',color:'var(--t-text)',borderColor:'var(--t-border)'}}>
                   <Icon className="w-3 h-3" />
                   {s.label}
                 </button>
@@ -475,10 +479,13 @@ function ResumeImporter({ onExtracted }) {
           </div>
 
           {/* Upload / Paste toggle */}
-          <div className="flex gap-1 bg-blue-100/60 rounded-lg p-0.5 mb-3 w-fit">
+          <div className="flex gap-1 rounded-lg p-0.5 mb-3 w-fit" style={{background:'var(--t-tab-inactive)'}}>
             {[["upload","Upload PDF"],["paste","Paste text"]].map(([m,l]) => (
               <button key={m} onClick={() => { setMode(m); setError(""); setDone(false); }}
-                className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${mode===m?"bg-white text-blue-700 shadow-sm":"text-blue-600 hover:bg-white/50"}`}>
+                className="px-3 py-1 rounded-md text-xs font-semibold transition-all"
+                style={mode===m
+                  ? {background:'var(--t-card-bg)',color:'var(--t-text)',boxShadow:'0 1px 3px rgba(0,0,0,.15)'}
+                  : {color:'var(--t-text2)'}}>
                 {l}
               </button>
             ))}
@@ -489,19 +496,21 @@ function ResumeImporter({ onExtracted }) {
               <input ref={fileRef} type="file" accept="application/pdf" className="hidden"
                 onChange={e => { const f=e.target.files?.[0]; if(f) handleFile(f); e.target.value=""; }} />
               <button onClick={() => fileRef.current?.click()} disabled={loading}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-blue-300 text-sm text-blue-600 font-medium hover:border-blue-400 hover:bg-white/50 transition-all disabled:opacity-50">
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed text-sm font-medium transition-all disabled:opacity-50"
+                style={{borderColor:'var(--t-border)',color:'var(--t-text)',background:'var(--t-tab-inactive)'}}>
                 {loading
                   ? <><Loader2 className="w-4 h-4 animate-spin" />Reading resume…</>
                   : <><Upload className="w-4 h-4" />Choose PDF resume</>}
               </button>
-              <p className="text-[10px] text-blue-400 mt-1.5 text-center">PDF only · never stored · read in your browser</p>
+              <p className="text-[10px] mt-1.5 text-center" style={{color:'var(--t-text2)'}}>PDF only · never stored · read in your browser</p>
             </>
           )}
 
           {mode === "paste" && (
             <div className="space-y-2">
               <textarea value={pasted} onChange={e => setPasted(e.target.value)} rows={4}
-                className="w-full bg-white border border-blue-200 rounded-xl px-3 py-2 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                className="w-full rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                style={{background:'var(--t-card-bg)',border:'1px solid var(--t-border)',color:'var(--t-text)'}}
                 placeholder="Paste your LinkedIn About section, bio, CV text, or any professional description…" />
               <button onClick={handlePaste} disabled={loading || !pasted.trim()}
                 className="w-full py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">

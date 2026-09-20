@@ -281,8 +281,8 @@ function ProfileView({ auth, compact = false }) {
 
       {/* Edit form */}
       {editing && (
-        <div className="bg-white rounded-2xl border border-blue-200 shadow-sm p-6 mb-6">
-          <h3 className="font-semibold text-gray-900 mb-4">{t("profile.edit")}</h3>
+        <div className="rounded-2xl shadow-sm p-6 mb-6" style={{background:'var(--t-card-bg)',border:'1px solid var(--t-border)'}}>
+          <h3 className="font-semibold mb-4" style={{color:'var(--t-text)'}}>{t("profile.edit")}</h3>
           <ResumeImporter onExtracted={async data => {
             setForm(p => ({
               ...p,
