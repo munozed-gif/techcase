@@ -2518,13 +2518,13 @@ function ProjectsView({ auth, initialProjectId }) {
                   className="text-left rounded-xl px-4 py-3 border-2 transition-all flex items-center gap-3 flex-shrink-0"
                   style={isActive
                     ? { background: cm.activeBg, borderColor: cm.activeBdr }
-                    : { background: 'rgba(15,30,55,0.5)', borderColor: 'rgba(100,160,220,0.2)' }}>
+                    : { background: 'var(--t-tab-inactive)', borderColor: 'var(--t-border)' }}>
                   <div style={{ background: cm.iconBg, color: cm.iconClr, width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <s.Icon className="w-4 h-4" />
                   </div>
                   <div>
-                    <div style={{ color: isActive ? cm.numClr : '#DCE8F4' }} className="text-xl font-bold leading-none">{s.count}</div>
-                    <div className="text-xs mt-0.5 whitespace-nowrap" style={{ color: '#7090B0' }}>{s.label}</div>
+                    <div style={{ color: isActive ? cm.numClr : 'var(--t-text)' }} className="text-xl font-bold leading-none">{s.count}</div>
+                    <div className="text-xs mt-0.5 whitespace-nowrap" style={{ color: 'var(--t-text2)' }}>{s.label}</div>
                   </div>
                 </button>
               );

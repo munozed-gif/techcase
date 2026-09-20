@@ -373,8 +373,8 @@ function CasesView({ auth, initialCaseId }) {
                   onClick={() => setStatus("")}
                   className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl border font-semibold transition-all"
                   style={statusFilter === ""
-                    ? { background: "rgba(37,99,235,0.18)", color: "#60A5FA", borderColor: "#3B82F6" }
-                    : { background: "rgba(15,30,55,0.5)", color: "#7090B0", borderColor: "rgba(100,160,220,0.25)" }}>
+                    ? { background: "rgba(37,99,235,0.18)", color: "var(--t-text-accent)", borderColor: "#3B82F6" }
+                    : { background: "var(--t-tab-inactive)", color: "var(--t-text2)", borderColor: "var(--t-border)" }}>
                   <Layers size={16} />
                   <span className="text-xs leading-none">All <span className="opacity-70">{projectFiltered2.length}</span></span>
                 </button>
@@ -406,8 +406,8 @@ function CasesView({ auth, initialCaseId }) {
                     onClick={() => setPeriod(f => f === p.val ? "" : p.val)}
                     className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl border font-semibold transition-all"
                     style={active
-                      ? { background: "rgba(37,99,235,0.18)", color: "#60A5FA", borderColor: "#3B82F6" }
-                      : { background: "rgba(15,30,55,0.5)", color: "#7090B0", borderColor: "rgba(100,160,220,0.25)" }}>
+                      ? { background: "rgba(37,99,235,0.18)", color: "var(--t-text-accent)", borderColor: "#3B82F6" }
+                      : { background: "var(--t-tab-inactive)", color: "var(--t-text2)", borderColor: "var(--t-border)" }}>
                     <Icon size={16} />
                     <span className="text-xs leading-none text-center px-1">{p.label}</span>
                   </button>
