@@ -57,6 +57,11 @@
 .arena-dark .border-gray-100 { border-color: var(--ad-blo) !important; }
 .arena-dark .border-gray-200 { border-color: var(--ad-b)   !important; }
 .arena-dark .border-gray-300 { border-color: var(--ad-bhi) !important; }
+.arena-dark .border-gray-400 { border-color: rgba(100,160,220,0.38) !important; }
+.arena-dark .border-yellow-300 { border-color: rgba(253,224,71,0.45) !important; }
+.arena-dark .border-orange-300 { border-color: rgba(251,146,60,0.45) !important; }
+.arena-dark .border-blue-400   { border-color: rgba(96,165,250,0.65) !important; }
+.arena-dark .ring-2.ring-blue-100 { --tw-ring-color: rgba(37,99,235,0.25) !important; }
 
 /* ── Dividers (divide-y etc.) ── */
 .arena-dark .divide-y > * + * { border-color: var(--ad-blo) !important; }
