@@ -178,7 +178,14 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       <div className="py-5 px-4 border-b border-blue-900 flex flex-col items-center gap-2">
         <NovaLogo size={80} />
         <div className="text-center">
-          <div className="font-bold text-white text-sm">{branding.platformName}</div>
+          <div className="font-bold text-sm">
+            {(() => {
+              const parts = branding.platformName.split(' ');
+              return parts.length > 1
+                ? <><span style={{color:'#4F6EF7'}}>{parts[0]}</span> <span className="text-white">{parts.slice(1).join(' ')}</span></>
+                : <span style={{color:'#4F6EF7'}}>{branding.platformName}</span>;
+            })()}
+          </div>
           <div className="text-xs text-blue-300 capitalize">{role} Portal</div>
         </div>
       </div>

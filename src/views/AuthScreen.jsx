@@ -317,7 +317,14 @@ function AuthScreen({ onAuth, onBack }) {
       <div className="inline-flex items-center justify-center mb-4">
         <NovaLandingMark size={176} />
       </div>
-      <h1 className="text-2xl font-bold text-white">{branding.platformName}</h1>
+      <h1 className="text-2xl font-bold">
+        {(() => {
+          const parts = branding.platformName.split(' ');
+          return parts.length > 1
+            ? <><span style={{color:'#4F6EF7'}}>{parts[0]}</span> <span className="text-white">{parts.slice(1).join(' ')}</span></>
+            : <span style={{color:'#4F6EF7'}}>{branding.platformName}</span>;
+        })()}
+      </h1>
       <p className="text-blue-400 mt-1 text-sm">{branding.tagline}</p>
     </div>
   );
