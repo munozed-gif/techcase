@@ -436,7 +436,7 @@ function CasesView({ auth, initialCaseId }) {
           {displayed.map(c => (
             <div key={c.id}
               className="rounded-2xl cursor-pointer transition-all hover:shadow-md p-5"
-              style={(() => { const cc = selectedCases.has(c.id) ? { border: '#bfdbfe', bg: '#eff6ff' } : (CASE_CARD_COLORS[c.status] ?? { border: '#e5e7eb', bg: '#ffffff' }); return { border: `1.5px solid ${cc.border}`, backgroundColor: cc.bg }; })()}
+              style={(() => { const cc = selectedCases.has(c.id) ? { border: 'rgba(96,165,250,0.55)', bg: 'rgba(37,99,235,0.15)' } : (CASE_CARD_COLORS[c.status] ?? { border: 'rgba(100,160,220,0.25)', bg: 'rgba(12,21,34,0.4)' }); return { border: `1.5px solid ${cc.border}`, backgroundColor: cc.bg }; })()}
               onClick={() => setSelected(c)}>
               {(() => {
                 const StatusIcon = STATUS_CARD_ICONS[c.status] ?? Tag;

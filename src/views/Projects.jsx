@@ -2559,8 +2559,8 @@ function ProjectsView({ auth, initialProjectId }) {
             const isTerminated   = TERM_S.includes(p.status);
             const isOverdue      = !isTerminated && p.end_date && new Date(p.end_date) < new Date();
             const PRIORITY_STYLES = { critical: "bg-red-100 text-red-700", high: "bg-orange-100 text-orange-700", medium: "bg-yellow-100 text-yellow-700", low: "bg-gray-100 text-gray-500" };
-            const PROJ_CARD_COLORS = { draft: { border: "#d1d5db", bg: "#fcfdfd" }, active: { border: "#86efac", bg: "#f8fefa" }, on_hold: { border: "#fcd34d", bg: "#fffdf5" }, completed: { border: "#5eead4", bg: "#f8fefd" }, cancelled: { border: "#fca5a5", bg: "#fff9f9" } };
-            const cardColors = isOverdue ? { border: "#fca5a5", bg: "#fff9f9" } : (PROJ_CARD_COLORS[p.status] ?? { border: "#e5e7eb", bg: "#ffffff" });
+            const PROJ_CARD_COLORS = { draft: { border: "rgba(156,163,175,0.35)", bg: "rgba(100,116,139,0.08)" }, active: { border: "rgba(134,239,172,0.42)", bg: "rgba(16,185,129,0.09)" }, on_hold: { border: "rgba(252,211,77,0.42)", bg: "rgba(245,158,11,0.09)" }, completed: { border: "rgba(94,234,212,0.42)", bg: "rgba(20,184,166,0.09)" }, cancelled: { border: "rgba(252,165,165,0.42)", bg: "rgba(239,68,68,0.09)" } };
+            const cardColors = isOverdue ? { border: "rgba(252,165,165,0.42)", bg: "rgba(239,68,68,0.09)" } : (PROJ_CARD_COLORS[p.status] ?? { border: "rgba(100,160,220,0.22)", bg: "rgba(12,21,34,0.4)" });
             return (
               <div key={p.id}
                 className="rounded-2xl cursor-pointer transition-all hover:shadow-md p-5"

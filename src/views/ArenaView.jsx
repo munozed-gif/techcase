@@ -1097,7 +1097,7 @@ function ArenaView({ auth }) {
       const outerSlots = Math.min(5, Math.max(0, otherCount - innerSlots));
 
       return (
-        <div style={{ background:'#EEF5FF', borderRadius:22, border:'1px solid #BFDBFE', overflow:'hidden', position:'relative', boxShadow:'0 4px 20px rgba(37,99,235,0.08)', height:'100%', display:'flex', flexDirection:'column' }}>
+        <div style={{ background:'rgba(37,99,235,0.09)', borderRadius:22, border:'1px solid rgba(96,165,250,0.42)', overflow:'hidden', position:'relative', boxShadow:'0 4px 20px rgba(37,99,235,0.18)', height:'100%', display:'flex', flexDirection:'column' }}>
           <div style={{ position:'absolute', left:0, top:'20%', bottom:'20%', width:3, borderRadius:'0 3px 3px 0', background:mc, boxShadow:`0 0 10px ${mcDim}` }} />
           <div style={{ height:4, background:'rgba(26,75,140,0.07)', position:'relative', overflow:'hidden' }}>
             {timePct != null && <div style={{ position:'absolute', left:0, top:0, bottom:0, width:`${timePct*100}%`, background:tc, opacity:0.8 }} />}
@@ -1127,20 +1127,20 @@ function ArenaView({ auth }) {
                     </div>
                     <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:'#6B8AB8', marginTop:2 }}>Match score</div>
                     {(c.skills_required?.length ?? 0) > 0 && (
-                      <div style={{ fontSize:11, color:'#4A6B9A', marginTop:3, lineHeight:1.4 }}>
+                      <div style={{ fontSize:11, color:'#7090B0', marginTop:3, lineHeight:1.4 }}>
                         {c.skills_required.filter(s => mySkills.has(String(s).toLowerCase())).length} of {c.skills_required.length} skills matched
                       </div>
                     )}
                   </>
                 ) : (
-                  <div style={{ fontSize:14, color:'#1A4B8C', fontWeight:600 }}>{companyName || c.title}</div>
+                  <div style={{ fontSize:14, color:'#60A5FA', fontWeight:600 }}>{companyName || c.title}</div>
                 )}
               </div>
             </div>
             {/* Title */}
             <div>
-              <div style={{ fontFamily:"'Barlow Condensed', sans-serif", fontSize:22, fontWeight:700, letterSpacing:'0.02em', color:'#0F172A', lineHeight:1.2 }}>{c.title}</div>
-              {c.description && <div style={{ fontSize:12, color:'#4A6B9A', lineHeight:1.5, marginTop:4 }}>{c.description}</div>}
+              <div style={{ fontFamily:"'Barlow Condensed', sans-serif", fontSize:22, fontWeight:700, letterSpacing:'0.02em', color:'#DCE8F4', lineHeight:1.2 }}>{c.title}</div>
+              {c.description && <div style={{ fontSize:12, color:'#7090B0', lineHeight:1.5, marginTop:4 }}>{c.description}</div>}
             </div>
             {/* Chips */}
             <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center' }}>
@@ -1148,16 +1148,16 @@ function ArenaView({ auth }) {
               {c.area_industry && chip('#0369A1','rgba(3,105,161,0.3)','rgba(3,105,161,0.07)', c.area_industry)}
               {c.budget        && chip('#059669','rgba(5,150,105,0.3)','rgba(5,150,105,0.07)', `$${Number(c.budget).toLocaleString()}`)}
               {daysLeft != null && chip(dayChipColor, dayChipBorder, dayChipBg, daysLeft === 1 ? '1 day left' : `${daysLeft} days left`)}
-              {companyName     && chip('#1A4B8C','rgba(26,75,140,0.25)','rgba(26,75,140,0.06)', companyName)}
+              {companyName     && chip('#60A5FA','rgba(96,165,250,0.25)','rgba(37,99,235,0.09)', companyName)}
               {c.is_head_hunter && chip('#7C3AED','rgba(124,58,237,0.3)','rgba(124,58,237,0.07)', <span style={{display:'inline-flex',alignItems:'center',gap:3}}><Crosshair size={9}/>HH Managed</span>)}
               {c.application_mode === 'team'       && chip('#4F46E5','rgba(79,70,229,0.3)','rgba(79,70,229,0.07)', <span style={{display:'inline-flex',alignItems:'center',gap:3}}><Users size={9}/>Teams only</span>)}
               {c.application_mode === 'individual' && chip('#475569','rgba(71,85,105,0.3)','rgba(71,85,105,0.07)', <span style={{display:'inline-flex',alignItems:'center',gap:3}}><User size={9}/>Individual only</span>)}
               {(c.application_mode === 'both' || !c.application_mode) && chip('#059669','rgba(5,150,105,0.25)','rgba(5,150,105,0.06)', <span style={{display:'inline-flex',alignItems:'center',gap:3}}><Users size={9}/>Teams & Individual</span>)}
             </div>
-            <div style={{ height:1, background:'rgba(26,75,140,0.1)' }} />
+            <div style={{ height:1, background:'rgba(96,165,250,0.12)' }} />
 
             {/* Solar leaderboard inside the card */}
-            <div style={{ display:'flex', gap:12, alignItems:'flex-start', flexWrap:'wrap', background:'rgba(26,75,140,0.04)', borderRadius:14, padding:'10px 12px', border:'1px solid rgba(26,75,140,0.09)' }}>
+            <div style={{ display:'flex', gap:12, alignItems:'flex-start', flexWrap:'wrap', background:'rgba(15,30,55,0.5)', borderRadius:14, padding:'10px 12px', border:'1px solid rgba(96,165,250,0.12)' }}>
               {/* Solar system */}
               <div style={{ display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                 <div style={{ position:'relative', width:LB_SYS, height:LB_SYS }}>
@@ -1199,19 +1199,19 @@ function ArenaView({ auth }) {
                     <span style={{ fontSize:8, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#6B8AB8', marginLeft:5 }}>match</span>
                   </div>
                 )}
-                <p style={{ fontSize:9, fontWeight:700, color:'#4A6B9A', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:5 }}>{appCount} applied</p>
+                <p style={{ fontSize:9, fontWeight:700, color:'#7090B0', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:5 }}>{appCount} applied</p>
                 <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
                   {appsSorted.slice(0, 4).map((app, i) => {
                     const name = app.consultant?.full_name ?? 'Consultant';
                     const initials = name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
                     const avatarUrl = app.consultant?.avatar_url;
                     return (
-                      <div key={app.consultant_id} style={{ display:'flex', alignItems:'center', gap:6, background:'rgba(26,75,140,0.05)', borderRadius:7, padding:'4px 8px', border:'1px solid rgba(26,75,140,0.1)' }}>
+                      <div key={app.consultant_id} style={{ display:'flex', alignItems:'center', gap:6, background:'rgba(15,30,55,0.6)', borderRadius:7, padding:'4px 8px', border:'1px solid rgba(96,165,250,0.12)' }}>
                         <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:12, fontWeight:700, width:12, textAlign:'center', color: i===0?'#D97706':i===1?'#6B8AB8':i===2?'#B45309':'#93AECF' }}>{i+1}</span>
                         <div style={{ width:18, height:18, borderRadius:'50%', background: avatarUrl ? 'transparent' : orbColors[i%orbColors.length], display:'flex', alignItems:'center', justifyContent:'center', fontSize:6, fontWeight:700, color:'#fff', overflow:'hidden', flexShrink:0 }}>
                           {avatarUrl ? <img src={avatarUrl} alt={name} style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : initials}
                         </div>
-                        <span style={{ flex:1, fontSize:10, color:'#334155', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{name}</span>
+                        <span style={{ flex:1, fontSize:10, color:'#B0C8DF', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{name}</span>
                       </div>
                     );
                   })}
@@ -1227,13 +1227,13 @@ function ArenaView({ auth }) {
                     <div style={{ display:'flex', alignItems:'center', gap:6, background:'rgba(59,130,246,0.08)', borderRadius:7, padding:'4px 8px', border:'1px solid rgba(59,130,246,0.3)' }}>
                       <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:12, fontWeight:700, width:12, textAlign:'center', color:'#2563EB' }}>✓</span>
                       <div style={{ width:18, height:18, borderRadius:'50%', background:'#3B82F6', display:'flex', alignItems:'center', justifyContent:'center', fontSize:6, fontWeight:700, color:'#fff' }}>Me</div>
-                      <span style={{ flex:1, fontSize:10, color:'#1D4ED8', fontWeight:600 }}>Applied{score != null ? ` · ${score}%` : ''}</span>
+                      <span style={{ flex:1, fontSize:10, color:'#60A5FA', fontWeight:600 }}>Applied{score != null ? ` · ${score}%` : ''}</span>
                     </div>
                   )}
                 </div>
                 {canViewRanking && (
                   <button onClick={() => setArenaSelected(c)}
-                    style={{ marginTop:6, background:'transparent', border:'1px solid rgba(26,75,140,0.22)', borderRadius:8, color:'#1A4B8C', fontSize:10, fontWeight:600, padding:'4px 10px', cursor:'pointer', whiteSpace:'nowrap' }}>
+                    style={{ marginTop:6, background:'transparent', border:'1px solid rgba(96,165,250,0.35)', borderRadius:8, color:'#60A5FA', fontSize:10, fontWeight:600, padding:'4px 10px', cursor:'pointer', whiteSpace:'nowrap' }}>
                     View ranking ›
                   </button>
                 )}
