@@ -139,6 +139,54 @@ const LANDING_STRINGS = {
     f_privacy:"Privacy Policy", f_terms:"Terms of Service", f_security:"Security",
     copy1:"© 2026 Arena Solutions Platform. All rights reserved.",
     copy2:"Built for SAP consulting teams worldwide.",
+    // Demo carousel
+    dc_s0_tag:"Command center", dc_s0_h:"Your full pipeline, live",
+    dc_s0_p:"From open cases to assigned specialists — every SAP engagement tracked in one place, with real-time status.",
+    dc_s1_tag:"Consultant rankings", dc_s1_h:"Ranked consultants, at a glance",
+    dc_s1_p:"Sort by skill match, hourly rate, and active case load. Assign the right specialist in under a minute.",
+    dc_s2_tag:"Lifecycle governance", dc_s2_h:"Stage-gated case progression",
+    dc_s2_p:"Transition gates enforce document upload and hour thresholds before any case moves forward. Full audit trail.",
+    dc_s3_tag:"Arena marketplace", dc_s3_h:"The orbital talent marketplace",
+    dc_s3_p:"Browse open cases, apply as a consultant or team. Real-time matching surfaces the best fits instantly.",
+    dc_labels:["Dashboard","Ranking","Lifecycle","Arena"],
+    dc_f1:"Active cases", dc_f1v:"24 open", dc_f2:"Avg. SLA", dc_f2v:"98.4 %", dc_f3:"Hours logged", dc_f3v:"1,240 h",
+    dc_s0_b1:"Real-time case status across all SAP modules",
+    dc_s0_b2:"Team capacity and workload at a glance",
+    dc_s0_b3:"Instant alerts when consultants apply",
+    dc_s1_b1:"Weighted scoring: skills, rating, experience, hourly rate",
+    dc_s1_b2:"Familiarity bonus for consultants who know your stack",
+    dc_s1_b3:"One-click auto-assign when the window closes",
+    dc_s1_applicants:"applicants scored", dc_s1_autoassign:"Auto-assign ✦",
+    dc_s2_b1:"Custom stage flows per project type",
+    dc_s2_b2:"Gate conditions: documents, approvals, key user sign-off",
+    dc_s2_b3:"AI functional spec generation at key milestones",
+    dc_s2_consultant:"Consultant", dc_s2_duedate:"Due date", dc_s2_spec:"Spec status", dc_s2_specval:"✓ Approved",
+    dc_s3_b1:"Cases ranked by your personal skill match score",
+    dc_s3_b2:"Confidential cases accessible after NDA acceptance",
+    dc_s3_b3:"Form teams for large implementation projects",
+    dc_s3_matches:"cases match your profile",
+    // Promo video
+    ap_header_tag:"Platform Walkthrough", ap_header_h:"See Arena in Action",
+    ap_header_p:"From orbital explorer to consultant marketplace — the full platform in 30 seconds.",
+    ap_s0_tag:"Platform",         ap_s0_h:"Arena Solutions Platform",     ap_s0_p:"The only workspace built for SAP project governance — from open case to closed ticket.",
+    ap_s1_tag:"Orbital Explorer", ap_s1_h:"See who works on what",        ap_s1_p:"Every active SAP case orbits the client hub. Click any node to drill into the engagement.",
+    ap_s2_tag:"Drill-Down",       ap_s2_h:"Client → Case in one tap",     ap_s2_p:"From parent account to every live SAP module, with live status on each engagement.",
+    ap_s3_tag:"Lifecycle",        ap_s3_h:"Governed open to close",       ap_s3_p:"Mandatory gates, attached evidence, logged hours. Every transition is audited.",
+    ap_s4_tag:"Consultant Arena", ap_s4_h:"Find the right specialist",    ap_s4_p:"Ranked matches by skills, availability, and track record — hire in minutes.",
+    ap_s5_tag:"Get Started",      ap_s5_h:"Ready when you are",           ap_s5_p:"Set up your org in minutes. Your first case can be live before end of day.",
+    ap_cta_companies_title:"For Companies", ap_cta_companies_desc:"Govern SAP cases, track SLAs, manage consultants.", ap_cta_companies_btn:"Request Demo",
+    ap_cta_consultants_title:"For Consultants", ap_cta_consultants_desc:"Build your profile, get ranked, find the right project.", ap_cta_consultants_btn:"Join Arena",
+    ap_ready:"Ready?",
+    ap_drill_hub:"4 active cases", ap_drill_r1:"FICO Q4 Implementation", ap_drill_r2:"MM/SD Rollout", ap_drill_r3:"S/4HANA Upgrade",
+    ap_drill_r1s:"Module · In Progress", ap_drill_r2s:"Module · Spec Review", ap_drill_r3s:"Module · Planning",
+    ap_case_module:"FICO Q4 · In Progress", ap_case_title:"ERP Finance Consolidation",
+    ap_case_hours:"Hours", ap_case_stage:"Stage", ap_case_stage_val:"Development",
+    ap_lc_open:"Open", ap_lc_spec:"Spec Review", ap_lc_dev:"Development", ap_lc_test:"Testing", ap_lc_close:"Closure",
+    ap_badge_done:"Done", ap_badge_active:"Active", ap_badge_locked:"Locked",
+    ap_ac_r1name:"Marcus R.", ap_ac_r1role:"SAP FI/CO Specialist · 8 yrs",
+    ap_ac_r2name:"Sofia K.",  ap_ac_r2role:"SAP FICO Senior · 6 yrs",
+    ap_ac_r3name:"James L.",  ap_ac_r3role:"SAP Finance Lead · 10 yrs",
+    ap_pause:"Pause", ap_play:"Play", ap_scene_of:"of",
   },
   es: {
     nav_arena:"Arena", nav_features:"Características", nav_lifecycle:"Ciclo de Vida",
@@ -203,6 +251,54 @@ const LANDING_STRINGS = {
     f_privacy:"Política de Privacidad", f_terms:"Términos de Servicio", f_security:"Seguridad",
     copy1:"© 2026 Arena Solutions Platform. Todos los derechos reservados.",
     copy2:"Construido para equipos de consultoría SAP en todo el mundo.",
+    // Demo carousel
+    dc_s0_tag:"Centro de mando", dc_s0_h:"Todo tu pipeline, en vivo",
+    dc_s0_p:"Desde casos abiertos hasta especialistas asignados — cada compromiso SAP rastreado en un solo lugar, con estado en tiempo real.",
+    dc_s1_tag:"Ranking de consultores", dc_s1_h:"Consultores clasificados, de un vistazo",
+    dc_s1_p:"Ordena por afinidad de habilidades, tarifa por hora y carga de casos activos. Asigna al especialista adecuado en menos de un minuto.",
+    dc_s2_tag:"Gobernanza de ciclo de vida", dc_s2_h:"Progresión de casos por etapas",
+    dc_s2_p:"Las puertas de transición exigen carga de documentos y umbrales de horas antes de avanzar. Registro de auditoría completo.",
+    dc_s3_tag:"Mercado Arena", dc_s3_h:"El mercado orbital de talento",
+    dc_s3_p:"Explora casos abiertos, aplica como consultor o equipo. La asignación en tiempo real muestra las mejores opciones al instante.",
+    dc_labels:["Dashboard","Ranking","Ciclo de Vida","Arena"],
+    dc_f1:"Casos activos", dc_f1v:"24 abiertos", dc_f2:"SLA prom.", dc_f2v:"98.4 %", dc_f3:"Horas registradas", dc_f3v:"1.240 h",
+    dc_s0_b1:"Estado en tiempo real de casos en todos los módulos SAP",
+    dc_s0_b2:"Capacidad del equipo y carga de trabajo de un vistazo",
+    dc_s0_b3:"Alertas instantáneas cuando los consultores aplican",
+    dc_s1_b1:"Puntuación ponderada: habilidades, calificación, experiencia, tarifa",
+    dc_s1_b2:"Bono de familiaridad para consultores que conocen tu stack",
+    dc_s1_b3:"Autoasignación en un clic cuando el período cierra",
+    dc_s1_applicants:"aplicantes puntuados", dc_s1_autoassign:"Autoasignar ✦",
+    dc_s2_b1:"Flujos de etapa personalizados por tipo de proyecto",
+    dc_s2_b2:"Condiciones de puerta: documentos, aprobaciones, firma del usuario clave",
+    dc_s2_b3:"Generación de especificaciones funcionales con IA en hitos clave",
+    dc_s2_consultant:"Consultor", dc_s2_duedate:"Fecha límite", dc_s2_spec:"Estado de spec", dc_s2_specval:"✓ Aprobado",
+    dc_s3_b1:"Casos clasificados por tu puntuación personal de afinidad",
+    dc_s3_b2:"Casos confidenciales accesibles tras aceptar el NDA",
+    dc_s3_b3:"Forma equipos para grandes proyectos de implementación",
+    dc_s3_matches:"casos coinciden con tu perfil",
+    // Promo video
+    ap_header_tag:"Recorrido de la Plataforma", ap_header_h:"Arena en Acción",
+    ap_header_p:"Del explorador orbital al mercado de consultores — la plataforma completa en 30 segundos.",
+    ap_s0_tag:"Plataforma",          ap_s0_h:"Plataforma de Soluciones Arena", ap_s0_p:"El único workspace construido para la gobernanza de proyectos SAP — del caso abierto al ticket cerrado.",
+    ap_s1_tag:"Explorador Orbital",  ap_s1_h:"Ve quién trabaja en qué",        ap_s1_p:"Cada caso SAP activo orbita el centro del cliente. Haz clic en cualquier nodo para entrar al compromiso.",
+    ap_s2_tag:"Profundización",      ap_s2_h:"Cliente → Caso en un toque",     ap_s2_p:"Desde la cuenta principal hasta cada módulo SAP activo, con estado en vivo de cada compromiso.",
+    ap_s3_tag:"Ciclo de Vida",       ap_s3_h:"Gobernado de inicio a cierre",   ap_s3_p:"Puertas obligatorias, evidencia adjunta, horas registradas. Cada transición queda auditada.",
+    ap_s4_tag:"Arena de Consultores",ap_s4_h:"Encuentra al especialista ideal", ap_s4_p:"Coincidencias clasificadas por habilidades, disponibilidad y trayectoria — contrata en minutos.",
+    ap_s5_tag:"Comenzar",            ap_s5_h:"Listo cuando tú lo estés",        ap_s5_p:"Configura tu organización en minutos. Tu primer caso puede estar activo antes de que termine el día.",
+    ap_cta_companies_title:"Para Empresas",    ap_cta_companies_desc:"Gobierna casos SAP, controla SLAs, gestiona consultores.", ap_cta_companies_btn:"Solicitar Demo",
+    ap_cta_consultants_title:"Para Consultores", ap_cta_consultants_desc:"Crea tu perfil, obtén ranking, encuentra el proyecto ideal.", ap_cta_consultants_btn:"Unirse a Arena",
+    ap_ready:"¿Listo?",
+    ap_drill_hub:"4 casos activos", ap_drill_r1:"Implementación FICO Q4", ap_drill_r2:"Despliegue MM/SD", ap_drill_r3:"Actualización S/4HANA",
+    ap_drill_r1s:"Módulo · En Progreso", ap_drill_r2s:"Módulo · Revisión de Spec", ap_drill_r3s:"Módulo · Planificación",
+    ap_case_module:"FICO Q4 · En Progreso", ap_case_title:"Consolidación Financiera ERP",
+    ap_case_hours:"Horas", ap_case_stage:"Etapa", ap_case_stage_val:"Desarrollo",
+    ap_lc_open:"Abierto", ap_lc_spec:"Revisión Spec", ap_lc_dev:"Desarrollo", ap_lc_test:"Pruebas", ap_lc_close:"Cierre",
+    ap_badge_done:"Hecho", ap_badge_active:"Activo", ap_badge_locked:"Bloqueado",
+    ap_ac_r1name:"Marco R.",  ap_ac_r1role:"Especialista SAP FI/CO · 8 años",
+    ap_ac_r2name:"Sofía K.",  ap_ac_r2role:"SAP FICO Senior · 6 años",
+    ap_ac_r3name:"Jaime L.",  ap_ac_r3role:"Líder SAP Finance · 10 años",
+    ap_pause:"Pausar", ap_play:"Reproducir", ap_scene_of:"de",
   },
 };
 
@@ -579,14 +675,14 @@ const CSS = `
 @media(prefers-reduced-motion:reduce){#arena-landing .ap-scene{transition:none;}#arena-landing .ap-prog{transition:none;}}
 `;
 
-function ArenaPromoVideo() {
+function ArenaPromoVideo({ tl }) {
   const SCENES = [
-    {tag:'Platform',        h:'Arena Solutions Platform',   p:'The only workspace built for SAP project governance — from open case to closed ticket.', dur:4500},
-    {tag:'Orbital Explorer',h:'See who works on what',      p:'Every active SAP case orbits the client hub. Click any node to drill into the engagement.', dur:5800},
-    {tag:'Drill-Down',      h:'Client → Case in one tap',   p:'From parent account to every live SAP module, with live status on each engagement.', dur:5200},
-    {tag:'Lifecycle',       h:'Governed open to close',     p:'Mandatory gates, attached evidence, logged hours. Every transition is audited.', dur:5100},
-    {tag:'Consultant Arena',h:'Find the right specialist',  p:'Ranked matches based on skills, availability, and track record — hire in minutes.', dur:4800},
-    {tag:'Get Started',     h:'Ready when you are',         p:'Set up your org in minutes. Your first case can be live before end of day.', dur:4500},
+    {tag:tl('ap_s0_tag'), h:tl('ap_s0_h'), p:tl('ap_s0_p'), dur:4500},
+    {tag:tl('ap_s1_tag'), h:tl('ap_s1_h'), p:tl('ap_s1_p'), dur:5800},
+    {tag:tl('ap_s2_tag'), h:tl('ap_s2_h'), p:tl('ap_s2_p'), dur:5200},
+    {tag:tl('ap_s3_tag'), h:tl('ap_s3_h'), p:tl('ap_s3_p'), dur:5100},
+    {tag:tl('ap_s4_tag'), h:tl('ap_s4_h'), p:tl('ap_s4_p'), dur:4800},
+    {tag:tl('ap_s5_tag'), h:tl('ap_s5_h'), p:tl('ap_s5_p'), dur:4500},
   ];
   const TOTAL = SCENES.length;
   const TICK = 80;
@@ -737,22 +833,22 @@ function ArenaPromoVideo() {
   function toggle(){setPlaying(p=>!p);}
 
   const drillRows=[
-    {icon:'🏢',bg:'#1A2F44',      name:'Meridian Holdings',      sub:'4 active cases'},
-    {icon:'⚙️',bg:'rgba(37,99,235,0.15)',  name:'FICO Q4 Implementation', sub:'Module · In Progress'},
-    {icon:'📦',bg:'rgba(245,158,11,0.15)', name:'MM/SD Rollout',           sub:'Module · Spec Review'},
-    {icon:'🔧',bg:'rgba(167,139,250,0.15)',name:'S/4HANA Upgrade',         sub:'Module · Planning'},
+    {icon:'🏢',bg:'#1A2F44',                    name:'Meridian Holdings',       sub:tl('ap_drill_hub')},
+    {icon:'⚙️',bg:'rgba(37,99,235,0.15)',        name:tl('ap_drill_r1'),         sub:tl('ap_drill_r1s')},
+    {icon:'📦',bg:'rgba(245,158,11,0.15)',       name:tl('ap_drill_r2'),         sub:tl('ap_drill_r2s')},
+    {icon:'🔧',bg:'rgba(167,139,250,0.15)',      name:tl('ap_drill_r3'),         sub:tl('ap_drill_r3s')},
   ];
   const lcNodes=[
-    {color:'#10B981',label:'Open',        badge:'Done',   bc:'rgba(16,185,129,0.15)',  tc:'#10B981'},
-    {color:'#4F6EF7',label:'Spec Review', badge:'Done',   bc:'rgba(79,110,247,0.15)',  tc:'#4F6EF7'},
-    {color:'#F59E0B',label:'Development', badge:'Active', bc:'rgba(245,158,11,0.15)', tc:'#F59E0B'},
-    {color:'#405870',label:'Testing',     badge:'Locked', bc:'rgba(64,88,112,0.15)',  tc:'#7090B0'},
-    {color:'#405870',label:'Closure',     badge:'Locked', bc:'rgba(64,88,112,0.15)',  tc:'#7090B0'},
+    {color:'#10B981',label:tl('ap_lc_open'), badge:tl('ap_badge_done'),   bc:'rgba(16,185,129,0.15)',  tc:'#10B981'},
+    {color:'#4F6EF7',label:tl('ap_lc_spec'), badge:tl('ap_badge_done'),   bc:'rgba(79,110,247,0.15)',  tc:'#4F6EF7'},
+    {color:'#F59E0B',label:tl('ap_lc_dev'),  badge:tl('ap_badge_active'), bc:'rgba(245,158,11,0.15)', tc:'#F59E0B'},
+    {color:'#405870',label:tl('ap_lc_test'), badge:tl('ap_badge_locked'), bc:'rgba(64,88,112,0.15)',  tc:'#7090B0'},
+    {color:'#405870',label:tl('ap_lc_close'),badge:tl('ap_badge_locked'), bc:'rgba(64,88,112,0.15)',  tc:'#7090B0'},
   ];
   const acCards=[
-    {av:'MR',bg:'linear-gradient(135deg,#4F6EF7,#818CF8)',name:'Marcus R.',   role:'SAP FI/CO Specialist · 8 yrs'},
-    {av:'SK',bg:'linear-gradient(135deg,#10B981,#34D399)', name:'Sofia K.',    role:'SAP FICO Senior · 6 yrs'},
-    {av:'JL',bg:'linear-gradient(135deg,#F59E0B,#FCD34D)', name:'James L.',    role:'SAP Finance Lead · 10 yrs'},
+    {av:'MR',bg:'linear-gradient(135deg,#4F6EF7,#818CF8)',name:tl('ap_ac_r1name'),role:tl('ap_ac_r1role')},
+    {av:'SK',bg:'linear-gradient(135deg,#10B981,#34D399)', name:tl('ap_ac_r2name'),role:tl('ap_ac_r2role')},
+    {av:'JL',bg:'linear-gradient(135deg,#F59E0B,#FCD34D)', name:tl('ap_ac_r3name'),role:tl('ap_ac_r3role')},
   ];
 
   return (
@@ -760,9 +856,9 @@ function ArenaPromoVideo() {
       <canvas ref={bgCvRef} className="ap-bg" />
       <div className="ap-inner">
         <div className="ap-header">
-          <div className="ap-tag">Platform Walkthrough</div>
-          <h2 className="ap-title">See Arena in Action</h2>
-          <p className="ap-sub">From orbital explorer to consultant marketplace — the full platform in 30 seconds.</p>
+          <div className="ap-tag">{tl('ap_header_tag')}</div>
+          <h2 className="ap-title">{tl('ap_header_h')}</h2>
+          <p className="ap-sub">{tl('ap_header_p')}</p>
         </div>
         <div className="ap-player">
           <div className="ap-stage">
@@ -820,11 +916,11 @@ function ArenaPromoVideo() {
                     ))}
                   </div>
                   <div className={`ap-case-card${drillCase?' show':''}`} style={{marginTop:9}}>
-                    <div style={{fontSize:9,color:'#F59E0B',fontWeight:700,marginBottom:4}}>FICO Q4 · In Progress</div>
-                    <div style={{fontSize:11,color:'#DCE8F4',marginBottom:6}}>ERP Finance Consolidation</div>
+                    <div style={{fontSize:9,color:'#F59E0B',fontWeight:700,marginBottom:4}}>{tl('ap_case_module')}</div>
+                    <div style={{fontSize:11,color:'#DCE8F4',marginBottom:6}}>{tl('ap_case_title')}</div>
                     <div style={{display:'flex',gap:16}}>
-                      <div><div style={{fontSize:8,color:'#405870'}}>Hours</div><div style={{fontSize:11,fontWeight:700,color:'#DCE8F4'}}>142 / 200</div></div>
-                      <div><div style={{fontSize:8,color:'#405870'}}>Stage</div><div style={{fontSize:11,fontWeight:700,color:'#4F6EF7'}}>Development</div></div>
+                      <div><div style={{fontSize:8,color:'#405870'}}>{tl('ap_case_hours')}</div><div style={{fontSize:11,fontWeight:700,color:'#DCE8F4'}}>142 / 200</div></div>
+                      <div><div style={{fontSize:8,color:'#405870'}}>{tl('ap_case_stage')}</div><div style={{fontSize:11,fontWeight:700,color:'#4F6EF7'}}>{tl('ap_case_stage_val')}</div></div>
                     </div>
                   </div>
                 </div>
@@ -879,14 +975,14 @@ function ArenaPromoVideo() {
             <div className={`ap-scene${cur===5?' on':''}`}>
               <div className="ap-content" style={{flexDirection:'column',gap:20,justifyContent:'center'}}>
                 <div className="ap-copy" style={{textAlign:'center'}}>
-                  <div className="ap-s-tag">Ready?</div>
-                  <h3 className="ap-s-h">Get Started with Arena</h3>
-                  <p className="ap-s-p">Set up your org in minutes. Your first case can be live today.</p>
+                  <div className="ap-s-tag">{tl('ap_ready')}</div>
+                  <h3 className="ap-s-h">{tl('ap_s5_h')}</h3>
+                  <p className="ap-s-p">{tl('ap_s5_p')}</p>
                 </div>
                 <div className="ap-cta-grid">
                   {[
-                    {icon:'🏢',title:'For Companies',    desc:'Govern SAP cases, track SLAs, manage consultants.',      btn:'Request Demo', primary:true,  show:ctaShow[0]},
-                    {icon:'👤',title:'For Consultants',  desc:'Build your profile, get ranked, find the right project.',btn:'Join Arena',   primary:false, show:ctaShow[1]},
+                    {icon:'🏢',title:tl('ap_cta_companies_title'),  desc:tl('ap_cta_companies_desc'),    btn:tl('ap_cta_companies_btn'),   primary:true,  show:ctaShow[0]},
+                    {icon:'👤',title:tl('ap_cta_consultants_title'),desc:tl('ap_cta_consultants_desc'),  btn:tl('ap_cta_consultants_btn'), primary:false, show:ctaShow[1]},
                   ].map((c,i)=>(
                     <div key={i} className={`ap-cta-card${c.primary?' blue':''}`}
                       style={{opacity:c.show?1:0,transform:c.show?'none':'translateY(8px)',transition:'opacity .4s,transform .4s'}}>
@@ -909,12 +1005,12 @@ function ArenaPromoVideo() {
               <div className="ap-prog" style={{width:`${(cur/TOTAL)*100 + progress/TOTAL}%`}} />
             </div>
             <div className="ap-btns">
-              <button className="ap-btn" onClick={toggle} aria-label={playing?'Pause':'Play'}>
+              <button className="ap-btn" onClick={toggle} aria-label={playing?tl('ap_pause'):tl('ap_play')}>
                 {playing
                   ? <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="4" height="12" rx="1"/><rect x="9" y="2" width="4" height="12" rx="1"/></svg>
                   : <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6z"/></svg>}
               </button>
-              <span style={{fontSize:11,color:'#405870',marginLeft:4}}>{SCENES[cur].tag} · {cur+1}/{TOTAL}</span>
+              <span style={{fontSize:11,color:'#405870',marginLeft:4}}>{SCENES[cur].tag} · {cur+1} {tl('ap_scene_of')} {TOTAL}</span>
               <div className="ap-chaps">
                 {SCENES.map((_,i)=>(
                   <button key={i} className={`ap-chap${cur===i?' on':''}`} onClick={()=>goTo(i)} aria-label={`Scene ${i+1}`} />
@@ -939,7 +1035,7 @@ const DONE_SVG = (
   </svg>
 );
 
-function DemoCarousel() {
+function DemoCarousel({ tl }) {
   const TOTAL = 4;
   const DURATION = 5200;
   const TICK = 80;
@@ -973,7 +1069,7 @@ function DemoCarousel() {
   return (
     <section className="dc-section" id="demo" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
       <nav className="dc-dots" aria-label="Product tour navigation">
-        {["Dashboard","Ranking","Lifecycle","Arena"].map((lbl, i) => (
+        {tl('dc_labels').map((lbl, i) => (
           <button key={i} className={`dc-dot${cur===i?" on":""}`} aria-label={lbl} onClick={() => goTo(i)} />
         ))}
       </nav>
@@ -983,13 +1079,13 @@ function DemoCarousel() {
         {/* Slide 0 — Dashboard */}
         <div className={`dc-slide${cur===0?" on":""}`}>
           <div>
-            <div className="dc-tag">Command center</div>
-            <h2>Your full pipeline, live</h2>
-            <p>From open cases to assigned specialists — every SAP engagement tracked in one place, with real-time status.</p>
+            <div className="dc-tag">{tl('dc_s0_tag')}</div>
+            <h2>{tl('dc_s0_h')}</h2>
+            <p>{tl('dc_s0_p')}</p>
             <ul className="dc-flist">
-              <li><span className="dc-fdot">{CHECK_SVG}</span>Real-time case status across all SAP modules</li>
-              <li><span className="dc-fdot">{CHECK_SVG}</span>Team capacity and workload at a glance</li>
-              <li><span className="dc-fdot">{CHECK_SVG}</span>Instant alerts when consultants apply</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>{tl('dc_s0_b1')}</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>{tl('dc_s0_b2')}</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>{tl('dc_s0_b3')}</li>
             </ul>
           </div>
           <div className="dc-mockup">
@@ -1016,13 +1112,13 @@ function DemoCarousel() {
         {/* Slide 1 — Ranking */}
         <div className={`dc-slide${cur===1?" on":""}`}>
           <div>
-            <div className="dc-tag">Smart matching</div>
-            <h2>AI ranks the right fit, automatically</h2>
-            <p>Every applicant is scored across skills, trust level, client familiarity, and rate. The best match surfaces first — no manual sifting.</p>
+            <div className="dc-tag">{tl('dc_s1_tag')}</div>
+            <h2>{tl('dc_s1_h')}</h2>
+            <p>{tl('dc_s1_p')}</p>
             <ul className="dc-flist">
-              <li><span className="dc-fdot">{CHECK_SVG}</span>Weighted scoring: skills, rating, experience, hourly rate</li>
-              <li><span className="dc-fdot">{CHECK_SVG}</span>Familiarity bonus for consultants who know your stack</li>
-              <li><span className="dc-fdot">{CHECK_SVG}</span>One-click auto-assign when the window closes</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>{tl('dc_s1_b1')}</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>{tl('dc_s1_b2')}</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>{tl('dc_s1_b3')}</li>
             </ul>
           </div>
           <div className="dc-mockup">
@@ -1032,8 +1128,8 @@ function DemoCarousel() {
             </div>
             <div className="dc-body">
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-                <span style={{fontSize:10,color:"#7090B0"}}>3 applicants scored</span>
-                <button style={{fontSize:9,padding:"4px 12px",background:"#2563EB",color:"#fff",border:"none",borderRadius:6,fontFamily:"inherit",fontWeight:600,cursor:"pointer"}}>Auto-assign ✦</button>
+                <span style={{fontSize:10,color:"#7090B0"}}>3 {tl('dc_s1_applicants')}</span>
+                <button style={{fontSize:9,padding:"4px 12px",background:"#2563EB",color:"#fff",border:"none",borderRadius:6,fontFamily:"inherit",fontWeight:600,cursor:"pointer"}}>{tl('dc_s1_autoassign')}</button>
               </div>
               {[
                 {n:"#1",av:"MR",avBg:"rgba(37,99,235,0.18)",avC:"#60A5FA",name:"María Rodríguez",skills:["SAP FICO","S/4HANA","IFRS"],w:94,pts:94,top:true},
@@ -1058,13 +1154,13 @@ function DemoCarousel() {
         {/* Slide 2 — Lifecycle */}
         <div className={`dc-slide${cur===2?" on":""}`}>
           <div>
-            <div className="dc-tag">Full lifecycle</div>
-            <h2>Every stage tracked, nothing slips</h2>
-            <p>From the first brief to final sign-off. Configurable lifecycle templates with gate conditions, AI-generated specs, and automated transitions.</p>
+            <div className="dc-tag">{tl('dc_s2_tag')}</div>
+            <h2>{tl('dc_s2_h')}</h2>
+            <p>{tl('dc_s2_p')}</p>
             <ul className="dc-flist">
-              <li><span className="dc-fdot">{CHECK_SVG}</span>Custom stage flows per project type</li>
-              <li><span className="dc-fdot">{CHECK_SVG}</span>Gate conditions: documents, approvals, key user sign-off</li>
-              <li><span className="dc-fdot">{CHECK_SVG}</span>AI functional spec generation at key milestones</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>{tl('dc_s2_b1')}</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>{tl('dc_s2_b2')}</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>{tl('dc_s2_b3')}</li>
             </ul>
           </div>
           <div className="dc-mockup">
@@ -1098,9 +1194,9 @@ function DemoCarousel() {
                   <span className="dc-area">SAP FICO</span>
                 </div>
                 <div className="dc-cc-fields">
-                  <div><div className="dc-cc-f-lbl">Consultant</div><div className="dc-cc-f-val">María Rodríguez</div></div>
-                  <div><div className="dc-cc-f-lbl">Due date</div><div className="dc-cc-f-val">Oct 31, 2026</div></div>
-                  <div><div className="dc-cc-f-lbl">Spec status</div><div className="dc-cc-f-val" style={{color:"#22D3EE"}}>✓ Approved</div></div>
+                  <div><div className="dc-cc-f-lbl">{tl('dc_s2_consultant')}</div><div className="dc-cc-f-val">María Rodríguez</div></div>
+                  <div><div className="dc-cc-f-lbl">{tl('dc_s2_duedate')}</div><div className="dc-cc-f-val">Oct 31, 2026</div></div>
+                  <div><div className="dc-cc-f-lbl">{tl('dc_s2_spec')}</div><div className="dc-cc-f-val" style={{color:"#22D3EE"}}>{tl('dc_s2_specval')}</div></div>
                 </div>
               </div>
             </div>
@@ -1110,13 +1206,13 @@ function DemoCarousel() {
         {/* Slide 3 — Arena */}
         <div className={`dc-slide${cur===3?" on":""}`}>
           <div>
-            <div className="dc-tag">Consultant arena</div>
-            <h2>Your next project is waiting</h2>
-            <p>Browse open cases matched to your SAP expertise. See your match score before applying — focus your energy where it counts.</p>
+            <div className="dc-tag">{tl('dc_s3_tag')}</div>
+            <h2>{tl('dc_s3_h')}</h2>
+            <p>{tl('dc_s3_p')}</p>
             <ul className="dc-flist">
-              <li><span className="dc-fdot">{CHECK_SVG}</span>Cases ranked by your personal skill match score</li>
-              <li><span className="dc-fdot">{CHECK_SVG}</span>Confidential cases accessible after NDA acceptance</li>
-              <li><span className="dc-fdot">{CHECK_SVG}</span>Form teams for large implementation projects</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>{tl('dc_s3_b1')}</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>{tl('dc_s3_b2')}</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>{tl('dc_s3_b3')}</li>
             </ul>
           </div>
           <div className="dc-mockup">
@@ -1126,7 +1222,7 @@ function DemoCarousel() {
             </div>
             <div className="dc-body">
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-                <span style={{fontSize:10,color:"#7090B0"}}>14 cases match your profile</span>
+                <span style={{fontSize:10,color:"#7090B0"}}>14 {tl('dc_s3_matches')}</span>
                 <div style={{display:"flex",gap:4}}>
                   <span className="dc-badge dc-b-blue" style={{cursor:"pointer"}}>All</span>
                   <span className="dc-badge dc-b-gray" style={{cursor:"pointer"}}>FICO</span>
@@ -1589,10 +1685,10 @@ export function LandingView({ onSignIn }) {
       </section>
 
       {/* ARENA PROMO */}
-      <ArenaPromoVideo />
+      <ArenaPromoVideo tl={tl} />
 
       {/* DEMO CAROUSEL */}
-      <DemoCarousel />
+      <DemoCarousel tl={tl} />
 
       {/* TESTIMONIALS */}
       <section className="section">
