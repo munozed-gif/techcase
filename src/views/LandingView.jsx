@@ -165,6 +165,23 @@ const LANDING_STRINGS = {
     dc_s3_b2:"Confidential cases accessible after NDA acceptance",
     dc_s3_b3:"Form teams for large implementation projects",
     dc_s3_matches:"cases match your profile",
+    // Slide 0 mockup stats
+    dc_stat_cases:"Active Cases", dc_stat_cons:"Consultants", dc_stat_fill:"Fill Rate",
+    dc_stat_cases_d:"↑ 3 this week", dc_stat_cons_d:"7 available now", dc_stat_fill_d:"↑ 2% vs last mo.",
+    dc_c1:"SAP FICO — Q4 Close Migration", dc_c2:"MM/SD Integration — Logistics Hub",
+    dc_c3:"S/4HANA Upgrade — Pilot Phase", dc_c4:"SAP Basis — Infrastructure Review",
+    dc_b_inprogress:"In Progress", dc_b_estimated:"Estimated", dc_b_open:"Open",
+    dc_b_assigned:"Assigned", dc_b_review:"Review", dc_b_done:"Done",
+    dc_b_highpriority:"High Priority", dc_b_new:"New",
+    // Slide 2 lifecycle stages
+    dc_lc_open:"Open", dc_lc_estimated:"Estimated", dc_lc_assigned:"Assigned",
+    dc_lc_inprogress:"In Progress", dc_lc_review:"Review", dc_lc_done:"Done",
+    // Slide 3 arena cards
+    dc_a_bestmatch:"Best match", dc_a_applynow:"Apply Now", dc_a_apply:"Apply",
+    dc_a_c1title:"FICO Chart of Accounts Restructure",
+    dc_a_c2title:"Tax Compliance Automation",
+    dc_a_c3title:"ERP Migration Readiness Review",
+    dc_a_more:"+11 more cases", dc_a_filter_all:"All",
     // Promo video
     ap_header_tag:"Platform Walkthrough", ap_header_h:"See Arena in Action",
     ap_header_p:"From orbital explorer to consultant marketplace — the full platform in 30 seconds.",
@@ -277,6 +294,23 @@ const LANDING_STRINGS = {
     dc_s3_b2:"Casos confidenciales accesibles tras aceptar el NDA",
     dc_s3_b3:"Forma equipos para grandes proyectos de implementación",
     dc_s3_matches:"casos coinciden con tu perfil",
+    // Slide 0 mockup stats
+    dc_stat_cases:"Casos Activos", dc_stat_cons:"Consultores", dc_stat_fill:"Tasa de Ocupación",
+    dc_stat_cases_d:"↑ 3 esta semana", dc_stat_cons_d:"7 disponibles ahora", dc_stat_fill_d:"↑ 2% vs mes anterior",
+    dc_c1:"SAP FICO — Migración Cierre Q4", dc_c2:"Integración MM/SD — Hub Logístico",
+    dc_c3:"Actualización S/4HANA — Fase Piloto", dc_c4:"SAP Basis — Revisión de Infraestructura",
+    dc_b_inprogress:"En Progreso", dc_b_estimated:"Estimado", dc_b_open:"Abierto",
+    dc_b_assigned:"Asignado", dc_b_review:"Revisión", dc_b_done:"Listo",
+    dc_b_highpriority:"Alta Prioridad", dc_b_new:"Nuevo",
+    // Slide 2 lifecycle stages
+    dc_lc_open:"Abierto", dc_lc_estimated:"Estimado", dc_lc_assigned:"Asignado",
+    dc_lc_inprogress:"En Progreso", dc_lc_review:"Revisión", dc_lc_done:"Listo",
+    // Slide 3 arena cards
+    dc_a_bestmatch:"Mejor coincidencia", dc_a_applynow:"Aplicar Ahora", dc_a_apply:"Aplicar",
+    dc_a_c1title:"Restructuración del Plan de Cuentas FICO",
+    dc_a_c2title:"Automatización de Cumplimiento Fiscal",
+    dc_a_c3title:"Revisión de Preparación Migración ERP",
+    dc_a_more:"+11 casos más", dc_a_filter_all:"Todos",
     // Promo video
     ap_header_tag:"Recorrido de la Plataforma", ap_header_h:"Arena en Acción",
     ap_header_p:"Del explorador orbital al mercado de consultores — la plataforma completa en 30 segundos.",
@@ -866,9 +900,9 @@ function ArenaPromoVideo({ tl }) {
             <div className={`ap-scene${cur===0?' on':''}`}>
               <div className="ap-content">
                 <div className="ap-copy">
-                  <div className="ap-s-tag">Platform</div>
-                  <h3 className="ap-s-h">Arena Solutions Platform</h3>
-                  <p className="ap-s-p">The only workspace built for SAP project governance — open case to closed ticket, end to end.</p>
+                  <div className="ap-s-tag">{SCENES[0].tag}</div>
+                  <h3 className="ap-s-h">{SCENES[0].h}</h3>
+                  <p className="ap-s-p">{SCENES[0].p}</p>
                 </div>
                 <div className="ap-visual" style={{display:'flex',alignItems:'center',justifyContent:'center',height:200}}>
                   <div style={{position:'relative',width:80,height:80}}>
@@ -888,9 +922,9 @@ function ArenaPromoVideo({ tl }) {
             <div className={`ap-scene${cur===1?' on':''}`}>
               <div className="ap-content">
                 <div className="ap-copy">
-                  <div className="ap-s-tag">Orbital Explorer</div>
-                  <h3 className="ap-s-h">See who works on what</h3>
-                  <p className="ap-s-p">Every active SAP case orbits the client hub. Click any node to drill into the engagement.</p>
+                  <div className="ap-s-tag">{SCENES[1].tag}</div>
+                  <h3 className="ap-s-h">{SCENES[1].h}</h3>
+                  <p className="ap-s-p">{SCENES[1].p}</p>
                 </div>
                 <div className="ap-orb-wrap">
                   <canvas ref={orbCvRef} className="ap-orb-cv" />
@@ -902,9 +936,9 @@ function ArenaPromoVideo({ tl }) {
             <div className={`ap-scene${cur===2?' on':''}`}>
               <div className="ap-content">
                 <div className="ap-copy">
-                  <div className="ap-s-tag">Drill-Down</div>
-                  <h3 className="ap-s-h">Client → Case in one tap</h3>
-                  <p className="ap-s-p">From parent account to every live SAP module, with live status on each engagement.</p>
+                  <div className="ap-s-tag">{SCENES[2].tag}</div>
+                  <h3 className="ap-s-h">{SCENES[2].h}</h3>
+                  <p className="ap-s-p">{SCENES[2].p}</p>
                 </div>
                 <div className="ap-visual">
                   <div className="ap-tree">
@@ -931,9 +965,9 @@ function ArenaPromoVideo({ tl }) {
             <div className={`ap-scene${cur===3?' on':''}`}>
               <div className="ap-content">
                 <div className="ap-copy">
-                  <div className="ap-s-tag">Lifecycle Governance</div>
-                  <h3 className="ap-s-h">Governed open to close</h3>
-                  <p className="ap-s-p">Mandatory gates, attached evidence, logged hours. Every transition is audited.</p>
+                  <div className="ap-s-tag">{SCENES[3].tag}</div>
+                  <h3 className="ap-s-h">{SCENES[3].h}</h3>
+                  <p className="ap-s-p">{SCENES[3].p}</p>
                 </div>
                 <div className="ap-visual">
                   <div className="ap-lc">
@@ -953,9 +987,9 @@ function ArenaPromoVideo({ tl }) {
             <div className={`ap-scene${cur===4?' on':''}`}>
               <div className="ap-content">
                 <div className="ap-copy">
-                  <div className="ap-s-tag">Consultant Arena</div>
-                  <h3 className="ap-s-h">Find the right specialist</h3>
-                  <p className="ap-s-p">Ranked matches by skills, availability, and track record — hire in minutes.</p>
+                  <div className="ap-s-tag">{SCENES[4].tag}</div>
+                  <h3 className="ap-s-h">{SCENES[4].h}</h3>
+                  <p className="ap-s-p">{SCENES[4].p}</p>
                 </div>
                 <div className="ap-visual">
                   <div className="ap-ac-grid">
@@ -1095,15 +1129,15 @@ function DemoCarousel({ tl }) {
             </div>
             <div className="dc-body">
               <div className="dc-stat-grid">
-                <div className="dc-stat"><div className="dc-stat-lbl">Active Cases</div><div className="dc-stat-val">12</div><div className="dc-stat-delta">↑ 3 this week</div></div>
-                <div className="dc-stat"><div className="dc-stat-lbl">Consultants</div><div className="dc-stat-val">48</div><div className="dc-stat-delta">7 available now</div></div>
-                <div className="dc-stat"><div className="dc-stat-lbl">Fill Rate</div><div className="dc-stat-val">94%</div><div className="dc-stat-delta">↑ 2% vs last mo.</div></div>
+                <div className="dc-stat"><div className="dc-stat-lbl">{tl('dc_stat_cases')}</div><div className="dc-stat-val">12</div><div className="dc-stat-delta">{tl('dc_stat_cases_d')}</div></div>
+                <div className="dc-stat"><div className="dc-stat-lbl">{tl('dc_stat_cons')}</div><div className="dc-stat-val">48</div><div className="dc-stat-delta">{tl('dc_stat_cons_d')}</div></div>
+                <div className="dc-stat"><div className="dc-stat-lbl">{tl('dc_stat_fill')}</div><div className="dc-stat-val">94%</div><div className="dc-stat-delta">{tl('dc_stat_fill_d')}</div></div>
               </div>
               <div>
-                <div className="dc-case-row"><div className="dc-case-title">SAP FICO — Q4 Close Migration</div><span className="dc-area">FICO</span><span className="dc-badge dc-b-blue">In Progress</span></div>
-                <div className="dc-case-row"><div className="dc-case-title">MM/SD Integration — Logistics Hub</div><span className="dc-area">MM/SD</span><span className="dc-badge dc-b-amber">Estimated</span></div>
-                <div className="dc-case-row"><div className="dc-case-title">S/4HANA Upgrade — Pilot Phase</div><span className="dc-area">S/4HANA</span><span className="dc-badge dc-b-purple">Open</span></div>
-                <div className="dc-case-row"><div className="dc-case-title">SAP Basis — Infrastructure Review</div><span className="dc-area">Basis</span><span className="dc-badge dc-b-green">Assigned</span></div>
+                <div className="dc-case-row"><div className="dc-case-title">{tl('dc_c1')}</div><span className="dc-area">FICO</span><span className="dc-badge dc-b-blue">{tl('dc_b_inprogress')}</span></div>
+                <div className="dc-case-row"><div className="dc-case-title">{tl('dc_c2')}</div><span className="dc-area">MM/SD</span><span className="dc-badge dc-b-amber">{tl('dc_b_estimated')}</span></div>
+                <div className="dc-case-row"><div className="dc-case-title">{tl('dc_c3')}</div><span className="dc-area">S/4HANA</span><span className="dc-badge dc-b-purple">{tl('dc_b_open')}</span></div>
+                <div className="dc-case-row"><div className="dc-case-title">{tl('dc_c4')}</div><span className="dc-area">Basis</span><span className="dc-badge dc-b-green">{tl('dc_b_assigned')}</span></div>
               </div>
             </div>
           </div>
@@ -1173,8 +1207,8 @@ function DemoCarousel({ tl }) {
                 <div className="dc-lc-line" /><div className="dc-lc-done" />
                 <div className="dc-lc-stages">
                   {[
-                    {lbl:"Open",state:"done"},{lbl:"Estimated",state:"done"},{lbl:"Assigned",state:"done"},
-                    {lbl:"In Progress",state:"current"},{lbl:"Review",state:"pending"},{lbl:"Done",state:"pending"},
+                    {lbl:tl('dc_lc_open'),state:"done"},{lbl:tl('dc_lc_estimated'),state:"done"},{lbl:tl('dc_lc_assigned'),state:"done"},
+                    {lbl:tl('dc_lc_inprogress'),state:"current"},{lbl:tl('dc_lc_review'),state:"pending"},{lbl:tl('dc_lc_done'),state:"pending"},
                   ].map(s => (
                     <div key={s.lbl} className="dc-lc-stage">
                       <div className={`dc-lc-dot ${s.state}`}>
@@ -1187,10 +1221,10 @@ function DemoCarousel({ tl }) {
                 </div>
               </div>
               <div className="dc-cc">
-                <div className="dc-cc-title">SAP FICO — Q4 Close Migration</div>
+                <div className="dc-cc-title">{tl('dc_c1')}</div>
                 <div className="dc-cc-meta">
-                  <span className="dc-badge dc-b-blue">In Progress</span>
-                  <span className="dc-badge dc-b-amber">High Priority</span>
+                  <span className="dc-badge dc-b-blue">{tl('dc_b_inprogress')}</span>
+                  <span className="dc-badge dc-b-amber">{tl('dc_b_highpriority')}</span>
                   <span className="dc-area">SAP FICO</span>
                 </div>
                 <div className="dc-cc-fields">
@@ -1224,31 +1258,31 @@ function DemoCarousel({ tl }) {
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
                 <span style={{fontSize:10,color:"#7090B0"}}>14 {tl('dc_s3_matches')}</span>
                 <div style={{display:"flex",gap:4}}>
-                  <span className="dc-badge dc-b-blue" style={{cursor:"pointer"}}>All</span>
+                  <span className="dc-badge dc-b-blue" style={{cursor:"pointer"}}>{tl('dc_a_filter_all')}</span>
                   <span className="dc-badge dc-b-gray" style={{cursor:"pointer"}}>FICO</span>
                   <span className="dc-badge dc-b-gray" style={{cursor:"pointer"}}>S/4HANA</span>
                 </div>
               </div>
               <div className="dc-arena-grid">
                 <div className="dc-arena-card ft">
-                  <div className="dc-a-tag">Best match</div>
-                  <div className="dc-a-title">FICO Chart of Accounts Restructure</div>
-                  <span className="dc-badge dc-b-amber" style={{fontSize:8}}>High Priority</span>
-                  <div className="dc-a-foot"><span className="dc-a-match">97% match</span><button className="dc-a-apply">Apply Now</button></div>
+                  <div className="dc-a-tag">{tl('dc_a_bestmatch')}</div>
+                  <div className="dc-a-title">{tl('dc_a_c1title')}</div>
+                  <span className="dc-badge dc-b-amber" style={{fontSize:8}}>{tl('dc_b_highpriority')}</span>
+                  <div className="dc-a-foot"><span className="dc-a-match">97% match</span><button className="dc-a-apply">{tl('dc_a_applynow')}</button></div>
                 </div>
                 <div className="dc-arena-card">
                   <div className="dc-a-tag" style={{color:"#7090B0"}}>SAP FICO</div>
-                  <div className="dc-a-title">Tax Compliance Automation</div>
-                  <span className="dc-badge dc-b-blue" style={{fontSize:8}}>Open</span>
-                  <div className="dc-a-foot"><span className="dc-a-match" style={{color:"#60A5FA"}}>89%</span><button className="dc-a-apply ghost">Apply</button></div>
+                  <div className="dc-a-title">{tl('dc_a_c2title')}</div>
+                  <span className="dc-badge dc-b-blue" style={{fontSize:8}}>{tl('dc_b_open')}</span>
+                  <div className="dc-a-foot"><span className="dc-a-match" style={{color:"#60A5FA"}}>89%</span><button className="dc-a-apply ghost">{tl('dc_a_apply')}</button></div>
                 </div>
                 <div className="dc-arena-card">
                   <div className="dc-a-tag" style={{color:"#7090B0"}}>S/4HANA</div>
-                  <div className="dc-a-title">ERP Migration Readiness Review</div>
-                  <span className="dc-badge dc-b-purple" style={{fontSize:8}}>New</span>
-                  <div className="dc-a-foot"><span className="dc-a-match" style={{color:"#60A5FA"}}>84%</span><button className="dc-a-apply ghost">Apply</button></div>
+                  <div className="dc-a-title">{tl('dc_a_c3title')}</div>
+                  <span className="dc-badge dc-b-purple" style={{fontSize:8}}>{tl('dc_b_new')}</span>
+                  <div className="dc-a-foot"><span className="dc-a-match" style={{color:"#60A5FA"}}>84%</span><button className="dc-a-apply ghost">{tl('dc_a_apply')}</button></div>
                 </div>
-                <div className="dc-a-more">+11 more cases</div>
+                <div className="dc-a-more">{tl('dc_a_more')}</div>
               </div>
             </div>
           </div>
