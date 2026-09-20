@@ -516,7 +516,417 @@ const CSS = `
 #arena-landing .dc-a-apply.ghost{background:#1A2F44;color:#7090B0;}
 #arena-landing .dc-a-more{display:flex;align-items:center;justify-content:center;border:1px dashed rgba(100,160,220,0.15);border-radius:10px;padding:10px;font-size:9px;color:#405870;}
 @media(prefers-reduced-motion:reduce){#arena-landing .dc-slide.on{animation:none;}#arena-landing .dc-bar{transition:none;}}
+/* ── ARENA PROMO ─────────────────── */
+#arena-landing .ap-section{position:relative;overflow:hidden;padding:60px 24px 80px;background:linear-gradient(180deg,#05080F 0%,#080E1A 100%);}
+#arena-landing .ap-bg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+#arena-landing .ap-inner{position:relative;z-index:1;max-width:900px;margin:0 auto;}
+#arena-landing .ap-header{text-align:center;margin-bottom:36px;}
+#arena-landing .ap-tag{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#4F6EF7;margin-bottom:10px;}
+#arena-landing .ap-title{font-size:clamp(22px,4vw,38px);font-weight:800;color:#DCE8F4;line-height:1.15;margin-bottom:8px;}
+#arena-landing .ap-sub{font-size:15px;color:#7090B0;}
+#arena-landing .ap-player{background:#0C1522;border:1px solid rgba(100,160,220,0.12);border-radius:16px;overflow:hidden;}
+#arena-landing .ap-stage{position:relative;height:320px;overflow:hidden;}
+#arena-landing .ap-scene{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .5s;}
+#arena-landing .ap-scene.on{opacity:1;}
+#arena-landing .ap-content{position:relative;z-index:1;display:flex;gap:36px;align-items:center;padding:28px 32px;width:100%;box-sizing:border-box;}
+#arena-landing .ap-copy{flex:1;min-width:0;}
+#arena-landing .ap-s-tag{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#F59E0B;margin-bottom:8px;}
+#arena-landing .ap-s-h{font-size:clamp(17px,2.5vw,23px);font-weight:800;color:#DCE8F4;margin-bottom:10px;line-height:1.2;}
+#arena-landing .ap-s-p{font-size:13px;color:#7090B0;line-height:1.6;}
+#arena-landing .ap-visual{width:240px;flex-shrink:0;}
+#arena-landing .ap-controls{padding:12px 20px;border-top:1px solid rgba(100,160,220,0.08);display:flex;flex-direction:column;gap:10px;}
+#arena-landing .ap-scrubber{position:relative;height:3px;background:rgba(100,160,220,0.12);border-radius:2px;cursor:pointer;}
+#arena-landing .ap-prog{height:100%;border-radius:2px;background:#4F6EF7;transition:width .1s linear;}
+#arena-landing .ap-btns{display:flex;align-items:center;gap:10px;}
+#arena-landing .ap-btn{background:none;border:none;color:#7090B0;cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center;transition:color .2s;}
+#arena-landing .ap-btn:hover{color:#DCE8F4;}
+#arena-landing .ap-chaps{display:flex;gap:6px;margin-left:auto;}
+#arena-landing .ap-chap{width:7px;height:7px;border-radius:50%;background:rgba(100,160,220,0.2);border:none;cursor:pointer;transition:background .2s,transform .2s;padding:0;}
+#arena-landing .ap-chap.on{background:#4F6EF7;transform:scale(1.3);}
+#arena-landing .ap-orb-wrap{position:relative;width:220px;height:220px;flex-shrink:0;}
+#arena-landing .ap-orb-cv{width:100%;height:100%;}
+#arena-landing .ap-tree{display:flex;flex-direction:column;gap:7px;}
+#arena-landing .ap-tree-row{display:flex;align-items:center;gap:8px;opacity:0;transform:translateX(10px);transition:opacity .4s,transform .4s;}
+#arena-landing .ap-tree-row.show{opacity:1;transform:none;}
+#arena-landing .ap-tree-icon{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;}
+#arena-landing .ap-tree-name{font-size:11px;font-weight:600;color:#DCE8F4;}
+#arena-landing .ap-tree-sub{font-size:9px;color:#405870;}
+#arena-landing .ap-case-card{background:#132436;border:1px solid rgba(37,99,235,0.4);border-radius:10px;padding:11px;opacity:0;transform:translateY(6px);transition:opacity .4s .2s,transform .4s .2s;}
+#arena-landing .ap-case-card.show{opacity:1;transform:none;}
+#arena-landing .ap-lc{display:flex;flex-direction:column;gap:5px;}
+#arena-landing .ap-lc-node{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:8px;background:#132436;border:1px solid rgba(100,160,220,0.1);opacity:0;transform:translateY(8px);transition:opacity .35s,transform .35s;}
+#arena-landing .ap-lc-node.show{opacity:1;transform:none;}
+#arena-landing .ap-lc-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+#arena-landing .ap-lc-label{font-size:11px;font-weight:600;color:#DCE8F4;}
+#arena-landing .ap-lc-badge{margin-left:auto;font-size:9px;font-weight:700;padding:2px 7px;border-radius:12px;}
+#arena-landing .ap-ac-grid{display:flex;flex-direction:column;gap:6px;}
+#arena-landing .ap-ac-card{background:#132436;border:1px solid rgba(100,160,220,0.1);border-radius:9px;padding:9px;display:flex;align-items:center;gap:9px;opacity:0;transform:translateX(10px);transition:opacity .35s,transform .35s;}
+#arena-landing .ap-ac-card.show{opacity:1;transform:none;}
+#arena-landing .ap-ac-av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0;}
+#arena-landing .ap-ac-name{font-size:11px;font-weight:600;color:#DCE8F4;}
+#arena-landing .ap-ac-role{font-size:9px;color:#405870;}
+#arena-landing .ap-ac-match{margin-left:auto;font-size:14px;font-weight:800;color:#10B981;font-variant-numeric:tabular-nums;}
+#arena-landing .ap-cta-grid{display:flex;gap:12px;width:100%;}
+#arena-landing .ap-cta-card{flex:1;background:#132436;border-radius:12px;padding:18px;text-align:center;border:1px solid rgba(100,160,220,0.12);}
+#arena-landing .ap-cta-card.blue{border-color:rgba(37,99,235,0.5);}
+#arena-landing .ap-cta-icon{font-size:22px;margin-bottom:7px;}
+#arena-landing .ap-cta-title{font-size:13px;font-weight:700;color:#DCE8F4;margin-bottom:4px;}
+#arena-landing .ap-cta-desc{font-size:10px;color:#7090B0;margin-bottom:11px;}
+#arena-landing .ap-cta-btn{font-size:11px;font-weight:700;padding:6px 14px;border-radius:7px;border:none;cursor:pointer;font-family:inherit;}
+#arena-landing .ap-cta-btn.primary{background:#2563EB;color:#fff;}
+#arena-landing .ap-cta-btn.ghost{background:#1A2F44;color:#7090B0;}
+@media(max-width:640px){#arena-landing .ap-content{flex-direction:column;}#arena-landing .ap-visual,#arena-landing .ap-orb-wrap{width:100%;}}
+@media(prefers-reduced-motion:reduce){#arena-landing .ap-scene{transition:none;}#arena-landing .ap-prog{transition:none;}}
 `;
+
+function ArenaPromoVideo() {
+  const SCENES = [
+    {tag:'Platform',        h:'Arena Solutions Platform',   p:'The only workspace built for SAP project governance — from open case to closed ticket.', dur:4500},
+    {tag:'Orbital Explorer',h:'See who works on what',      p:'Every active SAP case orbits the client hub. Click any node to drill into the engagement.', dur:5800},
+    {tag:'Drill-Down',      h:'Client → Case in one tap',   p:'From parent account to every live SAP module, with live status on each engagement.', dur:5200},
+    {tag:'Lifecycle',       h:'Governed open to close',     p:'Mandatory gates, attached evidence, logged hours. Every transition is audited.', dur:5100},
+    {tag:'Consultant Arena',h:'Find the right specialist',  p:'Ranked matches based on skills, availability, and track record — hire in minutes.', dur:4800},
+    {tag:'Get Started',     h:'Ready when you are',         p:'Set up your org in minutes. Your first case can be live before end of day.', dur:4500},
+  ];
+  const TOTAL = SCENES.length;
+  const TICK = 80;
+
+  const [cur, setCur] = useState(0);
+  const [playing, setPlaying] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const [drillShow, setDrillShow] = useState([false,false,false,false]);
+  const [drillCase, setDrillCase] = useState(false);
+  const [lcShow, setLcShow] = useState([false,false,false,false,false]);
+  const [acShow, setAcShow] = useState([false,false,false]);
+  const [acPct, setAcPct] = useState([0,0,0]);
+  const [ctaShow, setCtaShow] = useState([false,false]);
+
+  const elapsedRef = useRef(0);
+  const playingRef = useRef(true);
+  const bgCvRef    = useRef(null);
+  const orbCvRef   = useRef(null);
+  const orbAngles  = useRef([0, 2.1, 1.0, 3.2]);
+  const orbSel     = useRef(false);
+
+  useEffect(() => { playingRef.current = playing; }, [playing]);
+
+  useEffect(() => {
+    const cv = bgCvRef.current; if (!cv) return;
+    const ctx = cv.getContext('2d');
+    const pts = Array.from({length:50}, () => ({
+      x:Math.random()*800, y:Math.random()*340,
+      vx:(Math.random()-.5)*.3, vy:(Math.random()-.5)*.3,
+      r:Math.random()*1.5+.5, a:Math.random()*.4+.1
+    }));
+    let raf;
+    function draw() {
+      const W = cv.offsetWidth||800, H = cv.offsetHeight||340;
+      if (cv.width!==W||cv.height!==H) { cv.width=W; cv.height=H; }
+      ctx.clearRect(0,0,W,H);
+      pts.forEach(p => {
+        p.x=(p.x+p.vx+W)%W; p.y=(p.y+p.vy+H)%H;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+        ctx.fillStyle=`rgba(79,110,247,${p.a})`; ctx.fill();
+      });
+      raf = requestAnimationFrame(draw);
+    }
+    draw();
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  useEffect(() => {
+    if (cur !== 1) return;
+    const cv = orbCvRef.current; if (!cv) return;
+    const ctx = cv.getContext('2d');
+    const ORBS = [
+      {label:'FICO Q4', color:'#4F6EF7', r:72,  speed:.45},
+      {label:'MM/SD',   color:'#F59E0B', r:100, speed:.28},
+      {label:'S/4HANA', color:'#A78BFA', r:126, speed:.19},
+      {label:'Basis',   color:'#10B981', r:150, speed:.13},
+    ];
+    orbSel.current = false;
+    const selTimer = setTimeout(() => { orbSel.current = true; }, 2800);
+    let raf, last = performance.now();
+    function draw(now) {
+      const dt = (now - last)/1000; last = now;
+      const W = cv.offsetWidth||220, H = cv.offsetHeight||220;
+      if (cv.width!==W||cv.height!==H) { cv.width=W; cv.height=H; }
+      ctx.clearRect(0,0,W,H);
+      const cx=W/2, cy=H/2;
+      orbAngles.current = orbAngles.current.map((a,i) => a + ORBS[i].speed*dt);
+      ORBS.forEach(o => {
+        ctx.beginPath(); ctx.ellipse(cx,cy,o.r,o.r*.38,0,0,Math.PI*2);
+        ctx.strokeStyle='rgba(100,160,220,0.08)'; ctx.lineWidth=1; ctx.stroke();
+      });
+      const hg = ctx.createRadialGradient(cx,cy,0,cx,cy,22);
+      hg.addColorStop(0,'rgba(37,99,235,0.9)'); hg.addColorStop(1,'rgba(37,99,235,0.2)');
+      ctx.beginPath(); ctx.arc(cx,cy,18,0,Math.PI*2); ctx.fillStyle=hg; ctx.fill();
+      ctx.font='bold 13px sans-serif'; ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('A',cx,cy);
+      ORBS.forEach((o,i) => {
+        const a=orbAngles.current[i];
+        const nx=cx+o.r*Math.cos(a), ny=cy+o.r*.38*Math.sin(a);
+        const sel=i===0&&orbSel.current;
+        if (sel) {
+          ctx.beginPath(); ctx.arc(nx,ny,22,0,Math.PI*2);
+          ctx.strokeStyle='rgba(79,110,247,0.4)'; ctx.lineWidth=2; ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(nx,ny);
+          ctx.strokeStyle='rgba(79,110,247,0.3)'; ctx.lineWidth=1; ctx.stroke();
+        }
+        ctx.beginPath(); ctx.arc(nx,ny,sel?12:9,0,Math.PI*2);
+        ctx.fillStyle=o.color; ctx.fill();
+        ctx.font=`${sel?'bold ':''} 8px sans-serif`; ctx.fillStyle='#DCE8F4';
+        ctx.textAlign='center'; ctx.textBaseline='top';
+        ctx.fillText(o.label,nx,ny+14);
+      });
+      raf = requestAnimationFrame(draw);
+    }
+    raf = requestAnimationFrame(draw);
+    return () => { cancelAnimationFrame(raf); clearTimeout(selTimer); };
+  }, [cur]);
+
+  useEffect(() => {
+    const ts = [];
+    setDrillShow([false,false,false,false]); setDrillCase(false);
+    setLcShow([false,false,false,false,false]);
+    setAcShow([false,false,false]); setAcPct([0,0,0]);
+    setCtaShow([false,false]);
+    if (cur===2) {
+      [0,1,2,3].forEach(i => ts.push(setTimeout(() => setDrillShow(p=>{const n=[...p];n[i]=true;return n;}),200+i*200)));
+      ts.push(setTimeout(()=>setDrillCase(true),1100));
+    }
+    if (cur===3) {
+      [0,1,2,3,4].forEach(i => ts.push(setTimeout(()=>setLcShow(p=>{const n=[...p];n[i]=true;return n;}),200+i*250)));
+    }
+    if (cur===4) {
+      const tgts=[97,89,84];
+      [0,1,2].forEach(i => {
+        ts.push(setTimeout(()=>setAcShow(p=>{const n=[...p];n[i]=true;return n;}),300+i*300));
+        ts.push(setTimeout(()=>{
+          let v=0; const iv=setInterval(()=>{
+            v=Math.min(v+3,tgts[i]);
+            setAcPct(p=>{const n=[...p];n[i]=v;return n;});
+            if(v>=tgts[i])clearInterval(iv);
+          },30);
+        },600+i*300));
+      });
+    }
+    if (cur===5) {
+      [0,1].forEach(i=>ts.push(setTimeout(()=>setCtaShow(p=>{const n=[...p];n[i]=true;return n;}),300+i*250)));
+    }
+    return ()=>ts.forEach(clearTimeout);
+  }, [cur]);
+
+  useEffect(() => {
+    if (!playing) return;
+    elapsedRef.current=0; setProgress(0);
+    const dur=SCENES[cur].dur;
+    const pg=setInterval(()=>{
+      if(!playingRef.current)return;
+      elapsedRef.current+=TICK;
+      setProgress(Math.min((elapsedRef.current/dur)*100,100));
+    },TICK);
+    const adv=setTimeout(()=>{
+      if(!playingRef.current)return;
+      setCur(c=>(c+1)%TOTAL);
+    },dur);
+    return ()=>{clearInterval(pg);clearTimeout(adv);};
+  }, [playing, cur]);
+
+  function goTo(n){setCur(n);setProgress(0);}
+  function toggle(){setPlaying(p=>!p);}
+
+  const drillRows=[
+    {icon:'🏢',bg:'#1A2F44',      name:'Meridian Holdings',      sub:'4 active cases'},
+    {icon:'⚙️',bg:'rgba(37,99,235,0.15)',  name:'FICO Q4 Implementation', sub:'Module · In Progress'},
+    {icon:'📦',bg:'rgba(245,158,11,0.15)', name:'MM/SD Rollout',           sub:'Module · Spec Review'},
+    {icon:'🔧',bg:'rgba(167,139,250,0.15)',name:'S/4HANA Upgrade',         sub:'Module · Planning'},
+  ];
+  const lcNodes=[
+    {color:'#10B981',label:'Open',        badge:'Done',   bc:'rgba(16,185,129,0.15)',  tc:'#10B981'},
+    {color:'#4F6EF7',label:'Spec Review', badge:'Done',   bc:'rgba(79,110,247,0.15)',  tc:'#4F6EF7'},
+    {color:'#F59E0B',label:'Development', badge:'Active', bc:'rgba(245,158,11,0.15)', tc:'#F59E0B'},
+    {color:'#405870',label:'Testing',     badge:'Locked', bc:'rgba(64,88,112,0.15)',  tc:'#7090B0'},
+    {color:'#405870',label:'Closure',     badge:'Locked', bc:'rgba(64,88,112,0.15)',  tc:'#7090B0'},
+  ];
+  const acCards=[
+    {av:'MR',bg:'linear-gradient(135deg,#4F6EF7,#818CF8)',name:'Marcus R.',   role:'SAP FI/CO Specialist · 8 yrs'},
+    {av:'SK',bg:'linear-gradient(135deg,#10B981,#34D399)', name:'Sofia K.',    role:'SAP FICO Senior · 6 yrs'},
+    {av:'JL',bg:'linear-gradient(135deg,#F59E0B,#FCD34D)', name:'James L.',    role:'SAP Finance Lead · 10 yrs'},
+  ];
+
+  return (
+    <section className="ap-section" id="promo">
+      <canvas ref={bgCvRef} className="ap-bg" />
+      <div className="ap-inner">
+        <div className="ap-header">
+          <div className="ap-tag">Platform Walkthrough</div>
+          <h2 className="ap-title">See Arena in Action</h2>
+          <p className="ap-sub">From orbital explorer to consultant marketplace — the full platform in 30 seconds.</p>
+        </div>
+        <div className="ap-player">
+          <div className="ap-stage">
+            {/* Scene 0 — Brand */}
+            <div className={`ap-scene${cur===0?' on':''}`}>
+              <div className="ap-content">
+                <div className="ap-copy">
+                  <div className="ap-s-tag">Platform</div>
+                  <h3 className="ap-s-h">Arena Solutions Platform</h3>
+                  <p className="ap-s-p">The only workspace built for SAP project governance — open case to closed ticket, end to end.</p>
+                </div>
+                <div className="ap-visual" style={{display:'flex',alignItems:'center',justifyContent:'center',height:200}}>
+                  <div style={{position:'relative',width:80,height:80}}>
+                    <div style={{position:'absolute',inset:0,borderRadius:'50%',background:'linear-gradient(135deg,#2563EB,#4F6EF7)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:32,fontWeight:900,color:'#fff'}}>A</div>
+                    {[{r:52,spd:18,sz:8,c:'#4F6EF7',d:0},{r:72,spd:28,sz:6,c:'#F59E0B',d:-8},{r:90,spd:38,sz:5,c:'#22D3EE',d:-15}].map((o,i)=>(
+                      <div key={i} style={{position:'absolute',width:o.sz,height:o.sz,borderRadius:'50%',background:o.c,
+                        top:'50%',left:'50%',marginTop:-o.sz/2,marginLeft:-o.sz/2,
+                        animation:`nova-lmark ${o.spd}s linear infinite`,
+                        '--nls':`${o.d}deg`,'--nlr':`${o.r}px`,transformOrigin:'0 0'}} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Scene 1 — Orbital */}
+            <div className={`ap-scene${cur===1?' on':''}`}>
+              <div className="ap-content">
+                <div className="ap-copy">
+                  <div className="ap-s-tag">Orbital Explorer</div>
+                  <h3 className="ap-s-h">See who works on what</h3>
+                  <p className="ap-s-p">Every active SAP case orbits the client hub. Click any node to drill into the engagement.</p>
+                </div>
+                <div className="ap-orb-wrap">
+                  <canvas ref={orbCvRef} className="ap-orb-cv" />
+                </div>
+              </div>
+            </div>
+
+            {/* Scene 2 — Drill-down */}
+            <div className={`ap-scene${cur===2?' on':''}`}>
+              <div className="ap-content">
+                <div className="ap-copy">
+                  <div className="ap-s-tag">Drill-Down</div>
+                  <h3 className="ap-s-h">Client → Case in one tap</h3>
+                  <p className="ap-s-p">From parent account to every live SAP module, with live status on each engagement.</p>
+                </div>
+                <div className="ap-visual">
+                  <div className="ap-tree">
+                    {drillRows.map((r,i)=>(
+                      <div key={i} className={`ap-tree-row${drillShow[i]?' show':''}`} style={{paddingLeft:i>0?14:0}}>
+                        <div className="ap-tree-icon" style={{background:r.bg}}>{r.icon}</div>
+                        <div><div className="ap-tree-name">{r.name}</div><div className="ap-tree-sub">{r.sub}</div></div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className={`ap-case-card${drillCase?' show':''}`} style={{marginTop:9}}>
+                    <div style={{fontSize:9,color:'#F59E0B',fontWeight:700,marginBottom:4}}>FICO Q4 · In Progress</div>
+                    <div style={{fontSize:11,color:'#DCE8F4',marginBottom:6}}>ERP Finance Consolidation</div>
+                    <div style={{display:'flex',gap:16}}>
+                      <div><div style={{fontSize:8,color:'#405870'}}>Hours</div><div style={{fontSize:11,fontWeight:700,color:'#DCE8F4'}}>142 / 200</div></div>
+                      <div><div style={{fontSize:8,color:'#405870'}}>Stage</div><div style={{fontSize:11,fontWeight:700,color:'#4F6EF7'}}>Development</div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Scene 3 — Lifecycle */}
+            <div className={`ap-scene${cur===3?' on':''}`}>
+              <div className="ap-content">
+                <div className="ap-copy">
+                  <div className="ap-s-tag">Lifecycle Governance</div>
+                  <h3 className="ap-s-h">Governed open to close</h3>
+                  <p className="ap-s-p">Mandatory gates, attached evidence, logged hours. Every transition is audited.</p>
+                </div>
+                <div className="ap-visual">
+                  <div className="ap-lc">
+                    {lcNodes.map((n,i)=>(
+                      <div key={i} className={`ap-lc-node${lcShow[i]?' show':''}`} style={{transitionDelay:`${i*40}ms`}}>
+                        <div className="ap-lc-dot" style={{background:n.color}} />
+                        <span className="ap-lc-label">{n.label}</span>
+                        <span className="ap-lc-badge" style={{background:n.bc,color:n.tc}}>{n.badge}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Scene 4 — Arena */}
+            <div className={`ap-scene${cur===4?' on':''}`}>
+              <div className="ap-content">
+                <div className="ap-copy">
+                  <div className="ap-s-tag">Consultant Arena</div>
+                  <h3 className="ap-s-h">Find the right specialist</h3>
+                  <p className="ap-s-p">Ranked matches by skills, availability, and track record — hire in minutes.</p>
+                </div>
+                <div className="ap-visual">
+                  <div className="ap-ac-grid">
+                    {acCards.map((c,i)=>(
+                      <div key={i} className={`ap-ac-card${acShow[i]?' show':''}`} style={{transitionDelay:`${i*40}ms`}}>
+                        <div className="ap-ac-av" style={{background:c.bg}}>{c.av}</div>
+                        <div><div className="ap-ac-name">{c.name}</div><div className="ap-ac-role">{c.role}</div></div>
+                        <div className="ap-ac-match">{acPct[i]}%</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Scene 5 — CTA */}
+            <div className={`ap-scene${cur===5?' on':''}`}>
+              <div className="ap-content" style={{flexDirection:'column',gap:20,justifyContent:'center'}}>
+                <div className="ap-copy" style={{textAlign:'center'}}>
+                  <div className="ap-s-tag">Ready?</div>
+                  <h3 className="ap-s-h">Get Started with Arena</h3>
+                  <p className="ap-s-p">Set up your org in minutes. Your first case can be live today.</p>
+                </div>
+                <div className="ap-cta-grid">
+                  {[
+                    {icon:'🏢',title:'For Companies',    desc:'Govern SAP cases, track SLAs, manage consultants.',      btn:'Request Demo', primary:true,  show:ctaShow[0]},
+                    {icon:'👤',title:'For Consultants',  desc:'Build your profile, get ranked, find the right project.',btn:'Join Arena',   primary:false, show:ctaShow[1]},
+                  ].map((c,i)=>(
+                    <div key={i} className={`ap-cta-card${c.primary?' blue':''}`}
+                      style={{opacity:c.show?1:0,transform:c.show?'none':'translateY(8px)',transition:'opacity .4s,transform .4s'}}>
+                      <div className="ap-cta-icon">{c.icon}</div>
+                      <div className="ap-cta-title">{c.title}</div>
+                      <div className="ap-cta-desc">{c.desc}</div>
+                      <button className={`ap-cta-btn ${c.primary?'primary':'ghost'}`}>{c.btn}</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="ap-controls">
+            <div className="ap-scrubber" onClick={e=>{
+              const rect=e.currentTarget.getBoundingClientRect();
+              goTo(Math.min(TOTAL-1,Math.floor((e.clientX-rect.left)/rect.width*TOTAL)));
+            }}>
+              <div className="ap-prog" style={{width:`${(cur/TOTAL)*100 + progress/TOTAL}%`}} />
+            </div>
+            <div className="ap-btns">
+              <button className="ap-btn" onClick={toggle} aria-label={playing?'Pause':'Play'}>
+                {playing
+                  ? <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="4" height="12" rx="1"/><rect x="9" y="2" width="4" height="12" rx="1"/></svg>
+                  : <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6z"/></svg>}
+              </button>
+              <span style={{fontSize:11,color:'#405870',marginLeft:4}}>{SCENES[cur].tag} · {cur+1}/{TOTAL}</span>
+              <div className="ap-chaps">
+                {SCENES.map((_,i)=>(
+                  <button key={i} className={`ap-chap${cur===i?' on':''}`} onClick={()=>goTo(i)} aria-label={`Scene ${i+1}`} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 const CHECK_SVG = (
   <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
@@ -1177,6 +1587,9 @@ export function LandingView({ onSignIn }) {
           </div>
         </div>
       </section>
+
+      {/* ARENA PROMO */}
+      <ArenaPromoVideo />
 
       {/* DEMO CAROUSEL */}
       <DemoCarousel />
