@@ -2768,13 +2768,13 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           {/* Badges row with optional Edit button */}
           <div className="flex items-center justify-between">
             <div className="flex flex-wrap gap-2">
-              {(() => {
+              {showEditWizard && (() => {
                 const stage = lifecycleStages.find(s => s.key === caseData.status);
                 return stage
                   ? <span className="px-2 py-0.5 text-xs font-semibold rounded-lg" style={{ backgroundColor: stage.color + "22", color: stage.color }}>{stage.label}</span>
                   : <Badge className={STATUS_COLORS[caseData.status] ?? "bg-gray-100 text-gray-600"}>{STATUS_LABEL_KEYS[caseData.status] ? t(STATUS_LABEL_KEYS[caseData.status]) : cap(fmt(caseData.status))}</Badge>;
               })()}
-              {caseData.priority && <Badge className={PRIORITY_COLORS[caseData.priority]}>{PRIORITY_LABEL_KEYS[caseData.priority] ? t(PRIORITY_LABEL_KEYS[caseData.priority]) : cap(caseData.priority)}</Badge>}
+              {showEditWizard && <Badge className={PRIORITY_COLORS[caseData.priority]}>{PRIORITY_LABEL_KEYS[caseData.priority] ? t(PRIORITY_LABEL_KEYS[caseData.priority]) : cap(caseData.priority)}</Badge>}
               {caseData.parent_case_id && (
                 <Badge className="bg-violet-100 text-blue-700">{t("case.badge_subcase")}</Badge>
               )}
@@ -2810,7 +2810,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             </div>
           </div>
 
-          {!showEditWizard && (
+          {showEditWizard && (
             <p className="text-gray-700 text-sm leading-relaxed">{caseData.description || t("cd.no_description")}</p>
           )}
 
