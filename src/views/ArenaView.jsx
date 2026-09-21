@@ -856,12 +856,12 @@ function ArenaView({ auth }) {
   const { isDark } = useTheme();
   const visCfg = useVisibilitySettings();
   const { settings: arenaSettings } = useSystemSettings();
-  const [arenaTab, setArenaTab]             = useState("cases");
+  const [arenaTab, setArenaTab]             = useState("leaderboard");
   const arenaCarouselRef = useRef(null);
   const arenaCarouselScrolling = useRef(false);
   const caseCarouselRef = useRef(null);
   const caseCarouselScrolling = useRef(false);
-  const [arenaMountedSlides, setArenaMountedSlides] = useState(() => new Set(["cases"]));
+  const [arenaMountedSlides, setArenaMountedSlides] = useState(() => new Set(["leaderboard"]));
   const [arenaManualCompletions, setArenaManualCompletionsRaw] = useState(() => {
     try { return JSON.parse(localStorage.getItem(`tc_arenamc_arena`) ?? "{}"); } catch { return {}; }
   });
@@ -1771,7 +1771,6 @@ function ArenaView({ auth }) {
   };
 
   const arenaTabs = [
-    { id: "cases",       label: t("arena.open_cases"),  icon: Briefcase,  count: openCases.length > 0 ? openCases.length : null },
     { id: "leaderboard", label: t("arena.leaderboard"), icon: Trophy,     count: null },
     { id: "cards",       label: t("arena.cards"),       icon: LayoutGrid, count: null },
     { id: "compare",     label: t("arena.compare"),     icon: BarChart2,  count: compareSet.length >= 2 ? compareSet.length : null },
@@ -1921,21 +1920,7 @@ function ArenaView({ auth }) {
         )}
       </div>
 
-      {/* Progress bar */}
-      {(() => {
-        const done = arenaTabs.filter(t => arenaTabStatus[t.id] === "complete").length;
-        if (done === 0) return null;
-        return (
-          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
-            <div style={{ flex:1, height:4, borderRadius:99, background:'#E2E8F0', overflow:'hidden' }}>
-              <div style={{ height:'100%', width:`${(done/arenaTabs.length)*100}%`, background:'linear-gradient(90deg,#1A4B8C,#3B82F6)', borderRadius:99, transition:'width .4s' }}/>
-            </div>
-            <span style={{ fontSize:11, fontWeight:700, color:'#1A4B8C', whiteSpace:'nowrap' }}>{done}/{arenaTabs.length} done</span>
-          </div>
-        );
-      })()}
-
-      {/* Galaxy Explorer — independent, above both carousels */}
+      {/* Section 1 — Galaxy Explorer */}
       {openCases.length > 0 && (
         <GalaxyExplorer
           openCases={openCases}
@@ -1948,7 +1933,30 @@ function ArenaView({ auth }) {
         />
       )}
 
-      {/* Section Carousel */}
+      {/* Section 2 — Open Cases carousel */}
+      <div style={{ marginTop: openCases.length > 0 ? 28 : 0 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
+          <div style={{ width:28, height:28, borderRadius:8, background:'linear-gradient(135deg,#1A4B8C,#2563EB)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+            <Briefcase size={14} color="white" />
+          </div>
+          <span style={{ fontSize:14, fontWeight:700, color:'var(--t-text)' }}>{t("arena.open_cases")}</span>
+          {openCases.length > 0 && (
+            <span style={{ fontSize:11, fontWeight:700, padding:'2px 8px', borderRadius:99, background:'rgba(37,99,235,0.1)', color:'var(--t-text-accent)' }}>
+              {openCases.length}
+            </span>
+          )}
+        </div>
+        {renderCases()}
+      </div>
+
+      {/* Section 3 — Leaderboard / Cards / Compare carousel */}
+      <div style={{ marginTop:28 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
+          <div style={{ width:28, height:28, borderRadius:8, background:'linear-gradient(135deg,#5B21B6,#7C3AED)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+            <Trophy size={14} color="white" />
+          </div>
+          <span style={{ fontSize:14, fontWeight:700, color:'var(--t-text)' }}>{t("arena.leaderboard")}</span>
+        </div>
       {(() => {
         const carouselIdx = Math.max(0, arenaTabs.findIndex(t => t.id === arenaTab));
         function scrollTo(idx) {
@@ -2013,7 +2021,6 @@ function ArenaView({ auth }) {
                       {arenaMountedSlides.has(tab.id) ? (
                         <div style={{ flex:1, overflowY:'auto', padding:'18px 20px' }}>
 
-          {tab.id === "cases"       && renderCases()}
           {tab.id === "leaderboard" && renderLeaderboard()}
           {tab.id === "cards"       && renderCards()}
           {tab.id === "compare"     && renderCompare()}
@@ -2050,6 +2057,7 @@ function ArenaView({ auth }) {
           </div>
         );
       })()}
+      </div>{/* end Section 3 wrapper */}
 
 
       {/* Floating compare bar */}
