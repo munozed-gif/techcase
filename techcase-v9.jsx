@@ -594,7 +594,10 @@ export default function App() {
 
   if (!authed || !auth.user) {
     if (!showAuth) {
-      return <LandingView onSignIn={() => setShowAuth(true)} />;
+      return <LandingView onSignIn={() => {
+        try { localStorage.setItem('arena_returning', '1'); } catch {}
+        setShowAuth(true);
+      }} />;
     }
     return (
       <SystemSettingsProvider>
@@ -602,6 +605,7 @@ export default function App() {
           <AuthScreen
             onBack={() => setShowAuth(false)}
             onAuth={(newRole = null) => {
+              try { localStorage.setItem('arena_returning', '1'); } catch {}
               setAuthed(true);
               setShowAuth(false);
               if (newRole) setOnboarding(newRole);
