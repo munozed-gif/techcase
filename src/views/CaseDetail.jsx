@@ -2716,7 +2716,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       })()}
                       {/* Content */}
                       {mountedSlides.has(tab.id) ? (
-                        <div className="space-y-4" style={{ flex:1, overflowY:'auto', padding:'18px 20px' }}>
+                        <div className="space-y-4" style={{ flex:1, overflowY:'auto', padding:'18px 20px', color:'var(--t-text)' }}>
                           {/* Stage lock banner (shown only on active tab) */}
                           {isActive && currentStage?.rules && (() => {
                             const locked = [
