@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTheme } from "../context/ThemeContext.jsx";
 import {
   BarChart2, Bookmark, BookmarkCheck, Briefcase, Building2, Check,
   CheckCircle2, ChevronLeft, ChevronRight, Crosshair, ExternalLink,
@@ -852,6 +853,7 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
 let _arenaCaseIdx = 0; // persists carousel position across ArenaView remounts
 function ArenaView({ auth }) {
   const { t } = useT();
+  const { isDark } = useTheme();
   const visCfg = useVisibilitySettings();
   const { settings: arenaSettings } = useSystemSettings();
   const [arenaTab, setArenaTab]             = useState("cases");
@@ -1125,9 +1127,9 @@ function ArenaView({ auth }) {
                     <div style={{ fontFamily:"'Barlow Condensed', sans-serif", fontSize:46, fontWeight:800, lineHeight:1, color:mc, letterSpacing:'-0.01em' }}>
                       {score}<span style={{ fontSize:22, opacity:0.5 }}>%</span>
                     </div>
-                    <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:'#6B8AB8', marginTop:2 }}>Match score</div>
+                    <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--t-text2)', marginTop:2 }}>Match score</div>
                     {(c.skills_required?.length ?? 0) > 0 && (
-                      <div style={{ fontSize:11, color:'#7090B0', marginTop:3, lineHeight:1.4 }}>
+                      <div style={{ fontSize:11, color:'var(--t-text2)', marginTop:3, lineHeight:1.4 }}>
                         {c.skills_required.filter(s => mySkills.has(String(s).toLowerCase())).length} of {c.skills_required.length} skills matched
                       </div>
                     )}
@@ -1139,8 +1141,8 @@ function ArenaView({ auth }) {
             </div>
             {/* Title */}
             <div>
-              <div style={{ fontFamily:"'Barlow Condensed', sans-serif", fontSize:22, fontWeight:700, letterSpacing:'0.02em', color:'#DCE8F4', lineHeight:1.2 }}>{c.title}</div>
-              {c.description && <div style={{ fontSize:12, color:'#7090B0', lineHeight:1.5, marginTop:4 }}>{c.description}</div>}
+              <div style={{ fontFamily:"'Barlow Condensed', sans-serif", fontSize:22, fontWeight:700, letterSpacing:'0.02em', color:'var(--t-text)', lineHeight:1.2 }}>{c.title}</div>
+              {c.description && <div style={{ fontSize:12, color:'var(--t-text2)', lineHeight:1.5, marginTop:4 }}>{c.description}</div>}
             </div>
             {/* Chips */}
             <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center' }}>
@@ -1157,7 +1159,7 @@ function ArenaView({ auth }) {
             <div style={{ height:1, background:'rgba(96,165,250,0.12)' }} />
 
             {/* Solar leaderboard inside the card */}
-            <div style={{ display:'flex', gap:12, alignItems:'flex-start', flexWrap:'wrap', background:'rgba(15,30,55,0.5)', borderRadius:14, padding:'10px 12px', border:'1px solid rgba(96,165,250,0.12)' }}>
+            <div style={{ display:'flex', gap:12, alignItems:'flex-start', flexWrap:'wrap', background:'var(--t-tab-inactive)', borderRadius:14, padding:'10px 12px', border:'1px solid var(--t-border)' }}>
               {/* Solar system */}
               <div style={{ display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                 <div style={{ position:'relative', width:LB_SYS, height:LB_SYS }}>
@@ -1196,22 +1198,22 @@ function ArenaView({ auth }) {
                 {auth.isConsultant && score != null && (
                   <div style={{ marginBottom:6 }}>
                     <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:30, fontWeight:800, lineHeight:1, color:mc }}>{score}%</span>
-                    <span style={{ fontSize:8, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#6B8AB8', marginLeft:5 }}>match</span>
+                    <span style={{ fontSize:8, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--t-text2)', marginLeft:5 }}>match</span>
                   </div>
                 )}
-                <p style={{ fontSize:9, fontWeight:700, color:'#7090B0', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:5 }}>{appCount} applied</p>
+                <p style={{ fontSize:9, fontWeight:700, color:'var(--t-text2)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:5 }}>{appCount} applied</p>
                 <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
                   {appsSorted.slice(0, 4).map((app, i) => {
                     const name = app.consultant?.full_name ?? 'Consultant';
                     const initials = name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
                     const avatarUrl = app.consultant?.avatar_url;
                     return (
-                      <div key={app.consultant_id} style={{ display:'flex', alignItems:'center', gap:6, background:'rgba(15,30,55,0.6)', borderRadius:7, padding:'4px 8px', border:'1px solid rgba(96,165,250,0.12)' }}>
-                        <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:12, fontWeight:700, width:12, textAlign:'center', color: i===0?'#D97706':i===1?'#6B8AB8':i===2?'#B45309':'#93AECF' }}>{i+1}</span>
+                      <div key={app.consultant_id} style={{ display:'flex', alignItems:'center', gap:6, background:'var(--t-row-bg)', borderRadius:7, padding:'4px 8px', border:'1px solid var(--t-row-border)' }}>
+                        <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:12, fontWeight:700, width:12, textAlign:'center', color: i===0?'#D97706':i===1?isDark?'#6B8AB8':'#4B6A8A':i===2?'#B45309':'var(--t-text2)' }}>{i+1}</span>
                         <div style={{ width:18, height:18, borderRadius:'50%', background: avatarUrl ? 'transparent' : orbColors[i%orbColors.length], display:'flex', alignItems:'center', justifyContent:'center', fontSize:6, fontWeight:700, color:'#fff', overflow:'hidden', flexShrink:0 }}>
                           {avatarUrl ? <img src={avatarUrl} alt={name} style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : initials}
                         </div>
-                        <span style={{ flex:1, fontSize:10, color:'#B0C8DF', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{name}</span>
+                        <span style={{ flex:1, fontSize:10, color:'var(--t-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{name}</span>
                       </div>
                     );
                   })}
@@ -1227,7 +1229,7 @@ function ArenaView({ auth }) {
                     <div style={{ display:'flex', alignItems:'center', gap:6, background:'rgba(59,130,246,0.08)', borderRadius:7, padding:'4px 8px', border:'1px solid rgba(59,130,246,0.3)' }}>
                       <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:12, fontWeight:700, width:12, textAlign:'center', color:'#2563EB' }}>✓</span>
                       <div style={{ width:18, height:18, borderRadius:'50%', background:'#3B82F6', display:'flex', alignItems:'center', justifyContent:'center', fontSize:6, fontWeight:700, color:'#fff' }}>Me</div>
-                      <span style={{ flex:1, fontSize:10, color:'#60A5FA', fontWeight:600 }}>Applied{score != null ? ` · ${score}%` : ''}</span>
+                      <span style={{ flex:1, fontSize:10, color:'var(--t-text-accent)', fontWeight:600 }}>Applied{score != null ? ` · ${score}%` : ''}</span>
                     </div>
                   )}
                 </div>
@@ -1331,12 +1333,12 @@ function ArenaView({ auth }) {
                       const scoreColor = cd._score >= 70 ? '#059669' : cd._score >= 40 ? '#D97706' : '#64748B';
                       const initials = (cd.full_name ?? "?").split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase();
                       return (
-                        <div key={cd.id} style={{ display:'flex', alignItems:'center', gap:7, background:'rgba(15,30,55,0.6)', borderRadius:9, padding:'5px 9px', border:'1px solid rgba(139,92,246,0.25)' }}>
-                          <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:12, fontWeight:700, width:14, textAlign:'center', color:ri===0?'#FCD34D':ri===1?'#94A3B8':'#7090B0' }}>{ri+1}</div>
+                        <div key={cd.id} style={{ display:'flex', alignItems:'center', gap:7, background:'var(--t-row-bg)', borderRadius:9, padding:'5px 9px', border:'1px solid rgba(139,92,246,0.25)' }}>
+                          <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:12, fontWeight:700, width:14, textAlign:'center', color:ri===0?'#FCD34D':ri===1?'#94A3B8':isDark?'#7090B0':'#4B6A8A' }}>{ri+1}</div>
                           <div style={{ width:20, height:20, borderRadius:'50%', background:`linear-gradient(135deg,#8B5CF6,#C084FC)`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:7, fontWeight:700, color:'#fff', flexShrink:0, overflow:'hidden' }}>
                             {cd.avatar_url ? <img src={cd.avatar_url} alt={cd.full_name} style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : initials}
                           </div>
-                          <span style={{ flex:1, fontSize:10, color:'#B0C8DF', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{cd.full_name}</span>
+                          <span style={{ flex:1, fontSize:10, color:'var(--t-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{cd.full_name}</span>
                           <span style={{ fontSize:10, fontWeight:700, color:scoreColor }}>{cd._score}%</span>
                           {applied && <span style={{ fontSize:8, background:'rgba(5,150,105,0.1)', color:'#059669', borderRadius:4, padding:'1px 5px', fontWeight:600 }}>Applied</span>}
                         </div>
