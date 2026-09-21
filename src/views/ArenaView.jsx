@@ -1135,7 +1135,7 @@ function ArenaView({ auth }) {
                     )}
                   </>
                 ) : (
-                  <div style={{ fontSize:14, color:'#60A5FA', fontWeight:600 }}>{companyName || c.title}</div>
+                  <div style={{ fontSize:14, color:'var(--t-text-accent)', fontWeight:600 }}>{companyName || c.title}</div>
                 )}
               </div>
             </div>
@@ -1358,7 +1358,7 @@ function ArenaView({ auth }) {
         {/* Sort bar */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14, flexWrap:'wrap', gap:8 }}>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <span style={{ fontSize:12, color:'#6B8AB8', fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase' }}>
+            <span style={{ fontSize:12, color:'var(--t-text2)', fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase' }}>
               {sorted.length === 1 ? t('arena.open_count_one') : t('arena.open_count_many').replace('{n}', sorted.length)}
             </span>
             {auth.isHeadhunter && (
@@ -1369,7 +1369,7 @@ function ArenaView({ auth }) {
             )}
           </div>
           <div style={{ display:'flex', gap:5, alignItems:'center' }}>
-            <span style={{ fontSize:11, color:'#6B8AB8', textTransform:'uppercase', letterSpacing:'0.1em', marginRight:2 }}>Sort</span>
+            <span style={{ fontSize:11, color:'var(--t-text2)', textTransform:'uppercase', letterSpacing:'0.1em', marginRight:2 }}>Sort</span>
             {['match','deadline','budget'].map(key => (
               <button key={key} onClick={() => { setCaseSort(key); scrollToCase(0); }}
                 style={{ background: caseSort===key ? '#1A4B8C' : 'rgba(26,75,140,0.07)', border:`1px solid ${caseSort===key ? '#2563EB' : 'rgba(26,75,140,0.2)'}`, borderRadius:99, color: caseSort===key ? '#fff' : '#1A4B8C', fontSize:11, fontWeight:600, letterSpacing:'0.06em', padding:'4px 12px', cursor:'pointer', textTransform:'uppercase', transition:'all .15s' }}>
@@ -1438,7 +1438,7 @@ function ArenaView({ auth }) {
                 style={{ width: i===safeIdx ? 18 : 6, height:6, borderRadius:4, background: i===safeIdx ? '#2563EB' : 'rgba(26,75,140,0.2)', border:'none', cursor:'pointer', transition:'all .2s', padding:0 }} />
             ))}
           </div>
-          <span style={{ fontSize:11, color:'#6B8AB8', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase' }}>
+          <span style={{ fontSize:11, color:'var(--t-text2)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase' }}>
             {safeIdx + 1} of {sorted.length}
           </span>
         </div>

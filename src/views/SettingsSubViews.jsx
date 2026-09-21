@@ -318,7 +318,7 @@ function LifecycleSettingsView({ auth }) {
                               className="text-xs px-2.5 py-0.5 rounded-full font-semibold border transition-colors"
                               style={on
                                 ? { backgroundColor: r.bg, color: r.color, borderColor: r.bg }
-                                : { backgroundColor: "white", color: "#9ca3af", borderColor: "#e5e7eb" }}>
+                                : { backgroundColor: "var(--t-card-bg)", color: "#9ca3af", borderColor: "#e5e7eb" }}>
                               {r.label}
                             </button>
                           );
@@ -339,7 +339,7 @@ function LifecycleSettingsView({ auth }) {
                                 className="text-[11px] px-2 py-0.5 rounded-full font-semibold border transition-colors"
                                 style={on
                                   ? { backgroundColor: s.color + "22", color: s.color, borderColor: s.color + "55" }
-                                  : { backgroundColor: "white", color: "#9ca3af", borderColor: "#e5e7eb" }}>
+                                  : { backgroundColor: "var(--t-card-bg)", color: "#9ca3af", borderColor: "#e5e7eb" }}>
                                 {s.label || s.key}
                               </button>
                             );
