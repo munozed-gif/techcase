@@ -550,7 +550,9 @@ export default function App() {
   const auth = useAuth();
   const [activeView, setActiveView]       = useState("dashboard");
   const [authed, setAuthed]               = useState(false);
-  const [showAuth, setShowAuth]           = useState(false);
+  const [showAuth, setShowAuth]           = useState(() => {
+    try { return !!localStorage.getItem('arena_returning'); } catch { return false; }
+  });
   const [onboardingRole, setOnboarding]   = useState(null); // role string or null
   const unreadCount                       = useUnreadCount();
   const [searchOpen, setSearchOpen]       = useState(false);
@@ -562,7 +564,12 @@ export default function App() {
 
   // Sync authed state with auth session
   useEffect(() => {
-    if (!auth.loading) setAuthed(!!auth.user);
+    if (!auth.loading) {
+      setAuthed(!!auth.user);
+      if (auth.user) {
+        try { localStorage.setItem('arena_returning', '1'); } catch {}
+      }
+    }
   }, [auth.loading, auth.user]);
 
   // Global Cmd+K / Ctrl+K shortcut
