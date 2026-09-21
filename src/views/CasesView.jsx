@@ -343,16 +343,16 @@ function CasesView({ auth, initialCaseId }) {
       {/* ── Status + Period filter buttons ── */}
       {(() => {
         const STATUS_DEFS = [
-          { val: "open",           label: t("status.open"),           color: "#16a34a", dark: "#15803d", bg: "#f0fdf4", border: "#86efac", Icon: Inbox },
-          { val: "estimated",      label: t("status.estimated"),      color: "#0d9488", dark: "#0f766e", bg: "#f0fdfa", border: "#5eead4", Icon: ClipboardList },
-          { val: "assigned",       label: t("status.assigned"),       color: "#7c3aed", dark: "#6d28d9", bg: "#faf5ff", border: "#c4b5fd", Icon: UserCheck },
-          { val: "in_progress",    label: t("status.in_progress"),    color: "#2563eb", dark: "#1d4ed8", bg: "#eff6ff", border: "#93c5fd", Icon: Zap },
-          { val: "on_hold",        label: t("status.on_hold"),        color: "#b45309", dark: "#92400e", bg: "#fffbeb", border: "#fcd34d", Icon: PauseCircle },
-          { val: "technical_test", label: t("status.technical_test"), color: "#0891b2", dark: "#0e7490", bg: "#ecfeff", border: "#67e8f9", Icon: Code2 },
-          { val: "functional_test",label: t("status.functional_test"),color: "#d97706", dark: "#b45309", bg: "#fffbeb", border: "#fde68a", Icon: ListChecks },
-          { val: "user_test",      label: t("status.user_test"),      color: "#ea580c", dark: "#c2410c", bg: "#fff7ed", border: "#fed7aa", Icon: Users },
-          { val: "completed",      label: t("status.completed"),      color: "#0d9488", dark: "#0f766e", bg: "#f0fdfa", border: "#5eead4", Icon: CheckCircle2 },
-          { val: "cancelled",      label: t("status.cancelled"),      color: "#dc2626", dark: "#b91c1c", bg: "#fef2f2", border: "#fca5a5", Icon: XCircle },
+          { val: "open",           label: t("status.open"),           color: "#34d399", bg: "rgba(52,211,153,0.09)",  border: "rgba(52,211,153,0.38)",  activeBg: "rgba(52,211,153,0.18)",  Icon: Inbox },
+          { val: "estimated",      label: t("status.estimated"),      color: "#2dd4bf", bg: "rgba(45,212,191,0.09)",  border: "rgba(45,212,191,0.38)",  activeBg: "rgba(45,212,191,0.18)",  Icon: ClipboardList },
+          { val: "assigned",       label: t("status.assigned"),       color: "#a78bfa", bg: "rgba(167,139,250,0.09)", border: "rgba(167,139,250,0.38)", activeBg: "rgba(167,139,250,0.18)", Icon: UserCheck },
+          { val: "in_progress",    label: t("status.in_progress"),    color: "#60a5fa", bg: "rgba(96,165,250,0.09)",  border: "rgba(96,165,250,0.38)",  activeBg: "rgba(96,165,250,0.18)",  Icon: Zap },
+          { val: "on_hold",        label: t("status.on_hold"),        color: "#fcd34d", bg: "rgba(252,211,77,0.09)",  border: "rgba(252,211,77,0.38)",  activeBg: "rgba(252,211,77,0.18)",  Icon: PauseCircle },
+          { val: "technical_test", label: t("status.technical_test"), color: "#22d3ee", bg: "rgba(34,211,238,0.09)",  border: "rgba(34,211,238,0.38)",  activeBg: "rgba(34,211,238,0.18)",  Icon: Code2 },
+          { val: "functional_test",label: t("status.functional_test"),color: "#fbbf24", bg: "rgba(251,191,36,0.09)",  border: "rgba(251,191,36,0.38)",  activeBg: "rgba(251,191,36,0.18)",  Icon: ListChecks },
+          { val: "user_test",      label: t("status.user_test"),      color: "#fb923c", bg: "rgba(251,146,60,0.09)",  border: "rgba(251,146,60,0.38)",  activeBg: "rgba(251,146,60,0.18)",  Icon: Users },
+          { val: "completed",      label: t("status.completed"),      color: "#2dd4bf", bg: "rgba(45,212,191,0.09)",  border: "rgba(45,212,191,0.38)",  activeBg: "rgba(45,212,191,0.18)",  Icon: CheckCircle2 },
+          { val: "cancelled",      label: t("status.cancelled"),      color: "#f87171", bg: "rgba(248,113,113,0.09)", border: "rgba(248,113,113,0.38)", activeBg: "rgba(248,113,113,0.18)", Icon: XCircle },
         ]
           .map(s => ({ ...s, count: projectFiltered2.filter(c => c.status === s.val).length }))
           .filter(s => s.count > 0);
@@ -373,8 +373,8 @@ function CasesView({ auth, initialCaseId }) {
                   onClick={() => setStatus("")}
                   className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl border font-semibold transition-all"
                   style={statusFilter === ""
-                    ? { background: "#dbeafe", color: "#1d4ed8", borderColor: "#2563eb" }
-                    : { background: "#f8fafc", color: "#64748b", borderColor: "#e2e8f0" }}>
+                    ? { background: "rgba(37,99,235,0.18)", color: "var(--t-text-accent)", borderColor: "#3B82F6" }
+                    : { background: "var(--t-tab-inactive)", color: "var(--t-text2)", borderColor: "var(--t-border)" }}>
                   <Layers size={16} />
                   <span className="text-xs leading-none">All <span className="opacity-70">{projectFiltered2.length}</span></span>
                 </button>
@@ -386,7 +386,7 @@ function CasesView({ auth, initialCaseId }) {
                       onClick={() => setStatus(f => f === s.val ? "" : s.val)}
                       className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl border font-semibold transition-all"
                       style={active
-                        ? { background: s.color + "22", color: s.dark, borderColor: s.color }
+                        ? { background: s.activeBg, color: s.color, borderColor: s.color }
                         : { background: s.bg, color: s.color, borderColor: s.border }}>
                       <Icon size={16} />
                       <span className="text-xs leading-none text-center px-1 truncate w-full">{s.label} <span className="opacity-70">{s.count}</span></span>
@@ -406,8 +406,8 @@ function CasesView({ auth, initialCaseId }) {
                     onClick={() => setPeriod(f => f === p.val ? "" : p.val)}
                     className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl border font-semibold transition-all"
                     style={active
-                      ? { background: "#dbeafe", color: "#1d4ed8", borderColor: "#2563eb" }
-                      : { background: "#f8fafc", color: "#64748b", borderColor: "#e2e8f0" }}>
+                      ? { background: "rgba(37,99,235,0.18)", color: "var(--t-text-accent)", borderColor: "#3B82F6" }
+                      : { background: "var(--t-tab-inactive)", color: "var(--t-text2)", borderColor: "var(--t-border)" }}>
                     <Icon size={16} />
                     <span className="text-xs leading-none text-center px-1">{p.label}</span>
                   </button>
@@ -436,7 +436,7 @@ function CasesView({ auth, initialCaseId }) {
           {displayed.map(c => (
             <div key={c.id}
               className="rounded-2xl cursor-pointer transition-all hover:shadow-md p-5"
-              style={(() => { const cc = selectedCases.has(c.id) ? { border: '#bfdbfe', bg: '#eff6ff' } : (CASE_CARD_COLORS[c.status] ?? { border: '#e5e7eb', bg: '#ffffff' }); return { border: `1.5px solid ${cc.border}`, backgroundColor: cc.bg }; })()}
+              style={(() => { const cc = selectedCases.has(c.id) ? { border: 'rgba(96,165,250,0.55)', bg: 'rgba(37,99,235,0.15)' } : (CASE_CARD_COLORS[c.status] ?? { border: 'rgba(100,160,220,0.25)', bg: 'rgba(12,21,34,0.4)' }); return { border: `1.5px solid ${cc.border}`, backgroundColor: cc.bg }; })()}
               onClick={() => setSelected(c)}>
               {(() => {
                 const StatusIcon = STATUS_CARD_ICONS[c.status] ?? Tag;

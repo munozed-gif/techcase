@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTheme } from "../context/ThemeContext.jsx";
 import {
   Activity, AlertCircle, Building2, Camera, Check, CheckCircle2, ChevronLeft,
   ChevronRight, ClipboardList, Clock, Code2, CreditCard, Database,
@@ -73,6 +74,7 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm]       = useState({});
   const [saving, setSaving]   = useState(false);
+  const { isDark, setTheme } = useTheme();
   const [clientAvatarUrl, setClientAvatarUrl] = useState(auth.profile?.avatar_url ?? null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarInputRef = useRef(null);
@@ -488,6 +490,21 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
             </div>
           </div>
 
+          {/* Appearance */}
+          <div className="mt-4">
+            <div className="text-sm font-medium text-gray-700 mb-2">Appearance</div>
+            <div className="flex gap-2">
+              <button onClick={() => setTheme("dark")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${isDark ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-gray-200 text-gray-600 hover:border-blue-400"}`}>
+                🌙 Dark
+              </button>
+              <button onClick={() => setTheme("light")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${!isDark ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-gray-200 text-gray-600 hover:border-blue-400"}`}>
+                ☀️ Light
+              </button>
+            </div>
+          </div>
+
           <div className="flex justify-end gap-3 mt-2">
             <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
             <button onClick={handleSave} disabled={saving}
@@ -535,14 +552,14 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
           <div style={{ position:'relative' }}>
             {carouselIdx > 0 && (
               <button onClick={() => scrollTo(carouselIdx - 1)}
-                style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid #CBD5E1', background:'white', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
-                <ChevronLeft size={16} style={{color:'#64748B'}}/>
+                style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid var(--t-arrow-border)', background:'var(--t-arrow-bg)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
+                <ChevronLeft size={16} style={{color:'var(--t-text2)'}}/>
               </button>
             )}
             {carouselIdx < tabs.length - 1 && (
               <button onClick={() => scrollTo(carouselIdx + 1)}
-                style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid #CBD5E1', background:'white', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
-                <ChevronRight size={16} style={{color:'#64748B'}}/>
+                style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid var(--t-arrow-border)', background:'var(--t-arrow-bg)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
+                <ChevronRight size={16} style={{color:'var(--t-text2)'}}/>
               </button>
             )}
             <div ref={cpvCarouselRef} onScroll={onScroll}
@@ -554,21 +571,21 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
                 return (
                   <div key={tabItem.id}
                     style={{ flex:'0 0 calc(100% - 120px)', width:'calc(100% - 120px)', maxWidth:'calc(100% - 120px)', minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity:isActive?1:0.5, transform:isActive?'scale(1)':'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
-                    <div style={{ borderRadius:12, border:`1px solid ${isActive?'#CBD5E1':'#E2E8F0'}`, background:'white', overflow:'hidden', width:'100%', boxSizing:'border-box', height:700, display:'flex', flexDirection:'column', boxShadow:isActive?'0 4px 20px rgba(0,0,0,.08)':'none', transition:'box-shadow .25s' }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', borderBottom:'1px solid #F1F5F9', background:isActive?'#F8FAFC':'#FAFAFA', flexShrink:0, cursor:isActive?'default':'pointer' }}
+                    <div style={{ borderRadius:12, border:`1px solid ${isActive?'var(--t-border-active)':'var(--t-border)'}`, background:'var(--t-card-bg)', overflow:'hidden', width:'100%', boxSizing:'border-box', height:700, display:'flex', flexDirection:'column', boxShadow:isActive?'0 4px 20px rgba(0,0,0,.08)':'none', transition:'box-shadow .25s' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', borderBottom:'1px solid var(--t-tab-border)', background:isActive?'var(--t-tab-active)':'var(--t-tab-inactive)', flexShrink:0, cursor:isActive?'default':'pointer' }}
                         onClick={() => !isActive && scrollTo(i)}>
                         {st === "complete"
                           ? <div style={{width:16,height:16,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={9} color="white" strokeWidth={3}/></div>
                           : st === "in_progress"
                             ? <div style={{width:8,height:8,borderRadius:'50%',background:'#3B82F6',flexShrink:0,marginRight:2}}/>
-                            : <div style={{width:8,height:8,borderRadius:'50%',background:'#CBD5E1',flexShrink:0,marginRight:2}}/>}
-                        <Icon size={13} style={{color:isActive?'#1A4B8C':'#94A3B8',flexShrink:0}}/>
-                        <span style={{flex:1,fontSize:12,fontWeight:700,color:isActive?'#0F172A':'#94A3B8',minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{tabItem.label}</span>
-                        {tabItem.count !== null && <span style={{fontSize:10,fontWeight:600,padding:'1px 6px',borderRadius:99,background:isActive?'#DBEAFE':'#F1F5F9',color:isActive?'#2563EB':'#94A3B8',flexShrink:0}}>{tabItem.count}</span>}
+                            : <div style={{width:8,height:8,borderRadius:'50%',background:'var(--t-border-active)',flexShrink:0,marginRight:2}}/>}
+                        <Icon size={13} style={{color:isActive?'var(--t-text-accent)':'var(--t-text2)',flexShrink:0}}/>
+                        <span style={{flex:1,fontSize:12,fontWeight:700,color:isActive?'var(--t-text)':'var(--t-text2)',minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{tabItem.label}</span>
+                        {tabItem.count !== null && <span style={{fontSize:10,fontWeight:600,padding:'1px 6px',borderRadius:99,background:isActive?'var(--t-badge-act-bg)':'var(--t-badge-inact-bg)',color:isActive?'var(--t-badge-act-color)':'var(--t-badge-inact-color)',flexShrink:0}}>{tabItem.count}</span>}
                         {isActive && (
                           <button onClick={e => { e.stopPropagation(); setCpvManualComplete(tabItem.id, st !== "complete"); }}
                             title={st === "complete" ? "Mark incomplete" : "Mark complete"}
-                            style={{ flexShrink:0,display:'flex',alignItems:'center',gap:3,fontSize:10,fontWeight:600,padding:'2px 7px',borderRadius:99,border:`1px solid ${st==="complete"?'#BBF7D0':'#E2E8F0'}`,background:st==="complete"?'#F0FDF4':'#F8FAFC',color:st==="complete"?'#16A34A':'#94A3B8',cursor:'pointer',transition:'all .15s',whiteSpace:'nowrap' }}>
+                            style={{ flexShrink:0,display:'flex',alignItems:'center',gap:3,fontSize:10,fontWeight:600,padding:'2px 7px',borderRadius:99,border:`1px solid ${st==="complete"?'var(--t-done-border)':'var(--t-pill-inactive-bdr)'}`,background:st==="complete"?'var(--t-done-bg)':'var(--t-tab-inactive)',color:st==="complete"?'var(--t-done-color)':'var(--t-text2)',cursor:'pointer',transition:'all .15s',whiteSpace:'nowrap' }}>
                             <Check size={9} strokeWidth={3}/>
                             {st === "complete" ? "Done" : "Mark done"}
                           </button>
@@ -1256,14 +1273,14 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
               })}
             </div>
             {/* Footer pill bar */}
-            <div style={{ marginTop:10, background:'white', borderRadius:12, border:'1px solid #E2E8F0', padding:'10px 14px', display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none' }}>
+            <div style={{ marginTop:10, background:'var(--t-pill-bar)', borderRadius:12, border:'1px solid var(--t-border)', padding:'10px 14px', display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none' }}>
               {tabs.map((tabItem, i) => {
                 const Icon = tabItem.icon;
                 const isActive = tabItem.id === tab;
                 const st = cpvTabStatus[tabItem.id];
                 return (
                   <button key={tabItem.id} onClick={() => scrollTo(i)}
-                    style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'#1A4B8C':st==="complete"?'#BBF7D0':'#E2E8F0'}`, background:isActive?'#1A4B8C':st==="complete"?'#F0FDF4':'white', color:isActive?'white':st==="complete"?'#16A34A':'#64748B', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
+                    style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'var(--t-pill-act-border)':st==="complete"?'var(--t-done-border)':'var(--t-border)'}`, background:isActive?'var(--t-pill-act-bg)':st==="complete"?'var(--t-done-bg)':'var(--t-pill-inactive-bg)', color:isActive?'var(--t-pill-act-color)':st==="complete"?'var(--t-done-color)':'var(--t-text2)', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
                     {st === "complete" && !isActive
                       ? <div style={{width:13,height:13,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={8} color="white" strokeWidth={3}/></div>
                       : <Icon size={11}/>}

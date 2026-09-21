@@ -57,6 +57,41 @@ function useCases(filters = {}) {
     const { data: row, error } = await supabase.from("cases").insert(data).select().single();
     if (error) throw error;
     logEvent('case.created', { entityType: 'case', entityId: row.id, entityName: row.title });
+
+    // Auto-assign area leader if the client has leader_auto_assign_enabled and the case has a SAP area
+    if (row.area_sap && row.client_id) {
+      try {
+        const { data: clientProfile } = await supabase
+          .from("client_profiles")
+          .select("assignment_settings")
+          .eq("user_id", row.client_id)
+          .maybeSingle();
+        if (clientProfile?.assignment_settings?.leader_auto_assign_enabled) {
+          const { data: areaLeaders } = await supabase
+            .from("area_leader_areas")
+            .select("user_id")
+            .eq("area_sap", row.area_sap);
+          if (areaLeaders?.length) {
+            const leaderIds = areaLeaders.map(r => r.user_id);
+            const { data: activeCases } = await supabase
+              .from("cases")
+              .select("area_leader_id")
+              .in("area_leader_id", leaderIds)
+              .not("status", "in", "(completed,cancelled)");
+            const loadMap = {};
+            (activeCases ?? []).forEach(c => {
+              loadMap[c.area_leader_id] = (loadMap[c.area_leader_id] ?? 0) + 1;
+            });
+            const bestLeaderId = leaderIds.sort((a, b) => (loadMap[a] ?? 0) - (loadMap[b] ?? 0))[0];
+            if (bestLeaderId) {
+              await supabase.from("cases").update({ area_leader_id: bestLeaderId }).eq("id", row.id);
+              row.area_leader_id = bestLeaderId;
+            }
+          }
+        }
+      } catch (_) { /* auto-assign failure is non-fatal */ }
+    }
+
     await fetchCases();
     notifyManagers("New case created", `Case "${row.title}" has been submitted and needs review.`);
     return row;

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTheme } from "../context/ThemeContext.jsx";
 import {
   BarChart2, Bookmark, BookmarkCheck, Briefcase, Building2, Check,
   CheckCircle2, ChevronLeft, ChevronRight, Crosshair, ExternalLink,
@@ -607,14 +608,14 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
               <div style={{ position:'relative' }}>
                 {carouselIdx > 0 && (
                   <button onClick={() => scrollTo(carouselIdx - 1)}
-                    style={{ position:'absolute', left:4, top:'50%', transform:'translateY(-50%)', zIndex:10, width:28, height:28, borderRadius:'50%', border:'1.5px solid #CBD5E1', background:'white', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-16 }}>
-                    <ChevronLeft size={14} style={{color:'#64748B'}}/>
+                    style={{ position:'absolute', left:4, top:'50%', transform:'translateY(-50%)', zIndex:10, width:28, height:28, borderRadius:'50%', border:'1.5px solid rgba(100,160,220,0.25)', background:'#1A2F44', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.4)', marginTop:-16 }}>
+                    <ChevronLeft size={14} style={{color:'#7090B0'}}/>
                   </button>
                 )}
                 {carouselIdx < panelTabs.length - 1 && (
                   <button onClick={() => scrollTo(carouselIdx + 1)}
-                    style={{ position:'absolute', right:4, top:'50%', transform:'translateY(-50%)', zIndex:10, width:28, height:28, borderRadius:'50%', border:'1.5px solid #CBD5E1', background:'white', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-16 }}>
-                    <ChevronRight size={14} style={{color:'#64748B'}}/>
+                    style={{ position:'absolute', right:4, top:'50%', transform:'translateY(-50%)', zIndex:10, width:28, height:28, borderRadius:'50%', border:'1.5px solid rgba(100,160,220,0.25)', background:'#1A2F44', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.4)', marginTop:-16 }}>
+                    <ChevronRight size={14} style={{color:'#7090B0'}}/>
                   </button>
                 )}
                 <div ref={panelCarouselRef} onScroll={onScroll}
@@ -626,21 +627,21 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
                     return (
                       <div key={tab.id}
                         style={{ flex:'0 0 calc(100% - 88px)', width:'calc(100% - 88px)', maxWidth:'calc(100% - 88px)', minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity:isActive?1:0.5, transform:isActive?'scale(1)':'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
-                        <div style={{ borderRadius:12, border:`1px solid ${isActive?'#CBD5E1':'#E2E8F0'}`, background:'white', overflow:'hidden', width:'100%', boxSizing:'border-box', minHeight:540, display:'flex', flexDirection:'column', boxShadow:isActive?'0 4px 20px rgba(0,0,0,.08)':'none', transition:'box-shadow .25s' }}>
-                          <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 14px', borderBottom:'1px solid #F1F5F9', background:isActive?'#F8FAFC':'#FAFAFA', flexShrink:0, cursor:isActive?'default':'pointer' }}
+                        <div style={{ borderRadius:12, border:`1px solid ${isActive?'rgba(96,165,250,0.3)':'rgba(100,160,220,0.15)'}`, background:'#0C1522', overflow:'hidden', width:'100%', boxSizing:'border-box', minHeight:540, display:'flex', flexDirection:'column', boxShadow:isActive?'0 4px 20px rgba(0,0,0,.5)':'none', transition:'box-shadow .25s' }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 14px', borderBottom:'1px solid rgba(100,160,220,0.1)', background:isActive?'rgba(37,99,235,0.1)':'rgba(15,30,55,0.6)', flexShrink:0, cursor:isActive?'default':'pointer' }}
                             onClick={() => !isActive && scrollTo(i)}>
                             {st === "complete"
                               ? <div style={{width:16,height:16,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={9} color="white" strokeWidth={3}/></div>
                               : st === "in_progress"
                                 ? <div style={{width:8,height:8,borderRadius:'50%',background:'#3B82F6',flexShrink:0,marginRight:2}}/>
-                                : <div style={{width:8,height:8,borderRadius:'50%',background:'#CBD5E1',flexShrink:0,marginRight:2}}/>}
-                            <Icon size={13} style={{color:isActive?'#1A4B8C':'#94A3B8',flexShrink:0}}/>
-                            <span style={{flex:1,fontSize:12,fontWeight:700,color:isActive?'#0F172A':'#94A3B8',minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{tab.label}</span>
-                            {tab.count !== null && <span style={{fontSize:10,fontWeight:600,padding:'1px 6px',borderRadius:99,background:isActive?'#DBEAFE':'#F1F5F9',color:isActive?'#2563EB':'#94A3B8',flexShrink:0}}>{tab.count}</span>}
+                                : <div style={{width:8,height:8,borderRadius:'50%',background:'rgba(100,160,220,0.3)',flexShrink:0,marginRight:2}}/>}
+                            <Icon size={13} style={{color:isActive?'#60A5FA':'#7090B0',flexShrink:0}}/>
+                            <span style={{flex:1,fontSize:12,fontWeight:700,color:isActive?'#DCE8F4':'#7090B0',minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{tab.label}</span>
+                            {tab.count !== null && <span style={{fontSize:10,fontWeight:600,padding:'1px 6px',borderRadius:99,background:isActive?'rgba(37,99,235,0.3)':'rgba(100,116,139,0.2)',color:isActive?'#60A5FA':'#7090B0',flexShrink:0}}>{tab.count}</span>}
                             {isActive && (
                               <button onClick={e => { e.stopPropagation(); setPanelManualComplete(tab.id, st !== "complete"); }}
                                 title={st === "complete" ? "Mark incomplete" : "Mark complete"}
-                                style={{ flexShrink:0,display:'flex',alignItems:'center',gap:3,fontSize:10,fontWeight:600,padding:'2px 7px',borderRadius:99,border:`1px solid ${st==="complete"?'#BBF7D0':'#E2E8F0'}`,background:st==="complete"?'#F0FDF4':'#F8FAFC',color:st==="complete"?'#16A34A':'#94A3B8',cursor:'pointer',transition:'all .15s',whiteSpace:'nowrap' }}>
+                                style={{ flexShrink:0,display:'flex',alignItems:'center',gap:3,fontSize:10,fontWeight:600,padding:'2px 7px',borderRadius:99,border:`1px solid ${st==="complete"?'rgba(74,222,128,0.4)':'rgba(100,160,220,0.22)'}`,background:st==="complete"?'rgba(16,185,129,0.15)':'rgba(15,30,55,0.6)',color:st==="complete"?'#4ADE80':'#7090B0',cursor:'pointer',transition:'all .15s',whiteSpace:'nowrap' }}>
                                 <Check size={9} strokeWidth={3}/>
                                 {st === "complete" ? "Done" : "Mark done"}
                               </button>
@@ -820,19 +821,19 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
                   })}
                 </div>
                 {/* Footer pill bar */}
-                <div style={{ marginTop:8, background:'white', borderRadius:12, border:'1px solid #E2E8F0', padding:'8px 12px', display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none' }}>
+                <div style={{ marginTop:8, background:'rgba(12,21,34,0.8)', borderRadius:12, border:'1px solid rgba(100,160,220,0.15)', padding:'8px 12px', display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none' }}>
                   {panelTabs.map((tab, i) => {
                     const Icon = tab.icon;
                     const isActive = tab.id === panelTab;
                     const st = panelTabStatus[tab.id];
                     return (
                       <button key={tab.id} onClick={() => scrollTo(i)}
-                        style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'#1A4B8C':st==="complete"?'#BBF7D0':'#E2E8F0'}`, background:isActive?'#1A4B8C':st==="complete"?'#F0FDF4':'white', color:isActive?'white':st==="complete"?'#16A34A':'#64748B', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
+                        style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'#3B82F6':st==="complete"?'rgba(74,222,128,0.45)':'rgba(100,160,220,0.22)'}`, background:isActive?'#2563EB':st==="complete"?'rgba(16,185,129,0.15)':'rgba(15,30,55,0.5)', color:isActive?'white':st==="complete"?'#4ADE80':'#7090B0', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
                         {st === "complete" && !isActive
                           ? <div style={{width:13,height:13,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={8} color="white" strokeWidth={3}/></div>
                           : <Icon size={11}/>}
                         <span>{tab.label}</span>
-                        {tab.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)':st==="complete"?'#DCFCE7':'#F1F5F9',color:isActive?'rgba(255,255,255,.7)':st==="complete"?'#16A34A':'#94A3B8'}}>{tab.count}</span>}
+                        {tab.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)':st==="complete"?'rgba(16,185,129,0.2)':'rgba(100,116,139,0.15)',color:isActive?'rgba(255,255,255,.7)':st==="complete"?'#4ADE80':'#7090B0'}}>{tab.count}</span>}
                       </button>
                     );
                   })}
@@ -852,14 +853,15 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
 let _arenaCaseIdx = 0; // persists carousel position across ArenaView remounts
 function ArenaView({ auth }) {
   const { t } = useT();
+  const { isDark } = useTheme();
   const visCfg = useVisibilitySettings();
   const { settings: arenaSettings } = useSystemSettings();
-  const [arenaTab, setArenaTab]             = useState("cases");
+  const [arenaTab, setArenaTab]             = useState("leaderboard");
   const arenaCarouselRef = useRef(null);
   const arenaCarouselScrolling = useRef(false);
   const caseCarouselRef = useRef(null);
   const caseCarouselScrolling = useRef(false);
-  const [arenaMountedSlides, setArenaMountedSlides] = useState(() => new Set(["cases"]));
+  const [arenaMountedSlides, setArenaMountedSlides] = useState(() => new Set(["leaderboard"]));
   const [arenaManualCompletions, setArenaManualCompletionsRaw] = useState(() => {
     try { return JSON.parse(localStorage.getItem(`tc_arenamc_arena`) ?? "{}"); } catch { return {}; }
   });
@@ -1097,7 +1099,7 @@ function ArenaView({ auth }) {
       const outerSlots = Math.min(5, Math.max(0, otherCount - innerSlots));
 
       return (
-        <div style={{ background:'#EEF5FF', borderRadius:22, border:'1px solid #BFDBFE', overflow:'hidden', position:'relative', boxShadow:'0 4px 20px rgba(37,99,235,0.08)', height:'100%', display:'flex', flexDirection:'column' }}>
+        <div style={{ background:'rgba(37,99,235,0.09)', borderRadius:22, border:'1px solid rgba(96,165,250,0.42)', overflow:'hidden', position:'relative', boxShadow:'0 4px 20px rgba(37,99,235,0.18)', height:'100%', display:'flex', flexDirection:'column' }}>
           <div style={{ position:'absolute', left:0, top:'20%', bottom:'20%', width:3, borderRadius:'0 3px 3px 0', background:mc, boxShadow:`0 0 10px ${mcDim}` }} />
           <div style={{ height:4, background:'rgba(26,75,140,0.07)', position:'relative', overflow:'hidden' }}>
             {timePct != null && <div style={{ position:'absolute', left:0, top:0, bottom:0, width:`${timePct*100}%`, background:tc, opacity:0.8 }} />}
@@ -1125,22 +1127,22 @@ function ArenaView({ auth }) {
                     <div style={{ fontFamily:"'Barlow Condensed', sans-serif", fontSize:46, fontWeight:800, lineHeight:1, color:mc, letterSpacing:'-0.01em' }}>
                       {score}<span style={{ fontSize:22, opacity:0.5 }}>%</span>
                     </div>
-                    <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:'#6B8AB8', marginTop:2 }}>Match score</div>
+                    <div style={{ fontSize:10, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--t-text2)', marginTop:2 }}>Match score</div>
                     {(c.skills_required?.length ?? 0) > 0 && (
-                      <div style={{ fontSize:11, color:'#4A6B9A', marginTop:3, lineHeight:1.4 }}>
+                      <div style={{ fontSize:11, color:'var(--t-text2)', marginTop:3, lineHeight:1.4 }}>
                         {c.skills_required.filter(s => mySkills.has(String(s).toLowerCase())).length} of {c.skills_required.length} skills matched
                       </div>
                     )}
                   </>
                 ) : (
-                  <div style={{ fontSize:14, color:'#1A4B8C', fontWeight:600 }}>{companyName || c.title}</div>
+                  <div style={{ fontSize:14, color:'var(--t-text-accent)', fontWeight:600 }}>{companyName || c.title}</div>
                 )}
               </div>
             </div>
             {/* Title */}
             <div>
-              <div style={{ fontFamily:"'Barlow Condensed', sans-serif", fontSize:22, fontWeight:700, letterSpacing:'0.02em', color:'#0F172A', lineHeight:1.2 }}>{c.title}</div>
-              {c.description && <div style={{ fontSize:12, color:'#4A6B9A', lineHeight:1.5, marginTop:4 }}>{c.description}</div>}
+              <div style={{ fontFamily:"'Barlow Condensed', sans-serif", fontSize:22, fontWeight:700, letterSpacing:'0.02em', color:'var(--t-text)', lineHeight:1.2 }}>{c.title}</div>
+              {c.description && <div style={{ fontSize:12, color:'var(--t-text2)', lineHeight:1.5, marginTop:4 }}>{c.description}</div>}
             </div>
             {/* Chips */}
             <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center' }}>
@@ -1148,16 +1150,16 @@ function ArenaView({ auth }) {
               {c.area_industry && chip('#0369A1','rgba(3,105,161,0.3)','rgba(3,105,161,0.07)', c.area_industry)}
               {c.budget        && chip('#059669','rgba(5,150,105,0.3)','rgba(5,150,105,0.07)', `$${Number(c.budget).toLocaleString()}`)}
               {daysLeft != null && chip(dayChipColor, dayChipBorder, dayChipBg, daysLeft === 1 ? '1 day left' : `${daysLeft} days left`)}
-              {companyName     && chip('#1A4B8C','rgba(26,75,140,0.25)','rgba(26,75,140,0.06)', companyName)}
+              {companyName     && chip('#60A5FA','rgba(96,165,250,0.25)','rgba(37,99,235,0.09)', companyName)}
               {c.is_head_hunter && chip('#7C3AED','rgba(124,58,237,0.3)','rgba(124,58,237,0.07)', <span style={{display:'inline-flex',alignItems:'center',gap:3}}><Crosshair size={9}/>HH Managed</span>)}
               {c.application_mode === 'team'       && chip('#4F46E5','rgba(79,70,229,0.3)','rgba(79,70,229,0.07)', <span style={{display:'inline-flex',alignItems:'center',gap:3}}><Users size={9}/>Teams only</span>)}
               {c.application_mode === 'individual' && chip('#475569','rgba(71,85,105,0.3)','rgba(71,85,105,0.07)', <span style={{display:'inline-flex',alignItems:'center',gap:3}}><User size={9}/>Individual only</span>)}
               {(c.application_mode === 'both' || !c.application_mode) && chip('#059669','rgba(5,150,105,0.25)','rgba(5,150,105,0.06)', <span style={{display:'inline-flex',alignItems:'center',gap:3}}><Users size={9}/>Teams & Individual</span>)}
             </div>
-            <div style={{ height:1, background:'rgba(26,75,140,0.1)' }} />
+            <div style={{ height:1, background:'rgba(96,165,250,0.12)' }} />
 
             {/* Solar leaderboard inside the card */}
-            <div style={{ display:'flex', gap:12, alignItems:'flex-start', flexWrap:'wrap', background:'rgba(26,75,140,0.04)', borderRadius:14, padding:'10px 12px', border:'1px solid rgba(26,75,140,0.09)' }}>
+            <div style={{ display:'flex', gap:12, alignItems:'flex-start', flexWrap:'wrap', background:'var(--t-tab-inactive)', borderRadius:14, padding:'10px 12px', border:'1px solid var(--t-border)' }}>
               {/* Solar system */}
               <div style={{ display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                 <div style={{ position:'relative', width:LB_SYS, height:LB_SYS }}>
@@ -1196,22 +1198,22 @@ function ArenaView({ auth }) {
                 {auth.isConsultant && score != null && (
                   <div style={{ marginBottom:6 }}>
                     <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:30, fontWeight:800, lineHeight:1, color:mc }}>{score}%</span>
-                    <span style={{ fontSize:8, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'#6B8AB8', marginLeft:5 }}>match</span>
+                    <span style={{ fontSize:8, fontWeight:600, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--t-text2)', marginLeft:5 }}>match</span>
                   </div>
                 )}
-                <p style={{ fontSize:9, fontWeight:700, color:'#4A6B9A', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:5 }}>{appCount} applied</p>
+                <p style={{ fontSize:9, fontWeight:700, color:'var(--t-text2)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:5 }}>{appCount} applied</p>
                 <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
                   {appsSorted.slice(0, 4).map((app, i) => {
                     const name = app.consultant?.full_name ?? 'Consultant';
                     const initials = name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
                     const avatarUrl = app.consultant?.avatar_url;
                     return (
-                      <div key={app.consultant_id} style={{ display:'flex', alignItems:'center', gap:6, background:'rgba(26,75,140,0.05)', borderRadius:7, padding:'4px 8px', border:'1px solid rgba(26,75,140,0.1)' }}>
-                        <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:12, fontWeight:700, width:12, textAlign:'center', color: i===0?'#D97706':i===1?'#6B8AB8':i===2?'#B45309':'#93AECF' }}>{i+1}</span>
+                      <div key={app.consultant_id} style={{ display:'flex', alignItems:'center', gap:6, background:'var(--t-row-bg)', borderRadius:7, padding:'4px 8px', border:'1px solid var(--t-row-border)' }}>
+                        <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:12, fontWeight:700, width:12, textAlign:'center', color: i===0?'#D97706':i===1?isDark?'#6B8AB8':'#4B6A8A':i===2?'#B45309':'var(--t-text2)' }}>{i+1}</span>
                         <div style={{ width:18, height:18, borderRadius:'50%', background: avatarUrl ? 'transparent' : orbColors[i%orbColors.length], display:'flex', alignItems:'center', justifyContent:'center', fontSize:6, fontWeight:700, color:'#fff', overflow:'hidden', flexShrink:0 }}>
                           {avatarUrl ? <img src={avatarUrl} alt={name} style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : initials}
                         </div>
-                        <span style={{ flex:1, fontSize:10, color:'#334155', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{name}</span>
+                        <span style={{ flex:1, fontSize:10, color:'var(--t-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{name}</span>
                       </div>
                     );
                   })}
@@ -1227,13 +1229,13 @@ function ArenaView({ auth }) {
                     <div style={{ display:'flex', alignItems:'center', gap:6, background:'rgba(59,130,246,0.08)', borderRadius:7, padding:'4px 8px', border:'1px solid rgba(59,130,246,0.3)' }}>
                       <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:12, fontWeight:700, width:12, textAlign:'center', color:'#2563EB' }}>✓</span>
                       <div style={{ width:18, height:18, borderRadius:'50%', background:'#3B82F6', display:'flex', alignItems:'center', justifyContent:'center', fontSize:6, fontWeight:700, color:'#fff' }}>Me</div>
-                      <span style={{ flex:1, fontSize:10, color:'#1D4ED8', fontWeight:600 }}>Applied{score != null ? ` · ${score}%` : ''}</span>
+                      <span style={{ flex:1, fontSize:10, color:'var(--t-text-accent)', fontWeight:600 }}>Applied{score != null ? ` · ${score}%` : ''}</span>
                     </div>
                   )}
                 </div>
                 {canViewRanking && (
                   <button onClick={() => setArenaSelected(c)}
-                    style={{ marginTop:6, background:'transparent', border:'1px solid rgba(26,75,140,0.22)', borderRadius:8, color:'#1A4B8C', fontSize:10, fontWeight:600, padding:'4px 10px', cursor:'pointer', whiteSpace:'nowrap' }}>
+                    style={{ marginTop:6, background:'transparent', border:'1px solid rgba(96,165,250,0.35)', borderRadius:8, color:'#60A5FA', fontSize:10, fontWeight:600, padding:'4px 10px', cursor:'pointer', whiteSpace:'nowrap' }}>
                     View ranking ›
                   </button>
                 )}
@@ -1331,12 +1333,12 @@ function ArenaView({ auth }) {
                       const scoreColor = cd._score >= 70 ? '#059669' : cd._score >= 40 ? '#D97706' : '#64748B';
                       const initials = (cd.full_name ?? "?").split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase();
                       return (
-                        <div key={cd.id} style={{ display:'flex', alignItems:'center', gap:7, background:'white', borderRadius:9, padding:'5px 9px', border:'1px solid rgba(139,92,246,0.12)' }}>
-                          <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:12, fontWeight:700, width:14, textAlign:'center', color:ri===0?'#D97706':ri===1?'#6B8AB8':'#B4B4B4' }}>{ri+1}</div>
+                        <div key={cd.id} style={{ display:'flex', alignItems:'center', gap:7, background:'var(--t-row-bg)', borderRadius:9, padding:'5px 9px', border:'1px solid rgba(139,92,246,0.25)' }}>
+                          <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontSize:12, fontWeight:700, width:14, textAlign:'center', color:ri===0?'#FCD34D':ri===1?'#94A3B8':isDark?'#7090B0':'#4B6A8A' }}>{ri+1}</div>
                           <div style={{ width:20, height:20, borderRadius:'50%', background:`linear-gradient(135deg,#8B5CF6,#C084FC)`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:7, fontWeight:700, color:'#fff', flexShrink:0, overflow:'hidden' }}>
                             {cd.avatar_url ? <img src={cd.avatar_url} alt={cd.full_name} style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : initials}
                           </div>
-                          <span style={{ flex:1, fontSize:10, color:'#334155', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{cd.full_name}</span>
+                          <span style={{ flex:1, fontSize:10, color:'var(--t-text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{cd.full_name}</span>
                           <span style={{ fontSize:10, fontWeight:700, color:scoreColor }}>{cd._score}%</span>
                           {applied && <span style={{ fontSize:8, background:'rgba(5,150,105,0.1)', color:'#059669', borderRadius:4, padding:'1px 5px', fontWeight:600 }}>Applied</span>}
                         </div>
@@ -1356,7 +1358,7 @@ function ArenaView({ auth }) {
         {/* Sort bar */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14, flexWrap:'wrap', gap:8 }}>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <span style={{ fontSize:12, color:'#6B8AB8', fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase' }}>
+            <span style={{ fontSize:12, color:'var(--t-text2)', fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase' }}>
               {sorted.length === 1 ? t('arena.open_count_one') : t('arena.open_count_many').replace('{n}', sorted.length)}
             </span>
             {auth.isHeadhunter && (
@@ -1367,7 +1369,7 @@ function ArenaView({ auth }) {
             )}
           </div>
           <div style={{ display:'flex', gap:5, alignItems:'center' }}>
-            <span style={{ fontSize:11, color:'#6B8AB8', textTransform:'uppercase', letterSpacing:'0.1em', marginRight:2 }}>Sort</span>
+            <span style={{ fontSize:11, color:'var(--t-text2)', textTransform:'uppercase', letterSpacing:'0.1em', marginRight:2 }}>Sort</span>
             {['match','deadline','budget'].map(key => (
               <button key={key} onClick={() => { setCaseSort(key); scrollToCase(0); }}
                 style={{ background: caseSort===key ? '#1A4B8C' : 'rgba(26,75,140,0.07)', border:`1px solid ${caseSort===key ? '#2563EB' : 'rgba(26,75,140,0.2)'}`, borderRadius:99, color: caseSort===key ? '#fff' : '#1A4B8C', fontSize:11, fontWeight:600, letterSpacing:'0.06em', padding:'4px 12px', cursor:'pointer', textTransform:'uppercase', transition:'all .15s' }}>
@@ -1436,7 +1438,7 @@ function ArenaView({ auth }) {
                 style={{ width: i===safeIdx ? 18 : 6, height:6, borderRadius:4, background: i===safeIdx ? '#2563EB' : 'rgba(26,75,140,0.2)', border:'none', cursor:'pointer', transition:'all .2s', padding:0 }} />
             ))}
           </div>
-          <span style={{ fontSize:11, color:'#6B8AB8', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase' }}>
+          <span style={{ fontSize:11, color:'var(--t-text2)', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase' }}>
             {safeIdx + 1} of {sorted.length}
           </span>
         </div>
@@ -1769,7 +1771,6 @@ function ArenaView({ auth }) {
   };
 
   const arenaTabs = [
-    { id: "cases",       label: t("arena.open_cases"),  icon: Briefcase,  count: openCases.length > 0 ? openCases.length : null },
     { id: "leaderboard", label: t("arena.leaderboard"), icon: Trophy,     count: null },
     { id: "cards",       label: t("arena.cards"),       icon: LayoutGrid, count: null },
     { id: "compare",     label: t("arena.compare"),     icon: BarChart2,  count: compareSet.length >= 2 ? compareSet.length : null },
@@ -1919,21 +1920,7 @@ function ArenaView({ auth }) {
         )}
       </div>
 
-      {/* Progress bar */}
-      {(() => {
-        const done = arenaTabs.filter(t => arenaTabStatus[t.id] === "complete").length;
-        if (done === 0) return null;
-        return (
-          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
-            <div style={{ flex:1, height:4, borderRadius:99, background:'#E2E8F0', overflow:'hidden' }}>
-              <div style={{ height:'100%', width:`${(done/arenaTabs.length)*100}%`, background:'linear-gradient(90deg,#1A4B8C,#3B82F6)', borderRadius:99, transition:'width .4s' }}/>
-            </div>
-            <span style={{ fontSize:11, fontWeight:700, color:'#1A4B8C', whiteSpace:'nowrap' }}>{done}/{arenaTabs.length} done</span>
-          </div>
-        );
-      })()}
-
-      {/* Galaxy Explorer — independent, above both carousels */}
+      {/* Section 1 — Galaxy Explorer */}
       {openCases.length > 0 && (
         <GalaxyExplorer
           openCases={openCases}
@@ -1946,7 +1933,30 @@ function ArenaView({ auth }) {
         />
       )}
 
-      {/* Section Carousel */}
+      {/* Section 2 — Open Cases carousel */}
+      <div style={{ marginTop: openCases.length > 0 ? 28 : 0 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
+          <div style={{ width:28, height:28, borderRadius:8, background:'linear-gradient(135deg,#1A4B8C,#2563EB)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+            <Briefcase size={14} color="white" />
+          </div>
+          <span style={{ fontSize:14, fontWeight:700, color:'var(--t-text)' }}>{t("arena.open_cases")}</span>
+          {openCases.length > 0 && (
+            <span style={{ fontSize:11, fontWeight:700, padding:'2px 8px', borderRadius:99, background:'rgba(37,99,235,0.1)', color:'var(--t-text-accent)' }}>
+              {openCases.length}
+            </span>
+          )}
+        </div>
+        {renderCases()}
+      </div>
+
+      {/* Section 3 — Leaderboard / Cards / Compare carousel */}
+      <div style={{ marginTop:28 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
+          <div style={{ width:28, height:28, borderRadius:8, background:'linear-gradient(135deg,#5B21B6,#7C3AED)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+            <Trophy size={14} color="white" />
+          </div>
+          <span style={{ fontSize:14, fontWeight:700, color:'var(--t-text)' }}>{t("arena.leaderboard")}</span>
+        </div>
       {(() => {
         const carouselIdx = Math.max(0, arenaTabs.findIndex(t => t.id === arenaTab));
         function scrollTo(idx) {
@@ -1969,14 +1979,14 @@ function ArenaView({ auth }) {
           <div style={{ position:'relative' }}>
             {carouselIdx > 0 && (
               <button onClick={() => scrollTo(carouselIdx - 1)}
-                style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid #CBD5E1', background:'white', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
-                <ChevronLeft size={16} style={{color:'#64748B'}}/>
+                style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid var(--t-arrow-border)', background:'var(--t-arrow-bg)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.15)', marginTop:-20 }}>
+                <ChevronLeft size={16} style={{color:'var(--t-text2)'}}/>
               </button>
             )}
             {carouselIdx < arenaTabs.length - 1 && (
               <button onClick={() => scrollTo(carouselIdx + 1)}
-                style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid #CBD5E1', background:'white', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
-                <ChevronRight size={16} style={{color:'#64748B'}}/>
+                style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid var(--t-arrow-border)', background:'var(--t-arrow-bg)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.15)', marginTop:-20 }}>
+                <ChevronRight size={16} style={{color:'var(--t-text2)'}}/>
               </button>
             )}
             <div ref={arenaCarouselRef} onScroll={onScroll}
@@ -1988,21 +1998,21 @@ function ArenaView({ auth }) {
                 return (
                   <div key={tab.id}
                     style={{ flex:'0 0 calc(100% - 120px)', width:'calc(100% - 120px)', maxWidth:'calc(100% - 120px)', minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity:isActive?1:0.5, transform:isActive?'scale(1)':'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
-                    <div style={{ borderRadius:12, border:`1px solid ${isActive?'#CBD5E1':'#E2E8F0'}`, background:'white', overflow:'hidden', width:'100%', boxSizing:'border-box', height:700, display:'flex', flexDirection:'column', boxShadow:isActive?'0 4px 20px rgba(0,0,0,.08)':'none', transition:'box-shadow .25s' }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', borderBottom:'1px solid #F1F5F9', background:isActive?'#F8FAFC':'#FAFAFA', flexShrink:0, cursor:isActive?'default':'pointer' }}
+                    <div style={{ borderRadius:12, border:`1px solid ${isActive?'var(--t-border-active)':'var(--t-border)'}`, background:'var(--t-card-bg)', overflow:'hidden', width:'100%', boxSizing:'border-box', height:700, display:'flex', flexDirection:'column', boxShadow:isActive?'0 4px 20px rgba(0,0,0,.12)':'none', transition:'box-shadow .25s' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', borderBottom:'1px solid var(--t-tab-border)', background:isActive?'var(--t-tab-active)':'var(--t-tab-inactive)', flexShrink:0, cursor:isActive?'default':'pointer' }}
                         onClick={() => !isActive && scrollTo(i)}>
                         {st === "complete"
                           ? <div style={{width:16,height:16,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={9} color="white" strokeWidth={3}/></div>
                           : st === "in_progress"
                             ? <div style={{width:8,height:8,borderRadius:'50%',background:'#3B82F6',flexShrink:0,marginRight:2}}/>
                             : <div style={{width:8,height:8,borderRadius:'50%',background:'#CBD5E1',flexShrink:0,marginRight:2}}/>}
-                        <Icon size={13} style={{color:isActive?'#1A4B8C':'#94A3B8',flexShrink:0}}/>
-                        <span style={{flex:1,fontSize:12,fontWeight:700,color:isActive?'#0F172A':'#94A3B8',minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{tab.label}</span>
-                        {tab.count !== null && <span style={{fontSize:10,fontWeight:600,padding:'1px 6px',borderRadius:99,background:isActive?'#DBEAFE':'#F1F5F9',color:isActive?'#2563EB':'#94A3B8',flexShrink:0}}>{tab.count}</span>}
+                        <Icon size={13} style={{color:isActive?'var(--t-text-accent)':'var(--t-text2)',flexShrink:0}}/>
+                        <span style={{flex:1,fontSize:12,fontWeight:700,color:isActive?'var(--t-text)':'var(--t-text2)',minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{tab.label}</span>
+                        {tab.count !== null && <span style={{fontSize:10,fontWeight:600,padding:'1px 6px',borderRadius:99,background:isActive?'var(--t-badge-act-bg)':'var(--t-badge-inact-bg)',color:isActive?'var(--t-badge-act-color)':'var(--t-badge-inact-color)',flexShrink:0}}>{tab.count}</span>}
                         {isActive && (
                           <button onClick={e => { e.stopPropagation(); setArenaManualComplete(tab.id, st !== "complete"); }}
                             title={st === "complete" ? "Mark incomplete" : "Mark complete"}
-                            style={{ flexShrink:0,display:'flex',alignItems:'center',gap:3,fontSize:10,fontWeight:600,padding:'2px 7px',borderRadius:99,border:`1px solid ${st==="complete"?'#BBF7D0':'#E2E8F0'}`,background:st==="complete"?'#F0FDF4':'#F8FAFC',color:st==="complete"?'#16A34A':'#94A3B8',cursor:'pointer',transition:'all .15s',whiteSpace:'nowrap' }}>
+                            style={{ flexShrink:0,display:'flex',alignItems:'center',gap:3,fontSize:10,fontWeight:600,padding:'2px 7px',borderRadius:99,border:`1px solid ${st==="complete"?'var(--t-done-border)':'var(--t-pill-inactive-bdr)'}`,background:st==="complete"?'var(--t-done-bg)':'var(--t-tab-inactive)',color:st==="complete"?'var(--t-done-color)':'var(--t-text2)',cursor:'pointer',transition:'all .15s',whiteSpace:'nowrap' }}>
                             <Check size={9} strokeWidth={3}/>
                             {st === "complete" ? "Done" : "Mark done"}
                           </button>
@@ -2011,7 +2021,6 @@ function ArenaView({ auth }) {
                       {arenaMountedSlides.has(tab.id) ? (
                         <div style={{ flex:1, overflowY:'auto', padding:'18px 20px' }}>
 
-          {tab.id === "cases"       && renderCases()}
           {tab.id === "leaderboard" && renderLeaderboard()}
           {tab.id === "cards"       && renderCards()}
           {tab.id === "compare"     && renderCompare()}
@@ -2028,19 +2037,19 @@ function ArenaView({ auth }) {
               })}
             </div>
             {/* Footer pill bar */}
-            <div style={{ marginTop:10, background:'white', borderRadius:12, border:'1px solid #E2E8F0', padding:'10px 14px', display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none' }}>
+            <div style={{ marginTop:10, background:'var(--t-pill-bar)', borderRadius:12, border:'1px solid var(--t-border)', padding:'10px 14px', display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none' }}>
               {arenaTabs.map((tab, i) => {
                 const Icon = tab.icon;
                 const isActive = tab.id === arenaTab;
                 const st = arenaTabStatus[tab.id];
                 return (
                   <button key={tab.id} onClick={() => scrollTo(i)}
-                    style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'#1A4B8C':st==="complete"?'#BBF7D0':'#E2E8F0'}`, background:isActive?'#1A4B8C':st==="complete"?'#F0FDF4':'white', color:isActive?'white':st==="complete"?'#16A34A':'#64748B', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
+                    style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'var(--t-pill-act-border)':st==="complete"?'var(--t-done-border)':'var(--t-pill-inactive-bdr)'}`, background:isActive?'var(--t-pill-act-bg)':st==="complete"?'var(--t-done-bg)':'var(--t-pill-inactive-bg)', color:isActive?'var(--t-pill-act-color)':st==="complete"?'var(--t-done-color)':'var(--t-text2)', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
                     {st === "complete" && !isActive
                       ? <div style={{width:13,height:13,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={8} color="white" strokeWidth={3}/></div>
                       : <Icon size={11}/>}
                     <span>{tab.label}</span>
-                    {tab.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)':st==="complete"?'#DCFCE7':'#F1F5F9',color:isActive?'rgba(255,255,255,.7)':st==="complete"?'#16A34A':'#94A3B8'}}>{tab.count}</span>}
+                    {tab.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)':st==="complete"?'var(--t-done-bg)':'var(--t-badge-inact-bg)',color:isActive?'rgba(255,255,255,.7)':st==="complete"?'var(--t-done-color)':'var(--t-badge-inact-color)'}}>{tab.count}</span>}
                   </button>
                 );
               })}
@@ -2048,6 +2057,7 @@ function ArenaView({ auth }) {
           </div>
         );
       })()}
+      </div>{/* end Section 3 wrapper */}
 
 
       {/* Floating compare bar */}

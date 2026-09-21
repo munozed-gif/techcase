@@ -8,6 +8,7 @@ import {
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
+import { useTheme } from "../context/ThemeContext.jsx";
 import { useCases } from "../hooks/useCaseHooks.js";
 import { useApplications } from "../hooks/useCaseHooks.js";
 import { useProjects } from "../hooks/useCoreHooks.js";
@@ -28,6 +29,7 @@ import { ClientRatingModal } from "./SystemSettingsView.jsx";
 
 function Dashboard({ auth, onNavigate }) {
   const { t } = useT();
+  const { isDark } = useTheme();
   const { settings: catalogSettings } = useSystemSettings();
   const { cases: _rawCases, loading: casesLoading, updateCase, deleteCase } = useCases();
   const _dashVisCfg = useVisibilitySettings();
@@ -619,12 +621,12 @@ function Dashboard({ auth, onNavigate }) {
         <>
           {/* Available Cases — consultants only */}
           {auth.isConsultant && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-6">
+            <div className="rounded-2xl shadow-sm mb-6" style={{background:'var(--t-card-bg)',border:'1px solid var(--t-border)'}}>
               {/* Header */}
-              <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+              <div className="p-5 flex items-center justify-between" style={{borderBottom:'1px solid var(--t-border)'}}>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">{t("dashboard.available_cases")}</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">{t("dashboard.avail_subtitle")}</p>
+                  <h2 className="text-lg font-bold" style={{color:'var(--t-text)'}}>{t("dashboard.available_cases")}</h2>
+                  <p className="text-xs mt-0.5" style={{color:'var(--t-text2)'}}>{t("dashboard.avail_subtitle")}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-lg">
@@ -648,51 +650,53 @@ function Dashboard({ auth, onNavigate }) {
               )}
 
               {/* Filters */}
-              <div className="px-5 py-3 border-b border-gray-100 flex flex-wrap gap-2 bg-gray-50/50">
+              <div className="px-5 py-3 flex flex-wrap gap-2" style={{borderBottom:'1px solid var(--t-border)',background:'var(--t-tab-inactive)'}}>
                 <select value={filterSap} onChange={e => setFilterSap(e.target.value)}
-                  className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  className="rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  style={{background:'var(--t-card-bg)',border:'1px solid var(--t-border)',color:'var(--t-text)'}}>
                   <option value="">{t("dashboard.all_sap")}</option>
                   {(catalogSettings?.["catalog_sap_areas"] ?? SAP_AREAS).map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
                 <select value={filterIndustry} onChange={e => setFilterInd(e.target.value)}
-                  className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  className="rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  style={{background:'var(--t-card-bg)',border:'1px solid var(--t-border)',color:'var(--t-text)'}}>
                   <option value="">{t("dashboard.all_industries")}</option>
                   {(catalogSettings?.["catalog_industries"] ?? INDUSTRY_AREAS).map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
                 <input type="date" value={filterStartFrom} onChange={e => setStartFrom(e.target.value)}
                   title={t("label.start_date_from")}
-                  className="border border-gray-200 rounded-xl px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  style={{background:'var(--t-card-bg)',border:'1px solid var(--t-border)',color:'var(--t-text)'}} />
                 {(filterSap || filterIndustry || filterStartFrom) && (
                   <button onClick={() => { setFilterSap(""); setFilterInd(""); setStartFrom(""); }}
-                    className="text-xs text-gray-400 hover:text-gray-600 px-2"><X size={11} className="mr-0.5 inline" />{t("action.clear")}</button>
+                    className="text-xs px-2" style={{color:'var(--t-text2)'}}><X size={11} className="mr-0.5 inline" />{t("action.clear")}</button>
                 )}
               </div>
 
               {/* Tabs */}
-              <div className="flex border-b border-gray-100">
+              <div className="flex" style={{borderBottom:'1px solid var(--t-border)'}}>
                 {[
                   { id: "all",       label: t("dashboard.all_cases"),    count: filteredAvailable.length },
                   { id: "following", label: t("dashboard.following_tab"), count: followingCases.length },
                 ].map(tab => (
                   <button key={tab.id} onClick={() => setAvailTab(tab.id)}
-                    className={`px-5 py-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-1.5 ${
-                      availTab === tab.id
-                        ? "border-blue-600 text-blue-600"
-                        : "border-transparent text-gray-500 hover:text-gray-700"
-                    }`}>
+                    className="px-5 py-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-1.5"
+                    style={availTab === tab.id
+                      ? {borderBottomColor:'#2563eb',color:'#2563eb'}
+                      : {borderBottomColor:'transparent',color:'var(--t-text2)'}}>
                     {tab.label}
-                    <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{tab.count}</span>
+                    <span className="px-1.5 py-0.5 rounded text-xs" style={{background:'var(--t-tab-inactive)',color:'var(--t-text2)'}}>{tab.count}</span>
                   </button>
                 ))}
               </div>
 
               {/* List */}
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y" style={{borderColor:'var(--t-border)'}}>
                 {(() => {
                   const list = availTab === "following" ? followingCases : filteredAvailable;
                   if (list.length === 0) {
                     return (
-                      <div className="p-8 text-center text-gray-400 text-sm">
+                      <div className="p-8 text-center text-sm" style={{color:'var(--t-text2)'}}>
                         {availTab === "following"
                           ? <>{t("dashboard.no_following")} <Heart size={11} className="inline text-gray-400" /></>
                           : t("dashboard.no_open_cases")}
@@ -1164,16 +1168,16 @@ function Dashboard({ auth, onNavigate }) {
 
         // 1 — Status Snapshot
         const SNAP_STATUSES = [
-          { key: "open",            Icon: Inbox,         color: "#16a34a", bg: "#f0fdf4" },
-          { key: "estimated",       Icon: ClipboardList, color: "#0d9488", bg: "#f0fdfa" },
-          { key: "assigned",        Icon: UserCheck,     color: "#7c3aed", bg: "#faf5ff" },
-          { key: "in_progress",     Icon: Zap,           color: "#2563eb", bg: "#eff6ff" },
-          { key: "on_hold",         Icon: PauseCircle,   color: "#b45309", bg: "#fffbeb" },
-          { key: "technical_test",  Icon: Code2,         color: "#0891b2", bg: "#ecfeff" },
-          { key: "functional_test", Icon: ListChecks,    color: "#d97706", bg: "#fffbeb" },
-          { key: "user_test",       Icon: Users,         color: "#ea580c", bg: "#fff7ed" },
-          { key: "completed",       Icon: CheckCircle2,  color: "#4b5563", bg: "#f9fafb" },
-          { key: "cancelled",       Icon: XCircle,       color: "#dc2626", bg: "#fef2f2" },
+          { key: "open",            Icon: Inbox,         color: "#16a34a", bg: isDark ? "rgba(22,163,74,.15)"   : "#f0fdf4" },
+          { key: "estimated",       Icon: ClipboardList, color: "#0d9488", bg: isDark ? "rgba(13,148,136,.15)"  : "#f0fdfa" },
+          { key: "assigned",        Icon: UserCheck,     color: "#7c3aed", bg: isDark ? "rgba(124,58,237,.15)"  : "#faf5ff" },
+          { key: "in_progress",     Icon: Zap,           color: "#2563eb", bg: isDark ? "rgba(37,99,235,.15)"   : "#eff6ff" },
+          { key: "on_hold",         Icon: PauseCircle,   color: "#b45309", bg: isDark ? "rgba(180,83,9,.15)"    : "#fffbeb" },
+          { key: "technical_test",  Icon: Code2,         color: "#0891b2", bg: isDark ? "rgba(8,145,178,.15)"   : "#ecfeff" },
+          { key: "functional_test", Icon: ListChecks,    color: "#d97706", bg: isDark ? "rgba(217,119,6,.15)"   : "#fffbeb" },
+          { key: "user_test",       Icon: Users,         color: "#ea580c", bg: isDark ? "rgba(234,88,12,.15)"   : "#fff7ed" },
+          { key: "completed",       Icon: CheckCircle2,  color: isDark ? "#9ca3af" : "#4b5563", bg: isDark ? "rgba(75,85,99,.15)"    : "#f9fafb" },
+          { key: "cancelled",       Icon: XCircle,       color: "#dc2626", bg: isDark ? "rgba(220,38,38,.15)"   : "#fef2f2" },
         ].map(s => ({ ...s, label: STATUS_LABEL_KEYS[s.key] ? t(STATUS_LABEL_KEYS[s.key]) : cap(fmt(s.key)), count: scopedCases.filter(c => c.status === s.key).length }))
          .filter(s => s.count > 0);
 
@@ -1233,11 +1237,11 @@ function Dashboard({ auth, onNavigate }) {
           <>
             {/* ── 1. Status Snapshot ── */}
             {SNAP_STATUSES.length > 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-                <div className="px-4 pt-4 pb-3 border-b border-gray-100 flex items-center gap-2">
-                  <Layers className="w-3.5 h-3.5 text-gray-400" />
-                  <span className="text-sm font-bold text-gray-900">Pipeline</span>
-                  <span className="ml-auto text-xs text-gray-400">{scopedCases.length} total</span>
+              <div className="rounded-2xl shadow-sm" style={{background:'var(--t-card-bg)',border:'1px solid var(--t-border)'}}>
+                <div className="px-4 pt-4 pb-3 flex items-center gap-2" style={{borderBottom:'1px solid var(--t-border)'}}>
+                  <Layers className="w-3.5 h-3.5" style={{color:'var(--t-text2)'}} />
+                  <span className="text-sm font-bold" style={{color:'var(--t-text)'}}>Pipeline</span>
+                  <span className="ml-auto text-xs" style={{color:'var(--t-text2)'}}>{scopedCases.length} total</span>
                 </div>
                 <div className="p-3 grid grid-cols-3 gap-1.5">
                   {SNAP_STATUSES.map(s => {
@@ -1247,7 +1251,7 @@ function Dashboard({ auth, onNavigate }) {
                         style={{ background: s.bg }}>
                         <Icon size={14} style={{ color: s.color }} />
                         <span className="text-lg font-bold leading-none" style={{ color: s.color }}>{s.count}</span>
-                        <span className="text-[9px] leading-none text-gray-500 truncate w-full text-center">{s.label}</span>
+                        <span className="text-[9px] leading-none truncate w-full text-center" style={{color:'var(--t-text2)'}}>{s.label}</span>
                       </div>
                     );
                   })}

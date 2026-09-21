@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // ─── Nova Logo Mark ─────────────────────────────────────────────────────────
 // Module-level injection so the keyframe is available even when LandingView isn't mounted
@@ -139,6 +139,71 @@ const LANDING_STRINGS = {
     f_privacy:"Privacy Policy", f_terms:"Terms of Service", f_security:"Security",
     copy1:"© 2026 Arena Solutions Platform. All rights reserved.",
     copy2:"Built for SAP consulting teams worldwide.",
+    // Demo carousel
+    dc_s0_tag:"Command center", dc_s0_h:"Your full pipeline, live",
+    dc_s0_p:"From open cases to assigned specialists — every SAP engagement tracked in one place, with real-time status.",
+    dc_s1_tag:"Consultant rankings", dc_s1_h:"Ranked consultants, at a glance",
+    dc_s1_p:"Sort by skill match, hourly rate, and active case load. Assign the right specialist in under a minute.",
+    dc_s2_tag:"Lifecycle governance", dc_s2_h:"Stage-gated case progression",
+    dc_s2_p:"Transition gates enforce document upload and hour thresholds before any case moves forward. Full audit trail.",
+    dc_s3_tag:"Arena marketplace", dc_s3_h:"The orbital talent marketplace",
+    dc_s3_p:"Browse open cases, apply as a consultant or team. Real-time matching surfaces the best fits instantly.",
+    dc_labels:["Dashboard","Ranking","Lifecycle","Arena"],
+    dc_f1:"Active cases", dc_f1v:"24 open", dc_f2:"Avg. SLA", dc_f2v:"98.4 %", dc_f3:"Hours logged", dc_f3v:"1,240 h",
+    dc_s0_b1:"Real-time case status across all SAP modules",
+    dc_s0_b2:"Team capacity and workload at a glance",
+    dc_s0_b3:"Instant alerts when consultants apply",
+    dc_s1_b1:"Weighted scoring: skills, rating, experience, hourly rate",
+    dc_s1_b2:"Familiarity bonus for consultants who know your stack",
+    dc_s1_b3:"One-click auto-assign when the window closes",
+    dc_s1_applicants:"applicants scored", dc_s1_autoassign:"Auto-assign ✦",
+    dc_s2_b1:"Custom stage flows per project type",
+    dc_s2_b2:"Gate conditions: documents, approvals, key user sign-off",
+    dc_s2_b3:"AI functional spec generation at key milestones",
+    dc_s2_consultant:"Consultant", dc_s2_duedate:"Due date", dc_s2_spec:"Spec status", dc_s2_specval:"✓ Approved",
+    dc_s3_b1:"Cases ranked by your personal skill match score",
+    dc_s3_b2:"Confidential cases accessible after NDA acceptance",
+    dc_s3_b3:"Form teams for large implementation projects",
+    dc_s3_matches:"cases match your profile",
+    // Slide 0 mockup stats
+    dc_stat_cases:"Active Cases", dc_stat_cons:"Consultants", dc_stat_fill:"Fill Rate",
+    dc_stat_cases_d:"↑ 3 this week", dc_stat_cons_d:"7 available now", dc_stat_fill_d:"↑ 2% vs last mo.",
+    dc_c1:"SAP FICO — Q4 Close Migration", dc_c2:"MM/SD Integration — Logistics Hub",
+    dc_c3:"S/4HANA Upgrade — Pilot Phase", dc_c4:"SAP Basis — Infrastructure Review",
+    dc_b_inprogress:"In Progress", dc_b_estimated:"Estimated", dc_b_open:"Open",
+    dc_b_assigned:"Assigned", dc_b_review:"Review", dc_b_done:"Done",
+    dc_b_highpriority:"High Priority", dc_b_new:"New",
+    // Slide 2 lifecycle stages
+    dc_lc_open:"Open", dc_lc_estimated:"Estimated", dc_lc_assigned:"Assigned",
+    dc_lc_inprogress:"In Progress", dc_lc_review:"Review", dc_lc_done:"Done",
+    // Slide 3 arena cards
+    dc_a_bestmatch:"Best match", dc_a_applynow:"Apply Now", dc_a_apply:"Apply",
+    dc_a_c1title:"FICO Chart of Accounts Restructure",
+    dc_a_c2title:"Tax Compliance Automation",
+    dc_a_c3title:"ERP Migration Readiness Review",
+    dc_a_more:"+11 more cases", dc_a_filter_all:"All",
+    // Promo video
+    ap_header_tag:"Platform Walkthrough", ap_header_h:"See Arena in Action",
+    ap_header_p:"From orbital explorer to consultant marketplace — the full platform in 30 seconds.",
+    ap_s0_tag:"Platform",         ap_s0_h:"Arena Solutions Platform",     ap_s0_p:"The only workspace built for SAP project governance — from open case to closed ticket.",
+    ap_s1_tag:"Orbital Explorer", ap_s1_h:"See who works on what",        ap_s1_p:"Every active SAP case orbits the client hub. Click any node to drill into the engagement.",
+    ap_s2_tag:"Drill-Down",       ap_s2_h:"Client → Case in one tap",     ap_s2_p:"From parent account to every live SAP module, with live status on each engagement.",
+    ap_s3_tag:"Lifecycle",        ap_s3_h:"Governed open to close",       ap_s3_p:"Mandatory gates, attached evidence, logged hours. Every transition is audited.",
+    ap_s4_tag:"Consultant Arena", ap_s4_h:"Find the right specialist",    ap_s4_p:"Ranked matches by skills, availability, and track record — hire in minutes.",
+    ap_s5_tag:"Get Started",      ap_s5_h:"Ready when you are",           ap_s5_p:"Set up your org in minutes. Your first case can be live before end of day.",
+    ap_cta_companies_title:"For Companies", ap_cta_companies_desc:"Govern SAP cases, track SLAs, manage consultants.", ap_cta_companies_btn:"Request Demo",
+    ap_cta_consultants_title:"For Consultants", ap_cta_consultants_desc:"Build your profile, get ranked, find the right project.", ap_cta_consultants_btn:"Join Arena",
+    ap_ready:"Ready?",
+    ap_drill_hub:"4 active cases", ap_drill_r1:"FICO Q4 Implementation", ap_drill_r2:"MM/SD Rollout", ap_drill_r3:"S/4HANA Upgrade",
+    ap_drill_r1s:"Module · In Progress", ap_drill_r2s:"Module · Spec Review", ap_drill_r3s:"Module · Planning",
+    ap_case_module:"FICO Q4 · In Progress", ap_case_title:"ERP Finance Consolidation",
+    ap_case_hours:"Hours", ap_case_stage:"Stage", ap_case_stage_val:"Development",
+    ap_lc_open:"Open", ap_lc_spec:"Spec Review", ap_lc_dev:"Development", ap_lc_test:"Testing", ap_lc_close:"Closure",
+    ap_badge_done:"Done", ap_badge_active:"Active", ap_badge_locked:"Locked",
+    ap_ac_r1name:"Marcus R.", ap_ac_r1role:"SAP FI/CO Specialist · 8 yrs",
+    ap_ac_r2name:"Sofia K.",  ap_ac_r2role:"SAP FICO Senior · 6 yrs",
+    ap_ac_r3name:"James L.",  ap_ac_r3role:"SAP Finance Lead · 10 yrs",
+    ap_pause:"Pause", ap_play:"Play", ap_scene_of:"of",
   },
   es: {
     nav_arena:"Arena", nav_features:"Características", nav_lifecycle:"Ciclo de Vida",
@@ -203,6 +268,71 @@ const LANDING_STRINGS = {
     f_privacy:"Política de Privacidad", f_terms:"Términos de Servicio", f_security:"Seguridad",
     copy1:"© 2026 Arena Solutions Platform. Todos los derechos reservados.",
     copy2:"Construido para equipos de consultoría SAP en todo el mundo.",
+    // Demo carousel
+    dc_s0_tag:"Centro de mando", dc_s0_h:"Todo tu pipeline, en vivo",
+    dc_s0_p:"Desde casos abiertos hasta especialistas asignados — cada compromiso SAP rastreado en un solo lugar, con estado en tiempo real.",
+    dc_s1_tag:"Ranking de consultores", dc_s1_h:"Consultores clasificados, de un vistazo",
+    dc_s1_p:"Ordena por afinidad de habilidades, tarifa por hora y carga de casos activos. Asigna al especialista adecuado en menos de un minuto.",
+    dc_s2_tag:"Gobernanza de ciclo de vida", dc_s2_h:"Progresión de casos por etapas",
+    dc_s2_p:"Las puertas de transición exigen carga de documentos y umbrales de horas antes de avanzar. Registro de auditoría completo.",
+    dc_s3_tag:"Mercado Arena", dc_s3_h:"El mercado orbital de talento",
+    dc_s3_p:"Explora casos abiertos, aplica como consultor o equipo. La asignación en tiempo real muestra las mejores opciones al instante.",
+    dc_labels:["Dashboard","Ranking","Ciclo de Vida","Arena"],
+    dc_f1:"Casos activos", dc_f1v:"24 abiertos", dc_f2:"SLA prom.", dc_f2v:"98.4 %", dc_f3:"Horas registradas", dc_f3v:"1.240 h",
+    dc_s0_b1:"Estado en tiempo real de casos en todos los módulos SAP",
+    dc_s0_b2:"Capacidad del equipo y carga de trabajo de un vistazo",
+    dc_s0_b3:"Alertas instantáneas cuando los consultores aplican",
+    dc_s1_b1:"Puntuación ponderada: habilidades, calificación, experiencia, tarifa",
+    dc_s1_b2:"Bono de familiaridad para consultores que conocen tu stack",
+    dc_s1_b3:"Autoasignación en un clic cuando el período cierra",
+    dc_s1_applicants:"aplicantes puntuados", dc_s1_autoassign:"Autoasignar ✦",
+    dc_s2_b1:"Flujos de etapa personalizados por tipo de proyecto",
+    dc_s2_b2:"Condiciones de puerta: documentos, aprobaciones, firma del usuario clave",
+    dc_s2_b3:"Generación de especificaciones funcionales con IA en hitos clave",
+    dc_s2_consultant:"Consultor", dc_s2_duedate:"Fecha límite", dc_s2_spec:"Estado de spec", dc_s2_specval:"✓ Aprobado",
+    dc_s3_b1:"Casos clasificados por tu puntuación personal de afinidad",
+    dc_s3_b2:"Casos confidenciales accesibles tras aceptar el NDA",
+    dc_s3_b3:"Forma equipos para grandes proyectos de implementación",
+    dc_s3_matches:"casos coinciden con tu perfil",
+    // Slide 0 mockup stats
+    dc_stat_cases:"Casos Activos", dc_stat_cons:"Consultores", dc_stat_fill:"Tasa de Ocupación",
+    dc_stat_cases_d:"↑ 3 esta semana", dc_stat_cons_d:"7 disponibles ahora", dc_stat_fill_d:"↑ 2% vs mes anterior",
+    dc_c1:"SAP FICO — Migración Cierre Q4", dc_c2:"Integración MM/SD — Hub Logístico",
+    dc_c3:"Actualización S/4HANA — Fase Piloto", dc_c4:"SAP Basis — Revisión de Infraestructura",
+    dc_b_inprogress:"En Progreso", dc_b_estimated:"Estimado", dc_b_open:"Abierto",
+    dc_b_assigned:"Asignado", dc_b_review:"Revisión", dc_b_done:"Listo",
+    dc_b_highpriority:"Alta Prioridad", dc_b_new:"Nuevo",
+    // Slide 2 lifecycle stages
+    dc_lc_open:"Abierto", dc_lc_estimated:"Estimado", dc_lc_assigned:"Asignado",
+    dc_lc_inprogress:"En Progreso", dc_lc_review:"Revisión", dc_lc_done:"Listo",
+    // Slide 3 arena cards
+    dc_a_bestmatch:"Mejor coincidencia", dc_a_applynow:"Aplicar Ahora", dc_a_apply:"Aplicar",
+    dc_a_c1title:"Restructuración del Plan de Cuentas FICO",
+    dc_a_c2title:"Automatización de Cumplimiento Fiscal",
+    dc_a_c3title:"Revisión de Preparación Migración ERP",
+    dc_a_more:"+11 casos más", dc_a_filter_all:"Todos",
+    // Promo video
+    ap_header_tag:"Recorrido de la Plataforma", ap_header_h:"Arena en Acción",
+    ap_header_p:"Del explorador orbital al mercado de consultores — la plataforma completa en 30 segundos.",
+    ap_s0_tag:"Plataforma",          ap_s0_h:"Plataforma de Soluciones Arena", ap_s0_p:"El único workspace construido para la gobernanza de proyectos SAP — del caso abierto al ticket cerrado.",
+    ap_s1_tag:"Explorador Orbital",  ap_s1_h:"Ve quién trabaja en qué",        ap_s1_p:"Cada caso SAP activo orbita el centro del cliente. Haz clic en cualquier nodo para entrar al compromiso.",
+    ap_s2_tag:"Profundización",      ap_s2_h:"Cliente → Caso en un toque",     ap_s2_p:"Desde la cuenta principal hasta cada módulo SAP activo, con estado en vivo de cada compromiso.",
+    ap_s3_tag:"Ciclo de Vida",       ap_s3_h:"Gobernado de inicio a cierre",   ap_s3_p:"Puertas obligatorias, evidencia adjunta, horas registradas. Cada transición queda auditada.",
+    ap_s4_tag:"Arena de Consultores",ap_s4_h:"Encuentra al especialista ideal", ap_s4_p:"Coincidencias clasificadas por habilidades, disponibilidad y trayectoria — contrata en minutos.",
+    ap_s5_tag:"Comenzar",            ap_s5_h:"Listo cuando tú lo estés",        ap_s5_p:"Configura tu organización en minutos. Tu primer caso puede estar activo antes de que termine el día.",
+    ap_cta_companies_title:"Para Empresas",    ap_cta_companies_desc:"Gobierna casos SAP, controla SLAs, gestiona consultores.", ap_cta_companies_btn:"Solicitar Demo",
+    ap_cta_consultants_title:"Para Consultores", ap_cta_consultants_desc:"Crea tu perfil, obtén ranking, encuentra el proyecto ideal.", ap_cta_consultants_btn:"Unirse a Arena",
+    ap_ready:"¿Listo?",
+    ap_drill_hub:"4 casos activos", ap_drill_r1:"Implementación FICO Q4", ap_drill_r2:"Despliegue MM/SD", ap_drill_r3:"Actualización S/4HANA",
+    ap_drill_r1s:"Módulo · En Progreso", ap_drill_r2s:"Módulo · Revisión de Spec", ap_drill_r3s:"Módulo · Planificación",
+    ap_case_module:"FICO Q4 · En Progreso", ap_case_title:"Consolidación Financiera ERP",
+    ap_case_hours:"Horas", ap_case_stage:"Etapa", ap_case_stage_val:"Desarrollo",
+    ap_lc_open:"Abierto", ap_lc_spec:"Revisión Spec", ap_lc_dev:"Desarrollo", ap_lc_test:"Pruebas", ap_lc_close:"Cierre",
+    ap_badge_done:"Hecho", ap_badge_active:"Activo", ap_badge_locked:"Bloqueado",
+    ap_ac_r1name:"Marco R.",  ap_ac_r1role:"Especialista SAP FI/CO · 8 años",
+    ap_ac_r2name:"Sofía K.",  ap_ac_r2role:"SAP FICO Senior · 6 años",
+    ap_ac_r3name:"Jaime L.",  ap_ac_r3role:"Líder SAP Finance · 10 años",
+    ap_pause:"Pausar", ap_play:"Reproducir", ap_scene_of:"de",
   },
 };
 
@@ -437,7 +567,733 @@ const CSS = `
 
 #arena-landing .fade-in{opacity:0;transform:translateY(24px);transition:opacity .6s ease,transform .6s ease;}
 #arena-landing .fade-in.visible{opacity:1;transform:translateY(0);}
+
+/* ── DEMO CAROUSEL ───────────────────────────────────────────────────── */
+#arena-landing .dc-section{padding:8px 24px 80px;}
+#arena-landing .dc-dots{display:flex;justify-content:center;gap:7px;margin-bottom:32px;}
+#arena-landing .dc-dot{height:6px;width:6px;border-radius:3px;border:none;padding:0;background:rgba(100,160,220,0.25);cursor:pointer;transition:all .25s;}
+#arena-landing .dc-dot.on{width:28px;background:#2563EB;}
+#arena-landing .dc-slides{max-width:1020px;margin:0 auto;}
+#arena-landing .dc-slide{display:none;grid-template-columns:1fr 1fr;gap:52px;align-items:center;}
+#arena-landing .dc-slide.on{display:grid;animation:dc-fadeUp .35s ease forwards;}
+@keyframes dc-fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+@media(max-width:660px){#arena-landing .dc-slide{grid-template-columns:1fr;gap:28px;}}
+#arena-landing .dc-tag{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#F59E0B;margin-bottom:10px;}
+#arena-landing .dc-slide h2{font-family:'DM Serif Display',Georgia,serif;font-size:clamp(24px,3.5vw,36px);line-height:1.15;color:#DCE8F4;text-wrap:balance;letter-spacing:-0.01em;margin-bottom:14px;}
+#arena-landing .dc-slide p{color:#7090B0;font-size:15px;line-height:1.7;margin-bottom:22px;}
+#arena-landing .dc-flist{list-style:none;display:flex;flex-direction:column;gap:10px;}
+#arena-landing .dc-flist li{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#7090B0;line-height:1.5;}
+#arena-landing .dc-fdot{width:18px;height:18px;border-radius:50%;flex-shrink:0;background:rgba(34,211,238,0.08);border:1.5px solid rgba(34,211,238,0.4);display:flex;align-items:center;justify-content:center;}
+#arena-landing .dc-prog-wrap{max-width:1020px;margin:18px auto 0;height:2px;background:rgba(100,160,220,0.1);border-radius:1px;overflow:hidden;}
+#arena-landing .dc-prog-fill{height:100%;background:#2563EB;transition:width .08s linear;}
+#arena-landing .dc-mockup{background:#0D1E30;border:1px solid rgba(100,160,220,0.12);border-radius:14px;overflow:hidden;box-shadow:0 2px 0 rgba(100,160,220,0.06),0 24px 64px rgba(0,0,0,.5);}
+#arena-landing .dc-chrome{background:#132436;border-bottom:1px solid rgba(100,160,220,0.1);padding:9px 12px;display:flex;align-items:center;gap:7px;}
+#arena-landing .dc-chrdot{width:8px;height:8px;border-radius:50%;}
+#arena-landing .dc-urlbar{flex:1;height:20px;background:#1A2F44;border-radius:4px;margin:0 7px;display:flex;align-items:center;padding:0 8px;}
+#arena-landing .dc-urlstr{font-size:9px;color:rgba(100,160,220,0.4);}
+#arena-landing .dc-body{padding:14px;min-height:250px;}
+#arena-landing .dc-badge{display:inline-flex;font-size:9px;font-weight:600;padding:2px 7px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;}
+#arena-landing .dc-b-blue{background:rgba(37,99,235,0.18);color:#60A5FA;}
+#arena-landing .dc-b-amber{background:rgba(245,158,11,0.15);color:#F59E0B;}
+#arena-landing .dc-b-green{background:rgba(16,185,129,0.14);color:#10B981;}
+#arena-landing .dc-b-purple{background:rgba(167,139,250,0.14);color:#A78BFA;}
+#arena-landing .dc-b-gray{background:rgba(100,160,220,0.08);color:#7090B0;}
+#arena-landing .dc-area{display:inline-flex;font-size:9px;color:#405870;background:#1A2F44;padding:2px 6px;border-radius:4px;}
+#arena-landing .dc-stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:12px;}
+#arena-landing .dc-stat{background:#132436;border:1px solid rgba(100,160,220,0.1);border-radius:9px;padding:10px;}
+#arena-landing .dc-stat-lbl{font-size:9px;color:#405870;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
+#arena-landing .dc-stat-val{font-size:20px;font-weight:700;color:#DCE8F4;font-variant-numeric:tabular-nums;line-height:1;}
+#arena-landing .dc-stat-delta{font-size:9px;color:#10B981;margin-top:3px;}
+#arena-landing .dc-case-row{display:flex;align-items:center;gap:7px;padding:7px 0;border-bottom:1px solid rgba(100,160,220,0.07);}
+#arena-landing .dc-case-row:last-child{border-bottom:none;}
+#arena-landing .dc-case-title{flex:1;font-size:10px;font-weight:500;color:#DCE8F4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#arena-landing .dc-rank-item{display:flex;align-items:center;gap:9px;padding:9px 10px;background:#132436;border-radius:9px;margin-bottom:7px;border:1px solid rgba(100,160,220,0.08);}
+#arena-landing .dc-rank-item.top{background:rgba(37,99,235,0.08);border-color:rgba(37,99,235,0.35);}
+#arena-landing .dc-rank-n{font-size:10px;font-weight:700;color:#405870;width:14px;flex-shrink:0;}
+#arena-landing .dc-rank-av{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;}
+#arena-landing .dc-rank-info{flex:1;min-width:0;}
+#arena-landing .dc-rank-name{font-size:10px;font-weight:600;color:#DCE8F4;}
+#arena-landing .dc-skill-tags{display:flex;gap:3px;flex-wrap:wrap;margin-top:3px;}
+#arena-landing .dc-stag{font-size:8px;padding:1px 5px;border-radius:3px;background:#1A2F44;color:#7090B0;}
+#arena-landing .dc-bar-wrap{height:2px;background:#1A2F44;border-radius:1px;overflow:hidden;margin-top:4px;}
+#arena-landing .dc-bar{height:100%;background:#2563EB;border-radius:1px;transition:width .9s ease;}
+#arena-landing .dc-rank-pts{font-size:17px;font-weight:800;color:#60A5FA;flex-shrink:0;}
+#arena-landing .dc-rank-item:not(.top) .dc-rank-pts{font-size:14px;color:#7090B0;}
+#arena-landing .dc-lc-track{position:relative;margin-bottom:14px;padding-top:6px;}
+#arena-landing .dc-lc-line{position:absolute;top:20px;left:10%;right:10%;height:2px;background:rgba(100,160,220,0.1);}
+#arena-landing .dc-lc-done{position:absolute;top:20px;left:10%;width:55%;height:2px;background:#2563EB;}
+#arena-landing .dc-lc-stages{display:flex;justify-content:space-between;position:relative;z-index:1;}
+#arena-landing .dc-lc-stage{display:flex;flex-direction:column;align-items:center;gap:5px;}
+#arena-landing .dc-lc-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+#arena-landing .dc-lc-dot.done{background:#2563EB;}
+#arena-landing .dc-lc-dot.current{background:transparent;border:2px solid #2563EB;box-shadow:0 0 0 3px rgba(37,99,235,0.2);}
+#arena-landing .dc-lc-dot.pending{background:#132436;border:2px solid rgba(100,160,220,0.15);}
+#arena-landing .dc-lc-lbl{font-size:8px;color:#405870;white-space:nowrap;}
+#arena-landing .dc-cc{background:#132436;border:1px solid rgba(37,99,235,0.3);border-radius:10px;padding:12px;}
+#arena-landing .dc-cc-title{font-size:11px;font-weight:600;color:#DCE8F4;margin-bottom:8px;}
+#arena-landing .dc-cc-meta{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;}
+#arena-landing .dc-cc-fields{display:flex;gap:16px;}
+#arena-landing .dc-cc-f-lbl{font-size:8px;color:#405870;margin-bottom:2px;}
+#arena-landing .dc-cc-f-val{font-size:10px;font-weight:600;color:#DCE8F4;}
+#arena-landing .dc-arena-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+#arena-landing .dc-arena-card{background:#132436;border:1px solid rgba(100,160,220,0.1);border-radius:10px;padding:10px;}
+#arena-landing .dc-arena-card.ft{background:rgba(37,99,235,0.07);border-color:rgba(37,99,235,0.4);}
+#arena-landing .dc-a-tag{font-size:8px;font-weight:700;color:#F59E0B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;}
+#arena-landing .dc-a-title{font-size:10px;font-weight:600;color:#DCE8F4;line-height:1.35;margin-bottom:6px;}
+#arena-landing .dc-a-foot{display:flex;align-items:center;justify-content:space-between;margin-top:8px;}
+#arena-landing .dc-a-match{font-size:12px;font-weight:700;color:#10B981;}
+#arena-landing .dc-a-apply{font-size:9px;font-weight:600;padding:3px 9px;background:#2563EB;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:inherit;}
+#arena-landing .dc-a-apply.ghost{background:#1A2F44;color:#7090B0;}
+#arena-landing .dc-a-more{display:flex;align-items:center;justify-content:center;border:1px dashed rgba(100,160,220,0.15);border-radius:10px;padding:10px;font-size:9px;color:#405870;}
+@media(prefers-reduced-motion:reduce){#arena-landing .dc-slide.on{animation:none;}#arena-landing .dc-bar{transition:none;}}
+/* ── ARENA PROMO ─────────────────── */
+#arena-landing .ap-section{position:relative;overflow:hidden;padding:60px 24px 80px;background:linear-gradient(180deg,#05080F 0%,#080E1A 100%);}
+#arena-landing .ap-bg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+#arena-landing .ap-inner{position:relative;z-index:1;max-width:900px;margin:0 auto;}
+#arena-landing .ap-header{text-align:center;margin-bottom:36px;}
+#arena-landing .ap-tag{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#4F6EF7;margin-bottom:10px;}
+#arena-landing .ap-title{font-size:clamp(22px,4vw,38px);font-weight:800;color:#DCE8F4;line-height:1.15;margin-bottom:8px;}
+#arena-landing .ap-sub{font-size:15px;color:#7090B0;}
+#arena-landing .ap-player{background:#0C1522;border:1px solid rgba(100,160,220,0.12);border-radius:16px;overflow:hidden;}
+#arena-landing .ap-stage{position:relative;height:320px;overflow:hidden;}
+#arena-landing .ap-scene{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .5s;}
+#arena-landing .ap-scene.on{opacity:1;}
+#arena-landing .ap-content{position:relative;z-index:1;display:flex;gap:36px;align-items:center;padding:28px 32px;width:100%;box-sizing:border-box;}
+#arena-landing .ap-copy{flex:1;min-width:0;}
+#arena-landing .ap-s-tag{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#F59E0B;margin-bottom:8px;}
+#arena-landing .ap-s-h{font-size:clamp(17px,2.5vw,23px);font-weight:800;color:#DCE8F4;margin-bottom:10px;line-height:1.2;}
+#arena-landing .ap-s-p{font-size:13px;color:#7090B0;line-height:1.6;}
+#arena-landing .ap-visual{width:240px;flex-shrink:0;}
+#arena-landing .ap-controls{padding:12px 20px;border-top:1px solid rgba(100,160,220,0.08);display:flex;flex-direction:column;gap:10px;}
+#arena-landing .ap-scrubber{position:relative;height:3px;background:rgba(100,160,220,0.12);border-radius:2px;cursor:pointer;}
+#arena-landing .ap-prog{height:100%;border-radius:2px;background:#4F6EF7;transition:width .1s linear;}
+#arena-landing .ap-btns{display:flex;align-items:center;gap:10px;}
+#arena-landing .ap-btn{background:none;border:none;color:#7090B0;cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center;transition:color .2s;}
+#arena-landing .ap-btn:hover{color:#DCE8F4;}
+#arena-landing .ap-chaps{display:flex;gap:6px;margin-left:auto;}
+#arena-landing .ap-chap{width:7px;height:7px;border-radius:50%;background:rgba(100,160,220,0.2);border:none;cursor:pointer;transition:background .2s,transform .2s;padding:0;}
+#arena-landing .ap-chap.on{background:#4F6EF7;transform:scale(1.3);}
+#arena-landing .ap-orb-wrap{position:relative;width:220px;height:220px;flex-shrink:0;}
+#arena-landing .ap-orb-cv{width:100%;height:100%;}
+#arena-landing .ap-tree{display:flex;flex-direction:column;gap:7px;}
+#arena-landing .ap-tree-row{display:flex;align-items:center;gap:8px;opacity:0;transform:translateX(10px);transition:opacity .4s,transform .4s;}
+#arena-landing .ap-tree-row.show{opacity:1;transform:none;}
+#arena-landing .ap-tree-icon{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;}
+#arena-landing .ap-tree-name{font-size:11px;font-weight:600;color:#DCE8F4;}
+#arena-landing .ap-tree-sub{font-size:9px;color:#405870;}
+#arena-landing .ap-case-card{background:#132436;border:1px solid rgba(37,99,235,0.4);border-radius:10px;padding:11px;opacity:0;transform:translateY(6px);transition:opacity .4s .2s,transform .4s .2s;}
+#arena-landing .ap-case-card.show{opacity:1;transform:none;}
+#arena-landing .ap-lc{display:flex;flex-direction:column;gap:5px;}
+#arena-landing .ap-lc-node{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:8px;background:#132436;border:1px solid rgba(100,160,220,0.1);opacity:0;transform:translateY(8px);transition:opacity .35s,transform .35s;}
+#arena-landing .ap-lc-node.show{opacity:1;transform:none;}
+#arena-landing .ap-lc-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+#arena-landing .ap-lc-label{font-size:11px;font-weight:600;color:#DCE8F4;}
+#arena-landing .ap-lc-badge{margin-left:auto;font-size:9px;font-weight:700;padding:2px 7px;border-radius:12px;}
+#arena-landing .ap-ac-grid{display:flex;flex-direction:column;gap:6px;}
+#arena-landing .ap-ac-card{background:#132436;border:1px solid rgba(100,160,220,0.1);border-radius:9px;padding:9px;display:flex;align-items:center;gap:9px;opacity:0;transform:translateX(10px);transition:opacity .35s,transform .35s;}
+#arena-landing .ap-ac-card.show{opacity:1;transform:none;}
+#arena-landing .ap-ac-av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0;}
+#arena-landing .ap-ac-name{font-size:11px;font-weight:600;color:#DCE8F4;}
+#arena-landing .ap-ac-role{font-size:9px;color:#405870;}
+#arena-landing .ap-ac-match{margin-left:auto;font-size:14px;font-weight:800;color:#10B981;font-variant-numeric:tabular-nums;}
+#arena-landing .ap-cta-grid{display:flex;gap:12px;width:100%;}
+#arena-landing .ap-cta-card{flex:1;background:#132436;border-radius:12px;padding:18px;text-align:center;border:1px solid rgba(100,160,220,0.12);}
+#arena-landing .ap-cta-card.blue{border-color:rgba(37,99,235,0.5);}
+#arena-landing .ap-cta-icon{font-size:22px;margin-bottom:7px;}
+#arena-landing .ap-cta-title{font-size:13px;font-weight:700;color:#DCE8F4;margin-bottom:4px;}
+#arena-landing .ap-cta-desc{font-size:10px;color:#7090B0;margin-bottom:11px;}
+#arena-landing .ap-cta-btn{font-size:11px;font-weight:700;padding:6px 14px;border-radius:7px;border:none;cursor:pointer;font-family:inherit;}
+#arena-landing .ap-cta-btn.primary{background:#2563EB;color:#fff;}
+#arena-landing .ap-cta-btn.ghost{background:#1A2F44;color:#7090B0;}
+@media(max-width:640px){#arena-landing .ap-content{flex-direction:column;}#arena-landing .ap-visual,#arena-landing .ap-orb-wrap{width:100%;}}
+@media(prefers-reduced-motion:reduce){#arena-landing .ap-scene{transition:none;}#arena-landing .ap-prog{transition:none;}}
 `;
+
+function ArenaPromoVideo({ tl }) {
+  const SCENES = [
+    {tag:tl('ap_s0_tag'), h:tl('ap_s0_h'), p:tl('ap_s0_p'), dur:4500},
+    {tag:tl('ap_s1_tag'), h:tl('ap_s1_h'), p:tl('ap_s1_p'), dur:5800},
+    {tag:tl('ap_s2_tag'), h:tl('ap_s2_h'), p:tl('ap_s2_p'), dur:5200},
+    {tag:tl('ap_s3_tag'), h:tl('ap_s3_h'), p:tl('ap_s3_p'), dur:5100},
+    {tag:tl('ap_s4_tag'), h:tl('ap_s4_h'), p:tl('ap_s4_p'), dur:4800},
+    {tag:tl('ap_s5_tag'), h:tl('ap_s5_h'), p:tl('ap_s5_p'), dur:4500},
+  ];
+  const TOTAL = SCENES.length;
+  const TICK = 80;
+
+  const [cur, setCur] = useState(0);
+  const [playing, setPlaying] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const [drillShow, setDrillShow] = useState([false,false,false,false]);
+  const [drillCase, setDrillCase] = useState(false);
+  const [lcShow, setLcShow] = useState([false,false,false,false,false]);
+  const [acShow, setAcShow] = useState([false,false,false]);
+  const [acPct, setAcPct] = useState([0,0,0]);
+  const [ctaShow, setCtaShow] = useState([false,false]);
+
+  const elapsedRef = useRef(0);
+  const playingRef = useRef(true);
+  const bgCvRef    = useRef(null);
+  const orbCvRef   = useRef(null);
+  const orbAngles  = useRef([0, 2.1, 1.0, 3.2]);
+  const orbSel     = useRef(false);
+
+  useEffect(() => { playingRef.current = playing; }, [playing]);
+
+  useEffect(() => {
+    const cv = bgCvRef.current; if (!cv) return;
+    const ctx = cv.getContext('2d');
+    const pts = Array.from({length:50}, () => ({
+      x:Math.random()*800, y:Math.random()*340,
+      vx:(Math.random()-.5)*.3, vy:(Math.random()-.5)*.3,
+      r:Math.random()*1.5+.5, a:Math.random()*.4+.1
+    }));
+    let raf;
+    function draw() {
+      const W = cv.offsetWidth||800, H = cv.offsetHeight||340;
+      if (cv.width!==W||cv.height!==H) { cv.width=W; cv.height=H; }
+      ctx.clearRect(0,0,W,H);
+      pts.forEach(p => {
+        p.x=(p.x+p.vx+W)%W; p.y=(p.y+p.vy+H)%H;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+        ctx.fillStyle=`rgba(79,110,247,${p.a})`; ctx.fill();
+      });
+      raf = requestAnimationFrame(draw);
+    }
+    draw();
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  useEffect(() => {
+    if (cur !== 1) return;
+    const cv = orbCvRef.current; if (!cv) return;
+    const ctx = cv.getContext('2d');
+    const ORBS = [
+      {label:'FICO Q4', color:'#4F6EF7', r:72,  speed:.45},
+      {label:'MM/SD',   color:'#F59E0B', r:100, speed:.28},
+      {label:'S/4HANA', color:'#A78BFA', r:126, speed:.19},
+      {label:'Basis',   color:'#10B981', r:150, speed:.13},
+    ];
+    orbSel.current = false;
+    const selTimer = setTimeout(() => { orbSel.current = true; }, 2800);
+    let raf, last = performance.now();
+    function draw(now) {
+      const dt = (now - last)/1000; last = now;
+      const W = cv.offsetWidth||220, H = cv.offsetHeight||220;
+      if (cv.width!==W||cv.height!==H) { cv.width=W; cv.height=H; }
+      ctx.clearRect(0,0,W,H);
+      const cx=W/2, cy=H/2;
+      orbAngles.current = orbAngles.current.map((a,i) => a + ORBS[i].speed*dt);
+      ORBS.forEach(o => {
+        ctx.beginPath(); ctx.ellipse(cx,cy,o.r,o.r*.38,0,0,Math.PI*2);
+        ctx.strokeStyle='rgba(100,160,220,0.08)'; ctx.lineWidth=1; ctx.stroke();
+      });
+      const hg = ctx.createRadialGradient(cx,cy,0,cx,cy,22);
+      hg.addColorStop(0,'rgba(37,99,235,0.9)'); hg.addColorStop(1,'rgba(37,99,235,0.2)');
+      ctx.beginPath(); ctx.arc(cx,cy,18,0,Math.PI*2); ctx.fillStyle=hg; ctx.fill();
+      ctx.font='bold 13px sans-serif'; ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('A',cx,cy);
+      ORBS.forEach((o,i) => {
+        const a=orbAngles.current[i];
+        const nx=cx+o.r*Math.cos(a), ny=cy+o.r*.38*Math.sin(a);
+        const sel=i===0&&orbSel.current;
+        if (sel) {
+          ctx.beginPath(); ctx.arc(nx,ny,22,0,Math.PI*2);
+          ctx.strokeStyle='rgba(79,110,247,0.4)'; ctx.lineWidth=2; ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(nx,ny);
+          ctx.strokeStyle='rgba(79,110,247,0.3)'; ctx.lineWidth=1; ctx.stroke();
+        }
+        ctx.beginPath(); ctx.arc(nx,ny,sel?12:9,0,Math.PI*2);
+        ctx.fillStyle=o.color; ctx.fill();
+        ctx.font=`${sel?'bold ':''} 8px sans-serif`; ctx.fillStyle='#DCE8F4';
+        ctx.textAlign='center'; ctx.textBaseline='top';
+        ctx.fillText(o.label,nx,ny+14);
+      });
+      raf = requestAnimationFrame(draw);
+    }
+    raf = requestAnimationFrame(draw);
+    return () => { cancelAnimationFrame(raf); clearTimeout(selTimer); };
+  }, [cur]);
+
+  useEffect(() => {
+    const ts = [];
+    setDrillShow([false,false,false,false]); setDrillCase(false);
+    setLcShow([false,false,false,false,false]);
+    setAcShow([false,false,false]); setAcPct([0,0,0]);
+    setCtaShow([false,false]);
+    if (cur===2) {
+      [0,1,2,3].forEach(i => ts.push(setTimeout(() => setDrillShow(p=>{const n=[...p];n[i]=true;return n;}),200+i*200)));
+      ts.push(setTimeout(()=>setDrillCase(true),1100));
+    }
+    if (cur===3) {
+      [0,1,2,3,4].forEach(i => ts.push(setTimeout(()=>setLcShow(p=>{const n=[...p];n[i]=true;return n;}),200+i*250)));
+    }
+    if (cur===4) {
+      const tgts=[97,89,84];
+      [0,1,2].forEach(i => {
+        ts.push(setTimeout(()=>setAcShow(p=>{const n=[...p];n[i]=true;return n;}),300+i*300));
+        ts.push(setTimeout(()=>{
+          let v=0; const iv=setInterval(()=>{
+            v=Math.min(v+3,tgts[i]);
+            setAcPct(p=>{const n=[...p];n[i]=v;return n;});
+            if(v>=tgts[i])clearInterval(iv);
+          },30);
+        },600+i*300));
+      });
+    }
+    if (cur===5) {
+      [0,1].forEach(i=>ts.push(setTimeout(()=>setCtaShow(p=>{const n=[...p];n[i]=true;return n;}),300+i*250)));
+    }
+    return ()=>ts.forEach(clearTimeout);
+  }, [cur]);
+
+  useEffect(() => {
+    if (!playing) return;
+    elapsedRef.current=0; setProgress(0);
+    const dur=SCENES[cur].dur;
+    const pg=setInterval(()=>{
+      if(!playingRef.current)return;
+      elapsedRef.current+=TICK;
+      setProgress(Math.min((elapsedRef.current/dur)*100,100));
+    },TICK);
+    const adv=setTimeout(()=>{
+      if(!playingRef.current)return;
+      setCur(c=>(c+1)%TOTAL);
+    },dur);
+    return ()=>{clearInterval(pg);clearTimeout(adv);};
+  }, [playing, cur]);
+
+  function goTo(n){setCur(n);setProgress(0);}
+  function toggle(){setPlaying(p=>!p);}
+
+  const drillRows=[
+    {icon:'🏢',bg:'#1A2F44',                    name:'Meridian Holdings',       sub:tl('ap_drill_hub')},
+    {icon:'⚙️',bg:'rgba(37,99,235,0.15)',        name:tl('ap_drill_r1'),         sub:tl('ap_drill_r1s')},
+    {icon:'📦',bg:'rgba(245,158,11,0.15)',       name:tl('ap_drill_r2'),         sub:tl('ap_drill_r2s')},
+    {icon:'🔧',bg:'rgba(167,139,250,0.15)',      name:tl('ap_drill_r3'),         sub:tl('ap_drill_r3s')},
+  ];
+  const lcNodes=[
+    {color:'#10B981',label:tl('ap_lc_open'), badge:tl('ap_badge_done'),   bc:'rgba(16,185,129,0.15)',  tc:'#10B981'},
+    {color:'#4F6EF7',label:tl('ap_lc_spec'), badge:tl('ap_badge_done'),   bc:'rgba(79,110,247,0.15)',  tc:'#4F6EF7'},
+    {color:'#F59E0B',label:tl('ap_lc_dev'),  badge:tl('ap_badge_active'), bc:'rgba(245,158,11,0.15)', tc:'#F59E0B'},
+    {color:'#405870',label:tl('ap_lc_test'), badge:tl('ap_badge_locked'), bc:'rgba(64,88,112,0.15)',  tc:'#7090B0'},
+    {color:'#405870',label:tl('ap_lc_close'),badge:tl('ap_badge_locked'), bc:'rgba(64,88,112,0.15)',  tc:'#7090B0'},
+  ];
+  const acCards=[
+    {av:'MR',bg:'linear-gradient(135deg,#4F6EF7,#818CF8)',name:tl('ap_ac_r1name'),role:tl('ap_ac_r1role')},
+    {av:'SK',bg:'linear-gradient(135deg,#10B981,#34D399)', name:tl('ap_ac_r2name'),role:tl('ap_ac_r2role')},
+    {av:'JL',bg:'linear-gradient(135deg,#F59E0B,#FCD34D)', name:tl('ap_ac_r3name'),role:tl('ap_ac_r3role')},
+  ];
+
+  return (
+    <section className="ap-section" id="promo">
+      <canvas ref={bgCvRef} className="ap-bg" />
+      <div className="ap-inner">
+        <div className="ap-header">
+          <div className="ap-tag">{tl('ap_header_tag')}</div>
+          <h2 className="ap-title">{tl('ap_header_h')}</h2>
+          <p className="ap-sub">{tl('ap_header_p')}</p>
+        </div>
+        <div className="ap-player">
+          <div className="ap-stage">
+            {/* Scene 0 — Brand */}
+            <div className={`ap-scene${cur===0?' on':''}`}>
+              <div className="ap-content">
+                <div className="ap-copy">
+                  <div className="ap-s-tag">{SCENES[0].tag}</div>
+                  <h3 className="ap-s-h">{SCENES[0].h}</h3>
+                  <p className="ap-s-p">{SCENES[0].p}</p>
+                </div>
+                <div className="ap-visual" style={{display:'flex',alignItems:'center',justifyContent:'center',height:200}}>
+                  <div style={{position:'relative',width:80,height:80}}>
+                    <div style={{position:'absolute',inset:0,borderRadius:'50%',background:'linear-gradient(135deg,#2563EB,#4F6EF7)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:32,fontWeight:900,color:'#fff'}}>A</div>
+                    {[{r:52,spd:18,sz:8,c:'#4F6EF7',d:0},{r:72,spd:28,sz:6,c:'#F59E0B',d:-8},{r:90,spd:38,sz:5,c:'#22D3EE',d:-15}].map((o,i)=>(
+                      <div key={i} style={{position:'absolute',width:o.sz,height:o.sz,borderRadius:'50%',background:o.c,
+                        top:'50%',left:'50%',marginTop:-o.sz/2,marginLeft:-o.sz/2,
+                        animation:`nova-lmark ${o.spd}s linear infinite`,
+                        '--nls':`${o.d}deg`,'--nlr':`${o.r}px`,transformOrigin:'0 0'}} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Scene 1 — Orbital */}
+            <div className={`ap-scene${cur===1?' on':''}`}>
+              <div className="ap-content">
+                <div className="ap-copy">
+                  <div className="ap-s-tag">{SCENES[1].tag}</div>
+                  <h3 className="ap-s-h">{SCENES[1].h}</h3>
+                  <p className="ap-s-p">{SCENES[1].p}</p>
+                </div>
+                <div className="ap-orb-wrap">
+                  <canvas ref={orbCvRef} className="ap-orb-cv" />
+                </div>
+              </div>
+            </div>
+
+            {/* Scene 2 — Drill-down */}
+            <div className={`ap-scene${cur===2?' on':''}`}>
+              <div className="ap-content">
+                <div className="ap-copy">
+                  <div className="ap-s-tag">{SCENES[2].tag}</div>
+                  <h3 className="ap-s-h">{SCENES[2].h}</h3>
+                  <p className="ap-s-p">{SCENES[2].p}</p>
+                </div>
+                <div className="ap-visual">
+                  <div className="ap-tree">
+                    {drillRows.map((r,i)=>(
+                      <div key={i} className={`ap-tree-row${drillShow[i]?' show':''}`} style={{paddingLeft:i>0?14:0}}>
+                        <div className="ap-tree-icon" style={{background:r.bg}}>{r.icon}</div>
+                        <div><div className="ap-tree-name">{r.name}</div><div className="ap-tree-sub">{r.sub}</div></div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className={`ap-case-card${drillCase?' show':''}`} style={{marginTop:9}}>
+                    <div style={{fontSize:9,color:'#F59E0B',fontWeight:700,marginBottom:4}}>{tl('ap_case_module')}</div>
+                    <div style={{fontSize:11,color:'#DCE8F4',marginBottom:6}}>{tl('ap_case_title')}</div>
+                    <div style={{display:'flex',gap:16}}>
+                      <div><div style={{fontSize:8,color:'#405870'}}>{tl('ap_case_hours')}</div><div style={{fontSize:11,fontWeight:700,color:'#DCE8F4'}}>142 / 200</div></div>
+                      <div><div style={{fontSize:8,color:'#405870'}}>{tl('ap_case_stage')}</div><div style={{fontSize:11,fontWeight:700,color:'#4F6EF7'}}>{tl('ap_case_stage_val')}</div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Scene 3 — Lifecycle */}
+            <div className={`ap-scene${cur===3?' on':''}`}>
+              <div className="ap-content">
+                <div className="ap-copy">
+                  <div className="ap-s-tag">{SCENES[3].tag}</div>
+                  <h3 className="ap-s-h">{SCENES[3].h}</h3>
+                  <p className="ap-s-p">{SCENES[3].p}</p>
+                </div>
+                <div className="ap-visual">
+                  <div className="ap-lc">
+                    {lcNodes.map((n,i)=>(
+                      <div key={i} className={`ap-lc-node${lcShow[i]?' show':''}`} style={{transitionDelay:`${i*40}ms`}}>
+                        <div className="ap-lc-dot" style={{background:n.color}} />
+                        <span className="ap-lc-label">{n.label}</span>
+                        <span className="ap-lc-badge" style={{background:n.bc,color:n.tc}}>{n.badge}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Scene 4 — Arena */}
+            <div className={`ap-scene${cur===4?' on':''}`}>
+              <div className="ap-content">
+                <div className="ap-copy">
+                  <div className="ap-s-tag">{SCENES[4].tag}</div>
+                  <h3 className="ap-s-h">{SCENES[4].h}</h3>
+                  <p className="ap-s-p">{SCENES[4].p}</p>
+                </div>
+                <div className="ap-visual">
+                  <div className="ap-ac-grid">
+                    {acCards.map((c,i)=>(
+                      <div key={i} className={`ap-ac-card${acShow[i]?' show':''}`} style={{transitionDelay:`${i*40}ms`}}>
+                        <div className="ap-ac-av" style={{background:c.bg}}>{c.av}</div>
+                        <div><div className="ap-ac-name">{c.name}</div><div className="ap-ac-role">{c.role}</div></div>
+                        <div className="ap-ac-match">{acPct[i]}%</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Scene 5 — CTA */}
+            <div className={`ap-scene${cur===5?' on':''}`}>
+              <div className="ap-content" style={{flexDirection:'column',gap:20,justifyContent:'center'}}>
+                <div className="ap-copy" style={{textAlign:'center'}}>
+                  <div className="ap-s-tag">{tl('ap_ready')}</div>
+                  <h3 className="ap-s-h">{tl('ap_s5_h')}</h3>
+                  <p className="ap-s-p">{tl('ap_s5_p')}</p>
+                </div>
+                <div className="ap-cta-grid">
+                  {[
+                    {icon:'🏢',title:tl('ap_cta_companies_title'),  desc:tl('ap_cta_companies_desc'),    btn:tl('ap_cta_companies_btn'),   primary:true,  show:ctaShow[0]},
+                    {icon:'👤',title:tl('ap_cta_consultants_title'),desc:tl('ap_cta_consultants_desc'),  btn:tl('ap_cta_consultants_btn'), primary:false, show:ctaShow[1]},
+                  ].map((c,i)=>(
+                    <div key={i} className={`ap-cta-card${c.primary?' blue':''}`}
+                      style={{opacity:c.show?1:0,transform:c.show?'none':'translateY(8px)',transition:'opacity .4s,transform .4s'}}>
+                      <div className="ap-cta-icon">{c.icon}</div>
+                      <div className="ap-cta-title">{c.title}</div>
+                      <div className="ap-cta-desc">{c.desc}</div>
+                      <button className={`ap-cta-btn ${c.primary?'primary':'ghost'}`}>{c.btn}</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="ap-controls">
+            <div className="ap-scrubber" onClick={e=>{
+              const rect=e.currentTarget.getBoundingClientRect();
+              goTo(Math.min(TOTAL-1,Math.floor((e.clientX-rect.left)/rect.width*TOTAL)));
+            }}>
+              <div className="ap-prog" style={{width:`${(cur/TOTAL)*100 + progress/TOTAL}%`}} />
+            </div>
+            <div className="ap-btns">
+              <button className="ap-btn" onClick={toggle} aria-label={playing?tl('ap_pause'):tl('ap_play')}>
+                {playing
+                  ? <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="4" height="12" rx="1"/><rect x="9" y="2" width="4" height="12" rx="1"/></svg>
+                  : <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6z"/></svg>}
+              </button>
+              <span style={{fontSize:11,color:'#405870',marginLeft:4}}>{SCENES[cur].tag} · {cur+1} {tl('ap_scene_of')} {TOTAL}</span>
+              <div className="ap-chaps">
+                {SCENES.map((_,i)=>(
+                  <button key={i} className={`ap-chap${cur===i?' on':''}`} onClick={()=>goTo(i)} aria-label={`Scene ${i+1}`} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const CHECK_SVG = (
+  <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+    <path d="M1.5 4l1.8 1.8L6.5 2" stroke="#22D3EE" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+const DONE_SVG = (
+  <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+    <path d="M1.5 4.5l2 2L7.5 2" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+function DemoCarousel({ tl }) {
+  const TOTAL = 4;
+  const DURATION = 5200;
+  const TICK = 80;
+  const [cur, setCur] = useState(0);
+  const [barsOn, setBarsOn] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const elapsedRef = useRef(0);
+
+  useEffect(() => {
+    if (cur === 1) { setBarsOn(false); const t = setTimeout(() => setBarsOn(true), 300); return () => clearTimeout(t); }
+    setBarsOn(false);
+  }, [cur]);
+
+  useEffect(() => {
+    if (paused) return;
+    elapsedRef.current = 0;
+    setProgress(0);
+    const progTimer = setInterval(() => {
+      elapsedRef.current += TICK;
+      setProgress(Math.min((elapsedRef.current / DURATION) * 100, 100));
+    }, TICK);
+    const slideTimer = setTimeout(() => {
+      setCur(c => (c + 1) % TOTAL);
+    }, DURATION);
+    return () => { clearInterval(progTimer); clearTimeout(slideTimer); };
+  }, [paused, cur]);
+
+  function goTo(n) { setCur(n); }
+
+  return (
+    <section className="dc-section" id="demo" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+      <nav className="dc-dots" aria-label="Product tour navigation">
+        {tl('dc_labels').map((lbl, i) => (
+          <button key={i} className={`dc-dot${cur===i?" on":""}`} aria-label={lbl} onClick={() => goTo(i)} />
+        ))}
+      </nav>
+
+      <div className="dc-slides">
+
+        {/* Slide 0 — Dashboard */}
+        <div className={`dc-slide${cur===0?" on":""}`}>
+          <div>
+            <div className="dc-tag">{tl('dc_s0_tag')}</div>
+            <h2>{tl('dc_s0_h')}</h2>
+            <p>{tl('dc_s0_p')}</p>
+            <ul className="dc-flist">
+              <li><span className="dc-fdot">{CHECK_SVG}</span>{tl('dc_s0_b1')}</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>{tl('dc_s0_b2')}</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>{tl('dc_s0_b3')}</li>
+            </ul>
+          </div>
+          <div className="dc-mockup">
+            <div className="dc-chrome">
+              <div className="dc-chrdot" style={{background:"#FF5F57"}} /><div className="dc-chrdot" style={{background:"#FFBD2E"}} /><div className="dc-chrdot" style={{background:"#28C940"}} />
+              <div className="dc-urlbar"><span className="dc-urlstr">techcase.app/dashboard</span></div>
+            </div>
+            <div className="dc-body">
+              <div className="dc-stat-grid">
+                <div className="dc-stat"><div className="dc-stat-lbl">{tl('dc_stat_cases')}</div><div className="dc-stat-val">12</div><div className="dc-stat-delta">{tl('dc_stat_cases_d')}</div></div>
+                <div className="dc-stat"><div className="dc-stat-lbl">{tl('dc_stat_cons')}</div><div className="dc-stat-val">48</div><div className="dc-stat-delta">{tl('dc_stat_cons_d')}</div></div>
+                <div className="dc-stat"><div className="dc-stat-lbl">{tl('dc_stat_fill')}</div><div className="dc-stat-val">94%</div><div className="dc-stat-delta">{tl('dc_stat_fill_d')}</div></div>
+              </div>
+              <div>
+                <div className="dc-case-row"><div className="dc-case-title">{tl('dc_c1')}</div><span className="dc-area">FICO</span><span className="dc-badge dc-b-blue">{tl('dc_b_inprogress')}</span></div>
+                <div className="dc-case-row"><div className="dc-case-title">{tl('dc_c2')}</div><span className="dc-area">MM/SD</span><span className="dc-badge dc-b-amber">{tl('dc_b_estimated')}</span></div>
+                <div className="dc-case-row"><div className="dc-case-title">{tl('dc_c3')}</div><span className="dc-area">S/4HANA</span><span className="dc-badge dc-b-purple">{tl('dc_b_open')}</span></div>
+                <div className="dc-case-row"><div className="dc-case-title">{tl('dc_c4')}</div><span className="dc-area">Basis</span><span className="dc-badge dc-b-green">{tl('dc_b_assigned')}</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Slide 1 — Ranking */}
+        <div className={`dc-slide${cur===1?" on":""}`}>
+          <div>
+            <div className="dc-tag">{tl('dc_s1_tag')}</div>
+            <h2>{tl('dc_s1_h')}</h2>
+            <p>{tl('dc_s1_p')}</p>
+            <ul className="dc-flist">
+              <li><span className="dc-fdot">{CHECK_SVG}</span>{tl('dc_s1_b1')}</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>{tl('dc_s1_b2')}</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>{tl('dc_s1_b3')}</li>
+            </ul>
+          </div>
+          <div className="dc-mockup">
+            <div className="dc-chrome">
+              <div className="dc-chrdot" style={{background:"#FF5F57"}} /><div className="dc-chrdot" style={{background:"#FFBD2E"}} /><div className="dc-chrdot" style={{background:"#28C940"}} />
+              <div className="dc-urlbar"><span className="dc-urlstr">techcase.app/cases/fico-q4/ranking</span></div>
+            </div>
+            <div className="dc-body">
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                <span style={{fontSize:10,color:"#7090B0"}}>3 {tl('dc_s1_applicants')}</span>
+                <button style={{fontSize:9,padding:"4px 12px",background:"#2563EB",color:"#fff",border:"none",borderRadius:6,fontFamily:"inherit",fontWeight:600,cursor:"pointer"}}>{tl('dc_s1_autoassign')}</button>
+              </div>
+              {[
+                {n:"#1",av:"MR",avBg:"rgba(37,99,235,0.18)",avC:"#60A5FA",name:"María Rodríguez",skills:["SAP FICO","S/4HANA","IFRS"],w:94,pts:94,top:true},
+                {n:"#2",av:"JL",avBg:"rgba(167,139,250,0.12)",avC:"#A78BFA",name:"James Liu",skills:["SAP FICO","BW Analytics"],w:87,pts:87,top:false},
+                {n:"#3",av:"AT",avBg:"rgba(16,185,129,0.1)",avC:"#10B981",name:"Ana Torres",skills:["SAP FICO","CPI Integration"],w:82,pts:82,top:false},
+              ].map(r => (
+                <div key={r.n} className={`dc-rank-item${r.top?" top":""}`}>
+                  <div className="dc-rank-n">{r.n}</div>
+                  <div className="dc-rank-av" style={{background:r.avBg,color:r.avC}}>{r.av}</div>
+                  <div className="dc-rank-info">
+                    <div className="dc-rank-name">{r.name}</div>
+                    <div className="dc-skill-tags">{r.skills.map(s => <span key={s} className="dc-stag">{s}</span>)}</div>
+                    <div className="dc-bar-wrap"><div className="dc-bar" style={{width: barsOn ? r.w+"%" : "0%"}} /></div>
+                  </div>
+                  <div className="dc-rank-pts">{r.pts}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Slide 2 — Lifecycle */}
+        <div className={`dc-slide${cur===2?" on":""}`}>
+          <div>
+            <div className="dc-tag">{tl('dc_s2_tag')}</div>
+            <h2>{tl('dc_s2_h')}</h2>
+            <p>{tl('dc_s2_p')}</p>
+            <ul className="dc-flist">
+              <li><span className="dc-fdot">{CHECK_SVG}</span>{tl('dc_s2_b1')}</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>{tl('dc_s2_b2')}</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>{tl('dc_s2_b3')}</li>
+            </ul>
+          </div>
+          <div className="dc-mockup">
+            <div className="dc-chrome">
+              <div className="dc-chrdot" style={{background:"#FF5F57"}} /><div className="dc-chrdot" style={{background:"#FFBD2E"}} /><div className="dc-chrdot" style={{background:"#28C940"}} />
+              <div className="dc-urlbar"><span className="dc-urlstr">techcase.app/cases/fico-q4</span></div>
+            </div>
+            <div className="dc-body">
+              <div className="dc-lc-track">
+                <div className="dc-lc-line" /><div className="dc-lc-done" />
+                <div className="dc-lc-stages">
+                  {[
+                    {lbl:tl('dc_lc_open'),state:"done"},{lbl:tl('dc_lc_estimated'),state:"done"},{lbl:tl('dc_lc_assigned'),state:"done"},
+                    {lbl:tl('dc_lc_inprogress'),state:"current"},{lbl:tl('dc_lc_review'),state:"pending"},{lbl:tl('dc_lc_done'),state:"pending"},
+                  ].map(s => (
+                    <div key={s.lbl} className="dc-lc-stage">
+                      <div className={`dc-lc-dot ${s.state}`}>
+                        {s.state==="done" && DONE_SVG}
+                        {s.state==="current" && <div style={{width:8,height:8,borderRadius:"50%",background:"#2563EB"}} />}
+                      </div>
+                      <div className="dc-lc-lbl" style={s.state!=="pending"?{color:"#60A5FA"}:{}}>{s.lbl}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="dc-cc">
+                <div className="dc-cc-title">{tl('dc_c1')}</div>
+                <div className="dc-cc-meta">
+                  <span className="dc-badge dc-b-blue">{tl('dc_b_inprogress')}</span>
+                  <span className="dc-badge dc-b-amber">{tl('dc_b_highpriority')}</span>
+                  <span className="dc-area">SAP FICO</span>
+                </div>
+                <div className="dc-cc-fields">
+                  <div><div className="dc-cc-f-lbl">{tl('dc_s2_consultant')}</div><div className="dc-cc-f-val">María Rodríguez</div></div>
+                  <div><div className="dc-cc-f-lbl">{tl('dc_s2_duedate')}</div><div className="dc-cc-f-val">Oct 31, 2026</div></div>
+                  <div><div className="dc-cc-f-lbl">{tl('dc_s2_spec')}</div><div className="dc-cc-f-val" style={{color:"#22D3EE"}}>{tl('dc_s2_specval')}</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Slide 3 — Arena */}
+        <div className={`dc-slide${cur===3?" on":""}`}>
+          <div>
+            <div className="dc-tag">{tl('dc_s3_tag')}</div>
+            <h2>{tl('dc_s3_h')}</h2>
+            <p>{tl('dc_s3_p')}</p>
+            <ul className="dc-flist">
+              <li><span className="dc-fdot">{CHECK_SVG}</span>{tl('dc_s3_b1')}</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>{tl('dc_s3_b2')}</li>
+              <li><span className="dc-fdot">{CHECK_SVG}</span>{tl('dc_s3_b3')}</li>
+            </ul>
+          </div>
+          <div className="dc-mockup">
+            <div className="dc-chrome">
+              <div className="dc-chrdot" style={{background:"#FF5F57"}} /><div className="dc-chrdot" style={{background:"#FFBD2E"}} /><div className="dc-chrdot" style={{background:"#28C940"}} />
+              <div className="dc-urlbar"><span className="dc-urlstr">techcase.app/arena</span></div>
+            </div>
+            <div className="dc-body">
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                <span style={{fontSize:10,color:"#7090B0"}}>14 {tl('dc_s3_matches')}</span>
+                <div style={{display:"flex",gap:4}}>
+                  <span className="dc-badge dc-b-blue" style={{cursor:"pointer"}}>{tl('dc_a_filter_all')}</span>
+                  <span className="dc-badge dc-b-gray" style={{cursor:"pointer"}}>FICO</span>
+                  <span className="dc-badge dc-b-gray" style={{cursor:"pointer"}}>S/4HANA</span>
+                </div>
+              </div>
+              <div className="dc-arena-grid">
+                <div className="dc-arena-card ft">
+                  <div className="dc-a-tag">{tl('dc_a_bestmatch')}</div>
+                  <div className="dc-a-title">{tl('dc_a_c1title')}</div>
+                  <span className="dc-badge dc-b-amber" style={{fontSize:8}}>{tl('dc_b_highpriority')}</span>
+                  <div className="dc-a-foot"><span className="dc-a-match">97% match</span><button className="dc-a-apply">{tl('dc_a_applynow')}</button></div>
+                </div>
+                <div className="dc-arena-card">
+                  <div className="dc-a-tag" style={{color:"#7090B0"}}>SAP FICO</div>
+                  <div className="dc-a-title">{tl('dc_a_c2title')}</div>
+                  <span className="dc-badge dc-b-blue" style={{fontSize:8}}>{tl('dc_b_open')}</span>
+                  <div className="dc-a-foot"><span className="dc-a-match" style={{color:"#60A5FA"}}>89%</span><button className="dc-a-apply ghost">{tl('dc_a_apply')}</button></div>
+                </div>
+                <div className="dc-arena-card">
+                  <div className="dc-a-tag" style={{color:"#7090B0"}}>S/4HANA</div>
+                  <div className="dc-a-title">{tl('dc_a_c3title')}</div>
+                  <span className="dc-badge dc-b-purple" style={{fontSize:8}}>{tl('dc_b_new')}</span>
+                  <div className="dc-a-foot"><span className="dc-a-match" style={{color:"#60A5FA"}}>84%</span><button className="dc-a-apply ghost">{tl('dc_a_apply')}</button></div>
+                </div>
+                <div className="dc-a-more">{tl('dc_a_more')}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div className="dc-prog-wrap"><div className="dc-prog-fill" style={{width: progress+"%"}} /></div>
+    </section>
+  );
+}
 
 export function LandingView({ onSignIn }) {
   const [lang, setLang] = useState(() => {
@@ -862,21 +1718,11 @@ export function LandingView({ onSignIn }) {
         </div>
       </section>
 
-      {/* VIDEO */}
-      <section className="video-section" id="demo">
-        <div className="section-inner" style={{textAlign:"center"}}>
-          <div className="section-tag" style={{textAlign:"center"}}>{tl("video_tag")}</div>
-          <h2 style={{margin:"0 auto 12px"}}>{tl("video_h2")}</h2>
-          <p className="section-sub" style={{margin:"0 auto 36px"}}>{tl("video_sub")}</p>
-          <div className="video-wrap">
-            <div className="video-inner">
-              <div className="video-grid-bg" />
-              <div className="play-btn"><svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div>
-              <div className="video-overlay-text"><div className="video-label">{tl("video_lbl")}</div></div>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* ARENA PROMO */}
+      <ArenaPromoVideo tl={tl} />
+
+      {/* DEMO CAROUSEL */}
+      <DemoCarousel tl={tl} />
 
       {/* TESTIMONIALS */}
       <section className="section">

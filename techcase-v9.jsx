@@ -309,6 +309,8 @@ import {
   SystemSettingsProvider, useSystemSettings, usePermissions,
 } from "./src/hooks/useSystemSettings.jsx";
 
+import { ThemeProvider } from "./src/context/ThemeContext.jsx";
+
 import {
   UpgradeModal,
   SettingsUsersTab, SettingsPhasesTab, SettingsCatalogTab,
@@ -577,7 +579,7 @@ export default function App() {
 
   if (auth.loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="arena-dark min-h-screen flex items-center justify-center bg-gray-50">
         <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
       </div>
     );
@@ -609,7 +611,7 @@ export default function App() {
 
   // Show role-specific onboarding wizard for new signups — full-screen, no sidebar
   if (onboardingRole && auth.user) {
-    const bg = "min-h-screen bg-[#EAF4FD] p-6";
+    const bg = "arena-dark min-h-screen bg-[#EAF4FD] p-6";
     let inner;
     if (onboardingRole === "consultant") {
       inner = <ConsultantOnboardingView auth={auth} onComplete={() => completeOnboarding("profile")} />;
@@ -649,7 +651,7 @@ export default function App() {
       case "arena":          return <ArenaView auth={auth} />;
       case "profile":        return pendingUserId
                                ? <ConsultantProfileView userId={pendingUserId} onBack={() => { setActiveView("settings"); setPendingUserId(null); }} />
-                               : auth.isConsultant ? <ConsultantProfileView /> : <ProfileView auth={auth} />;
+                               : <ProfileView auth={auth} />;
       case "consultants":    return <ConsultantsView auth={auth} />;
       case "users":          return auth.isAdmin ? <UsersView /> : <Dashboard auth={auth} />;
       case "reports":        return (auth.isAdmin || auth.isManager) ? <ReportsView /> : <Dashboard auth={auth} />;
@@ -698,6 +700,7 @@ export default function App() {
   }
 
   return (
+    <ThemeProvider initialTheme={auth.profile?.ui_theme ?? "dark"} userId={auth.user?.id}>
     <SystemSettingsProvider>
       <LanguageProvider userId={auth.user?.id} initialLang={auth.profile?.language_pref}>
         <StartDateMonitor auth={auth} />
@@ -745,6 +748,7 @@ export default function App() {
         </div>
       </LanguageProvider>
     </SystemSettingsProvider>
+    </ThemeProvider>
   );
 }
 

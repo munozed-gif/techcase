@@ -80,16 +80,16 @@ const STATUS_COLORS = {
 };
 
 const CASE_CARD_COLORS = {
-  open:            { bar: "#34d399", border: "#a7f3d0", bg: "#f8fefa" },
-  estimated:       { bar: "#2dd4bf", border: "#99f6e4", bg: "#f8fefd" },
-  assigned:        { bar: "#a78bfa", border: "#ddd6fe", bg: "#fdfaff" },
-  in_progress:     { bar: "#60a5fa", border: "#bfdbfe", bg: "#f7fbff" },
-  on_hold:         { bar: "#facc15", border: "#fef08a", bg: "#fffdf5" },
-  completed:       { bar: "#9ca3af", border: "#e5e7eb", bg: "#fcfdfd" },
-  cancelled:       { bar: "#f87171", border: "#fecaca", bg: "#fff9f9" },
-  technical_test:  { bar: "#22d3ee", border: "#a5f3fc", bg: "#f6ffff" },
-  functional_test: { bar: "#fbbf24", border: "#fde68a", bg: "#fffdf5" },
-  user_test:       { bar: "#fb923c", border: "#fed7aa", bg: "#fffbf6" },
+  open:            { bar: "#34d399", border: "rgba(52,211,153,0.42)",   bg: "rgba(16,185,129,0.09)"  },
+  estimated:       { bar: "#2dd4bf", border: "rgba(45,212,191,0.42)",   bg: "rgba(20,184,166,0.09)"  },
+  assigned:        { bar: "#a78bfa", border: "rgba(167,139,250,0.42)",  bg: "rgba(139,92,246,0.09)"  },
+  in_progress:     { bar: "#60a5fa", border: "rgba(96,165,250,0.42)",   bg: "rgba(37,99,235,0.09)"   },
+  on_hold:         { bar: "#facc15", border: "rgba(250,204,21,0.42)",   bg: "rgba(245,158,11,0.09)"  },
+  completed:       { bar: "#9ca3af", border: "rgba(156,163,175,0.32)",  bg: "rgba(100,116,139,0.08)" },
+  cancelled:       { bar: "#f87171", border: "rgba(248,113,113,0.42)",  bg: "rgba(239,68,68,0.09)"   },
+  technical_test:  { bar: "#22d3ee", border: "rgba(34,211,238,0.42)",   bg: "rgba(6,182,212,0.09)"   },
+  functional_test: { bar: "#fbbf24", border: "rgba(251,191,36,0.42)",   bg: "rgba(245,158,11,0.09)"  },
+  user_test:       { bar: "#fb923c", border: "rgba(251,146,60,0.42)",   bg: "rgba(249,115,22,0.09)"  },
 };
 
 const PRIORITY_COLORS = {

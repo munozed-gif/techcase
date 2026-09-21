@@ -59,6 +59,9 @@ function AuthScreen({ onAuth, onBack }) {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
   const [forgotLoad, setForgotLoad] = useState(false);
+  const [isDark, setIsDark] = useState(() => {
+    try { return localStorage.getItem('ui_theme') !== 'light'; } catch { return true; }
+  });
   const auth = useAuth();
   const { settings: ssSettings } = useSystemSettings();
   const rolePermMatrix = ssSettings["role_permissions"] ?? {};
@@ -314,17 +317,26 @@ function AuthScreen({ onAuth, onBack }) {
       <div className="inline-flex items-center justify-center mb-4">
         <NovaLandingMark size={176} />
       </div>
-      <h1 className="text-2xl font-bold text-white">{branding.platformName}</h1>
+      <h1 className="text-2xl font-bold">
+        {(() => {
+          const parts = branding.platformName.split(' ');
+          return parts.length > 1
+            ? <><span style={{color:'#4F6EF7'}}>{parts[0]}</span> <span className="text-white">{parts.slice(1).join(' ')}</span></>
+            : <span style={{color:'#4F6EF7'}}>{branding.platformName}</span>;
+        })()}
+      </h1>
       <p className="text-blue-400 mt-1 text-sm">{branding.tagline}</p>
     </div>
   );
 
   const tabs = (
-    <div className="flex rounded-xl bg-gray-100 p-1 mb-6">
+    <div className="flex rounded-xl p-1 mb-6" style={{background:'var(--t-tab-inactive)'}}>
       {[["signin", t("auth.sign_in_title")], ["signup", t("action.create_account")]].map(([m, label]) => (
         <button key={m} onClick={() => switchMode(m)}
-          className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
-            mode === m ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
+          className="flex-1 py-2 text-sm font-medium rounded-lg transition-all"
+          style={mode === m
+            ? {background:'var(--t-tab-active)',color:'var(--t-text)',boxShadow:'0 1px 3px rgba(0,0,0,.15)'}
+            : {background:'transparent',color:'var(--t-text2)'}}>
           {label}
         </button>
       ))}
@@ -417,7 +429,7 @@ function AuthScreen({ onAuth, onBack }) {
 
         {/* ── SIGN IN ── */}
         {mode === "signin" && (
-          <div className="rounded-2xl shadow-xl p-8" style={{background:"#D6E8F7"}}>
+          <div className="rounded-2xl shadow-xl p-8" style={{background:'var(--t-card-bg)',color:'var(--t-text)'}}>
             {tabs}
             {forgotMode ? (
               forgotSent ? (
@@ -465,21 +477,24 @@ function AuthScreen({ onAuth, onBack }) {
 
         {/* ── SIGN UP WIZARD ── */}
         {mode === "signup" && (
-          <div className="rounded-2xl shadow-xl p-8" style={{background:"#D6E8F7"}}>
+          <div className="rounded-2xl shadow-xl p-8" style={{background:'var(--t-card-bg)',color:'var(--t-text)'}}>
             {tabs}
 
             {/* Step progress */}
             <div className="flex items-center mb-8 relative">
-              <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-200 z-0" />
+              <div className="absolute top-4 left-4 right-4 h-0.5 z-0" style={{background:'var(--t-border)'}} />
               {SIGNUP_STEPS.map((s, i) => (
                 <div key={s.id} className="relative z-10 flex flex-col items-center flex-1 gap-1.5">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ring-2 transition-all ${
-                    i < displayStep  ? "bg-emerald-500 text-white ring-emerald-100"
-                    : i === displayStep ? "bg-[#1C3557] text-white ring-blue-200"
-                                       : "bg-gray-100 text-gray-400 ring-gray-200"}`}>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ring-2 transition-all"
+                    style={i < displayStep
+                      ? {background:'#10b981',color:'#fff',ringColor:'#d1fae5'}
+                      : i === displayStep
+                        ? {background:'#1C3557',color:'#fff',outline:'2px solid #93c5fd',outlineOffset:'0px'}
+                        : {background:'var(--t-tab-inactive)',color:'var(--t-text2)',outline:'2px solid var(--t-border)',outlineOffset:'0px'}}>
                     {i < displayStep ? <Check size={11} /> : i + 1}
                   </div>
-                  <span className={`text-xs font-medium ${i === displayStep ? "text-[#1C3557]" : i < displayStep ? "text-emerald-600" : "text-gray-400"}`}>
+                  <span className="text-xs font-medium"
+                    style={{color: i === displayStep ? '#1C3557' : i < displayStep ? '#059669' : 'var(--t-text2)'}}>
                     {s.label}
                   </span>
                 </div>

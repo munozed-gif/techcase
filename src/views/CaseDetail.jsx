@@ -2452,15 +2452,15 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             {/* Left arrow */}
             {clampedActive > 0 && (
               <button onClick={() => pipelineScrollTo(clampedActive - 1)}
-                style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", zIndex: 10, width: 32, height: 32, borderRadius: "50%", border: "1.5px solid #CBD5E1", background: "white", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,.08)", marginTop: 10 }}>
-                <ChevronLeft size={16} style={{ color: "#64748B" }} />
+                style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", zIndex: 10, width: 32, height: 32, borderRadius: "50%", border: "1.5px solid var(--t-arrow-border)", background: "var(--t-arrow-bg)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,.15)", marginTop: 10 }}>
+                <ChevronLeft size={16} style={{ color: "var(--t-text2)" }} />
               </button>
             )}
             {/* Right arrow */}
             {clampedActive < displayStages.length - 1 && (
               <button onClick={() => pipelineScrollTo(clampedActive + 1)}
-                style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", zIndex: 10, width: 32, height: 32, borderRadius: "50%", border: "1.5px solid #CBD5E1", background: "white", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,.08)", marginTop: 10 }}>
-                <ChevronRight size={16} style={{ color: "#64748B" }} />
+                style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", zIndex: 10, width: 32, height: 32, borderRadius: "50%", border: "1.5px solid var(--t-arrow-border)", background: "var(--t-arrow-bg)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,.15)", marginTop: 10 }}>
+                <ChevronRight size={16} style={{ color: "var(--t-text2)" }} />
               </button>
             )}
 
@@ -2480,13 +2480,13 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 const hasBlockers = gateItems.some(c => !c.passed && c.mode === "block");
                 const hasWarnings = gateItems.some(c => !c.passed && c.mode === "warn");
 
-                const borderColor = state === "past" ? "#E2E8F0"
+                const borderColor = state === "past" ? "rgba(100,160,220,0.2)"
                   : state === "current" ? color
                   : state === "reachable" ? color + "88"
-                  : "#E2E8F0";
-                const bgColor = state === "past" ? "#F8FAFC"
-                  : state === "current" ? color + "0D"
-                  : "#FFFFFF";
+                  : "rgba(100,160,220,0.15)";
+                const bgColor = state === "past" ? "var(--t-pill-inactive-bg)"
+                  : state === "current" ? color + "18"
+                  : "var(--t-card-bg)";
                 const WIcon = getStageIcon(s.key);
 
                 return (
@@ -2499,19 +2499,19 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       <WIcon size={120} style={{ position: "absolute", bottom: 12, right: 12, opacity: 0.30, color: state === "current" ? color : "#94A3B8", pointerEvents: "none", zIndex: 0, flexShrink: 0 }} />
 
                       {/* Card header */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", borderBottom: "1px solid #F1F5F9", background: isActive ? (state === "current" ? color + "12" : "#F8FAFC") : "#FAFAFA", flexShrink: 0, position: "relative", zIndex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", borderBottom: "1px solid var(--t-tab-border)", background: isActive ? (state === "current" ? color + "22" : "var(--t-tab-active)") : "var(--t-tab-inactive)", flexShrink: 0, position: "relative", zIndex: 1 }}>
                         {/* State dot */}
                         {state === "past"
                           ? <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#22C55E", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Check size={9} color="white" strokeWidth={3} /></div>
                           : state === "current"
                             ? <div style={{ width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0, marginRight: 2 }} />
-                            : <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#CBD5E1", flexShrink: 0, marginRight: 2 }} />
+                            : <div style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(100,160,220,0.3)", flexShrink: 0, marginRight: 2 }} />
                         }
-                        <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: isActive ? (state === "current" ? color : "#0F172A") : "#94A3B8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: isActive ? (state === "current" ? color : "var(--t-text)") : "var(--t-text2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {s.label}
                         </span>
                         {/* State badge */}
-                        <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 99, background: isActive ? (state === "current" ? color + "22" : state === "reachable" ? color + "22" : "#F1F5F9") : "#F1F5F9", color: isActive ? (state === "current" ? color : state === "reachable" ? color : "#94A3B8") : "#94A3B8", flexShrink: 0 }}>
+                        <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 99, background: isActive ? (state === "current" ? color + "33" : state === "reachable" ? color + "33" : "var(--t-badge-inact-bg)") : "var(--t-badge-inact-bg)", color: isActive ? (state === "current" ? color : state === "reachable" ? color : "var(--t-text2)") : "var(--t-text2)", flexShrink: 0 }}>
                           {state === "past" ? "Done" : state === "current" ? "Current" : state === "reachable" ? (hasBlockers ? "⚠ Blocked" : hasWarnings ? "⚡ Warn" : "→ Next") : "Upcoming"}
                         </span>
                       </div>
@@ -2529,14 +2529,14 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                                     ? <XCircle size={13} style={{ color: "#F87171", flexShrink: 0, marginTop: 1 }} />
                                     : <AlertTriangle size={13} style={{ color: "#FB923C", flexShrink: 0, marginTop: 1 }} />
                                 }
-                                <span style={{ fontSize: 12, lineHeight: 1.4, color: cond.passed ? "#64748B" : cond.mode === "block" ? "#DC2626" : "#EA580C", opacity: !isActive ? 0.6 : 1 }}>
+                                <span style={{ fontSize: 12, lineHeight: 1.4, color: cond.passed ? "var(--t-text2)" : cond.mode === "block" ? "#F87171" : "#FB923C", opacity: !isActive ? 0.6 : 1 }}>
                                   {cond.label}
                                 </span>
                               </div>
                             ))}
                           </div>
                         ) : (
-                          <p style={{ fontSize: 12, color: "#94A3B8", margin: 0 }}>
+                          <p style={{ fontSize: 12, color: "var(--t-text2)", margin: 0 }}>
                             {state === "past" ? "Completed" : state === "current" ? "No gate conditions configured" : "No requirements set"}
                           </p>
                         )}
@@ -2662,15 +2662,15 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             {/* Left arrow */}
             {carouselIdx > 0 && (
               <button onClick={() => scrollTo(carouselIdx - 1)}
-                style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid #CBD5E1', background:'white', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
-                <ChevronLeft size={16} style={{color:'#64748B'}}/>
+                style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid var(--t-arrow-border)', background:'var(--t-arrow-bg)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.15)', marginTop:-20 }}>
+                <ChevronLeft size={16} style={{color:'var(--t-text2)'}}/>
               </button>
             )}
             {/* Right arrow */}
             {carouselIdx < tabs.length - 1 && (
               <button onClick={() => scrollTo(carouselIdx + 1)}
-                style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid #CBD5E1', background:'white', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', marginTop:-20 }}>
-                <ChevronRight size={16} style={{color:'#64748B'}}/>
+                style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid var(--t-arrow-border)', background:'var(--t-arrow-bg)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.15)', marginTop:-20 }}>
+                <ChevronRight size={16} style={{color:'var(--t-text2)'}}/>
               </button>
             )}
             
@@ -2684,29 +2684,29 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 return (
                   <div key={tab.id}
                     style={{ flex:'0 0 calc(100% - 120px)', width:'calc(100% - 120px)', maxWidth:'calc(100% - 120px)', minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity: isActive ? 1 : 0.5, transform: isActive ? 'scale(1)' : 'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
-                    <div style={{ borderRadius:12, border:`1px solid ${isActive?'#CBD5E1':'#E2E8F0'}`, background:'white', overflow:'hidden', width:'100%', boxSizing:'border-box', height:700, display:'flex', flexDirection:'column', boxShadow: isActive ? '0 4px 20px rgba(0,0,0,.08)' : 'none', transition:'box-shadow .25s' }}>
+                    <div style={{ borderRadius:12, border:`1px solid ${isActive?'var(--t-border-active)':'var(--t-border)'}`, background:'var(--t-card-bg)', overflow:'hidden', width:'100%', boxSizing:'border-box', height:700, display:'flex', flexDirection:'column', boxShadow: isActive ? '0 4px 20px rgba(0,0,0,.12)' : 'none', transition:'box-shadow .25s' }}>
                       {/* Card header */}
                       {(() => {
                         const st = tabStatus[tab.id];
                         return (
-                          <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', borderBottom:'1px solid #F1F5F9', background: isActive ? '#F8FAFC' : '#FAFAFA', flexShrink:0, cursor: isActive ? 'default' : 'pointer' }}
+                          <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', borderBottom:'1px solid var(--t-tab-border)', background: isActive ? 'var(--t-tab-active)' : 'var(--t-tab-inactive)', flexShrink:0, cursor: isActive ? 'default' : 'pointer' }}
                             onClick={() => !isActive && scrollTo(i)}>
                             {/* Status dot */}
                             {st === "complete"
                               ? <div style={{width:16,height:16,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={9} color="white" strokeWidth={3}/></div>
                               : st === "in_progress"
                                 ? <div style={{width:8,height:8,borderRadius:'50%',background:'#3B82F6',flexShrink:0,marginRight:2}}/>
-                                : <div style={{width:8,height:8,borderRadius:'50%',background:'#CBD5E1',flexShrink:0,marginRight:2}}/>
+                                : <div style={{width:8,height:8,borderRadius:'50%',background:'var(--t-badge-inact-bg)',flexShrink:0,marginRight:2}}/>
                             }
-                            <Icon size={13} style={{color: isActive ? '#1A4B8C' : '#94A3B8', flexShrink:0}}/>
-                            <span style={{flex:1, fontSize:12, fontWeight:700, color: isActive ? '#0F172A' : '#94A3B8', minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{tab.label}</span>
-                            {tab.count !== null && <span style={{fontSize:10, fontWeight:600, padding:'1px 6px', borderRadius:99, background: isActive ? '#DBEAFE' : '#F1F5F9', color: isActive ? '#2563EB' : '#94A3B8', flexShrink:0}}>{tab.count}</span>}
+                            <Icon size={13} style={{color: isActive ? 'var(--t-text-accent)' : 'var(--t-text2)', flexShrink:0}}/>
+                            <span style={{flex:1, fontSize:12, fontWeight:700, color: isActive ? 'var(--t-text)' : 'var(--t-text2)', minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{tab.label}</span>
+                            {tab.count !== null && <span style={{fontSize:10, fontWeight:600, padding:'1px 6px', borderRadius:99, background: isActive ? 'var(--t-badge-act-bg)' : 'var(--t-badge-inact-bg)', color: isActive ? 'var(--t-badge-act-color)' : 'var(--t-badge-inact-color)', flexShrink:0}}>{tab.count}</span>}
                             {/* Mark done toggle — active cards only, not lifecycle */}
                             {isActive && tab.id !== "lifecycle" && (
                               <button
                                 onClick={e => { e.stopPropagation(); setManualComplete(tab.id, st !== "complete"); }}
                                 title={st === "complete" ? "Mark incomplete" : "Mark complete"}
-                                style={{ flexShrink:0, display:'flex', alignItems:'center', gap:3, fontSize:10, fontWeight:600, padding:'2px 7px', borderRadius:99, border:`1px solid ${st === "complete" ? '#BBF7D0' : '#E2E8F0'}`, background: st === "complete" ? '#F0FDF4' : '#F8FAFC', color: st === "complete" ? '#16A34A' : '#94A3B8', cursor:'pointer', transition:'all .15s', whiteSpace:'nowrap' }}>
+                                style={{ flexShrink:0, display:'flex', alignItems:'center', gap:3, fontSize:10, fontWeight:600, padding:'2px 7px', borderRadius:99, border:`1px solid ${st === "complete" ? 'var(--t-done-border)' : 'var(--t-pill-inactive-bdr)'}`, background: st === "complete" ? 'var(--t-done-bg)' : 'var(--t-tab-inactive)', color: st === "complete" ? 'var(--t-done-color)' : 'var(--t-text2)', cursor:'pointer', transition:'all .15s', whiteSpace:'nowrap' }}>
                                 <Check size={9} strokeWidth={3}/>
                                 {st === "complete" ? "Done" : "Mark done"}
                               </button>
@@ -5259,20 +5259,20 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             </div>
 
             {/* Footer pill bar */}
-            <div style={{ marginTop:10, background:'white', borderRadius:12, border:'1px solid #E2E8F0', padding:'10px 14px', display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none' }}>
+            <div style={{ marginTop:10, background:'var(--t-pill-bar)', borderRadius:12, border:'1px solid var(--t-border)', padding:'10px 14px', display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none' }}>
               {tabs.map((tab, i) => {
                 const Icon = tab.icon;
                 const isActive = tab.id === activeTab;
                 const st = tabStatus[tab.id];
                 return (
                   <button key={tab.id} onClick={() => scrollTo(i)}
-                    style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'#1A4B8C': st==="complete"?'#BBF7D0':'#E2E8F0'}`, background:isActive?'#1A4B8C': st==="complete"?'#F0FDF4':'white', color:isActive?'white': st==="complete"?'#16A34A':'#64748B', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
+                    style={{ flexShrink:0, display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:99, border:`1.5px solid ${isActive?'var(--t-pill-act-border)': st==="complete"?'var(--t-done-border)':'var(--t-pill-inactive-bdr)'}`, background:isActive?'var(--t-pill-act-bg)': st==="complete"?'var(--t-done-bg)':'var(--t-pill-inactive-bg)', color:isActive?'var(--t-pill-act-color)': st==="complete"?'var(--t-done-color)':'var(--t-text2)', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', transition:'all .15s' }}>
                     {st === "complete" && !isActive
                       ? <div style={{width:13,height:13,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={8} color="white" strokeWidth={3}/></div>
                       : <Icon size={11}/>
                     }
                     <span>{tab.label}</span>
-                    {tab.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)': st==="complete"?'#DCFCE7':'#F1F5F9',color:isActive?'rgba(255,255,255,.7)': st==="complete"?'#16A34A':'#94A3B8'}}>{tab.count}</span>}
+                    {tab.count !== null && <span style={{fontSize:10,padding:'1px 5px',borderRadius:99,background:isActive?'rgba(255,255,255,.2)': st==="complete"?'var(--t-done-bg)':'var(--t-badge-inact-bg)',color:isActive?'rgba(255,255,255,.7)': st==="complete"?'var(--t-done-color)':'var(--t-badge-inact-color)'}}>{tab.count}</span>}
                   </button>
                 );
               })}
@@ -5282,7 +5282,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
       })()}
 
       {showEditWizard && (
-        <div className="fixed top-0 bottom-0 right-0 left-64 z-50 bg-[#EAF4FD] overflow-y-auto p-6">
+        <div className="fixed top-0 bottom-0 right-0 left-64 z-50 overflow-y-auto p-6" style={{background:'var(--ad-bg,#EAF4FD)'}}>
           <CreateCaseWizard
             auth={auth}
             initialData={caseData}
