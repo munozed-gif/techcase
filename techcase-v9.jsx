@@ -711,7 +711,7 @@ export default function App() {
   }
 
   return (
-    <ThemeProvider initialTheme={auth.profile?.ui_theme ?? "dark"} userId={auth.user?.id}>
+    <ThemeProvider initialTheme={auth.profile?.ui_theme} userId={auth.user?.id}>
     <SystemSettingsProvider>
       <LanguageProvider userId={auth.user?.id} initialLang={auth.profile?.language_pref}>
         <StartDateMonitor auth={auth} />
