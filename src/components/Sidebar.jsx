@@ -146,6 +146,10 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       { id: "time",         Icon: Clock,           labelKey: "nav.time" },
       { id: "team-members", Icon: Handshake,       labelKey: "nav.team_members" },
     ],
+    invited_client: [
+      { id: "dashboard", Icon: LayoutDashboard, labelKey: "nav.dashboard" },
+      { id: "my-cases",  Icon: FolderOpen,      labelKey: "nav.my_cases" },
+    ],
     dispatch: [
       { id: "dashboard",      Icon: LayoutDashboard, labelKey: "nav.dashboard" },
       { id: "dispatch-queue", Icon: Inbox,           labelKey: "nav.dispatch_queue" },
@@ -252,8 +256,8 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       {/* User footer */}
       <div className="p-4 border-t border-blue-900">
         {(() => {
-          const profileView = role === 'client' ? 'client-profile' : 'profile';
-          const canGoToProfile = ['consultant', 'headhunter', 'client'].includes(role);
+          const profileView = (role === 'client' || role === 'invited_client') ? 'client-profile' : 'profile';
+          const canGoToProfile = ['consultant', 'headhunter', 'client', 'invited_client'].includes(role);
           return (
             <div className="flex items-center gap-2 mb-3 -mx-2">
               <div

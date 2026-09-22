@@ -47,7 +47,7 @@ function useAuth() {
         const meta = user.user_metadata ?? {};
         const role = meta.role || "consultant";
         // Roles that go through admin approval; auto-approve only trusted admin/manager/client paths
-        const SELF_APPROVED = ["admin", "manager", "client"];
+        const SELF_APPROVED = ["admin", "manager", "client", "invited_client"];
         await supabase.from("users").insert({
           id: user.id,
           email: user.email,
@@ -116,15 +116,16 @@ function useAuth() {
     billingUserId,
     signIn, signUp, signOut,
     refreshProfile: () => { if (user) fetchProfile(user.id); },
-    isAdmin:      profile?.role === "admin",
-    isManager:    profile?.role === "manager",
-    isConsultant: profile?.role === "consultant",
-    isClient:     profile?.role === "client",
-    isKeyUser:    profile?.role === "key_user",
-    isHeadhunter: profile?.role === "headhunter",
-    isFinalUser:  profile?.role === "final_user",
-    isDispatch:   profile?.role === "dispatch",
-    isAreaLeader: profile?.role === "area_leader",
+    isAdmin:          profile?.role === "admin",
+    isManager:        profile?.role === "manager",
+    isConsultant:     profile?.role === "consultant",
+    isClient:         profile?.role === "client",
+    isInvitedClient:  profile?.role === "invited_client",
+    isKeyUser:        profile?.role === "key_user",
+    isHeadhunter:     profile?.role === "headhunter",
+    isFinalUser:      profile?.role === "final_user",
+    isDispatch:       profile?.role === "dispatch",
+    isAreaLeader:     profile?.role === "area_leader",
   };
 }
 

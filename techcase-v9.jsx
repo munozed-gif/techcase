@@ -299,8 +299,9 @@ import { TimeEntriesView } from "./src/views/TimeEntriesView.jsx";
 import {
   ONBOARDING_STEPS, OnboardingRoadmap, ConsultantOnboardingView,
   ONBOARDING_STEPS_CLIENT, ClientOnboardingView,
-  ManagerAdminWelcomeView,
+  ManagerAdminWelcomeView, InvitedClientOnboardingView,
 } from "./src/views/OnboardingViews.jsx";
+import { JoinScreen } from "./src/views/JoinScreen.jsx";
 
 
 import {
@@ -546,6 +547,9 @@ function StartDateMonitor({ auth }) {
   return null;
 }
 
+// Intercept /join/:token before any auth flow
+const _joinMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/join\/([^/?#]+)/);
+
 export default function App() {
   const auth = useAuth();
   const [activeView, setActiveView]       = useState("dashboard");
@@ -583,6 +587,22 @@ export default function App() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, []);
+
+  // /join/:token — show branded join screen before any auth check
+  if (_joinMatch) {
+    return (
+      <SystemSettingsProvider>
+        <JoinScreen
+          token={_joinMatch[1]}
+          onJoined={() => {
+            // After successful signup, clear the /join path and reload into the app
+            window.history.replaceState(null, "", "/");
+            window.location.reload();
+          }}
+        />
+      </SystemSettingsProvider>
+    );
+  }
 
   if (auth.loading) {
     return (
@@ -628,6 +648,8 @@ export default function App() {
       inner = <ConsultantOnboardingView auth={auth} onComplete={() => completeOnboarding("profile")} />;
     } else if (onboardingRole === "client") {
       inner = <ClientOnboardingView auth={auth} onComplete={() => completeOnboarding("client-profile")} />;
+    } else if (onboardingRole === "invited_client") {
+      inner = <InvitedClientOnboardingView auth={auth} onComplete={() => completeOnboarding("my-cases")} />;
     } else {
       inner = <ManagerAdminWelcomeView auth={auth} onComplete={() => completeOnboarding("dashboard")} />;
     }
@@ -649,6 +671,11 @@ export default function App() {
   }
 
   function renderView() {
+    // Invited clients are locked to dashboard + their cases only
+    if (auth.isInvitedClient && !["dashboard","my-cases","notifications","client-profile"].includes(activeView)) {
+      return <CasesView auth={auth} initialCaseId={pendingCaseId} />;
+    }
+
     switch (activeView) {
       case "dashboard":      return auth.isHeadhunter
                                ? <HeadhunterDashboard auth={auth} onNavigate={setActiveView} />
@@ -669,7 +696,7 @@ export default function App() {
       case "sla":            return (auth.isAdmin || auth.isManager) ? <SlaView auth={auth} /> : <Dashboard auth={auth} />;
       case "db-connections": return <DbConnectionsView auth={auth} />;
       case "team-members":   return <ClientTeamView auth={auth} />;
-      case "client-profile": return (auth.isClient || ((auth.isAdmin || auth.isManager) && pendingClientId))
+      case "client-profile": return (auth.isClient || auth.isInvitedClient || ((auth.isAdmin || auth.isManager) && pendingClientId))
         ? <ClientProfileView auth={auth} clientId={pendingClientId ?? auth.user?.id} onBack={pendingClientId ? () => { setPendingClientId(null); setActiveView("settings"); } : null} />
         : <Dashboard auth={auth} />;
       case "lifecycle":      return (auth.isAdmin || auth.isManager) ? <LifecycleSettingsView auth={auth} /> : <Dashboard auth={auth} />;
@@ -704,10 +731,24 @@ export default function App() {
     const _role = auth.profile.role;
     const _cpC  = Array.isArray(auth.profile.consultant_profiles) ? auth.profile.consultant_profiles[0] : auth.profile.consultant_profiles;
     const _cpCl = Array.isArray(auth.profile.client_profiles)    ? auth.profile.client_profiles[0]    : auth.profile.client_profiles;
-    const _done = (_role === "consultant" && !!_cpC?.headline) ||
-                  (_role === "client"     && !!_cpCl?.company_name) ||
-                  (_role !== "consultant" && _role !== "client");
-    if (!_done) return <ProfileOnboardingScreen auth={auth} />;
+    const _done = (_role === "consultant"     && !!_cpC?.headline) ||
+                  (_role === "client"         && !!_cpCl?.company_name) ||
+                  (_role === "invited_client" && !!_cpCl?.company_name) ||
+                  (_role !== "consultant" && _role !== "client" && _role !== "invited_client");
+    if (!_done) {
+      if (_role === "invited_client") {
+        return (
+          <SystemSettingsProvider>
+            <LanguageProvider userId={auth.user?.id} initialLang={auth.profile?.language_pref}>
+              <div className="arena-dark min-h-screen bg-[#EAF4FD] p-6">
+                <InvitedClientOnboardingView auth={auth} onComplete={() => auth.refreshProfile()} />
+              </div>
+            </LanguageProvider>
+          </SystemSettingsProvider>
+        );
+      }
+      return <ProfileOnboardingScreen auth={auth} />;
+    }
   }
 
   return (

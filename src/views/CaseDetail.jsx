@@ -5,7 +5,7 @@ import {
   ClipboardList, Clock, Code2, Crosshair, ExternalLink, Eye, FileImage, FileText,
   Flag, FolderOpen, Globe, Handshake, Inbox, Layers, LayoutTemplate, Link,
   Link2, ListChecks, Lock, MessageSquare, Monitor, Paperclip, PauseCircle, Pencil,
-  Play, Receipt, RotateCcw, Search, SlidersHorizontal, Sparkles, Star,
+  Play, Receipt, RefreshCw, RotateCcw, Search, Send, SlidersHorizontal, Sparkles, Star,
   Target, Trash2, TrendingUp, Upload, User, UserCheck, UserPlus, Users,
   Wand2, X, XCircle, Zap,
 } from "lucide-react";
@@ -2852,6 +2852,11 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             </div>
           </div>
 
+          {/* Client Invitation */}
+          {(auth.isConsultant || auth.isAdmin || auth.isManager) && (
+            <CaseInviteCard caseData={caseData} auth={auth} />
+          )}
+
           {/* Skills */}
           {caseData.skills_required?.length > 0 && (
             <div>
@@ -5412,6 +5417,151 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
       )}
       {showSaveAsTemplate && (
         <SaveCaseAsTemplateModal caseData={caseData} onClose={() => setShowSaveAsTemplate(false)} />
+      )}
+    </div>
+  );
+}
+
+// ── Invite client card (shown inside case detail for consultant / admin / manager)
+function CaseInviteCard({ caseData, auth }) {
+  const [invites, setInvites] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm]       = useState({ email: "", name: "" });
+  const [sending, setSending] = useState(false);
+  const [sent, setSent]       = useState(false);
+  const [errMsg, setErrMsg]   = useState("");
+
+  useEffect(() => {
+    if (!caseData?.id) return;
+    supabase.from("case_invitations")
+      .select("id, invited_email, invited_name, status, created_at, expires_at, token")
+      .eq("case_id", caseData.id)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => { setInvites(data ?? []); setLoading(false); });
+  }, [caseData?.id]);
+
+  async function sendInvite(e) {
+    e.preventDefault();
+    setErrMsg("");
+    if (!form.email.trim()) return;
+    setSending(true);
+    try {
+      const { data, error } = await supabase.from("case_invitations").insert({
+        case_id:       caseData.id,
+        invited_email: form.email.trim().toLowerCase(),
+        invited_name:  form.name.trim() || null,
+        invited_by:    auth.user?.id,
+      }).select().single();
+      if (error) throw error;
+      setInvites(prev => [data, ...prev]);
+      const joinUrl = `${window.location.origin}/join/${data.token}`;
+      // Copy link to clipboard for easy sharing
+      try { await navigator.clipboard.writeText(joinUrl); } catch {}
+      setSent(true);
+      setForm({ email: "", name: "" });
+      setTimeout(() => setSent(false), 4000);
+    } catch (err) {
+      setErrMsg(err.message);
+    }
+    setSending(false);
+  }
+
+  async function resendInvite(invite) {
+    if (invite.status === "accepted") return;
+    const { data, error } = await supabase.from("case_invitations").update({
+      token:      crypto.randomUUID(),
+      status:     "pending",
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    }).eq("id", invite.id).select().single();
+    if (!error && data) {
+      setInvites(prev => prev.map(i => i.id === data.id ? data : i));
+      const joinUrl = `${window.location.origin}/join/${data.token}`;
+      try { await navigator.clipboard.writeText(joinUrl); } catch {}
+      alert("New invite link copied to clipboard!");
+    }
+  }
+
+  const caseIsActive = !["closed","completed","cancelled"].includes(caseData?.status);
+
+  return (
+    <div className="border border-gray-100 rounded-xl p-4">
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+        <UserPlus size={12} className="text-blue-400" /> Invite Client
+      </p>
+
+      {/* Send form */}
+      {caseIsActive && (
+        <form onSubmit={sendInvite} className="flex flex-col sm:flex-row gap-2 mb-4">
+          <input
+            type="email"
+            required
+            value={form.email}
+            onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+            placeholder="client@company.com"
+            className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            type="text"
+            value={form.name}
+            onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+            placeholder="Name (optional)"
+            className="w-36 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            type="submit"
+            disabled={sending}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50 flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <Send size={13} /> {sending ? "Sending…" : "Send Invite"}
+          </button>
+        </form>
+      )}
+
+      {sent && (
+        <div className="mb-3 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700 flex items-center gap-2">
+          <CheckCircle2 size={14} /> Invitation link copied to clipboard!
+        </div>
+      )}
+      {errMsg && (
+        <div className="mb-3 p-2.5 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{errMsg}</div>
+      )}
+
+      {/* Existing invitations */}
+      {!loading && invites.length > 0 && (
+        <div className="space-y-2">
+          {invites.map(inv => {
+            const isExpired = inv.status === "expired" || new Date(inv.expires_at) < new Date();
+            const statusColors = {
+              accepted: "text-emerald-600 bg-emerald-50",
+              expired:  "text-gray-400 bg-gray-50",
+              pending:  isExpired ? "text-gray-400 bg-gray-50" : "text-amber-600 bg-amber-50",
+            };
+            const displayStatus = inv.status === "pending" && isExpired ? "expired" : inv.status;
+            return (
+              <div key={inv.id} className="flex items-center justify-between gap-2 text-sm py-1.5 border-t border-gray-50">
+                <div className="min-w-0 flex-1">
+                  <span className="font-medium text-gray-800 truncate block">{inv.invited_email}</span>
+                  {inv.invited_name && <span className="text-xs text-gray-400">{inv.invited_name}</span>}
+                </div>
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${statusColors[displayStatus]}`}>
+                  {displayStatus}
+                </span>
+                {inv.status !== "accepted" && caseIsActive && (
+                  <button
+                    onClick={() => resendInvite(inv)}
+                    className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 whitespace-nowrap"
+                    title="Regenerate invite link and copy to clipboard"
+                  >
+                    <RefreshCw size={11} /> Resend
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {!loading && invites.length === 0 && (
+        <p className="text-xs text-gray-400 italic">No invitations sent yet.</p>
       )}
     </div>
   );
