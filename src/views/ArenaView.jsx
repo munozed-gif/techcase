@@ -1099,7 +1099,7 @@ function ArenaView({ auth }) {
       const outerSlots = Math.min(5, Math.max(0, otherCount - innerSlots));
 
       return (
-        <div style={{ background:'var(--t-card-bg)', borderRadius:22, border:'1px solid rgba(96,165,250,0.42)', overflow:'hidden', position:'relative', boxShadow:'0 4px 20px rgba(37,99,235,0.18)', height:'100%', display:'flex', flexDirection:'column' }}>
+        <div style={{ background:'var(--t-case-card-bg)', borderRadius:22, border:'1px solid rgba(96,165,250,0.42)', overflow:'hidden', position:'relative', boxShadow:'0 4px 20px rgba(37,99,235,0.18)', height:'100%', display:'flex', flexDirection:'column' }}>
           <div style={{ position:'absolute', left:0, top:'20%', bottom:'20%', width:3, borderRadius:'0 3px 3px 0', background:mc, boxShadow:`0 0 10px ${mcDim}` }} />
           <div style={{ height:4, background:'rgba(26,75,140,0.07)', position:'relative', overflow:'hidden' }}>
             {timePct != null && <div style={{ position:'absolute', left:0, top:0, bottom:0, width:`${timePct*100}%`, background:tc, opacity:0.8 }} />}

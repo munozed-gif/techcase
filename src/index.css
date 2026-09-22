@@ -48,6 +48,8 @@
   /* Galaxy explorer */
   --t-galaxy-bg:          #ffffff;
   --t-orb-avatar:         #ffffff;
+  /* Open cases card */
+  --t-case-card-bg:       #ffffff;
 }
 
 .arena-dark {
@@ -86,6 +88,8 @@
   /* Galaxy explorer */
   --t-galaxy-bg:          #0C1522;
   --t-orb-avatar:         #1A2F44;
+  /* Open cases card */
+  --t-case-card-bg:       rgba(37,99,235,0.09);
 }
 
 /* ── Dark-theme palette (Tailwind class overrides below) ───── */
