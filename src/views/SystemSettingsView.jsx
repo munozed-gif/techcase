@@ -1350,13 +1350,19 @@ function UserApprovalQueue() {
   async function handleApprove(userId) {
     setProcessing(userId);
     const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from('users').update({
+    const targetUser = users.find(u => u.id === userId);
+    const updateData = {
       verification_status: 'approved',
       approved_by: user.id,
       approved_at: new Date().toISOString(),
-    }).eq('id', userId);
+    };
+    if (targetUser?.role === 'invited_client') updateData.role = 'client';
+    await supabase.from('users').update(updateData).eq('id', userId);
     logEvent('user.approved', { entityType: 'user', entityId: userId });
-    notify(userId, 'Your account has been approved! 🎉', 'You now have access to the platform. Welcome aboard.');
+    const msg = targetUser?.role === 'invited_client'
+      ? 'Your full access has been approved! You now have complete client access.'
+      : 'Your account has been approved! 🎉 You now have access to the platform. Welcome aboard.';
+    notify(userId, 'Account approved', msg);
     setUsers(p => p.filter(u => u.id !== userId));
     setProcessing(null);
   }
@@ -1396,12 +1402,18 @@ function UserApprovalQueue() {
     const ids = [...selectedUserIds];
     setBulkProgressCount({ current: 0, total: ids.length });
     for (const userId of ids) {
-      await supabase.from('users').update({
+      const targetUser = users.find(u => u.id === userId);
+      const updateData = {
         verification_status: 'approved',
         approved_by: currentUser.id,
         approved_at: new Date().toISOString(),
-      }).eq('id', userId);
-      await notify(userId, 'Account approved', 'Your account has been approved. Welcome aboard.');
+      };
+      if (targetUser?.role === 'invited_client') updateData.role = 'client';
+      await supabase.from('users').update(updateData).eq('id', userId);
+      const msg = targetUser?.role === 'invited_client'
+        ? 'Your full access has been approved! You now have complete client access.'
+        : 'Your account has been approved. Welcome aboard.';
+      await notify(userId, 'Account approved', msg);
       await logEvent('user.approved_bulk', { entityType: 'user', entityId: userId });
       setBulkProgressCount(p => ({ ...p, current: p.current + 1 }));
     }
@@ -1448,10 +1460,14 @@ function UserApprovalQueue() {
   }
 
   const ROLE_COLORS = {
-    consultant:  'bg-blue-100 text-blue-700',
-    client:      'bg-green-100 text-green-700',
-    headhunter:  'bg-purple-100 text-purple-700',
-    manager:     'bg-orange-100 text-orange-700',
+    consultant:      'bg-blue-100 text-blue-700',
+    client:          'bg-green-100 text-green-700',
+    headhunter:      'bg-purple-100 text-purple-700',
+    manager:         'bg-orange-100 text-orange-700',
+    invited_client:  'bg-sky-100 text-sky-700',
+  };
+  const ROLE_LABELS = {
+    invited_client: 'Invited Client → Full Access',
   };
 
   return (
@@ -1518,7 +1534,7 @@ function UserApprovalQueue() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-semibold text-gray-900">{u.full_name || '—'}</p>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[u.role] ?? 'bg-gray-100 text-gray-500'}`}>{u.role}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[u.role] ?? 'bg-gray-100 text-gray-500'}`}>{ROLE_LABELS[u.role] ?? u.role}</span>
                   </div>
                   <p className="text-xs text-gray-400 mt-0.5">{u.email} · Signed up {new Date(u.created_at).toLocaleDateString()}</p>
                 </div>
