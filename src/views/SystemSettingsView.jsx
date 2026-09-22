@@ -3244,7 +3244,7 @@ function SettingsPlansTab({ ssCtx, auth }) {
   }
 
   const PLAN_TYPES = ['client', 'consultant', 'headhunter'];
-  const PLAN_KEYS  = { client: ['free','starter','professional','enterprise'], consultant: ['free','starter','professional'], headhunter: ['free','professional'] };
+  const PLAN_KEYS  = { client: ['free','growth','enterprise'], consultant: ['free','pro'], headhunter: ['free','pro','agency'] };
   const LIMIT_LABELS = { maxCases: 'Max active cases', maxTeam: 'Max team members', maxApps: 'Max applications/mo', maxCandidates: 'Max candidates', ai: 'AI features', analytics: 'Analytics', priority: 'Priority listing', helpDesk: 'Help Desk projects' };
 
   const CLIENT_TEAM_ROLES_ADMIN = ['key_user', 'final_user', 'internal_consultant', 'project_manager'];
