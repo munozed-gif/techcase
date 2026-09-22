@@ -1,18 +1,9 @@
 -- Case invitation system for client onboarding via consultant invite link
 -- Invited clients get limited access (invited_client role) until they request full access
 
--- Add invited_client role to users check constraint
--- (If constraint exists, you may need to drop and re-add it)
-ALTER TABLE public.users
-  DROP CONSTRAINT IF EXISTS users_role_check;
-
-ALTER TABLE public.users
-  ADD CONSTRAINT users_role_check
-    CHECK (role IN (
-      'admin','manager','consultant','client','headhunter',
-      'key_user','final_user','internal_consultant','project_manager',
-      'dispatch','area_leader','invited_client'
-    ));
+-- Add invited_client to the user_role enum type
+-- (role column uses a PostgreSQL enum, not a text CHECK constraint)
+ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'invited_client';
 
 -- Case invitations table
 CREATE TABLE IF NOT EXISTS public.case_invitations (
