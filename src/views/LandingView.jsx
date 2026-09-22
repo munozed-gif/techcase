@@ -1793,14 +1793,14 @@ export function LandingView({ onSignIn }) {
           {/* Consultant plans: Free + Pro */}
           {pricingTab === "consultant" && (
             <div className="pricing-grid" style={{maxWidth:680,gridTemplateColumns:"repeat(2,1fr)"}}>
-              <div className="price-card fade-in">
+              <div className="price-card">
                 <div className="price-name">{tl("pc_free_name")}</div>
                 <div className="price-amount">$0<small>/mo</small></div>
                 <div className="price-period">{tl("pc_free_period")}</div>
                 <ul className="price-features">{tl("pc_free_f").map(f=><li key={f}>{f}</li>)}</ul>
                 <button className="price-cta price-cta-outline" onClick={onSignIn}>{tl("btn_start")}</button>
               </div>
-              <div className="price-card featured fade-in">
+              <div className="price-card featured">
                 <div className="price-badge">{tl("pc_pro_badge")}</div>
                 <div className="price-name">{tl("pc_pro_name")}</div>
                 <div className="price-amount">$29<small>/mo</small></div>
@@ -1814,14 +1814,14 @@ export function LandingView({ onSignIn }) {
           {/* Client plans: Free + Growth + Enterprise */}
           {pricingTab === "client" && (
             <div className="pricing-grid">
-              <div className="price-card fade-in">
+              <div className="price-card">
                 <div className="price-name">{tl("cl_free_name")}</div>
                 <div className="price-amount">$0<small>/mo</small></div>
                 <div className="price-period">{tl("cl_free_period")}</div>
                 <ul className="price-features">{tl("cl_free_f").map(f=><li key={f}>{f}</li>)}</ul>
                 <button className="price-cta price-cta-outline" onClick={onSignIn}>{tl("btn_start")}</button>
               </div>
-              <div className="price-card featured fade-in">
+              <div className="price-card featured">
                 <div className="price-badge">{tl("cl_growth_badge")}</div>
                 <div className="price-name">{tl("cl_growth_name")}</div>
                 <div className="price-amount">$149<small>/mo</small></div>
@@ -1829,7 +1829,7 @@ export function LandingView({ onSignIn }) {
                 <ul className="price-features">{tl("cl_growth_f").map(f=><li key={f}>{f}</li>)}</ul>
                 <button className="price-cta price-cta-filled" onClick={onSignIn}>{tl("btn_trial")}</button>
               </div>
-              <div className="price-card fade-in">
+              <div className="price-card">
                 <div className="price-name">{tl("cl_ent_name")}</div>
                 <div className="price-amount" style={{fontSize:"2rem"}}>{tl("cl_ent_custom")}</div>
                 <div className="price-period">{tl("cl_ent_period")}</div>
@@ -1842,14 +1842,14 @@ export function LandingView({ onSignIn }) {
           {/* Headhunter plans: Pro + Agency */}
           {pricingTab === "headhunter" && (
             <div className="pricing-grid" style={{maxWidth:680,gridTemplateColumns:"repeat(2,1fr)"}}>
-              <div className="price-card fade-in">
+              <div className="price-card">
                 <div className="price-name">{tl("hh_pro_name")}</div>
                 <div className="price-amount">$99<small>/mo</small></div>
                 <div className="price-period">{tl("hh_pro_period")}</div>
                 <ul className="price-features">{tl("hh_pro_f").map(f=><li key={f}>{f}</li>)}</ul>
                 <button className="price-cta price-cta-outline" onClick={onSignIn}>{tl("btn_start")}</button>
               </div>
-              <div className="price-card featured fade-in">
+              <div className="price-card featured">
                 <div className="price-badge">{tl("hh_agency_badge")}</div>
                 <div className="price-name">{tl("hh_agency_name")}</div>
                 <div className="price-amount">$249<small>/mo</small></div>
