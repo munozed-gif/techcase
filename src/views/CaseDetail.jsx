@@ -5426,10 +5426,13 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
 function CaseInviteCard({ caseData, auth }) {
   const [invites, setInvites] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm]       = useState({ email: "", name: "" });
+  const [email, setEmail]     = useState("");
+  const [name, setName]       = useState("");
   const [sending, setSending] = useState(false);
-  const [sent, setSent]       = useState(false);
-  const [errMsg, setErrMsg]   = useState("");
+  const [feedback, setFeedback] = useState(null); // { type: "success"|"error", msg }
+  // Existing-user lookup
+  const [lookup, setLookup]   = useState(null);  // null | "searching" | { found, user, alreadyLinked }
+  const debounceRef           = useRef(null);
 
   useEffect(() => {
     if (!caseData?.id) return;
@@ -5440,30 +5443,86 @@ function CaseInviteCard({ caseData, auth }) {
       .then(({ data }) => { setInvites(data ?? []); setLoading(false); });
   }, [caseData?.id]);
 
-  async function sendInvite(e) {
+  // Debounced email lookup — checks users table when a valid email is typed
+  function handleEmailChange(val) {
+    setEmail(val);
+    setLookup(null);
+    clearTimeout(debounceRef.current);
+    const clean = val.trim().toLowerCase();
+    if (!clean.includes("@") || !clean.includes(".")) return;
+    debounceRef.current = setTimeout(async () => {
+      setLookup("searching");
+      const { data: existingUser } = await supabase
+        .from("users")
+        .select("id, full_name, email, role, verification_status")
+        .eq("email", clean)
+        .maybeSingle();
+      if (!existingUser) { setLookup({ found: false }); return; }
+      // Check if this user is already linked to this case as the client
+      const alreadyLinked = caseData.client_id === existingUser.id;
+      // Pre-fill name if found and field is empty
+      if (existingUser.full_name && !name) setName(existingUser.full_name);
+      setLookup({ found: true, user: existingUser, alreadyLinked });
+    }, 500);
+  }
+
+  async function handleSubmit(e) {
     e.preventDefault();
-    setErrMsg("");
-    if (!form.email.trim()) return;
+    setFeedback(null);
     setSending(true);
     try {
-      const { data, error } = await supabase.from("case_invitations").insert({
-        case_id:       caseData.id,
-        invited_email: form.email.trim().toLowerCase(),
-        invited_name:  form.name.trim() || null,
-        invited_by:    auth.user?.id,
-      }).select().single();
-      if (error) throw error;
-      setInvites(prev => [data, ...prev]);
-      const joinUrl = `${window.location.origin}/join/${data.token}`;
-      // Copy link to clipboard for easy sharing
-      try { await navigator.clipboard.writeText(joinUrl); } catch {}
-      setSent(true);
-      setForm({ email: "", name: "" });
-      setTimeout(() => setSent(false), 4000);
+      const cleanEmail = email.trim().toLowerCase();
+      if (lookup?.found && lookup.user) {
+        // User already exists — link them directly, no new account needed
+        await linkExistingUser(lookup.user, cleanEmail);
+      } else {
+        // New user — create invitation link
+        await sendNewInvite(cleanEmail);
+      }
     } catch (err) {
-      setErrMsg(err.message);
+      setFeedback({ type: "error", msg: err.message });
     }
     setSending(false);
+  }
+
+  async function sendNewInvite(cleanEmail) {
+    const { data, error } = await supabase.from("case_invitations").insert({
+      case_id:       caseData.id,
+      invited_email: cleanEmail,
+      invited_name:  name.trim() || null,
+      invited_by:    auth.user?.id,
+    }).select().single();
+    if (error) throw error;
+    setInvites(prev => [data, ...prev]);
+    const joinUrl = `${window.location.origin}/join/${data.token}`;
+    try { await navigator.clipboard.writeText(joinUrl); } catch {}
+    setFeedback({ type: "success", msg: "Invite link copied to clipboard! Share it with the client." });
+    setEmail(""); setName(""); setLookup(null);
+  }
+
+  async function linkExistingUser(existingUser, cleanEmail) {
+    if (lookup.alreadyLinked) return;
+    // Update case to point to this client
+    const { error: caseErr } = await supabase
+      .from("cases")
+      .update({ client_id: existingUser.id })
+      .eq("id", caseData.id);
+    if (caseErr) throw caseErr;
+    // Record as accepted invitation so history is visible
+    const { data: inv } = await supabase.from("case_invitations").insert({
+      case_id:       caseData.id,
+      invited_email: cleanEmail,
+      invited_name:  existingUser.full_name || name.trim() || null,
+      invited_by:    auth.user?.id,
+      status:        "accepted",
+    }).select().single();
+    if (inv) setInvites(prev => [inv, ...prev]);
+    const roleLabel = existingUser.role === "invited_client" ? "limited access" : "full client access";
+    setFeedback({
+      type: "success",
+      msg: `${existingUser.full_name ?? cleanEmail} already has an account (${roleLabel}) and has been linked to this case.`,
+    });
+    setEmail(""); setName(""); setLookup(null);
   }
 
   async function resendInvite(invite) {
@@ -5477,11 +5536,14 @@ function CaseInviteCard({ caseData, auth }) {
       setInvites(prev => prev.map(i => i.id === data.id ? data : i));
       const joinUrl = `${window.location.origin}/join/${data.token}`;
       try { await navigator.clipboard.writeText(joinUrl); } catch {}
-      alert("New invite link copied to clipboard!");
+      setFeedback({ type: "success", msg: "New invite link copied to clipboard!" });
+      setTimeout(() => setFeedback(null), 4000);
     }
   }
 
   const caseIsActive = !["closed","completed","cancelled"].includes(caseData?.status);
+  const isAlreadyLinked = lookup?.found && lookup.alreadyLinked;
+  const isExistingUser  = lookup?.found && !lookup.alreadyLinked && lookup.user;
 
   return (
     <div className="border border-gray-100 rounded-xl p-4">
@@ -5489,41 +5551,71 @@ function CaseInviteCard({ caseData, auth }) {
         <UserPlus size={12} className="text-blue-400" /> Invite Client
       </p>
 
-      {/* Send form */}
+      {/* Form */}
       {caseIsActive && (
-        <form onSubmit={sendInvite} className="flex flex-col sm:flex-row gap-2 mb-4">
-          <input
-            type="email"
-            required
-            value={form.email}
-            onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-            placeholder="client@company.com"
-            className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <input
-            type="text"
-            value={form.name}
-            onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-            placeholder="Name (optional)"
-            className="w-36 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+        <form onSubmit={handleSubmit} className="space-y-2 mb-4">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex-1 relative">
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={e => handleEmailChange(e.target.value)}
+                placeholder="client@company.com"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {lookup === "searching" && (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">checking…</span>
+              )}
+            </div>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="Name (optional)"
+              className="w-36 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Existing-user banner */}
+          {isAlreadyLinked && (
+            <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700 flex items-center gap-2">
+              <CheckCircle2 size={14} className="flex-shrink-0" />
+              <span><strong>{lookup.user.full_name}</strong> is already linked to this case.</span>
+            </div>
+          )}
+          {isExistingUser && (
+            <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-700 flex items-start gap-2">
+              <Users size={14} className="flex-shrink-0 mt-0.5" />
+              <div>
+                <span className="font-medium">{lookup.user.full_name ?? email}</span>
+                <span className="text-blue-500"> already has an account</span>
+                {lookup.user.role === "invited_client" && <span className="text-blue-500"> (limited access)</span>}
+                {lookup.user.role === "client"         && <span className="text-blue-500"> (full client)</span>}
+                <p className="text-xs text-blue-500 mt-0.5">Clicking "Link to case" will give them access without sending a new invitation.</p>
+              </div>
+            </div>
+          )}
+
           <button
             type="submit"
-            disabled={sending}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50 flex items-center gap-1.5 whitespace-nowrap"
+            disabled={sending || isAlreadyLinked}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-40 flex items-center gap-1.5"
           >
-            <Send size={13} /> {sending ? "Sending…" : "Send Invite"}
+            {sending ? "Working…" : isExistingUser ? <><Users size={13} /> Link to case</> : <><Send size={13} /> Send Invite</>}
           </button>
         </form>
       )}
 
-      {sent && (
-        <div className="mb-3 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700 flex items-center gap-2">
-          <CheckCircle2 size={14} /> Invitation link copied to clipboard!
+      {feedback && (
+        <div className={`mb-3 p-2.5 rounded-xl text-sm flex items-start gap-2 ${
+          feedback.type === "success"
+            ? "bg-emerald-50 border border-emerald-200 text-emerald-700"
+            : "bg-red-50 border border-red-200 text-red-700"
+        }`}>
+          {feedback.type === "success" ? <CheckCircle2 size={14} className="flex-shrink-0 mt-0.5" /> : <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />}
+          {feedback.msg}
         </div>
-      )}
-      {errMsg && (
-        <div className="mb-3 p-2.5 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{errMsg}</div>
       )}
 
       {/* Existing invitations */}

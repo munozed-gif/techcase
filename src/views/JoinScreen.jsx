@@ -45,8 +45,25 @@ export function JoinScreen({ token, onJoined }) {
     if (!form.full_name.trim()) { setErrMsg("Please enter your name."); return; }
     setSubmitting(true);
     try {
-      // Sign up with invited_client role
-      const { data: authData, error: signUpErr } = await supabase.auth.signUp({
+      // Check if this email already has an account — avoid creating duplicates
+      const { data: existingUser } = await supabase
+        .from("users")
+        .select("id, full_name, role")
+        .eq("email", invite.invited_email.toLowerCase())
+        .maybeSingle();
+
+      if (existingUser) {
+        // Account already exists — mark invitation accepted and ask them to sign in
+        await supabase.from("case_invitations").update({ status: "accepted" }).eq("id", invite.id);
+        // Also ensure the case is linked to this user
+        await supabase.from("cases").update({ client_id: existingUser.id }).eq("id", invite.case_id);
+        setState("already_has_account");
+        setSubmitting(false);
+        return;
+      }
+
+      // New user — sign up with invited_client role
+      const { error: signUpErr } = await supabase.auth.signUp({
         email: invite.invited_email,
         password: form.password,
         options: { data: { full_name: form.full_name.trim(), role: "invited_client" } },
@@ -90,6 +107,14 @@ export function JoinScreen({ token, onJoined }) {
     <JoinMessageScreen icon={<CheckCircle2 className="w-10 h-10 text-emerald-500" />}
       title="Already joined"
       body="This invitation was already accepted. Sign in to access your case."
+      platformName={platformName}
+      showSignIn onSignIn={() => onJoined?.()} />
+  );
+
+  if (state === "already_has_account") return (
+    <JoinMessageScreen icon={<CheckCircle2 className="w-10 h-10 text-blue-500" />}
+      title="You already have an account"
+      body={`An account already exists for ${invite?.invited_email}. Sign in with your existing password to access this case — it's been linked to your account.`}
       platformName={platformName}
       showSignIn onSignIn={() => onJoined?.()} />
   );
