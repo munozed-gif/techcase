@@ -126,10 +126,10 @@ function LifecycleSettingsView({ auth }) {
   if (loadingTmpl) return <div className="p-8 text-sm text-gray-400">{t("label.loading")}</div>;
 
   const ROLES = [
-    { key: "manager",    label: t("auth.role_manager"),    color: "#1d4ed8", bg: "#dbeafe" },
-    { key: "consultant", label: t("auth.role_consultant"), color: "#065f46", bg: "#d1fae5" },
-    { key: "client",     label: t("auth.role_client"),     color: "#92400e", bg: "#fef3c7" },
-    { key: "key_user",   label: t("auth.role_key_user"),   color: "#5b21b6", bg: "#ede9fe" },
+    { key: "manager",    label: t("auth.role_manager"),    activeCls: "bg-blue-100 text-blue-700 border-blue-100"   },
+    { key: "consultant", label: t("auth.role_consultant"), activeCls: "bg-emerald-100 text-emerald-700 border-emerald-100" },
+    { key: "client",     label: t("auth.role_client"),     activeCls: "bg-amber-100 text-amber-700 border-amber-100"  },
+    { key: "key_user",   label: t("auth.role_key_user"),   activeCls: "bg-violet-100 text-violet-700 border-violet-100" },
   ];
 
   const ALL_TABS = [
@@ -316,10 +316,7 @@ function LifecycleSettingsView({ auth }) {
                           const on = (stage.allowed_roles ?? []).includes(r.key);
                           return (
                             <button key={r.key} onClick={() => toggleRole(idx, r.key)}
-                              className="text-xs px-2.5 py-0.5 rounded-full font-semibold border transition-colors"
-                              style={on
-                                ? { backgroundColor: r.bg, color: r.color, borderColor: r.bg }
-                                : { backgroundColor: "var(--t-card-bg)", color: "#9ca3af", borderColor: "#e5e7eb" }}>
+                              className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border transition-colors ${on ? r.activeCls : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'}`}>
                               {r.label}
                             </button>
                           );
@@ -337,10 +334,8 @@ function LifecycleSettingsView({ auth }) {
                             const on = (stage.allowed_next ?? []).includes(s.key);
                             return (
                               <button key={s.key} onClick={() => toggleNext(idx, s.key)}
-                                className="text-[11px] px-2 py-0.5 rounded-full font-semibold border transition-colors"
-                                style={on
-                                  ? { backgroundColor: s.color + "22", color: s.color, borderColor: s.color + "55" }
-                                  : { backgroundColor: "var(--t-card-bg)", color: "#9ca3af", borderColor: "#e5e7eb" }}>
+                                className={`text-[11px] px-2 py-0.5 rounded-full font-semibold border transition-colors ${on ? '' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'}`}
+                                style={on ? { backgroundColor: s.color + "22", color: s.color, borderColor: s.color + "55" } : undefined}>
                                 {s.label || s.key}
                               </button>
                             );

@@ -338,7 +338,7 @@ function Dashboard({ auth, onNavigate }) {
             {/* Working now */}
             {activeClients.length > 0 && (
               <div style={{ flexShrink:0 }}>
-                <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.07em', textTransform:'uppercase', color:'#8fa8c2', marginBottom:10 }}>{t("dashboard.working_now")}</div>
+                <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.07em', textTransform:'uppercase', color:'var(--t-sublabel)', marginBottom:10 }}>{t("dashboard.working_now")}</div>
                 <div style={{ display:'flex', gap:18 }}>
                   {activeClients.map(cl => (
                     <div key={cl.id} onClick={() => setClientFilter(clientFilter?.id === cl.id ? null : { id: cl.id, name: cl.name })}
@@ -355,8 +355,8 @@ function Dashboard({ auth, onNavigate }) {
                           <div style={{ width:9, height:9, background:'#10b981', border:'1.5px solid #ffffff', borderRadius:'50%', position:'absolute', bottom:1, right:1 }} />
                         </div>
                       </div>
-                      <div style={{ fontSize:10.5, fontWeight:600, color:'#5b7a9b', maxWidth:66, textAlign:'center', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{cl.name}</div>
-                      <div style={{ fontSize:9, fontWeight:700, color:'#8fa8c2', textAlign:'center', marginTop:-4 }}>{t(cl.activeCases === 1 ? "count.case_one" : "count.case_many").replace("{n}", cl.activeCases)}</div>
+                      <div style={{ fontSize:10.5, fontWeight:600, color:'var(--t-subtext)', maxWidth:66, textAlign:'center', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{cl.name}</div>
+                      <div style={{ fontSize:9, fontWeight:700, color:'var(--t-sublabel)', textAlign:'center', marginTop:-4 }}>{t(cl.activeCases === 1 ? "count.case_one" : "count.case_many").replace("{n}", cl.activeCases)}</div>
                     </div>
                   ))}
                 </div>
@@ -365,13 +365,13 @@ function Dashboard({ auth, onNavigate }) {
 
             {/* Divider: active → following */}
             {activeClients.length > 0 && followedClients.length > 0 && (
-              <div style={{ width:1, background:'#d4e6f5', alignSelf:'stretch', flexShrink:0, margin:'0 20px', minHeight:80 }} />
+              <div style={{ width:1, background:'var(--t-divider)', alignSelf:'stretch', flexShrink:0, margin:'0 20px', minHeight:80 }} />
             )}
 
             {/* Following (liked but no active/past cases) */}
             {followedClients.length > 0 && (
               <div style={{ flexShrink:0 }}>
-                <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.07em', textTransform:'uppercase', color:'#8fa8c2', marginBottom:10 }}>{t("dashboard.following")}</div>
+                <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.07em', textTransform:'uppercase', color:'var(--t-sublabel)', marginBottom:10 }}>{t("dashboard.following")}</div>
                 <div style={{ display:'flex', gap:18 }}>
                   {followedClients.map(cl => (
                     <div key={cl.id} onClick={() => setClientFilter(clientFilter?.id === cl.id ? null : { id: cl.id, name: cl.name })}
@@ -386,8 +386,8 @@ function Dashboard({ auth, onNavigate }) {
                           <div style={{ fontSize:9, position:'absolute', bottom:0, right:-1, lineHeight:1 }}><Heart size={7} className="fill-current" /></div>
                         </div>
                       </div>
-                      <div style={{ fontSize:10.5, fontWeight:600, color:'#5b7a9b', maxWidth:66, textAlign:'center', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{cl.name}</div>
-                      <div style={{ fontSize:9, fontWeight:700, color:'#5B9BD5', textAlign:'center', marginTop:-4 }}>{t("dashboard.following")}</div>
+                      <div style={{ fontSize:10.5, fontWeight:600, color:'var(--t-subtext)', maxWidth:66, textAlign:'center', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{cl.name}</div>
+                      <div style={{ fontSize:9, fontWeight:700, color:'var(--t-text-accent)', textAlign:'center', marginTop:-4 }}>{t("dashboard.following")}</div>
                     </div>
                   ))}
                 </div>
@@ -396,28 +396,28 @@ function Dashboard({ auth, onNavigate }) {
 
             {/* Divider: following → platform active */}
             {(activeClients.length > 0 || followedClients.length > 0) && platformClients.length > 0 && (
-              <div style={{ width:1, background:'#d4e6f5', alignSelf:'stretch', flexShrink:0, margin:'0 20px', minHeight:80 }} />
+              <div style={{ width:1, background:'var(--t-divider)', alignSelf:'stretch', flexShrink:0, margin:'0 20px', minHeight:80 }} />
             )}
 
             {/* All clients with active cases on platform (not assigned, not followed) */}
             {platformClients.length > 0 && (
               <div style={{ flexShrink:0 }}>
-                <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.07em', textTransform:'uppercase', color:'#8fa8c2', marginBottom:10 }}>{t("dashboard.active_cases")}</div>
+                <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.07em', textTransform:'uppercase', color:'var(--t-sublabel)', marginBottom:10 }}>{t("dashboard.active_cases")}</div>
                 <div style={{ display:'flex', gap:18 }}>
                   {platformClients.map(cl => (
                     <div key={cl.id} onClick={() => setClientFilter(clientFilter?.id === cl.id ? null : { id: cl.id, name: cl.name })}
                       style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', gap:6, cursor:'pointer',
                                outline: clientFilter?.id === cl.id ? '2px solid #3b82f6' : 'none', borderRadius:8, padding:2 }}
                       title={t("dash.view_cases").replace("{name}", cl.name)}>
-                      <div style={{ padding:3, borderRadius:'50%', background:'#e2e8f0' }}>
+                      <div style={{ padding:3, borderRadius:'50%', background:'var(--t-progress-track)' }}>
                         <div style={{ width:52, height:52, borderRadius:'50%', background:cl.avatarUrl ? 'transparent' : cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid #ffffff', overflow:'hidden' }}>
                           {cl.avatarUrl
                             ? <img src={cl.avatarUrl} alt={cl.name} style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:'50%' }} />
                             : cl.initials}
                         </div>
                       </div>
-                      <div style={{ fontSize:10.5, fontWeight:600, color:'#5b7a9b', maxWidth:66, textAlign:'center', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{cl.name}</div>
-                      <div style={{ fontSize:9, fontWeight:700, color:'#94a3b8', textAlign:'center', marginTop:-4 }}>{t("dashboard.active")}</div>
+                      <div style={{ fontSize:10.5, fontWeight:600, color:'var(--t-subtext)', maxWidth:66, textAlign:'center', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{cl.name}</div>
+                      <div style={{ fontSize:9, fontWeight:700, color:'var(--t-sublabel)', textAlign:'center', marginTop:-4 }}>{t("dashboard.active")}</div>
                     </div>
                   ))}
                 </div>
@@ -426,28 +426,28 @@ function Dashboard({ auth, onNavigate }) {
 
             {/* Divider: platform active → past */}
             {(activeClients.length > 0 || followedClients.length > 0 || platformClients.length > 0) && pastClients.length > 0 && (
-              <div style={{ width:1, background:'#d4e6f5', alignSelf:'stretch', flexShrink:0, margin:'0 20px', minHeight:80 }} />
+              <div style={{ width:1, background:'var(--t-divider)', alignSelf:'stretch', flexShrink:0, margin:'0 20px', minHeight:80 }} />
             )}
 
             {/* Past clients */}
             {pastClients.length > 0 && (
               <div style={{ flexShrink:0 }}>
-                <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.07em', textTransform:'uppercase', color:'#8fa8c2', marginBottom:10 }}>{t("dashboard.past_clients")}</div>
+                <div style={{ fontSize:9, fontWeight:700, letterSpacing:'.07em', textTransform:'uppercase', color:'var(--t-sublabel)', marginBottom:10 }}>{t("dashboard.past_clients")}</div>
                 <div style={{ display:'flex', gap:18 }}>
                   {pastClients.map(cl => (
                     <div key={cl.id} onClick={() => setClientFilter(clientFilter?.id === cl.id ? null : { id: cl.id, name: cl.name })}
                       style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', gap:6, opacity:.5, filter:'grayscale(.35)', cursor:'pointer',
                                outline: clientFilter?.id === cl.id ? '2px solid #3b82f6' : 'none', borderRadius:8, padding:2 }}
                       title={t("dash.view_cases").replace("{name}", cl.name)}>
-                      <div style={{ padding:3, borderRadius:'50%', background:'#d4e6f5' }}>
+                      <div style={{ padding:3, borderRadius:'50%', background:'var(--t-divider)' }}>
                         <div style={{ width:52, height:52, borderRadius:'50%', background:cl.avatarUrl ? 'transparent' : cl.color.bg, color:cl.color.fg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:800, border:'2.5px solid #ffffff', overflow:'hidden' }}>
                           {cl.avatarUrl
                             ? <img src={cl.avatarUrl} alt={cl.name} style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:'50%' }} />
                             : cl.initials}
                         </div>
                       </div>
-                      <div style={{ fontSize:10.5, fontWeight:600, color:'#5b7a9b', maxWidth:66, textAlign:'center', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{cl.name}</div>
-                      <div style={{ fontSize:9, fontWeight:700, color:'#8fa8c2', textAlign:'center', marginTop:-4 }}>{cl.pastCases} {t("dashboard.done")} <Check size={8} className="inline" /></div>
+                      <div style={{ fontSize:10.5, fontWeight:600, color:'var(--t-subtext)', maxWidth:66, textAlign:'center', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{cl.name}</div>
+                      <div style={{ fontSize:9, fontWeight:700, color:'var(--t-sublabel)', textAlign:'center', marginTop:-4 }}>{cl.pastCases} {t("dashboard.done")} <Check size={8} className="inline" /></div>
                     </div>
                   ))}
                 </div>

@@ -2574,9 +2574,9 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                         )}
                         {isPending && isActive && (
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ fontSize: 11, color: "#B45309" }}>{caseProgress}% done</span>
+                            <span style={{ fontSize: 11, color: "var(--ad-amber)" }}>{caseProgress}% done</span>
                             <button onClick={e => { e.stopPropagation(); setPendingStageKey(null); }}
-                              style={{ fontSize: 11, color: "#94A3B8", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>Cancel</button>
+                              style={{ fontSize: 11, color: "var(--t-text2)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>Cancel</button>
                           </div>
                         )}
                       </div>
@@ -2591,7 +2591,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               <div style={{ display: "flex", justifyContent: "center", gap: 5, marginTop: 10 }}>
                 {displayStages.map((_, i) => (
                   <button key={i} onClick={() => pipelineScrollTo(i)}
-                    style={{ width: i === clampedActive ? 18 : 6, height: 6, borderRadius: 99, background: i === clampedActive ? "#1A4B8C" : "#CBD5E1", border: "none", cursor: "pointer", padding: 0, transition: "all .2s" }} />
+                    style={{ width: i === clampedActive ? 18 : 6, height: 6, borderRadius: 99, background: i === clampedActive ? "var(--t-text-accent)" : "var(--t-dot-none)", border: "none", cursor: "pointer", padding: 0, transition: "all .2s" }} />
                 ))}
               </div>
             )}
@@ -2626,10 +2626,10 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         if (done === 0) return null;
         return (
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-            <div style={{ flex:1, height:4, borderRadius:99, background:'#E2E8F0', overflow:'hidden' }}>
-              <div style={{ height:'100%', width:`${(done/tabs.length)*100}%`, background:'linear-gradient(90deg,#1A4B8C,#3B82F6)', borderRadius:99, transition:'width .4s' }}/>
+            <div style={{ flex:1, height:4, borderRadius:99, background:'var(--t-progress-track)', overflow:'hidden' }}>
+              <div style={{ height:'100%', width:`${(done/tabs.length)*100}%`, background:'linear-gradient(90deg,var(--t-text-accent),#3B82F6)', borderRadius:99, transition:'width .4s' }}/>
             </div>
-            <span style={{ fontSize:11, fontWeight:700, color:'#1A4B8C', whiteSpace:'nowrap' }}>{done}/{tabs.length} done</span>
+            <span style={{ fontSize:11, fontWeight:700, color:'var(--t-text-accent)', whiteSpace:'nowrap' }}>{done}/{tabs.length} done</span>
           </div>
         );
       })()}

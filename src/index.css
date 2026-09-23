@@ -50,6 +50,16 @@
   --t-orb-avatar:         #ffffff;
   /* Open cases card */
   --t-case-card-bg:       #ffffff;
+  /* Progress bar & status dots */
+  --t-progress-track:     #E2E8F0;
+  --t-dot-none:           #CBD5E1;
+  /* Page wash (light blue tint) */
+  --t-page-wash:          #EAF4FD;
+  /* Dividers (light blue) */
+  --t-divider:            #D4E6F5;
+  /* Section sublabels */
+  --t-sublabel:           #8FA8C2;
+  --t-subtext:            #5B7A9B;
 }
 
 .arena-dark {
@@ -90,6 +100,16 @@
   --t-orb-avatar:         #1A2F44;
   /* Open cases card */
   --t-case-card-bg:       rgba(37,99,235,0.09);
+  /* Progress bar & status dots */
+  --t-progress-track:     #1A2F44;
+  --t-dot-none:           rgba(100,160,220,0.25);
+  /* Page wash */
+  --t-page-wash:          var(--ad-bg);
+  /* Dividers */
+  --t-divider:            rgba(100,160,220,0.12);
+  /* Section sublabels */
+  --t-sublabel:           #7090B0;
+  --t-subtext:            #5A7A9A;
 }
 
 /* ── Dark-theme palette (Tailwind class overrides below) ───── */
@@ -367,3 +387,23 @@
 .arena-dark ::-webkit-scrollbar-track { background: transparent; }
 .arena-dark ::-webkit-scrollbar-thumb { background: var(--ad-bhi); border-radius: 3px; }
 .arena-dark ::-webkit-scrollbar-thumb:hover { background: rgba(100,160,220,0.35); }
+
+/* ── Arbitrary color classes (brand navy + label colors) ── */
+.arena-dark .text-\[#1A4B8C\],
+.arena-dark .text-\[#1C3557\],
+.arena-dark .text-\[#1c3557\] { color: #60A5FA !important; }
+.arena-dark .hover\:text-\[#1A4B8C\]:hover { color: #93C5FD !important; }
+.arena-dark .group-hover\:text-\[#1A4B8C\]:hover,
+.arena-dark .group:hover .group-hover\:text-\[#1A4B8C\] { color: #93C5FD !important; }
+.arena-dark .group-hover\:bg-\[#1A4B8C\]\/10:hover,
+.arena-dark .group:hover .group-hover\:bg-\[#1A4B8C\]\/10 { background-color: rgba(96,165,250,0.1) !important; }
+.arena-dark .hover\:border-\[#1A4B8C\]:hover { border-color: #3B82F6 !important; }
+
+/* ── Page wash (#EAF4FD light blue tint) → dark bg ── */
+.arena-dark .bg-\[#EAF4FD\] { background-color: var(--ad-bg) !important; }
+
+/* ── Dark preview block (always dark, keep it) ── */
+/* .bg-[#0C1828] intentionally left as-is */
+
+/* ── disabled/bg-gray-300 in dark mode ── */
+.arena-dark .disabled\:bg-gray-300:disabled { background-color: var(--ad-inner2) !important; }

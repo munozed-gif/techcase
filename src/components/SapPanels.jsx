@@ -1216,11 +1216,11 @@ function AbapTemplatesSection({ auth }) {
 // ============================================================
 
 const BP_PHASES = [
-  { id: 'dictionary',  label: 'Data Dictionary', desc: 'Tables, structures, domains', color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },
-  { id: 'development', label: 'Development',     desc: 'Programs, classes, FMs',      color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe' },
-  { id: 'integration', label: 'Integration',     desc: 'RFCs, BAPIs, OData',         color: '#0e7490', bg: '#ecfeff', border: '#a5f3fc' },
-  { id: 'enhancement', label: 'Enhancement',     desc: 'BAdIs, user exits',           color: '#b45309', bg: '#fffbeb', border: '#fde68a' },
-  { id: 'ui',          label: 'UI / Output',     desc: 'Reports, forms, Fiori',       color: '#be185d', bg: '#fdf2f8', border: '#fbcfe8' },
+  { id: 'dictionary',  label: 'Data Dictionary', desc: 'Tables, structures, domains', headerCls: 'bg-violet-50 border-b-2 border-violet-200', bodyCls: 'bg-violet-50/40', textCls: 'text-violet-700' },
+  { id: 'development', label: 'Development',     desc: 'Programs, classes, FMs',      headerCls: 'bg-blue-50 border-b-2 border-blue-200',   bodyCls: 'bg-blue-50/40',   textCls: 'text-blue-700'   },
+  { id: 'integration', label: 'Integration',     desc: 'RFCs, BAPIs, OData',         headerCls: 'bg-cyan-50 border-b-2 border-cyan-200',   bodyCls: 'bg-cyan-50/40',   textCls: 'text-cyan-700'   },
+  { id: 'enhancement', label: 'Enhancement',     desc: 'BAdIs, user exits',           headerCls: 'bg-amber-50 border-b-2 border-amber-200', bodyCls: 'bg-amber-50/40', textCls: 'text-amber-700'  },
+  { id: 'ui',          label: 'UI / Output',     desc: 'Reports, forms, Fiori',       headerCls: 'bg-pink-50 border-b-2 border-pink-200',   bodyCls: 'bg-pink-50/40',   textCls: 'text-pink-700'   },
 ];
 
 const BP_TYPES = {
@@ -1681,12 +1681,12 @@ Output ONLY the ABAP source code, no explanations.`;
                   return (
                     <div key={phase.id} className="flex flex-col border-r border-gray-100 last:border-0" style={{ minWidth: 220 }}>
                       {/* Lane header */}
-                      <div className="px-3 py-2 sticky top-0 z-20" style={{ background: phase.bg, borderBottom: `2px solid ${phase.border}` }}>
-                        <p className="text-xs font-bold" style={{ color: phase.color }}>{phase.label}</p>
-                        <p className="text-[10px]" style={{ color: phase.color, opacity: 0.7 }}>{phase.desc}</p>
+                      <div className={`px-3 py-2 sticky top-0 z-20 ${phase.headerCls}`}>
+                        <p className={`text-xs font-bold ${phase.textCls}`}>{phase.label}</p>
+                        <p className={`text-[10px] opacity-70 ${phase.textCls}`}>{phase.desc}</p>
                       </div>
                       {/* Cards */}
-                      <div className="p-2 space-y-2" style={{ background: phase.bg + '66' }}>
+                      <div className={`p-2 space-y-2 ${phase.bodyCls}`}>
                         {phaseObjs.map(obj => {
                           const typeMeta = BP_TYPES[obj.type] ?? { short: obj.type.slice(0, 4).toUpperCase(), ai: false };
                           const isSelected = selectedId === obj.id;
@@ -1724,7 +1724,7 @@ Output ONLY the ABAP source code, no explanations.`;
                           );
                         })}
                         {phaseObjs.length === 0 && (
-                          <p className="text-[10px] text-center py-4" style={{ color: phase.color, opacity: 0.4 }}>No objects</p>
+                          <p className={`text-[10px] text-center py-4 opacity-40 ${phase.textCls}`}>No objects</p>
                         )}
                       </div>
                     </div>
