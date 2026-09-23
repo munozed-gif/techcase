@@ -113,8 +113,8 @@
   --ad-red:       #F87171;
 }
 
-/* ── Page background ── */
-.arena-dark { background-color: var(--ad-bg) !important; }
+/* ── Page background + base text ── */
+.arena-dark { background-color: var(--ad-bg) !important; color: var(--ad-text); }
 .arena-dark [class*="EAF4FD"] { background-color: var(--ad-bg) !important; }
 
 /* ── Loading spinner ── */
@@ -134,8 +134,8 @@
 .arena-dark .text-gray-700 { color: #B0C8DF         !important; }
 .arena-dark .text-gray-600 { color: var(--ad-text2) !important; }
 .arena-dark .text-gray-500 { color: var(--ad-text2) !important; }
-.arena-dark .text-gray-400 { color: var(--ad-text3) !important; }
-.arena-dark .text-gray-300 { color: var(--ad-text3) !important; }
+.arena-dark .text-gray-400 { color: var(--ad-text2) !important; }
+.arena-dark .text-gray-300 { color: #5A7A9A         !important; }
 
 /* ── Borders ── */
 .arena-dark .border-gray-50,
@@ -187,8 +187,13 @@
 .arena-dark .border-violet-400 { border-color: rgba(167,139,250,0.6) !important; }
 .arena-dark .bg-purple-50    { background-color: rgba(168,85,247,0.09)  !important; }
 .arena-dark .bg-purple-100   { background-color: rgba(168,85,247,0.15)  !important; }
+.arena-dark .bg-purple-600   { background-color: #7C3AED !important; }
+.arena-dark .bg-purple-700   { background-color: #6D28D9 !important; }
+.arena-dark .text-purple-900,
+.arena-dark .text-purple-800 { color: #DDD6FE !important; }
 .arena-dark .text-purple-600,
 .arena-dark .text-purple-700 { color: #D8B4FE !important; }
+.arena-dark .text-purple-500 { color: #C4B5FD !important; }
 .arena-dark .border-purple-100 { border-color: rgba(168,85,247,0.22) !important; }
 .arena-dark .border-purple-200 { border-color: rgba(168,85,247,0.35) !important; }
 
@@ -227,8 +232,14 @@
 /* ── Green / emerald / teal ── */
 .arena-dark .bg-green-50   { background-color: rgba(16,185,129,0.07)  !important; }
 .arena-dark .bg-green-100  { background-color: rgba(34,197,94,0.13)   !important; }
+.arena-dark .text-green-900,
+.arena-dark .text-green-800 { color: #86EFAC !important; }
 .arena-dark .text-green-700,
 .arena-dark .text-green-600 { color: #4ADE80 !important; }
+.arena-dark .text-green-500 { color: #4ADE80 !important; }
+.arena-dark .text-green-400 { color: #86EFAC !important; }
+.arena-dark .border-green-100 { border-color: rgba(16,185,129,0.18) !important; }
+.arena-dark .border-green-300 { border-color: rgba(16,185,129,0.45) !important; }
 .arena-dark .border-green-200 { border-color: rgba(16,185,129,0.25) !important; }
 .arena-dark .bg-emerald-50   { background-color: rgba(16,185,129,0.07)  !important; }
 .arena-dark .bg-emerald-100  { background-color: rgba(16,185,129,0.13)  !important; }
@@ -254,6 +265,8 @@
 .arena-dark .text-amber-800,
 .arena-dark .text-amber-700,
 .arena-dark .text-amber-600 { color: #FCD34D !important; }
+.arena-dark .text-amber-500 { color: #FBB928 !important; }
+.arena-dark .border-amber-300 { border-color: rgba(245,158,11,0.50) !important; }
 .arena-dark .border-amber-100 { border-color: rgba(245,158,11,0.22) !important; }
 .arena-dark .border-amber-200 { border-color: rgba(245,158,11,0.35) !important; }
 .arena-dark .bg-orange-50   { background-color: rgba(249,115,22,0.08) !important; }
@@ -271,8 +284,12 @@
 /* ── Red ── */
 .arena-dark .bg-red-50  { background-color: rgba(239,68,68,0.08)  !important; }
 .arena-dark .bg-red-100 { background-color: rgba(239,68,68,0.15)  !important; }
+.arena-dark .text-red-900,
+.arena-dark .text-red-800 { color: #FCA5A5 !important; }
 .arena-dark .text-red-700,
 .arena-dark .text-red-600 { color: var(--ad-red) !important; }
+.arena-dark .border-red-100 { border-color: rgba(239,68,68,0.20) !important; }
+.arena-dark .border-red-200 { border-color: rgba(239,68,68,0.35) !important; }
 
 /* ── White opacity variants (bg-white/10 … bg-white/90) ── */
 .arena-dark .bg-white\/10,
@@ -284,6 +301,12 @@
 .arena-dark .bg-white\/70,
 .arena-dark .bg-white\/80,
 .arena-dark .bg-white\/90 { background-color: var(--ad-inner) !important; }
+
+/* ── Brand navy (#1A4B8C) → visible blue in dark mode ── */
+.arena-dark .bg-\[#1A4B8C\]     { background-color: var(--ad-blue2)   !important; }
+.arena-dark .border-\[#1A4B8C\] { border-color:      var(--ad-blue2)   !important; }
+.arena-dark .hover\:bg-blue-900:hover { background-color: #1D4ED8 !important; }
+.arena-dark .bg-blue-900 { background-color: #1E40AF !important; }
 
 /* ── Hover states ── */
 .arena-dark .hover\:bg-gray-50:hover  { background-color: var(--ad-card)  !important; }
