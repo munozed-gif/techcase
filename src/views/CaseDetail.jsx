@@ -5495,8 +5495,7 @@ function CaseInviteCard({ caseData, auth }) {
     if (error) throw error;
     setInvites(prev => [data, ...prev]);
     const joinUrl = `${window.location.origin}/join/${data.token}`;
-    try { await navigator.clipboard.writeText(joinUrl); } catch {}
-    setFeedback({ type: "success", msg: "Invite link copied to clipboard! Share it with the client." });
+    await deliverInvite({ email: cleanEmail, recipientName: name.trim() || null, joinUrl });
     setEmail(""); setName(""); setLookup(null);
   }
 
@@ -5535,10 +5534,51 @@ function CaseInviteCard({ caseData, auth }) {
     if (!error && data) {
       setInvites(prev => prev.map(i => i.id === data.id ? data : i));
       const joinUrl = `${window.location.origin}/join/${data.token}`;
-      try { await navigator.clipboard.writeText(joinUrl); } catch {}
-      setFeedback({ type: "success", msg: "New invite link copied to clipboard!" });
+      await deliverInvite({ email: invite.invited_email, recipientName: invite.invited_name, joinUrl, isResend: true });
       setTimeout(() => setFeedback(null), 4000);
     }
+  }
+
+  async function deliverInvite({ email, recipientName, joinUrl, isResend = false }) {
+    const invCfg    = cdSettings["invitation_config"] ?? {};
+    const smtpCfg   = cdSettings["smtp_config"];
+    const autoEmail = invCfg.delivery === "email" && smtpCfg?.host;
+
+    if (autoEmail) {
+      const platformName = cdSettings["platform_name"] || "Arena";
+      const subject = invCfg.subject?.trim() ||
+        `You've been invited to collaborate on a case via ${platformName}`;
+      const intro = invCfg.intro?.trim() ||
+        `Your consultant has invited you to review your case on ${platformName}. Click the button below to create your account and get started.`;
+      const html = `
+        <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px">
+          <h2 style="color:#1d4ed8;margin-bottom:8px">${platformName}</h2>
+          ${recipientName ? `<p>Hi ${recipientName},</p>` : ""}
+          <p style="color:#374151">${intro}</p>
+          <div style="margin:28px 0">
+            <a href="${joinUrl}" style="background:#2563eb;color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-weight:600;display:inline-block">
+              ${isResend ? "View My Case" : "Join & View My Case"}
+            </a>
+          </div>
+          <p style="color:#6b7280;font-size:13px">Or copy this link: ${joinUrl}</p>
+          <p style="color:#9ca3af;font-size:12px">This link expires in 7 days.</p>
+        </div>`;
+      try {
+        await supabase.functions.invoke("send-email", {
+          body: { to: email, subject, html, smtpConfig: smtpCfg },
+        });
+        setFeedback({ type: "success", msg: `Invite emailed to ${email}!` });
+        return;
+      } catch {
+        // fall through to clipboard
+      }
+    }
+
+    try { await navigator.clipboard.writeText(joinUrl); } catch {}
+    setFeedback({
+      type: "success",
+      msg: isResend ? "New invite link copied to clipboard!" : "Invite link copied to clipboard! Share it with the client.",
+    });
   }
 
   const caseIsActive = !["closed","completed","cancelled"].includes(caseData?.status);

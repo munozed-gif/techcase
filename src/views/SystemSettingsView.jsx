@@ -3849,16 +3849,98 @@ function SettingsSMTPTab({ ssCtx }) {
   );
 }
 
+// ── Invitations settings tab ───────────────────────────────────
+function SettingsInvitationsTab({ ssCtx }) {
+  const { settings, setSetting } = ssCtx;
+  const stored = settings["invitation_config"] ?? {};
+  const EMPTY  = { delivery: "clipboard", subject: "", intro: "" };
+  const [form, setForm]   = useState({ ...EMPTY, ...stored });
+  const [saving, setSaving]   = useState(false);
+  const [saved,  setSaved]    = useState(false);
+  const hasSmtp = !!(settings["smtp_config"]?.host);
+
+  const f = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));
+
+  async function handleSave() {
+    setSaving(true);
+    await setSetting("invitation_config", form);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  }
+
+  return (
+    <div className="mt-4 space-y-5">
+      {/* Delivery mode toggle */}
+      <div>
+        <p className="text-xs font-semibold text-gray-700 mb-2">Delivery method</p>
+        <div className="flex gap-2">
+          {[["clipboard", "Clipboard only", "Consultant copies & pastes the link manually"],
+            ["email",     "Auto-email",     "Platform emails the client automatically when invite is sent"]
+          ].map(([val, label, desc]) => (
+            <button key={val}
+              onClick={() => setForm(p => ({ ...p, delivery: val }))}
+              className={`flex-1 text-left rounded-xl border-2 px-3 py-2.5 transition-all ${form.delivery === val ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"}`}>
+              <p className={`text-xs font-semibold ${form.delivery === val ? "text-blue-700" : "text-gray-700"}`}>{label}</p>
+              <p className="text-xs text-gray-400 mt-0.5 leading-snug">{desc}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {form.delivery === "email" && !hasSmtp && (
+        <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+          <AlertTriangle size={14} className="text-amber-500 mt-0.5 shrink-0" />
+          <p className="text-xs text-amber-700">Configure <span className="font-semibold">Email / SMTP</span> settings above first — email delivery requires a working SMTP connection.</p>
+        </div>
+      )}
+
+      {form.delivery === "email" && hasSmtp && (
+        <div className="flex items-start gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2.5">
+          <BadgeCheck size={14} className="text-emerald-600 mt-0.5 shrink-0" />
+          <p className="text-xs text-emerald-700">SMTP is configured. Invitation emails will be sent from <span className="font-medium">{settings["smtp_config"].from_email}</span>.</p>
+        </div>
+      )}
+
+      {/* Customise email */}
+      {form.delivery === "email" && (
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Email subject <span className="text-gray-400 font-normal">(leave blank for default)</span></label>
+            <input type="text" value={form.subject} onChange={f("subject")}
+              placeholder="You've been invited to collaborate on a case"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Intro paragraph <span className="text-gray-400 font-normal">(optional — shown above the join button)</span></label>
+            <textarea value={form.intro} onChange={f("intro")} rows={3}
+              placeholder="Your consultant has invited you to review your case. Click the button below to create your account and get started."
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-3 pt-1">
+        <button onClick={handleSave} disabled={saving}
+          className="px-5 py-2 text-sm bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
+          {saved ? "Saved!" : saving ? "Saving…" : "Save"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Platform tab — Platform + Invoice + Trust stacked ─────────
 function SettingsPlatformCombinedTab({ ssCtx }) {
   const SECTIONS = [
-    { id: "signup",   label: "Sign-up Flow",        Icon: Shield,    Component: SettingsSignupFlowTab },
-    { id: "smtp",     label: "Email / SMTP",        Icon: Mail,      Component: SettingsSMTPTab },
-    { id: "platform", label: "Platform Defaults",   Icon: Sparkles,  Component: SettingsPlatformTab },
-    { id: "invoice",  label: "Invoice Defaults",    Icon: Receipt,   Component: SettingsInvoiceTab },
-    { id: "trust",    label: "Trust & Ratings",     Icon: BadgeCheck, Component: SettingsTrustTab },
+    { id: "signup",       label: "Sign-up Flow",        Icon: Shield,    Component: SettingsSignupFlowTab },
+    { id: "smtp",         label: "Email / SMTP",        Icon: Mail,      Component: SettingsSMTPTab },
+    { id: "invitations",  label: "Client Invitations",  Icon: Send,      Component: SettingsInvitationsTab },
+    { id: "platform",     label: "Platform Defaults",   Icon: Sparkles,  Component: SettingsPlatformTab },
+    { id: "invoice",      label: "Invoice Defaults",    Icon: Receipt,   Component: SettingsInvoiceTab },
+    { id: "trust",        label: "Trust & Ratings",     Icon: BadgeCheck, Component: SettingsTrustTab },
   ];
-  const [open, setOpen] = useState({ signup: true, smtp: false, platform: true, invoice: true, trust: true });
+  const [open, setOpen] = useState({ signup: true, smtp: false, invitations: false, platform: true, invoice: true, trust: true });
   return (
     <div className="space-y-4">
       {SECTIONS.map(({ id, label, Icon: Ic, Component }) => (
