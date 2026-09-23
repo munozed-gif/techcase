@@ -143,6 +143,7 @@ function LifecycleSettingsView({ auth }) {
     { id: "applications", label: t("lc.tab_applicants") },
     { id: "lifecycle",    label: t("lc.tab_lifecycle") },
     { id: "spec",         label: t("lc.tab_spec") },
+    { id: "implementation", label: "SAP Implementation" },
   ];
 
   const ACTION_RULES = [

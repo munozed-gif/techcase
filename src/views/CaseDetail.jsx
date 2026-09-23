@@ -2167,7 +2167,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
     ...(caseData.is_head_hunter && (auth.isAdmin || auth.isManager || auth.isClient || auth.isHeadhunter) ? [{ id: "hh_proposals", label: "HH Proposals", icon: Crosshair, count: auth.isHeadhunter ? null : (hhProposals.filter(p => p.status === "pending").length || null) }] : []),
     ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "lifecycle", label: t("case.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
     { id: "spec",           label: t("case.tab_spec"),         icon: FileText, count: null },
-    ...((auth.isAdmin || auth.isManager || auth.isConsultant) && caseData.status === 'in_progress'
+    ...((auth.isAdmin || auth.isManager || auth.isConsultant)
       ? [{ id: "implementation", label: t("sap.impl_tab_title"), icon: Code2, count: null }]
       : []),
   ];
