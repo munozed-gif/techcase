@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Activity, Check, CheckCircle2, ChevronRight, Code2, Eye, FileCode2, Plus,
+  Activity, AlertTriangle, ArrowRight, Check, CheckCircle2, ChevronRight,
+  Code2, Eye, FileCode2, LayoutGrid, Loader2, Play, Plus,
   Settings, Sparkles, User, X, XCircle,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
@@ -1211,6 +1212,626 @@ function AbapTemplatesSection({ auth }) {
 }
 
 // ============================================================
+// SAP BLUEPRINT CANVAS — constants, helpers, components
+// ============================================================
+
+const BP_PHASES = [
+  { id: 'dictionary',  label: 'Data Dictionary', desc: 'Tables, structures, domains', color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },
+  { id: 'development', label: 'Development',     desc: 'Programs, classes, FMs',      color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe' },
+  { id: 'integration', label: 'Integration',     desc: 'RFCs, BAPIs, OData',         color: '#0e7490', bg: '#ecfeff', border: '#a5f3fc' },
+  { id: 'enhancement', label: 'Enhancement',     desc: 'BAdIs, user exits',           color: '#b45309', bg: '#fffbeb', border: '#fde68a' },
+  { id: 'ui',          label: 'UI / Output',     desc: 'Reports, forms, Fiori',       color: '#be185d', bg: '#fdf2f8', border: '#fbcfe8' },
+];
+
+const BP_TYPES = {
+  table:          { label: 'Table',          short: 'TABL', ai: false, phase: 'dictionary'  },
+  structure:      { label: 'Structure',      short: 'STRU', ai: false, phase: 'dictionary'  },
+  domain:         { label: 'Domain',         short: 'DOMA', ai: false, phase: 'dictionary'  },
+  data_element:   { label: 'Data Element',   short: 'DTEL', ai: false, phase: 'dictionary'  },
+  message_class:  { label: 'Message Class',  short: 'MSG',  ai: false, phase: 'dictionary'  },
+  program:        { label: 'Program',        short: 'PROG', ai: true,  phase: 'development' },
+  include:        { label: 'Include',        short: 'INCL', ai: true,  phase: 'development' },
+  class:          { label: 'Class',          short: 'CLAS', ai: true,  phase: 'development' },
+  function_module:{ label: 'Function Module',short: 'FM',   ai: true,  phase: 'development' },
+  bapi:           { label: 'BAPI / RFC',     short: 'RFC',  ai: true,  phase: 'integration' },
+  odata:          { label: 'OData Service',  short: 'ODATA',ai: false, phase: 'integration' },
+  badi:           { label: 'BAdI Impl',      short: 'BADI', ai: true,  phase: 'enhancement' },
+  enhancement:    { label: 'Enhancement',    short: 'ENHO', ai: true,  phase: 'enhancement' },
+  report:         { label: 'Report (ALV)',   short: 'RPT',  ai: true,  phase: 'ui'          },
+  smartform:      { label: 'SmartForm',      short: 'SF',   ai: false, phase: 'ui'          },
+};
+
+const BP_STATUS_STYLE = {
+  planned:    'border-gray-300 bg-white text-gray-700',
+  generating: 'border-blue-400 bg-blue-50 text-blue-700',
+  generated:  'border-teal-400 bg-teal-50 text-teal-700',
+  applying:   'border-amber-400 bg-amber-50 text-amber-700',
+  done:       'border-green-500 bg-green-50 text-green-700',
+  error:      'border-red-500 bg-red-50 text-red-700',
+  blocked:    'border-gray-200 bg-gray-50 text-gray-400',
+  manual:     'border-orange-300 bg-orange-50 text-orange-700',
+  skipped:    'border-yellow-300 bg-yellow-50 text-yellow-700',
+};
+
+function topoSort(objects) {
+  const map = Object.fromEntries(objects.map(o => [o.id, o]));
+  const visited = new Set();
+  const result = [];
+  function visit(obj) {
+    if (visited.has(obj.id)) return;
+    visited.add(obj.id);
+    (obj.dependsOn ?? []).forEach(depId => { if (map[depId]) visit(map[depId]); });
+    result.push(obj);
+  }
+  objects.forEach(visit);
+  return result;
+}
+
+function AddEditBlueprintObjectModal({ existing, allObjects, onSave, onClose }) {
+  const isEdit = !!existing;
+  const blank = { name: '', type: 'program', phase: 'development', description: '', aiCapable: true, dependsOn: [], order: allObjects.length + 1, transport: '', };
+  const [form, setForm] = useState(existing ? { ...existing } : blank);
+
+  function f(field, val) {
+    setForm(p => {
+      const next = { ...p, [field]: val };
+      if (field === 'type' && BP_TYPES[val]) {
+        next.phase = BP_TYPES[val].phase;
+        next.aiCapable = BP_TYPES[val].ai;
+      }
+      return next;
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+          <h3 className="font-bold text-gray-900">{isEdit ? 'Edit Object' : 'Add Blueprint Object'}</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Name</label>
+              <input value={form.name} onChange={e => f('name', e.target.value.toUpperCase())}
+                placeholder="ZPROG_ORDER"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
+              <select value={form.type} onChange={e => f('type', e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                {Object.entries(BP_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Phase</label>
+              <select value={form.phase} onChange={e => f('phase', e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                {BP_PHASES.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Order</label>
+              <input type="number" min={1} value={form.order} onChange={e => f('order', parseInt(e.target.value) || 1)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
+            <textarea value={form.description} onChange={e => f('description', e.target.value)} rows={2}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Transport Request</label>
+            <input value={form.transport ?? ''} onChange={e => f('transport', e.target.value.toUpperCase())}
+              placeholder="DEVK900123"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          </div>
+          <div className="flex items-center gap-2">
+            <input type="checkbox" id="bp-ai" checked={form.aiCapable} onChange={e => f('aiCapable', e.target.checked)}
+              className="rounded" />
+            <label htmlFor="bp-ai" className="text-sm text-gray-700">AI can generate ABAP code</label>
+          </div>
+          {allObjects.filter(o => o.id !== existing?.id).length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Depends On</label>
+              <div className="border border-gray-200 rounded-xl p-2 max-h-32 overflow-y-auto space-y-1">
+                {allObjects.filter(o => o.id !== existing?.id).map(o => (
+                  <label key={o.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-gray-50 p-1 rounded">
+                    <input type="checkbox"
+                      checked={(form.dependsOn ?? []).includes(o.id)}
+                      onChange={e => f('dependsOn', e.target.checked
+                        ? [...(form.dependsOn ?? []), o.id]
+                        : (form.dependsOn ?? []).filter(id => id !== o.id))} />
+                    <span className="font-mono text-blue-700">{o.name}</span>
+                    <span className="text-gray-400">{BP_TYPES[o.type]?.short ?? o.type}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-3 p-5 border-t border-gray-100">
+          <button onClick={() => form.name.trim() && onSave(form)}
+            disabled={!form.name.trim()}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors">
+            {isEdit ? 'Save Changes' : 'Add Object'}
+          </button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 rounded-xl transition-colors ml-auto">Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEnabled, genModel, transportReq, ssCtx }) {
+  const { settings } = ssCtx;
+  const caseId = caseData.id;
+  const bpKey = 'sap_blueprint';
+
+  const saved = (settings[bpKey] ?? {})[caseId] ?? {};
+  const [objects, setObjects] = useState(saved.objects ?? []);
+  const [stopOnError, setStopOnError] = useState(saved.stopOnError ?? true);
+  const [running, setRunning] = useState(false);
+  const [runLog, setRunLog] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
+  const [transportView, setTransportView] = useState(false);
+  const [arrows, setArrows] = useState([]);
+  const [collapsed, setCollapsed] = useState(false);
+  const containerRef = useRef(null);
+  const cardRefs = useRef({});
+  const stopRef = useRef(false);
+
+  async function saveBlueprint(newObjects, newStopOnError) {
+    const all = settings[bpKey] ?? {};
+    await ssCtx.setSetting(bpKey, { ...all, [caseId]: { objects: newObjects, stopOnError: newStopOnError ?? stopOnError } });
+  }
+
+  function updateObj(id, updates) {
+    setObjects(prev => {
+      const next = prev.map(o => o.id === id ? { ...o, ...updates } : o);
+      saveBlueprint(next);
+      return next;
+    });
+  }
+
+  function addLog(msg, status) {
+    setRunLog(p => [...p, { msg, status, ts: new Date().toLocaleTimeString() }]);
+  }
+
+  // Compute SVG arrows
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const cont = containerRef.current;
+    const contRect = cont.getBoundingClientRect();
+    const scrollLeft = cont.scrollLeft;
+    const newArrows = [];
+    for (const obj of objects) {
+      if (!obj.dependsOn?.length) continue;
+      const toEl = cardRefs.current[obj.id];
+      if (!toEl) continue;
+      const toRect = toEl.getBoundingClientRect();
+      for (const depId of obj.dependsOn) {
+        const fromEl = cardRefs.current[depId];
+        if (!fromEl) continue;
+        const fromRect = fromEl.getBoundingClientRect();
+        const x1 = fromRect.right - contRect.left + scrollLeft;
+        const y1 = fromRect.top + fromRect.height / 2 - contRect.top;
+        const x2 = toRect.left - contRect.left + scrollLeft;
+        const y2 = toRect.top + toRect.height / 2 - contRect.top;
+        const mx = (x1 + x2) / 2;
+        newArrows.push({ id: `${depId}-${obj.id}`, x1, y1, x2, y2, mx });
+      }
+    }
+    setArrows(newArrows);
+  });
+
+  async function handleAiSuggest() {
+    const prompt = `You are an SAP architect. Analyze this implementation case and suggest the SAP development objects needed.
+
+Case: ${caseData.title}
+Description: ${caseData.description ?? ''}
+SAP Module: ${caseData.area_sap ?? 'general'}
+Activities: ${activities.slice(0, 10).map(a => a.title).join(', ')}
+
+Return ONLY a valid JSON array (no markdown, no explanation) of objects. Each object must have:
+- name: string (SAP object name, e.g. ZPROG_ORDER)
+- type: one of [${Object.keys(BP_TYPES).join(', ')}]
+- phase: one of [dictionary, development, integration, enhancement, ui]
+- description: string (one sentence)
+- aiCapable: boolean
+- dependsOn: array of names of other objects in this list that this depends on (use names, not ids)
+
+Suggest 5-12 objects that cover the full implementation scope.`;
+
+    try {
+      const resp = await callClaude({
+        model: genModel,
+        system: 'You are an expert SAP architect. Return only valid JSON arrays, no markdown.',
+        messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
+        max_tokens: 2000,
+      });
+      const raw = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
+      const parsed = JSON.parse(raw.replace(/```json?/g, '').replace(/```/g, '').trim());
+      const nameToId = {};
+      const newObjs = parsed.map((item, i) => {
+        const id = crypto.randomUUID();
+        nameToId[item.name] = id;
+        return {
+          id,
+          name: item.name,
+          type: BP_TYPES[item.type] ? item.type : 'program',
+          phase: item.phase ?? BP_TYPES[item.type]?.phase ?? 'development',
+          description: item.description ?? '',
+          aiCapable: item.aiCapable ?? (BP_TYPES[item.type]?.ai ?? true),
+          dependsOn: [],
+          order: i + 1,
+          status: 'planned',
+          error: null,
+          transport: transportReq ?? '',
+          generatedCode: null,
+          appliedAt: null,
+        };
+      });
+      // Resolve name-based dependsOn to ids
+      parsed.forEach((item, i) => {
+        if (item.dependsOn?.length) {
+          newObjs[i].dependsOn = item.dependsOn.map(n => nameToId[n]).filter(Boolean);
+        }
+      });
+      const next = [...newObjs, ...objects];
+      setObjects(next);
+      await saveBlueprint(next);
+    } catch (e) {
+      alert('AI suggest failed: ' + e.message);
+    }
+  }
+
+  async function handleRunAll() {
+    if (running) { stopRef.current = true; return; }
+    stopRef.current = false;
+    setRunning(true);
+    setRunLog([]);
+    const sorted = topoSort(objects);
+    const standards = resolveAbapStandards(settings, caseData.client_id, caseData.project_id, caseData.id);
+
+    for (const obj of sorted) {
+      if (stopRef.current) { addLog('Stopped by user.', 'skipped'); break; }
+      if (obj.status === 'done') { addLog(`${obj.name}: already done, skipping.`, 'skipped'); continue; }
+
+      // Check deps
+      const depsDone = (obj.dependsOn ?? []).every(depId => {
+        const dep = objects.find(o => o.id === depId);
+        return dep && (dep.status === 'done' || dep.status === 'manual' || dep.status === 'skipped');
+      });
+      if (!depsDone) {
+        updateObj(obj.id, { status: 'blocked' });
+        addLog(`${obj.name}: blocked (dependencies not done).`, 'blocked');
+        continue;
+      }
+
+      if (!obj.aiCapable) {
+        updateObj(obj.id, { status: 'manual' });
+        addLog(`${obj.name}: manual (not AI-capable).`, 'manual');
+        continue;
+      }
+
+      try {
+        updateObj(obj.id, { status: 'generating', error: null });
+        addLog(`${obj.name}: generating ABAP...`, 'generating');
+        const standardsBlock = buildAbapStandardsPrompt(standards, obj.type, obj.name, null, caseData, transportReq, false);
+        const prompt = `You are an SAP ABAP developer. Create ${obj.type} ${obj.name}.
+Description: ${obj.description}
+Case: ${caseData.title}
+SAP Module: ${caseData.area_sap ?? 'general'}
+
+${standardsBlock}
+
+Output ONLY the ABAP source code, no explanations.`;
+        const resp = await callClaude({
+          model: genModel,
+          system: 'You are an expert SAP ABAP developer. Output only clean ABAP source code.',
+          messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
+          max_tokens: 3000,
+        });
+        const code = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
+        updateObj(obj.id, { status: 'generated', generatedCode: code });
+        addLog(`${obj.name}: code generated.`, 'generated');
+
+        if (autoImplEnabled && sapConfig?.host) {
+          updateObj(obj.id, { status: 'applying' });
+          addLog(`${obj.name}: applying to SAP...`, 'applying');
+          const ok = await sapWriteSource(sapConfig, obj.type, obj.name, code, obj.transport || transportReq || undefined);
+          if (ok) {
+            updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString() });
+            addLog(`${obj.name}: applied successfully.`, 'done');
+          } else {
+            throw new Error('SAP write returned false');
+          }
+        } else {
+          updateObj(obj.id, { status: 'generated' });
+        }
+      } catch (e) {
+        updateObj(obj.id, { status: 'error', error: e.message });
+        addLog(`${obj.name}: ERROR — ${e.message}`, 'error');
+        if (stopOnError) { addLog('Stopped on error.', 'error'); break; }
+      }
+    }
+    setRunning(false);
+  }
+
+  function handleAddObject(form) {
+    const newObj = {
+      id: crypto.randomUUID(),
+      ...form,
+      status: 'planned',
+      error: null,
+      generatedCode: null,
+      appliedAt: null,
+    };
+    const next = [...objects, newObj];
+    setObjects(next);
+    saveBlueprint(next);
+    setShowModal(false);
+  }
+
+  function handleEditObject(form) {
+    const next = objects.map(o => o.id === editTarget.id ? { ...o, ...form } : o);
+    setObjects(next);
+    saveBlueprint(next);
+    setEditTarget(null);
+  }
+
+  function handleDelete(id) {
+    const next = objects.filter(o => o.id !== id);
+    setObjects(next);
+    saveBlueprint(next);
+    if (selectedId === id) setSelectedId(null);
+  }
+
+  const selectedObj = objects.find(o => o.id === selectedId);
+
+  // Transport view grouping
+  const transportGroups = {};
+  if (transportView) {
+    for (const obj of objects) {
+      const key = obj.transport || transportReq || '(unassigned)';
+      if (!transportGroups[key]) transportGroups[key] = [];
+      transportGroups[key].push(obj);
+    }
+  }
+
+  const statusDotColor = {
+    planned: 'bg-gray-300', generating: 'bg-blue-400 animate-pulse', generated: 'bg-teal-400',
+    applying: 'bg-amber-400 animate-pulse', done: 'bg-green-500', error: 'bg-red-500',
+    blocked: 'bg-gray-200', manual: 'bg-orange-300', skipped: 'bg-yellow-300',
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      {/* Canvas header */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-100 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <LayoutGrid size={15} className="text-violet-600" />
+          <span className="font-bold text-gray-900 text-sm">Implementation Blueprint</span>
+          <span className="text-xs text-gray-400 hidden sm:inline">({objects.length} objects)</span>
+          <button onClick={() => setCollapsed(p => !p)}
+            className="text-xs text-gray-400 hover:text-gray-600 ml-1 px-1.5 py-0.5 border border-gray-200 rounded-lg">
+            {collapsed ? 'Expand' : 'Collapse'}
+          </button>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+            <input type="checkbox" checked={stopOnError} onChange={e => { setStopOnError(e.target.checked); saveBlueprint(objects, e.target.checked); }} />
+            Stop on error
+          </label>
+          <button onClick={() => setTransportView(p => !p)}
+            className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors ${transportView ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+            Transport view
+          </button>
+          <button onClick={handleAiSuggest}
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-200 rounded-lg hover:bg-violet-100 transition-colors">
+            <Sparkles size={11} />AI Suggest
+          </button>
+          <button onClick={() => { setEditTarget(null); setShowModal(true); }}
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">
+            <Plus size={11} />Add Object
+          </button>
+          <button onClick={handleRunAll}
+            className={`flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${running ? 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
+            {running ? <><X size={11} />Stop</> : <><Play size={11} />Run All</>}
+          </button>
+        </div>
+      </div>
+
+      {!collapsed && (
+        <>
+          {/* Canvas body */}
+          {!transportView ? (
+            <div className="relative overflow-x-auto" ref={containerRef} style={{ minHeight: 300 }}>
+              {/* SVG arrows */}
+              {arrows.length > 0 && (
+                <svg className="absolute inset-0 pointer-events-none z-10"
+                  style={{ width: '100%', height: '100%', minWidth: '100%', minHeight: '100%' }}>
+                  <defs>
+                    <marker id="bp-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                      <path d="M0,0 L0,6 L8,3 z" fill="#94a3b8" />
+                    </marker>
+                  </defs>
+                  {arrows.map(a => (
+                    <path key={a.id}
+                      d={`M ${a.x1},${a.y1} C ${a.mx},${a.y1} ${a.mx},${a.y2} ${a.x2},${a.y2}`}
+                      fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeDasharray="4 3"
+                      markerEnd="url(#bp-arrow)" />
+                  ))}
+                </svg>
+              )}
+              {/* Phase swim lanes */}
+              <div className="flex gap-0 min-w-max">
+                {BP_PHASES.map(phase => {
+                  const phaseObjs = objects
+                    .filter(o => o.phase === phase.id)
+                    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+                  return (
+                    <div key={phase.id} className="flex flex-col border-r border-gray-100 last:border-0" style={{ minWidth: 220 }}>
+                      {/* Lane header */}
+                      <div className="px-3 py-2 sticky top-0 z-20" style={{ background: phase.bg, borderBottom: `2px solid ${phase.border}` }}>
+                        <p className="text-xs font-bold" style={{ color: phase.color }}>{phase.label}</p>
+                        <p className="text-[10px]" style={{ color: phase.color, opacity: 0.7 }}>{phase.desc}</p>
+                      </div>
+                      {/* Cards */}
+                      <div className="p-2 space-y-2" style={{ background: phase.bg + '66' }}>
+                        {phaseObjs.map(obj => {
+                          const typeMeta = BP_TYPES[obj.type] ?? { short: obj.type.slice(0, 4).toUpperCase(), ai: false };
+                          const isSelected = selectedId === obj.id;
+                          return (
+                            <div
+                              key={obj.id}
+                              ref={el => { if (el) cardRefs.current[obj.id] = el; else delete cardRefs.current[obj.id]; }}
+                              onClick={() => setSelectedId(isSelected ? null : obj.id)}
+                              className={`w-52 rounded-xl border-2 p-2.5 cursor-pointer transition-all select-none ${BP_STATUS_STYLE[obj.status] ?? BP_STATUS_STYLE.planned} ${isSelected ? 'ring-2 ring-blue-400 ring-offset-1' : 'hover:shadow-md'}`}>
+                              <div className="flex items-start gap-1.5">
+                                <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${statusDotColor[obj.status] ?? 'bg-gray-300'}`} />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1 flex-wrap">
+                                    <span className="text-xs font-mono font-bold truncate">{obj.name}</span>
+                                    {obj.order != null && <span className="text-[9px] text-gray-400">#{obj.order}</span>}
+                                  </div>
+                                  <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                                    <span className="text-[9px] px-1 py-0 rounded font-semibold bg-white/60 border border-current">
+                                      {typeMeta.short}
+                                    </span>
+                                    <span className="text-[9px]">{obj.aiCapable ? '🤖' : '🔧'}</span>
+                                    <span className={`text-[9px] capitalize font-medium`}>{obj.status}</span>
+                                  </div>
+                                  {obj.description && (
+                                    <p className="text-[10px] text-gray-500 mt-1 line-clamp-2 leading-snug">{obj.description}</p>
+                                  )}
+                                  {obj.error && (
+                                    <p className="text-[9px] text-red-600 mt-1 flex items-center gap-0.5 line-clamp-1">
+                                      <AlertTriangle size={8} />{obj.error}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {phaseObjs.length === 0 && (
+                          <p className="text-[10px] text-center py-4" style={{ color: phase.color, opacity: 0.4 }}>No objects</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            /* Transport view */
+            <div className="p-4 space-y-3">
+              {Object.entries(transportGroups).length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-6">No objects yet.</p>
+              )}
+              {Object.entries(transportGroups).map(([tr, objs]) => (
+                <details key={tr} open className="border border-gray-200 rounded-xl overflow-hidden">
+                  <summary className="px-4 py-2.5 bg-gray-50 font-mono text-sm font-semibold text-gray-700 cursor-pointer select-none flex items-center justify-between">
+                    <span>{tr}</span>
+                    <span className="text-xs font-normal text-gray-400">{objs.length} object{objs.length !== 1 ? 's' : ''}</span>
+                  </summary>
+                  <div className="p-3 flex flex-wrap gap-2">
+                    {objs.map(obj => (
+                      <div key={obj.id}
+                        onClick={() => setSelectedId(selectedId === obj.id ? null : obj.id)}
+                        className={`px-3 py-1.5 rounded-lg border-2 text-xs font-mono cursor-pointer transition-all ${BP_STATUS_STYLE[obj.status] ?? BP_STATUS_STYLE.planned} ${selectedId === obj.id ? 'ring-2 ring-blue-400' : ''}`}>
+                        {obj.name} <span className="opacity-50">{BP_TYPES[obj.type]?.short ?? ''}</span>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              ))}
+            </div>
+          )}
+
+          {/* Object detail panel */}
+          {selectedObj && (
+            <div className="border-t border-gray-100 p-4 bg-gray-50">
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div>
+                  <p className="font-mono font-bold text-gray-900">{selectedObj.name}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{BP_TYPES[selectedObj.type]?.label ?? selectedObj.type} · {selectedObj.phase} · {selectedObj.aiCapable ? '🤖 AI-capable' : '🔧 Manual'}</p>
+                  {selectedObj.description && <p className="text-sm text-gray-600 mt-1">{selectedObj.description}</p>}
+                  {selectedObj.error && (
+                    <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                      <AlertTriangle size={11} />{selectedObj.error}
+                    </p>
+                  )}
+                  {selectedObj.appliedAt && (
+                    <p className="text-xs text-green-600 mt-1">Applied: {new Date(selectedObj.appliedAt).toLocaleString()}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button onClick={() => { setEditTarget(selectedObj); setShowModal(true); }}
+                    className="px-2.5 py-1 text-xs font-medium border border-gray-200 rounded-lg hover:bg-white transition-colors">Edit</button>
+                  {selectedObj.status === 'error' && (
+                    <button onClick={() => updateObj(selectedObj.id, { status: 'planned', error: null })}
+                      className="px-2.5 py-1 text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors">Retry</button>
+                  )}
+                  <button onClick={() => handleDelete(selectedObj.id)}
+                    className="px-2.5 py-1 text-xs font-medium bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">Delete</button>
+                </div>
+              </div>
+              {selectedObj.generatedCode && (
+                <details>
+                  <summary className="text-xs font-semibold text-gray-500 uppercase tracking-wide cursor-pointer select-none mb-1">
+                    Generated ABAP Code
+                  </summary>
+                  <pre className="bg-gray-900 text-green-300 text-xs rounded-xl p-3 overflow-x-auto max-h-56 leading-relaxed mt-1">
+                    {selectedObj.generatedCode}
+                  </pre>
+                </details>
+              )}
+            </div>
+          )}
+
+          {/* Run log */}
+          {runLog.length > 0 && (
+            <div className="border-t border-gray-100 p-3 max-h-36 overflow-y-auto bg-gray-950">
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Run Log</p>
+              <div className="space-y-0.5">
+                {runLog.map((entry, i) => (
+                  <div key={i} className="flex items-start gap-2 text-[10px]">
+                    <span className="text-gray-600 flex-shrink-0 font-mono">{entry.ts}</span>
+                    <span className={`${entry.status === 'error' ? 'text-red-400' : entry.status === 'done' ? 'text-green-400' : entry.status === 'blocked' ? 'text-gray-500' : 'text-gray-300'}`}>
+                      {entry.msg}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Add/Edit modal */}
+      {showModal && (
+        <AddEditBlueprintObjectModal
+          existing={editTarget}
+          allObjects={objects}
+          onSave={editTarget ? handleEditObject : handleAddObject}
+          onClose={() => { setShowModal(false); setEditTarget(null); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ============================================================
 // SAP IMPLEMENTATION TAB
 // ============================================================
 const SAP_OBJECT_TYPES = [
@@ -1407,6 +2028,16 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
 
   return (
     <div className="space-y-5">
+      <SapBlueprintCanvas
+        caseData={caseData}
+        auth={auth}
+        activities={implActivities}
+        sapConfig={sapConfig}
+        autoImplEnabled={autoImplEnabled}
+        genModel={genModel}
+        transportReq={transportReq}
+        ssCtx={ssCtx}
+      />
       {/* Header */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
         <div className="flex items-center justify-between flex-wrap gap-3">
@@ -1618,4 +2249,4 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
   );
 }
 
-export { useClientProfile, ABAP_STANDARDS_DEFAULTS, resolveAbapStandards, buildAbapStandardsPrompt, sapObjectPath, SAP_ENV_TYPE_META, SapIntegrationPanel, ProjectSapEnvPanel, AbapStandardsPanel, AbapTemplatesSection, SAP_OBJECT_TYPES, SapImplementationTab };
+export { useClientProfile, ABAP_STANDARDS_DEFAULTS, resolveAbapStandards, buildAbapStandardsPrompt, sapObjectPath, SAP_ENV_TYPE_META, SapIntegrationPanel, ProjectSapEnvPanel, AbapStandardsPanel, AbapTemplatesSection, SAP_OBJECT_TYPES, SapImplementationTab, SapBlueprintCanvas, BP_PHASES, BP_TYPES, BP_STATUS_STYLE };
