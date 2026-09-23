@@ -681,6 +681,7 @@ function SettingsPlatformTab({ ssCtx }) {
     invoice_due_days:           30,
     max_applications_per_case:  10,
     spec_regen_manager_only:    true,
+    show_pricing_section:       true,
   };
 
   const [form, setForm]     = useState(null);
@@ -700,6 +701,7 @@ function SettingsPlatformTab({ ssCtx }) {
         invoice_due_days:           ssCtx.settings["invoice_due_days"]           ?? DEFAULTS.invoice_due_days,
         max_applications_per_case:  ssCtx.settings["max_applications_per_case"]  ?? DEFAULTS.max_applications_per_case,
         spec_regen_manager_only:    ssCtx.settings["spec_regen_manager_only"]    ?? DEFAULTS.spec_regen_manager_only,
+        show_pricing_section:       ssCtx.settings["show_pricing_section"]       ?? DEFAULTS.show_pricing_section,
       });
     }
   }, [ssCtx.loading, ssCtx.settings]);
@@ -717,6 +719,7 @@ function SettingsPlatformTab({ ssCtx }) {
         ssCtx.setSetting("invoice_due_days",          form.invoice_due_days),
         ssCtx.setSetting("max_applications_per_case", form.max_applications_per_case),
         ssCtx.setSetting("spec_regen_manager_only",   form.spec_regen_manager_only),
+        ssCtx.setSetting("show_pricing_section",      form.show_pricing_section),
       ]);
       setToast(t("sys.settings_saved"));
       setTimeout(() => setToast(null), 3000);
@@ -852,6 +855,24 @@ function SettingsPlatformTab({ ssCtx }) {
         </label>
       </div>
 
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Palette size={16} className="text-blue-600" /> Landing Page
+        </h3>
+        <label className="flex items-center justify-between gap-4 cursor-pointer select-none">
+          <div>
+            <p className="text-sm font-medium text-gray-700">Show Pricing Section</p>
+            <p className="text-xs text-gray-400 mt-0.5">Display the pricing section on the public landing page, including nav and footer links.</p>
+          </div>
+          <button type="button"
+            onClick={() => setForm(p => ({ ...p, show_pricing_section: !p.show_pricing_section }))}
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${form.show_pricing_section ? 'bg-blue-600' : 'bg-gray-200'}`}
+            role="switch" aria-checked={form.show_pricing_section}>
+            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${form.show_pricing_section ? 'translate-x-5' : 'translate-x-0'}`} />
+          </button>
+        </label>
+      </div>
+
       {toast && (
         <div className={`px-4 py-3 rounded-xl text-sm flex items-center gap-2 ${toast.startsWith("Error") ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
           <CheckCircle2 size={14} /> {toast}
@@ -866,6 +887,7 @@ function SettingsPlatformTab({ ssCtx }) {
             invoice_due_days:          DEFAULTS.invoice_due_days,
             max_applications_per_case: DEFAULTS.max_applications_per_case,
             spec_regen_manager_only:   DEFAULTS.spec_regen_manager_only,
+            show_pricing_section:      DEFAULTS.show_pricing_section,
           })}
           className="px-4 py-2 border border-gray-200 text-gray-700 text-sm rounded-xl hover:bg-gray-50 flex items-center gap-1.5">
           <RotateCcw size={13} /> {t("sys.reset_defaults")}

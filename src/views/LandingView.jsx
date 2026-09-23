@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
 
 // ─── Nova Logo Mark ─────────────────────────────────────────────────────────
 // Module-level injection so the keyframe is available even when LandingView isn't mounted
@@ -1321,6 +1322,8 @@ export function LandingView({ onSignIn }) {
     try { const s = localStorage.getItem("tc_lang"); return s === "es" ? "es" : "en"; } catch { return "en"; }
   });
   const [pricingTab, setPricingTab] = useState("consultant");
+  const { settings: landingSettings } = useSystemSettings();
+  const showPricing = landingSettings["show_pricing_section"] ?? true;
   function tl(k) { return LANDING_STRINGS[lang]?.[k] ?? LANDING_STRINGS.en[k] ?? k; }
   function toggleLang() {
     const next = lang === "en" ? "es" : "en";
@@ -1384,7 +1387,7 @@ export function LandingView({ onSignIn }) {
           <a href="#features">{tl("nav_features")}</a>
           <a href="#lifecycle">{tl("nav_lifecycle")}</a>
           <a href="#roles">{tl("nav_roles")}</a>
-          <a href="#pricing">{tl("nav_pricing")}</a>
+          {showPricing && <a href="#pricing">{tl("nav_pricing")}</a>}
         </div>
         <div className="nav-cta">
           <button className="btn-ghost" onClick={toggleLang} style={{minWidth:40,fontWeight:700,letterSpacing:".04em"}}>{tl("lang_btn")}</button>
@@ -1771,7 +1774,7 @@ export function LandingView({ onSignIn }) {
       </section>
 
       {/* PRICING */}
-      <section className="pricing-section" id="pricing">
+      {showPricing && <section className="pricing-section" id="pricing">
         <div className="section-inner" style={{textAlign:"center"}}>
           <div className="section-tag" style={{textAlign:"center"}}>{tl("pricing_tag")}</div>
           <h2 style={{margin:"0 auto 12px"}}>{tl("pricing_h2")}</h2>
@@ -1860,7 +1863,7 @@ export function LandingView({ onSignIn }) {
             </div>
           )}
         </div>
-      </section>
+      </section>}
 
       {/* CTA */}
       <section className="cta-section">
@@ -1881,7 +1884,7 @@ export function LandingView({ onSignIn }) {
             <div className="footer-logo"><NovaLandingMark size={36} /><span className="logo-arena">Arena</span><span className="logo-rest">{tl("hero_name")}</span></div>
             <div className="footer-tagline">{tl("footer_tagline")}</div>
           </div>
-          <div className="footer-col"><h4>{tl("f_product")}</h4><a href="#arena">{tl("f_arena")}</a><a href="#features">{tl("f_features")}</a><a href="#lifecycle">{tl("f_lifecycle")}</a><a href="#roles">{tl("f_roles")}</a><a href="#pricing">{tl("f_pricing")}</a></div>
+          <div className="footer-col"><h4>{tl("f_product")}</h4><a href="#arena">{tl("f_arena")}</a><a href="#features">{tl("f_features")}</a><a href="#lifecycle">{tl("f_lifecycle")}</a><a href="#roles">{tl("f_roles")}</a>{showPricing && <a href="#pricing">{tl("f_pricing")}</a>}</div>
           <div className="footer-col"><h4>{tl("f_company")}</h4><a href="#">{tl("f_about")}</a><a href="#">{tl("f_blog")}</a><a href="#">{tl("f_careers")}</a><a href="#">{tl("f_contact")}</a></div>
           <div className="footer-col"><h4>{tl("f_legal")}</h4><a href="#">{tl("f_privacy")}</a><a href="#">{tl("f_terms")}</a><a href="#">{tl("f_security")}</a></div>
         </div>
