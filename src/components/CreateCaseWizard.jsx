@@ -432,6 +432,32 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   const [hhResults, setHhResults]   = useState([]);
   const [hhSearching, setHhSearching] = useState(false);
 
+  // Consultant client lookup (email search to assign client at creation)
+  const [consultantClientEmail, setConsultantClientEmail] = useState("");
+  const [consultantClientLookup, setConsultantClientLookup] = useState(null); // null | { found: bool, user?: {id,full_name} }
+  const consultantClientDebounce = useRef(null);
+  useEffect(() => {
+    if (!auth.isConsultant) return;
+    clearTimeout(consultantClientDebounce.current);
+    if (!consultantClientEmail.trim() || consultantClientEmail.length < 3) {
+      setConsultantClientLookup(null);
+      setScope(p => ({ ...p, client_id: "" }));
+      return;
+    }
+    consultantClientDebounce.current = setTimeout(async () => {
+      const { data } = await supabase.from("users").select("id, full_name, role")
+        .eq("email", consultantClientEmail.trim().toLowerCase()).maybeSingle();
+      if (data) {
+        setConsultantClientLookup({ found: true, user: data });
+        setScope(p => ({ ...p, client_id: data.id }));
+      } else {
+        setConsultantClientLookup({ found: false });
+        setScope(p => ({ ...p, client_id: "" }));
+      }
+    }, 400);
+    return () => clearTimeout(consultantClientDebounce.current);
+  }, [consultantClientEmail, auth.isConsultant]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Step 5: Qualifications
   const [quals, setQuals] = useState({ certifications_required: initialData?.certifications_required ?? [], min_years_experience: initialData?.min_years_experience ?? "", languages_required: initialData?.languages_required ?? [], security_clearance: initialData?.security_clearance ?? false });
 
@@ -756,6 +782,14 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
             await supabase.from("case_milestones").insert(
               milestones.map(m => ({ ...m, due_date: m.due_date || null, case_id: newCase.id }))
             );
+          }
+          // Consultant created case with a new client email → auto-send invite
+          if (auth.isConsultant && consultantClientEmail.trim() && consultantClientLookup?.found === false) {
+            await supabase.from("case_invitations").insert({
+              case_id:       newCase.id,
+              invited_email: consultantClientEmail.trim().toLowerCase(),
+              invited_by:    auth.user?.id,
+            });
           }
         }
         if (saveAsTemplate && templateName.trim()) {
@@ -1181,6 +1215,27 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
             <p className="text-sm text-gray-500 mb-5">
               {mode === "express" ? t("case.step2_desc_express") : t("case.step2_desc_adv")}
             </p>
+            {auth.isConsultant && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Client email <span className="text-gray-400 font-normal">(optional)</span></label>
+                <p className="text-xs text-gray-400 mb-2">Enter the client's email to link them to this case. If they're not on the platform yet, an invitation will be sent after creation.</p>
+                <input
+                  type="email"
+                  value={consultantClientEmail}
+                  onChange={e => setConsultantClientEmail(e.target.value)}
+                  placeholder="client@company.com"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {consultantClientLookup?.found && (
+                  <div className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-700">
+                    <CheckCircle2 size={12} /> Found: <span className="font-medium">{consultantClientLookup.user.full_name}</span> — will be linked to this case
+                  </div>
+                )}
+                {consultantClientLookup?.found === false && consultantClientEmail.length > 3 && (
+                  <div className="mt-1.5 text-xs text-blue-600">New client — an invitation link will be sent after creation.</div>
+                )}
+              </div>
+            )}
             {(auth.isAdmin || auth.isManager) && (() => {
               const selectedProject = wizardProjects.find(p => p.id === selectedProjectId);
               const projectLockedClient = selectedProject?.client_id
