@@ -5,7 +5,7 @@ import {
   ChevronDown, CreditCard, Crosshair, Database, DollarSign, Download,
   ExternalLink, FileCode2, FileText, FolderKanban, FolderOpen, Globe,
   Handshake, ListChecks, Lock, Mail, Palette, Pencil, Phone, Plus, Receipt,
-  RefreshCw, RotateCcw, Search, Settings, Shield, SlidersHorizontal,
+  RefreshCw, RotateCcw, Search, Send, Settings, Shield, SlidersHorizontal,
   Monitor, Sparkles, Tag, Trash2, TrendingUp, User, UserCheck, UserCog,
   Users, X, XCircle, Zap,
 } from "lucide-react";
