@@ -18,7 +18,7 @@ import { Badge, Spinner, TrustBadge, PlanUsageCard } from "../components/Profile
 import { EmptyState, Input, Modal, Select, Textarea } from "../components/ui.jsx";
 import { AbapStandardsPanel, ProjectSapEnvPanel, SapIntegrationPanel, useClientProfile } from "../components/SapPanels.jsx";
 import { DbConnectionsList, SapProfileFields, SapProfileBadges } from "../views/OperationsViews.jsx";
-import { ROLE_LABEL_KEYS, SLA_DEFAULT_TYPES, SlaMatrixEditor, cap, fmt, fmtDate, makeDefaultMatrix } from "../lib/uiUtils.jsx";
+import { ROLE_LABEL_KEYS, SLA_DEFAULT_TYPES, SLA_TIER_LABEL_KEYS, SlaMatrixEditor, cap, fmt, fmtDate, makeDefaultMatrix } from "../lib/uiUtils.jsx";
 import { DEFAULT_ACTIVITY_PHASES, ROLE_COLORS, STATUS_COLORS } from "../lib/businessConstants.js";
 import { CaseDefaultsPanel, AssignmentSettingsPanel } from "../views/SettingsSubViews.jsx";
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
