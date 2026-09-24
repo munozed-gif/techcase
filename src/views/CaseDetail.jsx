@@ -2170,6 +2170,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
     ...((auth.isAdmin || auth.isManager || auth.isConsultant)
       ? [{ id: "implementation", label: t("sap.impl_tab_title"), icon: Code2, count: null }]
       : []),
+    ...(perms.can("view_audit_log") ? [{ id: "audit_log", label: t("case.tab_audit_log"), icon: ClipboardList, count: null }] : []),
   ];
   const tabs = (() => {
     const filtered = stageRules.visible_tabs
@@ -5251,6 +5252,10 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           </div>
         );
       })()}
+
+                    {tab.id === "audit_log" && perms.can("view_audit_log") && (
+                      <CaseAuditLog caseId={caseData.id} />
+                    )}
                         </div>
                       ) : (
                         <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -5695,6 +5700,94 @@ function CaseInviteCard({ caseData, auth }) {
       {!loading && invites.length === 0 && (
         <p className="text-xs text-gray-400 italic">No invitations sent yet.</p>
       )}
+    </div>
+  );
+}
+
+const AUDIT_EVENT_COLORS_CD = {
+  'case.created':              'bg-blue-100 text-blue-700',
+  'case.status_changed':       'bg-amber-100 text-amber-700',
+  'case.cancelled':            'bg-red-100 text-red-700',
+  'case.updated':              'bg-gray-100 text-gray-600',
+  'case.status_bulk_changed':  'bg-amber-100 text-amber-700',
+  'case.deleted_bulk':         'bg-red-100 text-red-700',
+  'spec.generated':            'bg-purple-100 text-purple-700',
+  'spec.approved':             'bg-green-100 text-green-700',
+  'devplan.confirmed':         'bg-indigo-100 text-indigo-700',
+  'time.logged':               'bg-sky-100 text-sky-700',
+  'invoice.created':           'bg-teal-100 text-teal-700',
+  'case.rated':                'bg-pink-100 text-pink-700',
+  'rating.submitted':          'bg-pink-100 text-pink-700',
+};
+const AUDIT_EVENT_LABELS_CD = {
+  'case.created':              'Created',
+  'case.status_changed':       'Status changed',
+  'case.cancelled':            'Cancelled',
+  'case.updated':              'Updated',
+  'case.status_bulk_changed':  'Status changed (bulk)',
+  'case.deleted_bulk':         'Deleted (bulk)',
+  'spec.generated':            'Spec generated',
+  'spec.approved':             'Spec approved',
+  'devplan.confirmed':         'Dev plan confirmed',
+  'time.logged':               'Time logged',
+  'invoice.created':           'Invoice created',
+  'case.rated':                'Rated',
+  'rating.submitted':          'Rating submitted',
+};
+
+function CaseAuditLog({ caseId }) {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetch() {
+      setLoading(true);
+      const { data } = await supabase
+        .from('audit_logs')
+        .select('*')
+        .eq('entity_type', 'case')
+        .eq('entity_id', String(caseId))
+        .order('created_at', { ascending: false })
+        .limit(200);
+      setLogs(data ?? []);
+      setLoading(false);
+    }
+    fetch();
+  }, [caseId]);
+
+  if (loading) return <div className="flex justify-center py-10"><Spinner /></div>;
+  if (logs.length === 0) return (
+    <div className="py-12 text-center text-sm text-gray-400">No audit events recorded for this case yet.</div>
+  );
+
+  return (
+    <div className="space-y-1">
+      {logs.map(log => {
+        const ov = log.old_value?.status, nv = log.new_value?.status;
+        const meta = log.metadata;
+        return (
+          <div key={log.id} className="flex items-start gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 border border-transparent hover:border-gray-100 transition-colors">
+            <span className={`mt-0.5 shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap ${AUDIT_EVENT_COLORS_CD[log.event_type] ?? 'bg-gray-100 text-gray-600'}`}>
+              {AUDIT_EVENT_LABELS_CD[log.event_type] ?? log.event_type}
+            </span>
+            <div className="flex-1 min-w-0">
+              {ov && nv && (
+                <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">{ov}</span>
+                  <span className="text-gray-400">→</span>
+                  <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">{nv}</span>
+                </span>
+              )}
+              {meta?.reason && <p className="text-xs text-gray-500 mt-0.5">Reason: {meta.reason}</p>}
+              {meta?.hours != null && <p className="text-xs text-gray-500 mt-0.5">{meta.hours}h — {meta.description ?? ''}</p>}
+            </div>
+            <div className="text-right text-xs text-gray-400 shrink-0">
+              <p className="font-medium text-gray-600">{log.user_name ?? log.user_email ?? 'system'}</p>
+              <p>{new Date(log.created_at).toLocaleString()}</p>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

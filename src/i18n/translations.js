@@ -1147,6 +1147,8 @@ const TRANSLATIONS = {
     "case.tab_applicants": "Applicants",
     "case.tab_lifecycle":  "Lifecycle",
     "case.tab_spec":       "Spec",
+    "case.tab_audit_log":  "Audit Log",
+    "roles.cap.view_audit_log": "View audit log",
     // CaseDetail headings
     "case.plan_progress":    "Plan Progress",
     "case.overall_progress": "Overall Progress",
@@ -4363,6 +4365,8 @@ const TRANSLATIONS = {
     "case.tab_applicants": "Aplicantes",
     "case.tab_lifecycle":  "Ciclo de Vida",
     "case.tab_spec":       "Spec",
+    "case.tab_audit_log":  "Registro de Auditoría",
+    "roles.cap.view_audit_log": "Ver registro de auditoría",
     // CaseDetail headings
     "case.plan_progress":    "Progreso del plan",
     "case.overall_progress": "Progreso general",
