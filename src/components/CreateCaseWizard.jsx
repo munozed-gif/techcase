@@ -797,7 +797,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
             await supabase.from("case_assignments").insert({
               case_id:         newCase.id,
               consultant_id:   auth.user.id,
-              time_commitment: null,
+              time_commitment: 100,
             }).onConflict("case_id,consultant_id").ignore();
           }
         }
