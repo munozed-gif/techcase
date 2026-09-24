@@ -2,7 +2,7 @@ import { useState, useEffect, Component } from "react";
 import {
   Activity, AlertCircle, AlertTriangle, BadgeCheck, BarChart2, Briefcase,
   Building2, Calendar, CalendarDays, CalendarRange, Check, CheckCircle2,
-  ChevronDown, CreditCard, Crosshair, Database, DollarSign, Download,
+  ChevronDown, ClipboardList, CreditCard, Crosshair, Database, DollarSign, Download,
   ExternalLink, FileCode2, FileText, FolderKanban, FolderOpen, Globe,
   Handshake, ListChecks, Lock, Mail, Palette, Pencil, Phone, Plus, Receipt,
   RefreshCw, RotateCcw, Search, Send, Settings, Shield, SlidersHorizontal,
@@ -15,7 +15,7 @@ import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useSystemSettings, useVisibilitySettings, usePlanConfig, usePlatformBranding } from "../hooks/useSystemSettings.jsx";
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
-import { logEvent, notify } from "../lib/utils.js";
+import { logEvent, notify, clearAuditConfigCache } from "../lib/utils.js";
 import { Badge, PlanUsageCard, Spinner, TrustBadge } from "../components/ProfileComponents.jsx";
 import { EmptyState, Input, Modal, Select, Textarea } from "../components/ui.jsx";
 import {
@@ -4276,6 +4276,7 @@ function SystemSettingsView({ auth, onNavigate }) {
     { id: "area_leaders", label: "Area Leaders",     Icon: UserCog },
     { id: "headhunter",  label: "Headhunter",       Icon: Crosshair },
     { id: "platform",    label: "Platform",         Icon: Sparkles },
+    { id: "audit",       label: "Audit Events",     Icon: ClipboardList },
   ];
 
   return (
@@ -4309,6 +4310,139 @@ function SystemSettingsView({ auth, onNavigate }) {
       {activeTab === "area_leaders" && <SettingsAreaLeadersTab ssCtx={ssCtx} />}
       {activeTab === "headhunter"  && <SettingsHeadhunterTab ssCtx={ssCtx} />}
       {activeTab === "platform"    && <SettingsPlatformCombinedTab ssCtx={ssCtx} />}
+      {activeTab === "audit"       && <SettingsAuditTab ssCtx={ssCtx} />}
+    </div>
+  );
+}
+
+const AUDIT_EVENT_GROUPS = [
+  {
+    label: "Case Events",
+    events: [
+      { key: "case.created",             label: "Case created" },
+      { key: "case.status_changed",       label: "Status changed" },
+      { key: "case.cancelled",            label: "Case cancelled" },
+      { key: "case.status_bulk_changed",  label: "Bulk status change" },
+      { key: "case.deleted_bulk",         label: "Bulk deleted" },
+      { key: "case.rated",                label: "Case rated" },
+      { key: "rating.submitted",          label: "Rating submitted" },
+    ],
+  },
+  {
+    label: "Work Events",
+    events: [
+      { key: "spec.generated",    label: "Spec generated" },
+      { key: "spec.approved",     label: "Spec approved" },
+      { key: "devplan.confirmed", label: "Dev plan confirmed" },
+      { key: "time.logged",       label: "Time logged" },
+      { key: "invoice.created",   label: "Invoice created" },
+    ],
+  },
+  {
+    label: "Platform Events",
+    events: [
+      { key: "project.created",      label: "Project created" },
+      { key: "template.created",     label: "Template created" },
+      { key: "user.signed_up",       label: "User signed up" },
+      { key: "user.approved",        label: "User approved" },
+      { key: "user.approved_bulk",   label: "User approved (bulk)" },
+      { key: "user.rejected",        label: "User rejected" },
+      { key: "user.rejected_bulk",   label: "User rejected (bulk)" },
+      { key: "vouch.submitted",      label: "Vouch submitted" },
+    ],
+  },
+];
+
+function SettingsAuditTab({ ssCtx }) {
+  const { settings, setSetting } = ssCtx;
+  const cfg = settings["audit_log_config"] ?? {};
+  const disabled = new Set(cfg.disabled ?? []);
+  const [local, setLocal] = useState(() => new Set(cfg.disabled ?? []));
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const allKeys = AUDIT_EVENT_GROUPS.flatMap(g => g.events.map(e => e.key));
+  const allEnabled = local.size === 0;
+  const allDisabled = local.size === allKeys.length;
+
+  function toggle(key) {
+    setLocal(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+    setSaved(false);
+  }
+
+  function toggleAll(enable) {
+    setLocal(enable ? new Set() : new Set(allKeys));
+    setSaved(false);
+  }
+
+  async function save() {
+    setSaving(true);
+    await setSetting("audit_log_config", { disabled: [...local] });
+    clearAuditConfigCache();
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <div>
+        <h2 className="text-lg font-bold text-gray-900">Audit Event Configuration</h2>
+        <p className="text-sm text-gray-500 mt-0.5">Choose which events are recorded in the audit log. Disabled events will not be stored.</p>
+      </div>
+
+      <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
+        <button onClick={() => toggleAll(true)}
+          className="text-xs font-semibold text-blue-600 hover:text-blue-800 px-3 py-1.5 border border-blue-200 rounded-lg hover:bg-blue-50">
+          Enable all
+        </button>
+        <button onClick={() => toggleAll(false)}
+          className="text-xs font-semibold text-gray-500 hover:text-gray-700 px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">
+          Disable all
+        </button>
+        <span className="text-xs text-gray-400 ml-auto">
+          {allKeys.length - local.size} / {allKeys.length} events enabled
+        </span>
+      </div>
+
+      {AUDIT_EVENT_GROUPS.map(group => (
+        <div key={group.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="px-5 py-3 bg-gray-50 border-b border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-700">{group.label}</h3>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {group.events.map(ev => {
+              const enabled = !local.has(ev.key);
+              return (
+                <label key={ev.key} className="flex items-center justify-between px-5 py-3 cursor-pointer hover:bg-gray-50">
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">{ev.label}</p>
+                    <p className="text-xs text-gray-400 font-mono">{ev.key}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggle(ev.key)}
+                    className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${enabled ? "bg-blue-600" : "bg-gray-200"}`}>
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${enabled ? "translate-x-4" : "translate-x-0"}`} />
+                  </button>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+
+      <div className="flex items-center gap-3 pt-2">
+        <button onClick={save} disabled={saving}
+          className="px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
+          {saving ? "Saving…" : "Save"}
+        </button>
+        {saved && <span className="text-sm text-green-600 font-medium flex items-center gap-1"><Check size={14} /> Saved</span>}
+      </div>
     </div>
   );
 }

@@ -5738,9 +5738,10 @@ const AUDIT_EVENT_LABELS_CD = {
 function CaseAuditLog({ caseId }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filterType, setFilterType] = useState("");
 
   useEffect(() => {
-    async function fetch() {
+    async function load() {
       setLoading(true);
       const { data } = await supabase
         .from('audit_logs')
@@ -5752,42 +5753,65 @@ function CaseAuditLog({ caseId }) {
       setLogs(data ?? []);
       setLoading(false);
     }
-    fetch();
+    load();
   }, [caseId]);
 
+  const eventTypes = [...new Set(logs.map(l => l.event_type))].sort();
+  const visible = filterType ? logs.filter(l => l.event_type === filterType) : logs;
+
   if (loading) return <div className="flex justify-center py-10"><Spinner /></div>;
-  if (logs.length === 0) return (
-    <div className="py-12 text-center text-sm text-gray-400">No audit events recorded for this case yet.</div>
-  );
 
   return (
-    <div className="space-y-1">
-      {logs.map(log => {
-        const ov = log.old_value?.status, nv = log.new_value?.status;
-        const meta = log.metadata;
-        return (
-          <div key={log.id} className="flex items-start gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 border border-transparent hover:border-gray-100 transition-colors">
-            <span className={`mt-0.5 shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap ${AUDIT_EVENT_COLORS_CD[log.event_type] ?? 'bg-gray-100 text-gray-600'}`}>
-              {AUDIT_EVENT_LABELS_CD[log.event_type] ?? log.event_type}
-            </span>
-            <div className="flex-1 min-w-0">
-              {ov && nv && (
-                <span className="flex items-center gap-1.5 text-xs text-gray-500">
-                  <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">{ov}</span>
-                  <span className="text-gray-400">→</span>
-                  <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">{nv}</span>
+    <div className="space-y-3">
+      <div className="flex items-center gap-3">
+        <select value={filterType} onChange={e => setFilterType(e.target.value)}
+          className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 bg-white focus:outline-none focus:border-blue-400">
+          <option value="">All event types</option>
+          {eventTypes.map(k => (
+            <option key={k} value={k}>{AUDIT_EVENT_LABELS_CD[k] ?? k}</option>
+          ))}
+        </select>
+        {filterType && (
+          <button onClick={() => setFilterType("")}
+            className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1 border border-gray-200 rounded-lg">
+            Clear
+          </button>
+        )}
+        <span className="text-xs text-gray-400 ml-auto">{visible.length} event{visible.length !== 1 ? "s" : ""}</span>
+      </div>
+
+      {visible.length === 0 ? (
+        <div className="py-12 text-center text-sm text-gray-400">No audit events recorded for this case yet.</div>
+      ) : (
+        <div className="space-y-1">
+          {visible.map(log => {
+            const ov = log.old_value?.status, nv = log.new_value?.status;
+            const meta = log.metadata;
+            return (
+              <div key={log.id} className="flex items-start gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 border border-transparent hover:border-gray-100 transition-colors">
+                <span className={`mt-0.5 shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap ${AUDIT_EVENT_COLORS_CD[log.event_type] ?? 'bg-gray-100 text-gray-600'}`}>
+                  {AUDIT_EVENT_LABELS_CD[log.event_type] ?? log.event_type}
                 </span>
-              )}
-              {meta?.reason && <p className="text-xs text-gray-500 mt-0.5">Reason: {meta.reason}</p>}
-              {meta?.hours != null && <p className="text-xs text-gray-500 mt-0.5">{meta.hours}h — {meta.description ?? ''}</p>}
-            </div>
-            <div className="text-right text-xs text-gray-400 shrink-0">
-              <p className="font-medium text-gray-600">{log.user_name ?? log.user_email ?? 'system'}</p>
-              <p>{new Date(log.created_at).toLocaleString()}</p>
-            </div>
-          </div>
-        );
-      })}
+                <div className="flex-1 min-w-0">
+                  {ov && nv && (
+                    <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                      <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">{ov}</span>
+                      <span className="text-gray-400">→</span>
+                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">{nv}</span>
+                    </span>
+                  )}
+                  {meta?.reason && <p className="text-xs text-gray-500 mt-0.5">Reason: {meta.reason}</p>}
+                  {meta?.hours != null && <p className="text-xs text-gray-500 mt-0.5">{meta.hours}h — {meta.description ?? ''}</p>}
+                </div>
+                <div className="text-right text-xs text-gray-400 shrink-0">
+                  <p className="font-medium text-gray-600">{log.user_name ?? log.user_email ?? 'system'}</p>
+                  <p>{new Date(log.created_at).toLocaleString()}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
