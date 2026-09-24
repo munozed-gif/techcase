@@ -1406,6 +1406,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
   }
 
   const canEdit = auth.isAdmin || auth.isManager || auth.isClient || auth.isKeyUser || project.created_by === auth.user?.id;
+  const canEditLifecycle = auth.isAdmin || auth.isManager || auth.profile?.role === "project_manager";
   const TERMINAL = ["completed", "cancelled", "terminated", "closed", "approved"];
   const projProgress = projCases.length === 0 ? 0 : Math.round(projCases.filter(c => TERMINAL.includes(c.status)).length / projCases.length * 100);
 
@@ -2229,7 +2230,8 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
 
         {/* Lifecycle */}
         {tab.id === "lifecycle" && canEdit && (() => {
-          const projOverrideAllowed = clientLcConfig?.allow_project_override ?? true;
+          const sysLcDefault = _importSS?.["default_lifecycle_config"];
+          const projOverrideAllowed = clientLcConfig?.allow_project_override ?? sysLcDefault?.project?.allow_override ?? true;
           const tmplList = lcTemplates2.length ? lcTemplates2 : Object.entries(LIFECYCLE_PRESETS).map(([k, v]) => ({ key: k, ...v }));
           const previewStages = getProjTmplStages(projLcMode);
           const previewActive = previewStages.filter(s => !s.is_terminal);
@@ -2241,18 +2243,20 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                 {project.case_lifecycle
                   ? <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">{t("project.this_project")}</span>
                   : <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-semibold">{t("project.company_inherited")}</span>}
-                {!projOverrideAllowed && (
+                {canEditLifecycle && !projOverrideAllowed && (
                   <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold flex items-center gap-1">
                     <Lock size={13} className="inline mr-1" />{t("project.override_locked")}
                   </span>
                 )}
               </div>
 
-              {!projOverrideAllowed ? (
+              {canEditLifecycle && !projOverrideAllowed && (
                 <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-sm text-amber-700">
                   {t("project.lifecycle_lock_msg")}
                 </div>
-              ) : (
+              )}
+
+              {canEditLifecycle && projOverrideAllowed && (
                 <>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                     {tmplList.map(tmpl => {
@@ -2271,36 +2275,38 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                       );
                     })}
                   </div>
-
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("project.flow_preview")}</p>
-                    <div className="flex items-center flex-wrap gap-2">
-                      {previewActive.map((s, i) => (
-                        <span key={s.key} className="flex items-center gap-2">
-                          <span className="px-3 py-1.5 text-xs font-semibold rounded-xl"
-                            style={{ backgroundColor: s.color + "20", color: s.color }}>{s.label}</span>
-                          {i < previewActive.length - 1 && <span className="text-gray-300 text-sm">→</span>}
-                        </span>
-                      ))}
-                      {previewTerminal.length > 0 && (
-                        <span className="flex items-center gap-2">
-                          <span className="text-gray-300 text-sm">→</span>
-                          {previewTerminal.map(s => (
-                            <span key={s.key} className="px-3 py-1.5 text-xs font-semibold rounded-xl"
-                              style={{ backgroundColor: s.color + "20", color: s.color }}>{s.label}</span>
-                          ))}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end pt-2 border-t border-gray-100">
-                    <button onClick={handleSaveProjLc} disabled={savingProjLc}
-                      className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
-                      {savingProjLc ? t("state.saving") : t("project.save_lifecycle")}
-                    </button>
-                  </div>
                 </>
+              )}
+
+              <div className="bg-gray-50 rounded-xl p-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("project.flow_preview")}</p>
+                <div className="flex items-center flex-wrap gap-2">
+                  {previewActive.map((s, i) => (
+                    <span key={s.key} className="flex items-center gap-2">
+                      <span className="px-3 py-1.5 text-xs font-semibold rounded-xl"
+                        style={{ backgroundColor: s.color + "20", color: s.color }}>{s.label}</span>
+                      {i < previewActive.length - 1 && <span className="text-gray-300 text-sm">→</span>}
+                    </span>
+                  ))}
+                  {previewTerminal.length > 0 && (
+                    <span className="flex items-center gap-2">
+                      <span className="text-gray-300 text-sm">→</span>
+                      {previewTerminal.map(s => (
+                        <span key={s.key} className="px-3 py-1.5 text-xs font-semibold rounded-xl"
+                          style={{ backgroundColor: s.color + "20", color: s.color }}>{s.label}</span>
+                      ))}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {canEditLifecycle && projOverrideAllowed && (
+                <div className="flex justify-end pt-2 border-t border-gray-100">
+                  <button onClick={handleSaveProjLc} disabled={savingProjLc}
+                    className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
+                    {savingProjLc ? t("state.saving") : t("project.save_lifecycle")}
+                  </button>
+                </div>
               )}
             </div>
           );
