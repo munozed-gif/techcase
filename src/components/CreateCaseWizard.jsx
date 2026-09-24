@@ -378,7 +378,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   const CREATE_CASE_STEPS = [
     { id: "project",        label: t("cs.step_project"),    Icon: Layers,         desc: "Link to a project" },
     { id: "basics",         label: t("cs.step_basics"),     Icon: FileText,       desc: "Title & description" },
-    { id: "visibility",     label: "Visibility",            Icon: Lock,           desc: "Access & application settings" },
+    { id: "visibility",     label: t("cs.step_visibility"), Icon: Lock,           desc: "Access & application settings" },
     { id: "scope",          label: t("cs.step_scope"),      Icon: DollarSign,     desc: "Budget, dates & skills" },
     { id: "arrangement",    label: t("cs.step_work"),       Icon: MapPin,         desc: "Remote, on-site or hybrid" },
     { id: "roles",          label: t("cs.step_roles"),      Icon: UsersRound,     desc: "Key user & head hunters" },
@@ -958,29 +958,29 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               const caseTypeOptions = [
                 {
                   value: "case",
-                  label: "Consulting Case",
-                  desc: "Standard consulting engagement",
+                  label: t("cs.type_case"),
+                  desc: t("cs.type_case_desc"),
                   disabled: false,
                   disabledReason: null,
                 },
                 {
                   value: "ticket",
-                  label: "Support Ticket",
-                  desc: "Help desk / support request",
+                  label: t("cs.type_ticket"),
+                  desc: t("cs.type_ticket_desc"),
                   disabled: !isHelpDesk,
-                  disabledReason: "Only available for Help Desk projects",
+                  disabledReason: t("cs.type_ticket_dis"),
                 },
                 {
                   value: "resource_need",
-                  label: "Resource Need",
-                  desc: "Headhunter staffing need",
+                  label: t("cs.type_resource"),
+                  desc: t("cs.type_resource_desc"),
                   disabled: !auth.isHeadhunter,
-                  disabledReason: "Only available to headhunter users",
+                  disabledReason: t("cs.type_resource_dis"),
                 },
               ];
               return (
                 <div className="mb-4">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Case Type</p>
+                  <p className="text-sm font-medium text-gray-700 mb-2">{t("cs.case_type_label")}</p>
                   <div className="grid grid-cols-3 gap-3">
                     {caseTypeOptions.map(opt => {
                       const isActive = basics.case_type === opt.value;
@@ -1098,13 +1098,13 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
 
             {/* Who can apply */}
             <div className="mb-5">
-              <p className="text-sm font-semibold text-gray-700 mb-1">Who can apply?</p>
-              <p className="text-xs text-gray-400 mb-3">Choose whether this case accepts individual consultants, teams, or both.</p>
+              <p className="text-sm font-semibold text-gray-700 mb-1">{t("cs.who_can_apply")}</p>
+              <p className="text-xs text-gray-400 mb-3">{t("cs.who_can_apply_hint")}</p>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { value: "both",       label: "Everyone",   desc: "Individual or team" },
-                  { value: "individual", label: "Individual", desc: "Single consultants only" },
-                  { value: "team",       label: "Teams only", desc: "Requires a team" },
+                  { value: "both",       label: t("cs.app_everyone"),   desc: t("cs.app_everyone_desc") },
+                  { value: "individual", label: t("cs.app_individual"), desc: t("cs.app_individual_desc") },
+                  { value: "team",       label: t("cs.app_teams"),      desc: t("cs.app_teams_desc") },
                 ].map(opt => {
                   const sel = basics.application_mode === opt.value;
                   return (
@@ -1186,9 +1186,9 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
             </div>
             <div className="grid grid-cols-3 gap-2 mb-4">
               {[
-                { value: "both",       label: "Everyone",   desc: "Individual or team" },
-                { value: "individual", label: "Individual", desc: "Single consultants only" },
-                { value: "team",       label: "Teams only", desc: "Requires a team" },
+                { value: "both",       label: t("cs.app_everyone"),   desc: t("cs.app_everyone_desc") },
+                { value: "individual", label: t("cs.app_individual"), desc: t("cs.app_individual_desc") },
+                { value: "team",       label: t("cs.app_teams"),      desc: t("cs.app_teams_desc") },
               ].map(opt => {
                 const sel = basics.application_mode === opt.value;
                 return (
