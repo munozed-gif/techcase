@@ -12,7 +12,7 @@ import { useT } from "../i18n/index.jsx";
 import { useProjects, useProjectDbConnections, useProjectTemplates } from "../hooks/useCoreHooks.js";
 import { useCases } from "../hooks/useCaseHooks.js";
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
-import { usePlanConfig, useSystemSettings, usePermissions } from "../hooks/useSystemSettings.jsx";
+import { usePlanConfig, useSystemSettings, usePermissions, useWizardMode } from "../hooks/useSystemSettings.jsx";
 import { callClaude, logEvent } from "../lib/utils.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { EmptyState, Input, Textarea } from "../components/ui.jsx";
@@ -52,7 +52,9 @@ const PROJECT_NEXT_META = {
   cancelled: { Icon: X,          desc: "Cancel and close this project" },
 };
 
-function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel, clients = [], initialData = null }) {
+const EXPRESS_PROJECT_STEP_IDS = [1, 2, 7]; // basics, scope, review
+
+function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel, clients = [], initialData = null, defaultMode = null }) {
   const { t } = useT();
   const { settings: catalogSettings } = useSystemSettings();
   const planCfg = usePlanConfig();
@@ -77,8 +79,19 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
     { id: "review",       label: t("apply.step3_label"),     Icon: CheckCircle2,      desc: t("proj.step_review_desc") },
   ];
   const PROJECT_STEPS = isEdit ? ALL_PROJECT_STEPS.filter(s => s.id !== 'import_plan' && s.id !== 'template') : ALL_PROJECT_STEPS;
-  const [step, setSt] = useState(0);
+  const EXPRESS_PROJECT_STEPS = ALL_PROJECT_STEPS.filter((_, i) => EXPRESS_PROJECT_STEP_IDS.includes(i));
+  const [mode, setMode] = useState(isEdit ? "advanced" : (defaultMode ?? null));
+  const [step, setSt] = useState(() => {
+    if (isEdit) return 0;
+    if ((defaultMode ?? null) === "express") return EXPRESS_PROJECT_STEP_IDS[0];
+    return 0;
+  });
   const [creating, setCreating] = useState(false);
+
+  function selectMode(m) {
+    setMode(m);
+    setSt(m === "express" ? EXPRESS_PROJECT_STEP_IDS[0] : 0);
+  }
 
   // Step 0: Basics
   const [basics, setBasics] = useState({ name: initialData?.name ?? "", description: initialData?.description ?? "", status: initialData?.status ?? "draft", project_type: initialData?.project_type ?? "consulting" });
@@ -101,8 +114,11 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
   const [extractError, setExtractError]     = useState(null);
   const [caseMode, setCaseMode]             = useState("express");
 
-  const isLast = step === PROJECT_STEPS.length - 1;
-  const stepId = PROJECT_STEPS[step]?.id ?? '';
+  const expressIdx = EXPRESS_PROJECT_STEP_IDS.indexOf(step);
+  const isLast = mode === "express"
+    ? step === EXPRESS_PROJECT_STEP_IDS[EXPRESS_PROJECT_STEP_IDS.length - 1]
+    : step === PROJECT_STEPS.length - 1;
+  const stepId = ALL_PROJECT_STEPS[step]?.id ?? '';
   const [stepError, setStepError]   = useState(null);
   const [skipPending, setSkipPending] = useState(false);
   const [createError, setCreateError] = useState(null);
@@ -119,7 +135,21 @@ function CreateProjectWizard({ auth, createProject, onSave, onComplete, onCancel
     const err = validateStep();
     if (err) { setStepError(err); return; }
     setStepError(null);
-    setSt(s => s + 1);
+    if (mode === "express") {
+      const next = EXPRESS_PROJECT_STEP_IDS[expressIdx + 1];
+      if (next !== undefined) setSt(next);
+    } else {
+      setSt(s => s + 1);
+    }
+  }
+  function handleBack() {
+    if (mode === "express") {
+      if (expressIdx === 0) { onCancel(); return; }
+      setSt(EXPRESS_PROJECT_STEP_IDS[expressIdx - 1]);
+    } else {
+      if (step === 0) { onCancel(); return; }
+      setSt(s => s - 1);
+    }
   }
   function handleSkip() {
     if (!skipPending) {
@@ -289,7 +319,9 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{isEdit ? t("proj.edit_title") : t("proj.new_title")}</h1>
-          <p className="text-gray-500 text-sm mt-0.5">{isEdit ? t("proj.edit_subtitle") : t("proj.new_subtitle")}</p>
+          <p className="text-gray-500 text-sm mt-0.5">
+            {!isEdit && mode === null ? t("case.mode_null_sub") : isEdit ? t("proj.edit_subtitle") : mode === "express" ? t("proj.mode_express_sub") : t("proj.new_subtitle")}
+          </p>
         </div>
         <button onClick={onCancel}
           className="text-sm text-gray-600 hover:text-gray-800 bg-white border border-gray-300 px-3 py-1.5 rounded-xl hover:bg-gray-100">
@@ -297,7 +329,34 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         </button>
       </div>
 
-      <OnboardingRoadmap steps={PROJECT_STEPS} current={step} />
+      {/* ── Mode selection ── */}
+      {mode === null && !isEdit && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
+          <h2 className="text-lg font-semibold text-gray-900 mb-1 text-center">{t("proj.choose_mode")}</h2>
+          <p className="text-sm text-gray-400 text-center mb-8">{t("case.edit_after")}</p>
+          <div className="grid grid-cols-2 gap-5">
+            <button onClick={() => selectMode("express")}
+              className="group text-left border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 rounded-2xl p-6 transition-all">
+              <div className="w-12 h-12 rounded-xl bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center mb-4 transition-colors">
+                <Zap className="w-6 h-6 text-blue-600" />
+              </div>
+              <div className="font-bold text-gray-900 text-base mb-1">{t("cs.mode_express")}</div>
+              <div className="text-sm text-gray-500 leading-relaxed">{t("proj.mode_express_sub")} <span className="font-medium text-blue-600">3 {t("proj.steps")}.</span></div>
+            </button>
+            <button onClick={() => selectMode("advanced")}
+              className="group text-left border-2 border-gray-200 hover:border-[#1A4B8C] hover:bg-blue-50/50 rounded-2xl p-6 transition-all">
+              <div className="w-12 h-12 rounded-xl bg-gray-100 group-hover:bg-[#1A4B8C]/10 flex items-center justify-center mb-4 transition-colors">
+                <SlidersHorizontal className="w-6 h-6 text-gray-600 group-hover:text-[#1A4B8C]" />
+              </div>
+              <div className="font-bold text-gray-900 text-base mb-1">{t("cs.mode_advanced")}</div>
+              <div className="text-sm text-gray-500 leading-relaxed">{t("proj.mode_adv_sub")} <span className="font-medium text-gray-700">8 {t("proj.steps")}.</span></div>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {(mode !== null || isEdit) && <>
+      <OnboardingRoadmap steps={mode === "express" ? EXPRESS_PROJECT_STEPS : PROJECT_STEPS} current={mode === "express" ? expressIdx : (isEdit ? step : step)} />
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
 
@@ -887,9 +946,9 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
           </div>
         )}
         <div className="flex items-center justify-between">
-          <button onClick={() => step > 0 ? setSt(s => s - 1) : onCancel()}
+          <button onClick={handleBack}
             className="px-5 py-2.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors font-medium">
-            {step === 0 ? <><X size={13} className="mr-1 inline" />{t("action.cancel")}</> : `← ${t("action.back")}`}
+            {(mode === "express" ? expressIdx === 0 : step === 0) ? <><X size={13} className="mr-1 inline" />{t("action.cancel")}</> : `← ${t("action.back")}`}
           </button>
           <div className="flex items-center gap-3">
             {(stepId === 'template' || stepId === 'objectives' || stepId === 'team' || stepId === 'import_plan') && (
@@ -941,6 +1000,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
           </div>
         </div>
       </div>
+      </>}
     </div>
   );
 }
@@ -1158,6 +1218,7 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
 
 function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [], importedCasesCount = 0 }) {
   const { t } = useT();
+  const wizardMode = useWizardMode(auth);
   const { createCase, updateCase, deleteCase } = useCases({});
   const [projCases, setProjCases] = useState([]);
   const [showCreateCase, setShowCreateCase] = useState(false);
@@ -2302,6 +2363,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
             auth={auth}
             createCase={createCase}
             initialProjectId={project.id}
+            defaultMode={wizardMode.getMode("case")}
             onComplete={async () => {
               setShowCreateCase(false);
               const { data } = await supabase.from("cases")
@@ -2346,6 +2408,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
 function ProjectsView({ auth, initialProjectId }) {
   const { t } = useT();
   const perms = usePermissions(auth);
+  const wizardMode = useWizardMode(auth);
   const clientFetchFilter = auth.isClient ? { client_id: auth.user?.id } : {};
   const { projects, loading, createProject, updateProject, closeProject } = useProjects(clientFetchFilter);
   const { templates: lcTemplates } = useLifecycleTemplates();
@@ -2431,6 +2494,7 @@ function ProjectsView({ auth, initialProjectId }) {
           auth={auth}
           createProject={createProject}
           clients={clients}
+          defaultMode={wizardMode.getMode("project")}
           onComplete={(newProj, caseCount) => {
             setShowCreate(false);
             if (newProj?.id) {

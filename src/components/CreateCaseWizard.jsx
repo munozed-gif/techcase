@@ -364,7 +364,7 @@ function RequiredRolesBuilder({ roles, onChange, catalogSkills, applicationMode 
   );
 }
 
-function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, initialData = null, initialProjectId = null, presetData = null }) {
+function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, initialData = null, initialProjectId = null, presetData = null, defaultMode = null }) {
   const { t } = useT();
   const { settings: catalogSettings } = useSystemSettings();
   const planCfg = usePlanConfig();
@@ -388,7 +388,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
     { id: "review",         label: t("cs.step_review"),    Icon: CheckCircle2,   desc: "Confirm & create" },
   ];
   const EXPRESS_CASE_STEPS = CREATE_CASE_STEPS.filter((_, i) => EXPRESS_STEP_IDS.includes(i));
-  const [mode, setMode]     = useState(isEdit ? "advanced" : null);
+  const [mode, setMode]     = useState(isEdit ? "advanced" : (defaultMode ?? null));
   const [step, setSt]       = useState(initialProjectId || auth.isHeadhunter ? 1 : 0);
   const [creating, setCreating] = useState(false);
   const [upgradeModal, setUpgradeModal] = useState(null);

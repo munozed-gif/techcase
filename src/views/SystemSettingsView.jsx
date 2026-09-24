@@ -28,7 +28,7 @@ import {
   LIFECYCLE_PRESETS, DEFAULT_ACTIVITY_PHASES,
   SAP_AREAS, INDUSTRY_AREAS, PROJECT_TYPES, ROLE_TO_PLAN_TYPE, PRIORITY_COLORS,
 } from "../lib/businessConstants.js";
-import { GENERATION_CONTEXT_DEFAULTS, GENERATION_PROFILE_DEFAULTS, GEN_DOCS, ROLE_PERMISSIONS_DEFAULTS } from "../lib/constants.js";
+import { GENERATION_CONTEXT_DEFAULTS, GENERATION_PROFILE_DEFAULTS, GEN_DOCS, ROLE_PERMISSIONS_DEFAULTS, WIZARD_MODE_DEFAULTS } from "../lib/constants.js";
 import { LifecycleSettingsView, CaseDefaultsPanel, AssignmentSettingsPanel, TransitionGatesPanel } from "./SettingsSubViews.jsx";
 import { PersonAvatar } from "./Projects.jsx";
 import { AbapTemplatesSection } from "../components/SapPanels.jsx";
@@ -907,7 +907,12 @@ function SettingsRolesTab({ ssCtx }) {
   const ALL_ROLES = ["admin", "manager", "consultant", "client", "key_user", "headhunter", "final_user", "dispatch", "area_leader"];
   const CAPABILITIES = Object.keys(ROLE_PERMISSIONS_DEFAULTS);
 
+  const WIZARD_TYPES = ["case", "project"];
+  const WIZARD_ROLES = ["admin", "manager", "consultant", "client", "key_user", "headhunter", "final_user", "internal_consultant", "project_manager"];
+  const WIZARD_OPTIONS = ["ask", "express", "advanced"];
+
   const [matrix, setMatrix] = useState(null);
+  const [wizardModes, setWizardModes] = useState(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast]   = useState(null);
 
@@ -919,8 +924,18 @@ function SettingsRolesTab({ ssCtx }) {
         merged[cap] = { ...ROLE_PERMISSIONS_DEFAULTS[cap], ...(stored[cap] ?? {}) };
       }
       setMatrix(merged);
+
+      const storedWiz = ssCtx.settings["wizard_modes"] ?? {};
+      const mergedWiz = {};
+      for (const type of WIZARD_TYPES) {
+        mergedWiz[type] = {};
+        for (const role of WIZARD_ROLES) {
+          mergedWiz[type][role] = storedWiz[type]?.[role] ?? WIZARD_MODE_DEFAULTS[type]?.[role] ?? "ask";
+        }
+      }
+      setWizardModes(mergedWiz);
     }
-  }, [ssCtx.loading, ssCtx.settings]);
+  }, [ssCtx.loading, ssCtx.settings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggle(cap, role) {
     if (role === 'admin') return;
@@ -931,6 +946,7 @@ function SettingsRolesTab({ ssCtx }) {
     setSaving(true);
     try {
       await ssCtx.setSetting("role_permissions", matrix);
+      await ssCtx.setSetting("wizard_modes", wizardModes);
       setToast(t("roles.saved"));
       setTimeout(() => setToast(null), 3000);
     } catch (e) {
@@ -943,9 +959,15 @@ function SettingsRolesTab({ ssCtx }) {
     const fresh = {};
     for (const cap of CAPABILITIES) fresh[cap] = { ...ROLE_PERMISSIONS_DEFAULTS[cap] };
     setMatrix(fresh);
+    const freshWiz = {};
+    for (const type of WIZARD_TYPES) {
+      freshWiz[type] = {};
+      for (const role of WIZARD_ROLES) freshWiz[type][role] = WIZARD_MODE_DEFAULTS[type]?.[role] ?? "ask";
+    }
+    setWizardModes(freshWiz);
   }
 
-  if (ssCtx.loading || !matrix) return <Spinner />;
+  if (ssCtx.loading || !matrix || !wizardModes) return <Spinner />;
 
   const ROLE_COLORS = {
     admin:               'bg-red-100 text-red-700',
@@ -1021,6 +1043,51 @@ function SettingsRolesTab({ ssCtx }) {
                           <Check size={11} />
                         </button>
                       )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Wizard Mode Defaults */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <Zap size={16} className="text-blue-600" />
+          <h3 className="font-semibold text-gray-900">{t("roles.wizard_modes_title")}</h3>
+        </div>
+        <p className="text-xs text-gray-400 mb-5">{t("roles.wizard_modes_desc")}</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th className="text-left py-2 pr-4 font-semibold text-gray-500 text-xs uppercase tracking-wide w-36">{t("roles.wizard_type")}</th>
+                {WIZARD_ROLES.map(r => (
+                  <th key={r} className="text-center py-2 px-1.5 min-w-[80px]">
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ROLE_COLORS[r] ?? 'bg-gray-100 text-gray-600'}`}>
+                      {t("role." + r)}
+                    </span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {WIZARD_TYPES.map((type, idx) => (
+                <tr key={type} className={`border-b border-gray-100 ${idx % 2 === 0 ? 'bg-gray-50/50' : ''}`}>
+                  <td className="py-3 pr-4 font-medium text-gray-700 text-xs">{t("roles.wizard_type_" + type)}</td>
+                  {WIZARD_ROLES.map(role => (
+                    <td key={role} className="text-center py-2 px-1.5">
+                      <select
+                        value={wizardModes[type][role]}
+                        onChange={e => setWizardModes(p => ({ ...p, [type]: { ...p[type], [role]: e.target.value } }))}
+                        className="text-xs border border-gray-200 rounded-lg px-1.5 py-1 bg-white text-gray-700 focus:outline-none focus:border-blue-400 cursor-pointer"
+                      >
+                        {WIZARD_OPTIONS.map(opt => (
+                          <option key={opt} value={opt}>{t("roles.wizard_opt_" + opt)}</option>
+                        ))}
+                      </select>
                     </td>
                   ))}
                 </tr>

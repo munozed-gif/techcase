@@ -111,8 +111,22 @@ const GEN_DOCS = [
   ]},
 ];
 
+const WIZARD_MODE_DEFAULTS = {
+  case: {
+    admin:"ask", manager:"ask", consultant:"express", client:"ask",
+    key_user:"ask", headhunter:"express", final_user:"ask",
+    internal_consultant:"ask", project_manager:"ask",
+  },
+  project: {
+    admin:"ask", manager:"ask", consultant:"express", client:"ask",
+    key_user:"ask", headhunter:"express", final_user:"ask",
+    internal_consultant:"ask", project_manager:"ask",
+  },
+};
+
 export {
   ROLE_PERMISSIONS_DEFAULTS,
+  WIZARD_MODE_DEFAULTS,
   GENERATION_CONTEXT_DEFAULTS,
   GENERATION_PROFILE_DEFAULTS,
   GEN_DOCS,

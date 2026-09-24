@@ -10,7 +10,7 @@ import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useCases } from "../hooks/useCaseHooks.js";
 import { useProjects } from "../hooks/useCoreHooks.js";
-import { filterCasesByVisibility, usePlanConfig, usePermissions, useSystemSettings, useVisibilitySettings } from "../hooks/useSystemSettings.jsx";
+import { filterCasesByVisibility, usePlanConfig, usePermissions, useSystemSettings, useVisibilitySettings, useWizardMode } from "../hooks/useSystemSettings.jsx";
 import { logEvent } from "../lib/utils.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { EmptyState, Input } from "../components/ui.jsx";
@@ -28,6 +28,7 @@ import {
 
 function CasesView({ auth, initialCaseId }) {
   const { t } = useT();
+  const wizardMode = useWizardMode(auth);
   const [search, setSearch]           = useState("");
   const [statusFilter, setStatus]     = useState("");
   const [periodFilter, setPeriod]     = useState("");
@@ -217,6 +218,7 @@ function CasesView({ auth, initialCaseId }) {
         <CreateCaseWizard
           auth={auth}
           createCase={createCase}
+          defaultMode={wizardMode.getMode("case")}
           onComplete={() => setShowCreate(false)}
           onCancel={() => setShowCreate(false)}
         />

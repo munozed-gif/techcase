@@ -7,6 +7,7 @@ import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useCases } from "../hooks/useCaseHooks.js";
 import { useProjectTemplates } from "../hooks/useCoreHooks.js";
+import { useWizardMode } from "../hooks/useSystemSettings.jsx";
 import { Spinner } from "../components/ProfileComponents.jsx";
 import { EmptyState, Select } from "../components/ui.jsx";
 import { LIFECYCLE_PRESETS } from "../lib/businessConstants.js";
@@ -411,6 +412,7 @@ function SaveCaseAsTemplateModal({ caseData, onClose }) {
 
 function CaseTemplatesView({ auth }) {
   const { t } = useT();
+  const wizardMode = useWizardMode(auth);
   const [templateTab, setTemplateTab] = useState('case');
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -495,6 +497,7 @@ function CaseTemplatesView({ auth }) {
           auth={auth}
           createCase={createCase}
           presetData={createInitialData}
+          defaultMode={wizardMode.getMode("case")}
           onComplete={() => setShowCreateCase(false)}
           onCancel={() => setShowCreateCase(false)}
         />

@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext, createContext } from "react";
 import { supabase } from "../lib/supabase.js";
-import { ROLE_PERMISSIONS_DEFAULTS } from "../lib/constants.js";
+import { ROLE_PERMISSIONS_DEFAULTS, WIZARD_MODE_DEFAULTS } from "../lib/constants.js";
 import { DEFAULT_PLAN_CONFIG, DEFAULT_PLAN_PRICES, TECHCASE_LOGO_URI } from "../lib/businessConstants.js";
 
 // ============================================================
@@ -219,6 +219,21 @@ function usePermissions(auth) {
   return { can };
 }
 
+function useWizardMode(auth) {
+  const { settings } = useSystemSettings();
+  const role = auth?.profile?.role ?? null;
+
+  function getMode(type) {
+    if (!role) return "ask";
+    const stored = settings["wizard_modes"] ?? {};
+    const storedForType = stored[type] ?? {};
+    const defaults = WIZARD_MODE_DEFAULTS[type] ?? {};
+    return storedForType[role] ?? defaults[role] ?? "ask";
+  }
+
+  return { getMode };
+}
+
 export {
   SystemSettingsContext,
   usePlatformBranding,
@@ -228,4 +243,5 @@ export {
   SystemSettingsProvider,
   useSystemSettings,
   usePermissions,
+  useWizardMode,
 };
