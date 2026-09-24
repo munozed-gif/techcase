@@ -2166,7 +2166,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
     { id: "time",       label: t("case.tab_time"),       icon: Clock,         count: `${totalTimeHours.toFixed(1)}h` },
     ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "applications", label: t("case.tab_applicants"), icon: Users, count: applications.length }] : []),
     ...(caseData.is_head_hunter && (auth.isAdmin || auth.isManager || auth.isClient || auth.isHeadhunter) ? [{ id: "hh_proposals", label: "HH Proposals", icon: Crosshair, count: auth.isHeadhunter ? null : (hhProposals.filter(p => p.status === "pending").length || null) }] : []),
-    ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "lifecycle", label: t("case.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
+    ...(perms.can("view_lifecycle") ? [{ id: "lifecycle", label: t("case.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
     { id: "spec",           label: t("case.tab_spec"),         icon: FileText, count: null },
     ...((auth.isAdmin || auth.isManager || auth.isConsultant)
       ? [{ id: "implementation", label: t("sap.impl_tab_title"), icon: Code2, count: null }]
@@ -5203,7 +5203,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         <SapImplementationTab caseData={caseData} auth={auth} activities={activities} updateActivity={updateActivity} />
       )}
 
-                    {tab.id === "lifecycle" && (auth.isAdmin || auth.isManager || auth.isClient) && (() => {
+                    {tab.id === "lifecycle" && perms.can("view_lifecycle") && (() => {
         if (lcMode === null) return <div className="flex justify-center py-10"><Spinner /></div>;
         const caseOverrideAllowed = clientLifecycle?.allow_case_override ?? true;
         const tmplList = caseLcTemplates.length ? caseLcTemplates : Object.entries(LIFECYCLE_PRESETS).map(([k, v]) => ({ key: k, ...v }));
@@ -5230,11 +5230,13 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               )}
             </div>
 
-            {!caseOverrideAllowed ? (
+            {perms.can("edit_lifecycle") && !caseOverrideAllowed && (
               <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-sm text-amber-700">
                 {t("case.lifecycle_lock_msg")}
               </div>
-            ) : (
+            )}
+
+            {perms.can("edit_lifecycle") && caseOverrideAllowed && (
               <>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {tmplList.map(tmpl => {
@@ -5285,6 +5287,10 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                   </button>
                 </div>
               </>
+            )}
+
+            {!perms.can("edit_lifecycle") && (
+              <LifecycleFlowDiagram stages={inheritedStages} currentStatus={caseData.status} />
             )}
           </div>
         );

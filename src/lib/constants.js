@@ -25,6 +25,7 @@ const ROLE_PERMISSIONS_DEFAULTS = {
   create_projects:            { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
   view_audit_log:             { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
   reopen_cases:               { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
+  edit_lifecycle:             { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
 };
 
 // ============================================================

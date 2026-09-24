@@ -3637,10 +3637,122 @@ function SettingsPricingTab({ ssCtx, auth }) {
 }
 
 // ── Workflow tab — Lifecycle + Phases + SLA ───────────────────
+function SettingsDefaultLifecycleTab({ ssCtx }) {
+  const { settings, setSetting } = ssCtx;
+  const { templates } = useLifecycleTemplates();
+  const cfg = settings["default_lifecycle_config"] ?? {};
+  const [casePreset,    setCasePreset]    = useState(cfg.case?.preset    ?? "standard");
+  const [caseReopenTo,  setCaseReopenTo]  = useState(cfg.case?.reopen_to ?? "open");
+  const [projPreset,    setProjPreset]    = useState(cfg.project?.preset  ?? "standard");
+  const [projReopenTo,  setProjReopenTo]  = useState(cfg.project?.reopen_to ?? "open");
+  const [saving, setSaving] = useState(false);
+  const [saved,  setSaved]  = useState(false);
+
+  useEffect(() => {
+    const c = settings["default_lifecycle_config"] ?? {};
+    setCasePreset(c.case?.preset    ?? "standard");
+    setCaseReopenTo(c.case?.reopen_to ?? "open");
+    setProjPreset(c.project?.preset  ?? "standard");
+    setProjReopenTo(c.project?.reopen_to ?? "open");
+  }, [settings]);
+
+  const tmplList = templates.length
+    ? templates
+    : Object.entries(LIFECYCLE_PRESETS).map(([k, v]) => ({ key: k, ...v }));
+
+  function stagesFor(preset) {
+    const tmpl = templates.find(t => t.key === preset);
+    return (tmpl?.stages ?? LIFECYCLE_PRESETS[preset]?.stages ?? LIFECYCLE_PRESETS.standard.stages).filter(s => !s.is_terminal);
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    await setSetting("default_lifecycle_config", {
+      case:    { preset: casePreset,  reopen_to: caseReopenTo },
+      project: { preset: projPreset,  reopen_to: projReopenTo },
+    });
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  const LcSelect = ({ label, value, onChange }) => (
+    <div>
+      <p className="text-xs font-semibold text-gray-500 mb-2">{label}</p>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {tmplList.map(tmpl => {
+          const isBuiltin = ["short","standard","full"].includes(tmpl.key);
+          const active = (tmpl.stages ?? []).filter(s => !s.is_terminal);
+          return (
+            <button key={tmpl.key} onClick={() => onChange(tmpl.key)}
+              className={`text-left p-3 rounded-xl border-2 transition-all ${
+                value === tmpl.key ? "border-[#1A4B8C] bg-blue-50" : "border-gray-200 bg-white hover:border-blue-200"}`}>
+              <p className="font-semibold text-sm text-gray-900">{isBuiltin ? tmpl.name : tmpl.name}</p>
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {active.slice(0, 4).map((s, i) => (
+                  <span key={s.key} className="flex items-center gap-1">
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                      style={{ backgroundColor: s.color + "22", color: s.color }}>{s.label}</span>
+                    {i < Math.min(active.length, 4) - 1 && <span className="text-gray-300 text-[10px]">›</span>}
+                  </span>
+                ))}
+                {active.length > 4 && <span className="text-[10px] text-gray-400">+{active.length - 4}</span>}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const ReopenSelect = ({ label, preset, value, onChange }) => {
+    const stages = stagesFor(preset);
+    return (
+      <div>
+        <p className="text-xs font-semibold text-gray-500 mb-1">{label}</p>
+        <select value={value} onChange={e => onChange(e.target.value)}
+          className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:border-blue-400">
+          {stages.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+          {!stages.find(s => s.key === value) && <option value={value}>{value}</option>}
+        </select>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-8 max-w-2xl">
+      <p className="text-sm text-gray-500">
+        These defaults apply automatically when a case or project is created without a client, or by roles that don't configure their own lifecycle.
+      </p>
+
+      <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-5">
+        <p className="text-sm font-bold text-gray-800">Cases</p>
+        <LcSelect label="Default lifecycle template" value={casePreset} onChange={setCasePreset} />
+        <ReopenSelect label="Default reopen-to stage" preset={casePreset} value={caseReopenTo} onChange={setCaseReopenTo} />
+      </div>
+
+      <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-5">
+        <p className="text-sm font-bold text-gray-800">Projects</p>
+        <LcSelect label="Default lifecycle template" value={projPreset} onChange={setProjPreset} />
+        <ReopenSelect label="Default reopen-to stage" preset={projPreset} value={projReopenTo} onChange={setProjReopenTo} />
+      </div>
+
+      <div className="flex items-center gap-3">
+        <button onClick={handleSave} disabled={saving}
+          className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
+          {saving ? "Saving…" : "Save defaults"}
+        </button>
+        {saved && <span className="text-sm text-green-600 font-semibold">Saved</span>}
+      </div>
+    </div>
+  );
+}
+
 function SettingsWorkflowTab({ auth, ssCtx }) {
   const [wTab, setWTab] = useState("lifecycle");
   const WTABS = [
     { id: "lifecycle", label: "Lifecycle Templates", Icon: TrendingUp },
+    { id: "defaults",  label: "Defaults",            Icon: Settings },
     { id: "gates",     label: "Transition Gates",    Icon: Lock },
     { id: "phases",    label: "Activity Phases",     Icon: ListChecks },
     { id: "sla",       label: "SLA",                 Icon: Shield },
@@ -3658,6 +3770,7 @@ function SettingsWorkflowTab({ auth, ssCtx }) {
         ))}
       </div>
       {wTab === "lifecycle" && <LifecycleSettingsView auth={auth} />}
+      {wTab === "defaults"  && <SettingsDefaultLifecycleTab ssCtx={ssCtx} />}
       {wTab === "gates"     && <TransitionGatesPanel auth={auth} />}
       {wTab === "phases"    && <SettingsPhasesTab ssCtx={ssCtx} />}
       {wTab === "sla"       && <SlaView auth={auth} />}
