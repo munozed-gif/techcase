@@ -4264,6 +4264,7 @@ function SystemSettingsView({ auth, onNavigate }) {
 
   const TABS = [
     { id: "people",      label: "People",          Icon: Users },
+    { id: "roles",       label: "Roles & Perms",   Icon: Shield },
     { id: "plans",       label: "Plans",           Icon: CreditCard },
     { id: "pricing",     label: "Pricing",         Icon: DollarSign },
     { id: "workflow",    label: "Workflow",         Icon: TrendingUp },
@@ -4296,6 +4297,7 @@ function SystemSettingsView({ auth, onNavigate }) {
       </div>
 
       {activeTab === "people"      && <SettingsPeopleTab ssCtx={ssCtx} auth={auth} onNavigate={onNavigate} />}
+      {activeTab === "roles"       && <SettingsRolesTab ssCtx={ssCtx} />}
       {activeTab === "plans"       && <SettingsPlansTab ssCtx={ssCtx} auth={auth} />}
       {activeTab === "pricing"     && <SettingsPricingTab ssCtx={ssCtx} auth={auth} />}
       {activeTab === "workflow"    && <SettingsWorkflowTab auth={auth} ssCtx={ssCtx} />}
