@@ -20,7 +20,7 @@ function useCases(filters = {}) {
     let query = supabase
       .from("cases")
       .select(`
-        *,
+        *, created_by,
         client:client_id(id, full_name, email, avatar_url, client_profiles(company_name)),
         manager:manager_id(id, full_name, email, avatar_url),
         case_assignments(consultant_id, time_commitment,

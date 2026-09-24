@@ -79,7 +79,10 @@ function CasesView({ auth, initialCaseId }) {
   // Consultants and key users see only their linked cases.
   // Headhunters see resource-need cases or cases assigned to them.
   const visibleCases = auth.isConsultant
-    ? cases.filter(c => c.case_assignments?.some(a => a.consultant_id === auth.user?.id))
+    ? cases.filter(c =>
+        c.case_assignments?.some(a => a.consultant_id === auth.user?.id) ||
+        c.created_by === auth.user?.id
+      )
     : auth.isKeyUser
     ? cases.filter(c => c.case_key_users?.some(ku => ku.user_id === auth.user?.id))
     : auth.isHeadhunter

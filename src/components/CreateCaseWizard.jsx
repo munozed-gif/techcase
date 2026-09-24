@@ -791,14 +791,6 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               invited_by:    auth.user?.id,
             });
           }
-          // Auto-assign the creating consultant so the case appears in their Cases tab
-          if (auth.isConsultant && auth.user?.id) {
-            await supabase.from("case_assignments").insert({
-              case_id:         newCase.id,
-              consultant_id:   auth.user.id,
-              time_commitment: null,
-            }).onConflict("case_id,consultant_id").ignore();
-          }
         }
         if (saveAsTemplate && templateName.trim()) {
           try {
