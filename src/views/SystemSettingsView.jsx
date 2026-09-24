@@ -3641,19 +3641,23 @@ function SettingsDefaultLifecycleTab({ ssCtx }) {
   const { settings, setSetting } = ssCtx;
   const { templates } = useLifecycleTemplates();
   const cfg = settings["default_lifecycle_config"] ?? {};
-  const [casePreset,    setCasePreset]    = useState(cfg.case?.preset    ?? "standard");
-  const [caseReopenTo,  setCaseReopenTo]  = useState(cfg.case?.reopen_to ?? "open");
-  const [projPreset,    setProjPreset]    = useState(cfg.project?.preset  ?? "standard");
-  const [projReopenTo,  setProjReopenTo]  = useState(cfg.project?.reopen_to ?? "open");
+  const [casePreset,       setCasePreset]       = useState(cfg.case?.preset         ?? "standard");
+  const [caseReopenTo,     setCaseReopenTo]     = useState(cfg.case?.reopen_to      ?? "open");
+  const [caseAllowOverride,setCaseAllowOverride] = useState(cfg.case?.allow_override ?? true);
+  const [projPreset,       setProjPreset]       = useState(cfg.project?.preset      ?? "standard");
+  const [projReopenTo,     setProjReopenTo]     = useState(cfg.project?.reopen_to   ?? "open");
+  const [projAllowOverride,setProjAllowOverride] = useState(cfg.project?.allow_override ?? true);
   const [saving, setSaving] = useState(false);
   const [saved,  setSaved]  = useState(false);
 
   useEffect(() => {
     const c = settings["default_lifecycle_config"] ?? {};
-    setCasePreset(c.case?.preset    ?? "standard");
-    setCaseReopenTo(c.case?.reopen_to ?? "open");
-    setProjPreset(c.project?.preset  ?? "standard");
-    setProjReopenTo(c.project?.reopen_to ?? "open");
+    setCasePreset(c.case?.preset            ?? "standard");
+    setCaseReopenTo(c.case?.reopen_to       ?? "open");
+    setCaseAllowOverride(c.case?.allow_override ?? true);
+    setProjPreset(c.project?.preset         ?? "standard");
+    setProjReopenTo(c.project?.reopen_to    ?? "open");
+    setProjAllowOverride(c.project?.allow_override ?? true);
   }, [settings]);
 
   const tmplList = templates.length
@@ -3668,8 +3672,8 @@ function SettingsDefaultLifecycleTab({ ssCtx }) {
   async function handleSave() {
     setSaving(true);
     await setSetting("default_lifecycle_config", {
-      case:    { preset: casePreset,  reopen_to: caseReopenTo },
-      project: { preset: projPreset,  reopen_to: projReopenTo },
+      case:    { preset: casePreset,  reopen_to: caseReopenTo,  allow_override: caseAllowOverride },
+      project: { preset: projPreset,  reopen_to: projReopenTo,  allow_override: projAllowOverride },
     });
     setSaving(false);
     setSaved(true);
@@ -3719,6 +3723,19 @@ function SettingsDefaultLifecycleTab({ ssCtx }) {
     );
   };
 
+  const OverrideToggle = ({ label, desc, value, onChange }) => (
+    <div className="flex items-center justify-between gap-4 pt-4 border-t border-gray-100">
+      <div>
+        <p className="text-sm font-semibold text-gray-800">{label}</p>
+        <p className="text-xs text-gray-400 mt-0.5">{desc}</p>
+      </div>
+      <button onClick={() => onChange(!value)}
+        className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${value ? "bg-blue-600" : "bg-gray-300"}`}>
+        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${value ? "translate-x-5" : "translate-x-0"}`} />
+      </button>
+    </div>
+  );
+
   return (
     <div className="space-y-8 max-w-2xl">
       <p className="text-sm text-gray-500">
@@ -3729,12 +3746,24 @@ function SettingsDefaultLifecycleTab({ ssCtx }) {
         <p className="text-sm font-bold text-gray-800">Cases</p>
         <LcSelect label="Default lifecycle template" value={casePreset} onChange={setCasePreset} />
         <ReopenSelect label="Default reopen-to stage" preset={casePreset} value={caseReopenTo} onChange={setCaseReopenTo} />
+        <OverrideToggle
+          label="Allow cases to change template"
+          desc="Individual cases can pick a different lifecycle template"
+          value={caseAllowOverride}
+          onChange={setCaseAllowOverride}
+        />
       </div>
 
       <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-5">
         <p className="text-sm font-bold text-gray-800">Projects</p>
         <LcSelect label="Default lifecycle template" value={projPreset} onChange={setProjPreset} />
         <ReopenSelect label="Default reopen-to stage" preset={projPreset} value={projReopenTo} onChange={setProjReopenTo} />
+        <OverrideToggle
+          label="Allow projects to change template"
+          desc="Projects under your account can pick a different lifecycle template"
+          value={projAllowOverride}
+          onChange={setProjAllowOverride}
+        />
       </div>
 
       <div className="flex items-center gap-3">

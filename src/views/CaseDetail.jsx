@@ -5205,7 +5205,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
 
                     {tab.id === "lifecycle" && perms.can("view_lifecycle") && (() => {
         if (lcMode === null) return <div className="flex justify-center py-10"><Spinner /></div>;
-        const caseOverrideAllowed = clientLifecycle?.allow_case_override ?? true;
+        const sysLcDefault = ssCtxCD.settings?.["default_lifecycle_config"];
+        const caseOverrideAllowed = clientLifecycle?.allow_case_override ?? sysLcDefault?.case?.allow_override ?? true;
         const tmplList = caseLcTemplates.length ? caseLcTemplates : Object.entries(LIFECYCLE_PRESETS).map(([k, v]) => ({ key: k, ...v }));
         const inheritedPreset = caseData.case_lifecycle?.preset ?? parentCaseLifecycle?.preset ?? projectLifecycle?.preset ?? clientLifecycle?.preset ?? "standard";
         const previewStages = getCaseTmplStages(lcMode);
