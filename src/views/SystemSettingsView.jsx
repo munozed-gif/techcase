@@ -970,15 +970,17 @@ function SettingsRolesTab({ ssCtx }) {
   if (ssCtx.loading || !matrix || !wizardModes) return <Spinner />;
 
   const ROLE_COLORS = {
-    admin:               'bg-red-100 text-red-700',
-    manager:             'bg-purple-100 text-purple-700',
-    consultant:          'bg-blue-100 text-blue-700',
-    client:              'bg-green-100 text-green-700',
-    key_user:            'bg-amber-100 text-amber-700',
-    headhunter:          'bg-pink-100 text-pink-700',
-    final_user:          'bg-teal-100 text-teal-700',
-    internal_consultant: 'bg-indigo-100 text-indigo-700',
-    project_manager:     'bg-rose-100 text-rose-700',
+    admin:               'border border-red-500 text-red-500 bg-red-500/10',
+    manager:             'border border-purple-500 text-purple-400 bg-purple-500/10',
+    consultant:          'border border-blue-500 text-blue-400 bg-blue-500/10',
+    client:              'border border-green-500 text-green-400 bg-green-500/10',
+    key_user:            'border border-amber-500 text-amber-400 bg-amber-500/10',
+    headhunter:          'border border-pink-500 text-pink-400 bg-pink-500/10',
+    final_user:          'border border-teal-500 text-teal-400 bg-teal-500/10',
+    internal_consultant: 'border border-indigo-500 text-indigo-400 bg-indigo-500/10',
+    project_manager:     'border border-rose-500 text-rose-400 bg-rose-500/10',
+    dispatch:            'border border-cyan-500 text-cyan-400 bg-cyan-500/10',
+    area_leader:         'border border-orange-500 text-orange-400 bg-orange-500/10',
   };
 
   return (
@@ -1028,16 +1030,16 @@ function SettingsRolesTab({ ssCtx }) {
                   {ALL_ROLES.map(role => (
                     <td key={role} className="text-center py-2.5 px-2">
                       {role === 'admin' ? (
-                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-100 text-red-600" title="Admin always has access">
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border border-red-500 bg-red-500/20 text-red-500" title="Admin always has access">
                           <Check size={11} />
                         </span>
                       ) : (
                         <button
                           onClick={() => toggle(cap, role)}
                           className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${
-                            matrix[cap][role]
+                            matrix[cap]?.[role]
                               ? 'bg-blue-600 border-blue-600 text-white'
-                              : 'bg-white border-gray-300 text-transparent hover:border-blue-400'
+                              : 'bg-transparent border-gray-500 text-transparent hover:border-blue-400'
                           }`}
                         >
                           <Check size={11} />

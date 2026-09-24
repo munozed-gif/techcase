@@ -949,6 +949,8 @@ const TRANSLATIONS = {
     "role.final_user":          "Final User",
     "role.internal_consultant": "Internal Consultant",
     "role.project_manager":     "Project Manager",
+    "role.dispatch":            "Dispatch",
+    "role.area_leader":         "Area Leader",
     // Roles tab UI
     "roles.title":                "Roles & Permissions",
     "roles.subtitle":             "Configure what each role can do across the platform.",
@@ -4163,6 +4165,8 @@ const TRANSLATIONS = {
     "role.final_user":          "Usuario Final",
     "role.internal_consultant": "Consultor Interno",
     "role.project_manager":     "Project Manager",
+    "role.dispatch":            "Despacho",
+    "role.area_leader":         "Líder de Área",
     // Roles tab UI
     "roles.title":                "Roles y Permisos",
     "roles.subtitle":             "Configura qué puede hacer cada rol en la plataforma.",
