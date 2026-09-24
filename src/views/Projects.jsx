@@ -1405,7 +1405,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
     setShowAssign(true);
   }
 
-  const canEdit = auth.isAdmin || auth.isManager || auth.isClient || auth.isKeyUser;
+  const canEdit = auth.isAdmin || auth.isManager || auth.isClient || auth.isKeyUser || project.created_by === auth.user?.id;
   const TERMINAL = ["completed", "cancelled", "terminated", "closed", "approved"];
   const projProgress = projCases.length === 0 ? 0 : Math.round(projCases.filter(c => TERMINAL.includes(c.status)).length / projCases.length * 100);
 
