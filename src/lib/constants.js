@@ -22,6 +22,7 @@ const ROLE_PERMISSIONS_DEFAULTS = {
   bulk_delete_activities:     { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
   bulk_delete_subcases:       { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
   arena_see_all_cases:        { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:true,  final_user:false, internal_consultant:true,  project_manager:true  },
+  create_projects:            { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
 };
 
 // ============================================================

@@ -12,7 +12,7 @@ import { useT } from "../i18n/index.jsx";
 import { useProjects, useProjectDbConnections, useProjectTemplates } from "../hooks/useCoreHooks.js";
 import { useCases } from "../hooks/useCaseHooks.js";
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
-import { usePlanConfig, useSystemSettings } from "../hooks/useSystemSettings.jsx";
+import { usePlanConfig, useSystemSettings, usePermissions } from "../hooks/useSystemSettings.jsx";
 import { callClaude, logEvent } from "../lib/utils.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { EmptyState, Input, Textarea } from "../components/ui.jsx";
@@ -2345,6 +2345,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
 
 function ProjectsView({ auth, initialProjectId }) {
   const { t } = useT();
+  const perms = usePermissions(auth);
   const clientFetchFilter = auth.isClient ? { client_id: auth.user?.id } : {};
   const { projects, loading, createProject, updateProject, closeProject } = useProjects(clientFetchFilter);
   const { templates: lcTemplates } = useLifecycleTemplates();
@@ -2451,7 +2452,7 @@ function ProjectsView({ auth, initialProjectId }) {
           <h1 className="text-2xl font-bold text-gray-900">{t("projects.title")}</h1>
           <p className="text-gray-500 text-sm mt-1">{t(displayed.length !== 1 ? "count.project_many" : "count.project_one").replace("{n}", displayed.length)}</p>
         </div>
-        {(auth.isAdmin || auth.isManager || auth.isClient) && (
+        {(auth.isAdmin || auth.isManager || auth.isClient || perms.can("create_projects")) && (
           <button onClick={() => setShowCreate(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl px-5 py-2.5 text-sm transition-colors">
             {t("projects.new")}
@@ -2540,7 +2541,7 @@ function ProjectsView({ auth, initialProjectId }) {
           title={t("projects.no_projects")}
           subtitle={t("projects.no_proj_hint")}
           action={
-            (auth.isAdmin || auth.isManager || auth.isClient) && (
+            (auth.isAdmin || auth.isManager || auth.isClient || perms.can("create_projects")) && (
               <button onClick={() => setShowCreate(true)}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl px-5 py-2.5 text-sm mt-2">
                 {t("projects.create_first")}

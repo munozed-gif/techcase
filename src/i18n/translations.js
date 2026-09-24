@@ -978,6 +978,7 @@ const TRANSLATIONS = {
     "roles.cap.edit_activity_predecessors": "Edit activity predecessors",
     "roles.cap.bulk_delete_activities":     "Bulk-delete activities",
     "roles.cap.bulk_delete_subcases":       "Bulk-delete sub-cases",
+    "roles.cap.create_projects":            "Create projects",
     // System Settings inner tabs
     "sys.search_users":         "Search users…",
     "sys.add_user":             "Add User",
@@ -4178,6 +4179,7 @@ const TRANSLATIONS = {
     "roles.cap.edit_activity_predecessors": "Editar predecesores de actividad",
     "roles.cap.bulk_delete_activities":     "Eliminación masiva de actividades",
     "roles.cap.bulk_delete_subcases":       "Eliminación masiva de sub-casos",
+    "roles.cap.create_projects":            "Crear proyectos",
     // System Settings inner tabs
     "sys.search_users":         "Buscar usuarios…",
     "sys.add_user":             "Agregar Usuario",

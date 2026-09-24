@@ -99,6 +99,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
     consultant: [
       { id: "dashboard", Icon: LayoutDashboard, labelKey: "nav.dashboard" },
       { id: "my-cases",  Icon: FolderOpen,      labelKey: "nav.my_cases" },
+      { id: "projects",  Icon: Layers,          labelKey: "nav.projects" },
       { id: "arena",     Icon: Target,          labelKey: "nav.arena" },
       { id: "kanban",    Icon: LayoutGrid,      labelKey: "nav.kanban" },
       { id: "time",      Icon: Clock,           labelKey: "nav.time" },
