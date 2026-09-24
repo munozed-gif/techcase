@@ -721,6 +721,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         due_date: rest.due_date || null,
         budget: scope.budget ? Number(scope.budget) : null,
         skills_required: _skills,
+        created_by: auth.user?.id ?? null,
         client_id:  auth.isClient  ? auth.user?.id : auth.isKeyUser ? keyUserClientId : client_id || null,
         manager_id: auth.isManager ? auth.user?.id : null,
         project_id: selectedProjectId || null,
