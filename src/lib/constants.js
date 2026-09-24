@@ -24,6 +24,7 @@ const ROLE_PERMISSIONS_DEFAULTS = {
   arena_see_all_cases:        { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:true,  final_user:false, internal_consultant:true,  project_manager:true  },
   create_projects:            { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
   view_audit_log:             { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
+  reopen_cases:               { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
 };
 
 // ============================================================

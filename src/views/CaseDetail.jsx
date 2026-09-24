@@ -198,6 +198,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [pendingDevPlanIsRegen, setPendingDevPlanIsRegen] = useState(false);
   const [projectLifecycle, setProjectLifecycle] = useState(null);
   const [lcMode, setLcMode] = useState(caseData.case_lifecycle?.preset ?? null);
+  const [reopenTo, setReopenTo] = useState(caseData.case_lifecycle?.reopen_to ?? "open");
   const [savingLc, setSavingLc] = useState(false);
   const { templates: caseLcTemplates, getTemplateStages: getCaseTmplStages } = useLifecycleTemplates();
   const { spec: caseSpec } = useCaseSpecification(caseData.id, auth.user?.id);
@@ -390,7 +391,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
     if (!lcMode) return;
     setSavingLc(true);
     try {
-      await onUpdate(caseData.id, { case_lifecycle: { preset: lcMode } });
+      await onUpdate(caseData.id, { case_lifecycle: { preset: lcMode, reopen_to: reopenTo } });
     } catch (e) { console.error("Save lifecycle failed:", e.message); }
     setSavingLc(false);
   }
@@ -2596,6 +2597,31 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 ))}
               </div>
             )}
+          </div>
+        );
+      })()}
+
+      {/* Reopen Case — terminal stages only, permission-gated */}
+      {isTerminalStatus && perms.can("reopen_cases") && onStatusChange && (() => {
+        const effectiveReopenTo = caseData.case_lifecycle?.reopen_to ?? "open";
+        const targetStage = lifecycleStages.find(s => s.key === effectiveReopenTo);
+        const targetLabel = targetStage?.label ?? effectiveReopenTo;
+        const targetColor = targetStage?.color ?? "#2563EB";
+        return (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-amber-800">{t("case.reopen_title")}</p>
+              <p className="text-xs text-amber-600 mt-0.5">{t("case.reopen_desc").replace("{status}", targetLabel)}</p>
+            </div>
+            <button
+              onClick={async () => {
+                await onStatusChange(caseData.id, effectiveReopenTo);
+                logEvent("case.reopened", { entityType: "case", entityId: caseData.id, entityName: caseData.title, oldValue: { status: caseData.status }, newValue: { status: effectiveReopenTo } });
+              }}
+              style={{ background: targetColor }}
+              className="shrink-0 px-4 py-2 text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity">
+              {t("case.reopen_btn").replace("{status}", targetLabel)}
+            </button>
           </div>
         );
       })()}
@@ -5241,6 +5267,17 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                   <LifecycleFlowDiagram stages={previewStages} currentStatus={null} />
                 )}
 
+                <div className="bg-white rounded-xl border border-gray-100 p-4 space-y-2">
+                  <p className="text-sm font-semibold text-gray-700">{t("case.reopen_target_label")}</p>
+                  <p className="text-xs text-gray-400">{t("case.reopen_target_desc")}</p>
+                  <select value={reopenTo} onChange={e => setReopenTo(e.target.value)}
+                    className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:border-blue-400">
+                    {previewActive.map(s => (
+                      <option key={s.key} value={s.key}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="flex justify-end pt-2 border-t border-gray-100">
                   <button onClick={handleSaveCaseLc} disabled={savingLc}
                     className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
@@ -5718,6 +5755,7 @@ const AUDIT_EVENT_COLORS_CD = {
   'invoice.created':           'bg-teal-100 text-teal-700',
   'case.rated':                'bg-pink-100 text-pink-700',
   'rating.submitted':          'bg-pink-100 text-pink-700',
+  'case.reopened':             'bg-green-100 text-green-700',
 };
 const AUDIT_EVENT_LABELS_CD = {
   'case.created':              'Created',
@@ -5733,6 +5771,7 @@ const AUDIT_EVENT_LABELS_CD = {
   'invoice.created':           'Invoice created',
   'case.rated':                'Rated',
   'rating.submitted':          'Rating submitted',
+  'case.reopened':             'Reopened',
 };
 
 function CaseAuditLog({ caseId }) {

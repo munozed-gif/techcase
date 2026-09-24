@@ -4326,6 +4326,7 @@ const AUDIT_EVENT_GROUPS = [
       { key: "case.deleted_bulk",         label: "Bulk deleted" },
       { key: "case.rated",                label: "Case rated" },
       { key: "rating.submitted",          label: "Rating submitted" },
+      { key: "case.reopened",             label: "Case reopened" },
     ],
   },
   {
