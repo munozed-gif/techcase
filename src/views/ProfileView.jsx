@@ -17,7 +17,7 @@ import {
 } from "../components/ProfileComponents.jsx";
 import { ConsultantProfileView } from "../components/ConsultantProfileView.jsx";
 import { Input, Select, Textarea } from "../components/ui.jsx";
-import { fmtDate, fmt, AVAIL_LABEL_KEYS, EXPERTISE_LABEL_KEYS, WORK_MODE_LABEL_KEYS } from "../lib/uiUtils.jsx";
+import { fmtDate, fmt, cap, AVAIL_LABEL_KEYS, EXPERTISE_LABEL_KEYS, WORK_MODE_LABEL_KEYS } from "../lib/uiUtils.jsx";
 import { ROLE_COLORS, SAP_AREAS, INDUSTRY_AREAS } from "../lib/businessConstants.js";
 import { useRatings } from "../hooks/useCaseHooks.js";
 import { useConsultantTeams } from "../hooks/useTeamHooks.js";
@@ -55,6 +55,7 @@ function ProfileView({ auth, compact = false }) {
   const [editing, setEditing]       = useState(false);
   const [form, setForm]             = useState({});
   const [saving, setSaving]         = useState(false);
+  const [saveError, setSaveError]   = useState(null);
   const fileRef = useRef();
   const { isDark, theme, setTheme, previewTheme } = useTheme();
   const themeOnEditStart = useRef(theme);
@@ -94,6 +95,7 @@ function ProfileView({ auth, compact = false }) {
 
   async function handleSave() {
     setSaving(true);
+    setSaveError(null);
     try {
       const { _skills, preferred_lang, ...profileData } = form;
       await updateProfile({
@@ -107,7 +109,9 @@ function ProfileView({ auth, compact = false }) {
       // Persist theme only now (was just a preview until save)
       if (theme !== themeOnEditStart.current) await setTheme(theme);
       setEditing(false);
-    } catch (e) { alert(e.message); }
+    } catch (e) {
+      setSaveError(e instanceof TypeError ? "Connection error. Check your network and try again." : (e.message || "Save failed. Please try again."));
+    }
     setSaving(false);
   }
 
@@ -402,6 +406,9 @@ function ProfileView({ auth, compact = false }) {
             </div>
           </div>
 
+          {saveError && (
+            <p className="text-sm text-red-600 text-right mb-2">{saveError}</p>
+          )}
           <div className="flex justify-end gap-3">
             <button onClick={cancelEdit} className="px-4 py-2 text-sm text-gray-600">{t("action.cancel")}</button>
             <button onClick={handleSave} disabled={saving}
