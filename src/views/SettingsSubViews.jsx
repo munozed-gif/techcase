@@ -1191,7 +1191,7 @@ function TransitionGatesPanel({ auth }) {
           return (
             <div key={stage.key}
               className={`border rounded-xl overflow-hidden transition-colors ${
-                gate.enabled ? "border-blue-200 bg-blue-50/30" : "border-gray-100 bg-white"
+                gate.enabled ? "border-blue-200 bg-blue-50" : "border-gray-100 bg-white"
               }`}>
               {/* Stage header row */}
               <div className="flex items-center gap-3 px-4 py-3">
@@ -1272,7 +1272,7 @@ function TransitionGatesPanel({ auth }) {
                       return (
                         <div key={condDef.key}
                           className={`flex items-start gap-3 px-4 py-3 transition-colors ${
-                            condState.enabled ? "bg-white" : "bg-gray-50/50"
+                            condState.enabled ? "bg-white" : "bg-gray-50"
                           }`}>
                           {/* Enabled toggle */}
                           <button onClick={() => toggleCondition(stage.key, condDef.key)}
