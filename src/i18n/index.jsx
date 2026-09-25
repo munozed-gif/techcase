@@ -33,13 +33,12 @@ function LanguageProvider({ children, userId, initialLang }) {
       });
   }, [userId, initialLang]);
 
-  function setLang(newLang) {
+  async function setLang(newLang) {
     if (!TRANSLATIONS[newLang]) return;
     setLangState(newLang);
     try { localStorage.setItem("tc_lang", newLang); } catch {}
-    // Persist to DB — graceful if column doesn't exist yet
     if (userId) {
-      supabase.from("users").update({ language_pref: newLang }).eq("id", userId).then(() => {});
+      await supabase.from("users").update({ language_pref: newLang }).eq("id", userId);
     }
   }
 
