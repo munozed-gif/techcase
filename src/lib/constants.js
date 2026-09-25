@@ -13,7 +13,7 @@ const ROLE_PERMISSIONS_DEFAULTS = {
   apply_to_cases:             { admin:false, manager:false, consultant:true,  client:false, key_user:false, headhunter:true,  final_user:false, internal_consultant:false, project_manager:false },
   view_reports:               { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
   manage_invoices:            { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
-  view_lifecycle:             { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:true,  internal_consultant:true,  project_manager:true  },
+  view_lifecycle:             { admin:true,  manager:true,  consultant:true,  client:true,  key_user:false, headhunter:false, final_user:true,  internal_consultant:true,  project_manager:true  },
   submit_specs:               { admin:true,  manager:true,  consultant:true,  client:true,  key_user:true,  headhunter:false, final_user:false, internal_consultant:true,  project_manager:true  },
   generate_dev_plan:          { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
   require_team_signup:        { admin:false, manager:false, consultant:false, client:false, key_user:true,  headhunter:false, final_user:true,  internal_consultant:true,  project_manager:true  },
