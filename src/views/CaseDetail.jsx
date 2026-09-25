@@ -2385,7 +2385,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         const curStage = lifecycleStages.find(s => s.key === caseData.status);
         const allowedNext  = curStage?.allowed_next?.length  ? curStage.allowed_next  : null;
         const allowedRoles = curStage?.allowed_roles?.length ? curStage.allowed_roles : null;
-        const canChange = auth.isAdmin || !allowedRoles || allowedRoles.includes(auth.role);
+        const isCreator = caseData.created_by === auth.user?.id;
+        const canChange = auth.isAdmin || isCreator || !allowedRoles || allowedRoles.includes(auth.role);
         if (!canChange && !curStage) return null;
         const statusInLifecycle = lifecycleStages.some(s => s.key === caseData.status);
         const curIdx = lifecycleStages.findIndex(s => s.key === caseData.status);
@@ -3113,7 +3114,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             const curStage = lifecycleStages.find(s => s.key === caseData.status);
             const allowedNext  = curStage?.allowed_next?.length  ? curStage.allowed_next  : null;
             const allowedRoles = curStage?.allowed_roles?.length ? curStage.allowed_roles : null;
-            const canChange = auth.isAdmin || !allowedRoles || allowedRoles.includes(auth.role);
+            const isCreator = caseData.created_by === auth.user?.id;
+            const canChange = auth.isAdmin || isCreator || !allowedRoles || allowedRoles.includes(auth.role);
             if (!canChange) return null;
             const statusInLifecycle2 = lifecycleStages.some(s => s.key === caseData.status);
             const validNext = curStage?.is_terminal ? []
