@@ -5475,6 +5475,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
 
 // ── Invite client card (shown inside case detail for consultant / admin / manager)
 function CaseInviteCard({ caseData, auth }) {
+  const { settings: cdSettings } = useSystemSettings();
   const [invites, setInvites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [email, setEmail]     = useState("");
