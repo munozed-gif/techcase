@@ -2,7 +2,7 @@ import { useState, useEffect, Fragment } from "react";
 import DOMPurify from "dompurify";
 import {
   AlertTriangle, Archive, BarChart2, Check, CheckCircle2, Clock, Code2,
-  FileText, Flag, FolderOpen, Inbox, ListChecks, Paperclip, Pause, Play,
+  Download, FileText, Flag, FolderOpen, Inbox, ListChecks, Paperclip, Pause, Play,
   RotateCcw, Search, SlidersHorizontal, Sparkles, Star, Target, User,
   UserCheck, Users, Wand2, X, Zap,
 } from "lucide-react";
@@ -1386,6 +1386,43 @@ ${mdToHtml(markdownContent)}
       alert(t("alert.pdf_gen_error") + e.message);
     }
     setSavingDoc(false);
+  }
+
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  async function handleDownloadSpec() {
+    if (!selectedSpec) return;
+    const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA;
+    if (!content) return;
+    setDownloadingPdf(true);
+    try {
+      const date = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+      const htmlString = buildCaseDocHtml(
+        t("spec.html_title"),
+        'SAP Consulting · ' + t("spec.html_title"),
+        [
+          { label: t("spec.label_case_id"),  value: '#' + ((caseData.id ?? '').slice(0, 8) || '—') },
+          { label: t("label.sap_area"),       value: caseData.area_sap ?? '—' },
+          { label: t("label.priority"),       value: (caseData.priority ?? '—').toUpperCase() },
+          { label: t("spec.label_generated"), value: date },
+        ],
+        content
+      );
+      const pdfBlob = await htmlStringToPdfBlob(htmlString);
+      const safeName = (caseData.title ?? 'Spec').replace(/[^a-z0-9]/gi, '_');
+      const prefixMap = { a: 'SpecA_CustomABAP', b: 'SpecB_StandardSAP', c: 'SpecC_PropuestaCliente' };
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const fileName = `${prefixMap[selectedSpec] ?? 'Spec'}_${safeName}_${dateStr}.pdf`;
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = url; a.download = fileName;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch (e) {
+      alert(t("alert.pdf_gen_error") + e.message);
+    }
+    setDownloadingPdf(false);
   }
 
   async function saveAllSpecsAsDocuments(specA, specB, specC, sap, proposal) {
@@ -3068,6 +3105,10 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       <button onClick={() => setAiEditing(p => !p)}
                         className="px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-white">
                         {aiEditing ? t("spec.preview_lbl") : t("spec.edit_lbl")}
+                      </button>
+                      <button onClick={handleDownloadSpec} disabled={!selectedSpec || downloadingPdf}
+                        className="px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-white disabled:opacity-40 flex items-center gap-1">
+                        {downloadingPdf ? <><Spinner />&nbsp;PDF…</> : <><Download size={12} />PDF</>}
                       </button>
                       {perms.can('regen_specs') && (
                         <button onClick={handleGenerateSpecs}
