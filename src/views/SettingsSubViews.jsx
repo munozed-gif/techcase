@@ -126,10 +126,12 @@ function LifecycleSettingsView({ auth }) {
   if (loadingTmpl) return <div className="p-8 text-sm text-gray-400">{t("label.loading")}</div>;
 
   const ROLES = [
-    { key: "manager",    label: t("auth.role_manager"),    activeCls: "bg-blue-100 text-blue-700 border-blue-100"   },
-    { key: "consultant", label: t("auth.role_consultant"), activeCls: "bg-emerald-100 text-emerald-700 border-emerald-100" },
-    { key: "client",     label: t("auth.role_client"),     activeCls: "bg-amber-100 text-amber-700 border-amber-100"  },
-    { key: "key_user",   label: t("auth.role_key_user"),   activeCls: "bg-violet-100 text-violet-700 border-violet-100" },
+    { key: "manager",             label: t("auth.role_manager"),             activeCls: "bg-blue-100 text-blue-700 border-blue-100"   },
+    { key: "consultant",          label: t("auth.role_consultant"),          activeCls: "bg-emerald-100 text-emerald-700 border-emerald-100" },
+    { key: "client",              label: t("auth.role_client"),              activeCls: "bg-amber-100 text-amber-700 border-amber-100"  },
+    { key: "key_user",            label: t("auth.role_key_user"),            activeCls: "bg-violet-100 text-violet-700 border-violet-100" },
+    { key: "internal_consultant", label: t("auth.role_internal_consultant"), activeCls: "bg-cyan-100 text-cyan-700 border-cyan-100"    },
+    { key: "project_manager",     label: t("auth.role_project_manager"),     activeCls: "bg-rose-100 text-rose-700 border-rose-100"    },
   ];
 
   const ALL_TABS = [
@@ -1053,7 +1055,7 @@ function AssignmentSettingsPanel({ profile, updateProfile }) {
 
 // ─── Transition Gates Panel ──────────────────────────────────────────────────
 
-const ALL_ROLES = ["admin", "manager", "consultant", "client", "key_user"];
+const ALL_ROLES = ["admin", "manager", "consultant", "client", "key_user", "internal_consultant", "project_manager"];
 
 function TransitionGatesPanel({ auth }) {
   const { t } = useT();
