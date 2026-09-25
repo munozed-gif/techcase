@@ -504,9 +504,15 @@ function buildSectionConstraint(docKey, genProfile) {
   return `\nSECTION CONSTRAINT: Generate ONLY these sections (omit all others):\n${enabled.join('\n')}\n`;
 }
 
-function buildGenSuffix(genProfile) {
+const LANG_NAMES = { es: 'Spanish', fr: 'French', pt: 'Portuguese', de: 'German', it: 'Italian', nl: 'Dutch', pl: 'Polish', ar: 'Arabic', zh: 'Chinese', ja: 'Japanese' };
+
+function buildGenSuffix(genProfile, lang) {
+  const parts = [];
   const instr = genProfile?.additional_instructions?.trim();
-  return instr ? `\n\nADDITIONAL INSTRUCTIONS:\n${instr}` : '';
+  if (instr) parts.push(`ADDITIONAL INSTRUCTIONS:\n${instr}`);
+  const langName = lang && lang !== 'en' ? LANG_NAMES[lang] ?? null : null;
+  if (langName) parts.push(`OUTPUT LANGUAGE: Write the entire document in ${langName}. All headings, labels, descriptions and content must be in ${langName}.`);
+  return parts.length ? `\n\n${parts.join('\n\n')}` : '';
 }
 
 async function htmlStringToPdfBlob(htmlString) {
@@ -639,7 +645,7 @@ function openHtmlInNewTab(htmlString) {
 }
 
 function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocument, refetchDocuments, onUpdate }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const ssCtx = useSystemSettings();
   const genModel      = ssCtx.settings["ai_model"]       ?? 'claude-haiku-4-5-20251001';
   const analysisModel = ssCtx.settings["analysis_model"] ?? 'claude-haiku-4-5-20251001';
@@ -1854,7 +1860,7 @@ TOTAL:||Total|[amount]|
 ## 9. Next Steps
 1. [action item to start the custom development]
 
-Use realistic Z object names, actual SAP table names for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM/COL values.${buildSectionConstraint('spec_a', genProfile)}${buildGenSuffix(genProfile)}`;
+Use realistic Z object names, actual SAP table names for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM/COL values.${buildSectionConstraint('spec_a', genProfile)}${buildGenSuffix(genProfile, lang)}`;
     } else {
       return `Write Option B: Standard SAP Configuration Functional Specification for this case.${sapCtx}
 
@@ -1923,7 +1929,7 @@ TOTAL:||Total|[amount]|
 ## 9. Next Steps
 1. [action item: configure standard SAP]
 
-Use real standard SAP transaction codes and configuration objects for ${caseData.area_sap ?? 'the module'}.${buildSectionConstraint('spec_b', genProfile)}${buildGenSuffix(genProfile)}`;
+Use real standard SAP transaction codes and configuration objects for ${caseData.area_sap ?? 'the module'}.${buildSectionConstraint('spec_b', genProfile)}${buildGenSuffix(genProfile, lang)}`;
     }
   }
 
@@ -1994,7 +2000,7 @@ TOTAL:||Total|[amount]|
 ## 8. Next Steps
 1. [action item derived from the customer's proposed approach]
 
-Use realistic Z object names matching the customer's described solution for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM/COL values.${buildSectionConstraint('spec_c', genProfile)}${buildGenSuffix(genProfile)}`;
+Use realistic Z object names matching the customer's described solution for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM/COL values.${buildSectionConstraint('spec_c', genProfile)}${buildGenSuffix(genProfile, lang)}`;
   }
 
   function buildPrototypePrompt(specA, specB, style) {
