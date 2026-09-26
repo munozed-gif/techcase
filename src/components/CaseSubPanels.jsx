@@ -564,6 +564,8 @@ function GenerationProfileModal({ onConfirm, onClose, title, outputMode, onOutpu
       merged[dk] = { ...(def[dk] ?? {}), ...(sto[dk] ?? {}) };
     }
     merged.additional_instructions = sto.additional_instructions ?? def.additional_instructions ?? "";
+    merged.prototype_enabled = sto.prototype_enabled ?? false;
+    merged.prototype_style   = sto.prototype_style   ?? 'fiori';
     return merged;
   }
 
