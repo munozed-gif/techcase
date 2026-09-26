@@ -2552,8 +2552,12 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                           const firstNonAuto = afterCurrent.find(ds => ds.trigger !== "auto");
                           const autosBetween = afterCurrent.slice(0, afterCurrent.indexOf(firstNonAuto));
                           if (!firstNonAuto || autosBetween.length === 0) return null;
-                          const firstNonAutoIdx = allDisplayStages.findIndex(st => st.key === firstNonAuto.key);
-                          if (!validNextKeys.has(firstNonAuto.key)) return null;
+                          // Allow skip if firstNonAuto is directly reachable, OR the auto
+                          // stages in between are covered by allowedNext (user would reach
+                          // firstNonAuto by passing through the allowed auto stage).
+                          const autoKeys = autosBetween.map(ds => ds.key);
+                          const autoAllowed = !allowedNext || autoKeys.some(k => allowedNext.includes(k));
+                          if (!validNextKeys.has(firstNonAuto.key) && !autoAllowed) return null;
                           const fColor = firstNonAuto.color ?? "#6B7280";
                           const { blockers: fgb, warnings: fgw } = checkTransitionGates(firstNonAuto.key);
                           return (
