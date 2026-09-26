@@ -5,7 +5,7 @@ import {
   ClipboardList, Clock, Code2, Crosshair, ExternalLink, Eye, FileImage, FileText,
   Flag, FolderOpen, Globe, Handshake, Inbox, Layers, LayoutTemplate, Link,
   Link2, ListChecks, Lock, MessageSquare, Monitor, Paperclip, PauseCircle, Pencil,
-  Play, Receipt, RotateCcw, Search, SlidersHorizontal, Sparkles, Star,
+  Play, Receipt, RefreshCw, RotateCcw, Search, Send, SlidersHorizontal, Sparkles, Star,
   Target, Trash2, TrendingUp, Upload, User, UserCheck, UserPlus, Users,
   Wand2, X, XCircle, Zap,
 } from "lucide-react";
@@ -198,6 +198,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [pendingDevPlanIsRegen, setPendingDevPlanIsRegen] = useState(false);
   const [projectLifecycle, setProjectLifecycle] = useState(null);
   const [lcMode, setLcMode] = useState(caseData.case_lifecycle?.preset ?? null);
+  const [reopenTo, setReopenTo] = useState(caseData.case_lifecycle?.reopen_to ?? "open");
   const [savingLc, setSavingLc] = useState(false);
   const { templates: caseLcTemplates, getTemplateStages: getCaseTmplStages } = useLifecycleTemplates();
   const { spec: caseSpec } = useCaseSpecification(caseData.id, auth.user?.id);
@@ -294,7 +295,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
 
   // Scroll pipeline carousel to current status whenever status or stages change
   useEffect(() => {
-    const allDisplay = lifecycleStages.filter(s => s.trigger !== "auto");
+    const allDisplay = lifecycleStages;
     const idx = allDisplay.findIndex(s => s.key === caseData.status);
     if (idx < 0) return;
     setPipelineActiveIdx(idx);
@@ -390,7 +391,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
     if (!lcMode) return;
     setSavingLc(true);
     try {
-      await onUpdate(caseData.id, { case_lifecycle: { preset: lcMode } });
+      await onUpdate(caseData.id, { case_lifecycle: { preset: lcMode, reopen_to: reopenTo } });
     } catch (e) { console.error("Save lifecycle failed:", e.message); }
     setSavingLc(false);
   }
@@ -2165,11 +2166,12 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
     { id: "time",       label: t("case.tab_time"),       icon: Clock,         count: `${totalTimeHours.toFixed(1)}h` },
     ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "applications", label: t("case.tab_applicants"), icon: Users, count: applications.length }] : []),
     ...(caseData.is_head_hunter && (auth.isAdmin || auth.isManager || auth.isClient || auth.isHeadhunter) ? [{ id: "hh_proposals", label: "HH Proposals", icon: Crosshair, count: auth.isHeadhunter ? null : (hhProposals.filter(p => p.status === "pending").length || null) }] : []),
-    ...(auth.isAdmin || auth.isManager || auth.isClient ? [{ id: "lifecycle", label: t("case.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
+    ...(perms.can("view_lifecycle") ? [{ id: "lifecycle", label: t("case.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
     { id: "spec",           label: t("case.tab_spec"),         icon: FileText, count: null },
-    ...((auth.isAdmin || auth.isManager || auth.isConsultant) && caseData.status === 'in_progress'
+    ...((auth.isAdmin || auth.isManager || auth.isConsultant)
       ? [{ id: "implementation", label: t("sap.impl_tab_title"), icon: Code2, count: null }]
       : []),
+    ...(perms.can("view_audit_log") ? [{ id: "audit_log", label: t("case.tab_audit_log"), icon: ClipboardList, count: null }] : []),
   ];
   const tabs = (() => {
     const filtered = stageRules.visible_tabs
@@ -2381,9 +2383,21 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
       {/* Lifecycle Pipeline — same carousel style as section cards */}
       {onStatusChange && (() => {
         const curStage = lifecycleStages.find(s => s.key === caseData.status);
-        const allowedNext  = curStage?.allowed_next?.length  ? curStage.allowed_next  : null;
-        const allowedRoles = curStage?.allowed_roles?.length ? curStage.allowed_roles : null;
-        const canChange = auth.isAdmin || !allowedRoles || allowedRoles.includes(auth.role);
+        const allowedNext      = curStage?.allowed_next?.length      ? curStage.allowed_next      : null;
+        const allowedRoles     = curStage?.allowed_roles?.length     ? curStage.allowed_roles     : null;
+        const allowedRelations = curStage?.allowed_relations?.length ? curStage.allowed_relations : null;
+        const isOwner    = caseData.created_by === auth.user?.id;
+        const isAssigned = applications?.some(a => a.consultant_id === auth.user?.id && a.status === "accepted");
+        const caseRelation = isOwner ? "owner" : isAssigned ? "assigned" : "viewer";
+        const roleOk     = !allowedRoles     || allowedRoles.includes(auth.role);
+        const relationOk = !allowedRelations || allowedRelations.includes(caseRelation);
+        // When both role + relation are set: either suffices (OR). Single constraint: must match it. Neither: backward-compat.
+        const canChange = auth.isAdmin || (
+          (allowedRoles && allowedRelations) ? (roleOk || relationOk) :
+          allowedRoles                       ? roleOk                 :
+          allowedRelations                   ? relationOk             :
+          (isOwner || roleOk)
+        );
         if (!canChange && !curStage) return null;
         const statusInLifecycle = lifecycleStages.some(s => s.key === caseData.status);
         const curIdx = lifecycleStages.findIndex(s => s.key === caseData.status);
@@ -2414,7 +2428,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         }
 
         // All non-auto stages in original lifecycle order; carousel starts at current
-        const allDisplayStages = lifecycleStages.filter(s => s.trigger !== "auto");
+        const allDisplayStages = lifecycleStages;
         if (!allDisplayStages.length) return null;
         const displayStages = allDisplayStages;
 
@@ -2512,7 +2526,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                         </span>
                         {/* State badge */}
                         <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 99, background: isActive ? (state === "current" ? color + "33" : state === "reachable" ? color + "33" : "var(--t-badge-inact-bg)") : "var(--t-badge-inact-bg)", color: isActive ? (state === "current" ? color : state === "reachable" ? color : "var(--t-text2)") : "var(--t-text2)", flexShrink: 0 }}>
-                          {state === "past" ? "Done" : state === "current" ? "Current" : state === "reachable" ? (hasBlockers ? "⚠ Blocked" : hasWarnings ? "⚡ Warn" : "→ Next") : "Upcoming"}
+                          {state === "past" ? "Done" : state === "current" ? "Current" : state === "reachable" ? (hasBlockers ? "⚠ Blocked" : hasWarnings ? "⚡ Warn" : "→ Next") : s.trigger === "auto" ? <span style={{display:"flex",alignItems:"center",gap:3}}><Zap size={10}/>Auto</span> : "Upcoming"}
                         </span>
                       </div>
 
@@ -2540,6 +2554,41 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                             {state === "past" ? "Completed" : state === "current" ? "No gate conditions configured" : "No requirements set"}
                           </p>
                         )}
+
+                        {/* Action button — current card, next stage(s) are all auto */}
+                        {state === "current" && canChange && !curStage?.is_terminal && (() => {
+                          // Find all stages after current in display order
+                          const afterCurrent = displayStages.slice(displayIdx + 1);
+                          // Walk forward while stages are auto-triggered
+                          const firstNonAuto = afterCurrent.find(ds => ds.trigger !== "auto");
+                          const autosBetween = afterCurrent.slice(0, afterCurrent.indexOf(firstNonAuto));
+                          if (!firstNonAuto || autosBetween.length === 0) return null;
+                          // Allow skip if firstNonAuto is directly reachable, OR the auto
+                          // stages in between are covered by allowedNext (user would reach
+                          // firstNonAuto by passing through the allowed auto stage).
+                          const autoKeys = autosBetween.map(ds => ds.key);
+                          const autoAllowed = !allowedNext || autoKeys.some(k => allowedNext.includes(k));
+                          if (!validNextKeys.has(firstNonAuto.key) && !autoAllowed) return null;
+                          const fColor = firstNonAuto.color ?? "#6B7280";
+                          const { blockers: fgb, warnings: fgw } = checkTransitionGates(firstNonAuto.key);
+                          return (
+                            <button
+                              onClick={async e => {
+                                e.stopPropagation();
+                                if (firstNonAuto.key === "standby") { setStandbyReason(""); setStandbyNotes(""); setStandbyModal(true); return; }
+                                if (fgb.length > 0 || fgw.length > 0) {
+                                  setGateModal({ caseId: caseData.id, toStatus: firstNonAuto.key, toLabel: firstNonAuto.label, toColor: fColor, blockers: fgb, warnings: fgw });
+                                  return;
+                                }
+                                await onStatusChange(caseData.id, firstNonAuto.key);
+                              }}
+                              style={{ width: "100%", padding: "9px 0", fontSize: 12, fontWeight: 700, borderRadius: 10, color: "white", background: fColor, border: "none", cursor: "pointer", transition: "opacity .15s" }}
+                              onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
+                              onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
+                              {`Move to ${firstNonAuto.label} →`}
+                            </button>
+                          );
+                        })()}
 
                         {/* Action button — reachable stages only */}
                         {state === "reachable" && canChange && !curStage?.is_terminal && isActive && (
@@ -2574,9 +2623,9 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                         )}
                         {isPending && isActive && (
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ fontSize: 11, color: "#B45309" }}>{caseProgress}% done</span>
+                            <span style={{ fontSize: 11, color: "var(--ad-amber)" }}>{caseProgress}% done</span>
                             <button onClick={e => { e.stopPropagation(); setPendingStageKey(null); }}
-                              style={{ fontSize: 11, color: "#94A3B8", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>Cancel</button>
+                              style={{ fontSize: 11, color: "var(--t-text2)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>Cancel</button>
                           </div>
                         )}
                       </div>
@@ -2591,10 +2640,73 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               <div style={{ display: "flex", justifyContent: "center", gap: 5, marginTop: 10 }}>
                 {displayStages.map((_, i) => (
                   <button key={i} onClick={() => pipelineScrollTo(i)}
-                    style={{ width: i === clampedActive ? 18 : 6, height: 6, borderRadius: 99, background: i === clampedActive ? "#1A4B8C" : "#CBD5E1", border: "none", cursor: "pointer", padding: 0, transition: "all .2s" }} />
+                    style={{ width: i === clampedActive ? 18 : 6, height: 6, borderRadius: 99, background: i === clampedActive ? "var(--t-text-accent)" : "var(--t-dot-none)", border: "none", cursor: "pointer", padding: 0, transition: "all .2s" }} />
                 ))}
               </div>
             )}
+
+            {/* Persistent next-stage CTA — always visible below carousel regardless of scroll */}
+            {canChange && !curStage?.is_terminal && (() => {
+              const curDisplayIdx = displayStages.findIndex(ds => ds.key === caseData.status);
+              if (curDisplayIdx < 0) return null;
+              const afterCurrent = displayStages.slice(curDisplayIdx + 1);
+              // First non-auto, non-terminal stage ahead
+              const target = afterCurrent.find(ds => ds.trigger !== "auto" && !ds.is_terminal);
+              if (!target) return null;
+              const targetIdx = afterCurrent.indexOf(target);
+              const autosBetween = afterCurrent.slice(0, targetIdx);
+              const autoKeys = autosBetween.map(ds => ds.key);
+              // Allowed if: target is directly in allowedNext, OR auto stages between are in allowedNext, OR no restriction
+              const directOk = !allowedNext || allowedNext.includes(target.key);
+              const viaAutoOk = autosBetween.length > 0 && (!allowedNext || autoKeys.some(k => allowedNext.includes(k)));
+              if (!directOk && !viaAutoOk) return null;
+              const fColor = target.color ?? "#6B7280";
+              const { blockers: fgb, warnings: fgw } = checkTransitionGates(target.key);
+              return (
+                <div style={{ marginTop: 14, display: "flex", justifyContent: "center" }}>
+                  <button
+                    onClick={async e => {
+                      if (target.key === "standby") { setStandbyReason(""); setStandbyNotes(""); setStandbyModal(true); return; }
+                      if (target.key === "cancelled") { initCancelModal(caseData.id); return; }
+                      if (fgb.length > 0 || fgw.length > 0) {
+                        setGateModal({ caseId: caseData.id, toStatus: target.key, toLabel: target.label, toColor: fColor, blockers: fgb, warnings: fgw });
+                        return;
+                      }
+                      await onStatusChange(caseData.id, target.key);
+                    }}
+                    style={{ padding: "10px 28px", fontSize: 13, fontWeight: 700, borderRadius: 10, color: "white", background: fColor, border: "none", cursor: "pointer", transition: "opacity .15s", boxShadow: `0 2px 12px ${fColor}55` }}
+                    onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
+                    onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
+                    {`→ ${target.label}`}
+                  </button>
+                </div>
+              );
+            })()}
+          </div>
+        );
+      })()}
+
+      {/* Reopen Case — terminal stages only, permission-gated */}
+      {isTerminalStatus && perms.can("reopen_cases") && onStatusChange && (() => {
+        const effectiveReopenTo = caseData.case_lifecycle?.reopen_to ?? "open";
+        const targetStage = lifecycleStages.find(s => s.key === effectiveReopenTo);
+        const targetLabel = targetStage?.label ?? effectiveReopenTo;
+        const targetColor = targetStage?.color ?? "#2563EB";
+        return (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-amber-800">{t("case.reopen_title")}</p>
+              <p className="text-xs text-amber-600 mt-0.5">{t("case.reopen_desc").replace("{status}", targetLabel)}</p>
+            </div>
+            <button
+              onClick={async () => {
+                await onStatusChange(caseData.id, effectiveReopenTo);
+                logEvent("case.reopened", { entityType: "case", entityId: caseData.id, entityName: caseData.title, oldValue: { status: caseData.status }, newValue: { status: effectiveReopenTo } });
+              }}
+              style={{ background: targetColor }}
+              className="shrink-0 px-4 py-2 text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity">
+              {t("case.reopen_btn").replace("{status}", targetLabel)}
+            </button>
           </div>
         );
       })()}
@@ -2626,10 +2738,10 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         if (done === 0) return null;
         return (
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-            <div style={{ flex:1, height:4, borderRadius:99, background:'#E2E8F0', overflow:'hidden' }}>
-              <div style={{ height:'100%', width:`${(done/tabs.length)*100}%`, background:'linear-gradient(90deg,#1A4B8C,#3B82F6)', borderRadius:99, transition:'width .4s' }}/>
+            <div style={{ flex:1, height:4, borderRadius:99, background:'var(--t-progress-track)', overflow:'hidden' }}>
+              <div style={{ height:'100%', width:`${(done/tabs.length)*100}%`, background:'linear-gradient(90deg,var(--t-text-accent),#3B82F6)', borderRadius:99, transition:'width .4s' }}/>
             </div>
-            <span style={{ fontSize:11, fontWeight:700, color:'#1A4B8C', whiteSpace:'nowrap' }}>{done}/{tabs.length} done</span>
+            <span style={{ fontSize:11, fontWeight:700, color:'var(--t-text-accent)', whiteSpace:'nowrap' }}>{done}/{tabs.length} done</span>
           </div>
         );
       })()}
@@ -2716,7 +2828,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       })()}
                       {/* Content */}
                       {mountedSlides.has(tab.id) ? (
-                        <div className="space-y-4" style={{ flex:1, overflowY:'auto', padding:'18px 20px' }}>
+                        <div className="space-y-4" style={{ flex:1, overflowY:'auto', padding:'18px 20px', color:'var(--t-text)' }}>
                           {/* Stage lock banner (shown only on active tab) */}
                           {isActive && currentStage?.rules && (() => {
                             const locked = [
@@ -2768,13 +2880,13 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           {/* Badges row with optional Edit button */}
           <div className="flex items-center justify-between">
             <div className="flex flex-wrap gap-2">
-              {(() => {
+              {showEditWizard && (() => {
                 const stage = lifecycleStages.find(s => s.key === caseData.status);
                 return stage
                   ? <span className="px-2 py-0.5 text-xs font-semibold rounded-lg" style={{ backgroundColor: stage.color + "22", color: stage.color }}>{stage.label}</span>
                   : <Badge className={STATUS_COLORS[caseData.status] ?? "bg-gray-100 text-gray-600"}>{STATUS_LABEL_KEYS[caseData.status] ? t(STATUS_LABEL_KEYS[caseData.status]) : cap(fmt(caseData.status))}</Badge>;
               })()}
-              {caseData.priority && <Badge className={PRIORITY_COLORS[caseData.priority]}>{PRIORITY_LABEL_KEYS[caseData.priority] ? t(PRIORITY_LABEL_KEYS[caseData.priority]) : cap(caseData.priority)}</Badge>}
+              {showEditWizard && <Badge className={PRIORITY_COLORS[caseData.priority]}>{PRIORITY_LABEL_KEYS[caseData.priority] ? t(PRIORITY_LABEL_KEYS[caseData.priority]) : cap(caseData.priority)}</Badge>}
               {caseData.parent_case_id && (
                 <Badge className="bg-violet-100 text-blue-700">{t("case.badge_subcase")}</Badge>
               )}
@@ -2810,7 +2922,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             </div>
           </div>
 
-          {!showEditWizard && (
+          {showEditWizard && (
             <p className="text-gray-700 text-sm leading-relaxed">{caseData.description || t("cd.no_description")}</p>
           )}
 
@@ -2851,6 +2963,11 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               <ProjectFieldEditor caseData={caseData} auth={auth} />
             </div>
           </div>
+
+          {/* Client Invitation */}
+          {(auth.isConsultant || auth.isAdmin || auth.isManager) && (
+            <CaseInviteCard caseData={caseData} auth={auth} />
+          )}
 
           {/* Skills */}
           {caseData.skills_required?.length > 0 && (
@@ -3079,9 +3196,20 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           {/* Status transition buttons — role + allowed_next aware */}
           {onStatusChange && (() => {
             const curStage = lifecycleStages.find(s => s.key === caseData.status);
-            const allowedNext  = curStage?.allowed_next?.length  ? curStage.allowed_next  : null;
-            const allowedRoles = curStage?.allowed_roles?.length ? curStage.allowed_roles : null;
-            const canChange = auth.isAdmin || !allowedRoles || allowedRoles.includes(auth.role);
+            const allowedNext      = curStage?.allowed_next?.length      ? curStage.allowed_next      : null;
+            const allowedRoles     = curStage?.allowed_roles?.length     ? curStage.allowed_roles     : null;
+            const allowedRelations = curStage?.allowed_relations?.length ? curStage.allowed_relations : null;
+            const isOwner2    = caseData.created_by === auth.user?.id;
+            const isAssigned2 = applications?.some(a => a.consultant_id === auth.user?.id && a.status === "accepted");
+            const caseRelation2 = isOwner2 ? "owner" : isAssigned2 ? "assigned" : "viewer";
+            const roleOk2     = !allowedRoles     || allowedRoles.includes(auth.role);
+            const relationOk2 = !allowedRelations || allowedRelations.includes(caseRelation2);
+            const canChange = auth.isAdmin || (
+              (allowedRoles && allowedRelations) ? (roleOk2 || relationOk2) :
+              allowedRoles                       ? roleOk2                  :
+              allowedRelations                   ? relationOk2              :
+              (isOwner2 || roleOk2)
+            );
             if (!canChange) return null;
             const statusInLifecycle2 = lifecycleStages.some(s => s.key === caseData.status);
             const validNext = curStage?.is_terminal ? []
@@ -5171,9 +5299,10 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         <SapImplementationTab caseData={caseData} auth={auth} activities={activities} updateActivity={updateActivity} />
       )}
 
-                    {tab.id === "lifecycle" && (auth.isAdmin || auth.isManager || auth.isClient) && (() => {
+                    {tab.id === "lifecycle" && perms.can("view_lifecycle") && (() => {
         if (lcMode === null) return <div className="flex justify-center py-10"><Spinner /></div>;
-        const caseOverrideAllowed = clientLifecycle?.allow_case_override ?? true;
+        const sysLcDefault = ssCtxCD.settings?.["default_lifecycle_config"];
+        const caseOverrideAllowed = clientLifecycle?.allow_case_override ?? sysLcDefault?.case?.allow_override ?? true;
         const tmplList = caseLcTemplates.length ? caseLcTemplates : Object.entries(LIFECYCLE_PRESETS).map(([k, v]) => ({ key: k, ...v }));
         const inheritedPreset = caseData.case_lifecycle?.preset ?? parentCaseLifecycle?.preset ?? projectLifecycle?.preset ?? clientLifecycle?.preset ?? "standard";
         const previewStages = getCaseTmplStages(lcMode);
@@ -5198,11 +5327,13 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               )}
             </div>
 
-            {!caseOverrideAllowed ? (
+            {perms.can("edit_lifecycle") && !caseOverrideAllowed && (
               <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-sm text-amber-700">
                 {t("case.lifecycle_lock_msg")}
               </div>
-            ) : (
+            )}
+
+            {perms.can("edit_lifecycle") && caseOverrideAllowed && (
               <>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {tmplList.map(tmpl => {
@@ -5235,6 +5366,17 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                   <LifecycleFlowDiagram stages={previewStages} currentStatus={null} />
                 )}
 
+                <div className="bg-white rounded-xl border border-gray-100 p-4 space-y-2">
+                  <p className="text-sm font-semibold text-gray-700">{t("case.reopen_target_label")}</p>
+                  <p className="text-xs text-gray-400">{t("case.reopen_target_desc")}</p>
+                  <select value={reopenTo} onChange={e => setReopenTo(e.target.value)}
+                    className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:border-blue-400">
+                    {previewActive.map(s => (
+                      <option key={s.key} value={s.key}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="flex justify-end pt-2 border-t border-gray-100">
                   <button onClick={handleSaveCaseLc} disabled={savingLc}
                     className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
@@ -5243,9 +5385,17 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 </div>
               </>
             )}
+
+            {!perms.can("edit_lifecycle") && (
+              <LifecycleFlowDiagram stages={inheritedStages} currentStatus={caseData.status} />
+            )}
           </div>
         );
       })()}
+
+                    {tab.id === "audit_log" && perms.can("view_audit_log") && (
+                      <CaseAuditLog caseId={caseData.id} />
+                    )}
                         </div>
                       ) : (
                         <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -5412,6 +5562,398 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
       )}
       {showSaveAsTemplate && (
         <SaveCaseAsTemplateModal caseData={caseData} onClose={() => setShowSaveAsTemplate(false)} />
+      )}
+    </div>
+  );
+}
+
+// ── Invite client card (shown inside case detail for consultant / admin / manager)
+function CaseInviteCard({ caseData, auth }) {
+  const { settings: cdSettings } = useSystemSettings();
+  const [invites, setInvites] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [email, setEmail]     = useState("");
+  const [name, setName]       = useState("");
+  const [sending, setSending] = useState(false);
+  const [feedback, setFeedback] = useState(null); // { type: "success"|"error", msg }
+  // Existing-user lookup
+  const [lookup, setLookup]   = useState(null);  // null | "searching" | { found, user, alreadyLinked }
+  const debounceRef           = useRef(null);
+
+  useEffect(() => {
+    if (!caseData?.id) return;
+    supabase.from("case_invitations")
+      .select("id, invited_email, invited_name, status, created_at, expires_at, token")
+      .eq("case_id", caseData.id)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => { setInvites(data ?? []); setLoading(false); });
+  }, [caseData?.id]);
+
+  // Debounced email lookup — checks users table when a valid email is typed
+  function handleEmailChange(val) {
+    setEmail(val);
+    setLookup(null);
+    clearTimeout(debounceRef.current);
+    const clean = val.trim().toLowerCase();
+    if (!clean.includes("@") || !clean.includes(".")) return;
+    debounceRef.current = setTimeout(async () => {
+      setLookup("searching");
+      const { data: existingUser } = await supabase
+        .from("users")
+        .select("id, full_name, email, role, verification_status")
+        .eq("email", clean)
+        .maybeSingle();
+      if (!existingUser) { setLookup({ found: false }); return; }
+      // Check if this user is already linked to this case as the client
+      const alreadyLinked = caseData.client_id === existingUser.id;
+      // Pre-fill name if found and field is empty
+      if (existingUser.full_name && !name) setName(existingUser.full_name);
+      setLookup({ found: true, user: existingUser, alreadyLinked });
+    }, 500);
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setFeedback(null);
+    setSending(true);
+    try {
+      const cleanEmail = email.trim().toLowerCase();
+      if (lookup?.found && lookup.user) {
+        // User already exists — link them directly, no new account needed
+        await linkExistingUser(lookup.user, cleanEmail);
+      } else {
+        // New user — create invitation link
+        await sendNewInvite(cleanEmail);
+      }
+    } catch (err) {
+      setFeedback({ type: "error", msg: err.message });
+    }
+    setSending(false);
+  }
+
+  async function sendNewInvite(cleanEmail) {
+    const { data, error } = await supabase.from("case_invitations").insert({
+      case_id:       caseData.id,
+      invited_email: cleanEmail,
+      invited_name:  name.trim() || null,
+      invited_by:    auth.user?.id,
+    }).select().single();
+    if (error) throw error;
+    setInvites(prev => [data, ...prev]);
+    const joinUrl = `${window.location.origin}/join/${data.token}`;
+    await deliverInvite({ email: cleanEmail, recipientName: name.trim() || null, joinUrl });
+    setEmail(""); setName(""); setLookup(null);
+  }
+
+  async function linkExistingUser(existingUser, cleanEmail) {
+    if (lookup.alreadyLinked) return;
+    // Update case to point to this client
+    const { error: caseErr } = await supabase
+      .from("cases")
+      .update({ client_id: existingUser.id })
+      .eq("id", caseData.id);
+    if (caseErr) throw caseErr;
+    // Record as accepted invitation so history is visible
+    const { data: inv } = await supabase.from("case_invitations").insert({
+      case_id:       caseData.id,
+      invited_email: cleanEmail,
+      invited_name:  existingUser.full_name || name.trim() || null,
+      invited_by:    auth.user?.id,
+      status:        "accepted",
+    }).select().single();
+    if (inv) setInvites(prev => [inv, ...prev]);
+    const roleLabel = existingUser.role === "invited_client" ? "limited access" : "full client access";
+    setFeedback({
+      type: "success",
+      msg: `${existingUser.full_name ?? cleanEmail} already has an account (${roleLabel}) and has been linked to this case.`,
+    });
+    setEmail(""); setName(""); setLookup(null);
+  }
+
+  async function resendInvite(invite) {
+    if (invite.status === "accepted") return;
+    const { data, error } = await supabase.from("case_invitations").update({
+      token:      crypto.randomUUID(),
+      status:     "pending",
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    }).eq("id", invite.id).select().single();
+    if (!error && data) {
+      setInvites(prev => prev.map(i => i.id === data.id ? data : i));
+      const joinUrl = `${window.location.origin}/join/${data.token}`;
+      await deliverInvite({ email: invite.invited_email, recipientName: invite.invited_name, joinUrl, isResend: true });
+      setTimeout(() => setFeedback(null), 4000);
+    }
+  }
+
+  async function deliverInvite({ email, recipientName, joinUrl, isResend = false }) {
+    const invCfg    = cdSettings["invitation_config"] ?? {};
+    const smtpCfg   = cdSettings["smtp_config"];
+    const autoEmail = invCfg.delivery === "email" && smtpCfg?.host;
+
+    if (autoEmail) {
+      const platformName = cdSettings["platform_name"] || "Arena";
+      const subject = invCfg.subject?.trim() ||
+        `You've been invited to collaborate on a case via ${platformName}`;
+      const intro = invCfg.intro?.trim() ||
+        `Your consultant has invited you to review your case on ${platformName}. Click the button below to create your account and get started.`;
+      const html = `
+        <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px">
+          <h2 style="color:#1d4ed8;margin-bottom:8px">${platformName}</h2>
+          ${recipientName ? `<p>Hi ${recipientName},</p>` : ""}
+          <p style="color:#374151">${intro}</p>
+          <div style="margin:28px 0">
+            <a href="${joinUrl}" style="background:#2563eb;color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-weight:600;display:inline-block">
+              ${isResend ? "View My Case" : "Join & View My Case"}
+            </a>
+          </div>
+          <p style="color:#6b7280;font-size:13px">Or copy this link: ${joinUrl}</p>
+          <p style="color:#9ca3af;font-size:12px">This link expires in 7 days.</p>
+        </div>`;
+      try {
+        await supabase.functions.invoke("send-email", {
+          body: { to: email, subject, html, smtpConfig: smtpCfg },
+        });
+        setFeedback({ type: "success", msg: `Invite emailed to ${email}!` });
+        return;
+      } catch {
+        // fall through to clipboard
+      }
+    }
+
+    try { await navigator.clipboard.writeText(joinUrl); } catch {}
+    setFeedback({
+      type: "success",
+      msg: isResend ? "New invite link copied to clipboard!" : "Invite link copied to clipboard! Share it with the client.",
+    });
+  }
+
+  const caseIsActive = !["closed","completed","cancelled"].includes(caseData?.status);
+  const isAlreadyLinked = lookup?.found && lookup.alreadyLinked;
+  const isExistingUser  = lookup?.found && !lookup.alreadyLinked && lookup.user;
+
+  return (
+    <div className="border border-gray-100 rounded-xl p-4">
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+        <UserPlus size={12} className="text-blue-400" /> Invite Client
+      </p>
+
+      {/* Form */}
+      {caseIsActive && (
+        <form onSubmit={handleSubmit} className="space-y-2 mb-4">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex-1 relative">
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={e => handleEmailChange(e.target.value)}
+                placeholder="client@company.com"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {lookup === "searching" && (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">checking…</span>
+              )}
+            </div>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="Name (optional)"
+              className="w-36 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Existing-user banner */}
+          {isAlreadyLinked && (
+            <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700 flex items-center gap-2">
+              <CheckCircle2 size={14} className="flex-shrink-0" />
+              <span><strong>{lookup.user.full_name}</strong> is already linked to this case.</span>
+            </div>
+          )}
+          {isExistingUser && (
+            <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-700 flex items-start gap-2">
+              <Users size={14} className="flex-shrink-0 mt-0.5" />
+              <div>
+                <span className="font-medium">{lookup.user.full_name ?? email}</span>
+                <span className="text-blue-500"> already has an account</span>
+                {lookup.user.role === "invited_client" && <span className="text-blue-500"> (limited access)</span>}
+                {lookup.user.role === "client"         && <span className="text-blue-500"> (full client)</span>}
+                <p className="text-xs text-blue-500 mt-0.5">Clicking "Link to case" will give them access without sending a new invitation.</p>
+              </div>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={sending || isAlreadyLinked}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-40 flex items-center gap-1.5"
+          >
+            {sending ? "Working…" : isExistingUser ? <><Users size={13} /> Link to case</> : <><Send size={13} /> Send Invite</>}
+          </button>
+        </form>
+      )}
+
+      {feedback && (
+        <div className={`mb-3 p-2.5 rounded-xl text-sm flex items-start gap-2 ${
+          feedback.type === "success"
+            ? "bg-emerald-50 border border-emerald-200 text-emerald-700"
+            : "bg-red-50 border border-red-200 text-red-700"
+        }`}>
+          {feedback.type === "success" ? <CheckCircle2 size={14} className="flex-shrink-0 mt-0.5" /> : <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />}
+          {feedback.msg}
+        </div>
+      )}
+
+      {/* Existing invitations */}
+      {!loading && invites.length > 0 && (
+        <div className="space-y-2">
+          {invites.map(inv => {
+            const isExpired = inv.status === "expired" || new Date(inv.expires_at) < new Date();
+            const statusColors = {
+              accepted: "text-emerald-600 bg-emerald-50",
+              expired:  "text-gray-400 bg-gray-50",
+              pending:  isExpired ? "text-gray-400 bg-gray-50" : "text-amber-600 bg-amber-50",
+            };
+            const displayStatus = inv.status === "pending" && isExpired ? "expired" : inv.status;
+            return (
+              <div key={inv.id} className="flex items-center justify-between gap-2 text-sm py-1.5 border-t border-gray-50">
+                <div className="min-w-0 flex-1">
+                  <span className="font-medium text-gray-800 truncate block">{inv.invited_email}</span>
+                  {inv.invited_name && <span className="text-xs text-gray-400">{inv.invited_name}</span>}
+                </div>
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${statusColors[displayStatus]}`}>
+                  {displayStatus}
+                </span>
+                {inv.status !== "accepted" && caseIsActive && (
+                  <button
+                    onClick={() => resendInvite(inv)}
+                    className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 whitespace-nowrap"
+                    title="Regenerate invite link and copy to clipboard"
+                  >
+                    <RefreshCw size={11} /> Resend
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {!loading && invites.length === 0 && (
+        <p className="text-xs text-gray-400 italic">No invitations sent yet.</p>
+      )}
+    </div>
+  );
+}
+
+const AUDIT_EVENT_COLORS_CD = {
+  'case.created':              'bg-blue-100 text-blue-700',
+  'case.status_changed':       'bg-amber-100 text-amber-700',
+  'case.cancelled':            'bg-red-100 text-red-700',
+  'case.updated':              'bg-gray-100 text-gray-600',
+  'case.status_bulk_changed':  'bg-amber-100 text-amber-700',
+  'case.deleted_bulk':         'bg-red-100 text-red-700',
+  'spec.generated':            'bg-purple-100 text-purple-700',
+  'spec.approved':             'bg-green-100 text-green-700',
+  'devplan.confirmed':         'bg-indigo-100 text-indigo-700',
+  'time.logged':               'bg-sky-100 text-sky-700',
+  'invoice.created':           'bg-teal-100 text-teal-700',
+  'case.rated':                'bg-pink-100 text-pink-700',
+  'rating.submitted':          'bg-pink-100 text-pink-700',
+  'case.reopened':             'bg-green-100 text-green-700',
+};
+const AUDIT_EVENT_LABELS_CD = {
+  'case.created':              'Created',
+  'case.status_changed':       'Status changed',
+  'case.cancelled':            'Cancelled',
+  'case.updated':              'Updated',
+  'case.status_bulk_changed':  'Status changed (bulk)',
+  'case.deleted_bulk':         'Deleted (bulk)',
+  'spec.generated':            'Spec generated',
+  'spec.approved':             'Spec approved',
+  'devplan.confirmed':         'Dev plan confirmed',
+  'time.logged':               'Time logged',
+  'invoice.created':           'Invoice created',
+  'case.rated':                'Rated',
+  'rating.submitted':          'Rating submitted',
+  'case.reopened':             'Reopened',
+};
+
+function CaseAuditLog({ caseId }) {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filterType, setFilterType] = useState("");
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      const { data } = await supabase
+        .from('audit_logs')
+        .select('*')
+        .eq('entity_type', 'case')
+        .eq('entity_id', String(caseId))
+        .order('created_at', { ascending: false })
+        .limit(200);
+      setLogs(data ?? []);
+      setLoading(false);
+    }
+    load();
+  }, [caseId]);
+
+  const eventTypes = [...new Set(logs.map(l => l.event_type))].sort();
+  const visible = filterType ? logs.filter(l => l.event_type === filterType) : logs;
+
+  if (loading) return <div className="flex justify-center py-10"><Spinner /></div>;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3">
+        <select value={filterType} onChange={e => setFilterType(e.target.value)}
+          className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 bg-white focus:outline-none focus:border-blue-400">
+          <option value="">All event types</option>
+          {eventTypes.map(k => (
+            <option key={k} value={k}>{AUDIT_EVENT_LABELS_CD[k] ?? k}</option>
+          ))}
+        </select>
+        {filterType && (
+          <button onClick={() => setFilterType("")}
+            className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1 border border-gray-200 rounded-lg">
+            Clear
+          </button>
+        )}
+        <span className="text-xs text-gray-400 ml-auto">{visible.length} event{visible.length !== 1 ? "s" : ""}</span>
+      </div>
+
+      {visible.length === 0 ? (
+        <div className="py-12 text-center text-sm text-gray-400">No audit events recorded for this case yet.</div>
+      ) : (
+        <div className="space-y-1">
+          {visible.map(log => {
+            const ov = log.old_value?.status, nv = log.new_value?.status;
+            const meta = log.metadata;
+            return (
+              <div key={log.id} className="flex items-start gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 border border-transparent hover:border-gray-100 transition-colors">
+                <span className={`mt-0.5 shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap ${AUDIT_EVENT_COLORS_CD[log.event_type] ?? 'bg-gray-100 text-gray-600'}`}>
+                  {AUDIT_EVENT_LABELS_CD[log.event_type] ?? log.event_type}
+                </span>
+                <div className="flex-1 min-w-0">
+                  {ov && nv && (
+                    <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                      <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">{ov}</span>
+                      <span className="text-gray-400">→</span>
+                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">{nv}</span>
+                    </span>
+                  )}
+                  {meta?.reason && <p className="text-xs text-gray-500 mt-0.5">Reason: {meta.reason}</p>}
+                  {meta?.hours != null && <p className="text-xs text-gray-500 mt-0.5">{meta.hours}h — {meta.description ?? ''}</p>}
+                </div>
+                <div className="text-right text-xs text-gray-400 shrink-0">
+                  <p className="font-medium text-gray-600">{log.user_name ?? log.user_email ?? 'system'}</p>
+                  <p>{new Date(log.created_at).toLocaleString()}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

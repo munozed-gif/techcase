@@ -20,7 +20,7 @@ function useCases(filters = {}) {
     let query = supabase
       .from("cases")
       .select(`
-        *,
+        *, created_by,
         client:client_id(id, full_name, email, avatar_url, client_profiles(company_name)),
         manager:manager_id(id, full_name, email, avatar_url),
         case_assignments(consultant_id, time_commitment,
@@ -54,7 +54,16 @@ function useCases(filters = {}) {
   }, [fetchCases]);
 
   async function createCase(data) {
-    const { data: row, error } = await supabase.from("cases").insert(data).select().single();
+    // If no lifecycle is set on the case, apply the system default
+    let payload = data;
+    if (!data.case_lifecycle) {
+      try {
+        const { data: s } = await supabase.from("system_settings").select("value").eq("key", "default_lifecycle_config").maybeSingle();
+        const def = s?.value?.case;
+        if (def?.preset) payload = { ...data, case_lifecycle: { preset: def.preset, reopen_to: def.reopen_to ?? "open" } };
+      } catch (_) {}
+    }
+    const { data: row, error } = await supabase.from("cases").insert(payload).select().single();
     if (error) throw error;
     logEvent('case.created', { entityType: 'case', entityId: row.id, entityName: row.title });
 

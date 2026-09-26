@@ -10,7 +10,7 @@ import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useCases } from "../hooks/useCaseHooks.js";
 import { useProjects } from "../hooks/useCoreHooks.js";
-import { filterCasesByVisibility, usePlanConfig, useSystemSettings, useVisibilitySettings } from "../hooks/useSystemSettings.jsx";
+import { filterCasesByVisibility, usePlanConfig, usePermissions, useSystemSettings, useVisibilitySettings, useWizardMode } from "../hooks/useSystemSettings.jsx";
 import { logEvent } from "../lib/utils.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { EmptyState, Input } from "../components/ui.jsx";
@@ -28,6 +28,7 @@ import {
 
 function CasesView({ auth, initialCaseId }) {
   const { t } = useT();
+  const wizardMode = useWizardMode(auth);
   const [search, setSearch]           = useState("");
   const [statusFilter, setStatus]     = useState("");
   const [periodFilter, setPeriod]     = useState("");
@@ -38,6 +39,7 @@ function CasesView({ auth, initialCaseId }) {
   const [showFavOnly, setShowFavOnly] = useState(false);
   const [feedbackCase, setFeedbackCase] = useState(null);
   const { isFavorite, toggle }        = useFavorites();
+  const { can }                       = usePermissions(auth);
   const [selectedCases, setSelectedCases]     = useState(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [bulkProcessing, setBulkProcessing]   = useState(false);
@@ -78,7 +80,10 @@ function CasesView({ auth, initialCaseId }) {
   // Consultants and key users see only their linked cases.
   // Headhunters see resource-need cases or cases assigned to them.
   const visibleCases = auth.isConsultant
-    ? cases.filter(c => c.case_assignments?.some(a => a.consultant_id === auth.user?.id))
+    ? cases.filter(c =>
+        c.case_assignments?.some(a => a.consultant_id === auth.user?.id) ||
+        c.created_by === auth.user?.id
+      )
     : auth.isKeyUser
     ? cases.filter(c => c.case_key_users?.some(ku => ku.user_id === auth.user?.id))
     : auth.isHeadhunter
@@ -213,6 +218,7 @@ function CasesView({ auth, initialCaseId }) {
         <CreateCaseWizard
           auth={auth}
           createCase={createCase}
+          defaultMode={wizardMode.getMode("case")}
           onComplete={() => setShowCreate(false)}
           onCancel={() => setShowCreate(false)}
         />
@@ -249,7 +255,7 @@ function CasesView({ auth, initialCaseId }) {
           <h1 className="text-2xl font-bold text-gray-900">{t("cases.title")}</h1>
           <p className="text-gray-500 text-sm mt-1">{t(displayed.length !== 1 ? "count.case_many" : "count.case_one").replace("{n}", displayed.length)}</p>
         </div>
-        {(auth.isAdmin || auth.isManager || auth.isClient) && (
+        {can("create_cases") && !auth.isHeadhunter && (
           <button onClick={() => setShowCreate(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
             {t("cases.new")}

@@ -1276,8 +1276,14 @@ function PlanUsageCard({ auth }) {
     );
   }
 
-  const canUpgrade = curPlan !== 'enterprise';
-  const nextPlanKey = { free: 'starter', starter: 'professional', professional: 'enterprise' }[curPlan];
+  const UPGRADE_LADDER = {
+    client:     { free: 'growth', growth: 'enterprise' },
+    consultant: { free: 'pro' },
+    headhunter: { free: 'pro', pro: 'agency' },
+  };
+  const ladder = UPGRADE_LADDER[roleType] ?? {};
+  const canUpgrade = !!ladder[curPlan];
+  const nextPlanKey = ladder[curPlan] ?? null;
 
   return (
     <>

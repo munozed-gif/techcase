@@ -2,10 +2,10 @@ import { useState, useEffect, Component } from "react";
 import {
   Activity, AlertCircle, AlertTriangle, BadgeCheck, BarChart2, Briefcase,
   Building2, Calendar, CalendarDays, CalendarRange, Check, CheckCircle2,
-  ChevronDown, CreditCard, Crosshair, Database, DollarSign, Download,
+  ChevronDown, ClipboardList, CreditCard, Crosshair, Database, DollarSign, Download,
   ExternalLink, FileCode2, FileText, FolderKanban, FolderOpen, Globe,
   Handshake, ListChecks, Lock, Mail, Palette, Pencil, Phone, Plus, Receipt,
-  RefreshCw, RotateCcw, Search, Settings, Shield, SlidersHorizontal,
+  RefreshCw, RotateCcw, Search, Send, Settings, Shield, SlidersHorizontal,
   Monitor, Sparkles, Tag, Trash2, TrendingUp, User, UserCheck, UserCog,
   Users, X, XCircle, Zap,
 } from "lucide-react";
@@ -15,7 +15,7 @@ import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useSystemSettings, useVisibilitySettings, usePlanConfig, usePlatformBranding } from "../hooks/useSystemSettings.jsx";
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
-import { logEvent, notify } from "../lib/utils.js";
+import { logEvent, notify, clearAuditConfigCache } from "../lib/utils.js";
 import { Badge, PlanUsageCard, Spinner, TrustBadge } from "../components/ProfileComponents.jsx";
 import { EmptyState, Input, Modal, Select, Textarea } from "../components/ui.jsx";
 import {
@@ -26,9 +26,9 @@ import {
 import {
   ROLE_COLORS, PLAN_BADGE, DEFAULT_PLAN_CONFIG, DEFAULT_PLAN_PRICES,
   LIFECYCLE_PRESETS, DEFAULT_ACTIVITY_PHASES,
-  SAP_AREAS, INDUSTRY_AREAS, PROJECT_TYPES, ROLE_TO_PLAN_TYPE,
+  SAP_AREAS, INDUSTRY_AREAS, PROJECT_TYPES, ROLE_TO_PLAN_TYPE, PRIORITY_COLORS,
 } from "../lib/businessConstants.js";
-import { GENERATION_CONTEXT_DEFAULTS, GENERATION_PROFILE_DEFAULTS, GEN_DOCS, ROLE_PERMISSIONS_DEFAULTS } from "../lib/constants.js";
+import { GENERATION_CONTEXT_DEFAULTS, GENERATION_PROFILE_DEFAULTS, GEN_DOCS, ROLE_PERMISSIONS_DEFAULTS, WIZARD_MODE_DEFAULTS } from "../lib/constants.js";
 import { LifecycleSettingsView, CaseDefaultsPanel, AssignmentSettingsPanel, TransitionGatesPanel } from "./SettingsSubViews.jsx";
 import { PersonAvatar } from "./Projects.jsx";
 import { AbapTemplatesSection } from "../components/SapPanels.jsx";
@@ -681,6 +681,7 @@ function SettingsPlatformTab({ ssCtx }) {
     invoice_due_days:           30,
     max_applications_per_case:  10,
     spec_regen_manager_only:    true,
+    show_pricing_section:       true,
   };
 
   const [form, setForm]     = useState(null);
@@ -700,6 +701,7 @@ function SettingsPlatformTab({ ssCtx }) {
         invoice_due_days:           ssCtx.settings["invoice_due_days"]           ?? DEFAULTS.invoice_due_days,
         max_applications_per_case:  ssCtx.settings["max_applications_per_case"]  ?? DEFAULTS.max_applications_per_case,
         spec_regen_manager_only:    ssCtx.settings["spec_regen_manager_only"]    ?? DEFAULTS.spec_regen_manager_only,
+        show_pricing_section:       ssCtx.settings["show_pricing_section"]       ?? DEFAULTS.show_pricing_section,
       });
     }
   }, [ssCtx.loading, ssCtx.settings]);
@@ -717,6 +719,7 @@ function SettingsPlatformTab({ ssCtx }) {
         ssCtx.setSetting("invoice_due_days",          form.invoice_due_days),
         ssCtx.setSetting("max_applications_per_case", form.max_applications_per_case),
         ssCtx.setSetting("spec_regen_manager_only",   form.spec_regen_manager_only),
+        ssCtx.setSetting("show_pricing_section",      form.show_pricing_section),
       ]);
       setToast(t("sys.settings_saved"));
       setTimeout(() => setToast(null), 3000);
@@ -852,6 +855,24 @@ function SettingsPlatformTab({ ssCtx }) {
         </label>
       </div>
 
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Palette size={16} className="text-blue-600" /> Landing Page
+        </h3>
+        <label className="flex items-center justify-between gap-4 cursor-pointer select-none">
+          <div>
+            <p className="text-sm font-medium text-gray-700">Show Pricing Section</p>
+            <p className="text-xs text-gray-400 mt-0.5">Display the pricing section on the public landing page, including nav and footer links.</p>
+          </div>
+          <button type="button"
+            onClick={() => setForm(p => ({ ...p, show_pricing_section: !p.show_pricing_section }))}
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${form.show_pricing_section ? 'bg-blue-600' : 'bg-gray-200'}`}
+            role="switch" aria-checked={form.show_pricing_section}>
+            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${form.show_pricing_section ? 'translate-x-5' : 'translate-x-0'}`} />
+          </button>
+        </label>
+      </div>
+
       {toast && (
         <div className={`px-4 py-3 rounded-xl text-sm flex items-center gap-2 ${toast.startsWith("Error") ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
           <CheckCircle2 size={14} /> {toast}
@@ -866,6 +887,7 @@ function SettingsPlatformTab({ ssCtx }) {
             invoice_due_days:          DEFAULTS.invoice_due_days,
             max_applications_per_case: DEFAULTS.max_applications_per_case,
             spec_regen_manager_only:   DEFAULTS.spec_regen_manager_only,
+            show_pricing_section:      DEFAULTS.show_pricing_section,
           })}
           className="px-4 py-2 border border-gray-200 text-gray-700 text-sm rounded-xl hover:bg-gray-50 flex items-center gap-1.5">
           <RotateCcw size={13} /> {t("sys.reset_defaults")}
@@ -885,7 +907,12 @@ function SettingsRolesTab({ ssCtx }) {
   const ALL_ROLES = ["admin", "manager", "consultant", "client", "key_user", "headhunter", "final_user", "dispatch", "area_leader"];
   const CAPABILITIES = Object.keys(ROLE_PERMISSIONS_DEFAULTS);
 
+  const WIZARD_TYPES = ["case", "project"];
+  const WIZARD_ROLES = ["admin", "manager", "consultant", "client", "key_user", "headhunter", "final_user", "internal_consultant", "project_manager"];
+  const WIZARD_OPTIONS = ["ask", "express", "advanced"];
+
   const [matrix, setMatrix] = useState(null);
+  const [wizardModes, setWizardModes] = useState(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast]   = useState(null);
 
@@ -897,8 +924,18 @@ function SettingsRolesTab({ ssCtx }) {
         merged[cap] = { ...ROLE_PERMISSIONS_DEFAULTS[cap], ...(stored[cap] ?? {}) };
       }
       setMatrix(merged);
+
+      const storedWiz = ssCtx.settings["wizard_modes"] ?? {};
+      const mergedWiz = {};
+      for (const type of WIZARD_TYPES) {
+        mergedWiz[type] = {};
+        for (const role of WIZARD_ROLES) {
+          mergedWiz[type][role] = storedWiz[type]?.[role] ?? WIZARD_MODE_DEFAULTS[type]?.[role] ?? "ask";
+        }
+      }
+      setWizardModes(mergedWiz);
     }
-  }, [ssCtx.loading, ssCtx.settings]);
+  }, [ssCtx.loading, ssCtx.settings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggle(cap, role) {
     if (role === 'admin') return;
@@ -909,6 +946,7 @@ function SettingsRolesTab({ ssCtx }) {
     setSaving(true);
     try {
       await ssCtx.setSetting("role_permissions", matrix);
+      await ssCtx.setSetting("wizard_modes", wizardModes);
       setToast(t("roles.saved"));
       setTimeout(() => setToast(null), 3000);
     } catch (e) {
@@ -921,20 +959,28 @@ function SettingsRolesTab({ ssCtx }) {
     const fresh = {};
     for (const cap of CAPABILITIES) fresh[cap] = { ...ROLE_PERMISSIONS_DEFAULTS[cap] };
     setMatrix(fresh);
+    const freshWiz = {};
+    for (const type of WIZARD_TYPES) {
+      freshWiz[type] = {};
+      for (const role of WIZARD_ROLES) freshWiz[type][role] = WIZARD_MODE_DEFAULTS[type]?.[role] ?? "ask";
+    }
+    setWizardModes(freshWiz);
   }
 
-  if (ssCtx.loading || !matrix) return <Spinner />;
+  if (ssCtx.loading || !matrix || !wizardModes) return <Spinner />;
 
   const ROLE_COLORS = {
-    admin:               'bg-red-100 text-red-700',
-    manager:             'bg-purple-100 text-purple-700',
-    consultant:          'bg-blue-100 text-blue-700',
-    client:              'bg-green-100 text-green-700',
-    key_user:            'bg-amber-100 text-amber-700',
-    headhunter:          'bg-pink-100 text-pink-700',
-    final_user:          'bg-teal-100 text-teal-700',
-    internal_consultant: 'bg-indigo-100 text-indigo-700',
-    project_manager:     'bg-rose-100 text-rose-700',
+    admin:               'border border-red-500 text-red-500 bg-red-500/10',
+    manager:             'border border-purple-500 text-purple-400 bg-purple-500/10',
+    consultant:          'border border-blue-500 text-blue-400 bg-blue-500/10',
+    client:              'border border-green-500 text-green-400 bg-green-500/10',
+    key_user:            'border border-amber-500 text-amber-400 bg-amber-500/10',
+    headhunter:          'border border-pink-500 text-pink-400 bg-pink-500/10',
+    final_user:          'border border-teal-500 text-teal-400 bg-teal-500/10',
+    internal_consultant: 'border border-indigo-500 text-indigo-400 bg-indigo-500/10',
+    project_manager:     'border border-rose-500 text-rose-400 bg-rose-500/10',
+    dispatch:            'border border-cyan-500 text-cyan-400 bg-cyan-500/10',
+    area_leader:         'border border-orange-500 text-orange-400 bg-orange-500/10',
   };
 
   return (
@@ -984,21 +1030,66 @@ function SettingsRolesTab({ ssCtx }) {
                   {ALL_ROLES.map(role => (
                     <td key={role} className="text-center py-2.5 px-2">
                       {role === 'admin' ? (
-                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-100 text-red-600" title="Admin always has access">
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border border-red-500 bg-red-500/20 text-red-500" title="Admin always has access">
                           <Check size={11} />
                         </span>
                       ) : (
                         <button
                           onClick={() => toggle(cap, role)}
                           className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${
-                            matrix[cap][role]
+                            matrix[cap]?.[role]
                               ? 'bg-blue-600 border-blue-600 text-white'
-                              : 'bg-white border-gray-300 text-transparent hover:border-blue-400'
+                              : 'bg-transparent border-gray-500 text-transparent hover:border-blue-400'
                           }`}
                         >
                           <Check size={11} />
                         </button>
                       )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Wizard Mode Defaults */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <Zap size={16} className="text-blue-600" />
+          <h3 className="font-semibold text-gray-900">{t("roles.wizard_modes_title")}</h3>
+        </div>
+        <p className="text-xs text-gray-400 mb-5">{t("roles.wizard_modes_desc")}</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th className="text-left py-2 pr-4 font-semibold text-gray-500 text-xs uppercase tracking-wide w-36">{t("roles.wizard_type")}</th>
+                {WIZARD_ROLES.map(r => (
+                  <th key={r} className="text-center py-2 px-1.5 min-w-[80px]">
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ROLE_COLORS[r] ?? 'bg-gray-100 text-gray-600'}`}>
+                      {t("role." + r)}
+                    </span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {WIZARD_TYPES.map((type, idx) => (
+                <tr key={type} className={`border-b border-gray-100 ${idx % 2 === 0 ? 'bg-gray-50/50' : ''}`}>
+                  <td className="py-3 pr-4 font-medium text-gray-700 text-xs">{t("roles.wizard_type_" + type)}</td>
+                  {WIZARD_ROLES.map(role => (
+                    <td key={role} className="text-center py-2 px-1.5">
+                      <select
+                        value={wizardModes[type][role]}
+                        onChange={e => setWizardModes(p => ({ ...p, [type]: { ...p[type], [role]: e.target.value } }))}
+                        className="text-xs border border-gray-200 rounded-lg px-1.5 py-1 bg-white text-gray-700 focus:outline-none focus:border-blue-400 cursor-pointer"
+                      >
+                        {WIZARD_OPTIONS.map(opt => (
+                          <option key={opt} value={opt}>{t("roles.wizard_opt_" + opt)}</option>
+                        ))}
+                      </select>
                     </td>
                   ))}
                 </tr>
@@ -1350,13 +1441,19 @@ function UserApprovalQueue() {
   async function handleApprove(userId) {
     setProcessing(userId);
     const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from('users').update({
+    const targetUser = users.find(u => u.id === userId);
+    const updateData = {
       verification_status: 'approved',
       approved_by: user.id,
       approved_at: new Date().toISOString(),
-    }).eq('id', userId);
+    };
+    if (targetUser?.role === 'invited_client') updateData.role = 'client';
+    await supabase.from('users').update(updateData).eq('id', userId);
     logEvent('user.approved', { entityType: 'user', entityId: userId });
-    notify(userId, 'Your account has been approved! 🎉', 'You now have access to the platform. Welcome aboard.');
+    const msg = targetUser?.role === 'invited_client'
+      ? 'Your full access has been approved! You now have complete client access.'
+      : 'Your account has been approved! 🎉 You now have access to the platform. Welcome aboard.';
+    notify(userId, 'Account approved', msg);
     setUsers(p => p.filter(u => u.id !== userId));
     setProcessing(null);
   }
@@ -1396,12 +1493,18 @@ function UserApprovalQueue() {
     const ids = [...selectedUserIds];
     setBulkProgressCount({ current: 0, total: ids.length });
     for (const userId of ids) {
-      await supabase.from('users').update({
+      const targetUser = users.find(u => u.id === userId);
+      const updateData = {
         verification_status: 'approved',
         approved_by: currentUser.id,
         approved_at: new Date().toISOString(),
-      }).eq('id', userId);
-      await notify(userId, 'Account approved', 'Your account has been approved. Welcome aboard.');
+      };
+      if (targetUser?.role === 'invited_client') updateData.role = 'client';
+      await supabase.from('users').update(updateData).eq('id', userId);
+      const msg = targetUser?.role === 'invited_client'
+        ? 'Your full access has been approved! You now have complete client access.'
+        : 'Your account has been approved. Welcome aboard.';
+      await notify(userId, 'Account approved', msg);
       await logEvent('user.approved_bulk', { entityType: 'user', entityId: userId });
       setBulkProgressCount(p => ({ ...p, current: p.current + 1 }));
     }
@@ -1448,10 +1551,14 @@ function UserApprovalQueue() {
   }
 
   const ROLE_COLORS = {
-    consultant:  'bg-blue-100 text-blue-700',
-    client:      'bg-green-100 text-green-700',
-    headhunter:  'bg-purple-100 text-purple-700',
-    manager:     'bg-orange-100 text-orange-700',
+    consultant:      'bg-blue-100 text-blue-700',
+    client:          'bg-green-100 text-green-700',
+    headhunter:      'bg-purple-100 text-purple-700',
+    manager:         'bg-orange-100 text-orange-700',
+    invited_client:  'bg-sky-100 text-sky-700',
+  };
+  const ROLE_LABELS = {
+    invited_client: 'Invited Client → Full Access',
   };
 
   return (
@@ -1518,7 +1625,7 @@ function UserApprovalQueue() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-semibold text-gray-900">{u.full_name || '—'}</p>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[u.role] ?? 'bg-gray-100 text-gray-500'}`}>{u.role}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[u.role] ?? 'bg-gray-100 text-gray-500'}`}>{ROLE_LABELS[u.role] ?? u.role}</span>
                   </div>
                   <p className="text-xs text-gray-400 mt-0.5">{u.email} · Signed up {new Date(u.created_at).toLocaleDateString()}</p>
                 </div>
@@ -3244,7 +3351,7 @@ function SettingsPlansTab({ ssCtx, auth }) {
   }
 
   const PLAN_TYPES = ['client', 'consultant', 'headhunter'];
-  const PLAN_KEYS  = { client: ['free','starter','professional','enterprise'], consultant: ['free','starter','professional'], headhunter: ['free','professional'] };
+  const PLAN_KEYS  = { client: ['free','growth','enterprise'], consultant: ['free','pro'], headhunter: ['free','pro','agency'] };
   const LIMIT_LABELS = { maxCases: 'Max active cases', maxTeam: 'Max team members', maxApps: 'Max applications/mo', maxCandidates: 'Max candidates', ai: 'AI features', analytics: 'Analytics', priority: 'Priority listing', helpDesk: 'Help Desk projects' };
 
   const CLIENT_TEAM_ROLES_ADMIN = ['key_user', 'final_user', 'internal_consultant', 'project_manager'];
@@ -3530,10 +3637,151 @@ function SettingsPricingTab({ ssCtx, auth }) {
 }
 
 // ── Workflow tab — Lifecycle + Phases + SLA ───────────────────
+function SettingsDefaultLifecycleTab({ ssCtx }) {
+  const { settings, setSetting } = ssCtx;
+  const { templates } = useLifecycleTemplates();
+  const cfg = settings["default_lifecycle_config"] ?? {};
+  const [casePreset,       setCasePreset]       = useState(cfg.case?.preset         ?? "standard");
+  const [caseReopenTo,     setCaseReopenTo]     = useState(cfg.case?.reopen_to      ?? "open");
+  const [caseAllowOverride,setCaseAllowOverride] = useState(cfg.case?.allow_override ?? true);
+  const [projPreset,       setProjPreset]       = useState(cfg.project?.preset      ?? "standard");
+  const [projReopenTo,     setProjReopenTo]     = useState(cfg.project?.reopen_to   ?? "open");
+  const [projAllowOverride,setProjAllowOverride] = useState(cfg.project?.allow_override ?? true);
+  const [saving, setSaving] = useState(false);
+  const [saved,  setSaved]  = useState(false);
+
+  useEffect(() => {
+    const c = settings["default_lifecycle_config"] ?? {};
+    setCasePreset(c.case?.preset            ?? "standard");
+    setCaseReopenTo(c.case?.reopen_to       ?? "open");
+    setCaseAllowOverride(c.case?.allow_override ?? true);
+    setProjPreset(c.project?.preset         ?? "standard");
+    setProjReopenTo(c.project?.reopen_to    ?? "open");
+    setProjAllowOverride(c.project?.allow_override ?? true);
+  }, [settings]);
+
+  const tmplList = templates.length
+    ? templates
+    : Object.entries(LIFECYCLE_PRESETS).map(([k, v]) => ({ key: k, ...v }));
+
+  function stagesFor(preset) {
+    const tmpl = templates.find(t => t.key === preset);
+    return (tmpl?.stages ?? LIFECYCLE_PRESETS[preset]?.stages ?? LIFECYCLE_PRESETS.standard.stages).filter(s => !s.is_terminal);
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    await setSetting("default_lifecycle_config", {
+      case:    { preset: casePreset,  reopen_to: caseReopenTo,  allow_override: caseAllowOverride },
+      project: { preset: projPreset,  reopen_to: projReopenTo,  allow_override: projAllowOverride },
+    });
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  const LcSelect = ({ label, value, onChange }) => (
+    <div>
+      <p className="text-xs font-semibold text-gray-500 mb-2">{label}</p>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {tmplList.map(tmpl => {
+          const isBuiltin = ["short","standard","full"].includes(tmpl.key);
+          const active = (tmpl.stages ?? []).filter(s => !s.is_terminal);
+          return (
+            <button key={tmpl.key} onClick={() => onChange(tmpl.key)}
+              className={`text-left p-3 rounded-xl border-2 transition-all ${
+                value === tmpl.key ? "border-[#1A4B8C] bg-blue-50" : "border-gray-200 bg-white hover:border-blue-200"}`}>
+              <p className="font-semibold text-sm text-gray-900">{isBuiltin ? tmpl.name : tmpl.name}</p>
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {active.slice(0, 4).map((s, i) => (
+                  <span key={s.key} className="flex items-center gap-1">
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                      style={{ backgroundColor: s.color + "22", color: s.color }}>{s.label}</span>
+                    {i < Math.min(active.length, 4) - 1 && <span className="text-gray-300 text-[10px]">›</span>}
+                  </span>
+                ))}
+                {active.length > 4 && <span className="text-[10px] text-gray-400">+{active.length - 4}</span>}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const ReopenSelect = ({ label, preset, value, onChange }) => {
+    const stages = stagesFor(preset);
+    return (
+      <div>
+        <p className="text-xs font-semibold text-gray-500 mb-1">{label}</p>
+        <select value={value} onChange={e => onChange(e.target.value)}
+          className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:border-blue-400">
+          {stages.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+          {!stages.find(s => s.key === value) && <option value={value}>{value}</option>}
+        </select>
+      </div>
+    );
+  };
+
+  const OverrideToggle = ({ label, desc, value, onChange }) => (
+    <div className="flex items-center justify-between gap-4 pt-4 border-t border-gray-100">
+      <div>
+        <p className="text-sm font-semibold text-gray-800">{label}</p>
+        <p className="text-xs text-gray-400 mt-0.5">{desc}</p>
+      </div>
+      <button onClick={() => onChange(!value)}
+        className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${value ? "bg-blue-600" : "bg-gray-300"}`}>
+        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${value ? "translate-x-5" : "translate-x-0"}`} />
+      </button>
+    </div>
+  );
+
+  return (
+    <div className="space-y-8 max-w-2xl">
+      <p className="text-sm text-gray-500">
+        These defaults apply automatically when a case or project is created without a client, or by roles that don't configure their own lifecycle.
+      </p>
+
+      <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-5">
+        <p className="text-sm font-bold text-gray-800">Cases</p>
+        <LcSelect label="Default lifecycle template" value={casePreset} onChange={setCasePreset} />
+        <ReopenSelect label="Default reopen-to stage" preset={casePreset} value={caseReopenTo} onChange={setCaseReopenTo} />
+        <OverrideToggle
+          label="Allow cases to change template"
+          desc="Individual cases can pick a different lifecycle template"
+          value={caseAllowOverride}
+          onChange={setCaseAllowOverride}
+        />
+      </div>
+
+      <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-5">
+        <p className="text-sm font-bold text-gray-800">Projects</p>
+        <LcSelect label="Default lifecycle template" value={projPreset} onChange={setProjPreset} />
+        <ReopenSelect label="Default reopen-to stage" preset={projPreset} value={projReopenTo} onChange={setProjReopenTo} />
+        <OverrideToggle
+          label="Allow projects to change template"
+          desc="Projects under your account can pick a different lifecycle template"
+          value={projAllowOverride}
+          onChange={setProjAllowOverride}
+        />
+      </div>
+
+      <div className="flex items-center gap-3">
+        <button onClick={handleSave} disabled={saving}
+          className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-50">
+          {saving ? "Saving…" : "Save defaults"}
+        </button>
+        {saved && <span className="text-sm text-green-600 font-semibold">Saved</span>}
+      </div>
+    </div>
+  );
+}
+
 function SettingsWorkflowTab({ auth, ssCtx }) {
   const [wTab, setWTab] = useState("lifecycle");
   const WTABS = [
     { id: "lifecycle", label: "Lifecycle Templates", Icon: TrendingUp },
+    { id: "defaults",  label: "Defaults",            Icon: Settings },
     { id: "gates",     label: "Transition Gates",    Icon: Lock },
     { id: "phases",    label: "Activity Phases",     Icon: ListChecks },
     { id: "sla",       label: "SLA",                 Icon: Shield },
@@ -3551,6 +3799,7 @@ function SettingsWorkflowTab({ auth, ssCtx }) {
         ))}
       </div>
       {wTab === "lifecycle" && <LifecycleSettingsView auth={auth} />}
+      {wTab === "defaults"  && <SettingsDefaultLifecycleTab ssCtx={ssCtx} />}
       {wTab === "gates"     && <TransitionGatesPanel auth={auth} />}
       {wTab === "phases"    && <SettingsPhasesTab ssCtx={ssCtx} />}
       {wTab === "sla"       && <SlaView auth={auth} />}
@@ -3833,16 +4082,98 @@ function SettingsSMTPTab({ ssCtx }) {
   );
 }
 
+// ── Invitations settings tab ───────────────────────────────────
+function SettingsInvitationsTab({ ssCtx }) {
+  const { settings, setSetting } = ssCtx;
+  const stored = settings["invitation_config"] ?? {};
+  const EMPTY  = { delivery: "clipboard", subject: "", intro: "" };
+  const [form, setForm]   = useState({ ...EMPTY, ...stored });
+  const [saving, setSaving]   = useState(false);
+  const [saved,  setSaved]    = useState(false);
+  const hasSmtp = !!(settings["smtp_config"]?.host);
+
+  const f = (k) => (e) => setForm(p => ({ ...p, [k]: e.target.value }));
+
+  async function handleSave() {
+    setSaving(true);
+    await setSetting("invitation_config", form);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  }
+
+  return (
+    <div className="mt-4 space-y-5">
+      {/* Delivery mode toggle */}
+      <div>
+        <p className="text-xs font-semibold text-gray-700 mb-2">Delivery method</p>
+        <div className="flex gap-2">
+          {[["clipboard", "Clipboard only", "Consultant copies & pastes the link manually"],
+            ["email",     "Auto-email",     "Platform emails the client automatically when invite is sent"]
+          ].map(([val, label, desc]) => (
+            <button key={val}
+              onClick={() => setForm(p => ({ ...p, delivery: val }))}
+              className={`flex-1 text-left rounded-xl border-2 px-3 py-2.5 transition-all ${form.delivery === val ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"}`}>
+              <p className={`text-xs font-semibold ${form.delivery === val ? "text-blue-700" : "text-gray-700"}`}>{label}</p>
+              <p className="text-xs text-gray-400 mt-0.5 leading-snug">{desc}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {form.delivery === "email" && !hasSmtp && (
+        <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+          <AlertTriangle size={14} className="text-amber-500 mt-0.5 shrink-0" />
+          <p className="text-xs text-amber-700">Configure <span className="font-semibold">Email / SMTP</span> settings above first — email delivery requires a working SMTP connection.</p>
+        </div>
+      )}
+
+      {form.delivery === "email" && hasSmtp && (
+        <div className="flex items-start gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2.5">
+          <BadgeCheck size={14} className="text-emerald-600 mt-0.5 shrink-0" />
+          <p className="text-xs text-emerald-700">SMTP is configured. Invitation emails will be sent from <span className="font-medium">{settings["smtp_config"].from_email}</span>.</p>
+        </div>
+      )}
+
+      {/* Customise email */}
+      {form.delivery === "email" && (
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Email subject <span className="text-gray-400 font-normal">(leave blank for default)</span></label>
+            <input type="text" value={form.subject} onChange={f("subject")}
+              placeholder="You've been invited to collaborate on a case"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Intro paragraph <span className="text-gray-400 font-normal">(optional — shown above the join button)</span></label>
+            <textarea value={form.intro} onChange={f("intro")} rows={3}
+              placeholder="Your consultant has invited you to review your case. Click the button below to create your account and get started."
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-3 pt-1">
+        <button onClick={handleSave} disabled={saving}
+          className="px-5 py-2 text-sm bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
+          {saved ? "Saved!" : saving ? "Saving…" : "Save"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Platform tab — Platform + Invoice + Trust stacked ─────────
 function SettingsPlatformCombinedTab({ ssCtx }) {
   const SECTIONS = [
-    { id: "signup",   label: "Sign-up Flow",        Icon: Shield,    Component: SettingsSignupFlowTab },
-    { id: "smtp",     label: "Email / SMTP",        Icon: Mail,      Component: SettingsSMTPTab },
-    { id: "platform", label: "Platform Defaults",   Icon: Sparkles,  Component: SettingsPlatformTab },
-    { id: "invoice",  label: "Invoice Defaults",    Icon: Receipt,   Component: SettingsInvoiceTab },
-    { id: "trust",    label: "Trust & Ratings",     Icon: BadgeCheck, Component: SettingsTrustTab },
+    { id: "signup",       label: "Sign-up Flow",        Icon: Shield,    Component: SettingsSignupFlowTab },
+    { id: "smtp",         label: "Email / SMTP",        Icon: Mail,      Component: SettingsSMTPTab },
+    { id: "invitations",  label: "Client Invitations",  Icon: Send,      Component: SettingsInvitationsTab },
+    { id: "platform",     label: "Platform Defaults",   Icon: Sparkles,  Component: SettingsPlatformTab },
+    { id: "invoice",      label: "Invoice Defaults",    Icon: Receipt,   Component: SettingsInvoiceTab },
+    { id: "trust",        label: "Trust & Ratings",     Icon: BadgeCheck, Component: SettingsTrustTab },
   ];
-  const [open, setOpen] = useState({ signup: true, smtp: false, platform: true, invoice: true, trust: true });
+  const [open, setOpen] = useState({ signup: true, smtp: false, invitations: false, platform: true, invoice: true, trust: true });
   return (
     <div className="space-y-4">
       {SECTIONS.map(({ id, label, Icon: Ic, Component }) => (
@@ -4077,6 +4408,7 @@ function SystemSettingsView({ auth, onNavigate }) {
 
   const TABS = [
     { id: "people",      label: "People",          Icon: Users },
+    { id: "roles",       label: "Roles & Perms",   Icon: Shield },
     { id: "plans",       label: "Plans",           Icon: CreditCard },
     { id: "pricing",     label: "Pricing",         Icon: DollarSign },
     { id: "workflow",    label: "Workflow",         Icon: TrendingUp },
@@ -4086,6 +4418,7 @@ function SystemSettingsView({ auth, onNavigate }) {
     { id: "area_leaders", label: "Area Leaders",     Icon: UserCog },
     { id: "headhunter",  label: "Headhunter",       Icon: Crosshair },
     { id: "platform",    label: "Platform",         Icon: Sparkles },
+    { id: "audit",       label: "Audit Events",     Icon: ClipboardList },
   ];
 
   return (
@@ -4109,6 +4442,7 @@ function SystemSettingsView({ auth, onNavigate }) {
       </div>
 
       {activeTab === "people"      && <SettingsPeopleTab ssCtx={ssCtx} auth={auth} onNavigate={onNavigate} />}
+      {activeTab === "roles"       && <SettingsRolesTab ssCtx={ssCtx} />}
       {activeTab === "plans"       && <SettingsPlansTab ssCtx={ssCtx} auth={auth} />}
       {activeTab === "pricing"     && <SettingsPricingTab ssCtx={ssCtx} auth={auth} />}
       {activeTab === "workflow"    && <SettingsWorkflowTab auth={auth} ssCtx={ssCtx} />}
@@ -4118,6 +4452,140 @@ function SystemSettingsView({ auth, onNavigate }) {
       {activeTab === "area_leaders" && <SettingsAreaLeadersTab ssCtx={ssCtx} />}
       {activeTab === "headhunter"  && <SettingsHeadhunterTab ssCtx={ssCtx} />}
       {activeTab === "platform"    && <SettingsPlatformCombinedTab ssCtx={ssCtx} />}
+      {activeTab === "audit"       && <SettingsAuditTab ssCtx={ssCtx} />}
+    </div>
+  );
+}
+
+const AUDIT_EVENT_GROUPS = [
+  {
+    label: "Case Events",
+    events: [
+      { key: "case.created",             label: "Case created" },
+      { key: "case.status_changed",       label: "Status changed" },
+      { key: "case.cancelled",            label: "Case cancelled" },
+      { key: "case.status_bulk_changed",  label: "Bulk status change" },
+      { key: "case.deleted_bulk",         label: "Bulk deleted" },
+      { key: "case.rated",                label: "Case rated" },
+      { key: "rating.submitted",          label: "Rating submitted" },
+      { key: "case.reopened",             label: "Case reopened" },
+    ],
+  },
+  {
+    label: "Work Events",
+    events: [
+      { key: "spec.generated",    label: "Spec generated" },
+      { key: "spec.approved",     label: "Spec approved" },
+      { key: "devplan.confirmed", label: "Dev plan confirmed" },
+      { key: "time.logged",       label: "Time logged" },
+      { key: "invoice.created",   label: "Invoice created" },
+    ],
+  },
+  {
+    label: "Platform Events",
+    events: [
+      { key: "project.created",      label: "Project created" },
+      { key: "template.created",     label: "Template created" },
+      { key: "user.signed_up",       label: "User signed up" },
+      { key: "user.approved",        label: "User approved" },
+      { key: "user.approved_bulk",   label: "User approved (bulk)" },
+      { key: "user.rejected",        label: "User rejected" },
+      { key: "user.rejected_bulk",   label: "User rejected (bulk)" },
+      { key: "vouch.submitted",      label: "Vouch submitted" },
+    ],
+  },
+];
+
+function SettingsAuditTab({ ssCtx }) {
+  const { settings, setSetting } = ssCtx;
+  const cfg = settings["audit_log_config"] ?? {};
+  const disabled = new Set(cfg.disabled ?? []);
+  const [local, setLocal] = useState(() => new Set(cfg.disabled ?? []));
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const allKeys = AUDIT_EVENT_GROUPS.flatMap(g => g.events.map(e => e.key));
+  const allEnabled = local.size === 0;
+  const allDisabled = local.size === allKeys.length;
+
+  function toggle(key) {
+    setLocal(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+    setSaved(false);
+  }
+
+  function toggleAll(enable) {
+    setLocal(enable ? new Set() : new Set(allKeys));
+    setSaved(false);
+  }
+
+  async function save() {
+    setSaving(true);
+    await setSetting("audit_log_config", { disabled: [...local] });
+    clearAuditConfigCache();
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <div>
+        <h2 className="text-lg font-bold text-gray-900">Audit Event Configuration</h2>
+        <p className="text-sm text-gray-500 mt-0.5">Choose which events are recorded in the audit log. Disabled events will not be stored.</p>
+      </div>
+
+      <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
+        <button onClick={() => toggleAll(true)}
+          className="text-xs font-semibold text-blue-600 hover:text-blue-800 px-3 py-1.5 border border-blue-200 rounded-lg hover:bg-blue-50">
+          Enable all
+        </button>
+        <button onClick={() => toggleAll(false)}
+          className="text-xs font-semibold text-gray-500 hover:text-gray-700 px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">
+          Disable all
+        </button>
+        <span className="text-xs text-gray-400 ml-auto">
+          {allKeys.length - local.size} / {allKeys.length} events enabled
+        </span>
+      </div>
+
+      {AUDIT_EVENT_GROUPS.map(group => (
+        <div key={group.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="px-5 py-3 bg-gray-50 border-b border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-700">{group.label}</h3>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {group.events.map(ev => {
+              const enabled = !local.has(ev.key);
+              return (
+                <label key={ev.key} className="flex items-center justify-between px-5 py-3 cursor-pointer hover:bg-gray-50">
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">{ev.label}</p>
+                    <p className="text-xs text-gray-400 font-mono">{ev.key}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggle(ev.key)}
+                    className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${enabled ? "bg-blue-600" : "bg-gray-200"}`}>
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${enabled ? "translate-x-4" : "translate-x-0"}`} />
+                  </button>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+
+      <div className="flex items-center gap-3 pt-2">
+        <button onClick={save} disabled={saving}
+          className="px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
+          {saving ? "Saving…" : "Save"}
+        </button>
+        {saved && <span className="text-sm text-green-600 font-medium flex items-center gap-1"><Check size={14} /> Saved</span>}
+      </div>
     </div>
   );
 }

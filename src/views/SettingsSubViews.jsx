@@ -29,7 +29,7 @@ function LifecycleSettingsView({ auth }) {
   function cancelEdit() { setSelected(null); setEditStages([]); }
   function addStage() {
     setEditStages(p => {
-      const next = [...p, { key: `s${Date.now()}`, label: t("lc.new_stage_label"), color: "#6b7280", is_terminal: false, allowed_next: [], allowed_roles: [] }];
+      const next = [...p, { key: `s${Date.now()}`, label: t("lc.new_stage_label"), color: "#6b7280", is_terminal: false, allowed_next: [], allowed_roles: [], allowed_relations: [] }];
       setActiveStageIdx(next.length - 1);
       return next;
     });
@@ -53,6 +53,10 @@ function LifecycleSettingsView({ auth }) {
   function toggleRole(i, role) {
     const cur = editStages[i].allowed_roles ?? [];
     updateStage(i, { allowed_roles: cur.includes(role) ? cur.filter(r => r !== role) : [...cur, role] });
+  }
+  function toggleRelation(i, rel) {
+    const cur = editStages[i].allowed_relations ?? [];
+    updateStage(i, { allowed_relations: cur.includes(rel) ? cur.filter(r => r !== rel) : [...cur, rel] });
   }
   function toggleNext(i, key) {
     const cur = editStages[i].allowed_next ?? [];
@@ -126,10 +130,18 @@ function LifecycleSettingsView({ auth }) {
   if (loadingTmpl) return <div className="p-8 text-sm text-gray-400">{t("label.loading")}</div>;
 
   const ROLES = [
-    { key: "manager",    label: t("auth.role_manager"),    color: "#1d4ed8", bg: "#dbeafe" },
-    { key: "consultant", label: t("auth.role_consultant"), color: "#065f46", bg: "#d1fae5" },
-    { key: "client",     label: t("auth.role_client"),     color: "#92400e", bg: "#fef3c7" },
-    { key: "key_user",   label: t("auth.role_key_user"),   color: "#5b21b6", bg: "#ede9fe" },
+    { key: "manager",             label: t("auth.role_manager"),             activeCls: "bg-blue-100 text-blue-700 border-blue-100"   },
+    { key: "consultant",          label: t("auth.role_consultant"),          activeCls: "bg-emerald-100 text-emerald-700 border-emerald-100" },
+    { key: "client",              label: t("auth.role_client"),              activeCls: "bg-amber-100 text-amber-700 border-amber-100"  },
+    { key: "key_user",            label: t("auth.role_key_user"),            activeCls: "bg-violet-100 text-violet-700 border-violet-100" },
+    { key: "internal_consultant", label: t("auth.role_internal_consultant"), activeCls: "bg-cyan-100 text-cyan-700 border-cyan-100"    },
+    { key: "project_manager",     label: t("auth.role_project_manager"),     activeCls: "bg-rose-100 text-rose-700 border-rose-100"    },
+  ];
+
+  const RELATIONS = [
+    { key: "owner",    label: t("lc.rel_owner"),    activeCls: "bg-indigo-100 text-indigo-700 border-indigo-100" },
+    { key: "assigned", label: t("lc.rel_assigned"), activeCls: "bg-teal-100 text-teal-700 border-teal-100"       },
+    { key: "viewer",   label: t("lc.rel_viewer"),   activeCls: "bg-gray-100 text-gray-600 border-gray-300"       },
   ];
 
   const ALL_TABS = [
@@ -143,6 +155,7 @@ function LifecycleSettingsView({ auth }) {
     { id: "applications", label: t("lc.tab_applicants") },
     { id: "lifecycle",    label: t("lc.tab_lifecycle") },
     { id: "spec",         label: t("lc.tab_spec") },
+    { id: "implementation", label: "SAP Implementation" },
   ];
 
   const ACTION_RULES = [
@@ -315,16 +328,30 @@ function LifecycleSettingsView({ auth }) {
                           const on = (stage.allowed_roles ?? []).includes(r.key);
                           return (
                             <button key={r.key} onClick={() => toggleRole(idx, r.key)}
-                              className="text-xs px-2.5 py-0.5 rounded-full font-semibold border transition-colors"
-                              style={on
-                                ? { backgroundColor: r.bg, color: r.color, borderColor: r.bg }
-                                : { backgroundColor: "var(--t-card-bg)", color: "#9ca3af", borderColor: "#e5e7eb" }}>
+                              className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border transition-colors ${on ? r.activeCls : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'}`}>
                               {r.label}
                             </button>
                           );
                         })}
                         {!(stage.allowed_roles ?? []).length && (
                           <span className="text-[10px] text-gray-400 italic">{t("lc.any_role")}</span>
+                        )}
+                      </div>
+
+                      {/* Relation (owner / assigned / viewer) */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-16 flex-shrink-0">{t("lc.relation_label")}</span>
+                        {RELATIONS.map(r => {
+                          const on = (stage.allowed_relations ?? []).includes(r.key);
+                          return (
+                            <button key={r.key} onClick={() => toggleRelation(idx, r.key)}
+                              className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border transition-colors ${on ? r.activeCls : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'}`}>
+                              {r.label}
+                            </button>
+                          );
+                        })}
+                        {!(stage.allowed_relations ?? []).length && (
+                          <span className="text-[10px] text-gray-400 italic">{t("lc.any_relation")}</span>
                         )}
                       </div>
 
@@ -336,10 +363,8 @@ function LifecycleSettingsView({ auth }) {
                             const on = (stage.allowed_next ?? []).includes(s.key);
                             return (
                               <button key={s.key} onClick={() => toggleNext(idx, s.key)}
-                                className="text-[11px] px-2 py-0.5 rounded-full font-semibold border transition-colors"
-                                style={on
-                                  ? { backgroundColor: s.color + "22", color: s.color, borderColor: s.color + "55" }
-                                  : { backgroundColor: "var(--t-card-bg)", color: "#9ca3af", borderColor: "#e5e7eb" }}>
+                                className={`text-[11px] px-2 py-0.5 rounded-full font-semibold border transition-colors ${on ? '' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'}`}
+                                style={on ? { backgroundColor: s.color + "22", color: s.color, borderColor: s.color + "55" } : undefined}>
                                 {s.label || s.key}
                               </button>
                             );
@@ -539,12 +564,25 @@ function LifecycleSettingsView({ auth }) {
                                 const rm = ROLES.find(x => x.key === r);
                                 if (!rm) return null;
                                 return (
-                                  <span key={r} className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                                    style={{ backgroundColor: rm.bg, color: rm.color }}>
+                                  <span key={r} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${rm.activeCls}`}>
                                     {rm.label}
                                   </span>
                                 );
                               })}
+                          {(s.allowed_relations ?? []).length > 0 && (
+                            <>
+                              <span className="text-[10px] text-gray-300">·</span>
+                              {(s.allowed_relations).map(r => {
+                                const rm = RELATIONS.find(x => x.key === r);
+                                if (!rm) return null;
+                                return (
+                                  <span key={r} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${rm.activeCls}`}>
+                                    {rm.label}
+                                  </span>
+                                );
+                              })}
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1057,7 +1095,7 @@ function AssignmentSettingsPanel({ profile, updateProfile }) {
 
 // ─── Transition Gates Panel ──────────────────────────────────────────────────
 
-const ALL_ROLES = ["admin", "manager", "consultant", "client", "key_user"];
+const ALL_ROLES = ["admin", "manager", "consultant", "client", "key_user", "internal_consultant", "project_manager"];
 
 function TransitionGatesPanel({ auth }) {
   const { t } = useT();
@@ -1195,7 +1233,7 @@ function TransitionGatesPanel({ auth }) {
           return (
             <div key={stage.key}
               className={`border rounded-xl overflow-hidden transition-colors ${
-                gate.enabled ? "border-blue-200 bg-blue-50/30" : "border-gray-100 bg-white"
+                gate.enabled ? "border-blue-200 bg-blue-50" : "border-gray-100 bg-white"
               }`}>
               {/* Stage header row */}
               <div className="flex items-center gap-3 px-4 py-3">
@@ -1276,7 +1314,7 @@ function TransitionGatesPanel({ auth }) {
                       return (
                         <div key={condDef.key}
                           className={`flex items-start gap-3 px-4 py-3 transition-colors ${
-                            condState.enabled ? "bg-white" : "bg-gray-50/50"
+                            condState.enabled ? "bg-white" : "bg-gray-50"
                           }`}>
                           {/* Enabled toggle */}
                           <button onClick={() => toggleCondition(stage.key, condDef.key)}

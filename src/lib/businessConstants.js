@@ -18,27 +18,30 @@ const ROLE_COLORS = {
 
 const DEFAULT_PLAN_CONFIG = {
   client: {
-    free:         { label: 'Free',         maxCases: 1,  maxTeam: 2,  ai: false, analytics: false, helpDesk: false },
-    starter:      { label: 'Starter',      maxCases: 5,  maxTeam: 10, ai: false, analytics: false, helpDesk: false },
-    professional: { label: 'Professional', maxCases: 20, maxTeam: 50, ai: true,  analytics: true,  helpDesk: true  },
-    enterprise:   { label: 'Enterprise',   maxCases: -1, maxTeam: -1, ai: true,  analytics: true,  helpDesk: true  },
+    free:       { label: 'Free',       maxCases: 3,  maxTeam: 2,  ai: false, analytics: false, helpDesk: false },
+    growth:     { label: 'Growth',     maxCases: 5,  maxTeam: 10, ai: true,  analytics: true,  helpDesk: false },
+    enterprise: { label: 'Enterprise', maxCases: -1, maxTeam: -1, ai: true,  analytics: true,  helpDesk: true  },
   },
   consultant: {
-    free:         { label: 'Free',         maxApps: 3,  ai: false, priority: false },
-    starter:      { label: 'Starter',      maxApps: 10, ai: false, priority: false },
-    professional: { label: 'Professional', maxApps: -1, ai: true,  priority: true  },
+    free: { label: 'Free', maxApps: 3,  ai: false, priority: false },
+    pro:  { label: 'Pro',  maxApps: -1, ai: true,  priority: true  },
   },
   headhunter: {
-    free:         { label: 'Free',         maxCandidates: 5,  ai: false },
-    professional: { label: 'Professional', maxCandidates: -1, ai: true  },
+    free:   { label: 'Free',   maxCandidates: 5,  ai: false, teamSeats: 1 },
+    pro:    { label: 'Pro',    maxCandidates: -1, ai: true,  teamSeats: 1 },
+    agency: { label: 'Agency', maxCandidates: -1, ai: true,  teamSeats: 5 },
   },
 };
 
 const PLAN_BADGE = {
-  free:         'bg-gray-100 text-gray-500 border border-gray-200',
+  free:       'bg-gray-100 text-gray-500 border border-gray-200',
+  growth:     'bg-blue-100 text-blue-700 border border-blue-200',
+  pro:        'bg-purple-100 text-purple-700 border border-purple-200',
+  enterprise: 'bg-amber-100 text-amber-700 border border-amber-200',
+  agency:     'bg-pink-100 text-pink-700 border border-pink-200',
+  // legacy aliases kept for graceful fallback
   starter:      'bg-blue-100 text-blue-700 border border-blue-200',
   professional: 'bg-purple-100 text-purple-700 border border-purple-200',
-  enterprise:   'bg-amber-100 text-amber-700 border border-amber-200',
 };
 
 const ROLE_TO_PLAN_TYPE = {
@@ -314,12 +317,11 @@ const GATE_CONDITIONS = [
 
 // ── Stripe / pricing defaults ─────────────────────────────────
 const DEFAULT_PLAN_PRICES = {
-  client_starter:          { label: 'Client Starter',          amount: 49,  currency: 'usd', roleType: 'client',      planKey: 'starter'      },
-  client_professional:     { label: 'Client Professional',     amount: 149, currency: 'usd', roleType: 'client',      planKey: 'professional' },
-  client_enterprise:       { label: 'Client Enterprise',       amount: 399, currency: 'usd', roleType: 'client',      planKey: 'enterprise'   },
-  consultant_starter:      { label: 'Consultant Starter',      amount: 19,  currency: 'usd', roleType: 'consultant',  planKey: 'starter'      },
-  consultant_professional: { label: 'Consultant Professional', amount: 49,  currency: 'usd', roleType: 'consultant',  planKey: 'professional' },
-  headhunter_professional: { label: 'Headhunter Professional', amount: 79,  currency: 'usd', roleType: 'headhunter',  planKey: 'professional' },
+  client_growth:         { label: 'Client Growth',         amount: 149, currency: 'usd', roleType: 'client',     planKey: 'growth'     },
+  client_enterprise:     { label: 'Client Enterprise',     amount: 349, currency: 'usd', roleType: 'client',     planKey: 'enterprise' },
+  consultant_pro:        { label: 'Consultant Pro',         amount: 29,  currency: 'usd', roleType: 'consultant', planKey: 'pro'        },
+  headhunter_pro:        { label: 'Headhunter Pro',         amount: 99,  currency: 'usd', roleType: 'headhunter', planKey: 'pro'        },
+  headhunter_agency:     { label: 'Headhunter Agency',      amount: 249, currency: 'usd', roleType: 'headhunter', planKey: 'agency'     },
 };
 
 export {

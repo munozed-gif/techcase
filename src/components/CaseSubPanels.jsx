@@ -2,7 +2,7 @@ import { useState, useEffect, Fragment } from "react";
 import DOMPurify from "dompurify";
 import {
   AlertTriangle, Archive, BarChart2, Check, CheckCircle2, Clock, Code2,
-  FileText, Flag, FolderOpen, Inbox, ListChecks, Paperclip, Pause, Play,
+  Download, FileText, Flag, FolderOpen, Inbox, ListChecks, Paperclip, Pause, Play,
   RotateCcw, Search, SlidersHorizontal, Sparkles, Star, Target, User,
   UserCheck, Users, Wand2, X, Zap,
 } from "lucide-react";
@@ -504,9 +504,15 @@ function buildSectionConstraint(docKey, genProfile) {
   return `\nSECTION CONSTRAINT: Generate ONLY these sections (omit all others):\n${enabled.join('\n')}\n`;
 }
 
-function buildGenSuffix(genProfile) {
+const LANG_NAMES = { es: 'Spanish', fr: 'French', pt: 'Portuguese', de: 'German', it: 'Italian', nl: 'Dutch', pl: 'Polish', ar: 'Arabic', zh: 'Chinese', ja: 'Japanese' };
+
+function buildGenSuffix(genProfile, lang) {
+  const parts = [];
   const instr = genProfile?.additional_instructions?.trim();
-  return instr ? `\n\nADDITIONAL INSTRUCTIONS:\n${instr}` : '';
+  if (instr) parts.push(`ADDITIONAL INSTRUCTIONS:\n${instr}`);
+  const langName = lang && lang !== 'en' ? LANG_NAMES[lang] ?? null : null;
+  if (langName) parts.push(`OUTPUT LANGUAGE: Write the entire document in ${langName}. All headings, labels, descriptions and content must be in ${langName}.`);
+  return parts.length ? `\n\n${parts.join('\n\n')}` : '';
 }
 
 async function htmlStringToPdfBlob(htmlString) {
@@ -639,7 +645,7 @@ function openHtmlInNewTab(htmlString) {
 }
 
 function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocument, refetchDocuments, onUpdate }) {
-  const { t } = useT();
+  const { t, lang } = useT();
   const ssCtx = useSystemSettings();
   const genModel      = ssCtx.settings["ai_model"]       ?? 'claude-haiku-4-5-20251001';
   const analysisModel = ssCtx.settings["analysis_model"] ?? 'claude-haiku-4-5-20251001';
@@ -1382,6 +1388,43 @@ ${mdToHtml(markdownContent)}
     setSavingDoc(false);
   }
 
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  async function handleDownloadSpec() {
+    if (!selectedSpec) return;
+    const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA;
+    if (!content) return;
+    setDownloadingPdf(true);
+    try {
+      const date = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+      const htmlString = buildCaseDocHtml(
+        t("spec.html_title"),
+        'SAP Consulting · ' + t("spec.html_title"),
+        [
+          { label: t("spec.label_case_id"),  value: '#' + ((caseData.id ?? '').slice(0, 8) || '—') },
+          { label: t("label.sap_area"),       value: caseData.area_sap ?? '—' },
+          { label: t("label.priority"),       value: (caseData.priority ?? '—').toUpperCase() },
+          { label: t("spec.label_generated"), value: date },
+        ],
+        content
+      );
+      const pdfBlob = await htmlStringToPdfBlob(htmlString);
+      const safeName = (caseData.title ?? 'Spec').replace(/[^a-z0-9]/gi, '_');
+      const prefixMap = { a: 'SpecA_CustomABAP', b: 'SpecB_StandardSAP', c: 'SpecC_PropuestaCliente' };
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const fileName = `${prefixMap[selectedSpec] ?? 'Spec'}_${safeName}_${dateStr}.pdf`;
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = url; a.download = fileName;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch (e) {
+      alert(t("alert.pdf_gen_error") + e.message);
+    }
+    setDownloadingPdf(false);
+  }
+
   async function saveAllSpecsAsDocuments(specA, specB, specC, sap, proposal) {
     setSavingDoc(true);
     try {
@@ -1854,7 +1897,7 @@ TOTAL:||Total|[amount]|
 ## 9. Next Steps
 1. [action item to start the custom development]
 
-Use realistic Z object names, actual SAP table names for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM/COL values.${buildSectionConstraint('spec_a', genProfile)}${buildGenSuffix(genProfile)}`;
+Use realistic Z object names, actual SAP table names for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM/COL values.${buildSectionConstraint('spec_a', genProfile)}${buildGenSuffix(genProfile, lang)}`;
     } else {
       return `Write Option B: Standard SAP Configuration Functional Specification for this case.${sapCtx}
 
@@ -1923,7 +1966,7 @@ TOTAL:||Total|[amount]|
 ## 9. Next Steps
 1. [action item: configure standard SAP]
 
-Use real standard SAP transaction codes and configuration objects for ${caseData.area_sap ?? 'the module'}.${buildSectionConstraint('spec_b', genProfile)}${buildGenSuffix(genProfile)}`;
+Use real standard SAP transaction codes and configuration objects for ${caseData.area_sap ?? 'the module'}.${buildSectionConstraint('spec_b', genProfile)}${buildGenSuffix(genProfile, lang)}`;
     }
   }
 
@@ -1994,7 +2037,7 @@ TOTAL:||Total|[amount]|
 ## 8. Next Steps
 1. [action item derived from the customer's proposed approach]
 
-Use realistic Z object names matching the customer's described solution for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM/COL values.${buildSectionConstraint('spec_c', genProfile)}${buildGenSuffix(genProfile)}`;
+Use realistic Z object names matching the customer's described solution for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM/COL values.${buildSectionConstraint('spec_c', genProfile)}${buildGenSuffix(genProfile, lang)}`;
   }
 
   function buildPrototypePrompt(specA, specB, style) {
@@ -3062,6 +3105,10 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       <button onClick={() => setAiEditing(p => !p)}
                         className="px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-white">
                         {aiEditing ? t("spec.preview_lbl") : t("spec.edit_lbl")}
+                      </button>
+                      <button onClick={handleDownloadSpec} disabled={!selectedSpec || downloadingPdf}
+                        className="px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-white disabled:opacity-40 flex items-center gap-1">
+                        {downloadingPdf ? <><Spinner />&nbsp;PDF…</> : <><Download size={12} />PDF</>}
                       </button>
                       {perms.can('regen_specs') && (
                         <button onClick={handleGenerateSpecs}

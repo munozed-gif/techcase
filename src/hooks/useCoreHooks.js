@@ -561,7 +561,10 @@ function useCaseDocuments(caseId) {
 
   async function addDocument(file, notes = "") {
     const { data: { user } } = await supabase.auth.getUser();
-    const path = `${caseId}/${Date.now()}-${file.name}`;
+    const safeName = file.name
+      .normalize("NFD").replace(/[̀-ͯ]/g, "")  // strip accents
+      .replace(/[^a-zA-Z0-9.\-_]/g, "_");                // replace spaces/special chars
+    const path = `${caseId}/${Date.now()}-${safeName}`;
     const { error: uploadError } = await supabase.storage
       .from("case-documents").upload(path, file, { upsert: false });
     if (uploadError) throw uploadError;

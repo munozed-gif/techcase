@@ -44,8 +44,24 @@ async function callClaude({ system, messages, max_tokens = 2048, model = 'claude
   return data.content[0].text;
 }
 
+let _auditCfgCache = null; // null = not yet fetched
+
+function clearAuditConfigCache() { _auditCfgCache = null; }
+
+async function _getAuditConfig() {
+  if (_auditCfgCache !== null) return _auditCfgCache;
+  try {
+    const { data } = await supabase.from('system_settings').select('value').eq('key', 'audit_log_config').maybeSingle();
+    _auditCfgCache = data?.value ?? {};
+  } catch (_) { _auditCfgCache = {}; }
+  return _auditCfgCache;
+}
+
 async function logEvent(eventType, opts = {}) {
   try {
+    const cfg = await _getAuditConfig();
+    const disabled = cfg.disabled ?? [];
+    if (disabled.includes(eventType)) return;
     let uid = opts.userId ?? null;
     let uemail = opts.userEmail ?? null;
     if (!uid) {
@@ -68,4 +84,4 @@ async function logEvent(eventType, opts = {}) {
   } catch (_) {}
 }
 
-export { notify, notifyManagers, notifyCaseParticipants, callClaude, logEvent };
+export { notify, notifyManagers, notifyCaseParticipants, callClaude, logEvent, clearAuditConfigCache };

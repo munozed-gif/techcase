@@ -30,7 +30,7 @@ function Modal({ open, onClose, title, children, wide = false }) {
 function Input({ label, ...props }) {
   return (
     <div className="mb-4">
-      {label && <label className="block text-sm font-medium text-[#1C3557] mb-1">{label}</label>}
+      {label && <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>}
       <input
         className="w-full bg-gray-100 border-0 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-sm"
         {...props}

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
 
 // ─── Nova Logo Mark ─────────────────────────────────────────────────────────
 // Module-level injection so the keyframe is available even when LandingView isn't mounted
@@ -119,15 +120,27 @@ const LANDING_STRINGS = {
     video_sub:"From ticket creation to resolution — see how Arena guides every stakeholder through a structured, governed process.",
     video_lbl:"Arena Solutions Platform Demo · 3:24",
     testi_tag:"Customer Stories", testi_h2:"What teams are saying.",
-    pricing_tag:"Pricing", pricing_h2:"Simple, honest pricing.",
-    pricing_sub:"No hidden seats, no module add-ons. One plan, one price, full platform access per team size.",
-    p1n:"Starter", p1period:"Up to 10 users · billed annually",
-    p1f:["2 lifecycle templates","Unlimited cases & projects","Time logging & approval","Basic SLA tracking","Document management"],
-    p2n:"Professional", p2period:"Up to 50 users · billed annually", p2badge:"Most popular",
-    p2f:["Unlimited lifecycle templates","AI-powered specifications","Consultant marketplace (Arena)","Advanced SLA & transition gates","Full reporting & billing export","Role-based access control"],
-    p3n:"Enterprise", p3period:"Unlimited users · dedicated support", p3custom:"Custom",
-    p3f:["Everything in Professional","SAP BTP / S/4HANA integration","Custom lifecycle builder","SSO & advanced security","Dedicated customer success","SLA uptime guarantee"],
-    btn_start:"Get started", btn_trial:"Start free trial", btn_contact:"Contact sales",
+    pricing_tag:"Pricing", pricing_h2:"Free to start. Grow when you're ready.",
+    pricing_sub:"Consultants and clients join free. Upgrade only when you need more cases, more candidates, or more firepower.",
+    ptab_consultant:"Consultant", ptab_client:"Client", ptab_headhunter:"Headhunter",
+    // Consultant plans
+    pc_free_name:"Free", pc_free_period:"Free forever",
+    pc_free_f:["List your profile in Arena","Apply to 3 cases / month","1 active case at a time","Basic profile & portfolio","Community support"],
+    pc_pro_name:"Pro", pc_pro_period:"per month · cancel any time", pc_pro_badge:"Most popular",
+    pc_pro_f:["Unlimited case applications","Priority ranking in Arena","AI-powered profile matching","Full analytics dashboard","Email & chat support"],
+    // Client plans
+    cl_free_name:"Free", cl_free_period:"Free forever",
+    cl_free_f:["3 active cases","2 team seats","Invite clients via link","Basic lifecycle tracking","Community support"],
+    cl_growth_name:"Growth", cl_growth_period:"per month · cancel any time", cl_growth_badge:"Most popular",
+    cl_growth_f:["5 active cases","10 team seats","AI-powered specifications","Full reporting & analytics","SLA management","Priority support"],
+    cl_ent_name:"Enterprise", cl_ent_period:"Unlimited · dedicated support", cl_ent_custom:"Custom",
+    cl_ent_f:["Unlimited cases & team","Everything in Growth","SAP BTP / S/4HANA integration","Custom lifecycle builder","SSO & advanced security","Dedicated customer success"],
+    // Headhunter plans
+    hh_pro_name:"Pro", hh_pro_period:"per month · cancel any time",
+    hh_pro_f:["Unlimited candidate profiles","Full talent pipeline","Placement tracking","AI candidate matching","Priority case visibility","Email & chat support"],
+    hh_agency_name:"Agency", hh_agency_period:"per month · cancel any time", hh_agency_badge:"Best for teams",
+    hh_agency_f:["Everything in Pro","5 recruiter seats","Dedicated account manager","White-label candidate reports","Custom SLA agreements","Priority candidates & cases"],
+    btn_start:"Get started free", btn_trial:"Start free trial", btn_contact:"Contact sales", btn_upgrade:"Upgrade to Pro",
     cta_tag:"Get started today",
     cta_h2:"Ready to transform your SAP support operation?",
     cta_p:"14-day free trial. No credit card. Full platform access from day one.",
@@ -248,15 +261,24 @@ const LANDING_STRINGS = {
     video_sub:"Desde la creación del ticket hasta la resolución — ve cómo Arena guía a cada parte interesada a través de un proceso estructurado y gobernado.",
     video_lbl:"Demo de Arena Solutions Platform · 3:24",
     testi_tag:"Historias de Clientes", testi_h2:"Lo que dicen los equipos.",
-    pricing_tag:"Precios", pricing_h2:"Precios simples y honestos.",
-    pricing_sub:"Sin asientos ocultos ni módulos adicionales. Un plan, un precio, acceso completo a la plataforma por tamaño de equipo.",
-    p1n:"Básico", p1period:"Hasta 10 usuarios · facturado anualmente",
-    p1f:["2 plantillas de ciclo de vida","Casos y proyectos ilimitados","Registro de tiempo y aprobación","Seguimiento básico de SLA","Gestión de documentos"],
-    p2n:"Profesional", p2period:"Hasta 50 usuarios · facturado anualmente", p2badge:"Más popular",
-    p2f:["Plantillas de ciclo de vida ilimitadas","Especificaciones con IA","Mercado de consultores (Arena)","SLA avanzado y puertas de transición","Exportación de reportes y facturación","Control de acceso basado en roles"],
-    p3n:"Empresa", p3period:"Usuarios ilimitados · soporte dedicado", p3custom:"Personalizado",
-    p3f:["Todo en Profesional","Integración SAP BTP / S/4HANA","Constructor de ciclo de vida personalizado","SSO y seguridad avanzada","Éxito del cliente dedicado","Garantía de disponibilidad SLA"],
-    btn_start:"Comenzar", btn_trial:"Iniciar prueba gratuita", btn_contact:"Contactar ventas",
+    pricing_tag:"Precios", pricing_h2:"Gratis para empezar. Crece cuando estés listo.",
+    pricing_sub:"Consultores y clientes se unen gratis. Mejora de plan solo cuando necesites más casos, más candidatos o más potencia.",
+    ptab_consultant:"Consultor", ptab_client:"Cliente", ptab_headhunter:"Headhunter",
+    pc_free_name:"Gratis", pc_free_period:"Gratis para siempre",
+    pc_free_f:["Perfil visible en Arena","Aplica a 3 casos / mes","1 caso activo a la vez","Portafolio básico","Soporte comunitario"],
+    pc_pro_name:"Pro", pc_pro_period:"por mes · cancela cuando quieras", pc_pro_badge:"Más popular",
+    pc_pro_f:["Aplicaciones ilimitadas","Prioridad en Arena","Coincidencia con IA","Dashboard de analítica","Soporte por correo y chat"],
+    cl_free_name:"Gratis", cl_free_period:"Gratis para siempre",
+    cl_free_f:["3 casos activos","2 asientos de equipo","Invita clientes por enlace","Seguimiento de ciclo de vida","Soporte comunitario"],
+    cl_growth_name:"Crecimiento", cl_growth_period:"por mes · cancela cuando quieras", cl_growth_badge:"Más popular",
+    cl_growth_f:["5 casos activos","10 asientos de equipo","Especificaciones con IA","Reportes y analítica","Gestión de SLA","Soporte prioritario"],
+    cl_ent_name:"Empresa", cl_ent_period:"Ilimitado · soporte dedicado", cl_ent_custom:"Personalizado",
+    cl_ent_f:["Casos y equipo ilimitados","Todo en Crecimiento","Integración SAP BTP / S/4HANA","Constructor de ciclo personalizado","SSO y seguridad avanzada","Éxito del cliente dedicado"],
+    hh_pro_name:"Pro", hh_pro_period:"por mes · cancela cuando quieras",
+    hh_pro_f:["Perfiles de candidatos ilimitados","Pipeline completo de talento","Seguimiento de colocaciones","Coincidencia con IA","Visibilidad prioritaria en casos","Soporte por correo y chat"],
+    hh_agency_name:"Agencia", hh_agency_period:"por mes · cancela cuando quieras", hh_agency_badge:"Mejor para equipos",
+    hh_agency_f:["Todo en Pro","5 asientos de reclutador","Gestor de cuenta dedicado","Reportes de candidatos con marca","Acuerdos SLA personalizados","Candidatos y casos prioritarios"],
+    btn_start:"Comenzar gratis", btn_trial:"Iniciar prueba gratuita", btn_contact:"Contactar ventas", btn_upgrade:"Mejorar a Pro",
     cta_tag:"Comienza hoy",
     cta_h2:"¿Listo para transformar tu operación de soporte SAP?",
     cta_p:"14 días de prueba gratuita. Sin tarjeta de crédito. Acceso completo desde el primer día.",
@@ -522,7 +544,7 @@ const CSS = `
 #arena-landing .price-cta-outline:hover{background:var(--surface2);}
 #arena-landing .price-cta-filled{background:var(--accent);color:#fff;}
 #arena-landing .price-cta-filled:hover{background:var(--accent-d);transform:translateY(-1px);}
-@media(max-width:800px){#arena-landing .pricing-grid{grid-template-columns:1fr;max-width:400px;}}
+@media(max-width:800px){#arena-landing .pricing-grid{grid-template-columns:1fr !important;max-width:400px;}}
 
 #arena-landing .arena-showcase{background:#060c16;padding:96px 24px;position:relative;overflow:hidden;}
 #arena-landing .arena-showcase::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 65% 50%,rgba(37,99,235,.12) 0%,transparent 65%),linear-gradient(rgba(37,99,235,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(37,99,235,.04) 1px,transparent 1px);background-size:100% 100%,48px 48px,48px 48px;}
@@ -1299,6 +1321,9 @@ export function LandingView({ onSignIn }) {
   const [lang, setLang] = useState(() => {
     try { const s = localStorage.getItem("tc_lang"); return s === "es" ? "es" : "en"; } catch { return "en"; }
   });
+  const [pricingTab, setPricingTab] = useState("consultant");
+  const { settings: landingSettings } = useSystemSettings();
+  const showPricing = landingSettings["show_pricing_section"] ?? true;
   function tl(k) { return LANDING_STRINGS[lang]?.[k] ?? LANDING_STRINGS.en[k] ?? k; }
   function toggleLang() {
     const next = lang === "en" ? "es" : "en";
@@ -1362,7 +1387,7 @@ export function LandingView({ onSignIn }) {
           <a href="#features">{tl("nav_features")}</a>
           <a href="#lifecycle">{tl("nav_lifecycle")}</a>
           <a href="#roles">{tl("nav_roles")}</a>
-          <a href="#pricing">{tl("nav_pricing")}</a>
+          {showPricing && <a href="#pricing">{tl("nav_pricing")}</a>}
         </div>
         <div className="nav-cta">
           <button className="btn-ghost" onClick={toggleLang} style={{minWidth:40,fontWeight:700,letterSpacing:".04em"}}>{tl("lang_btn")}</button>
@@ -1749,37 +1774,96 @@ export function LandingView({ onSignIn }) {
       </section>
 
       {/* PRICING */}
-      <section className="pricing-section" id="pricing">
+      {showPricing && <section className="pricing-section" id="pricing">
         <div className="section-inner" style={{textAlign:"center"}}>
           <div className="section-tag" style={{textAlign:"center"}}>{tl("pricing_tag")}</div>
           <h2 style={{margin:"0 auto 12px"}}>{tl("pricing_h2")}</h2>
-          <p className="section-sub" style={{margin:"0 auto 48px"}}>{tl("pricing_sub")}</p>
-          <div className="pricing-grid">
-            <div className="price-card fade-in">
-              <div className="price-name">{tl("p1n")}</div>
-              <div className="price-amount">$149<small>/mo</small></div>
-              <div className="price-period">{tl("p1period")}</div>
-              <ul className="price-features">{tl("p1f").map(f=><li key={f}>{f}</li>)}</ul>
-              <button className="price-cta price-cta-outline" onClick={onSignIn}>{tl("btn_start")}</button>
-            </div>
-            <div className="price-card featured fade-in">
-              <div className="price-badge">{tl("p2badge")}</div>
-              <div className="price-name">{tl("p2n")}</div>
-              <div className="price-amount">$399<small>/mo</small></div>
-              <div className="price-period">{tl("p2period")}</div>
-              <ul className="price-features">{tl("p2f").map(f=><li key={f}>{f}</li>)}</ul>
-              <button className="price-cta price-cta-filled" onClick={onSignIn}>{tl("btn_trial")}</button>
-            </div>
-            <div className="price-card fade-in">
-              <div className="price-name">{tl("p3n")}</div>
-              <div className="price-amount" style={{fontSize:"2rem"}}>{tl("p3custom")}</div>
-              <div className="price-period">{tl("p3period")}</div>
-              <ul className="price-features">{tl("p3f").map(f=><li key={f}>{f}</li>)}</ul>
-              <button className="price-cta price-cta-outline" onClick={onSignIn}>{tl("btn_contact")}</button>
-            </div>
+          <p className="section-sub" style={{margin:"0 auto 36px"}}>{tl("pricing_sub")}</p>
+
+          {/* Role tabs */}
+          <div style={{display:"flex",justifyContent:"center",gap:8,marginBottom:40}}>
+            {[["consultant","ptab_consultant"],["client","ptab_client"],["headhunter","ptab_headhunter"]].map(([id,key])=>(
+              <button key={id} onClick={()=>setPricingTab(id)} style={{
+                padding:"8px 22px", borderRadius:10, fontWeight:700, fontSize:"0.88rem",
+                border: pricingTab===id ? "none" : "1.5px solid var(--border)",
+                background: pricingTab===id ? "var(--accent)" : "transparent",
+                color: pricingTab===id ? "#fff" : "var(--muted)",
+                cursor:"pointer", transition:"all .15s",
+              }}>{tl(key)}</button>
+            ))}
           </div>
+
+          {/* Consultant plans: Free + Pro */}
+          {pricingTab === "consultant" && (
+            <div className="pricing-grid" style={{maxWidth:680,gridTemplateColumns:"repeat(2,1fr)"}}>
+              <div className="price-card">
+                <div className="price-name">{tl("pc_free_name")}</div>
+                <div className="price-amount">$0<small>/mo</small></div>
+                <div className="price-period">{tl("pc_free_period")}</div>
+                <ul className="price-features">{tl("pc_free_f").map(f=><li key={f}>{f}</li>)}</ul>
+                <button className="price-cta price-cta-outline" onClick={onSignIn}>{tl("btn_start")}</button>
+              </div>
+              <div className="price-card featured">
+                <div className="price-badge">{tl("pc_pro_badge")}</div>
+                <div className="price-name">{tl("pc_pro_name")}</div>
+                <div className="price-amount">$29<small>/mo</small></div>
+                <div className="price-period">{tl("pc_pro_period")}</div>
+                <ul className="price-features">{tl("pc_pro_f").map(f=><li key={f}>{f}</li>)}</ul>
+                <button className="price-cta price-cta-filled" onClick={onSignIn}>{tl("btn_upgrade")}</button>
+              </div>
+            </div>
+          )}
+
+          {/* Client plans: Free + Growth + Enterprise */}
+          {pricingTab === "client" && (
+            <div className="pricing-grid">
+              <div className="price-card">
+                <div className="price-name">{tl("cl_free_name")}</div>
+                <div className="price-amount">$0<small>/mo</small></div>
+                <div className="price-period">{tl("cl_free_period")}</div>
+                <ul className="price-features">{tl("cl_free_f").map(f=><li key={f}>{f}</li>)}</ul>
+                <button className="price-cta price-cta-outline" onClick={onSignIn}>{tl("btn_start")}</button>
+              </div>
+              <div className="price-card featured">
+                <div className="price-badge">{tl("cl_growth_badge")}</div>
+                <div className="price-name">{tl("cl_growth_name")}</div>
+                <div className="price-amount">$149<small>/mo</small></div>
+                <div className="price-period">{tl("cl_growth_period")}</div>
+                <ul className="price-features">{tl("cl_growth_f").map(f=><li key={f}>{f}</li>)}</ul>
+                <button className="price-cta price-cta-filled" onClick={onSignIn}>{tl("btn_trial")}</button>
+              </div>
+              <div className="price-card">
+                <div className="price-name">{tl("cl_ent_name")}</div>
+                <div className="price-amount" style={{fontSize:"2rem"}}>{tl("cl_ent_custom")}</div>
+                <div className="price-period">{tl("cl_ent_period")}</div>
+                <ul className="price-features">{tl("cl_ent_f").map(f=><li key={f}>{f}</li>)}</ul>
+                <button className="price-cta price-cta-outline" onClick={onSignIn}>{tl("btn_contact")}</button>
+              </div>
+            </div>
+          )}
+
+          {/* Headhunter plans: Pro + Agency */}
+          {pricingTab === "headhunter" && (
+            <div className="pricing-grid" style={{maxWidth:680,gridTemplateColumns:"repeat(2,1fr)"}}>
+              <div className="price-card">
+                <div className="price-name">{tl("hh_pro_name")}</div>
+                <div className="price-amount">$99<small>/mo</small></div>
+                <div className="price-period">{tl("hh_pro_period")}</div>
+                <ul className="price-features">{tl("hh_pro_f").map(f=><li key={f}>{f}</li>)}</ul>
+                <button className="price-cta price-cta-outline" onClick={onSignIn}>{tl("btn_start")}</button>
+              </div>
+              <div className="price-card featured">
+                <div className="price-badge">{tl("hh_agency_badge")}</div>
+                <div className="price-name">{tl("hh_agency_name")}</div>
+                <div className="price-amount">$249<small>/mo</small></div>
+                <div className="price-period">{tl("hh_agency_period")}</div>
+                <ul className="price-features">{tl("hh_agency_f").map(f=><li key={f}>{f}</li>)}</ul>
+                <button className="price-cta price-cta-filled" onClick={onSignIn}>{tl("btn_upgrade")}</button>
+              </div>
+            </div>
+          )}
         </div>
-      </section>
+      </section>}
 
       {/* CTA */}
       <section className="cta-section">
@@ -1800,7 +1884,7 @@ export function LandingView({ onSignIn }) {
             <div className="footer-logo"><NovaLandingMark size={36} /><span className="logo-arena">Arena</span><span className="logo-rest">{tl("hero_name")}</span></div>
             <div className="footer-tagline">{tl("footer_tagline")}</div>
           </div>
-          <div className="footer-col"><h4>{tl("f_product")}</h4><a href="#arena">{tl("f_arena")}</a><a href="#features">{tl("f_features")}</a><a href="#lifecycle">{tl("f_lifecycle")}</a><a href="#roles">{tl("f_roles")}</a><a href="#pricing">{tl("f_pricing")}</a></div>
+          <div className="footer-col"><h4>{tl("f_product")}</h4><a href="#arena">{tl("f_arena")}</a><a href="#features">{tl("f_features")}</a><a href="#lifecycle">{tl("f_lifecycle")}</a><a href="#roles">{tl("f_roles")}</a>{showPricing && <a href="#pricing">{tl("f_pricing")}</a>}</div>
           <div className="footer-col"><h4>{tl("f_company")}</h4><a href="#">{tl("f_about")}</a><a href="#">{tl("f_blog")}</a><a href="#">{tl("f_careers")}</a><a href="#">{tl("f_contact")}</a></div>
           <div className="footer-col"><h4>{tl("f_legal")}</h4><a href="#">{tl("f_privacy")}</a><a href="#">{tl("f_terms")}</a><a href="#">{tl("f_security")}</a></div>
         </div>

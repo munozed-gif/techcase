@@ -6,8 +6,9 @@ const ThemeCtx = createContext({ isDark: true, theme: "dark", setTheme: () => {}
 export function ThemeProvider({ initialTheme, userId, children }) {
   const [theme, setThemeState] = useState(() => {
     // localStorage is the fastest source — no flash
-    try { return localStorage.getItem("ui_theme") ?? initialTheme ?? "dark"; }
-    catch { return initialTheme ?? "dark"; }
+    // initialTheme is undefined at mount (profile not loaded yet), so never rely on it here
+    try { return localStorage.getItem("ui_theme") ?? "dark"; }
+    catch { return "dark"; }
   });
 
   // Sync from profile once auth loads (handles cross-device)

@@ -13,7 +13,7 @@ const ROLE_PERMISSIONS_DEFAULTS = {
   apply_to_cases:             { admin:false, manager:false, consultant:true,  client:false, key_user:false, headhunter:true,  final_user:false, internal_consultant:false, project_manager:false },
   view_reports:               { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
   manage_invoices:            { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
-  view_lifecycle:             { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:true,  internal_consultant:true,  project_manager:true  },
+  view_lifecycle:             { admin:true,  manager:true,  consultant:true,  client:true,  key_user:false, headhunter:false, final_user:true,  internal_consultant:true,  project_manager:true  },
   submit_specs:               { admin:true,  manager:true,  consultant:true,  client:true,  key_user:true,  headhunter:false, final_user:false, internal_consultant:true,  project_manager:true  },
   generate_dev_plan:          { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
   require_team_signup:        { admin:false, manager:false, consultant:false, client:false, key_user:true,  headhunter:false, final_user:true,  internal_consultant:true,  project_manager:true  },
@@ -22,6 +22,10 @@ const ROLE_PERMISSIONS_DEFAULTS = {
   bulk_delete_activities:     { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
   bulk_delete_subcases:       { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
   arena_see_all_cases:        { admin:true,  manager:true,  consultant:true,  client:false, key_user:false, headhunter:true,  final_user:false, internal_consultant:true,  project_manager:true  },
+  create_projects:            { admin:true,  manager:true,  consultant:false, client:true,  key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
+  view_audit_log:             { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:false },
+  reopen_cases:               { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
+  edit_lifecycle:             { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
 };
 
 // ============================================================
@@ -110,8 +114,22 @@ const GEN_DOCS = [
   ]},
 ];
 
+const WIZARD_MODE_DEFAULTS = {
+  case: {
+    admin:"ask", manager:"ask", consultant:"express", client:"ask",
+    key_user:"ask", headhunter:"express", final_user:"ask",
+    internal_consultant:"ask", project_manager:"ask",
+  },
+  project: {
+    admin:"ask", manager:"ask", consultant:"express", client:"ask",
+    key_user:"ask", headhunter:"express", final_user:"ask",
+    internal_consultant:"ask", project_manager:"ask",
+  },
+};
+
 export {
   ROLE_PERMISSIONS_DEFAULTS,
+  WIZARD_MODE_DEFAULTS,
   GENERATION_CONTEXT_DEFAULTS,
   GENERATION_PROFILE_DEFAULTS,
   GEN_DOCS,

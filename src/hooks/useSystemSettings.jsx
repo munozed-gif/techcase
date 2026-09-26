@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext, createContext } from "react";
 import { supabase } from "../lib/supabase.js";
-import { ROLE_PERMISSIONS_DEFAULTS } from "../lib/constants.js";
+import { ROLE_PERMISSIONS_DEFAULTS, WIZARD_MODE_DEFAULTS } from "../lib/constants.js";
 import { DEFAULT_PLAN_CONFIG, DEFAULT_PLAN_PRICES, TECHCASE_LOGO_URI } from "../lib/businessConstants.js";
 
 // ============================================================
@@ -10,10 +10,14 @@ const SystemSettingsContext = createContext(null);
 
 function usePlatformBranding() {
   const { settings } = useSystemSettings();
+  let cached = {};
+  if (!settings['platform_name'] && !settings['platform_tagline']) {
+    try { cached = JSON.parse(localStorage.getItem('arena_branding') || '{}'); } catch {}
+  }
   return {
-    platformName: settings['platform_name'] || 'TechCase',
-    tagline:      settings['platform_tagline'] || 'Consultant case management platform',
-    logoUrl:      settings['brand_logo_url']  || TECHCASE_LOGO_URI,
+    platformName: settings['platform_name'] || cached['platform_name'] || 'Arena',
+    tagline:      settings['platform_tagline'] || cached['platform_tagline'] || 'Solutions Platform',
+    logoUrl:      settings['brand_logo_url']  || cached['brand_logo_url']  || TECHCASE_LOGO_URI,
   };
 }
 
@@ -159,6 +163,14 @@ function SystemSettingsProvider({ children }) {
       (data ?? []).forEach(r => { map[r.key] = r.value; });
       setSettings(map);
       setDbError(null);
+      // Cache branding so AuthScreen can read it before auth
+      const branding = {};
+      if (map['platform_name'])    branding.platform_name    = map['platform_name'];
+      if (map['platform_tagline']) branding.platform_tagline = map['platform_tagline'];
+      if (map['brand_logo_url'])   branding.brand_logo_url   = map['brand_logo_url'];
+      if (Object.keys(branding).length > 0) {
+        try { localStorage.setItem('arena_branding', JSON.stringify(branding)); } catch {}
+      }
     }
     setLoading(false);
   }
@@ -207,6 +219,21 @@ function usePermissions(auth) {
   return { can };
 }
 
+function useWizardMode(auth) {
+  const { settings } = useSystemSettings();
+  const role = auth?.profile?.role ?? null;
+
+  function getMode(type) {
+    if (!role) return "ask";
+    const stored = settings["wizard_modes"] ?? {};
+    const storedForType = stored[type] ?? {};
+    const defaults = WIZARD_MODE_DEFAULTS[type] ?? {};
+    return storedForType[role] ?? defaults[role] ?? "ask";
+  }
+
+  return { getMode };
+}
+
 export {
   SystemSettingsContext,
   usePlatformBranding,
@@ -216,4 +243,5 @@ export {
   SystemSettingsProvider,
   useSystemSettings,
   usePermissions,
+  useWizardMode,
 };

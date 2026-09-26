@@ -4,7 +4,7 @@ import {
   Activity, AlertCircle, Building2, Camera, Check, CheckCircle2, ChevronLeft,
   ChevronRight, ClipboardList, Clock, Code2, CreditCard, Database,
   DollarSign, Eye, FileText, Globe, Layers, Link, Loader2, Lock, Mail,
-  Pencil, Phone, Settings, SlidersHorizontal, Trash2, TrendingUp, User,
+  Pencil, Phone, Settings, Shield, SlidersHorizontal, Trash2, TrendingUp, User,
   UserCheck, Users, X, XCircle,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
@@ -13,15 +13,66 @@ import { useAuth } from "../hooks/useAuth.jsx";
 import { useClientTeamMembers, useDbConnections, useProjects, useSlaConfig } from "../hooks/useCoreHooks.js";
 import { useCases } from "../hooks/useCaseHooks.js";
 import { usePlanConfig, useSystemSettings, useVisibilitySettings } from "../hooks/useSystemSettings.jsx";
-import { logEvent, notify } from "../lib/utils.js";
+import { logEvent, notify, notifyManagers } from "../lib/utils.js";
 import { Badge, Spinner, TrustBadge, PlanUsageCard } from "../components/ProfileComponents.jsx";
 import { EmptyState, Input, Modal, Select, Textarea } from "../components/ui.jsx";
 import { AbapStandardsPanel, ProjectSapEnvPanel, SapIntegrationPanel, useClientProfile } from "../components/SapPanels.jsx";
 import { DbConnectionsList, SapProfileFields, SapProfileBadges } from "../views/OperationsViews.jsx";
-import { ROLE_LABEL_KEYS, SLA_DEFAULT_TYPES, SlaMatrixEditor, cap, fmt, fmtDate, makeDefaultMatrix } from "../lib/uiUtils.jsx";
+import { ROLE_LABEL_KEYS, SLA_DEFAULT_TYPES, SLA_TIER_LABEL_KEYS, SlaMatrixEditor, cap, fmt, fmtDate, makeDefaultMatrix } from "../lib/uiUtils.jsx";
 import { DEFAULT_ACTIVITY_PHASES, ROLE_COLORS, STATUS_COLORS } from "../lib/businessConstants.js";
 import { CaseDefaultsPanel, AssignmentSettingsPanel } from "../views/SettingsSubViews.jsx";
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
+
+function RequestFullAccessBanner({ auth }) {
+  const [status, setStatus] = useState("idle"); // idle | requesting | done | already
+  const verif = auth.profile?.verification_status;
+
+  // If already pending or approved, just show info
+  const isPending  = verif === "pending";
+
+  async function handleRequest() {
+    setStatus("requesting");
+    try {
+      await supabase.from("users").update({ verification_status: "pending" }).eq("id", auth.user?.id);
+      await notifyManagers(
+        "Full Access Requested",
+        `${auth.profile?.full_name ?? "An invited client"} (${auth.profile?.email}) has requested full client access.`
+      );
+      setStatus("done");
+    } catch {
+      setStatus("idle");
+    }
+  }
+
+  if (status === "done" || isPending) {
+    return (
+      <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+        <Clock size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-semibold text-amber-800">Full access request pending</p>
+          <p className="text-xs text-amber-600 mt-0.5">An admin will review your request and approve access. You'll receive a notification when approved.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-3">
+      <Shield size={16} className="text-blue-500 flex-shrink-0 mt-0.5" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-blue-800">You have limited access</p>
+        <p className="text-xs text-blue-600 mt-0.5 mb-3">Request full client access to create cases, view all projects, and use the full platform.</p>
+        <button
+          onClick={handleRequest}
+          disabled={status === "requesting"}
+          className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50"
+        >
+          {status === "requesting" ? "Sending request…" : "Request Full Access"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
   const { t, lang, setLang } = useT();
@@ -521,10 +572,10 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
         if (done === 0) return null;
         return (
           <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
-            <div style={{ flex:1, height:4, borderRadius:99, background:'#E2E8F0', overflow:'hidden' }}>
-              <div style={{ height:'100%', width:`${(done/tabs.length)*100}%`, background:'linear-gradient(90deg,#1A4B8C,#3B82F6)', borderRadius:99, transition:'width .4s' }}/>
+            <div style={{ flex:1, height:4, borderRadius:99, background:'var(--t-progress-track)', overflow:'hidden' }}>
+              <div style={{ height:'100%', width:`${(done/tabs.length)*100}%`, background:'linear-gradient(90deg,var(--t-text-accent),#3B82F6)', borderRadius:99, transition:'width .4s' }}/>
             </div>
-            <span style={{ fontSize:11, fontWeight:700, color:'#1A4B8C', whiteSpace:'nowrap' }}>{done}/{tabs.length} done</span>
+            <span style={{ fontSize:11, fontWeight:700, color:'var(--t-text-accent)', whiteSpace:'nowrap' }}>{done}/{tabs.length} done</span>
           </div>
         );
       })()}
@@ -597,6 +648,10 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
       {/* OVERVIEW TAB */}
       {tabItem.id === "overview" && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+          {/* Invited-client: request full access banner */}
+          {auth.isInvitedClient && !isAdminView && (
+            <RequestFullAccessBanner auth={auth} />
+          )}
           {!profile && (
             <div className="flex flex-col items-center justify-center py-10 text-center">
               <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mb-4">

@@ -675,4 +675,62 @@ function ManagerAdminWelcomeView({ auth, onComplete }) {
   );
 }
 
-export { ONBOARDING_STEPS, OnboardingRoadmap, ConsultantOnboardingView, ONBOARDING_STEPS_CLIENT, ClientOnboardingView, ManagerAdminWelcomeView };
+// ============================================================
+// INVITED CLIENT — minimal one-step welcome (name + company)
+// ============================================================
+function InvitedClientOnboardingView({ auth, onComplete }) {
+  const { t } = useT();
+  const { profile, loading, updateProfile } = useClientProfile(auth.user?.id);
+  const [form, setForm] = useState({ company_name: "" });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (profile?.company_name) setForm({ company_name: profile.company_name });
+  }, [profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (loading) return <Spinner />;
+
+  async function handleContinue() {
+    setSaving(true);
+    try {
+      if (form.company_name.trim()) await updateProfile({ company_name: form.company_name.trim() });
+      onComplete();
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  return (
+    <div className="max-w-md mx-auto py-16 text-center">
+      <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-600 rounded-2xl mb-5 shadow-lg">
+        <Building2 className="w-7 h-7 text-white" />
+      </div>
+      <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome, {auth.profile?.full_name?.split(" ")[0] ?? "there"}!</h1>
+      <p className="text-gray-500 text-sm mb-8">
+        You've been invited to view a case. Add your company name to complete your basic profile.
+      </p>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-left mb-6">
+        <Input
+          label="Company name"
+          value={form.company_name}
+          onChange={e => setForm({ company_name: e.target.value })}
+          placeholder="Your company or organization"
+        />
+        <p className="text-xs text-gray-400 mt-4">
+          You have limited access right now. To unlock the full platform, request full access from your profile after signing in.
+        </p>
+      </div>
+      <button
+        onClick={handleContinue}
+        disabled={saving}
+        className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors shadow disabled:opacity-50"
+      >
+        {saving ? "Saving…" : "Go to My Case"}
+      </button>
+      <p className="text-xs text-gray-400 mt-4">
+        <button onClick={onComplete} className="hover:text-gray-600 underline underline-offset-2">Skip for now</button>
+      </p>
+    </div>
+  );
+}
+
+export { ONBOARDING_STEPS, OnboardingRoadmap, ConsultantOnboardingView, ONBOARDING_STEPS_CLIENT, ClientOnboardingView, ManagerAdminWelcomeView, InvitedClientOnboardingView };

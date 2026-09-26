@@ -577,10 +577,10 @@ function ConsultantProfilePanel({ consultantId, initialRole, onClose, onAddToCom
             if (done === 0) return null;
             return (
               <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
-                <div style={{ flex:1, height:4, borderRadius:99, background:'#E2E8F0', overflow:'hidden' }}>
-                  <div style={{ height:'100%', width:`${(done/panelTabs.length)*100}%`, background:'linear-gradient(90deg,#1A4B8C,#3B82F6)', borderRadius:99, transition:'width .4s' }}/>
+                <div style={{ flex:1, height:4, borderRadius:99, background:'var(--t-progress-track)', overflow:'hidden' }}>
+                  <div style={{ height:'100%', width:`${(done/panelTabs.length)*100}%`, background:'linear-gradient(90deg,var(--t-text-accent),#3B82F6)', borderRadius:99, transition:'width .4s' }}/>
                 </div>
-                <span style={{ fontSize:11, fontWeight:700, color:'#1A4B8C', whiteSpace:'nowrap' }}>{done}/{panelTabs.length} done</span>
+                <span style={{ fontSize:11, fontWeight:700, color:'var(--t-text-accent)', whiteSpace:'nowrap' }}>{done}/{panelTabs.length} done</span>
               </div>
             );
           })()}
@@ -1099,7 +1099,7 @@ function ArenaView({ auth }) {
       const outerSlots = Math.min(5, Math.max(0, otherCount - innerSlots));
 
       return (
-        <div style={{ background:'rgba(37,99,235,0.09)', borderRadius:22, border:'1px solid rgba(96,165,250,0.42)', overflow:'hidden', position:'relative', boxShadow:'0 4px 20px rgba(37,99,235,0.18)', height:'100%', display:'flex', flexDirection:'column' }}>
+        <div style={{ background:'var(--t-case-card-bg)', borderRadius:22, border:'1px solid rgba(96,165,250,0.42)', overflow:'hidden', position:'relative', boxShadow:'0 4px 20px rgba(37,99,235,0.18)', height:'100%', display:'flex', flexDirection:'column' }}>
           <div style={{ position:'absolute', left:0, top:'20%', bottom:'20%', width:3, borderRadius:'0 3px 3px 0', background:mc, boxShadow:`0 0 10px ${mcDim}` }} />
           <div style={{ height:4, background:'rgba(26,75,140,0.07)', position:'relative', overflow:'hidden' }}>
             {timePct != null && <div style={{ position:'absolute', left:0, top:0, bottom:0, width:`${timePct*100}%`, background:tc, opacity:0.8 }} />}
@@ -1393,7 +1393,7 @@ function ArenaView({ auth }) {
         <div style={{ position:'relative' }}>
           {safeIdx > 0 && (
             <button onClick={() => scrollToCase(safeIdx - 1)}
-              style={{ position:'absolute', left:4, top:'50%', transform:'translateY(-50%)', zIndex:10, width:28, height:28, borderRadius:'50%', background:'rgba(26,75,140,0.08)', border:'1px solid rgba(26,75,140,0.18)', color:'#1A4B8C', fontSize:18, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', transition:'all .15s' }}>
+              style={{ position:'absolute', left:4, top:'50%', transform:'translateY(-50%)', zIndex:10, width:28, height:28, borderRadius:'50%', background:'var(--t-arrow-bg)', border:'1px solid var(--t-arrow-border)', color:'var(--t-text-accent)', fontSize:18, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', transition:'all .15s' }}>
               ‹
             </button>
           )}
@@ -1424,7 +1424,7 @@ function ArenaView({ auth }) {
           </div>
           {safeIdx < sorted.length - 1 && (
             <button onClick={() => scrollToCase(safeIdx + 1)}
-              style={{ position:'absolute', right:4, top:'50%', transform:'translateY(-50%)', zIndex:10, width:28, height:28, borderRadius:'50%', background:'rgba(26,75,140,0.08)', border:'1px solid rgba(26,75,140,0.18)', color:'#1A4B8C', fontSize:18, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', transition:'all .15s' }}>
+              style={{ position:'absolute', right:4, top:'50%', transform:'translateY(-50%)', zIndex:10, width:28, height:28, borderRadius:'50%', background:'var(--t-arrow-bg)', border:'1px solid var(--t-arrow-border)', color:'var(--t-text-accent)', fontSize:18, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.08)', transition:'all .15s' }}>
               ›
             </button>
           )}
@@ -2005,7 +2005,7 @@ function ArenaView({ auth }) {
                           ? <div style={{width:16,height:16,borderRadius:'50%',background:'#22C55E',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={9} color="white" strokeWidth={3}/></div>
                           : st === "in_progress"
                             ? <div style={{width:8,height:8,borderRadius:'50%',background:'#3B82F6',flexShrink:0,marginRight:2}}/>
-                            : <div style={{width:8,height:8,borderRadius:'50%',background:'#CBD5E1',flexShrink:0,marginRight:2}}/>}
+                            : <div style={{width:8,height:8,borderRadius:'50%',background:'var(--t-dot-none)',flexShrink:0,marginRight:2}}/>}
                         <Icon size={13} style={{color:isActive?'var(--t-text-accent)':'var(--t-text2)',flexShrink:0}}/>
                         <span style={{flex:1,fontSize:12,fontWeight:700,color:isActive?'var(--t-text)':'var(--t-text2)',minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{tab.label}</span>
                         {tab.count !== null && <span style={{fontSize:10,fontWeight:600,padding:'1px 6px',borderRadius:99,background:isActive?'var(--t-badge-act-bg)':'var(--t-badge-inact-bg)',color:isActive?'var(--t-badge-act-color)':'var(--t-badge-inact-color)',flexShrink:0}}>{tab.count}</span>}

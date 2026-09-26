@@ -364,7 +364,7 @@ function RequiredRolesBuilder({ roles, onChange, catalogSkills, applicationMode 
   );
 }
 
-function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, initialData = null, initialProjectId = null, presetData = null }) {
+function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, initialData = null, initialProjectId = null, presetData = null, defaultMode = null }) {
   const { t } = useT();
   const { settings: catalogSettings } = useSystemSettings();
   const planCfg = usePlanConfig();
@@ -378,7 +378,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   const CREATE_CASE_STEPS = [
     { id: "project",        label: t("cs.step_project"),    Icon: Layers,         desc: "Link to a project" },
     { id: "basics",         label: t("cs.step_basics"),     Icon: FileText,       desc: "Title & description" },
-    { id: "visibility",     label: "Visibility",            Icon: Lock,           desc: "Access & application settings" },
+    { id: "visibility",     label: t("cs.step_visibility"), Icon: Lock,           desc: "Access & application settings" },
     { id: "scope",          label: t("cs.step_scope"),      Icon: DollarSign,     desc: "Budget, dates & skills" },
     { id: "arrangement",    label: t("cs.step_work"),       Icon: MapPin,         desc: "Remote, on-site or hybrid" },
     { id: "roles",          label: t("cs.step_roles"),      Icon: UsersRound,     desc: "Key user & head hunters" },
@@ -388,7 +388,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
     { id: "review",         label: t("cs.step_review"),    Icon: CheckCircle2,   desc: "Confirm & create" },
   ];
   const EXPRESS_CASE_STEPS = CREATE_CASE_STEPS.filter((_, i) => EXPRESS_STEP_IDS.includes(i));
-  const [mode, setMode]     = useState(isEdit ? "advanced" : null);
+  const [mode, setMode]     = useState(isEdit ? "advanced" : (defaultMode ?? null));
   const [step, setSt]       = useState(initialProjectId || auth.isHeadhunter ? 1 : 0);
   const [creating, setCreating] = useState(false);
   const [upgradeModal, setUpgradeModal] = useState(null);
@@ -431,6 +431,32 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
   const [hhSearch, setHhSearch]     = useState(initialData?.head_hunter_name ?? "");
   const [hhResults, setHhResults]   = useState([]);
   const [hhSearching, setHhSearching] = useState(false);
+
+  // Consultant client lookup (email search to assign client at creation)
+  const [consultantClientEmail, setConsultantClientEmail] = useState("");
+  const [consultantClientLookup, setConsultantClientLookup] = useState(null); // null | { found: bool, user?: {id,full_name} }
+  const consultantClientDebounce = useRef(null);
+  useEffect(() => {
+    if (!auth.isConsultant) return;
+    clearTimeout(consultantClientDebounce.current);
+    if (!consultantClientEmail.trim() || consultantClientEmail.length < 3) {
+      setConsultantClientLookup(null);
+      setScope(p => ({ ...p, client_id: "" }));
+      return;
+    }
+    consultantClientDebounce.current = setTimeout(async () => {
+      const { data } = await supabase.from("users").select("id, full_name, role")
+        .eq("email", consultantClientEmail.trim().toLowerCase()).maybeSingle();
+      if (data) {
+        setConsultantClientLookup({ found: true, user: data });
+        setScope(p => ({ ...p, client_id: data.id }));
+      } else {
+        setConsultantClientLookup({ found: false });
+        setScope(p => ({ ...p, client_id: "" }));
+      }
+    }, 400);
+    return () => clearTimeout(consultantClientDebounce.current);
+  }, [consultantClientEmail, auth.isConsultant]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Step 5: Qualifications
   const [quals, setQuals] = useState({ certifications_required: initialData?.certifications_required ?? [], min_years_experience: initialData?.min_years_experience ?? "", languages_required: initialData?.languages_required ?? [], security_clearance: initialData?.security_clearance ?? false });
@@ -695,6 +721,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
         due_date: rest.due_date || null,
         budget: scope.budget ? Number(scope.budget) : null,
         skills_required: _skills,
+        created_by: auth.user?.id ?? null,
         client_id:  auth.isClient  ? auth.user?.id : auth.isKeyUser ? keyUserClientId : client_id || null,
         manager_id: auth.isManager ? auth.user?.id : null,
         project_id: selectedProjectId || null,
@@ -756,6 +783,22 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
             await supabase.from("case_milestones").insert(
               milestones.map(m => ({ ...m, due_date: m.due_date || null, case_id: newCase.id }))
             );
+          }
+          // Consultant created case with a new client email → auto-send invite
+          if (auth.isConsultant && consultantClientEmail.trim() && consultantClientLookup?.found === false) {
+            await supabase.from("case_invitations").insert({
+              case_id:       newCase.id,
+              invited_email: consultantClientEmail.trim().toLowerCase(),
+              invited_by:    auth.user?.id,
+            });
+          }
+          // Auto-assign the creating consultant
+          if (auth.isConsultant && auth.user?.id) {
+            await supabase.from("case_assignments").insert({
+              case_id:         newCase.id,
+              consultant_id:   auth.user.id,
+              time_commitment: 100,
+            }).onConflict("case_id,consultant_id").ignore();
           }
         }
         if (saveAsTemplate && templateName.trim()) {
@@ -924,29 +967,29 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               const caseTypeOptions = [
                 {
                   value: "case",
-                  label: "Consulting Case",
-                  desc: "Standard consulting engagement",
+                  label: t("cs.type_case"),
+                  desc: t("cs.type_case_desc"),
                   disabled: false,
                   disabledReason: null,
                 },
                 {
                   value: "ticket",
-                  label: "Support Ticket",
-                  desc: "Help desk / support request",
+                  label: t("cs.type_ticket"),
+                  desc: t("cs.type_ticket_desc"),
                   disabled: !isHelpDesk,
-                  disabledReason: "Only available for Help Desk projects",
+                  disabledReason: t("cs.type_ticket_dis"),
                 },
                 {
                   value: "resource_need",
-                  label: "Resource Need",
-                  desc: "Headhunter staffing need",
+                  label: t("cs.type_resource"),
+                  desc: t("cs.type_resource_desc"),
                   disabled: !auth.isHeadhunter,
-                  disabledReason: "Only available to headhunter users",
+                  disabledReason: t("cs.type_resource_dis"),
                 },
               ];
               return (
                 <div className="mb-4">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Case Type</p>
+                  <p className="text-sm font-medium text-gray-700 mb-2">{t("cs.case_type_label")}</p>
                   <div className="grid grid-cols-3 gap-3">
                     {caseTypeOptions.map(opt => {
                       const isActive = basics.case_type === opt.value;
@@ -1064,13 +1107,13 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
 
             {/* Who can apply */}
             <div className="mb-5">
-              <p className="text-sm font-semibold text-gray-700 mb-1">Who can apply?</p>
-              <p className="text-xs text-gray-400 mb-3">Choose whether this case accepts individual consultants, teams, or both.</p>
+              <p className="text-sm font-semibold text-gray-700 mb-1">{t("cs.who_can_apply")}</p>
+              <p className="text-xs text-gray-400 mb-3">{t("cs.who_can_apply_hint")}</p>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { value: "both",       label: "Everyone",   desc: "Individual or team" },
-                  { value: "individual", label: "Individual", desc: "Single consultants only" },
-                  { value: "team",       label: "Teams only", desc: "Requires a team" },
+                  { value: "both",       label: t("cs.app_everyone"),   desc: t("cs.app_everyone_desc") },
+                  { value: "individual", label: t("cs.app_individual"), desc: t("cs.app_individual_desc") },
+                  { value: "team",       label: t("cs.app_teams"),      desc: t("cs.app_teams_desc") },
                 ].map(opt => {
                   const sel = basics.application_mode === opt.value;
                   return (
@@ -1152,9 +1195,9 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
             </div>
             <div className="grid grid-cols-3 gap-2 mb-4">
               {[
-                { value: "both",       label: "Everyone",   desc: "Individual or team" },
-                { value: "individual", label: "Individual", desc: "Single consultants only" },
-                { value: "team",       label: "Teams only", desc: "Requires a team" },
+                { value: "both",       label: t("cs.app_everyone"),   desc: t("cs.app_everyone_desc") },
+                { value: "individual", label: t("cs.app_individual"), desc: t("cs.app_individual_desc") },
+                { value: "team",       label: t("cs.app_teams"),      desc: t("cs.app_teams_desc") },
               ].map(opt => {
                 const sel = basics.application_mode === opt.value;
                 return (
@@ -1181,6 +1224,27 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
             <p className="text-sm text-gray-500 mb-5">
               {mode === "express" ? t("case.step2_desc_express") : t("case.step2_desc_adv")}
             </p>
+            {auth.isConsultant && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Client email <span className="text-gray-400 font-normal">(optional)</span></label>
+                <p className="text-xs text-gray-400 mb-2">Enter the client's email to link them to this case. If they're not on the platform yet, an invitation will be sent after creation.</p>
+                <input
+                  type="email"
+                  value={consultantClientEmail}
+                  onChange={e => setConsultantClientEmail(e.target.value)}
+                  placeholder="client@company.com"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {consultantClientLookup?.found && (
+                  <div className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-700">
+                    <CheckCircle2 size={12} /> Found: <span className="font-medium">{consultantClientLookup.user.full_name}</span> — will be linked to this case
+                  </div>
+                )}
+                {consultantClientLookup?.found === false && consultantClientEmail.length > 3 && (
+                  <div className="mt-1.5 text-xs text-blue-600">New client — an invitation link will be sent after creation.</div>
+                )}
+              </div>
+            )}
             {(auth.isAdmin || auth.isManager) && (() => {
               const selectedProject = wizardProjects.find(p => p.id === selectedProjectId);
               const projectLockedClient = selectedProject?.client_id
