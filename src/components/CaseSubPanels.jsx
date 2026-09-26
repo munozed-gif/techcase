@@ -310,7 +310,7 @@ function renderMarkdown(md) {
     return esc(s)
       .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
       .replace(/\*(.+?)\*/g,'<em>$1</em>')
-      .replace(/`(.+?)`/g,'<code style="background:var(--ad-inner,#f3f4f6);padding:0.1em 0.4em;border-radius:3px;font-size:0.85em;font-family:monospace">$1</code>');
+      .replace(/`(.+?)`/g,'<code style="background:#f3f4f6;padding:0.1em 0.4em;border-radius:3px;font-size:0.85em;font-family:monospace">$1</code>');
   }
 
   function renderSapScreen(content) {
@@ -398,8 +398,8 @@ function renderMarkdown(md) {
     const parseRow = r => r.replace(/^\||\|$/g,'').split('|').map(c=>c.trim());
     const head = parseRow(dataRows[0]);
     const body = dataRows.slice(1).map(parseRow);
-    const hdr = head.map(h=>`<th style="background:var(--ad-card,#e8f0fb);border:1px solid var(--ad-b,#c0cde0);padding:6px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--t-text-accent,#1a3764)">${fmt(h)}</th>`).join('');
-    const rows = body.map((row,ri)=>`<tr>${head.map((_,i)=>`<td style="border:1px solid var(--ad-b,#d1dce8);padding:5px 10px;font-size:12px;color:var(--ad-text,inherit);background:${ri%2===0?'var(--ad-panel,white)':'var(--ad-card,#f4f7fc)'}">${fmt(row[i]||'')}</td>`).join('')}</tr>`).join('');
+    const hdr = head.map(h=>`<th style="background:#e8f0fb;border:1px solid #c0cde0;padding:6px 10px;text-align:left;font-size:12px;font-weight:600;color:#1a3764">${fmt(h)}</th>`).join('');
+    const rows = body.map((row,ri)=>`<tr>${head.map((_,i)=>`<td style="border:1px solid #d1dce8;padding:5px 10px;font-size:12px;background:${ri%2===0?'white':'#f4f7fc'}">${fmt(row[i]||'')}</td>`).join('')}</tr>`).join('');
     return `<div style="overflow-x:auto;margin:10px 0"><table style="border-collapse:collapse;width:100%"><thead><tr>${hdr}</tr></thead><tbody>${rows}</tbody></table></div>`;
   }
 
@@ -564,8 +564,6 @@ function GenerationProfileModal({ onConfirm, onClose, title, outputMode, onOutpu
       merged[dk] = { ...(def[dk] ?? {}), ...(sto[dk] ?? {}) };
     }
     merged.additional_instructions = sto.additional_instructions ?? def.additional_instructions ?? "";
-    merged.prototype_enabled = sto.prototype_enabled ?? false;
-    merged.prototype_style   = sto.prototype_style   ?? 'fiori';
     return merged;
   }
 
@@ -3077,22 +3075,22 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 {/* Tab bar */}
                 <div className="flex border-b border-gray-200">
                   <button onClick={() => { setSelectedSpec('a'); setAiContent(aiSpecA); }}
-                    className={`flex-1 py-3 px-2 text-sm font-semibold border-b-2 transition-colors text-left flex items-center gap-2 ${selectedSpec === 'a' ? 'border-[#1A4B8C] text-blue-600 bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
+                    className={`flex-1 py-3 px-2 text-sm font-semibold border-b-2 transition-colors text-left flex items-center gap-2 ${selectedSpec === 'a' ? 'border-[#1A4B8C] text-[#1A4B8C] bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
                     <span className="w-5 h-5 rounded-full bg-amber-400 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold">A</span>
                     <span className="truncate">{t("spec.tab_a")}</span>
-                    {selectedSpec === 'a' && <span className="ml-auto text-xs font-semibold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full flex-shrink-0">{t("spec.selected")}</span>}
+                    {selectedSpec === 'a' && <span className="ml-auto text-xs font-semibold text-[#1A4B8C] bg-blue-100 px-2 py-0.5 rounded-full flex-shrink-0">{t("spec.selected")}</span>}
                   </button>
                   <button onClick={() => { setSelectedSpec('b'); setAiContent(aiSpecB); }}
-                    className={`flex-1 py-3 px-2 text-sm font-semibold border-b-2 transition-colors text-left flex items-center gap-2 ${selectedSpec === 'b' ? 'border-[#1A4B8C] text-blue-600 bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
+                    className={`flex-1 py-3 px-2 text-sm font-semibold border-b-2 transition-colors text-left flex items-center gap-2 ${selectedSpec === 'b' ? 'border-[#1A4B8C] text-[#1A4B8C] bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
                     <span className="w-5 h-5 rounded-full bg-green-500 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold">B</span>
                     <span className="truncate">{t("spec.tab_b")}</span>
-                    {selectedSpec === 'b' && <span className="ml-auto text-xs font-semibold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full flex-shrink-0">{t("spec.selected")}</span>}
+                    {selectedSpec === 'b' && <span className="ml-auto text-xs font-semibold text-[#1A4B8C] bg-blue-100 px-2 py-0.5 rounded-full flex-shrink-0">{t("spec.selected")}</span>}
                   </button>
                   <button onClick={() => { setSelectedSpec('c'); setAiContent(aiSpecC); }}
-                    className={`flex-1 py-3 px-2 text-sm font-semibold border-b-2 transition-colors text-left flex items-center gap-2 ${selectedSpec === 'c' ? 'border-[#1A4B8C] text-blue-600 bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
+                    className={`flex-1 py-3 px-2 text-sm font-semibold border-b-2 transition-colors text-left flex items-center gap-2 ${selectedSpec === 'c' ? 'border-[#1A4B8C] text-[#1A4B8C] bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
                     <span className="w-5 h-5 rounded-full bg-purple-500 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold">C</span>
                     <span className="truncate">{t("spec.tab_c")}</span>
-                    {selectedSpec === 'c' && <span className="ml-auto text-xs font-semibold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full flex-shrink-0">{t("spec.selected")}</span>}
+                    {selectedSpec === 'c' && <span className="ml-auto text-xs font-semibold text-[#1A4B8C] bg-blue-100 px-2 py-0.5 rounded-full flex-shrink-0">{t("spec.selected")}</span>}
                   </button>
                 </div>
 

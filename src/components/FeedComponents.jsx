@@ -34,7 +34,7 @@ function FeedCard({ item, caseData, onOpenCase, onMarkRead }) {
 
   return (
     <div
-      className={`rounded-2xl border p-4 transition-all cursor-pointer hover:shadow-md ${item.is_unread ? 'border-blue-200 bg-blue-50' : 'border-gray-100 bg-white'}`}
+      className={`rounded-2xl border p-4 transition-all cursor-pointer hover:shadow-md ${item.is_unread ? 'border-blue-200 bg-blue-50/30' : 'border-gray-100 bg-white'}`}
       onClick={handleClick}>
       <div className="flex gap-3">
         {/* Avatar */}

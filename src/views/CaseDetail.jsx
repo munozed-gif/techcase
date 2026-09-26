@@ -543,24 +543,17 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const totalTimeHours = timeEntries.reduce((s, e) => s + (e.hours ?? 0), 0);
 
   async function openDocInNewTab(doc) {
-    // Supabase can serve files with wrong Content-Type — fetch and re-open as a typed blob
-    const isPdf  = doc.file_name?.toLowerCase().endsWith('.pdf') || (doc.file_type ?? '').includes('pdf');
-    const isHtml = doc.file_name?.toLowerCase().endsWith('.html') || (doc.file_type ?? '').includes('html');
-    if (isPdf || isHtml) {
+    // HTML files stored in Supabase get wrong Content-Type → fetch and re-open as blob
+    if (doc.file_name?.endsWith('.html') || doc.file_type?.includes('html')) {
       try {
         const resp = await fetch(doc.file_url);
-        if (isHtml) {
-          openHtmlInNewTab(await resp.text());
-        } else {
-          const blob = new Blob([await resp.blob()], { type: 'application/pdf' });
-          const url = URL.createObjectURL(blob);
-          const win = window.open(url, '_blank');
-          if (win) setTimeout(() => URL.revokeObjectURL(url), 60000);
-        }
+        const html = await resp.text();
+        openHtmlInNewTab(html);
       } catch (_) {
         window.open(doc.file_url, '_blank');
       }
     } else {
+      // PDFs and other files open directly (Supabase serves them correctly)
       window.open(doc.file_url, '_blank');
     }
   }

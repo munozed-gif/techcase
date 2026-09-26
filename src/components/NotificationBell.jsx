@@ -42,7 +42,7 @@ function NotificationBell({ auth }) {
             ) : notifications.map(n => (
               <div key={n.id}
                 onClick={() => !n.is_read && markRead(n.id)}
-                className={`px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors flex items-start gap-2.5 ${!n.is_read ? 'bg-blue-50' : ''}`}>
+                className={`px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors flex items-start gap-2.5 ${!n.is_read ? 'bg-blue-50/40' : ''}`}>
                 {!n.is_read && <span className="mt-2 w-2 h-2 rounded-full bg-blue-500 shrink-0" />}
                 <div className={!n.is_read ? '' : 'pl-4'}>
                   <p className="text-sm font-medium text-gray-800 leading-snug">{n.title}</p>
