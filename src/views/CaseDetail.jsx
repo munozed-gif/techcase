@@ -2383,10 +2383,16 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
       {/* Lifecycle Pipeline — same carousel style as section cards */}
       {onStatusChange && (() => {
         const curStage = lifecycleStages.find(s => s.key === caseData.status);
-        const allowedNext  = curStage?.allowed_next?.length  ? curStage.allowed_next  : null;
-        const allowedRoles = curStage?.allowed_roles?.length ? curStage.allowed_roles : null;
-        const isCreator = caseData.created_by === auth.user?.id;
-        const canChange = auth.isAdmin || isCreator || !allowedRoles || allowedRoles.includes(auth.role);
+        const allowedNext      = curStage?.allowed_next?.length      ? curStage.allowed_next      : null;
+        const allowedRoles     = curStage?.allowed_roles?.length     ? curStage.allowed_roles     : null;
+        const allowedRelations = curStage?.allowed_relations?.length ? curStage.allowed_relations : null;
+        const isOwner    = caseData.created_by === auth.user?.id;
+        const isAssigned = applications?.some(a => a.consultant_id === auth.user?.id && a.status === "accepted");
+        const caseRelation = isOwner ? "owner" : isAssigned ? "assigned" : "viewer";
+        const roleOk = !allowedRoles || allowedRoles.includes(auth.role);
+        const canChange = auth.isAdmin || (allowedRelations
+          ? roleOk && allowedRelations.includes(caseRelation)
+          : isOwner || roleOk);
         if (!canChange && !curStage) return null;
         const statusInLifecycle = lifecycleStages.some(s => s.key === caseData.status);
         const curIdx = lifecycleStages.findIndex(s => s.key === caseData.status);
@@ -3147,10 +3153,16 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           {/* Status transition buttons — role + allowed_next aware */}
           {onStatusChange && (() => {
             const curStage = lifecycleStages.find(s => s.key === caseData.status);
-            const allowedNext  = curStage?.allowed_next?.length  ? curStage.allowed_next  : null;
-            const allowedRoles = curStage?.allowed_roles?.length ? curStage.allowed_roles : null;
-            const isCreator = caseData.created_by === auth.user?.id;
-            const canChange = auth.isAdmin || isCreator || !allowedRoles || allowedRoles.includes(auth.role);
+            const allowedNext      = curStage?.allowed_next?.length      ? curStage.allowed_next      : null;
+            const allowedRoles     = curStage?.allowed_roles?.length     ? curStage.allowed_roles     : null;
+            const allowedRelations = curStage?.allowed_relations?.length ? curStage.allowed_relations : null;
+            const isOwner2    = caseData.created_by === auth.user?.id;
+            const isAssigned2 = applications?.some(a => a.consultant_id === auth.user?.id && a.status === "accepted");
+            const caseRelation2 = isOwner2 ? "owner" : isAssigned2 ? "assigned" : "viewer";
+            const roleOk2 = !allowedRoles || allowedRoles.includes(auth.role);
+            const canChange = auth.isAdmin || (allowedRelations
+              ? roleOk2 && allowedRelations.includes(caseRelation2)
+              : isOwner2 || roleOk2);
             if (!canChange) return null;
             const statusInLifecycle2 = lifecycleStages.some(s => s.key === caseData.status);
             const validNext = curStage?.is_terminal ? []

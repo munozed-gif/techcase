@@ -29,7 +29,7 @@ function LifecycleSettingsView({ auth }) {
   function cancelEdit() { setSelected(null); setEditStages([]); }
   function addStage() {
     setEditStages(p => {
-      const next = [...p, { key: `s${Date.now()}`, label: t("lc.new_stage_label"), color: "#6b7280", is_terminal: false, allowed_next: [], allowed_roles: [] }];
+      const next = [...p, { key: `s${Date.now()}`, label: t("lc.new_stage_label"), color: "#6b7280", is_terminal: false, allowed_next: [], allowed_roles: [], allowed_relations: [] }];
       setActiveStageIdx(next.length - 1);
       return next;
     });
@@ -53,6 +53,10 @@ function LifecycleSettingsView({ auth }) {
   function toggleRole(i, role) {
     const cur = editStages[i].allowed_roles ?? [];
     updateStage(i, { allowed_roles: cur.includes(role) ? cur.filter(r => r !== role) : [...cur, role] });
+  }
+  function toggleRelation(i, rel) {
+    const cur = editStages[i].allowed_relations ?? [];
+    updateStage(i, { allowed_relations: cur.includes(rel) ? cur.filter(r => r !== rel) : [...cur, rel] });
   }
   function toggleNext(i, key) {
     const cur = editStages[i].allowed_next ?? [];
@@ -132,6 +136,12 @@ function LifecycleSettingsView({ auth }) {
     { key: "key_user",            label: t("auth.role_key_user"),            activeCls: "bg-violet-100 text-violet-700 border-violet-100" },
     { key: "internal_consultant", label: t("auth.role_internal_consultant"), activeCls: "bg-cyan-100 text-cyan-700 border-cyan-100"    },
     { key: "project_manager",     label: t("auth.role_project_manager"),     activeCls: "bg-rose-100 text-rose-700 border-rose-100"    },
+  ];
+
+  const RELATIONS = [
+    { key: "owner",    label: t("lc.rel_owner"),    activeCls: "bg-indigo-100 text-indigo-700 border-indigo-100" },
+    { key: "assigned", label: t("lc.rel_assigned"), activeCls: "bg-teal-100 text-teal-700 border-teal-100"       },
+    { key: "viewer",   label: t("lc.rel_viewer"),   activeCls: "bg-gray-100 text-gray-600 border-gray-300"       },
   ];
 
   const ALL_TABS = [
@@ -325,6 +335,23 @@ function LifecycleSettingsView({ auth }) {
                         })}
                         {!(stage.allowed_roles ?? []).length && (
                           <span className="text-[10px] text-gray-400 italic">{t("lc.any_role")}</span>
+                        )}
+                      </div>
+
+                      {/* Relation (owner / assigned / viewer) */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-16 flex-shrink-0">{t("lc.relation_label")}</span>
+                        {RELATIONS.map(r => {
+                          const on = (stage.allowed_relations ?? []).includes(r.key);
+                          return (
+                            <button key={r.key} onClick={() => toggleRelation(idx, r.key)}
+                              className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border transition-colors ${on ? r.activeCls : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'}`}>
+                              {r.label}
+                            </button>
+                          );
+                        })}
+                        {!(stage.allowed_relations ?? []).length && (
+                          <span className="text-[10px] text-gray-400 italic">{t("lc.any_relation")}</span>
                         )}
                       </div>
 
@@ -537,12 +564,25 @@ function LifecycleSettingsView({ auth }) {
                                 const rm = ROLES.find(x => x.key === r);
                                 if (!rm) return null;
                                 return (
-                                  <span key={r} className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                                    style={{ backgroundColor: rm.bg, color: rm.color }}>
+                                  <span key={r} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${rm.activeCls}`}>
                                     {rm.label}
                                   </span>
                                 );
                               })}
+                          {(s.allowed_relations ?? []).length > 0 && (
+                            <>
+                              <span className="text-[10px] text-gray-300">·</span>
+                              {(s.allowed_relations).map(r => {
+                                const rm = RELATIONS.find(x => x.key === r);
+                                if (!rm) return null;
+                                return (
+                                  <span key={r} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${rm.activeCls}`}>
+                                    {rm.label}
+                                  </span>
+                                );
+                              })}
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
