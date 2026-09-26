@@ -2389,10 +2389,15 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         const isOwner    = caseData.created_by === auth.user?.id;
         const isAssigned = applications?.some(a => a.consultant_id === auth.user?.id && a.status === "accepted");
         const caseRelation = isOwner ? "owner" : isAssigned ? "assigned" : "viewer";
-        const roleOk = !allowedRoles || allowedRoles.includes(auth.role);
-        const canChange = auth.isAdmin || (allowedRelations
-          ? roleOk && allowedRelations.includes(caseRelation)
-          : isOwner || roleOk);
+        const roleOk     = !allowedRoles     || allowedRoles.includes(auth.role);
+        const relationOk = !allowedRelations || allowedRelations.includes(caseRelation);
+        // When both role + relation are set: either suffices (OR). Single constraint: must match it. Neither: backward-compat.
+        const canChange = auth.isAdmin || (
+          (allowedRoles && allowedRelations) ? (roleOk || relationOk) :
+          allowedRoles                       ? roleOk                 :
+          allowedRelations                   ? relationOk             :
+          (isOwner || roleOk)
+        );
         if (!canChange && !curStage) return null;
         const statusInLifecycle = lifecycleStages.some(s => s.key === caseData.status);
         const curIdx = lifecycleStages.findIndex(s => s.key === caseData.status);
@@ -3197,10 +3202,14 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             const isOwner2    = caseData.created_by === auth.user?.id;
             const isAssigned2 = applications?.some(a => a.consultant_id === auth.user?.id && a.status === "accepted");
             const caseRelation2 = isOwner2 ? "owner" : isAssigned2 ? "assigned" : "viewer";
-            const roleOk2 = !allowedRoles || allowedRoles.includes(auth.role);
-            const canChange = auth.isAdmin || (allowedRelations
-              ? roleOk2 && allowedRelations.includes(caseRelation2)
-              : isOwner2 || roleOk2);
+            const roleOk2     = !allowedRoles     || allowedRoles.includes(auth.role);
+            const relationOk2 = !allowedRelations || allowedRelations.includes(caseRelation2);
+            const canChange = auth.isAdmin || (
+              (allowedRoles && allowedRelations) ? (roleOk2 || relationOk2) :
+              allowedRoles                       ? roleOk2                  :
+              allowedRelations                   ? relationOk2              :
+              (isOwner2 || roleOk2)
+            );
             if (!canChange) return null;
             const statusInLifecycle2 = lifecycleStages.some(s => s.key === caseData.status);
             const validNext = curStage?.is_terminal ? []
