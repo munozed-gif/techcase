@@ -2119,12 +2119,17 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       if (genProfile?.prototype_enabled) {
         try {
           const protoStyle = genProfile.prototype_style ?? 'fiori';
-          const protoHtml = await callClaude({
+          let protoHtml = await callClaude({
             model: genModel,
             system: 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.',
             messages: [{ role: 'user', content: buildPrototypePrompt(specA, specB, protoStyle) }],
-            max_tokens: 6000,
+            max_tokens: 8000,
           });
+          // Strip markdown code fences the model may add despite instructions
+          protoHtml = protoHtml.trim();
+          if (protoHtml.startsWith('```')) {
+            protoHtml = protoHtml.replace(/^```(?:html)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+          }
           const safeName = (caseData.title ?? 'Prototype').replace(/[^a-z0-9]/gi, '_');
           const dateStr  = new Date().toISOString().slice(0, 10);
           const fileName = `Prototype_${safeName}_${dateStr}.html`;
