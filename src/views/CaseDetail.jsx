@@ -2544,6 +2544,37 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                           </p>
                         )}
 
+                        {/* Action button — current card, next stage(s) are all auto */}
+                        {state === "current" && canChange && !curStage?.is_terminal && isActive && (() => {
+                          // Find all stages after current in display order
+                          const afterCurrent = displayStages.slice(displayIdx + 1);
+                          // Walk forward while stages are auto-triggered
+                          const firstNonAuto = afterCurrent.find(ds => ds.trigger !== "auto");
+                          const autosBetween = afterCurrent.slice(0, afterCurrent.indexOf(firstNonAuto));
+                          if (!firstNonAuto || autosBetween.length === 0) return null;
+                          const firstNonAutoIdx = allDisplayStages.findIndex(st => st.key === firstNonAuto.key);
+                          if (!validNextKeys.has(firstNonAuto.key)) return null;
+                          const fColor = firstNonAuto.color ?? "#6B7280";
+                          const { blockers: fgb, warnings: fgw } = checkTransitionGates(firstNonAuto.key);
+                          return (
+                            <button
+                              onClick={async e => {
+                                e.stopPropagation();
+                                if (firstNonAuto.key === "standby") { setStandbyReason(""); setStandbyNotes(""); setStandbyModal(true); return; }
+                                if (fgb.length > 0 || fgw.length > 0) {
+                                  setGateModal({ caseId: caseData.id, toStatus: firstNonAuto.key, toLabel: firstNonAuto.label, toColor: fColor, blockers: fgb, warnings: fgw });
+                                  return;
+                                }
+                                await onStatusChange(caseData.id, firstNonAuto.key);
+                              }}
+                              style={{ width: "100%", padding: "9px 0", fontSize: 12, fontWeight: 700, borderRadius: 10, color: "white", background: fColor, border: "none", cursor: "pointer", transition: "opacity .15s" }}
+                              onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
+                              onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
+                              {`Move to ${firstNonAuto.label} →`}
+                            </button>
+                          );
+                        })()}
+
                         {/* Action button — reachable stages only */}
                         {state === "reachable" && canChange && !curStage?.is_terminal && isActive && (
                           <button
