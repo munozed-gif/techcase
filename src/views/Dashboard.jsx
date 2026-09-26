@@ -1298,7 +1298,7 @@ function Dashboard({ auth, onNavigate }) {
                   </div>
                   <div className="flex flex-col gap-1.5 p-2">
                     {caseList.map(c => {
-                      const cc = CASE_CARD_COLORS[c.status] ?? { bar: "#9ca3af", border: "#e5e7eb", bg: "#ffffff" };
+                      const cc = CASE_CARD_COLORS[c.status] ?? { bar: "#9ca3af", border: "rgba(156,163,175,0.32)", bg: "rgba(100,116,139,0.08)" };
                       const StatusIcon = STATUS_CARD_ICONS[c.status] ?? Tag;
                       return (
                         <div key={c.id} className="flex items-center gap-2 p-2 rounded-xl cursor-pointer transition-all hover:shadow-sm"
