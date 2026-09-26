@@ -295,7 +295,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
 
   // Scroll pipeline carousel to current status whenever status or stages change
   useEffect(() => {
-    const allDisplay = lifecycleStages.filter(s => s.trigger !== "auto");
+    const allDisplay = lifecycleStages;
     const idx = allDisplay.findIndex(s => s.key === caseData.status);
     if (idx < 0) return;
     setPipelineActiveIdx(idx);
@@ -2417,7 +2417,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         }
 
         // All non-auto stages in original lifecycle order; carousel starts at current
-        const allDisplayStages = lifecycleStages.filter(s => s.trigger !== "auto");
+        const allDisplayStages = lifecycleStages;
         if (!allDisplayStages.length) return null;
         const displayStages = allDisplayStages;
 
@@ -2515,7 +2515,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                         </span>
                         {/* State badge */}
                         <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 99, background: isActive ? (state === "current" ? color + "33" : state === "reachable" ? color + "33" : "var(--t-badge-inact-bg)") : "var(--t-badge-inact-bg)", color: isActive ? (state === "current" ? color : state === "reachable" ? color : "var(--t-text2)") : "var(--t-text2)", flexShrink: 0 }}>
-                          {state === "past" ? "Done" : state === "current" ? "Current" : state === "reachable" ? (hasBlockers ? "⚠ Blocked" : hasWarnings ? "⚡ Warn" : "→ Next") : "Upcoming"}
+                          {state === "past" ? "Done" : state === "current" ? "Current" : state === "reachable" ? (hasBlockers ? "⚠ Blocked" : hasWarnings ? "⚡ Warn" : "→ Next") : s.trigger === "auto" ? "⚡ Auto" : "Upcoming"}
                         </span>
                       </div>
 
