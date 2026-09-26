@@ -2640,35 +2640,39 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               </div>
             )}
 
-            {/* Persistent skip-auto CTA — always visible below carousel regardless of scroll */}
+            {/* Persistent next-stage CTA — always visible below carousel regardless of scroll */}
             {canChange && !curStage?.is_terminal && (() => {
               const curDisplayIdx = displayStages.findIndex(ds => ds.key === caseData.status);
               if (curDisplayIdx < 0) return null;
               const afterCurrent = displayStages.slice(curDisplayIdx + 1);
-              const firstNonAuto = afterCurrent.find(ds => ds.trigger !== "auto");
-              if (!firstNonAuto) return null;
-              const autosBetween = afterCurrent.slice(0, afterCurrent.indexOf(firstNonAuto));
-              if (autosBetween.length === 0) return null;
+              // First non-auto, non-terminal stage ahead
+              const target = afterCurrent.find(ds => ds.trigger !== "auto" && !ds.is_terminal);
+              if (!target) return null;
+              const targetIdx = afterCurrent.indexOf(target);
+              const autosBetween = afterCurrent.slice(0, targetIdx);
               const autoKeys = autosBetween.map(ds => ds.key);
-              const autoAllowed = !allowedNext || autoKeys.some(k => allowedNext.includes(k));
-              if (!validNextKeys.has(firstNonAuto.key) && !autoAllowed) return null;
-              const fColor = firstNonAuto.color ?? "#6B7280";
-              const { blockers: fgb, warnings: fgw } = checkTransitionGates(firstNonAuto.key);
+              // Allowed if: target is directly in allowedNext, OR auto stages between are in allowedNext, OR no restriction
+              const directOk = !allowedNext || allowedNext.includes(target.key);
+              const viaAutoOk = autosBetween.length > 0 && (!allowedNext || autoKeys.some(k => allowedNext.includes(k)));
+              if (!directOk && !viaAutoOk) return null;
+              const fColor = target.color ?? "#6B7280";
+              const { blockers: fgb, warnings: fgw } = checkTransitionGates(target.key);
               return (
                 <div style={{ marginTop: 14, display: "flex", justifyContent: "center" }}>
                   <button
                     onClick={async e => {
-                      if (firstNonAuto.key === "standby") { setStandbyReason(""); setStandbyNotes(""); setStandbyModal(true); return; }
+                      if (target.key === "standby") { setStandbyReason(""); setStandbyNotes(""); setStandbyModal(true); return; }
+                      if (target.key === "cancelled") { initCancelModal(caseData.id); return; }
                       if (fgb.length > 0 || fgw.length > 0) {
-                        setGateModal({ caseId: caseData.id, toStatus: firstNonAuto.key, toLabel: firstNonAuto.label, toColor: fColor, blockers: fgb, warnings: fgw });
+                        setGateModal({ caseId: caseData.id, toStatus: target.key, toLabel: target.label, toColor: fColor, blockers: fgb, warnings: fgw });
                         return;
                       }
-                      await onStatusChange(caseData.id, firstNonAuto.key);
+                      await onStatusChange(caseData.id, target.key);
                     }}
                     style={{ padding: "10px 28px", fontSize: 13, fontWeight: 700, borderRadius: 10, color: "white", background: fColor, border: "none", cursor: "pointer", transition: "opacity .15s", boxShadow: `0 2px 12px ${fColor}55` }}
                     onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
                     onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
-                    {`Move to ${firstNonAuto.label} →`}
+                    {`→ ${target.label}`}
                   </button>
                 </div>
               );
