@@ -195,7 +195,9 @@
 .arena-dark .bg-indigo-200 { background-color: rgba(99,102,241,0.22)  !important; }
 .arena-dark .text-indigo-700 { color: #A5B4FC !important; }
 .arena-dark .text-indigo-600 { color: #A5B4FC !important; }
+.arena-dark .border-indigo-100 { border-color: rgba(99,102,241,0.18) !important; }
 .arena-dark .border-indigo-200 { border-color: rgba(99,102,241,0.28) !important; }
+.arena-dark .hover\:bg-indigo-100:hover { background-color: rgba(99,102,241,0.20) !important; }
 
 /* ── Violet / purple ── */
 .arena-dark .bg-violet-50   { background-color: rgba(139,92,246,0.09)  !important; }

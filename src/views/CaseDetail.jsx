@@ -3734,7 +3734,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               <SectionHeader Icon={Monitor} iconClass="text-indigo-500" label="Interactive Prototypes" count={protoDocs.length} accent="border-indigo-100">
                 <div className="space-y-2">
                   {protoDocs.map(doc => (
-                    <div key={doc.id} className="flex items-center gap-3 p-3 border border-indigo-100 rounded-xl bg-indigo-50/40 hover:bg-indigo-50">
+                    <div key={doc.id} className="flex items-center gap-3 p-3 border border-indigo-100 rounded-xl bg-indigo-50 hover:bg-indigo-100">
                       <Monitor className="w-4 h-4 text-indigo-400 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm text-gray-800 truncate">{doc.file_name}</p>
