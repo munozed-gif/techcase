@@ -2551,7 +2551,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                         )}
 
                         {/* Action button — current card, next stage(s) are all auto */}
-                        {state === "current" && canChange && !curStage?.is_terminal && isActive && (() => {
+                        {state === "current" && canChange && !curStage?.is_terminal && (() => {
                           // Find all stages after current in display order
                           const afterCurrent = displayStages.slice(displayIdx + 1);
                           // Walk forward while stages are auto-triggered
