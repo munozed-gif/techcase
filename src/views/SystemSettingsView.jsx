@@ -1138,8 +1138,9 @@ function SettingsGenerationTab({ ssCtx }) {
       const stored = ssCtx.settings["generation_profiles"] ?? {};
       const storedCtx = ssCtx.settings["generation_context"] ?? {};
       const merged = {
-        ai_model:       ssCtx.settings["ai_model"]       ?? "claude-haiku-4-5-20251001",
-        analysis_model: ssCtx.settings["analysis_model"] ?? "claude-haiku-4-5-20251001",
+        ai_model:         ssCtx.settings["ai_model"]         ?? "claude-haiku-4-5-20251001",
+        analysis_model:   ssCtx.settings["analysis_model"]   ?? "claude-haiku-4-5-20251001",
+        prototype_model:  ssCtx.settings["prototype_model"]  ?? "claude-sonnet-5-20251001",
         default_profile: stored.default_profile ?? GENERATION_PROFILE_DEFAULTS.default_profile,
         context: { ...GENERATION_CONTEXT_DEFAULTS, ...storedCtx },
         profiles: {},
@@ -1183,10 +1184,11 @@ function SettingsGenerationTab({ ssCtx }) {
   async function handleSave() {
     setSaving(true);
     try {
-      const { ai_model, analysis_model, context, ...genProfiles } = form;
+      const { ai_model, analysis_model, prototype_model, context, ...genProfiles } = form;
       await Promise.all([
         ssCtx.setSetting("ai_model",            ai_model),
         ssCtx.setSetting("analysis_model",      analysis_model),
+        ssCtx.setSetting("prototype_model",     prototype_model),
         ssCtx.setSetting("generation_context",  context),
         ssCtx.setSetting("generation_profiles", genProfiles),
       ]);
@@ -1224,6 +1226,14 @@ function SettingsGenerationTab({ ssCtx }) {
             {AI_MODELS.map(m => <option key={m.value} value={m.value}>{t(m.labelKey)}</option>)}
           </select>
           <p className="text-xs text-gray-400 mt-1">{t("sys.analysis_model_hint")}</p>
+        </div>
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t("sys.prototype_model_label")}</label>
+          <select value={form.prototype_model} onChange={e => setForm(p => ({ ...p, prototype_model: e.target.value }))}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm">
+            {AI_MODELS.map(m => <option key={m.value} value={m.value}>{t(m.labelKey)}</option>)}
+          </select>
+          <p className="text-xs text-gray-400 mt-1">{t("sys.prototype_model_hint")}</p>
         </div>
       </div>
 
