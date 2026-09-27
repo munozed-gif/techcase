@@ -671,10 +671,10 @@ function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, generatingS
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-800">{t("spec.proto_node_lbl")}</h3>
         <div className="flex gap-2">
-          {onRegenerate && (
+          {onRegenerate && protoSaved && (
             <button onClick={onRegenerate} disabled={generatingSpecs}
               className="px-3 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 disabled:opacity-40">
-              ↺ {t("spec.regen_all") || "Regenerar"}
+              {t("spec.proto_regen")}
             </button>
           )}
           {protoHtmlState && (
@@ -718,8 +718,14 @@ function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, generatingS
         </div>
       )}
       {!protoSaved && !generatingSpecs && (
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-500">
-          {t("spec.proto_pending")}
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 flex flex-col items-center gap-3 text-center">
+          <p className="text-sm text-gray-500">{t("spec.proto_pending")}</p>
+          {onRegenerate && (
+            <button onClick={onRegenerate}
+              className="px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              {t("spec.proto_generate")}
+            </button>
+          )}
         </div>
       )}
     </div>
