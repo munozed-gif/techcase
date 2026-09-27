@@ -41,7 +41,8 @@ async function callClaude({ system, messages, max_tokens = 2048, model = 'claude
   });
   if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'Claude API error'); }
   const data = await res.json();
-  const text = data?.content?.[0]?.text;
+  // Sonnet 5 may return a thinking block before the text block — find by type
+  const text = data?.content?.find(b => b.type === 'text')?.text;
   if (!text) {
     const detail = data?.error?.message
       ?? `stop_reason=${data?.stop_reason ?? 'none'}, content_blocks=${data?.content?.length ?? 0}, model=${data?.model ?? model}`;

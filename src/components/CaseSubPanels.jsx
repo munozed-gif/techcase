@@ -791,6 +791,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [protoSaved, setProtoSaved]       = useState(false);
   const [protoHtmlState, setProtoHtmlState] = useState(null);
   const [viewingProto, setViewingProto]   = useState(false);
+  const [protoError, setProtoError]       = useState(false);
 
   // ── Document helpers ─────────────────────────────────────────
   function blobToBase64(blob) {
@@ -2236,6 +2237,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       setActiveProfile(genProfile);
       setProtoSaved(false);
       setProtoHtmlState(null);
+      setProtoError(false);
       setViewingProto(false);
       const saveStatus = autoSubmit ? 'submitted' : 'draft';
       try {
@@ -3012,11 +3014,14 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     {activeProfile?.prototype_enabled && (
                       <button onClick={() => { setActiveNode(3); setViewingProto(true); }}
                         className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs border transition-all ${
-                          protoSaved ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-50 border-gray-100 text-gray-400'
+                          protoSaved ? 'bg-green-50 border-green-200 text-green-700'
+                          : protoError ? 'bg-red-50 border-red-200 text-red-600'
+                          : 'bg-gray-50 border-gray-100 text-gray-400'
                         } ${viewingProto && activeNode===3 ? 'ring-2 ring-blue-300' : ''}`}>
-                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-blue-500" />
+                        <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${protoError ? 'bg-red-500' : 'bg-blue-500'}`} />
                         <span className="truncate font-medium">{t("spec.proto_node_lbl")}</span>
                         {protoSaved && <Check size={10} className="text-green-600 ml-auto flex-shrink-0" />}
+                        {protoError && !protoSaved && <span className="ml-auto text-red-500 text-xs">!</span>}
                       </button>
                     )}
                   </div>
@@ -3409,6 +3414,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     onRegenerate={activeProfile?.prototype_enabled && (aiSpecA || aiSpecB) ? async () => {
                       setProtoHtmlState(null);
                       setProtoSaved(false);
+                      setProtoError(false);
                       const protoStyle = activeProfile.prototype_style ?? 'fiori';
                       try {
                         let html = await callClaude({ model: protoModel, system: 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.', messages: [{ role: 'user', content: buildPrototypePrompt(aiSpecA, aiSpecB, protoStyle) }], max_tokens: 8000 });
@@ -3421,7 +3427,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         setProtoHtmlState(html);
                         setProtoSaved(true);
                         if (refetchDocuments) await refetchDocuments();
-                      } catch (e) { alert('Prototype error: ' + e.message); }
+                      } catch (e) { setProtoError(true); alert('Prototype error: ' + e.message); }
                     } : null}
                     t={t}
                   />
