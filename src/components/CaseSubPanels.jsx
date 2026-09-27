@@ -3221,6 +3221,50 @@ Respond with ONLY a valid JSON object, no markdown fences:
             {/* ── Node 3: Generate Specification ── */}
             {activeNode === 3 && (
               <div className="space-y-4">
+                {/* ── Action bar (top) ── */}
+                {(aiSpecA || aiSpecB || aiSpecC) && !generatingSpecs && !viewingProto && (
+                  <div className="space-y-2 pb-3 border-b border-gray-100">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {SUB.map(s => (
+                        <span key={s.key} className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${savedSpecUrls[s.key] ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
+                          <span className={`w-2 h-2 rounded-full ${savedSpecUrls[s.key] ? 'bg-green-500' : s.dot} opacity-70`} />
+                          {s.label} {savedSpecUrls[s.key] ? <><Check size={10} className="inline mr-0.5" />{t("spec.saved")}</> : t("spec.not_saved")}
+                        </span>
+                      ))}
+                      {savingDoc && <span className="text-xs text-blue-600 flex items-center gap-1"><Spinner />&nbsp;{t("spec.saving_pdfs")}</span>}
+                    </div>
+                    <div className="flex gap-2 items-center justify-between">
+                      <p className="text-xs text-gray-500">
+                        {selectedSpec ? t("spec.submit_option").replace("{n}", selectedSpec.toUpperCase()).replace("{label}", selectedSpec === 'a' ? t("spec.tab_a") : selectedSpec === 'b' ? t("spec.tab_b") : t("spec.tab_c")) : t("spec.click_tab_select")}
+                      </p>
+                      <div className="flex gap-2">
+                        <button onClick={async () => {
+                          const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA;
+                          try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent, activeProfile }), title: caseData.title + t("spec.doc_title_suffix") }); await refetch(); } catch (e) { alert(e.message); }
+                        }} disabled={!selectedSpec} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-40">
+                          {t("spec.save_draft")}
+                        </button>
+                        {(() => {
+                          const allSaved = savedSpecUrls.a && savedSpecUrls.b && savedSpecUrls.c;
+                          return (
+                            <button onClick={() => saveAllSpecsAsDocuments(aiSpecA, aiSpecB, aiSpecC, sapCheck, proposalCheck)}
+                              disabled={savingDoc || allSaved || (!aiSpecA && !aiSpecB && !aiSpecC)}
+                              className={`flex items-center px-4 py-2 text-sm font-semibold rounded-xl disabled:opacity-40 ${allSaved ? 'bg-gray-100 text-gray-500 border border-gray-200 cursor-default' : 'bg-green-600 text-white hover:bg-green-700'}`}>
+                              {savingDoc ? t("state.saving") : allSaved ? <><Check size={13} className="mr-1.5 inline" />{t("spec.pdf_saved3")}</> : <><Paperclip className="w-4 h-4 mr-1.5" />{t("spec.save_all3")}</>}
+                            </button>
+                          );
+                        })()}
+                        {canSubmit && (
+                          <button onClick={() => handleSubmit(selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA, 'ai', [])} disabled={!selectedSpec}
+                            className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-40">
+                            {t("spec.submit_btn")}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Analysis accordion */}
                 {(sapCheck || proposalCheck) && !viewingProto && (
                   <div className="border border-gray-200 rounded-xl overflow-hidden">
@@ -3383,46 +3427,6 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       </div>
                     </div>
 
-                    <div className="space-y-2 pt-3 border-t border-gray-100">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        {SUB.map(s => (
-                          <span key={s.key} className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${savedSpecUrls[s.key] ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
-                            <span className={`w-2 h-2 rounded-full ${savedSpecUrls[s.key] ? 'bg-green-500' : s.dot} opacity-70`} />
-                            {s.label} {savedSpecUrls[s.key] ? <><Check size={10} className="inline mr-0.5" />{t("spec.saved")}</> : t("spec.not_saved")}
-                          </span>
-                        ))}
-                        {savingDoc && <span className="text-xs text-blue-600 flex items-center gap-1"><Spinner />&nbsp;{t("spec.saving_pdfs")}</span>}
-                      </div>
-                      <div className="flex gap-2 items-center justify-between">
-                        <p className="text-xs text-gray-500">
-                          {selectedSpec ? t("spec.submit_option").replace("{n}", selectedSpec.toUpperCase()).replace("{label}", selectedSpec === 'a' ? t("spec.tab_a") : selectedSpec === 'b' ? t("spec.tab_b") : t("spec.tab_c")) : t("spec.click_tab_select")}
-                        </p>
-                        <div className="flex gap-2">
-                          <button onClick={async () => {
-                            const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA;
-                            try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent, activeProfile }), title: caseData.title + t("spec.doc_title_suffix") }); await refetch(); } catch (e) { alert(e.message); }
-                          }} disabled={!selectedSpec} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-40">
-                            {t("spec.save_draft")}
-                          </button>
-                          {(() => {
-                            const allSaved = savedSpecUrls.a && savedSpecUrls.b && savedSpecUrls.c;
-                            return (
-                              <button onClick={() => saveAllSpecsAsDocuments(aiSpecA, aiSpecB, aiSpecC, sapCheck, proposalCheck)}
-                                disabled={savingDoc || allSaved || (!aiSpecA && !aiSpecB && !aiSpecC)}
-                                className={`flex items-center px-4 py-2 text-sm font-semibold rounded-xl disabled:opacity-40 ${allSaved ? 'bg-gray-100 text-gray-500 border border-gray-200 cursor-default' : 'bg-green-600 text-white hover:bg-green-700'}`}>
-                                {savingDoc ? t("state.saving") : allSaved ? <><Check size={13} className="mr-1.5 inline" />{t("spec.pdf_saved3")}</> : <><Paperclip className="w-4 h-4 mr-1.5" />{t("spec.save_all3")}</>}
-                              </button>
-                            );
-                          })()}
-                          {canSubmit && (
-                            <button onClick={() => handleSubmit(selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA, 'ai', [])} disabled={!selectedSpec}
-                              className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-40">
-                              {t("spec.submit_btn")}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 )}
 
