@@ -646,6 +646,80 @@ function openHtmlInNewTab(htmlString) {
   else { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.click(); }
 }
 
+function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, generatingSpecs, documents, onBack, t }) {
+  const [loading, setLoading] = useState(false);
+  const [fetchErr, setFetchErr] = useState(null);
+
+  useEffect(() => {
+    if (protoHtmlState || !protoSaved) return;
+    // HTML not in memory — fetch from saved document
+    const protoDoc = (documents ?? []).find(d =>
+      (d.description ?? '').startsWith('[Prototype]') || (d.file_name ?? '').startsWith('Prototype_')
+    );
+    if (!protoDoc?.file_url) return;
+    setLoading(true);
+    setFetchErr(null);
+    fetch(protoDoc.file_url)
+      .then(r => r.text())
+      .then(html => { setProtoHtmlState(html); })
+      .catch(() => setFetchErr('Could not load prototype'))
+      .finally(() => setLoading(false));
+  }, [protoSaved, protoHtmlState, documents]);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-gray-800">{t("spec.proto_node_lbl")}</h3>
+        <div className="flex gap-2">
+          {protoHtmlState && (
+            <button onClick={() => openHtmlInNewTab(protoHtmlState)}
+              className="px-3 py-1.5 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
+              {t("spec.proto_open_btn")}
+            </button>
+          )}
+          <button onClick={onBack} className="text-xs text-gray-400 hover:text-gray-600 px-2">
+            ← {t("action.back")}
+          </button>
+        </div>
+      </div>
+
+      {loading && (
+        <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
+          <Spinner /><span className="text-sm">{t("spec.gen_all_loading")}</span>
+        </div>
+      )}
+      {fetchErr && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{fetchErr}</div>
+      )}
+      {protoHtmlState && !loading && (
+        <div className="rounded-xl border border-gray-200 overflow-hidden" style={{ height: 520 }}>
+          <iframe
+            srcDoc={protoHtmlState}
+            title="Interactive Prototype"
+            className="w-full h-full border-0"
+            sandbox="allow-scripts"
+          />
+        </div>
+      )}
+      {!protoHtmlState && !loading && !fetchErr && protoSaved && (
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-500">
+          {t("spec.proto_saved")}
+        </div>
+      )}
+      {!protoSaved && generatingSpecs && (
+        <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
+          <Spinner /><span className="text-sm">{t("spec.gen_all_loading")}</span>
+        </div>
+      )}
+      {!protoSaved && !generatingSpecs && (
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-500">
+          {t("spec.proto_pending")}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocument, refetchDocuments, onUpdate }) {
   const { t, lang } = useT();
   const ssCtx = useSystemSettings();
@@ -2092,12 +2166,15 @@ function _show(n) {
 }
 function _next() { if(_cur<4) _show(_cur+1); }
 function _back() { if(_cur>1) _show(_cur-1); }
-window.onload = function(){ _show(1); };
+document.addEventListener('DOMContentLoaded', function(){ _show(1); });
 </script>
 
-Each screen div must have class="screen" and id="screen1" through "screen4" (display:none initially — window.onload shows screen1).
-Navigation buttons must use onclick="_next()" and onclick="_back()".
-Step dots (if used) must have class="step-dot".
+CRITICAL SCREEN RULES:
+- Each screen div MUST have: class="screen" and id="screen1" through "screen4"
+- ALL screens start with style="display:none" in their HTML — the JS shows screen1 on load
+- Every screen MUST contain substantial visible content (headers, paragraphs, tables, form fields, buttons) — do NOT leave any screen with only a title
+- Navigation buttons: use onclick="_next()" and onclick="_back()" — place a prominent "Next" button on every screen except screen4
+- Step indicator dots must have class="step-dot"
 
 OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No explanation, no markdown fences, no text before or after the HTML.`;
   }
@@ -3307,44 +3384,15 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
                 {/* ── Prototype Preview ── */}
                 {viewingProto && activeProfile?.prototype_enabled && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-gray-800">{t("spec.proto_node_lbl")}</h3>
-                      <div className="flex gap-2">
-                        {protoHtmlState && (
-                          <button onClick={() => openHtmlInNewTab(protoHtmlState)}
-                            className="px-3 py-1.5 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
-                            {t("spec.proto_open_btn")}
-                          </button>
-                        )}
-                        <button onClick={() => setViewingProto(false)} className="text-xs text-gray-400 hover:text-gray-600 px-2">
-                          ← {t("action.back")}
-                        </button>
-                      </div>
-                    </div>
-                    {protoSaved && protoHtmlState ? (
-                      <div className="rounded-xl border border-gray-200 overflow-hidden" style={{ height: 520 }}>
-                        <iframe
-                          srcDoc={protoHtmlState}
-                          title="Interactive Prototype"
-                          className="w-full h-full border-0"
-                          sandbox="allow-scripts"
-                        />
-                      </div>
-                    ) : protoSaved ? (
-                      <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-700 flex items-center gap-2">
-                        <Check size={16} /><span>{t("spec.proto_saved")}</span>
-                      </div>
-                    ) : generatingSpecs ? (
-                      <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
-                        <Spinner /><span className="text-sm">{t("spec.gen_all_loading")}</span>
-                      </div>
-                    ) : (
-                      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-500">
-                        {t("spec.proto_pending")}
-                      </div>
-                    )}
-                  </div>
+                  <ProtoPanel
+                    protoHtmlState={protoHtmlState}
+                    setProtoHtmlState={setProtoHtmlState}
+                    protoSaved={protoSaved}
+                    generatingSpecs={generatingSpecs}
+                    documents={documents}
+                    onBack={() => setViewingProto(false)}
+                    t={t}
+                  />
                 )}
               </div>
             )}
