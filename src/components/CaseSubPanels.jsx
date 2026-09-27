@@ -646,7 +646,7 @@ function openHtmlInNewTab(htmlString) {
   else { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.click(); }
 }
 
-function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, generatingSpecs, documents, onBack, t }) {
+function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, generatingSpecs, documents, onBack, onRegenerate, t }) {
   const [loading, setLoading] = useState(false);
   const [fetchErr, setFetchErr] = useState(null);
 
@@ -671,6 +671,12 @@ function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, generatingS
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-800">{t("spec.proto_node_lbl")}</h3>
         <div className="flex gap-2">
+          {onRegenerate && (
+            <button onClick={onRegenerate} disabled={generatingSpecs}
+              className="px-3 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 disabled:opacity-40">
+              ↺ {t("spec.regen_all") || "Regenerar"}
+            </button>
+          )}
           {protoHtmlState && (
             <button onClick={() => openHtmlInNewTab(protoHtmlState)}
               className="px-3 py-1.5 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
@@ -2155,26 +2161,27 @@ REQUIREMENTS:
 8. Screen 3 (Detail/Form): detail view or configuration form with real SAP parameters
 9. Screen 4 (Confirmation): success state with key output data and action buttons (Save, Back to Overview)
 
-NAVIGATION — YOU MUST USE THIS EXACT JAVASCRIPT PATTERN, no variations:
-<script>
-var _cur = 1;
-function _show(n) {
-  document.querySelectorAll('.screen').forEach(function(s){ s.style.display='none'; });
-  var el = document.getElementById('screen'+n);
-  if (el) { el.style.display='block'; _cur=n; }
-  document.querySelectorAll('.step-dot').forEach(function(d,i){ d.classList.toggle('active', i+1===n); });
-}
-function _next() { if(_cur<4) _show(_cur+1); }
-function _back() { if(_cur>1) _show(_cur-1); }
-document.addEventListener('DOMContentLoaded', function(){ _show(1); });
-</script>
+NAVIGATION JAVASCRIPT — copy this block EXACTLY inside a <script> tag just before </body>:
+var _cur=1;
+function _show(n){document.querySelectorAll('.screen').forEach(function(s){s.style.display='none';});var el=document.getElementById('screen'+n);if(el){el.style.display='flex';el.style.flexDirection='column';_cur=n;}document.querySelectorAll('.step-dot').forEach(function(d,i){d.style.background=i+1===n?'#0070F2':'#ccc';});}
+function _next(){if(_cur<4)_show(_cur+1);}
+function _back(){if(_cur>1)_show(_cur-1);}
+document.addEventListener('DOMContentLoaded',function(){_show(1);});
 
-CRITICAL SCREEN RULES:
-- Each screen div MUST have: class="screen" and id="screen1" through "screen4"
-- ALL screens start with style="display:none" in their HTML — the JS shows screen1 on load
-- Every screen MUST contain substantial visible content (headers, paragraphs, tables, form fields, buttons) — do NOT leave any screen with only a title
-- Navigation buttons: use onclick="_next()" and onclick="_back()" — place a prominent "Next" button on every screen except screen4
-- Step indicator dots must have class="step-dot"
+CRITICAL HTML STRUCTURE — follow exactly:
+1. The 4 screen divs: <div class="screen" id="screen1" style="display:none"> ... </div> (same for screen2/3/4)
+2. Step dots row (place it OUTSIDE the screen divs, always visible):
+   <div style="display:flex;gap:12px;justify-content:center;padding:16px;">
+     <span class="step-dot" onclick="_show(1)" style="width:36px;height:36px;border-radius:50%;background:#0070F2;color:white;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:bold;">1</span>
+     <span class="step-dot" onclick="_show(2)" style="width:36px;height:36px;border-radius:50%;background:#ccc;color:white;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:bold;">2</span>
+     <span class="step-dot" onclick="_show(3)" style="width:36px;height:36px;border-radius:50%;background:#ccc;color:white;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:bold;">3</span>
+     <span class="step-dot" onclick="_show(4)" style="width:36px;height:36px;border-radius:50%;background:#ccc;color:white;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:bold;">4</span>
+   </div>
+3. Every screen MUST have a content area with REAL data: tables with rows, form fields with labels and inputs, paragraphs of information — NO empty screens
+4. Screen 1: overview with a summary card + metadata list + "Iniciar →" button (onclick="_next()")
+5. Screen 2: a table with at least 4 real data rows from the spec, plus a "Siguiente →" button
+6. Screen 3: a form with at least 5 labeled input fields from the spec, plus "Guardar →" and "← Volver" buttons
+7. Screen 4: success confirmation with a summary of what was done, "Nueva Operación" button (onclick="_show(1)") and "← Volver" button
 
 OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No explanation, no markdown fences, no text before or after the HTML.`;
   }
@@ -3391,6 +3398,23 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     generatingSpecs={generatingSpecs}
                     documents={documents}
                     onBack={() => setViewingProto(false)}
+                    onRegenerate={activeProfile?.prototype_enabled && (aiSpecA || aiSpecB) ? async () => {
+                      setProtoHtmlState(null);
+                      setProtoSaved(false);
+                      const protoStyle = activeProfile.prototype_style ?? 'fiori';
+                      const genModel = activeProfile.model ?? 'claude-haiku-4-5-20251001';
+                      try {
+                        let html = await callClaude({ model: genModel, system: 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.', messages: [{ role: 'user', content: buildPrototypePrompt(aiSpecA, aiSpecB, protoStyle) }], max_tokens: 8000 });
+                        html = html.trim();
+                        if (html.startsWith('```')) html = html.replace(/^```(?:html)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+                        const safeName = (caseData.title ?? 'Prototype').replace(/[^a-z0-9]/gi, '_');
+                        const fileName = `Prototype_${safeName}_${new Date().toISOString().slice(0,10)}.html`;
+                        await addDocument(new File([new Blob([html], { type: 'text/html' })], fileName, { type: 'text/html' }), '[Prototype] Interactive prototype (auto-generated)');
+                        setProtoHtmlState(html);
+                        setProtoSaved(true);
+                        if (refetchDocuments) await refetchDocuments();
+                      } catch (e) { alert('Prototype error: ' + e.message); }
+                    } : null}
                     t={t}
                   />
                 )}
