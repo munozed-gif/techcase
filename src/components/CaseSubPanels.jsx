@@ -2152,10 +2152,10 @@ Industry: ${caseData.area_industry ?? ''}
 Description: ${caseData.description ?? ''}
 
 Spec A (Custom ABAP approach):
-${specA.slice(0, 1500)}
+${(specA ?? '').slice(0, 1500)}
 
 Spec B (Standard SAP approach):
-${specB.slice(0, 1000)}
+${(specB ?? '').slice(0, 1000)}
 
 REQUIREMENTS:
 1. Generate 4 screens: Overview, Main Process Screen, Detail/Form Screen, Confirmation/Result Screen
@@ -2254,6 +2254,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
             messages: [{ role: 'user', content: buildPrototypePrompt(specA, specB, protoStyle) }],
             max_tokens: 8000,
           });
+          if (!protoHtml) throw new Error('Empty prototype response');
           // Strip markdown code fences the model may add despite instructions
           protoHtml = protoHtml.trim();
           if (protoHtml.startsWith('```')) {
@@ -3411,6 +3412,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       const protoStyle = activeProfile.prototype_style ?? 'fiori';
                       try {
                         let html = await callClaude({ model: protoModel, system: 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.', messages: [{ role: 'user', content: buildPrototypePrompt(aiSpecA, aiSpecB, protoStyle) }], max_tokens: 8000 });
+                        if (!html) throw new Error('Model returned empty response');
                         html = html.trim();
                         if (html.startsWith('```')) html = html.replace(/^```(?:html)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
                         const safeName = (caseData.title ?? 'Prototype').replace(/[^a-z0-9]/gi, '_');

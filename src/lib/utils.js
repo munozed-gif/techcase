@@ -41,7 +41,9 @@ async function callClaude({ system, messages, max_tokens = 2048, model = 'claude
   });
   if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'Claude API error'); }
   const data = await res.json();
-  return data.content[0].text;
+  const text = data?.content?.[0]?.text;
+  if (!text) throw new Error(data?.error?.message || 'Empty response from model');
+  return text;
 }
 
 let _auditCfgCache = null; // null = not yet fetched
