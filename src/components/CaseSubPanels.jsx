@@ -700,6 +700,10 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [savedSpecUrls, setSavedSpecUrls] = useState({ a: null, b: null, c: null });
   const [savingDoc, setSavingDoc]         = useState(false);
   const [specHtml, setSpecHtml]           = useState(null);
+  const [activeProfile, setActiveProfile] = useState(null);
+  const [protoSaved, setProtoSaved]       = useState(false);
+  const [protoHtmlState, setProtoHtmlState] = useState(null);
+  const [viewingProto, setViewingProto]   = useState(false);
 
   // ── Document helpers ─────────────────────────────────────────
   function blobToBase64(blob) {
@@ -1512,6 +1516,9 @@ ${mdToHtml(markdownContent)}
       if (spec.content) restoredStep = 3;
       setAiStep(restoredStep);
       setActiveNode(restoredStep === 3 ? 3 : restoredStep === 2 ? 2 : 0);
+      // Detect previously generated prototype from documents list
+      const protoDoc = (documents ?? []).find(d => (d.description ?? '').startsWith('[Prototype]') || (d.file_name ?? '').startsWith('Prototype_'));
+      if (protoDoc) { setProtoSaved(true); setActiveProfile({ prototype_enabled: true }); }
     } else if (spec.mode === 'wizard') {
       setWizardObjects(spec.objects ?? []);
       if ((spec.objects ?? []).length > 0) {
@@ -2135,6 +2142,10 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       setSelectedSpec('a');
       setAiContent(specA);
       setSavedSpecUrls({ a: null, b: null, c: null });
+      setActiveProfile(genProfile);
+      setProtoSaved(false);
+      setProtoHtmlState(null);
+      setViewingProto(false);
       const saveStatus = autoSubmit ? 'submitted' : 'draft';
       try {
         await saveSpec({ mode: 'ai', status: saveStatus, content: specA, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, selectedSpec: 'a', prevMode, analysisCustomerContent: customerContent }), title: caseData.title + t("spec.doc_title_suffix") });
@@ -2163,6 +2174,8 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           const blob = new Blob([protoHtml], { type: 'text/html' });
           const file = new File([blob], fileName, { type: 'text/html' });
           await addDocument(file, '[Prototype] Interactive prototype (auto-generated)');
+          setProtoHtmlState(protoHtml);
+          setProtoSaved(true);
           if (refetchDocuments) await refetchDocuments();
         } catch (_) { /* prototype failure is non-fatal */ }
       }
@@ -2792,7 +2805,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
     // Node statuses
     const sapStatus  = sapCheck      ? 'complete' : stepLoading && aiStep === 1 ? 'running' : 'pending';
     const propStatus = proposalCheck ? 'complete' : stepLoading && aiStep === 2 ? 'running' : sapCheck ? 'pending' : 'locked';
-    const genStatus  = (aiSpecA || aiSpecB || aiSpecC) ? 'complete' : generatingSpecs ? 'running' : proposalCheck ? 'pending' : 'locked';
+    const genStatus   = (aiSpecA || aiSpecB || aiSpecC) ? 'complete' : generatingSpecs ? 'running' : proposalCheck ? 'pending' : 'locked';
+    const protoStatus = protoSaved ? 'complete' : generatingSpecs ? 'running' : 'pending';
     const SUB = [
       { key: 'a', label: t("spec.tab_a"), dot: 'bg-amber-400', content: aiSpecA },
       { key: 'b', label: t("spec.tab_b"), dot: 'bg-green-500', content: aiSpecB },
@@ -2887,21 +2901,32 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 canClick={genStatus !== 'locked'}
                 onClick={() => { if (genStatus !== 'locked') setActiveNode(3); }}
               >
-                {/* Sub-nodes for Spec A / B / C */}
+                {/* Sub-nodes for Spec A / B / C + Prototype */}
                 {(aiSpecA || aiSpecB || aiSpecC || activeNode===3) && (
                   <div className="ml-8 mt-1 space-y-1 relative z-10">
                     {SUB.map(s => (
-                      <button key={s.key} onClick={() => { setActiveNode(3); setSelectedSpec(s.key); setAiContent(s.content); }}
+                      <button key={s.key} onClick={() => { setActiveNode(3); setSelectedSpec(s.key); setViewingProto(false); setAiContent(s.content); }}
                         className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs border transition-all ${
                           s.content && savedSpecUrls[s.key] ? 'bg-green-50 border-green-200 text-green-700' :
                           s.content ? 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50' :
                           'bg-gray-50 border-gray-100 text-gray-400'
-                        } ${selectedSpec === s.key && activeNode===3 ? 'ring-2 ring-blue-300' : ''}`}>
+                        } ${selectedSpec === s.key && activeNode===3 && !viewingProto ? 'ring-2 ring-blue-300' : ''}`}>
                         <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${s.dot}`} />
                         <span className="truncate font-medium">{s.label}</span>
                         {savedSpecUrls[s.key] && <Check size={10} className="text-green-600 ml-auto flex-shrink-0" />}
                       </button>
                     ))}
+                    {/* Prototype sub-node — only when enabled in profile */}
+                    {activeProfile?.prototype_enabled && (
+                      <button onClick={() => { setActiveNode(3); setViewingProto(true); }}
+                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs border transition-all ${
+                          protoSaved ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-50 border-gray-100 text-gray-400'
+                        } ${viewingProto && activeNode===3 ? 'ring-2 ring-blue-300' : ''}`}>
+                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-blue-500" />
+                        <span className="truncate font-medium">{t("spec.proto_node_lbl")}</span>
+                        {protoSaved && <Check size={10} className="text-green-600 ml-auto flex-shrink-0" />}
+                      </button>
+                    )}
                   </div>
                 )}
               </NodeBtn>
@@ -3277,6 +3302,48 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         </div>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* ── Prototype Preview ── */}
+                {viewingProto && activeProfile?.prototype_enabled && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-gray-800">{t("spec.proto_node_lbl")}</h3>
+                      <div className="flex gap-2">
+                        {protoHtmlState && (
+                          <button onClick={() => openHtmlInNewTab(protoHtmlState)}
+                            className="px-3 py-1.5 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
+                            {t("spec.proto_open_btn")}
+                          </button>
+                        )}
+                        <button onClick={() => setViewingProto(false)} className="text-xs text-gray-400 hover:text-gray-600 px-2">
+                          ← {t("action.back")}
+                        </button>
+                      </div>
+                    </div>
+                    {protoSaved && protoHtmlState ? (
+                      <div className="rounded-xl border border-gray-200 overflow-hidden" style={{ height: 520 }}>
+                        <iframe
+                          srcDoc={protoHtmlState}
+                          title="Interactive Prototype"
+                          className="w-full h-full border-0"
+                          sandbox="allow-scripts"
+                        />
+                      </div>
+                    ) : protoSaved ? (
+                      <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-700 flex items-center gap-2">
+                        <Check size={16} /><span>{t("spec.proto_saved")}</span>
+                      </div>
+                    ) : generatingSpecs ? (
+                      <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
+                        <Spinner /><span className="text-sm">{t("spec.gen_all_loading")}</span>
+                      </div>
+                    ) : (
+                      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-500">
+                        {t("spec.proto_pending")}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
