@@ -2850,8 +2850,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
               {/* Node 0: Documents (AI input) */}
               <NodeBtn id={0} icon={Paperclip}
-                title={t("spec.wiz_docs_lbl") || "Documentos"}
-                sub={`${(documents??[]).length} ${t("spec.docs_files") || "archivo(s)"}`}
+                title={t("spec.pipeline_docs_lbl")}
+                sub={`${(documents??[]).length} ${t("spec.docs_files")}`}
                 status="complete"
                 isActive={activeNode===0}
                 canClick={true}
@@ -2861,7 +2861,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
               {/* Node 1: SAP Verification */}
               <NodeBtn id={1} icon={CheckCircle2}
                 title={t("spec.ai_step1_h")}
-                sub={sapCheck ? sapCheck.coverage : sapStatus==='running' ? t("spec.checking") : t("spec.pending") || "Pendiente"}
+                sub={sapCheck ? sapCheck.coverage : sapStatus==='running' ? t("spec.checking") : t("spec.pending")}
                 status={sapStatus}
                 isActive={activeNode===1}
                 canClick={true}
@@ -2871,7 +2871,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
               {/* Node 2: Proposal Validation */}
               <NodeBtn id={2} icon={Target}
                 title={t("spec.ai_step2_h")}
-                sub={proposalCheck ? `Score ${proposalCheck.score}/10` : propStatus==='running' ? t("spec.validating") : propStatus==='locked' ? (t("spec.locked")||"Bloqueado") : (t("spec.pending")||"Pendiente")}
+                sub={proposalCheck ? `Score ${proposalCheck.score}/10` : propStatus==='running' ? t("spec.validating") : propStatus==='locked' ? t("spec.locked") : t("spec.pending")}
                 status={propStatus}
                 isActive={activeNode===2}
                 canClick={propStatus !== 'locked'}
@@ -2880,8 +2880,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
               {/* Node 3: Generate Specification + sub-nodes */}
               <NodeBtn id={3} icon={Sparkles}
-                title={t("spec.ai_step3_h") || "Generar Especificación"}
-                sub={genStatus==='complete' ? `${[aiSpecA,aiSpecB,aiSpecC].filter(Boolean).length} ${t("spec.specs_gen")||"spec(s)"}` : genStatus==='running' ? (t("spec.gen_all_loading")||"Generando…") : genStatus==='locked' ? (t("spec.locked")||"Bloqueado") : (t("spec.pending")||"Pendiente")}
+                title={t("spec.ai_step3_lbl")}
+                sub={genStatus==='complete' ? `${[aiSpecA,aiSpecB,aiSpecC].filter(Boolean).length} ${t("spec.specs_gen")}` : genStatus==='running' ? t("spec.gen_all_loading") : genStatus==='locked' ? t("spec.locked") : t("spec.pending")}
                 status={genStatus}
                 isActive={activeNode===3}
                 canClick={genStatus !== 'locked'}
@@ -2921,7 +2921,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
               <div className="space-y-3">
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                   <h3 className="text-sm font-semibold text-blue-800 mb-1">{t("spec.wiz_docs_lbl")}</h3>
-                  <p className="text-xs text-blue-600 mb-3">{t("spec.docs_node_desc") || "Estos documentos serán usados como contexto para la generación con IA."}</p>
+                  <p className="text-xs text-blue-600 mb-3">{t("spec.docs_node_desc")}</p>
                   {(documents??[]).length === 0 ? (
                     <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">{t("spec.no_docs_ai")}</p>
                   ) : (
