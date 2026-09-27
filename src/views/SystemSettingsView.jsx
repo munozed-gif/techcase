@@ -995,15 +995,6 @@ function SettingsRolesTab({ ssCtx }) {
           <span className="text-red-500 font-medium">Admin always has full access and cannot be restricted.</span>
         </p>
 
-        {/* Role chips legend */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          {ALL_ROLES.map(r => (
-            <span key={r} className={`text-xs font-semibold px-2.5 py-1 rounded-full ${ROLE_COLORS[r]}`}>
-              {t("role." + r)}
-            </span>
-          ))}
-        </div>
-
         {/* Permission matrix */}
         <div className="overflow-x-auto">
           <table className="w-full text-xs border-collapse">
@@ -1013,8 +1004,8 @@ function SettingsRolesTab({ ssCtx }) {
                   {t("roles.capability")}
                 </th>
                 {ALL_ROLES.map(r => (
-                  <th key={r} className="text-center py-2 px-2 min-w-[72px]">
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ROLE_COLORS[r]}`}>
+                  <th key={r} className="text-center py-2 px-2 min-w-[80px]">
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${ROLE_COLORS[r]}`}>
                       {t("role." + r)}
                     </span>
                   </th>
@@ -1068,7 +1059,7 @@ function SettingsRolesTab({ ssCtx }) {
                 <th className="text-left py-2 pr-4 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide w-36">{t("roles.wizard_type")}</th>
                 {WIZARD_ROLES.map(r => (
                   <th key={r} className="text-center py-2 px-1.5 min-w-[80px]">
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ROLE_COLORS[r] ?? 'bg-gray-100 text-gray-600'}`}>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${ROLE_COLORS[r] ?? 'bg-gray-100 text-gray-600'}`}>
                       {t("role." + r)}
                     </span>
                   </th>
