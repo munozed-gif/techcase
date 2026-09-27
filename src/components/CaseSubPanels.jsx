@@ -737,7 +737,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const ssCtx = useSystemSettings();
   const genModel       = ssCtx.settings["ai_model"]        ?? 'claude-haiku-4-5-20251001';
   const analysisModel  = ssCtx.settings["analysis_model"]  ?? 'claude-haiku-4-5-20251001';
-  const protoModel     = ssCtx.settings["prototype_model"] ?? 'claude-sonnet-5-20251001';
+  const protoModel     = ssCtx.settings["prototype_model"] ?? 'claude-sonnet-5';
   const { spec, loading: specLoading, saveSpec, refetch } = useCaseSpecification(caseData.id, auth.user?.id);
 
   // Mode selection
