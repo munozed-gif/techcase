@@ -2897,6 +2897,14 @@ Respond with ONLY a valid JSON object, no markdown fences:
     const riskColor = { low: 'text-green-700 bg-green-50', medium: 'text-amber-700 bg-amber-50', high: 'text-red-700 bg-red-50' };
     const cc = coverageColor[sapCheck?.coverage] ?? coverageColor.none;
 
+    // Filter out AI-generated output docs from the input document list
+    const inputDocs = (documents ?? []).filter(doc => {
+      const name = doc.file_name ?? '';
+      const desc = doc.description ?? '';
+      return !/^(SpecA_|SpecB_|SpecC_|Prototype_)/i.test(name) &&
+             !/^\[(Prototype|Spec)/i.test(desc);
+    });
+
     // Node statuses
     const sapStatus  = sapCheck      ? 'complete' : stepLoading && aiStep === 1 ? 'running' : 'pending';
     const propStatus = proposalCheck ? 'complete' : stepLoading && aiStep === 2 ? 'running' : sapCheck ? 'pending' : 'locked';
@@ -2960,7 +2968,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
               {/* Node 0: Documents (AI input) */}
               <NodeBtn id={0} icon={Paperclip}
                 title={t("spec.pipeline_docs_lbl")}
-                sub={`${(documents??[]).length} ${t("spec.docs_files")}`}
+                sub={`${inputDocs.length} ${t("spec.docs_files")}`}
                 status="complete"
                 isActive={activeNode===0}
                 canClick={true}
@@ -3044,11 +3052,11 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                   <h3 className="text-sm font-semibold text-blue-800 mb-1">{t("spec.wiz_docs_lbl")}</h3>
                   <p className="text-xs text-blue-600 mb-3">{t("spec.docs_node_desc")}</p>
-                  {(documents??[]).length === 0 ? (
+                  {inputDocs.length === 0 ? (
                     <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">{t("spec.no_docs_ai")}</p>
                   ) : (
                     <div className="space-y-2">
-                      {documents.map(doc => (
+                      {inputDocs.map(doc => (
                         <div key={doc.id} className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-blue-100">
                           <Paperclip className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
                           <span className="text-xs text-gray-700 font-medium flex-1 truncate">{doc.file_name}</span>
