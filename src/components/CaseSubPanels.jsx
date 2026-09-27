@@ -2906,9 +2906,10 @@ Respond with ONLY a valid JSON object, no markdown fences:
     });
 
     // Node statuses
-    const sapStatus  = sapCheck      ? 'complete' : stepLoading && aiStep === 1 ? 'running' : 'pending';
-    const propStatus = proposalCheck ? 'complete' : stepLoading && aiStep === 2 ? 'running' : sapCheck ? 'pending' : 'locked';
-    const genStatus   = (aiSpecA || aiSpecB || aiSpecC) ? 'complete' : generatingSpecs ? 'running' : proposalCheck ? 'pending' : 'locked';
+    const specsExist = !!(aiSpecA || aiSpecB || aiSpecC);
+    const sapStatus  = sapCheck      ? 'complete' : stepLoading && aiStep === 1 ? 'running' : specsExist ? 'skipped' : 'pending';
+    const propStatus = proposalCheck ? 'complete' : stepLoading && aiStep === 2 ? 'running' : specsExist ? 'skipped' : sapCheck ? 'pending' : 'locked';
+    const genStatus   = specsExist ? 'complete' : generatingSpecs ? 'running' : proposalCheck ? 'pending' : 'locked';
     const protoStatus = protoSaved ? 'complete' : generatingSpecs ? 'running' : 'pending';
     const SUB = [
       { key: 'a', label: t("spec.tab_a"), dot: 'bg-amber-400', content: aiSpecA },
@@ -2920,6 +2921,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
         complete: { ring: 'border-green-400',  bg: 'bg-green-50',   circ: 'bg-green-500',  txt: 'text-green-700',  sub: 'text-green-600' },
         running:  { ring: 'border-blue-400',   bg: 'bg-blue-50',    circ: 'bg-blue-500',   txt: 'text-blue-700',   sub: 'text-blue-500'  },
         pending:  { ring: 'border-gray-300',   bg: 'bg-white',      circ: 'bg-gray-200',   txt: 'text-gray-700',   sub: 'text-gray-400'  },
+        skipped:  { ring: 'border-amber-200',  bg: 'bg-amber-50',   circ: 'bg-amber-300',  txt: 'text-amber-700',  sub: 'text-amber-500' },
         locked:   { ring: 'border-gray-200',   bg: 'bg-gray-50',    circ: 'bg-gray-100',   txt: 'text-gray-400',   sub: 'text-gray-300'  },
       }[status] ?? { ring:'border-gray-200', bg:'bg-white', circ:'bg-gray-200', txt:'text-gray-700', sub:'text-gray-400' };
       return (
@@ -2978,7 +2980,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
               {/* Node 1: SAP Verification */}
               <NodeBtn id={1} icon={CheckCircle2}
                 title={t("spec.ai_step1_h")}
-                sub={sapCheck ? sapCheck.coverage : sapStatus==='running' ? t("spec.checking") : t("spec.pending")}
+                sub={sapCheck ? sapCheck.coverage : sapStatus==='running' ? t("spec.checking") : sapStatus==='skipped' ? t("spec.skipped") : t("spec.pending")}
                 status={sapStatus}
                 isActive={activeNode===1}
                 canClick={true}
@@ -2988,7 +2990,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
               {/* Node 2: Proposal Validation */}
               <NodeBtn id={2} icon={Target}
                 title={t("spec.ai_step2_h")}
-                sub={proposalCheck ? `Score ${proposalCheck.score}/10` : propStatus==='running' ? t("spec.validating") : propStatus==='locked' ? t("spec.locked") : t("spec.pending")}
+                sub={proposalCheck ? `Score ${proposalCheck.score}/10` : propStatus==='running' ? t("spec.validating") : propStatus==='locked' ? t("spec.locked") : propStatus==='skipped' ? t("spec.skipped") : t("spec.pending")}
                 status={propStatus}
                 isActive={activeNode===2}
                 canClick={propStatus !== 'locked'}
@@ -3284,6 +3286,20 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 {/* Generate button */}
                 {!aiSpecA && !aiSpecB && !aiSpecC && !generatingSpecs && !viewingProto && (
                   <div className="text-center py-6">
+                    {/* Warning when analysis steps were skipped */}
+                    {!sapCheck && !proposalCheck && (
+                      <div className="mb-4 text-left bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2">
+                        <span className="text-amber-500 text-base leading-none mt-0.5">⚠</span>
+                        <div>
+                          <p className="text-xs font-semibold text-amber-800">{t("spec.skipped_warning_title")}</p>
+                          <p className="text-xs text-amber-700 mt-0.5">{t("spec.skipped_warning_desc")}</p>
+                          <button onClick={() => setActiveNode(1)}
+                            className="mt-1.5 text-xs font-semibold text-amber-700 underline underline-offset-2">
+                            {t("spec.run_step1_link")} →
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-3">
                       <Sparkles className="w-7 h-7 text-blue-600" />
                     </div>
