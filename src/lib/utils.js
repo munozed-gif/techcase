@@ -42,7 +42,11 @@ async function callClaude({ system, messages, max_tokens = 2048, model = 'claude
   if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'Claude API error'); }
   const data = await res.json();
   const text = data?.content?.[0]?.text;
-  if (!text) throw new Error(data?.error?.message || 'Empty response from model');
+  if (!text) {
+    const detail = data?.error?.message
+      ?? `stop_reason=${data?.stop_reason ?? 'none'}, content_blocks=${data?.content?.length ?? 0}, model=${data?.model ?? model}`;
+    throw new Error(detail);
+  }
   return text;
 }
 
