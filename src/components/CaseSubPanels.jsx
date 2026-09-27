@@ -672,6 +672,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [aiEditing, setAiEditing]       = useState(false);
   const [aiError, setAiError]           = useState(null);
   const [aiStep, setAiStep]             = useState(1);   // 1 | 2 | 3
+  const [activeNode, setActiveNode]     = useState(0);   // 0=docs 1=sap 2=proposal 3=generate
   const [sapCheck, setSapCheck]         = useState(null);
   const [proposalCheck, setProposalCheck] = useState(null);
   const [stepLoading, setStepLoading]   = useState(false);
@@ -1510,6 +1511,7 @@ ${mdToHtml(markdownContent)}
       }
       if (spec.content) restoredStep = 3;
       setAiStep(restoredStep);
+      setActiveNode(restoredStep === 3 ? 3 : restoredStep === 2 ? 2 : 0);
     } else if (spec.mode === 'wizard') {
       setWizardObjects(spec.objects ?? []);
       if ((spec.objects ?? []).length > 0) {
@@ -2230,6 +2232,7 @@ coverage meanings:
         parsed = m ? JSON.parse(m[0]) : { coverage: 'none', summary: raw, standard_transactions: [], gaps: [], recommendation: '' };
       }
       setSapCheck(parsed);
+      setActiveNode(1); // show SAP result
       try { await saveSpec({ mode: 'ai', status: 'draft', content: null, objects: [], notes: JSON.stringify({ sapCheck: parsed }), title: caseData.title + t("spec.doc_title_suffix") }); } catch (_) {}
     } catch (e) { setAiError(e.message); }
     setStepLoading(false);
@@ -2283,6 +2286,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
       setProposalCheck(parsed);
       try { await saveSpec({ mode: 'ai', status: 'draft', content: null, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck: parsed }), title: caseData.title + t("spec.doc_title_suffix") }); } catch (_) {}
       setAiStep(3);
+      setActiveNode(3); // auto-advance to generate step
     } catch (e) { setAiError(e.message); }
     setStepLoading(false);
   }
@@ -2781,17 +2785,47 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
   // ── AI Generate mode ─────────────────────────────────────────
   if (mode === 'ai') {
-    const STEPS = [
-      { n: 1, label: t("spec.ai_step1_lbl") },
-      { n: 2, label: t("spec.ai_step2_lbl") },
-      { n: 3, label: t("spec.ai_step3_lbl") },
-    ];
     const coverageColor = { full: ['bg-green-50','border-green-200','text-green-700','text-green-800'], partial: ['bg-amber-50','border-amber-200','text-amber-700','text-amber-800'], none: ['bg-red-50','border-red-200','text-red-700','text-red-800'] };
     const riskColor = { low: 'text-green-700 bg-green-50', medium: 'text-amber-700 bg-amber-50', high: 'text-red-700 bg-red-50' };
     const cc = coverageColor[sapCheck?.coverage] ?? coverageColor.none;
 
+    // Node statuses
+    const sapStatus  = sapCheck      ? 'complete' : stepLoading && aiStep === 1 ? 'running' : 'pending';
+    const propStatus = proposalCheck ? 'complete' : stepLoading && aiStep === 2 ? 'running' : sapCheck ? 'pending' : 'locked';
+    const genStatus  = (aiSpecA || aiSpecB || aiSpecC) ? 'complete' : generatingSpecs ? 'running' : proposalCheck ? 'pending' : 'locked';
+    const SUB = [
+      { key: 'a', label: t("spec.tab_a"), dot: 'bg-amber-400', content: aiSpecA },
+      { key: 'b', label: t("spec.tab_b"), dot: 'bg-green-500', content: aiSpecB },
+      { key: 'c', label: t("spec.tab_c"), dot: 'bg-purple-500', content: aiSpecC },
+    ];
+    const NodeBtn = ({ id, icon: Icon, title, sub, status, isActive, canClick, onClick, children }) => {
+      const sc = {
+        complete: { ring: 'border-green-400',  bg: 'bg-green-50',   circ: 'bg-green-500',  txt: 'text-green-700',  sub: 'text-green-600' },
+        running:  { ring: 'border-blue-400',   bg: 'bg-blue-50',    circ: 'bg-blue-500',   txt: 'text-blue-700',   sub: 'text-blue-500'  },
+        pending:  { ring: 'border-gray-300',   bg: 'bg-white',      circ: 'bg-gray-200',   txt: 'text-gray-700',   sub: 'text-gray-400'  },
+        locked:   { ring: 'border-gray-200',   bg: 'bg-gray-50',    circ: 'bg-gray-100',   txt: 'text-gray-400',   sub: 'text-gray-300'  },
+      }[status] ?? { ring:'border-gray-200', bg:'bg-white', circ:'bg-gray-200', txt:'text-gray-700', sub:'text-gray-400' };
+      return (
+        <div>
+          <button onClick={onClick} disabled={!canClick}
+            className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl border-2 text-left transition-all ${sc.bg} ${isActive ? 'border-blue-500 shadow-md' : sc.ring} ${canClick ? 'cursor-pointer hover:shadow-sm' : 'cursor-not-allowed'}`}>
+            <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${sc.circ}`}>
+              {status === 'complete' ? <Check size={14} className="text-white" />
+               : status === 'running' ? <Spinner />
+               : <Icon size={14} className={status === 'locked' ? 'text-gray-300' : 'text-gray-500'} />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={`text-sm font-semibold leading-tight truncate ${sc.txt}`}>{title}</p>
+              <p className={`text-xs truncate mt-0.5 ${sc.sub}`}>{sub}</p>
+            </div>
+          </button>
+          {children}
+        </div>
+      );
+    };
+
     return (
-      <div className="space-y-5">
+      <div className="space-y-4">
         {/* Header + back */}
         <div className="flex items-center gap-2">
           <button onClick={() => {
@@ -2805,431 +2839,450 @@ Respond with ONLY a valid JSON object, no markdown fences:
           </span>
         </div>
 
-        {/* Step indicator */}
-        <div className="flex items-center">
-          {STEPS.map((step, idx) => (
-            <Fragment key={step.n}>
-              <div className="flex flex-col items-center min-w-0">
-                <button
-                  onClick={() => { if (step.n <= aiStep) setAiStep(step.n); }}
-                  disabled={step.n > aiStep}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-colors ${
-                    aiStep > step.n  ? 'bg-green-500 border-green-500 text-white' :
-                    aiStep === step.n ? 'bg-[#1A4B8C] border-[#1A4B8C] text-white' :
-                    'bg-white border-gray-300 text-gray-400 cursor-not-allowed'
-                  }`}>
-                  {aiStep > step.n ? <Check size={11} /> : step.n}
-                </button>
-                <span className={`text-xs mt-1 font-medium text-center leading-tight ${
-                  aiStep === step.n ? 'text-[#1A4B8C]' : aiStep > step.n ? 'text-green-600' : 'text-gray-400'
-                }`}>{step.label}</span>
-              </div>
-              {idx < 2 && (
-                <div className={`flex-1 h-0.5 mx-2 mb-5 rounded ${aiStep > step.n ? 'bg-green-400' : 'bg-gray-200'}`} />
-              )}
-            </Fragment>
-          ))}
-        </div>
+        {/* 2-column pipeline layout */}
+        <div className="flex gap-4 items-start">
 
-        {/* Documents panel (always visible) */}
-        {(documents ?? []).length > 0 ? (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
-            <p className="text-xs font-semibold text-blue-700 mb-1.5">{t("spec.wiz_docs_lbl")}</p>
-            <div className="flex flex-col gap-1">
-              {documents.map(doc => (
-                <a key={doc.id} href={doc.file_url} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-xs text-blue-600 hover:underline">
-                  <Paperclip className="w-3 h-3" /><span>{doc.file_name}</span>
-                  <span className="text-blue-400">({doc.file_size_kb} KB)</span>
-                </a>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
-            {t("spec.no_docs_ai")}
-          </div>
-        )}
+          {/* LEFT: Pipeline flow diagram */}
+          <div className="w-56 flex-shrink-0">
+            <div className="relative space-y-1">
+              {/* vertical connector line behind nodes */}
+              <div className="absolute left-[23px] top-10 bottom-10 w-0.5 bg-gray-200 z-0 pointer-events-none" />
 
-        {/* Error */}
-        {aiError && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{aiError}</div>
-        )}
+              {/* Node 0: Documents (AI input) */}
+              <NodeBtn id={0} icon={Paperclip}
+                title={t("spec.wiz_docs_lbl") || "Documentos"}
+                sub={`${(documents??[]).length} ${t("spec.docs_files") || "archivo(s)"}`}
+                status="complete"
+                isActive={activeNode===0}
+                canClick={true}
+                onClick={() => setActiveNode(0)}
+              />
 
-        {/* ── STEP 1: SAP Standard Check ── */}
-        {aiStep === 1 && (
-          <div className="space-y-4">
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-              <h3 className="text-sm font-semibold text-gray-800 mb-1">{t("spec.ai_step1_h")}</h3>
-              <p className="text-xs text-gray-500">{t("spec.ai_step1_desc")}</p>
-            </div>
+              {/* Node 1: SAP Verification */}
+              <NodeBtn id={1} icon={CheckCircle2}
+                title={t("spec.ai_step1_h")}
+                sub={sapCheck ? sapCheck.coverage : sapStatus==='running' ? t("spec.checking") : t("spec.pending") || "Pendiente"}
+                status={sapStatus}
+                isActive={activeNode===1}
+                canClick={true}
+                onClick={() => setActiveNode(1)}
+              />
 
-            {!sapCheck && !stepLoading && (
-              <div className="text-center py-4">
-                <button onClick={handleSapCheck}
-                  className="px-6 py-2.5 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
-                  {t("spec.ai_check_btn")}
-                </button>
-              </div>
-            )}
+              {/* Node 2: Proposal Validation */}
+              <NodeBtn id={2} icon={Target}
+                title={t("spec.ai_step2_h")}
+                sub={proposalCheck ? `Score ${proposalCheck.score}/10` : propStatus==='running' ? t("spec.validating") : propStatus==='locked' ? (t("spec.locked")||"Bloqueado") : (t("spec.pending")||"Pendiente")}
+                status={propStatus}
+                isActive={activeNode===2}
+                canClick={propStatus !== 'locked'}
+                onClick={() => { if (propStatus !== 'locked') setActiveNode(2); }}
+              />
 
-            {stepLoading && (
-              <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
-                <Spinner /><span className="text-sm">{t("spec.checking")}</span>
-              </div>
-            )}
-
-            {sapCheck && !stepLoading && (
-              <div className={`border rounded-xl p-4 space-y-3 ${cc[0]} ${cc[1]}`}>
-                <div className="flex items-center justify-between">
-                  <span className={`text-sm font-bold ${cc[3]}`}>
-                    {sapCheck.coverage === 'full' ? <><Check size={11} className="inline mr-1 text-emerald-600" />{t("spec.sap_full")}</> :
-                     sapCheck.coverage === 'partial' ? <><AlertTriangle size={11} className="inline mr-1 text-amber-500" />{t("spec.sap_partial")}</> :
-                     <><X size={11} className="inline mr-1 text-red-500" />{t("spec.sap_none")}</>}
-                  </span>
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${cc[1]} ${cc[2]} uppercase`}>{sapCheck.coverage}</span>
-                </div>
-                <p className={`text-sm ${cc[2]}`}>{sapCheck.summary}</p>
-
-                {(sapCheck.standard_transactions ?? []).length > 0 && (
-                  <div>
-                    <p className={`text-xs font-semibold mb-1 ${cc[3]}`}>{t("spec.sap_txns")}</p>
-                    <ul className={`text-xs space-y-0.5 ${cc[2]}`}>
-                      {sapCheck.standard_transactions.map((tx, i) => <li key={i} className="flex gap-1"><span>•</span><span>{tx}</span></li>)}
-                    </ul>
-                  </div>
-                )}
-
-                {(sapCheck.gaps ?? []).length > 0 && (
-                  <div>
-                    <p className={`text-xs font-semibold mb-1 ${cc[3]}`}>{t("spec.sap_gaps")}</p>
-                    <ul className={`text-xs space-y-0.5 ${cc[2]}`}>
-                      {sapCheck.gaps.map((g, i) => <li key={i} className="flex gap-1"><span>→</span><span>{g}</span></li>)}
-                    </ul>
-                  </div>
-                )}
-
-                {sapCheck.recommendation && (
-                  <p className={`text-xs italic border-t pt-2 ${cc[1]} ${cc[2]}`}>{sapCheck.recommendation}</p>
-                )}
-
-                <div className="flex gap-3 justify-between items-center pt-1">
-                  <button onClick={handleSapCheck} className={`text-xs underline ${cc[2]}`}>{t("spec.rerun_check")}</button>
-                  <button onClick={() => setAiStep(2)}
-                    className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
-                    {t("spec.continue_step2")}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── STEP 2: Proposal Validation ── */}
-        {aiStep === 2 && (
-          <div className="space-y-4">
-            {/* Step 1 summary badge */}
-            {sapCheck && (
-              <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg border ${cc[0]} ${cc[1]} ${cc[2]}`}>
-                <span className="font-semibold">{t("spec.step1_badge")}</span>
-                <span>{t("spec.coverage_lbl")} <span className="font-bold uppercase">{sapCheck.coverage}</span></span>
-                <span className="ml-auto opacity-70">{sapCheck.recommendation}</span>
-              </div>
-            )}
-
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-              <h3 className="text-sm font-semibold text-gray-800 mb-1">{t("spec.ai_step2_h")}</h3>
-              <p className="text-xs text-gray-500">{t("spec.ai_step2_desc")}</p>
-            </div>
-
-            {!proposalCheck && !stepLoading && (
-              <div className="text-center py-4">
-                <button onClick={handleProposalValidation}
-                  className="px-6 py-2.5 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
-                  {t("spec.validate_proposal")}
-                </button>
-              </div>
-            )}
-
-            {stepLoading && (
-              <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
-                <Spinner /><span className="text-sm">{t("spec.validating")}</span>
-              </div>
-            )}
-
-            {proposalCheck && !stepLoading && (
-              <div className={`border rounded-xl p-4 space-y-3 ${proposalCheck.valid ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <span className={`text-sm font-bold ${proposalCheck.valid ? 'text-green-800' : 'text-amber-800'}`}>
-                    {proposalCheck.valid ? <><Check size={11} className="inline mr-1 text-green-700" />{t("spec.proposal_valid")}</> : <><AlertTriangle size={11} className="inline mr-1 text-amber-800" />{t("spec.proposal_warn")}</>}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${riskColor[proposalCheck.risk_level] ?? riskColor.medium}`}>
-                      {t("spec.risk_lbl")} {proposalCheck.risk_level ?? 'medium'}
-                    </span>
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-700">
-                      {t("spec.score_lbl")} {proposalCheck.score}/10
-                    </span>
-                  </div>
-                </div>
-
-                {(proposalCheck.strengths ?? []).length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-green-700 mb-1">{t("spec.strengths")}</p>
-                    <ul className="text-xs text-green-700 space-y-0.5">
-                      {proposalCheck.strengths.map((s, i) => <li key={i} className="flex gap-1"><Check size={11} /><span>{s}</span></li>)}
-                    </ul>
-                  </div>
-                )}
-
-                {(proposalCheck.concerns ?? []).length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-amber-700 mb-1">{t("spec.concerns")}</p>
-                    <ul className="text-xs text-amber-700 space-y-0.5">
-                      {proposalCheck.concerns.map((c, i) => <li key={i} className="flex gap-1"><AlertTriangle size={11} /><span>{c}</span></li>)}
-                    </ul>
-                  </div>
-                )}
-
-                {proposalCheck.recommendation && (
-                  <p className={`text-xs italic border-t pt-2 ${proposalCheck.valid ? 'border-green-200 text-green-700' : 'border-amber-200 text-amber-700'}`}>
-                    {proposalCheck.recommendation}
-                  </p>
-                )}
-
-                <div className="flex gap-3 justify-between items-center pt-1">
-                  <button onClick={handleProposalValidation}
-                    className={`text-xs underline ${proposalCheck.valid ? 'text-green-700' : 'text-amber-700'}`}>{t("spec.revalidate")}</button>
-                  <button onClick={() => setAiStep(3)}
-                    className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
-                    {t("spec.generate_spec")}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── STEP 3: Generate & Choose Spec ── */}
-        {aiStep === 3 && (
-          <div className="space-y-4">
-
-            {/* Analysis results accordion */}
-            {(sapCheck || proposalCheck) && (
-              <div className="border border-gray-200 rounded-xl overflow-hidden">
-                <button onClick={() => setAnalysisOpen(p => !p)}
-                  className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 text-sm font-semibold text-gray-700">
-                  <span>{t("spec.analysis_results")}</span>
-                  <span className="text-gray-400 text-xs">{analysisOpen ? t("spec.hide") : t("spec.show")}</span>
-                </button>
-                {analysisOpen && (
-                  <div className="p-4 space-y-4 border-t border-gray-200">
-
-                    {/* Step 1 full result */}
-                    {sapCheck && (
-                      <div className={`border rounded-xl p-3 space-y-2 ${cc[0]} ${cc[1]}`}>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-gray-500 uppercase">{t("spec.ai_step1_h")}</span>
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full border uppercase ${cc[1]} ${cc[2]}`}>{sapCheck.coverage}</span>
-                        </div>
-                        <p className={`text-xs ${cc[2]}`}>{sapCheck.summary}</p>
-                        {(sapCheck.standard_transactions??[]).length > 0 && (
-                          <div>
-                            <p className={`text-xs font-semibold mb-0.5 ${cc[3]}`}>{t("spec.sap_txns_short")}</p>
-                            <ul className={`text-xs space-y-0.5 ${cc[2]}`}>{sapCheck.standard_transactions.map((tx,i)=><li key={i} className="flex gap-1"><span>•</span><span>{tx}</span></li>)}</ul>
-                          </div>
-                        )}
-                        {(sapCheck.gaps??[]).length > 0 && (
-                          <div>
-                            <p className={`text-xs font-semibold mb-0.5 ${cc[3]}`}>{t("spec.sap_gaps_short")}</p>
-                            <ul className={`text-xs space-y-0.5 ${cc[2]}`}>{sapCheck.gaps.map((g,i)=><li key={i} className="flex gap-1"><span>→</span><span>{g}</span></li>)}</ul>
-                          </div>
-                        )}
-                        {sapCheck.recommendation && <p className={`text-xs italic border-t pt-1 ${cc[1]} ${cc[2]}`}>{sapCheck.recommendation}</p>}
-                      </div>
-                    )}
-
-                    {/* Step 2 full result */}
-                    {proposalCheck && (
-                      <div className={`border rounded-xl p-3 space-y-2 ${proposalCheck.valid ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-bold text-gray-500 uppercase">{t("spec.ai_step2_h")}</span>
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${proposalCheck.valid ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
-                            {proposalCheck.valid ? t("spec.prop_valid") : t("spec.prop_concerns")}
-                          </span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${riskColor[proposalCheck.risk_level]??riskColor.medium}`}>{t("spec.risk_lbl")} {proposalCheck.risk_level}</span>
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-700 font-bold">{t("spec.score_lbl")} {proposalCheck.score}/10</span>
-                        </div>
-                        {(proposalCheck.strengths??[]).length > 0 && (
-                          <div>
-                            <p className="text-xs font-semibold text-green-700 mb-0.5">{t("spec.strengths")}</p>
-                            <ul className="text-xs text-green-700 space-y-0.5">{proposalCheck.strengths.map((s,i)=><li key={i} className="flex gap-1"><Check size={11} /><span>{s}</span></li>)}</ul>
-                          </div>
-                        )}
-                        {(proposalCheck.concerns??[]).length > 0 && (
-                          <div>
-                            <p className="text-xs font-semibold text-amber-700 mb-0.5">{t("spec.concerns")}</p>
-                            <ul className="text-xs text-amber-700 space-y-0.5">{proposalCheck.concerns.map((c,i)=><li key={i} className="flex gap-1"><AlertTriangle size={11} /><span>{c}</span></li>)}</ul>
-                          </div>
-                        )}
-                        {proposalCheck.recommendation && <p className={`text-xs italic border-t pt-1 ${proposalCheck.valid ? 'border-green-200 text-green-700' : 'border-amber-200 text-amber-700'}`}>{proposalCheck.recommendation}</p>}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Generate button */}
-            {!aiSpecA && !aiSpecB && !aiSpecC && !generatingSpecs && (
-              <div className="text-center py-6">
-                <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-3">
-                  <Sparkles className="w-7 h-7 text-blue-600" />
-                </div>
-                <p className="text-sm text-gray-600 mb-2">{t("spec.gen_three_desc")}</p>
-                <div className="flex flex-wrap justify-center gap-4 mb-5 text-xs text-gray-500">
-                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"/><strong>A</strong> — {t("spec.opt_a")}</span>
-                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"/><strong>B</strong> — {t("spec.opt_b")}</span>
-                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-purple-400 inline-block"/><strong>C</strong> — {t("spec.opt_c")}</span>
-                </div>
-                <button onClick={handleGenerateSpecs}
-                  className="px-6 py-3 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
-                  {t("spec.gen_all_three")}
-                </button>
-              </div>
-            )}
-
-            {generatingSpecs && (
-              <div className="flex items-center justify-center py-16 gap-3 text-gray-400">
-                <Spinner /><span className="text-sm">{t("spec.gen_all_loading")}</span>
-              </div>
-            )}
-
-            {/* Spec selector tabs */}
-            {(aiSpecA || aiSpecB || aiSpecC) && !generatingSpecs && (
-              <div className="space-y-0">
-                {/* Tab bar */}
-                <div className="flex border-b border-gray-200">
-                  <button onClick={() => { setSelectedSpec('a'); setAiContent(aiSpecA); }}
-                    className={`flex-1 py-3 px-2 text-sm font-semibold border-b-2 transition-colors text-left flex items-center gap-2 ${selectedSpec === 'a' ? 'border-[#1A4B8C] text-blue-600 bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
-                    <span className="w-5 h-5 rounded-full bg-amber-400 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold">A</span>
-                    <span className="truncate">{t("spec.tab_a")}</span>
-                    {selectedSpec === 'a' && <span className="ml-auto text-xs font-semibold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full flex-shrink-0">{t("spec.selected")}</span>}
-                  </button>
-                  <button onClick={() => { setSelectedSpec('b'); setAiContent(aiSpecB); }}
-                    className={`flex-1 py-3 px-2 text-sm font-semibold border-b-2 transition-colors text-left flex items-center gap-2 ${selectedSpec === 'b' ? 'border-[#1A4B8C] text-blue-600 bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
-                    <span className="w-5 h-5 rounded-full bg-green-500 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold">B</span>
-                    <span className="truncate">{t("spec.tab_b")}</span>
-                    {selectedSpec === 'b' && <span className="ml-auto text-xs font-semibold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full flex-shrink-0">{t("spec.selected")}</span>}
-                  </button>
-                  <button onClick={() => { setSelectedSpec('c'); setAiContent(aiSpecC); }}
-                    className={`flex-1 py-3 px-2 text-sm font-semibold border-b-2 transition-colors text-left flex items-center gap-2 ${selectedSpec === 'c' ? 'border-[#1A4B8C] text-blue-600 bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
-                    <span className="w-5 h-5 rounded-full bg-purple-500 flex-shrink-0 flex items-center justify-center text-white text-xs font-bold">C</span>
-                    <span className="truncate">{t("spec.tab_c")}</span>
-                    {selectedSpec === 'c' && <span className="ml-auto text-xs font-semibold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full flex-shrink-0">{t("spec.selected")}</span>}
-                  </button>
-                </div>
-
-                {/* Tab content */}
-                <div className="border border-t-0 border-gray-200 rounded-b-xl overflow-hidden">
-                  {/* Edit toggle row */}
-                  <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200">
-                    <span className="text-xs text-gray-500">
-                      {selectedSpec === 'a' ? t("spec.opt_a_long") : selectedSpec === 'b' ? t("spec.opt_b_long") : selectedSpec === 'c' ? t("spec.opt_c_long") : t("spec.select_above")}
-                    </span>
-                    <div className="flex gap-2">
-                      <button onClick={() => setAiEditing(p => !p)}
-                        className="px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-white">
-                        {aiEditing ? t("spec.preview_lbl") : t("spec.edit_lbl")}
+              {/* Node 3: Generate Specification + sub-nodes */}
+              <NodeBtn id={3} icon={Sparkles}
+                title={t("spec.ai_step3_h") || "Generar Especificación"}
+                sub={genStatus==='complete' ? `${[aiSpecA,aiSpecB,aiSpecC].filter(Boolean).length} ${t("spec.specs_gen")||"spec(s)"}` : genStatus==='running' ? (t("spec.gen_all_loading")||"Generando…") : genStatus==='locked' ? (t("spec.locked")||"Bloqueado") : (t("spec.pending")||"Pendiente")}
+                status={genStatus}
+                isActive={activeNode===3}
+                canClick={genStatus !== 'locked'}
+                onClick={() => { if (genStatus !== 'locked') setActiveNode(3); }}
+              >
+                {/* Sub-nodes for Spec A / B / C */}
+                {(aiSpecA || aiSpecB || aiSpecC || activeNode===3) && (
+                  <div className="ml-8 mt-1 space-y-1 relative z-10">
+                    {SUB.map(s => (
+                      <button key={s.key} onClick={() => { setActiveNode(3); setSelectedSpec(s.key); setAiContent(s.content); }}
+                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs border transition-all ${
+                          s.content && savedSpecUrls[s.key] ? 'bg-green-50 border-green-200 text-green-700' :
+                          s.content ? 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50' :
+                          'bg-gray-50 border-gray-100 text-gray-400'
+                        } ${selectedSpec === s.key && activeNode===3 ? 'ring-2 ring-blue-300' : ''}`}>
+                        <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${s.dot}`} />
+                        <span className="truncate font-medium">{s.label}</span>
+                        {savedSpecUrls[s.key] && <Check size={10} className="text-green-600 ml-auto flex-shrink-0" />}
                       </button>
-                      {canDownloadPdf ? (
-                        <button onClick={handleDownloadSpec} disabled={!selectedSpec || downloadingPdf}
-                          className="px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-white disabled:opacity-40 flex items-center gap-1">
-                          {downloadingPdf ? <><Spinner />&nbsp;PDF…</> : <><Download size={12} />PDF</>}
-                        </button>
-                      ) : (
-                        <span title="Upgrade to download PDFs" className="px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-400 rounded-lg flex items-center gap-1 cursor-not-allowed opacity-50">
-                          <Download size={12} />PDF
-                        </span>
-                      )}
-                      {perms.can('regen_specs') && (
-                        <button onClick={handleGenerateSpecs}
-                          className="px-2.5 py-1 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
-                          {t("spec.regen_all")}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Content */}
-                  <div className="p-5 max-h-[600px] overflow-y-auto">
-                    {aiEditing ? (
-                      <textarea
-                        value={selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA}
-                        onChange={e => {
-                          const v = e.target.value;
-                          if (selectedSpec === 'b') { setAiSpecB(v); setAiContent(v); }
-                          else if (selectedSpec === 'c') { setAiSpecC(v); setAiContent(v); }
-                          else { setAiSpecA(v); setAiContent(v); }
-                        }}
-                        rows={25} className="w-full border border-gray-200 rounded-xl p-3 text-sm font-mono resize-y focus:outline-none focus:border-blue-400" />
-                    ) : (
-                      <div className="text-sm text-gray-800 leading-relaxed"
-                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize('<div>' + renderMarkdown(selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA) + '</div>') }} />
-                    )}
-                  </div>
-                </div>
-
-                {/* Action bar */}
-                <div className="space-y-2 pt-3 border-t border-gray-100">
-                  {/* PDF status row */}
-                  <div className="flex items-center gap-3 flex-wrap">
-                    {[
-                      { key: 'a', label: t("spec.tab_a"), color: 'bg-amber-400' },
-                      { key: 'b', label: t("spec.tab_b"), color: 'bg-green-500' },
-                      { key: 'c', label: t("spec.tab_c"), color: 'bg-purple-500' },
-                    ].map(({ key, label, color }) => (
-                      <span key={key} className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${savedSpecUrls[key] ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
-                        <span className={`w-2 h-2 rounded-full ${savedSpecUrls[key] ? 'bg-green-500' : color} opacity-70`} />
-                        {label} {savedSpecUrls[key] ? <><Check size={10} className="inline mr-0.5" />{t("spec.saved")}</> : t("spec.not_saved")}
-                      </span>
                     ))}
-                    {savingDoc && <span className="text-xs text-blue-600 flex items-center gap-1"><Spinner />&nbsp;{t("spec.saving_pdfs")}</span>}
                   </div>
-                  <div className="flex gap-2 items-center justify-between">
-                    <p className="text-xs text-gray-500">
-                      {selectedSpec ? t("spec.submit_option").replace("{n}", selectedSpec.toUpperCase()).replace("{label}", selectedSpec === 'a' ? t("spec.tab_a") : selectedSpec === 'b' ? t("spec.tab_b") : t("spec.tab_c")) : t("spec.click_tab_select")}
-                    </p>
-                    <div className="flex gap-2">
-                      <button onClick={async () => {
-                        const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA;
-                        try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent }), title: caseData.title + t("spec.doc_title_suffix") }); await refetch(); } catch (e) { alert(e.message); }
-                      }} disabled={!selectedSpec} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-40">
-                        {t("spec.save_draft")}
-                      </button>
-                      {(() => {
-                        const allSaved = savedSpecUrls.a && savedSpecUrls.b && savedSpecUrls.c;
-                        return (
-                          <button onClick={() => saveAllSpecsAsDocuments(aiSpecA, aiSpecB, aiSpecC, sapCheck, proposalCheck)}
-                            disabled={savingDoc || allSaved || (!aiSpecA && !aiSpecB && !aiSpecC)}
-                            className={`flex items-center px-4 py-2 text-sm font-semibold rounded-xl disabled:opacity-40 ${allSaved ? 'bg-gray-100 text-gray-500 border border-gray-200 cursor-default' : 'bg-green-600 text-white hover:bg-green-700'}`}>
-                            {savingDoc ? t("state.saving") : allSaved ? <><Check size={13} className="mr-1.5 inline" />{t("spec.pdf_saved3")}</> : <><Paperclip className="w-4 h-4 mr-1.5" />{t("spec.save_all3")}</>}
-                          </button>
-                        );
-                      })()}
-                      {canSubmit && (
-                        <button onClick={() => handleSubmit(selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA, 'ai', [])} disabled={!selectedSpec}
-                          className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-40">
-                          {t("spec.submit_btn")}
-                        </button>
-                      )}
+                )}
+              </NodeBtn>
+            </div>
+          </div>
+
+          {/* RIGHT: Content panel */}
+          <div className="flex-1 min-w-0 space-y-4">
+
+            {/* Error banner */}
+            {aiError && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{aiError}</div>
+            )}
+
+            {/* ── Node 0: Documents ── */}
+            {activeNode === 0 && (
+              <div className="space-y-3">
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  <h3 className="text-sm font-semibold text-blue-800 mb-1">{t("spec.wiz_docs_lbl")}</h3>
+                  <p className="text-xs text-blue-600 mb-3">{t("spec.docs_node_desc") || "Estos documentos serán usados como contexto para la generación con IA."}</p>
+                  {(documents??[]).length === 0 ? (
+                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">{t("spec.no_docs_ai")}</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {documents.map(doc => (
+                        <div key={doc.id} className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-blue-100">
+                          <Paperclip className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+                          <span className="text-xs text-gray-700 font-medium flex-1 truncate">{doc.file_name}</span>
+                          <span className="text-xs text-blue-400 flex-shrink-0">({doc.file_size_kb} KB)</span>
+                        </div>
+                      ))}
                     </div>
-                  </div>
+                  )}
+                </div>
+                <div className="flex justify-end">
+                  <button onClick={() => setActiveNode(1)}
+                    className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
+                    {t("spec.ai_check_btn")} →
+                  </button>
                 </div>
               </div>
             )}
+
+            {/* ── Node 1: SAP Verification ── */}
+            {activeNode === 1 && (
+              <div className="space-y-4">
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-1">{t("spec.ai_step1_h")}</h3>
+                  <p className="text-xs text-gray-500">{t("spec.ai_step1_desc")}</p>
+                </div>
+
+                {!sapCheck && !stepLoading && (
+                  <div className="text-center py-4">
+                    <button onClick={handleSapCheck}
+                      className="px-6 py-2.5 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
+                      {t("spec.ai_check_btn")}
+                    </button>
+                  </div>
+                )}
+
+                {stepLoading && aiStep === 1 && (
+                  <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
+                    <Spinner /><span className="text-sm">{t("spec.checking")}</span>
+                  </div>
+                )}
+
+                {sapCheck && !stepLoading && (
+                  <div className={`border rounded-xl p-4 space-y-3 ${cc[0]} ${cc[1]}`}>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-sm font-bold ${cc[3]}`}>
+                        {sapCheck.coverage === 'full' ? <><Check size={11} className="inline mr-1 text-emerald-600" />{t("spec.sap_full")}</> :
+                         sapCheck.coverage === 'partial' ? <><AlertTriangle size={11} className="inline mr-1 text-amber-500" />{t("spec.sap_partial")}</> :
+                         <><X size={11} className="inline mr-1 text-red-500" />{t("spec.sap_none")}</>}
+                      </span>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${cc[1]} ${cc[2]} uppercase`}>{sapCheck.coverage}</span>
+                    </div>
+                    <p className={`text-sm ${cc[2]}`}>{sapCheck.summary}</p>
+                    {(sapCheck.standard_transactions ?? []).length > 0 && (
+                      <div>
+                        <p className={`text-xs font-semibold mb-1 ${cc[3]}`}>{t("spec.sap_txns")}</p>
+                        <ul className={`text-xs space-y-0.5 ${cc[2]}`}>
+                          {sapCheck.standard_transactions.map((tx, i) => <li key={i} className="flex gap-1"><span>•</span><span>{tx}</span></li>)}
+                        </ul>
+                      </div>
+                    )}
+                    {(sapCheck.gaps ?? []).length > 0 && (
+                      <div>
+                        <p className={`text-xs font-semibold mb-1 ${cc[3]}`}>{t("spec.sap_gaps")}</p>
+                        <ul className={`text-xs space-y-0.5 ${cc[2]}`}>
+                          {sapCheck.gaps.map((g, i) => <li key={i} className="flex gap-1"><span>→</span><span>{g}</span></li>)}
+                        </ul>
+                      </div>
+                    )}
+                    {sapCheck.recommendation && (
+                      <p className={`text-xs italic border-t pt-2 ${cc[1]} ${cc[2]}`}>{sapCheck.recommendation}</p>
+                    )}
+                    <div className="flex gap-3 justify-between items-center pt-1">
+                      <button onClick={handleSapCheck} className={`text-xs underline ${cc[2]}`}>{t("spec.rerun_check")}</button>
+                      <button onClick={() => setActiveNode(2)}
+                        className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
+                        {t("spec.continue_step2")}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Node 2: Proposal Validation ── */}
+            {activeNode === 2 && (
+              <div className="space-y-4">
+                {sapCheck && (
+                  <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg border ${cc[0]} ${cc[1]} ${cc[2]}`}>
+                    <span className="font-semibold">{t("spec.step1_badge")}</span>
+                    <span>{t("spec.coverage_lbl")} <span className="font-bold uppercase">{sapCheck.coverage}</span></span>
+                    <span className="ml-auto opacity-70">{sapCheck.recommendation}</span>
+                  </div>
+                )}
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-1">{t("spec.ai_step2_h")}</h3>
+                  <p className="text-xs text-gray-500">{t("spec.ai_step2_desc")}</p>
+                </div>
+                {!proposalCheck && !stepLoading && (
+                  <div className="text-center py-4">
+                    <button onClick={handleProposalValidation}
+                      className="px-6 py-2.5 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
+                      {t("spec.validate_proposal")}
+                    </button>
+                  </div>
+                )}
+                {stepLoading && aiStep === 2 && (
+                  <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
+                    <Spinner /><span className="text-sm">{t("spec.validating")}</span>
+                  </div>
+                )}
+                {proposalCheck && !stepLoading && (
+                  <div className={`border rounded-xl p-4 space-y-3 ${proposalCheck.valid ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <span className={`text-sm font-bold ${proposalCheck.valid ? 'text-green-800' : 'text-amber-800'}`}>
+                        {proposalCheck.valid ? <><Check size={11} className="inline mr-1 text-green-700" />{t("spec.proposal_valid")}</> : <><AlertTriangle size={11} className="inline mr-1 text-amber-800" />{t("spec.proposal_warn")}</>}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${riskColor[proposalCheck.risk_level] ?? riskColor.medium}`}>
+                          {t("spec.risk_lbl")} {proposalCheck.risk_level ?? 'medium'}
+                        </span>
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-700">
+                          {t("spec.score_lbl")} {proposalCheck.score}/10
+                        </span>
+                      </div>
+                    </div>
+                    {(proposalCheck.strengths ?? []).length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-green-700 mb-1">{t("spec.strengths")}</p>
+                        <ul className="text-xs text-green-700 space-y-0.5">
+                          {proposalCheck.strengths.map((s, i) => <li key={i} className="flex gap-1"><Check size={11} /><span>{s}</span></li>)}
+                        </ul>
+                      </div>
+                    )}
+                    {(proposalCheck.concerns ?? []).length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-amber-700 mb-1">{t("spec.concerns")}</p>
+                        <ul className="text-xs text-amber-700 space-y-0.5">
+                          {proposalCheck.concerns.map((c, i) => <li key={i} className="flex gap-1"><AlertTriangle size={11} /><span>{c}</span></li>)}
+                        </ul>
+                      </div>
+                    )}
+                    {proposalCheck.recommendation && (
+                      <p className={`text-xs italic border-t pt-2 ${proposalCheck.valid ? 'border-green-200 text-green-700' : 'border-amber-200 text-amber-700'}`}>
+                        {proposalCheck.recommendation}
+                      </p>
+                    )}
+                    <div className="flex gap-3 justify-between items-center pt-1">
+                      <button onClick={handleProposalValidation}
+                        className={`text-xs underline ${proposalCheck.valid ? 'text-green-700' : 'text-amber-700'}`}>{t("spec.revalidate")}</button>
+                      <button onClick={() => setActiveNode(3)}
+                        className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
+                        {t("spec.generate_spec")}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Node 3: Generate Specification ── */}
+            {activeNode === 3 && (
+              <div className="space-y-4">
+                {/* Analysis accordion */}
+                {(sapCheck || proposalCheck) && (
+                  <div className="border border-gray-200 rounded-xl overflow-hidden">
+                    <button onClick={() => setAnalysisOpen(p => !p)}
+                      className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 text-sm font-semibold text-gray-700">
+                      <span>{t("spec.analysis_results")}</span>
+                      <span className="text-gray-400 text-xs">{analysisOpen ? t("spec.hide") : t("spec.show")}</span>
+                    </button>
+                    {analysisOpen && (
+                      <div className="p-4 space-y-4 border-t border-gray-200">
+                        {sapCheck && (
+                          <div className={`border rounded-xl p-3 space-y-2 ${cc[0]} ${cc[1]}`}>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-gray-500 uppercase">{t("spec.ai_step1_h")}</span>
+                              <span className={`text-xs font-bold px-2 py-0.5 rounded-full border uppercase ${cc[1]} ${cc[2]}`}>{sapCheck.coverage}</span>
+                            </div>
+                            <p className={`text-xs ${cc[2]}`}>{sapCheck.summary}</p>
+                            {(sapCheck.standard_transactions??[]).length > 0 && (
+                              <div>
+                                <p className={`text-xs font-semibold mb-0.5 ${cc[3]}`}>{t("spec.sap_txns_short")}</p>
+                                <ul className={`text-xs space-y-0.5 ${cc[2]}`}>{sapCheck.standard_transactions.map((tx,i)=><li key={i} className="flex gap-1"><span>•</span><span>{tx}</span></li>)}</ul>
+                              </div>
+                            )}
+                            {(sapCheck.gaps??[]).length > 0 && (
+                              <div>
+                                <p className={`text-xs font-semibold mb-0.5 ${cc[3]}`}>{t("spec.sap_gaps_short")}</p>
+                                <ul className={`text-xs space-y-0.5 ${cc[2]}`}>{sapCheck.gaps.map((g,i)=><li key={i} className="flex gap-1"><span>→</span><span>{g}</span></li>)}</ul>
+                              </div>
+                            )}
+                            {sapCheck.recommendation && <p className={`text-xs italic border-t pt-1 ${cc[1]} ${cc[2]}`}>{sapCheck.recommendation}</p>}
+                          </div>
+                        )}
+                        {proposalCheck && (
+                          <div className={`border rounded-xl p-3 space-y-2 ${proposalCheck.valid ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs font-bold text-gray-500 uppercase">{t("spec.ai_step2_h")}</span>
+                              <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${proposalCheck.valid ? 'bg-green-50 border-green-200 text-green-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+                                {proposalCheck.valid ? t("spec.prop_valid") : t("spec.prop_concerns")}
+                              </span>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${riskColor[proposalCheck.risk_level]??riskColor.medium}`}>{t("spec.risk_lbl")} {proposalCheck.risk_level}</span>
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-white border border-gray-200 text-gray-700 font-bold">{t("spec.score_lbl")} {proposalCheck.score}/10</span>
+                            </div>
+                            {(proposalCheck.strengths??[]).length > 0 && (
+                              <div>
+                                <p className="text-xs font-semibold text-green-700 mb-0.5">{t("spec.strengths")}</p>
+                            <ul className="text-xs text-green-700 space-y-0.5">{proposalCheck.strengths.map((s,i)=><li key={i} className="flex gap-1"><Check size={11} /><span>{s}</span></li>)}</ul>
+                              </div>
+                            )}
+                            {(proposalCheck.concerns??[]).length > 0 && (
+                              <div>
+                                <p className="text-xs font-semibold text-amber-700 mb-0.5">{t("spec.concerns")}</p>
+                                <ul className="text-xs text-amber-700 space-y-0.5">{proposalCheck.concerns.map((c,i)=><li key={i} className="flex gap-1"><AlertTriangle size={11} /><span>{c}</span></li>)}</ul>
+                              </div>
+                            )}
+                            {proposalCheck.recommendation && <p className={`text-xs italic border-t pt-1 ${proposalCheck.valid ? 'border-green-200 text-green-700' : 'border-amber-200 text-amber-700'}`}>{proposalCheck.recommendation}</p>}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Generate button */}
+                {!aiSpecA && !aiSpecB && !aiSpecC && !generatingSpecs && (
+                  <div className="text-center py-6">
+                    <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-3">
+                      <Sparkles className="w-7 h-7 text-blue-600" />
+                    </div>
+                    <p className="text-sm text-gray-600 mb-2">{t("spec.gen_three_desc")}</p>
+                    <div className="flex flex-wrap justify-center gap-4 mb-5 text-xs text-gray-500">
+                      <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"/><strong>A</strong> — {t("spec.opt_a")}</span>
+                      <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"/><strong>B</strong> — {t("spec.opt_b")}</span>
+                      <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-purple-400 inline-block"/><strong>C</strong> — {t("spec.opt_c")}</span>
+                    </div>
+                    <button onClick={handleGenerateSpecs}
+                      className="px-6 py-3 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
+                      {t("spec.gen_all_three")}
+                    </button>
+                  </div>
+                )}
+
+                {generatingSpecs && (
+                  <div className="flex items-center justify-center py-16 gap-3 text-gray-400">
+                    <Spinner /><span className="text-sm">{t("spec.gen_all_loading")}</span>
+                  </div>
+                )}
+
+                {/* Spec tabs + content */}
+                {(aiSpecA || aiSpecB || aiSpecC) && !generatingSpecs && (
+                  <div className="space-y-0">
+                    <div className="flex border-b border-gray-200">
+                      {SUB.map(s => (
+                        <button key={s.key} onClick={() => { setSelectedSpec(s.key); setAiContent(s.content); }}
+                          className={`flex-1 py-3 px-2 text-sm font-semibold border-b-2 transition-colors text-left flex items-center gap-2 ${selectedSpec === s.key ? 'border-[#1A4B8C] text-blue-600 bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
+                          <span className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold ${s.dot}`}>{s.key.toUpperCase()}</span>
+                          <span className="truncate">{s.label}</span>
+                          {selectedSpec === s.key && <span className="ml-auto text-xs font-semibold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full flex-shrink-0">{t("spec.selected")}</span>}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="border border-t-0 border-gray-200 rounded-b-xl overflow-hidden">
+                      <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200">
+                        <span className="text-xs text-gray-500">
+                          {selectedSpec === 'a' ? t("spec.opt_a_long") : selectedSpec === 'b' ? t("spec.opt_b_long") : selectedSpec === 'c' ? t("spec.opt_c_long") : t("spec.select_above")}
+                        </span>
+                        <div className="flex gap-2">
+                          <button onClick={() => setAiEditing(p => !p)}
+                            className="px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-white">
+                            {aiEditing ? t("spec.preview_lbl") : t("spec.edit_lbl")}
+                          </button>
+                          {canDownloadPdf ? (
+                            <button onClick={handleDownloadSpec} disabled={!selectedSpec || downloadingPdf}
+                              className="px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-white disabled:opacity-40 flex items-center gap-1">
+                              {downloadingPdf ? <><Spinner />&nbsp;PDF…</> : <><Download size={12} />PDF</>}
+                            </button>
+                          ) : (
+                            <span title="Upgrade to download PDFs" className="px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-400 rounded-lg flex items-center gap-1 cursor-not-allowed opacity-50">
+                              <Download size={12} />PDF
+                            </span>
+                          )}
+                          {perms.can('regen_specs') && (
+                            <button onClick={handleGenerateSpecs}
+                              className="px-2.5 py-1 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
+                              {t("spec.regen_all")}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="p-5 max-h-[600px] overflow-y-auto">
+                        {aiEditing ? (
+                          <textarea
+                            value={selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA}
+                            onChange={e => {
+                              const v = e.target.value;
+                              if (selectedSpec === 'b') { setAiSpecB(v); setAiContent(v); }
+                              else if (selectedSpec === 'c') { setAiSpecC(v); setAiContent(v); }
+                              else { setAiSpecA(v); setAiContent(v); }
+                            }}
+                            rows={25} className="w-full border border-gray-200 rounded-xl p-3 text-sm font-mono resize-y focus:outline-none focus:border-blue-400" />
+                        ) : (
+                          <div className="text-sm text-gray-800 leading-relaxed"
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize('<div>' + renderMarkdown(selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA) + '</div>') }} />
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 pt-3 border-t border-gray-100">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        {SUB.map(s => (
+                          <span key={s.key} className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${savedSpecUrls[s.key] ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
+                            <span className={`w-2 h-2 rounded-full ${savedSpecUrls[s.key] ? 'bg-green-500' : s.dot} opacity-70`} />
+                            {s.label} {savedSpecUrls[s.key] ? <><Check size={10} className="inline mr-0.5" />{t("spec.saved")}</> : t("spec.not_saved")}
+                          </span>
+                        ))}
+                        {savingDoc && <span className="text-xs text-blue-600 flex items-center gap-1"><Spinner />&nbsp;{t("spec.saving_pdfs")}</span>}
+                      </div>
+                      <div className="flex gap-2 items-center justify-between">
+                        <p className="text-xs text-gray-500">
+                          {selectedSpec ? t("spec.submit_option").replace("{n}", selectedSpec.toUpperCase()).replace("{label}", selectedSpec === 'a' ? t("spec.tab_a") : selectedSpec === 'b' ? t("spec.tab_b") : t("spec.tab_c")) : t("spec.click_tab_select")}
+                        </p>
+                        <div className="flex gap-2">
+                          <button onClick={async () => {
+                            const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA;
+                            try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent }), title: caseData.title + t("spec.doc_title_suffix") }); await refetch(); } catch (e) { alert(e.message); }
+                          }} disabled={!selectedSpec} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-40">
+                            {t("spec.save_draft")}
+                          </button>
+                          {(() => {
+                            const allSaved = savedSpecUrls.a && savedSpecUrls.b && savedSpecUrls.c;
+                            return (
+                              <button onClick={() => saveAllSpecsAsDocuments(aiSpecA, aiSpecB, aiSpecC, sapCheck, proposalCheck)}
+                                disabled={savingDoc || allSaved || (!aiSpecA && !aiSpecB && !aiSpecC)}
+                                className={`flex items-center px-4 py-2 text-sm font-semibold rounded-xl disabled:opacity-40 ${allSaved ? 'bg-gray-100 text-gray-500 border border-gray-200 cursor-default' : 'bg-green-600 text-white hover:bg-green-700'}`}>
+                                {savingDoc ? t("state.saving") : allSaved ? <><Check size={13} className="mr-1.5 inline" />{t("spec.pdf_saved3")}</> : <><Paperclip className="w-4 h-4 mr-1.5" />{t("spec.save_all3")}</>}
+                              </button>
+                            );
+                          })()}
+                          {canSubmit && (
+                            <button onClick={() => handleSubmit(selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA, 'ai', [])} disabled={!selectedSpec}
+                              className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-40">
+                              {t("spec.submit_btn")}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        )}
+        </div>
         {showGenModal && (
           <GenerationProfileModal
             onConfirm={(profileKey, resolvedProfile) => { setShowGenModal(false); handleGenerateSpecs({ ...(pendingGenOpts ?? {}), genProfile: resolvedProfile }); }}
