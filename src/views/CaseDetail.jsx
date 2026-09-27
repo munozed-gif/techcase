@@ -543,17 +543,24 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const totalTimeHours = timeEntries.reduce((s, e) => s + (e.hours ?? 0), 0);
 
   async function openDocInNewTab(doc) {
-    // HTML files stored in Supabase get wrong Content-Type → fetch and re-open as blob
-    if (doc.file_name?.endsWith('.html') || doc.file_type?.includes('html')) {
+    // Supabase can serve files with wrong Content-Type — fetch and re-open as a typed blob
+    const isPdf  = doc.file_name?.toLowerCase().endsWith('.pdf') || (doc.file_type ?? '').includes('pdf');
+    const isHtml = doc.file_name?.toLowerCase().endsWith('.html') || (doc.file_type ?? '').includes('html');
+    if (isPdf || isHtml) {
       try {
         const resp = await fetch(doc.file_url);
-        const html = await resp.text();
-        openHtmlInNewTab(html);
+        if (isHtml) {
+          openHtmlInNewTab(await resp.text());
+        } else {
+          const blob = new Blob([await resp.blob()], { type: 'application/pdf' });
+          const url = URL.createObjectURL(blob);
+          const win = window.open(url, '_blank');
+          if (win) setTimeout(() => URL.revokeObjectURL(url), 60000);
+        }
       } catch (_) {
         window.open(doc.file_url, '_blank');
       }
     } else {
-      // PDFs and other files open directly (Supabase serves them correctly)
       window.open(doc.file_url, '_blank');
     }
   }
@@ -3727,7 +3734,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
               <SectionHeader Icon={Monitor} iconClass="text-indigo-500" label="Interactive Prototypes" count={protoDocs.length} accent="border-indigo-100">
                 <div className="space-y-2">
                   {protoDocs.map(doc => (
-                    <div key={doc.id} className="flex items-center gap-3 p-3 border border-indigo-100 rounded-xl bg-indigo-50/40 hover:bg-indigo-50">
+                    <div key={doc.id} className="flex items-center gap-3 p-3 border border-indigo-100 rounded-xl bg-indigo-50 hover:bg-indigo-100">
                       <Monitor className="w-4 h-4 text-indigo-400 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm text-gray-800 truncate">{doc.file_name}</p>
