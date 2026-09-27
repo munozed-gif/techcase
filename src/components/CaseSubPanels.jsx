@@ -3115,7 +3115,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
             {activeNode === 3 && (
               <div className="space-y-4">
                 {/* Analysis accordion */}
-                {(sapCheck || proposalCheck) && (
+                {(sapCheck || proposalCheck) && !viewingProto && (
                   <div className="border border-gray-200 rounded-xl overflow-hidden">
                     <button onClick={() => setAnalysisOpen(p => !p)}
                       className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 text-sm font-semibold text-gray-700">
@@ -3177,7 +3177,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 )}
 
                 {/* Generate button */}
-                {!aiSpecA && !aiSpecB && !aiSpecC && !generatingSpecs && (
+                {!aiSpecA && !aiSpecB && !aiSpecC && !generatingSpecs && !viewingProto && (
                   <div className="text-center py-6">
                     <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-3">
                       <Sparkles className="w-7 h-7 text-blue-600" />
@@ -3195,14 +3195,14 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   </div>
                 )}
 
-                {generatingSpecs && (
+                {generatingSpecs && !viewingProto && (
                   <div className="flex items-center justify-center py-16 gap-3 text-gray-400">
                     <Spinner /><span className="text-sm">{t("spec.gen_all_loading")}</span>
                   </div>
                 )}
 
                 {/* Spec tabs + content */}
-                {(aiSpecA || aiSpecB || aiSpecC) && !generatingSpecs && (
+                {(aiSpecA || aiSpecB || aiSpecC) && !generatingSpecs && !viewingProto && (
                   <div className="space-y-0">
                     <div className="flex border-b border-gray-200">
                       {SUB.map(s => (
