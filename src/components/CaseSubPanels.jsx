@@ -2063,17 +2063,32 @@ ${specB.slice(0, 1000)}
 
 REQUIREMENTS:
 1. Generate 4 screens: Overview, Main Process Screen, Detail/Form Screen, Confirmation/Result Screen
-2. Each screen has a header with the app title and breadcrumb showing which screen you're on
-3. Navigation: "Next" and "Back" buttons move between screens; a top nav bar shows screen tabs
-4. The content of each screen should reflect the ACTUAL SAP process described in the spec — use real SAP field names, transaction codes, and table column headers from the spec
-5. ${styleGuide}
-6. ALL CSS and JavaScript must be inline in the single HTML file — no external dependencies
-7. The prototype must work offline; no fetch calls or external URLs
-8. Each screen transition uses a simple fade or slide animation (CSS transition, no libraries)
-9. Screen 1 (Overview): show key case metadata fields, a process summary card, and a "Start Process" button
-10. Screen 2 (Main List/Transaction): show a realistic SAP-style list or form based on the spec — table with sample data rows or input form with real field names
-11. Screen 3 (Detail/Form): show a detail view or configuration form with real SAP parameters from the spec
-12. Screen 4 (Confirmation): show a success state with key output data and action buttons (Save, Print, Back to Overview)
+2. Each screen has a header with the app title and a breadcrumb/step indicator showing which screen you're on
+3. The content of each screen must reflect the ACTUAL SAP process described in the spec — use real SAP field names, transaction codes, and table column headers from the spec
+4. ${styleGuide}
+5. ALL CSS and JavaScript must be inline in the single HTML file — no external dependencies, no fetch calls, no external URLs
+6. Screen 1 (Overview): key case metadata, a process summary card, and a "Start Process" primary button
+7. Screen 2 (Main List/Transaction): SAP-style table with realistic sample data rows OR an input form with real field names
+8. Screen 3 (Detail/Form): detail view or configuration form with real SAP parameters
+9. Screen 4 (Confirmation): success state with key output data and action buttons (Save, Back to Overview)
+
+NAVIGATION — YOU MUST USE THIS EXACT JAVASCRIPT PATTERN, no variations:
+<script>
+var _cur = 1;
+function _show(n) {
+  document.querySelectorAll('.screen').forEach(function(s){ s.style.display='none'; });
+  var el = document.getElementById('screen'+n);
+  if (el) { el.style.display='block'; _cur=n; }
+  document.querySelectorAll('.step-dot').forEach(function(d,i){ d.classList.toggle('active', i+1===n); });
+}
+function _next() { if(_cur<4) _show(_cur+1); }
+function _back() { if(_cur>1) _show(_cur-1); }
+window.onload = function(){ _show(1); };
+</script>
+
+Each screen div must have class="screen" and id="screen1" through "screen4" (display:none initially — window.onload shows screen1).
+Navigation buttons must use onclick="_next()" and onclick="_back()".
+Step dots (if used) must have class="step-dot".
 
 OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No explanation, no markdown fences, no text before or after the HTML.`;
   }
