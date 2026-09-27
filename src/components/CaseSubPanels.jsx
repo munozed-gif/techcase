@@ -1526,6 +1526,8 @@ ${mdToHtml(markdownContent)}
     setWizardError(null);
     try {
       const docBlocks = await buildDocumentBlocks();
+      const _wizPdfNote = (documents ?? []).filter(d => (d.file_name ?? '').toLowerCase().endsWith('.pdf') || (d.file_type ?? '').includes('pdf')).map(d => d.file_name).join(', ');
+      const wizPdfNote = _wizPdfNote ? `\n\n[Reference PDFs: ${_wizPdfNote}]` : '';
       const prompt = `Analyze this SAP support case and suggest the ABAP objects likely needed to implement the solution.${docBlocks.length > 0 ? '\n\nThe attached document(s) above contain the detailed requirements — use them as the primary source.' : ''}
 
 Case title: ${caseData.title}
@@ -1537,15 +1539,12 @@ Respond with ONLY a JSON array like:
 [{"type":"Report","name":"ZMM_RPT_EXAMPLE","purpose":"One-line purpose"},...]
 
 Include 2-6 objects. Use realistic Z-names. Types can be: Report, Function Module, Enhancement, BAdI, User Exit, Form, Smartform, Program, Class, Interface, Workflow, Table, View, Transaction — whatever fits.`;
+      const sys1 = 'You are an SAP functional consultant. Respond with ONLY a JSON array, no markdown code blocks, no explanation.';
       const raw = await callClaude({
-        model: analysisModel,
-        system: 'You are an SAP functional consultant. Respond with ONLY a JSON array, no markdown code blocks, no explanation.',
-        messages: [{
-          role: 'user',
-          content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt,
-        }],
+        model: analysisModel, system: sys1,
+        messages: [{ role: 'user', content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt }],
         max_tokens: 800,
-      });
+      }).catch(_ => callClaude({ model: analysisModel, system: sys1, messages: [{ role: 'user', content: prompt + wizPdfNote }], max_tokens: 800 }));
       let parsed;
       try { parsed = JSON.parse(raw.trim()); } catch (_) {
         const m = raw.match(/\[[\s\S]*\]/);
@@ -1715,15 +1714,14 @@ TOTAL:||Total general|[amount]|
 
 Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA1, MARA, etc.) for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM and COL lines with actual field names and columns relevant to this case — do NOT leave placeholder bracket text.`;
 
+      const _wiz2PdfNote = (documents ?? []).filter(d => (d.file_name ?? '').toLowerCase().endsWith('.pdf') || (d.file_type ?? '').includes('pdf')).map(d => d.file_name).join(', ');
+      const wiz2PdfNote = _wiz2PdfNote ? `\n\n[Reference PDFs: ${_wiz2PdfNote}]` : '';
+      const sysSpec = 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template provided.';
       const spec = await callClaude({
-        model: analysisModel,
-        system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template provided.',
-        messages: [{
-          role: 'user',
-          content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt,
-        }],
+        model: analysisModel, system: sysSpec,
+        messages: [{ role: 'user', content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt }],
         max_tokens: 4000,
-      });
+      }).catch(_ => callClaude({ model: analysisModel, system: sysSpec, messages: [{ role: 'user', content: prompt + wiz2PdfNote }], max_tokens: 4000 }));
       setCompiledSpec(spec);
     } catch (e) {
       setWizardError(e.message);
@@ -2094,13 +2092,24 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     setSelectedSpec(null);
     try {
       const docBlocks = await buildDocumentBlocks();
-      const msgContent = (prompt) => docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt;
+      const pdfNames = (documents ?? []).filter(d => (d.file_name ?? '').toLowerCase().endsWith('.pdf') || (d.file_type ?? '').includes('pdf')).map(d => d.file_name);
+      const pdfNote = pdfNames.length > 0 ? `\n\n[Reference PDFs attached: ${pdfNames.join(', ')}]` : '';
+      // callSpec: try with full document blocks; if the model rejects them (no PDF support), retry text-only
+      const callSpec = async (prompt) => {
+        const sys = 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.';
+        try {
+          const content = docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt;
+          return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 4000 });
+        } catch (_) {
+          return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 4000 });
+        }
+      };
       const customerContent = analysisCustomerContent || caseData.description || '';
       const contextStr = await buildGenContext();
       const [specA, specB, specC] = await Promise.all([
-        callClaude({ model: genModel, system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecPrompt(true, genProfile, contextStr)) }], max_tokens: 4000 }),
-        callClaude({ model: genModel, system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecPrompt(false, genProfile, contextStr)) }], max_tokens: 4000 }),
-        callClaude({ model: genModel, system: 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.', messages: [{ role: 'user', content: msgContent(buildSpecCPrompt(customerContent, genProfile, contextStr)) }], max_tokens: 4000 }),
+        callSpec(buildSpecPrompt(true, genProfile, contextStr)),
+        callSpec(buildSpecPrompt(false, genProfile, contextStr)),
+        callSpec(buildSpecCPrompt(customerContent, genProfile, contextStr)),
       ]);
       setAiSpecA(specA);
       setAiSpecB(specB);
@@ -2191,12 +2200,14 @@ coverage meanings:
 "partial" = Standard SAP covers most of it; some custom development still needed
 "none"    = Custom ABAP development is required — standard SAP cannot satisfy this`;
 
+      const _sapPdfNote = (documents ?? []).filter(d => (d.file_name ?? '').toLowerCase().endsWith('.pdf') || (d.file_type ?? '').includes('pdf')).map(d => d.file_name).join(', ');
+      const sapPdfNote = _sapPdfNote ? `\n\n[Reference PDFs: ${_sapPdfNote}]` : '';
+      const sysSap = 'You are an SAP senior consultant. Respond ONLY with a valid JSON object, no markdown.';
       const raw = await callClaude({
-        model: analysisModel,
-        system: 'You are an SAP senior consultant. Respond ONLY with a valid JSON object, no markdown.',
+        model: analysisModel, system: sysSap,
         messages: [{ role: 'user', content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt }],
         max_tokens: 800,
-      });
+      }).catch(_ => callClaude({ model: analysisModel, system: sysSap, messages: [{ role: 'user', content: prompt + sapPdfNote }], max_tokens: 800 }));
       let parsed;
       try { parsed = JSON.parse(raw.trim()); } catch (_) {
         const m = raw.match(/\{[\s\S]*\}/);
@@ -2240,12 +2251,14 @@ Respond with ONLY a valid JSON object, no markdown fences:
   "recommendation": "2-3 sentences on whether and how to proceed"
 }`;
 
+      const _propPdfNote = (documents ?? []).filter(d => (d.file_name ?? '').toLowerCase().endsWith('.pdf') || (d.file_type ?? '').includes('pdf')).map(d => d.file_name).join(', ');
+      const propPdfNote = _propPdfNote ? `\n\n[Reference PDFs: ${_propPdfNote}]` : '';
+      const sysProp = 'You are an SAP senior consultant. Validate development proposals. Respond ONLY with a valid JSON object, no markdown.';
       const raw = await callClaude({
-        model: analysisModel,
-        system: 'You are an SAP senior consultant. Validate development proposals. Respond ONLY with a valid JSON object, no markdown.',
+        model: analysisModel, system: sysProp,
         messages: [{ role: 'user', content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt }],
         max_tokens: 800,
-      });
+      }).catch(_ => callClaude({ model: analysisModel, system: sysProp, messages: [{ role: 'user', content: prompt + propPdfNote }], max_tokens: 800 }));
       let parsed;
       try { parsed = JSON.parse(raw.trim()); } catch (_) {
         const m = raw.match(/\{[\s\S]*\}/);
