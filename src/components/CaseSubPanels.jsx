@@ -2163,7 +2163,7 @@ REQUIREMENTS:
 
 NAVIGATION JAVASCRIPT — copy this block EXACTLY inside a <script> tag just before </body>:
 var _cur=1;
-function _show(n){document.querySelectorAll('.screen').forEach(function(s){s.style.display='none';});var el=document.getElementById('screen'+n);if(el){el.style.display='flex';el.style.flexDirection='column';_cur=n;}document.querySelectorAll('.step-dot').forEach(function(d,i){d.style.background=i+1===n?'#0070F2':'#ccc';});}
+function _show(n){document.querySelectorAll('.screen').forEach(function(s){s.style.display='none';});var el=document.getElementById('screen'+n);if(el){el.style.display='block';_cur=n;}document.querySelectorAll('.step-dot').forEach(function(d,i){d.style.background=i+1===n?'#0070F2':'#ccc';});}
 function _next(){if(_cur<4)_show(_cur+1);}
 function _back(){if(_cur>1)_show(_cur-1);}
 document.addEventListener('DOMContentLoaded',function(){_show(1);});
@@ -2242,7 +2242,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         try {
           const protoStyle = genProfile.prototype_style ?? 'fiori';
           let protoHtml = await callClaude({
-            model: genModel,
+            model: 'claude-sonnet-4-6',
             system: 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.',
             messages: [{ role: 'user', content: buildPrototypePrompt(specA, specB, protoStyle) }],
             max_tokens: 8000,
@@ -3402,9 +3402,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       setProtoHtmlState(null);
                       setProtoSaved(false);
                       const protoStyle = activeProfile.prototype_style ?? 'fiori';
-                      const genModel = activeProfile.model ?? 'claude-haiku-4-5-20251001';
                       try {
-                        let html = await callClaude({ model: genModel, system: 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.', messages: [{ role: 'user', content: buildPrototypePrompt(aiSpecA, aiSpecB, protoStyle) }], max_tokens: 8000 });
+                        let html = await callClaude({ model: 'claude-sonnet-4-6', system: 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.', messages: [{ role: 'user', content: buildPrototypePrompt(aiSpecA, aiSpecB, protoStyle) }], max_tokens: 8000 });
                         html = html.trim();
                         if (html.startsWith('```')) html = html.replace(/^```(?:html)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
                         const safeName = (caseData.title ?? 'Prototype').replace(/[^a-z0-9]/gi, '_');
