@@ -985,13 +985,13 @@ function SettingsRolesTab({ ssCtx }) {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
         <div className="flex items-center justify-between mb-1">
-          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+          <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <Shield size={16} className="text-blue-600" /> {t("roles.title")}
           </h3>
         </div>
-        <p className="text-xs text-gray-400 mb-5">{t("roles.subtitle")} {" "}
+        <p className="text-xs text-gray-400 dark:text-gray-500 mb-5">{t("roles.subtitle")} {" "}
           <span className="text-red-500 font-medium">Admin always has full access and cannot be restricted.</span>
         </p>
 
@@ -1008,8 +1008,8 @@ function SettingsRolesTab({ ssCtx }) {
         <div className="overflow-x-auto">
           <table className="w-full text-xs border-collapse">
             <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-2 pr-4 font-semibold text-gray-500 text-xs uppercase tracking-wide w-48">
+              <tr className="border-b border-gray-200 dark:border-gray-700">
+                <th className="text-left py-2 pr-4 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide w-48">
                   {t("roles.capability")}
                 </th>
                 {ALL_ROLES.map(r => (
@@ -1023,8 +1023,8 @@ function SettingsRolesTab({ ssCtx }) {
             </thead>
             <tbody>
               {CAPABILITIES.map((cap, idx) => (
-                <tr key={cap} className={`border-b border-gray-100 ${idx % 2 === 0 ? 'bg-gray-50/50' : ''}`}>
-                  <td className="py-2.5 pr-4 font-medium text-gray-700 text-xs">
+                <tr key={cap} className={`border-b border-gray-100 dark:border-gray-700 ${idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-gray-700/30' : ''}`}>
+                  <td className="py-2.5 pr-4 font-medium text-gray-700 dark:text-gray-300 text-xs">
                     {t("roles.cap." + cap)}
                   </td>
                   {ALL_ROLES.map(role => (
@@ -1039,7 +1039,7 @@ function SettingsRolesTab({ ssCtx }) {
                           className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${
                             matrix[cap]?.[role]
                               ? 'bg-blue-600 border-blue-600 text-white'
-                              : 'bg-transparent border-gray-500 text-transparent hover:border-blue-400'
+                              : 'bg-transparent border-gray-400 dark:border-gray-500 text-transparent hover:border-blue-400'
                           }`}
                         >
                           <Check size={11} />
@@ -1055,17 +1055,17 @@ function SettingsRolesTab({ ssCtx }) {
       </div>
 
       {/* Wizard Mode Defaults */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
         <div className="flex items-center gap-2 mb-1">
           <Zap size={16} className="text-blue-600" />
-          <h3 className="font-semibold text-gray-900">{t("roles.wizard_modes_title")}</h3>
+          <h3 className="font-semibold text-gray-900 dark:text-white">{t("roles.wizard_modes_title")}</h3>
         </div>
-        <p className="text-xs text-gray-400 mb-5">{t("roles.wizard_modes_desc")}</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mb-5">{t("roles.wizard_modes_desc")}</p>
         <div className="overflow-x-auto">
           <table className="w-full text-xs border-collapse">
             <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-2 pr-4 font-semibold text-gray-500 text-xs uppercase tracking-wide w-36">{t("roles.wizard_type")}</th>
+              <tr className="border-b border-gray-200 dark:border-gray-700">
+                <th className="text-left py-2 pr-4 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide w-36">{t("roles.wizard_type")}</th>
                 {WIZARD_ROLES.map(r => (
                   <th key={r} className="text-center py-2 px-1.5 min-w-[80px]">
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ROLE_COLORS[r] ?? 'bg-gray-100 text-gray-600'}`}>
@@ -1077,14 +1077,14 @@ function SettingsRolesTab({ ssCtx }) {
             </thead>
             <tbody>
               {WIZARD_TYPES.map((type, idx) => (
-                <tr key={type} className={`border-b border-gray-100 ${idx % 2 === 0 ? 'bg-gray-50/50' : ''}`}>
-                  <td className="py-3 pr-4 font-medium text-gray-700 text-xs">{t("roles.wizard_type_" + type)}</td>
+                <tr key={type} className={`border-b border-gray-100 dark:border-gray-700 ${idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-gray-700/30' : ''}`}>
+                  <td className="py-3 pr-4 font-medium text-gray-700 dark:text-gray-300 text-xs">{t("roles.wizard_type_" + type)}</td>
                   {WIZARD_ROLES.map(role => (
                     <td key={role} className="text-center py-2 px-1.5">
                       <select
                         value={wizardModes[type][role]}
                         onChange={e => setWizardModes(p => ({ ...p, [type]: { ...p[type], [role]: e.target.value } }))}
-                        className="text-xs border border-gray-200 rounded-lg px-1.5 py-1 bg-white text-gray-700 focus:outline-none focus:border-blue-400 cursor-pointer"
+                        className="text-xs border border-gray-200 dark:border-gray-600 rounded-lg px-1.5 py-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:border-blue-400 cursor-pointer"
                       >
                         {WIZARD_OPTIONS.map(opt => (
                           <option key={opt} value={opt}>{t("roles.wizard_opt_" + opt)}</option>
@@ -1107,7 +1107,7 @@ function SettingsRolesTab({ ssCtx }) {
 
       <div className="flex gap-3">
         <button onClick={handleReset}
-          className="px-4 py-2 border border-gray-200 text-gray-700 text-sm rounded-xl hover:bg-gray-50 flex items-center gap-1.5">
+          className="px-4 py-2 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-1.5">
           <RotateCcw size={13} /> {t("roles.reset")}
         </button>
         <button onClick={handleSave} disabled={saving}
