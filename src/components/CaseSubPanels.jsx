@@ -1599,6 +1599,7 @@ ${mdToHtml(markdownContent)}
           if (nd.selectedSpec)  setSelectedSpec(nd.selectedSpec);
           if (nd.prevMode)      setPrevMode(nd.prevMode);
           if (nd.analysisCustomerContent) setAnalysisCustomerContent(nd.analysisCustomerContent);
+          if (nd.activeProfile) setActiveProfile(nd.activeProfile);
         } catch (_) {}
       }
       if (spec.content) restoredStep = 3;
@@ -1606,7 +1607,7 @@ ${mdToHtml(markdownContent)}
       setActiveNode(restoredStep === 3 ? 3 : restoredStep === 2 ? 2 : 0);
       // Detect previously generated prototype from documents list
       const protoDoc = (documents ?? []).find(d => (d.description ?? '').startsWith('[Prototype]') || (d.file_name ?? '').startsWith('Prototype_'));
-      if (protoDoc) { setProtoSaved(true); setActiveProfile({ prototype_enabled: true }); }
+      if (protoDoc) { setProtoSaved(true); setActiveProfile(p => p ?? { prototype_enabled: true }); }
     } else if (spec.mode === 'wizard') {
       setWizardObjects(spec.objects ?? []);
       if ((spec.objects ?? []).length > 0) {
@@ -2241,7 +2242,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       setViewingProto(false);
       const saveStatus = autoSubmit ? 'submitted' : 'draft';
       try {
-        await saveSpec({ mode: 'ai', status: saveStatus, content: specA, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, selectedSpec: 'a', prevMode, analysisCustomerContent: customerContent }), title: caseData.title + t("spec.doc_title_suffix") });
+        await saveSpec({ mode: 'ai', status: saveStatus, content: specA, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, selectedSpec: 'a', prevMode, analysisCustomerContent: customerContent, activeProfile: genProfile }), title: caseData.title + t("spec.doc_title_suffix") });
         logEvent('spec.generated', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, metadata: { model: genModel } });
       } catch (_) {}
       await saveAllSpecsAsDocuments(specA, specB, specC, sapCheck, proposalCheck);
@@ -2289,7 +2290,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         status: 'submitted',
         content: specContent ?? null,
         objects: specObjects ?? [],
-        notes: specMode === 'manual' ? manualNotes : (specMode === 'ai' ? JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent }) : null),
+        notes: specMode === 'manual' ? manualNotes : (specMode === 'ai' ? JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent, activeProfile }) : null),
         document_ids: specMode === 'manual' ? manualDocIds : [],
         title: caseData.title + t("spec.doc_title_suffix"),
       });
@@ -3001,8 +3002,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     {SUB.map(s => (
                       <button key={s.key} onClick={() => { setActiveNode(3); setSelectedSpec(s.key); setViewingProto(false); setAiContent(s.content); }}
                         className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs border transition-all ${
-                          s.content && savedSpecUrls[s.key] ? 'bg-green-50 border-green-200 text-green-700' :
-                          s.content ? 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50' :
+                          s.content ? 'bg-green-50 border-green-200 text-green-700' :
                           'bg-gray-50 border-gray-100 text-gray-400'
                         } ${selectedSpec === s.key && activeNode===3 && !viewingProto ? 'ring-2 ring-blue-300' : ''}`}>
                         <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${s.dot}`} />
@@ -3376,7 +3376,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         <div className="flex gap-2">
                           <button onClick={async () => {
                             const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA;
-                            try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent }), title: caseData.title + t("spec.doc_title_suffix") }); await refetch(); } catch (e) { alert(e.message); }
+                            try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent, activeProfile }), title: caseData.title + t("spec.doc_title_suffix") }); await refetch(); } catch (e) { alert(e.message); }
                           }} disabled={!selectedSpec} className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-40">
                             {t("spec.save_draft")}
                           </button>
