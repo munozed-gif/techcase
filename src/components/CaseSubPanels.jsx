@@ -1383,7 +1383,6 @@ ${mdToHtml(markdownContent)}
       await addDocument(file, docNote ?? 'Auto-generated functional specification');
       setSavedSpecUrls(p => ({ ...p, a: fileName }));
       if (refetchDocuments) await refetchDocuments();
-      openHtmlInNewTab(htmlString);
     } catch (e) {
       alert(t("alert.pdf_gen_error") + e.message);
     }
@@ -1466,7 +1465,6 @@ ${mdToHtml(markdownContent)}
         const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
         await addDocument(file, s.note);
         newUrls[s.key] = fileName;
-        openHtmlInNewTab(htmlString);
       }
       setSavedSpecUrls(newUrls);
       if (refetchDocuments) await refetchDocuments();
@@ -1484,6 +1482,9 @@ ${mdToHtml(markdownContent)}
   const perms = usePermissions(auth);
   const canApprove = perms.can('approve_specs');
   const canSubmit  = perms.can('submit_specs');
+  const planCfg    = usePlanConfig();
+  const userPlan   = planCfg.getUserPlan(auth.user?.id ?? '');
+  const canDownloadPdf = auth.isAdmin || auth.isManager || userPlan !== 'free';
 
   // Pre-fill from existing spec when mode is selected
   useEffect(() => {
@@ -3126,10 +3127,16 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         className="px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-white">
                         {aiEditing ? t("spec.preview_lbl") : t("spec.edit_lbl")}
                       </button>
-                      <button onClick={handleDownloadSpec} disabled={!selectedSpec || downloadingPdf}
-                        className="px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-white disabled:opacity-40 flex items-center gap-1">
-                        {downloadingPdf ? <><Spinner />&nbsp;PDF…</> : <><Download size={12} />PDF</>}
-                      </button>
+                      {canDownloadPdf ? (
+                        <button onClick={handleDownloadSpec} disabled={!selectedSpec || downloadingPdf}
+                          className="px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-white disabled:opacity-40 flex items-center gap-1">
+                          {downloadingPdf ? <><Spinner />&nbsp;PDF…</> : <><Download size={12} />PDF</>}
+                        </button>
+                      ) : (
+                        <span title="Upgrade to download PDFs" className="px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-400 rounded-lg flex items-center gap-1 cursor-not-allowed opacity-50">
+                          <Download size={12} />PDF
+                        </span>
+                      )}
                       {perms.can('regen_specs') && (
                         <button onClick={handleGenerateSpecs}
                           className="px-2.5 py-1 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
