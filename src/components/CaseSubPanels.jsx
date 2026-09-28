@@ -3510,10 +3510,20 @@ Respond with ONLY a valid JSON object, no markdown fences:
                           );
                         })()}
                         {canSubmit && (
-                          <button onClick={() => handleSubmit(selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA, 'ai', [])} disabled={!selectedSpec}
-                            className="px-3 py-1.5 text-xs bg-[#1A4B8C] text-white font-semibold rounded-lg hover:bg-blue-900 disabled:opacity-40">
-                            {t("spec.submit_btn")}
-                          </button>
+                          spec?.status === 'submitted' ? (
+                            <span className="px-3 py-1.5 text-xs bg-amber-100 text-amber-700 border border-amber-200 font-semibold rounded-lg flex items-center gap-1.5">
+                              <Clock size={11} /> {t("spec.awaiting")}
+                            </span>
+                          ) : spec?.status === 'approved' ? (
+                            <span className="px-3 py-1.5 text-xs bg-green-100 text-green-700 border border-green-200 font-semibold rounded-lg flex items-center gap-1.5">
+                              <Check size={11} /> {t("spec.status_approved")}
+                            </span>
+                          ) : (
+                            <button onClick={() => handleSubmit(selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA, 'ai', [])} disabled={!selectedSpec}
+                              className="px-3 py-1.5 text-xs bg-[#1A4B8C] text-white font-semibold rounded-lg hover:bg-blue-900 disabled:opacity-40">
+                              {t("spec.submit_btn")}
+                            </button>
+                          )
                         )}
                       </div>
                     </div>
