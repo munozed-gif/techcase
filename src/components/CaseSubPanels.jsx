@@ -1,7 +1,7 @@
 import { useState, useEffect, Fragment } from "react";
 import DOMPurify from "dompurify";
 import {
-  AlertTriangle, Archive, Award, BarChart2, Check, CheckCircle2, Clock, Code2,
+  AlertTriangle, Archive, Award, BarChart2, Check, CheckCircle2, ChevronDown, Clock, Code2,
   Download, FileText, Flag, FolderOpen, Inbox, ListChecks, Paperclip, Pause, Play,
   RotateCcw, Search, SlidersHorizontal, Sparkles, Star, Target, User,
   UserCheck, Users, Wand2, X, Zap,
@@ -547,6 +547,63 @@ async function htmlStringToPdfBlob(htmlString) {
   } finally {
     document.body.removeChild(el);
   }
+}
+
+function MarkdownAccordion({ text }) {
+  const sections = [];
+  if (text) {
+    const lines = text.split('\n');
+    let current = null;
+    for (const line of lines) {
+      const h1 = line.match(/^#\s+(.+)/);
+      const h2 = line.match(/^##\s+(.+)/);
+      const h3 = line.match(/^###\s+(.+)/);
+      const heading = h3 || h2 || h1;
+      if (heading && (h1 ? !h2 && !h3 : true)) {
+        if (current) sections.push(current);
+        const level = h3 ? 3 : h2 ? 2 : 1;
+        current = { title: heading[1], level, body: '' };
+      } else {
+        if (!current) current = { title: '', level: 0, body: '' };
+        current.body += line + '\n';
+      }
+    }
+    if (current) sections.push(current);
+  }
+
+  const [open, setOpen] = useState(() => {
+    const init = {};
+    sections.forEach((_, i) => { init[i] = i === 0; });
+    return init;
+  });
+
+  if (!sections.length) return null;
+
+  return (
+    <div className="space-y-1">
+      {sections.map((s, i) => (
+        s.title ? (
+          <div key={i} className="border border-gray-200 rounded-xl overflow-hidden">
+            <button
+              onClick={() => setOpen(p => ({ ...p, [i]: !p[i] }))}
+              className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 text-left gap-2">
+              <span className={`font-semibold text-gray-700 leading-snug ${s.level === 1 ? 'text-sm' : s.level === 2 ? 'text-xs' : 'text-xs text-gray-500'}`}>
+                {s.title}
+              </span>
+              <ChevronDown size={12} className={`text-gray-400 flex-shrink-0 transition-transform duration-150 ${open[i] ? 'rotate-180' : ''}`} />
+            </button>
+            {open[i] && s.body.trim() && (
+              <div className="px-3 py-2.5 text-xs text-gray-800 leading-relaxed border-t border-gray-100"
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize('<div>' + renderMarkdown(s.body) + '</div>') }} />
+            )}
+          </div>
+        ) : s.body.trim() ? (
+          <div key={i} className="text-xs text-gray-600 leading-relaxed px-1 py-1"
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize('<div>' + renderMarkdown(s.body) + '</div>') }} />
+        ) : null
+      ))}
+    </div>
+  );
 }
 
 function GenerationProfileModal({ onConfirm, onClose, title, outputMode, onOutputModeChange }) {
@@ -3137,8 +3194,9 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   </div>
                 )}
                 {spec?.content && (
-                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-xs text-gray-800 leading-relaxed overflow-y-auto max-h-[520px]"
-                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize('<div>' + renderMarkdown(spec.content) + '</div>') }} />
+                  <div className="overflow-y-auto max-h-[520px]">
+                    <MarkdownAccordion text={spec.content} />
+                  </div>
                 )}
                 {!spec && (
                   <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-2">
@@ -3482,8 +3540,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                             }}
                             rows={25} className="w-full border border-gray-200 rounded-xl p-3 text-sm font-mono resize-y focus:outline-none focus:border-blue-400" />
                         ) : (
-                          <div className="text-xs text-gray-800 leading-relaxed"
-                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize('<div>' + renderMarkdown(selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA) + '</div>') }} />
+                          <MarkdownAccordion text={selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA} />
                         )}
                       </div>
                     </div>
