@@ -309,7 +309,7 @@ function Dashboard({ auth, onNavigate }) {
   ];
 
   return (
-    <div className="flex flex-col md:flex-row gap-6 items-start">
+    <div className="flex flex-col md:flex-row gap-6 md:items-start">
     <div className="flex-1 min-w-0">
       <div className="mb-6 flex items-start justify-between">
         <div>
