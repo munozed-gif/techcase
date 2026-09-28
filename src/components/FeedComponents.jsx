@@ -34,7 +34,7 @@ function FeedCard({ item, caseData, onOpenCase, onMarkRead }) {
 
   return (
     <div
-      className={`rounded-2xl border p-4 transition-all cursor-pointer hover:shadow-md ${item.is_unread ? 'border-blue-200 bg-blue-50' : 'border-gray-100 bg-white'}`}
+      className={`rounded-2xl border p-4 transition-all cursor-pointer hover:shadow-md min-w-0 overflow-hidden ${item.is_unread ? 'border-blue-200 bg-blue-50' : 'border-gray-100 bg-white'}`}
       onClick={handleClick}>
       <div className="flex gap-3">
         {/* Avatar */}
@@ -53,7 +53,7 @@ function FeedCard({ item, caseData, onOpenCase, onMarkRead }) {
         <div className="flex-1 min-w-0">
           {/* Header */}
           <div className="flex items-start justify-between gap-2 mb-1">
-            <p className="text-sm text-gray-900 leading-snug break-words min-w-0">
+            <p className="text-sm text-gray-900 leading-snug min-w-0" style={{overflowWrap:'anywhere'}}>
               {item._type === 'comment' && <><span className="font-semibold">{item.actor_name}</span>{t("feed.commented_on")}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span></>}
               {item._type === 'progress' && <><span className="font-semibold">{item.actor_name}</span>{t("feed.updated")}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span>{t("feed.to")}<span className="font-semibold text-green-600">{item.progress_update}%</span></>}
               {item._type === 'assignment' && <><span className="font-semibold">{item.actor_name}</span>{t("feed.joined_case")}<span className="font-semibold text-[#1A4B8C]">{caseTitle}</span>{item.time_commitment ? <span className="text-gray-500"> · {item.time_commitment}{t("feed.pct_commitment")}</span> : null}</>}
@@ -81,7 +81,7 @@ function FeedCard({ item, caseData, onOpenCase, onMarkRead }) {
             </div>
           )}
           {(item._type === 'status_change' || item._type === 'alert' || item._type === 'milestone' || item._type === 'document') && item.body && (
-            <p className="mt-1 text-sm text-gray-500 leading-snug">{item.body}</p>
+            <p className="mt-1 text-sm text-gray-500 leading-snug" style={{overflowWrap:'anywhere'}}>{item.body}</p>
           )}
 
           {/* Case footer */}
