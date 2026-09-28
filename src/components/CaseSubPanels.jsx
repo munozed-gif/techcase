@@ -3387,6 +3387,35 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       </div>
                     </div>
 
+                    <div className="flex gap-2 items-center justify-between pt-3 border-t border-gray-100">
+                      <p className="text-xs text-gray-500">
+                        {selectedSpec ? t("spec.submit_option").replace("{n}", selectedSpec.toUpperCase()).replace("{label}", selectedSpec === 'a' ? t("spec.tab_a") : selectedSpec === 'b' ? t("spec.tab_b") : t("spec.tab_c")) : t("spec.click_tab_select")}
+                      </p>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button onClick={async () => {
+                          const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA;
+                          try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent, activeProfile }), title: caseData.title + t("spec.doc_title_suffix") }); await refetch(); } catch (e) { alert(e.message); }
+                        }} disabled={!selectedSpec} className="px-3 py-1.5 text-xs border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 disabled:opacity-40">
+                          {t("spec.save_draft")}
+                        </button>
+                        {(() => {
+                          const allSaved = savedSpecUrls.a && savedSpecUrls.b && savedSpecUrls.c;
+                          return (
+                            <button onClick={() => saveAllSpecsAsDocuments(aiSpecA, aiSpecB, aiSpecC, sapCheck, proposalCheck)}
+                              disabled={savingDoc || allSaved || (!aiSpecA && !aiSpecB && !aiSpecC)}
+                              className={`flex items-center px-3 py-1.5 text-xs font-semibold rounded-lg disabled:opacity-40 ${allSaved ? 'bg-gray-100 text-gray-500 border border-gray-200 cursor-default' : 'bg-green-600 text-white hover:bg-green-700'}`}>
+                              {savingDoc ? t("state.saving") : allSaved ? <><Check size={11} className="mr-1 inline" />{t("spec.pdf_saved3")}</> : <><Paperclip className="w-3 h-3 mr-1" />{t("spec.save_all3")}</>}
+                            </button>
+                          );
+                        })()}
+                        {canSubmit && (
+                          <button onClick={() => handleSubmit(selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA, 'ai', [])} disabled={!selectedSpec}
+                            className="px-3 py-1.5 text-xs bg-[#1A4B8C] text-white font-semibold rounded-lg hover:bg-blue-900 disabled:opacity-40">
+                            {t("spec.submit_btn")}
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
 
