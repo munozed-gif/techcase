@@ -17,6 +17,12 @@ if (typeof document !== 'undefined') {
   0%   { transform: scale(0.04); opacity: 0.75; }
   60%  { opacity: 0.35; }
   100% { transform: scale(1);    opacity: 0; }
+}
+@media (max-width: 639px) {
+  .galaxy-explorer { height: auto !important; min-height: 400px !important; }
+  .galaxy-body     { flex-direction: column !important; }
+  .galaxy-system   { min-height: 200px !important; }
+  .galaxy-sidebar  { width: 100% !important; max-height: 280px; border-left: none !important; border-top: 1px solid var(--t-border); }
 }`;
 }
 
@@ -449,7 +455,7 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
   ];
 
   return (
-    <div style={{ background: 'var(--t-galaxy-bg)', borderRadius: 20, border: '1.5px solid var(--t-border)', overflow: 'hidden', marginBottom: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 180px)', minHeight: 560 }}>
+    <div className="galaxy-explorer" style={{ background: 'var(--t-galaxy-bg)', borderRadius: 20, border: '1.5px solid var(--t-border)', overflow: 'hidden', marginBottom: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 180px)', minHeight: 560 }}>
       {/* Header bar */}
       <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--t-border)', display: 'flex', alignItems: 'center', gap: 10, background: 'var(--t-tab-inactive)', flexShrink: 0 }}>
         {level > 1 && (
@@ -475,13 +481,13 @@ export function GalaxyExplorer({ openCases, applications, auth, onApply, applied
       </div>
 
       {/* Body */}
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <div className="galaxy-body" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* Solar system — left, large panel */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--t-galaxy-bg)', opacity: fading ? 0 : 1, transition: 'opacity .16s', position: 'relative' }}>
+        <div className="galaxy-system" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--t-galaxy-bg)', opacity: fading ? 0 : 1, transition: 'opacity .16s', position: 'relative' }}>
           {renderSystem()}
         </div>
         {/* Sidebar — right, fixed-width panel */}
-        <div style={{ width: 320, flexShrink: 0, minWidth: 0, padding: '16px 20px', display: 'flex', flexDirection: 'column', overflowY: 'auto', borderLeft: '1px solid var(--t-border)', opacity: fading ? 0 : 1, transition: 'opacity .16s' }}>
+        <div className="galaxy-sidebar" style={{ width: 320, flexShrink: 0, minWidth: 0, padding: '16px 20px', display: 'flex', flexDirection: 'column', overflowY: 'auto', borderLeft: '1px solid var(--t-border)', opacity: fading ? 0 : 1, transition: 'opacity .16s' }}>
           {renderSidebar()}
         </div>
       </div>
