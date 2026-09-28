@@ -2849,7 +2849,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                     style={isMobile
                       ? { flex:'0 0 auto', width:'100%', maxWidth:'100%', minWidth:0, overflow:'hidden', scrollSnapAlign:'start', scrollSnapStop:'always', opacity: isActive ? 1 : 0.85, transition:'opacity .25s' }
                       : { flex:'0 0 calc(100% - 120px)', width:'calc(100% - 120px)', maxWidth:'calc(100% - 120px)', minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity: isActive ? 1 : 0.5, transform: isActive ? 'scale(1)' : 'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
-                    <div style={{ borderRadius:12, border:`1px solid ${isActive?'var(--t-border-active)':'var(--t-border)'}`, background:'var(--t-card-bg)', overflow:'hidden', width:'100%', boxSizing:'border-box', minHeight: isMobile ? 400 : 700, display:'flex', flexDirection:'column', boxShadow: isActive ? '0 4px 20px rgba(0,0,0,.12)' : 'none', transition:'box-shadow .25s' }}>
+                    <div style={{ borderRadius:12, border:`1px solid ${isActive?'var(--t-border-active)':'var(--t-border)'}`, background:'var(--t-card-bg)', overflow:'hidden', width:'100%', boxSizing:'border-box', height: isMobile ? undefined : 700, minHeight: isMobile ? 400 : undefined, display:'flex', flexDirection:'column', boxShadow: isActive ? '0 4px 20px rgba(0,0,0,.12)' : 'none', transition:'box-shadow .25s' }}>
                       {/* Card header */}
                       {(() => {
                         const st = tabStatus[tab.id];
