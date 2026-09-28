@@ -309,8 +309,8 @@ function Dashboard({ auth, onNavigate }) {
   ];
 
   return (
-    <div className="flex flex-col md:flex-row gap-6 md:items-start">
-    <div className="flex-1 min-w-0">
+    <div className="w-full flex flex-col md:flex-row gap-6 md:items-start">
+    <div className="w-full md:flex-1 min-w-0">
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-gray-900">
@@ -1096,7 +1096,7 @@ function Dashboard({ auth, onNavigate }) {
       })()}
 
       {/* ── Activity Feed ── */}
-      <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-100">
+      <div className="mt-6 w-full bg-white rounded-2xl shadow-sm border border-gray-100">
         {/* Feed header */}
         <div className="px-5 pt-5 pb-0">
           <div className="flex items-center justify-between mb-4">
@@ -1237,7 +1237,7 @@ function Dashboard({ auth, onNavigate }) {
           <>
             {/* ── 1. Status Snapshot ── */}
             {SNAP_STATUSES.length > 0 && (
-              <div className="rounded-2xl shadow-sm" style={{background:'var(--t-card-bg)',border:'1px solid var(--t-border)'}}>
+              <div className="w-full rounded-2xl shadow-sm" style={{background:'var(--t-card-bg)',border:'1px solid var(--t-border)'}}>
                 <div className="px-4 pt-4 pb-3 flex items-center gap-2" style={{borderBottom:'1px solid var(--t-border)'}}>
                   <Layers className="w-3.5 h-3.5" style={{color:'var(--t-text2)'}} />
                   <span className="text-sm font-bold" style={{color:'var(--t-text)'}}>Pipeline</span>
