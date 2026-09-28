@@ -309,11 +309,11 @@ function Dashboard({ auth, onNavigate }) {
   ];
 
   return (
-    <div className="flex gap-6 items-start">
+    <div className="flex flex-col md:flex-row gap-6 items-start">
     <div className="flex-1 min-w-0">
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">
             {t("auth.welcome")}, {auth.profile?.full_name?.split(" ")[0] ?? t("auth.name_fallback")}
           </h1>
           <p className="text-gray-500 mt-1">{t("dashboard.subtitle")}</p>
@@ -1161,7 +1161,7 @@ function Dashboard({ auth, onNavigate }) {
     </div>
 
     {/* Right sidebar */}
-    <div className="w-72 flex-shrink-0 self-start sticky top-6 space-y-4">
+    <div className="w-full md:w-72 flex-shrink-0 md:self-start md:sticky md:top-6 space-y-4">
       {(() => {
         const scopedCases = auth.isConsultant ? assignedCases : auth.isClient ? myCases : cases;
         const now = new Date();
