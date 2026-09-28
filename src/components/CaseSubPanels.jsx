@@ -1662,6 +1662,7 @@ ${mdToHtml(markdownContent)}
   const planCfg    = usePlanConfig();
   const userPlan   = planCfg.getUserPlan(auth.user?.id ?? '');
   const canDownloadPdf = auth.isAdmin || auth.isManager || userPlan !== 'free';
+  const specApproved = spec?.status === 'approved';
 
   // Pre-fill from existing spec when mode is selected
   useEffect(() => {
@@ -2681,7 +2682,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <button onClick={() => setMode(null)} className="text-xs text-gray-400 hover:text-gray-600">← {t("action.back")}</button>
+          {!specApproved && <button onClick={() => setMode(null)} className="text-xs text-gray-400 hover:text-gray-600">← {t("action.back")}</button>}
           <span className="text-sm font-semibold text-gray-700">{t("spec.manual_title")}</span>
         </div>
 
@@ -2740,7 +2741,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
       return (
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <button onClick={() => setMode(null)} className="text-xs text-gray-400 hover:text-gray-600">← {t("action.back")}</button>
+            {!specApproved && <button onClick={() => setMode(null)} className="text-xs text-gray-400 hover:text-gray-600">← {t("action.back")}</button>}
             <span className="text-sm font-semibold text-gray-700">{t("spec.wiz_step1")}</span>
           </div>
 
@@ -2839,7 +2840,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <button onClick={() => setWizardStage('objects')} className="text-xs text-gray-400 hover:text-gray-600">← {t("action.back")}</button>
+              {!specApproved && <button onClick={() => setWizardStage('objects')} className="text-xs text-gray-400 hover:text-gray-600">← {t("action.back")}</button>}
               <span className="text-sm font-semibold text-gray-700">{t("spec.wiz_interview")}</span>
             </div>
             <span className="text-xs text-gray-400">{t("spec.obj_n_of").replace("{n}", currentObjIdx + 1).replace("{total}", wizardObjects.length)}</span>
@@ -2915,7 +2916,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
         <div className="space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <button onClick={() => setWizardStage('interview')} className="text-xs text-gray-400 hover:text-gray-600">← {t("spec.wiz_interview")}</button>
+              {!specApproved && <button onClick={() => setWizardStage('interview')} className="text-xs text-gray-400 hover:text-gray-600">← {t("spec.wiz_interview")}</button>}
               <span className="text-sm font-semibold text-gray-700">{t("spec.wiz_compiled")}</span>
             </div>
             {compiledSpec && (
@@ -3033,12 +3034,14 @@ Respond with ONLY a valid JSON object, no markdown fences:
       <div className="space-y-4">
         {/* Header + back */}
         <div className="flex items-center gap-2">
-          <button onClick={() => {
-            const dest = prevMode ?? null;
-            setMode(dest);
-            setAiStep(1); setSapCheck(null); setProposalCheck(null); setAiContent('');
-            if (!dest) { setPrevMode(null); setAnalysisCustomerContent(''); }
-          }} className="text-xs text-gray-400 hover:text-gray-600">← {t("action.back")}</button>
+          {!specApproved && (
+            <button onClick={() => {
+              const dest = prevMode ?? null;
+              setMode(dest);
+              setAiStep(1); setSapCheck(null); setProposalCheck(null); setAiContent('');
+              if (!dest) { setPrevMode(null); setAnalysisCustomerContent(''); }
+            }} className="text-xs text-gray-400 hover:text-gray-600">← {t("action.back")}</button>
+          )}
           <span className="text-sm font-semibold text-gray-700">
             {prevMode === 'manual' ? t("spec.ai_mode_manual") : prevMode === 'wizard' ? t("spec.ai_mode_wizard") : t("spec.ai_mode_gen")}
           </span>
@@ -3059,8 +3062,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 sub={`${inputDocs.length} ${t("spec.docs_files")}`}
                 status="complete"
                 isActive={activeNode===0}
-                canClick={true}
-                onClick={() => setActiveNode(0)}
+                canClick={!specApproved}
+                onClick={() => { if (!specApproved) setActiveNode(0); }}
               />
 
               {/* Node 1: SAP Verification */}
@@ -3069,8 +3072,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 sub={sapCheck ? sapCheck.coverage : sapStatus==='running' ? t("spec.checking") : sapStatus==='skipped' ? t("spec.skipped") : t("spec.pending")}
                 status={sapStatus}
                 isActive={activeNode===1}
-                canClick={true}
-                onClick={() => setActiveNode(1)}
+                canClick={!specApproved}
+                onClick={() => { if (!specApproved) setActiveNode(1); }}
               />
 
               {/* Node 2: Proposal Validation */}
@@ -3079,8 +3082,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 sub={proposalCheck ? `Score ${proposalCheck.score}/10` : propStatus==='running' ? t("spec.validating") : propStatus==='locked' ? t("spec.locked") : propStatus==='skipped' ? t("spec.skipped") : t("spec.pending")}
                 status={propStatus}
                 isActive={activeNode===2}
-                canClick={propStatus !== 'locked'}
-                onClick={() => { if (propStatus !== 'locked') setActiveNode(2); }}
+                canClick={!specApproved && propStatus !== 'locked'}
+                onClick={() => { if (!specApproved && propStatus !== 'locked') setActiveNode(2); }}
               />
 
               {/* Node 3: Generate Specification + sub-nodes */}
@@ -3089,8 +3092,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 sub={genStatus==='complete' ? `${[aiSpecA,aiSpecB,aiSpecC].filter(Boolean).length} ${t("spec.specs_gen")}` : genStatus==='running' ? t("spec.gen_all_loading") : genStatus==='locked' ? t("spec.locked") : t("spec.pending")}
                 status={genStatus}
                 isActive={activeNode===3}
-                canClick={genStatus !== 'locked'}
-                onClick={() => { if (genStatus !== 'locked') setActiveNode(3); }}
+                canClick={!specApproved && genStatus !== 'locked'}
+                onClick={() => { if (!specApproved && genStatus !== 'locked') setActiveNode(3); }}
               >
                 {/* Sub-nodes for Spec A / B / C + Prototype */}
                 {(aiSpecA || aiSpecB || aiSpecC || activeNode===3) && (
@@ -3184,12 +3187,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      {spec.status === 'approved' && perms.can('regen_specs') && (
-                        <button onClick={() => handleGenerateSpecs({ autoSubmit: true })} disabled={generatingSpecs}
-                          className="px-3 py-1.5 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 disabled:opacity-50">
-                          {generatingSpecs ? t("state.generating") : t("spec.regen_btn")}
-                        </button>
-                      )}
+                      {/* Regenerate is intentionally removed after approval — spec is frozen */}
                       {spec.status === 'submitted' && canApprove && (
                         <Fragment>
                           <button onClick={handleApprove} disabled={approving}
@@ -3271,7 +3269,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   <p className="text-xs text-gray-500">{t("spec.ai_step1_desc")}</p>
                 </div>
 
-                {!sapCheck && !stepLoading && (
+                {!sapCheck && !stepLoading && !specApproved && (
                   <div className="text-center py-4">
                     <button onClick={handleSapCheck}
                       className="px-6 py-2.5 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
@@ -3316,13 +3314,15 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     {sapCheck.recommendation && (
                       <p className={`text-xs italic border-t pt-2 ${cc[1]} ${cc[2]}`}>{sapCheck.recommendation}</p>
                     )}
-                    <div className="flex gap-3 justify-between items-center pt-1">
-                      <button onClick={handleSapCheck} className={`text-xs underline ${cc[2]}`}>{t("spec.rerun_check")}</button>
-                      <button onClick={() => setActiveNode(2)}
-                        className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
-                        {t("spec.continue_step2")}
-                      </button>
-                    </div>
+                    {!specApproved && (
+                      <div className="flex gap-3 justify-between items-center pt-1">
+                        <button onClick={handleSapCheck} className={`text-xs underline ${cc[2]}`}>{t("spec.rerun_check")}</button>
+                        <button onClick={() => setActiveNode(2)}
+                          className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
+                          {t("spec.continue_step2")}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -3342,7 +3342,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   <h3 className="text-sm font-semibold text-gray-800 mb-1">{t("spec.ai_step2_h")}</h3>
                   <p className="text-xs text-gray-500">{t("spec.ai_step2_desc")}</p>
                 </div>
-                {!proposalCheck && !stepLoading && (
+                {!proposalCheck && !stepLoading && !specApproved && (
                   <div className="text-center py-4">
                     <button onClick={handleProposalValidation}
                       className="px-6 py-2.5 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
@@ -3391,14 +3391,16 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         {proposalCheck.recommendation}
                       </p>
                     )}
-                    <div className="flex gap-3 justify-between items-center pt-1">
-                      <button onClick={handleProposalValidation}
-                        className={`text-xs underline ${proposalCheck.valid ? 'text-green-700' : 'text-amber-700'}`}>{t("spec.revalidate")}</button>
-                      <button onClick={() => setActiveNode(3)}
-                        className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
-                        {t("spec.generate_spec")}
-                      </button>
-                    </div>
+                    {!specApproved && (
+                      <div className="flex gap-3 justify-between items-center pt-1">
+                        <button onClick={handleProposalValidation}
+                          className={`text-xs underline ${proposalCheck.valid ? 'text-green-700' : 'text-amber-700'}`}>{t("spec.revalidate")}</button>
+                        <button onClick={() => setActiveNode(3)}
+                          className="px-5 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
+                          {t("spec.generate_spec")}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -3470,7 +3472,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 )}
 
                 {/* Generate button */}
-                {!aiSpecA && !aiSpecB && !aiSpecC && !generatingSpecs && !viewingProto && (
+                {!aiSpecA && !aiSpecB && !aiSpecC && !generatingSpecs && !viewingProto && !specApproved && (
                   <div className="text-center py-6">
                     {/* Warning when analysis steps were skipped */}
                     {!sapCheck && !proposalCheck && (
@@ -3532,10 +3534,12 @@ Respond with ONLY a valid JSON object, no markdown fences:
                           {selectedSpec === 'a' ? t("spec.opt_a_long") : selectedSpec === 'b' ? t("spec.opt_b_long") : selectedSpec === 'c' ? t("spec.opt_c_long") : t("spec.select_above")}
                         </span>
                         <div className="flex gap-2">
-                          <button onClick={() => setAiEditing(p => !p)}
-                            className="px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-white">
-                            {aiEditing ? t("spec.preview_lbl") : t("spec.edit_lbl")}
-                          </button>
+                          {!specApproved && (
+                            <button onClick={() => setAiEditing(p => !p)}
+                              className="px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-white">
+                              {aiEditing ? t("spec.preview_lbl") : t("spec.edit_lbl")}
+                            </button>
+                          )}
                           {canDownloadPdf ? (
                             <button onClick={handleDownloadSpec} disabled={!selectedSpec || downloadingPdf}
                               className="px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-white disabled:opacity-40 flex items-center gap-1">
@@ -3546,7 +3550,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                               <Download size={12} />PDF
                             </span>
                           )}
-                          {perms.can('regen_specs') && (
+                          {!specApproved && perms.can('regen_specs') && (
                             <button onClick={handleGenerateSpecs}
                               className="px-2.5 py-1 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
                               {t("spec.regen_all")}
