@@ -1,7 +1,7 @@
 import { useState, useEffect, Fragment } from "react";
 import DOMPurify from "dompurify";
 import {
-  AlertTriangle, Archive, BarChart2, Check, CheckCircle2, Clock, Code2,
+  AlertTriangle, Archive, Award, BarChart2, Check, CheckCircle2, Clock, Code2,
   Download, FileText, Flag, FolderOpen, Inbox, ListChecks, Paperclip, Pause, Play,
   RotateCcw, Search, SlidersHorizontal, Sparkles, Star, Target, User,
   UserCheck, Users, Wand2, X, Zap,
@@ -1604,7 +1604,9 @@ ${mdToHtml(markdownContent)}
       }
       if (spec.content) restoredStep = 3;
       setAiStep(restoredStep);
-      setActiveNode(restoredStep === 3 ? 3 : restoredStep === 2 ? 2 : 0);
+      const restoredNode = (spec.status === 'approved' || spec.status === 'submitted') ? 4
+        : restoredStep === 3 ? 3 : restoredStep === 2 ? 2 : 0;
+      setActiveNode(restoredNode);
       // Detect previously generated prototype from documents list
       const protoDoc = (documents ?? []).find(d => (d.description ?? '').startsWith('[Prototype]') || (d.file_name ?? '').startsWith('Prototype_'));
       if (protoDoc) { setProtoSaved(true); setActiveProfile(p => p ?? { prototype_enabled: true }); }
@@ -3037,16 +3039,43 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   </div>
                 )}
               </NodeBtn>
+
+              {/* Node 4: Approval */}
+              {(() => {
+                const approvalStatus = spec?.status === 'approved' ? 'complete'
+                  : spec?.status === 'submitted' ? 'running'
+                  : genStatus === 'complete' ? 'pending'
+                  : 'locked';
+                const approvalSub = spec?.status === 'approved' ? t("spec.status_approved")
+                  : spec?.status === 'submitted' ? t("spec.awaiting")
+                  : approvalStatus === 'locked' ? t("spec.locked")
+                  : t("spec.pending");
+                return (
+                  <NodeBtn id={4} icon={Award}
+                    title={t("spec.approval_node_lbl")}
+                    sub={approvalSub}
+                    status={approvalStatus}
+                    isActive={activeNode===4}
+                    canClick={approvalStatus !== 'locked'}
+                    onClick={() => { if (approvalStatus !== 'locked') setActiveNode(4); }}
+                  />
+                );
+              })()}
             </div>
           </div>
 
           {/* RIGHT: Content panel */}
           <div className="flex-1 min-w-0 space-y-4">
 
-            {/* ── Approved / Submitted spec view (stays inside pipeline) ── */}
-            {spec && ['approved','submitted'].includes(spec.status) ? (
+            {/* Error banner */}
+            {aiError && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{aiError}</div>
+            )}
+
+            {/* ── Node 4: Approval ── */}
+            {activeNode === 4 && (
               <div className="space-y-3">
-                {spec.status === 'approved' && (
+                {spec?.status === 'approved' && (
                   <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-3">
                     <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
                     <div>
@@ -3055,41 +3084,43 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     </div>
                   </div>
                 )}
-                {spec.status === 'submitted' && (
+                {spec?.status === 'submitted' && (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-3">
                     <Clock className="w-4 h-4 text-amber-600 flex-shrink-0" />
                     <p className="text-xs text-amber-800 font-medium">{t("spec.awaiting")}</p>
                   </div>
                 )}
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-blue-600" />
-                    <span className="font-semibold text-gray-900 text-xs">{spec.title || t("spec.title_fallback")}</span>
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${{ submitted:'bg-amber-100 text-amber-700 border border-amber-200', approved:'bg-green-100 text-green-700 border border-green-200' }[spec.status]}`}>
-                      {t("spec.status_" + spec.status) || cap(spec.status)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {spec.status === 'approved' && perms.can('regen_specs') && (
-                      <button onClick={() => handleGenerateSpecs({ autoSubmit: true })} disabled={generatingSpecs}
-                        className="px-3 py-1.5 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 disabled:opacity-50">
-                        {generatingSpecs ? t("state.generating") : t("spec.regen_btn")}
-                      </button>
-                    )}
-                    {spec.status === 'submitted' && canApprove && (
-                      <Fragment>
-                        <button onClick={handleApprove} disabled={approving}
-                          className="px-3 py-1.5 text-xs font-semibold bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
-                          {approving ? t("state.saving") : t("spec.approve_btn")}
+                {spec && (
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-blue-600" />
+                      <span className="font-semibold text-gray-900 text-xs">{spec.title || t("spec.title_fallback")}</span>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${{ submitted:'bg-amber-100 text-amber-700 border border-amber-200', approved:'bg-green-100 text-green-700 border border-green-200', draft:'bg-gray-100 text-gray-600 border border-gray-200' }[spec.status] ?? ''}`}>
+                        {t("spec.status_" + spec.status) || cap(spec.status)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {spec.status === 'approved' && perms.can('regen_specs') && (
+                        <button onClick={() => handleGenerateSpecs({ autoSubmit: true })} disabled={generatingSpecs}
+                          className="px-3 py-1.5 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 disabled:opacity-50">
+                          {generatingSpecs ? t("state.generating") : t("spec.regen_btn")}
                         </button>
-                        <button onClick={() => setShowRejectInput(p => !p)}
-                          className="px-3 py-1.5 text-xs font-semibold border border-red-200 text-red-600 rounded-lg hover:bg-red-50">
-                          {t("spec.reject_btn")}
-                        </button>
-                      </Fragment>
-                    )}
+                      )}
+                      {spec.status === 'submitted' && canApprove && (
+                        <Fragment>
+                          <button onClick={handleApprove} disabled={approving}
+                            className="px-3 py-1.5 text-xs font-semibold bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
+                            {approving ? t("state.saving") : t("spec.approve_btn")}
+                          </button>
+                          <button onClick={() => setShowRejectInput(p => !p)}
+                            className="px-3 py-1.5 text-xs font-semibold border border-red-200 text-red-600 rounded-lg hover:bg-red-50">
+                            {t("spec.reject_btn")}
+                          </button>
+                        </Fragment>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
                 {showRejectInput && (
                   <div className="bg-red-50 border border-red-200 rounded-xl p-3 space-y-2">
                     <label className="block text-xs font-semibold text-red-700">{t("spec.reject_reason")}</label>
@@ -3105,16 +3136,17 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     </div>
                   </div>
                 )}
-                {spec.content && (
+                {spec?.content && (
                   <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-xs text-gray-800 leading-relaxed overflow-y-auto max-h-[520px]"
                     dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize('<div>' + renderMarkdown(spec.content) + '</div>') }} />
                 )}
+                {!spec && (
+                  <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-2">
+                    <Award className="w-8 h-8 opacity-40" />
+                    <p className="text-xs">{t("spec.approval_pending_desc")}</p>
+                  </div>
+                )}
               </div>
-            ) : (<>
-
-            {/* Error banner */}
-            {aiError && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{aiError}</div>
             )}
 
             {/* ── Node 0: Documents ── */}
@@ -3520,7 +3552,6 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 )}
               </div>
             )}
-            </>)}
           </div>
         </div>
         {showGenModal && (
