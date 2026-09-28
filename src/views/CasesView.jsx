@@ -250,9 +250,9 @@ function CasesView({ auth, initialCaseId }) {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t("cases.title")}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
+        <div className="min-w-0">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">{t("cases.title")}</h1>
           <p className="text-gray-500 text-sm mt-1">{t(displayed.length !== 1 ? "count.case_many" : "count.case_one").replace("{n}", displayed.length)}</p>
         </div>
         {can("create_cases") && !auth.isHeadhunter && (
@@ -438,10 +438,10 @@ function CasesView({ auth, initialCaseId }) {
       {displayed.length === 0 ? (
         <EmptyState Icon={FolderOpen} title={t("cases.no_cases")} subtitle={t("cases.no_cases_hint")} />
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm p-4 grid gap-3">
+        <div className="bg-white rounded-2xl shadow-sm p-4 grid gap-3 overflow-hidden">
           {displayed.map(c => (
             <div key={c.id}
-              className="rounded-2xl cursor-pointer transition-all hover:shadow-md p-5"
+              className="rounded-2xl cursor-pointer transition-all hover:shadow-md p-5 overflow-hidden min-w-0"
               style={(() => { const cc = selectedCases.has(c.id) ? { border: 'rgba(96,165,250,0.55)', bg: 'rgba(37,99,235,0.15)' } : (CASE_CARD_COLORS[c.status] ?? { border: 'rgba(100,160,220,0.25)', bg: 'rgba(12,21,34,0.4)' }); return { border: `1.5px solid ${cc.border}`, backgroundColor: cc.bg }; })()}
               onClick={() => setSelected(c)}>
               {(() => {
