@@ -402,8 +402,8 @@ function CasesView({ auth, initialCaseId }) {
               </div>
             )}
 
-            {/* Period buttons — full-width, always 4 cols */}
-            <div className="grid grid-cols-4 gap-1.5">
+            {/* Period buttons — full-width, 2 cols on mobile / 4 on sm+ */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
               {PERIODS.map(p => {
                 const active = periodFilter === p.val;
                 const { Icon } = p;

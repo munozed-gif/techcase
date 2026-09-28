@@ -124,7 +124,8 @@ function CaseLifecycleTrack({ stages, currentStatus }) {
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4">
-      <div className="relative flex items-start justify-between">
+      <div className="overflow-x-auto -mx-1 px-1">
+      <div className="relative flex items-start justify-between min-w-[480px]">
         <div className={`absolute ${lineTop} ${lineX} h-0.5 z-0`}
           style={{ background: `linear-gradient(to right, #1A4B8C ${progressPct}%, #e5e7eb ${progressPct}%)` }} />
         {flow.map((stage, i) => {
@@ -153,6 +154,7 @@ function CaseLifecycleTrack({ stages, currentStatus }) {
             </div>
           );
         })}
+      </div>
       </div>
       {terminals.length > 0 && (
         <div className="flex items-center gap-2 pt-3 mt-2 border-t border-gray-100 flex-wrap">

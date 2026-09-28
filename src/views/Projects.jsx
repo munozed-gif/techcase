@@ -334,7 +334,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
           <h2 className="text-lg font-semibold text-gray-900 mb-1 text-center">{t("proj.choose_mode")}</h2>
           <p className="text-sm text-gray-400 text-center mb-8">{t("case.edit_after")}</p>
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <button onClick={() => selectMode("express")}
               className="group text-left border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 rounded-2xl p-6 transition-all">
               <div className="w-12 h-12 rounded-xl bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center mb-4 transition-colors">
@@ -481,7 +481,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
             {/* Priority cards */}
             <div className="mb-5">
               <p className="text-sm font-medium text-gray-700 mb-2">{t("label.priority")}</p>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {[
                   { value: "low",      label: t("priority.low"),      cls: "border-slate-300 bg-slate-50 text-slate-700",    sel: "border-slate-500 bg-slate-100 text-slate-800" },
                   { value: "medium",   label: t("priority.medium"),   cls: "border-yellow-300 bg-yellow-50 text-yellow-700", sel: "border-yellow-500 bg-yellow-100 text-yellow-800" },
@@ -663,7 +663,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
             {/* Work Mode cards */}
             <div className="mb-5">
               <p className="text-sm font-medium text-gray-700 mb-2">{t("proj.work_mode")}</p>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
                   { value: "remote",  label: t("cs.work_remote"), desc: t("cs.work_remote_desc_exp") },
                   { value: "onsite",  label: t("cs.work_onsite"), desc: t("cs.work_onsite_desc") },

@@ -2258,7 +2258,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-4">
             {t("case.back")}
           </button>
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-start gap-4 min-w-0 flex-1">
               <ProjectAvatar
                 project={caseData.project ?? { name: caseData.client?.client_profiles?.company_name || caseData.client?.full_name || caseData.title, client: caseData.client }}
@@ -2266,7 +2266,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 className="flex-shrink-0 mt-0.5"
               />
               <div className="min-w-0 flex-1">
-                <h1 className="text-2xl font-bold text-gray-900 leading-tight">{caseData.title}</h1>
+                <h1 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">{caseData.title}</h1>
                 {caseData.project?.name && (
                   <p className="text-sm text-gray-500 font-medium mt-0.5">{caseData.project.name}</p>
                 )}
@@ -2803,7 +2803,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 return (
                   <div key={tab.id}
                     style={{ flex:'0 0 calc(100% - 120px)', width:'calc(100% - 120px)', maxWidth:'calc(100% - 120px)', minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity: isActive ? 1 : 0.5, transform: isActive ? 'scale(1)' : 'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
-                    <div style={{ borderRadius:12, border:`1px solid ${isActive?'var(--t-border-active)':'var(--t-border)'}`, background:'var(--t-card-bg)', overflow:'hidden', width:'100%', boxSizing:'border-box', height:700, display:'flex', flexDirection:'column', boxShadow: isActive ? '0 4px 20px rgba(0,0,0,.12)' : 'none', transition:'box-shadow .25s' }}>
+                    <div style={{ borderRadius:12, border:`1px solid ${isActive?'var(--t-border-active)':'var(--t-border)'}`, background:'var(--t-card-bg)', overflow:'hidden', width:'100%', boxSizing:'border-box', minHeight:700, display:'flex', flexDirection:'column', boxShadow: isActive ? '0 4px 20px rgba(0,0,0,.12)' : 'none', transition:'box-shadow .25s' }}>
                       {/* Card header */}
                       {(() => {
                         const st = tabStatus[tab.id];
@@ -5439,7 +5439,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
       })()}
 
       {showEditWizard && (
-        <div className="fixed top-0 bottom-0 right-0 left-64 z-50 overflow-y-auto p-6" style={{background:'var(--ad-bg,#EAF4FD)'}}>
+        <div className="fixed top-0 bottom-0 right-0 left-0 md:left-64 z-50 overflow-y-auto p-6" style={{background:'var(--ad-bg,#EAF4FD)'}}>
           <CreateCaseWizard
             auth={auth}
             initialData={caseData}
