@@ -3226,9 +3226,9 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   <div className="space-y-2 pb-3 border-b border-gray-100">
                     <div className="flex items-center gap-3 flex-wrap">
                       {SUB.map(s => (
-                        <span key={s.key} className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${savedSpecUrls[s.key] ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
+                        <span key={s.key} title={s.label} className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${savedSpecUrls[s.key] ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
                           <span className={`w-2 h-2 rounded-full ${savedSpecUrls[s.key] ? 'bg-green-500' : s.dot} opacity-70`} />
-                          {s.label} {savedSpecUrls[s.key] ? <><Check size={10} className="inline mr-0.5" />{t("spec.saved")}</> : t("spec.not_saved")}
+                          {savedSpecUrls[s.key] ? <><Check size={10} className="inline mr-0.5" />{t("spec.saved")}</> : t("spec.not_saved")}
                         </span>
                       ))}
                       {savingDoc && <span className="text-xs text-blue-600 flex items-center gap-1"><Spinner />&nbsp;{t("spec.saving_pdfs")}</span>}
