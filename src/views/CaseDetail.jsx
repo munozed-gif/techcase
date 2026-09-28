@@ -93,8 +93,12 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   }
 
   // Resolve active SAP environment for display in header
+  // Priority: client-linked envs → project-owned envs (when no client)
   const ssCtxCD = useSystemSettings();
-  const _sapClientData  = (cdSettings['sap_integration'] ?? {})[caseData.client_id] ?? {};
+  const _sapAllConfigs  = cdSettings['sap_integration'] ?? {};
+  const _sapClientData  = caseData.client_id
+    ? (_sapAllConfigs[caseData.client_id] ?? {})
+    : (_sapAllConfigs[`proj_${caseData.project_id}`] ?? {});
   const _sapEnvs        = _sapClientData.environments ?? (_sapClientData.host ? [_sapClientData] : []);
   const _sapCaseEnvMap  = cdSettings['sap_case_env'] ?? {};
   const _sapCaseEnvId   = _sapCaseEnvMap[caseData.id]

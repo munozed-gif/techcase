@@ -20,7 +20,7 @@ import { CatalogMultiSelect } from "../components/CreateCaseWizard.jsx";
 import { OnboardingRoadmap } from "./OnboardingViews.jsx";
 import { CaseDetail } from "./CaseDetail.jsx";
 import { SapProfileBadges, SapProfileFields } from "./OperationsViews.jsx";
-import { ProjectSapEnvPanel } from "../components/SapPanels.jsx";
+import { ProjectSapEnvPanel, ProjectOwnSapPanel } from "../components/SapPanels.jsx";
 import { ApplyTemplateModal, SaveTemplateModal, BUILT_IN_PROJECT_TEMPLATES } from "./CaseTemplates.jsx";
 import {
   LIFECYCLE_PRESETS, SAP_AREAS, INDUSTRY_AREAS, ROLE_COLORS, PROJECT_TYPES,
@@ -1439,7 +1439,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
     { id: "cases",        label: t("project.tab_cases"),         icon: FolderOpen,        count: projCases.length },
     { id: "connections",  label: t("project.tab_connections"),   icon: Database,          count: null },
     ...(canEdit ? [{ id: "lifecycle", label: t("project.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
-    ...((auth.isAdmin || auth.isManager || auth.isClient) && project.client_id ? [{ id: "sap", label: t("project.tab_sap"), icon: Code2, count: null }] : []),
+    ...((auth.isAdmin || auth.isManager || (auth.isClient && project.client_id)) ? [{ id: "sap", label: t("project.tab_sap"), icon: Code2, count: null }] : []),
   ];
 
   const projTabStatus = (() => {
@@ -2224,8 +2224,10 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         )}
 
         {/* SAP Setup */}
-        {tab.id === "sap" && project.client_id && (
-          <ProjectSapEnvPanel projectId={project.id} clientId={project.client_id} auth={auth} />
+        {tab.id === "sap" && (
+          project.client_id
+            ? <ProjectSapEnvPanel projectId={project.id} clientId={project.client_id} auth={auth} />
+            : <ProjectOwnSapPanel projectId={project.id} auth={auth} />
         )}
 
         {/* Lifecycle */}
