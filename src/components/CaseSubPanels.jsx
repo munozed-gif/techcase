@@ -3381,7 +3381,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                             }}
                             rows={25} className="w-full border border-gray-200 rounded-xl p-3 text-sm font-mono resize-y focus:outline-none focus:border-blue-400" />
                         ) : (
-                          <div className="text-sm text-gray-800 leading-relaxed"
+                          <div className="text-xs text-gray-800 leading-relaxed"
                             dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize('<div>' + renderMarkdown(selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA) + '</div>') }} />
                         )}
                       </div>
