@@ -703,9 +703,12 @@ function openHtmlInNewTab(htmlString) {
   else { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.click(); }
 }
 
+const ZOOM_STEPS = [0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 1.0];
+
 function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, generatingSpecs, documents, onBack, onRegenerate, t }) {
   const [loading, setLoading] = useState(false);
   const [fetchErr, setFetchErr] = useState(null);
+  const [zoom, setZoom] = useState(0.55);
 
   useEffect(() => {
     if (protoHtmlState || !protoSaved) return;
@@ -723,11 +726,25 @@ function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, generatingS
       .finally(() => setLoading(false));
   }, [protoSaved, protoHtmlState, documents]);
 
+  const VISIBLE_H = 520;
+  const zoomIdx = ZOOM_STEPS.indexOf(zoom);
+  const canZoomIn  = zoomIdx < ZOOM_STEPS.length - 1;
+  const canZoomOut = zoomIdx > 0;
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-800">{t("spec.proto_node_lbl")}</h3>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          {protoHtmlState && (
+            <div className="flex items-center gap-1 border border-gray-200 rounded-lg overflow-hidden">
+              <button onClick={() => setZoom(ZOOM_STEPS[zoomIdx - 1])} disabled={!canZoomOut}
+                className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 disabled:opacity-30">−</button>
+              <span className="text-xs text-gray-500 px-1 min-w-[34px] text-center">{Math.round(zoom * 100)}%</span>
+              <button onClick={() => setZoom(ZOOM_STEPS[zoomIdx + 1])} disabled={!canZoomIn}
+                className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 disabled:opacity-30">+</button>
+            </div>
+          )}
           {onRegenerate && protoSaved && (
             <button onClick={onRegenerate} disabled={generatingSpecs}
               className="px-3 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 disabled:opacity-40">
@@ -755,13 +772,21 @@ function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, generatingS
         <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{fetchErr}</div>
       )}
       {protoHtmlState && !loading && (
-        <div className="rounded-xl border border-gray-200 overflow-hidden" style={{ height: 520 }}>
-          <iframe
-            srcDoc={protoHtmlState}
-            title="Interactive Prototype"
-            className="w-full h-full border-0"
-            sandbox="allow-scripts"
-          />
+        <div className="rounded-xl border border-gray-200 overflow-hidden" style={{ height: VISIBLE_H, position: 'relative' }}>
+          <div style={{
+            position: 'absolute', top: 0, left: 0,
+            width: `${100 / zoom}%`,
+            height: `${VISIBLE_H / zoom}px`,
+            transform: `scale(${zoom})`,
+            transformOrigin: 'top left',
+          }}>
+            <iframe
+              srcDoc={protoHtmlState}
+              title="Interactive Prototype"
+              style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+              sandbox="allow-scripts"
+            />
+          </div>
         </div>
       )}
       {!protoHtmlState && !loading && !fetchErr && protoSaved && (
