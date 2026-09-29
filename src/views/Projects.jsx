@@ -2046,10 +2046,10 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                   const progress = c.progress_pct ?? 0;
                   const isDone = TERMINAL.includes(c.status);
                   return (
-                    <div key={c.id} className={`border rounded-xl overflow-hidden transition-all ${isExpanded ? "border-blue-200 shadow-sm" : "border-gray-100"}`}>
+                    <div key={c.id} className={`border rounded-xl overflow-hidden transition-all ${isExpanded ? "border-blue-200 shadow-sm" : "border-gray-100 dark:border-gray-700"}`}>
                       {/* Row header */}
                       <div
-                        className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                        className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                         onClick={() => setExpandedCase(isExpanded ? null : c.id)}>
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <ChevronRight size={14} className={`flex-shrink-0 text-gray-400 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
@@ -2097,7 +2097,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
 
                       {/* Expanded detail */}
                       {isExpanded && (
-                        <div className="px-4 pb-4 pt-1 border-t border-gray-100 bg-gray-50/50 space-y-3">
+                        <div className="px-4 pb-4 pt-1 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-black/20 space-y-3">
                           {assignees.length === 0 ? (
                             <p className="text-xs text-gray-400">{t("project.no_case_consultants")}</p>
                           ) : (
@@ -2107,9 +2107,9 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                                 {assignees.map(a => (
                                   <div key={a.consultant_id} className="flex items-center gap-2.5">
                                     <PersonAvatar name={a.users?.full_name ?? '?'} avatarUrl={a.users?.avatar_url} size={28} />
-                                    <span className="text-sm font-medium text-gray-800">{a.users?.full_name ?? t("user.unknown")}</span>
+                                    <span className="text-sm font-medium text-gray-800 dark:text-gray-100">{a.users?.full_name ?? t("user.unknown")}</span>
                                     {a.time_commitment && (
-                                      <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{a.time_commitment}%</span>
+                                      <span className="text-[10px] text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">{a.time_commitment}%</span>
                                     )}
                                   </div>
                                 ))}
@@ -2120,12 +2120,12 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                             <div className="flex items-center gap-2.5">
                               <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-16 flex-shrink-0">{t("project.manager")}</p>
                               <UserAvatar name={c.manager.full_name} size={24} />
-                              <span className="text-xs text-gray-700">{c.manager.full_name}</span>
+                              <span className="text-xs text-gray-700 dark:text-gray-300">{c.manager.full_name}</span>
                             </div>
                           )}
                           <div className="flex items-center justify-between pt-1">
                             <div className="text-xs text-gray-400">
-                              {t("label.progress")}: <span className="font-semibold text-gray-700">{progress}%</span>
+                              {t("label.progress")}: <span className="font-semibold text-gray-700 dark:text-gray-200">{progress}%</span>
                             </div>
                             <button
                               onClick={() => setProjSelectedCase(c)}
