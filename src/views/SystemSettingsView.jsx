@@ -901,6 +901,20 @@ function SettingsPlatformTab({ ssCtx }) {
   );
 }
 
+const NAV_ITEMS_CONFIG = [
+  { id: 'dashboard',     label: 'Dashboard' },
+  { id: 'cases',         label: 'Cases / My Cases' },
+  { id: 'projects',      label: 'Projects' },
+  { id: 'kanban',        label: 'Kanban' },
+  { id: 'arena',         label: 'Arena' },
+  { id: 'time',          label: 'Time Entries' },
+  { id: 'invoices',      label: 'Invoices' },
+  { id: 'reports',       label: 'Reports' },
+  { id: 'notifications', label: 'Notifications' },
+];
+
+const NAV_VIS_ROLES = ["manager", "consultant", "client", "key_user", "headhunter", "final_user", "dispatch", "area_leader"];
+
 function SettingsRolesTab({ ssCtx }) {
   const { t } = useT();
 
@@ -913,6 +927,7 @@ function SettingsRolesTab({ ssCtx }) {
 
   const [matrix, setMatrix] = useState(null);
   const [wizardModes, setWizardModes] = useState(null);
+  const [navVisibility, setNavVisibility] = useState({});
   const [saving, setSaving] = useState(false);
   const [toast, setToast]   = useState(null);
 
@@ -934,6 +949,7 @@ function SettingsRolesTab({ ssCtx }) {
         }
       }
       setWizardModes(mergedWiz);
+      setNavVisibility(ssCtx.settings["nav_visibility_by_role"] ?? {});
     }
   }, [ssCtx.loading, ssCtx.settings]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -942,11 +958,20 @@ function SettingsRolesTab({ ssCtx }) {
     setMatrix(p => ({ ...p, [cap]: { ...p[cap], [role]: !p[cap][role] } }));
   }
 
+  function toggleNavItem(role, navId) {
+    setNavVisibility(prev => {
+      const roleVis = prev[role] ?? {};
+      const current = roleVis[navId] !== false;
+      return { ...prev, [role]: { ...roleVis, [navId]: !current } };
+    });
+  }
+
   async function handleSave() {
     setSaving(true);
     try {
       await ssCtx.setSetting("role_permissions", matrix);
       await ssCtx.setSetting("wizard_modes", wizardModes);
+      await ssCtx.setSetting("nav_visibility_by_role", navVisibility);
       setToast(t("roles.saved"));
       setTimeout(() => setToast(null), 3000);
     } catch (e) {
@@ -965,6 +990,7 @@ function SettingsRolesTab({ ssCtx }) {
       for (const role of WIZARD_ROLES) freshWiz[type][role] = WIZARD_MODE_DEFAULTS[type]?.[role] ?? "ask";
     }
     setWizardModes(freshWiz);
+    setNavVisibility({});
   }
 
   if (ssCtx.loading || !matrix || !wizardModes) return <Spinner />;
@@ -1083,6 +1109,57 @@ function SettingsRolesTab({ ssCtx }) {
                       </select>
                     </td>
                   ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Menu Visibility */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <SlidersHorizontal size={16} className="text-blue-600" />
+          <h3 className="font-semibold text-gray-900 dark:text-white">Menu Visibility</h3>
+        </div>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mb-5">
+          Choose which sidebar items each role can see. Items not in a role's default menu are already hidden. Admin always sees everything.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-gray-200 dark:border-gray-700">
+                <th className="text-left py-2 pr-4 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide w-36">Nav Item</th>
+                {NAV_VIS_ROLES.map(r => (
+                  <th key={r} className="text-center py-2 px-2 min-w-[76px]">
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${ROLE_COLORS[r] ?? 'bg-gray-100 text-gray-600'}`}>
+                      {t("role." + r)}
+                    </span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {NAV_ITEMS_CONFIG.map((nav, idx) => (
+                <tr key={nav.id} className={`border-b border-gray-100 dark:border-gray-700 ${idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-gray-700/30' : ''}`}>
+                  <td className="py-2.5 pr-4 font-medium text-gray-700 dark:text-gray-300 text-xs">{nav.label}</td>
+                  {NAV_VIS_ROLES.map(role => {
+                    const visible = (navVisibility[role] ?? {})[nav.id] !== false;
+                    return (
+                      <td key={role} className="text-center py-2.5 px-2">
+                        <button
+                          onClick={() => toggleNavItem(role, nav.id)}
+                          className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${
+                            visible
+                              ? 'bg-blue-600 border-blue-600 text-white'
+                              : 'bg-transparent border-gray-400 dark:border-gray-500 text-transparent hover:border-blue-400'
+                          }`}
+                        >
+                          <Check size={11} />
+                        </button>
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>
@@ -3340,6 +3417,8 @@ function SettingsPlansTab({ ssCtx, auth }) {
   const [tab, setTab] = useState('users');
   const [editConfig, setEditConfig] = useState(null);
   const [configSaving, setConfigSaving] = useState(false);
+  const [navPlanVis, setNavPlanVis] = useState(ssCtx.settings['nav_visibility_by_plan'] ?? {});
+  const [navPlanSaving, setNavPlanSaving] = useState(false);
 
   useEffect(() => {
     supabase.from('users').select('id, full_name, email, role, created_at')
@@ -3382,7 +3461,7 @@ function SettingsPlansTab({ ssCtx, auth }) {
 
       {/* Sub-tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
-        {[{id:'users',label:'User Plans'},{id:'config',label:'Plan Limits'}].map(s => (
+        {[{id:'users',label:'User Plans'},{id:'config',label:'Plan Limits'},{id:'nav',label:'Feature Access'}].map(s => (
           <button key={s.id} onClick={() => setTab(s.id)}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab === s.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
             {s.label}
@@ -3504,6 +3583,73 @@ function SettingsPlansTab({ ssCtx, auth }) {
             <button onClick={saveConfig} disabled={configSaving}
               className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white text-sm font-semibold rounded-xl transition-colors">
               {configSaving ? 'Saving…' : 'Save Plan Config'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {tab === 'nav' && (
+        <div className="space-y-6">
+          <p className="text-sm text-gray-500">Control which sidebar items are available per membership plan. Unchecked items are hidden for users on that plan.</p>
+          {PLAN_TYPES.map(rt => (
+            <div key={rt} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+              <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
+                <h3 className="font-semibold text-gray-800 capitalize">{rt} Plans</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      <th className="text-left px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide w-36">Nav Item</th>
+                      {(PLAN_KEYS[rt] ?? []).map(pk => (
+                        <th key={pk} className="px-4 py-2 text-center">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${PLAN_BADGE[pk] ?? PLAN_BADGE.free}`}>{pk}</span>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {NAV_ITEMS_CONFIG.map((nav, idx) => (
+                      <tr key={nav.id} className={idx % 2 === 0 ? 'bg-gray-50/40' : ''}>
+                        <td className="px-4 py-2.5 font-medium text-gray-700">{nav.label}</td>
+                        {(PLAN_KEYS[rt] ?? []).map(pk => {
+                          const visible = (navPlanVis[rt]?.[pk] ?? {})[nav.id] !== false;
+                          return (
+                            <td key={pk} className="px-4 py-2.5 text-center">
+                              <button
+                                onClick={() => setNavPlanVis(prev => {
+                                  const rtVis  = prev[rt]  ?? {};
+                                  const pkVis  = rtVis[pk] ?? {};
+                                  return { ...prev, [rt]: { ...rtVis, [pk]: { ...pkVis, [nav.id]: !visible } } };
+                                })}
+                                className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${
+                                  visible
+                                    ? 'bg-blue-600 border-blue-600 text-white'
+                                    : 'bg-transparent border-gray-300 text-transparent hover:border-blue-400'
+                                }`}
+                              >
+                                <Check size={11} />
+                              </button>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+          <div className="flex justify-end">
+            <button
+              onClick={async () => {
+                setNavPlanSaving(true);
+                await ssCtx.setSetting('nav_visibility_by_plan', navPlanVis);
+                setNavPlanSaving(false);
+              }}
+              disabled={navPlanSaving}
+              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white text-sm font-semibold rounded-xl transition-colors">
+              {navPlanSaving ? 'Saving…' : 'Save Feature Access'}
             </button>
           </div>
         </div>

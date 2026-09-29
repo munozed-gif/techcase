@@ -4,7 +4,8 @@ import {
   SlidersHorizontal, Target, User, UserCheck, UsersRound,
 } from "lucide-react";
 import { useT } from "../i18n/index.jsx";
-import { usePlatformBranding, useVisibilitySettings } from "../hooks/useSystemSettings.jsx";
+import { usePlatformBranding, useVisibilitySettings, useSystemSettings, usePlanConfig } from "../hooks/useSystemSettings.jsx";
+import { ROLE_TO_PLAN_TYPE } from "../lib/businessConstants.js";
 import { NotificationBell } from "./NotificationBell.jsx";
 import { PersonAvatar } from "../views/Projects.jsx";
 
@@ -61,6 +62,11 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
   const { t, lang, setLang } = useT();
   const sidebarVisCfg = useVisibilitySettings();
   const branding = usePlatformBranding();
+  const ssCtx = useSystemSettings();
+  const planCfg = usePlanConfig();
+
+  const NAV_CONCEPT = { 'my-cases': 'cases', 'leader-cases': 'cases' };
+  const conceptOf = id => NAV_CONCEPT[id] ?? id;
 
   const navItems = {
     admin: [
@@ -172,6 +178,32 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
     }
   }
 
+  // Nav visibility settings (role-based and plan-based)
+  const navRoleVis   = ssCtx.settings['nav_visibility_by_role'] ?? {};
+  const navPlanVisCfg = ssCtx.settings['nav_visibility_by_plan'] ?? {};
+  if (role !== 'admin') {
+    const roleHide = navRoleVis[role] ?? {};
+    items = items.filter(item => roleHide[conceptOf(item.id)] !== false);
+
+    const roleType = ROLE_TO_PLAN_TYPE[role];
+    if (roleType && auth?.user?.id) {
+      const userPlan = planCfg.getUserPlan(auth.user.id);
+      const planHide = navPlanVisCfg[roleType]?.[userPlan] ?? {};
+      items = items.filter(item => planHide[conceptOf(item.id)] !== false);
+    }
+  }
+  const showNotifications = role === 'admin' || (() => {
+    const roleHide = navRoleVis[role] ?? {};
+    if (roleHide['notifications'] === false) return false;
+    const roleType = ROLE_TO_PLAN_TYPE[role];
+    if (roleType && auth?.user?.id) {
+      const userPlan = planCfg.getUserPlan(auth.user.id);
+      const planHide = navPlanVisCfg[roleType]?.[userPlan] ?? {};
+      if (planHide['notifications'] === false) return false;
+    }
+    return true;
+  })();
+
   return (
     <>
       {/* Mobile overlay */}
@@ -228,7 +260,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
           })}
 
           {/* Notifications */}
-          {(() => {
+          {showNotifications && (() => {
             const isActive = activeView === "notifications";
             return (
               <button onClick={() => onNav("notifications")}
