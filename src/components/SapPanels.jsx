@@ -1513,11 +1513,11 @@ function AbapTemplatesSection({ auth }) {
 // ============================================================
 
 const BP_PHASES = [
-  { id: 'dictionary',  label: 'Data Dictionary', desc: 'Tables, structures, domains', headerCls: 'bg-violet-50 border-b-2 border-violet-200', bodyCls: 'bg-violet-50/40', textCls: 'text-violet-700' },
-  { id: 'development', label: 'Development',     desc: 'Programs, classes, FMs',      headerCls: 'bg-blue-50 border-b-2 border-blue-200',   bodyCls: 'bg-blue-50/40',   textCls: 'text-blue-700'   },
-  { id: 'integration', label: 'Integration',     desc: 'RFCs, BAPIs, OData',         headerCls: 'bg-cyan-50 border-b-2 border-cyan-200',   bodyCls: 'bg-cyan-50/40',   textCls: 'text-cyan-700'   },
-  { id: 'enhancement', label: 'Enhancement',     desc: 'BAdIs, user exits',           headerCls: 'bg-amber-50 border-b-2 border-amber-200', bodyCls: 'bg-amber-50/40', textCls: 'text-amber-700'  },
-  { id: 'ui',          label: 'UI / Output',     desc: 'Reports, forms, Fiori',       headerCls: 'bg-pink-50 border-b-2 border-pink-200',   bodyCls: 'bg-pink-50/40',   textCls: 'text-pink-700'   },
+  { id: 'dictionary',  label: 'Data Dictionary', desc: 'Tables, structures, domains', headerCls: 'bg-violet-50 dark:bg-violet-900/30 border-b-2 border-violet-200 dark:border-violet-800', bodyCls: 'bg-violet-50/40 dark:bg-violet-900/20', textCls: 'text-violet-700 dark:text-violet-300' },
+  { id: 'development', label: 'Development',     desc: 'Programs, classes, FMs',      headerCls: 'bg-blue-50 dark:bg-blue-900/30 border-b-2 border-blue-200 dark:border-blue-800',       bodyCls: 'bg-blue-50/40 dark:bg-blue-900/20',     textCls: 'text-blue-700 dark:text-blue-300'     },
+  { id: 'integration', label: 'Integration',     desc: 'RFCs, BAPIs, OData',         headerCls: 'bg-cyan-50 dark:bg-cyan-900/30 border-b-2 border-cyan-200 dark:border-cyan-800',       bodyCls: 'bg-cyan-50/40 dark:bg-cyan-900/20',     textCls: 'text-cyan-700 dark:text-cyan-300'     },
+  { id: 'enhancement', label: 'Enhancement',     desc: 'BAdIs, user exits',           headerCls: 'bg-amber-50 dark:bg-amber-900/30 border-b-2 border-amber-200 dark:border-amber-800',  bodyCls: 'bg-amber-50/40 dark:bg-amber-900/20',   textCls: 'text-amber-700 dark:text-amber-300'   },
+  { id: 'ui',          label: 'UI / Output',     desc: 'Reports, forms, Fiori',       headerCls: 'bg-pink-50 dark:bg-pink-900/30 border-b-2 border-pink-200 dark:border-pink-800',     bodyCls: 'bg-pink-50/40 dark:bg-pink-900/20',     textCls: 'text-pink-700 dark:text-pink-300'     },
 ];
 
 const BP_TYPES = {
@@ -1977,7 +1977,7 @@ Output ONLY the ABAP source code, no explanations.`;
                     .filter(o => o.phase === phase.id)
                     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
                   return (
-                    <div key={phase.id} className="flex flex-col border-r border-gray-100 last:border-0" style={{ minWidth: 220 }}>
+                    <div key={phase.id} className="flex flex-col border-r border-gray-100 dark:border-gray-700 last:border-0" style={{ minWidth: 220 }}>
                       {/* Lane header */}
                       <div className={`px-3 py-2 sticky top-0 z-20 ${phase.headerCls}`}>
                         <p className={`text-xs font-bold ${phase.textCls}`}>{phase.label}</p>
