@@ -404,8 +404,8 @@ function SapIntegrationPanel({ clientId, auth }) {
             const typeMeta = SAP_ENV_TYPE_META[env.envType] ?? SAP_ENV_TYPE_META.dev;
             const testStatus = testStates[env.id];
             return (
-              <div key={env.id} className={`border rounded-xl overflow-hidden transition-all ${isExpanded ? 'border-blue-200' : 'border-gray-100'}`}>
-                <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors"
+              <div key={env.id} className={`border rounded-xl overflow-hidden transition-all ${isExpanded ? 'border-blue-200' : 'border-gray-100 dark:border-gray-700'}`}>
+                <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                   onClick={() => setExpandedId(isExpanded ? null : env.id)}>
                   <ChevronRight size={14} className={`flex-shrink-0 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                   <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${typeMeta.color}`}>{typeMeta.label}</span>
@@ -422,17 +422,17 @@ function SapIntegrationPanel({ clientId, auth }) {
                 </div>
 
                 {isExpanded && (
-                  <div className="px-4 pb-4 pt-2 border-t border-gray-100 bg-gray-50/40 space-y-4">
+                  <div className="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-700 bg-gray-50/40 dark:bg-black/20 space-y-4">
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.env_name')}</label>
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('sap.env_name')}</label>
                         <input value={env.name} onChange={e => updateEnvField(env.id, 'name', e.target.value)} disabled={!canEdit}
-                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white" />
+                          className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.env_type')}</label>
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('sap.env_type')}</label>
                         <select value={env.envType} onChange={e => updateEnvField(env.id, 'envType', e.target.value)} disabled={!canEdit}
-                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white">
+                          className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100">
                           <option value="dev">Development (DEV)</option>
                           <option value="qas">Quality / Testing (QAS)</option>
                           <option value="prd">Production (PRD)</option>
@@ -445,42 +445,42 @@ function SapIntegrationPanel({ clientId, auth }) {
                       <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Connection</div>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_host')}</label>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('sap.conn_host')}</label>
                           <input value={env.host} onChange={e => updateEnvField(env.id, 'host', e.target.value)} disabled={!canEdit}
-                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white"
+                            className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500"
                             placeholder={t('sap.conn_ph_host')} />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_client')}</label>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('sap.conn_client')}</label>
                           <input value={env.client} onChange={e => updateEnvField(env.id, 'client', e.target.value)} disabled={!canEdit}
-                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white"
+                            className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500"
                             placeholder={t('sap.conn_ph_client')} />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_username')}</label>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('sap.conn_username')}</label>
                           <input value={env.username} onChange={e => updateEnvField(env.id, 'username', e.target.value)} disabled={!canEdit}
-                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white"
+                            className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100"
                             autoComplete="off" />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_password')}</label>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('sap.conn_password')}</label>
                           <input type="password" value={env.password} onChange={e => updateEnvField(env.id, 'password', e.target.value)} disabled={!canEdit}
-                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white"
+                            className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100"
                             autoComplete="new-password" />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_type')}</label>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('sap.conn_type')}</label>
                           <select value={env.type} onChange={e => updateEnvField(env.id, 'type', e.target.value)} disabled={!canEdit}
-                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white">
+                            className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100">
                             <option value="s4hana">SAP S/4HANA</option>
                             <option value="ecc">SAP ECC / NetWeaver</option>
                             <option value="btp">SAP BTP</option>
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_proxy')}</label>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('sap.conn_proxy')}</label>
                           <input value={env.proxyUrl} onChange={e => updateEnvField(env.id, 'proxyUrl', e.target.value)} disabled={!canEdit}
-                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white"
+                            className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500"
                             placeholder={t('sap.conn_ph_proxy')} />
                         </div>
                       </div>
@@ -489,7 +489,7 @@ function SapIntegrationPanel({ clientId, auth }) {
                     {canEdit && (
                       <div className="flex items-center gap-3">
                         <button onClick={() => testConnection(env)} disabled={testStatus === 'testing' || !env.host || !env.username}
-                          className="px-4 py-2 text-sm font-semibold bg-gray-100 hover:bg-gray-200 rounded-xl disabled:opacity-50 transition-colors">
+                          className="px-4 py-2 text-sm font-semibold bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 rounded-xl disabled:opacity-50 transition-colors">
                           {testStatus === 'testing' ? t('sap.testing') : t('sap.test_connection')}
                         </button>
                         {testStatus === 'ok'   && <span className="text-sm text-green-600 font-medium flex items-center gap-1"><CheckCircle2 size={14} />{t('sap.test_ok')}</span>}
@@ -497,20 +497,20 @@ function SapIntegrationPanel({ clientId, auth }) {
                       </div>
                     )}
 
-                    <div className="space-y-2 border-t border-gray-100 pt-3">
+                    <div className="space-y-2 border-t border-gray-100 dark:border-gray-700 pt-3">
                       <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Features</div>
                       {[
                         { key: 'liveCheckOnGenerate', labelKey: 'sap.live_check_label', descKey: 'sap.live_check_desc', color: 'bg-blue-600' },
                         { key: 'autoImplementEnabled', labelKey: 'sap.auto_impl_label', descKey: 'sap.auto_impl_desc', color: 'bg-amber-500' },
                       ].map(({ key, labelKey, descKey, color }) => (
-                        <div key={key} className="flex items-start gap-4 p-3 rounded-xl border border-gray-100 bg-white">
+                        <div key={key} className="flex items-start gap-4 p-3 rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800/60">
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-gray-800">{t(labelKey)}</p>
+                            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t(labelKey)}</p>
                             <p className="text-xs text-gray-400 mt-0.5 leading-snug">{t(descKey)}</p>
                           </div>
                           <button disabled={!canEdit}
                             onClick={() => updateEnvField(env.id, key, !env[key])}
-                            className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 disabled:opacity-50 ${env[key] ? color : 'bg-gray-200'}`}
+                            className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 disabled:opacity-50 ${env[key] ? color : 'bg-gray-200 dark:bg-gray-600'}`}
                             role="switch" aria-checked={env[key]}>
                             <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${env[key] ? 'translate-x-5' : 'translate-x-0'}`} />
                           </button>
@@ -780,12 +780,12 @@ function ProjectOwnSapPanel({ projectId, auth }) {
               const testStatus = testStates[env.id];
               const isDefault = env.id === (selectedEnvId || environments[0]?.id);
               return (
-                <div key={env.id} className={`border rounded-xl overflow-hidden transition-all ${isExpanded ? 'border-blue-200' : 'border-gray-100'}`}>
-                  <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                <div key={env.id} className={`border rounded-xl overflow-hidden transition-all ${isExpanded ? 'border-blue-200' : 'border-gray-100 dark:border-gray-700'}`}>
+                  <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                     onClick={() => setExpandedId(isExpanded ? null : env.id)}>
                     <ChevronRight size={14} className={`flex-shrink-0 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                     <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${typeMeta.color}`}>{typeMeta.label}</span>
-                    <span className="font-semibold text-sm text-gray-800 flex-1 truncate">{env.name || 'Unnamed'}</span>
+                    <span className="font-semibold text-sm text-gray-800 dark:text-gray-100 flex-1 truncate">{env.name || 'Unnamed'}</span>
                     {isDefault && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 flex-shrink-0">Default</span>}
                     {env.host && <span className="text-xs text-gray-400 truncate hidden sm:block max-w-[180px]">{env.host}</span>}
                     {testStatus === 'ok'   && <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />}
@@ -805,17 +805,17 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                   </div>
 
                   {isExpanded && (
-                    <div className="px-4 pb-4 pt-2 border-t border-gray-100 bg-gray-50/40 space-y-4">
+                    <div className="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-700 bg-gray-50/40 dark:bg-black/20 space-y-4">
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.env_name')}</label>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('sap.env_name')}</label>
                           <input value={env.name} onChange={e => updateEnvField(env.id, 'name', e.target.value)} disabled={!canEdit}
-                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white" />
+                            className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.env_type')}</label>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('sap.env_type')}</label>
                           <select value={env.envType} onChange={e => updateEnvField(env.id, 'envType', e.target.value)} disabled={!canEdit}
-                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white">
+                            className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100">
                             <option value="dev">Development (DEV)</option>
                             <option value="qas">Quality / Testing (QAS)</option>
                             <option value="prd">Production (PRD)</option>
@@ -828,42 +828,42 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                         <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Connection</div>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_host')}</label>
+                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('sap.conn_host')}</label>
                             <input value={env.host} onChange={e => updateEnvField(env.id, 'host', e.target.value)} disabled={!canEdit}
-                              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white"
+                              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500"
                               placeholder={t('sap.conn_ph_host')} />
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_client')}</label>
+                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('sap.conn_client')}</label>
                             <input value={env.client} onChange={e => updateEnvField(env.id, 'client', e.target.value)} disabled={!canEdit}
-                              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white"
+                              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500"
                               placeholder={t('sap.conn_ph_client')} />
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_username')}</label>
+                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('sap.conn_username')}</label>
                             <input value={env.username} onChange={e => updateEnvField(env.id, 'username', e.target.value)} disabled={!canEdit}
-                              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white"
+                              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100"
                               autoComplete="off" />
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_password')}</label>
+                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('sap.conn_password')}</label>
                             <input type="password" value={env.password} onChange={e => updateEnvField(env.id, 'password', e.target.value)} disabled={!canEdit}
-                              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white"
+                              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100"
                               autoComplete="new-password" />
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_type')}</label>
+                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('sap.conn_type')}</label>
                             <select value={env.type} onChange={e => updateEnvField(env.id, 'type', e.target.value)} disabled={!canEdit}
-                              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white">
+                              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100">
                               <option value="s4hana">SAP S/4HANA</option>
                               <option value="ecc">SAP ECC / NetWeaver</option>
                               <option value="btp">SAP BTP</option>
                             </select>
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.conn_proxy')}</label>
+                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t('sap.conn_proxy')}</label>
                             <input value={env.proxyUrl} onChange={e => updateEnvField(env.id, 'proxyUrl', e.target.value)} disabled={!canEdit}
-                              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 bg-white"
+                              className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500"
                               placeholder={t('sap.conn_ph_proxy')} />
                           </div>
                         </div>
@@ -872,7 +872,7 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                       {canEdit && (
                         <div className="flex items-center gap-3">
                           <button onClick={() => testConnection(env)} disabled={testStatus === 'testing' || !env.host || !env.username}
-                            className="px-4 py-2 text-sm font-semibold bg-gray-100 hover:bg-gray-200 rounded-xl disabled:opacity-50 transition-colors">
+                            className="px-4 py-2 text-sm font-semibold bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 rounded-xl disabled:opacity-50 transition-colors">
                             {testStatus === 'testing' ? t('sap.testing') : t('sap.test_connection')}
                           </button>
                           {testStatus === 'ok'   && <span className="text-sm text-green-600 font-medium flex items-center gap-1"><CheckCircle2 size={14} />{t('sap.test_ok')}</span>}
@@ -880,20 +880,20 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                         </div>
                       )}
 
-                      <div className="space-y-2 border-t border-gray-100 pt-3">
+                      <div className="space-y-2 border-t border-gray-100 dark:border-gray-700 pt-3">
                         <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Features</div>
                         {[
                           { key: 'liveCheckOnGenerate', labelKey: 'sap.live_check_label', descKey: 'sap.live_check_desc', color: 'bg-blue-600' },
                           { key: 'autoImplementEnabled', labelKey: 'sap.auto_impl_label', descKey: 'sap.auto_impl_desc', color: 'bg-amber-500' },
                         ].map(({ key, labelKey, descKey, color }) => (
-                          <div key={key} className="flex items-start gap-4 p-3 rounded-xl border border-gray-100 bg-white">
+                          <div key={key} className="flex items-start gap-4 p-3 rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800/60">
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-gray-800">{t(labelKey)}</p>
+                              <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t(labelKey)}</p>
                               <p className="text-xs text-gray-400 mt-0.5 leading-snug">{t(descKey)}</p>
                             </div>
                             <button disabled={!canEdit}
                               onClick={() => updateEnvField(env.id, key, !env[key])}
-                              className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 disabled:opacity-50 ${env[key] ? color : 'bg-gray-200'}`}
+                              className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 disabled:opacity-50 ${env[key] ? color : 'bg-gray-200 dark:bg-gray-600'}`}
                               role="switch" aria-checked={env[key]}>
                               <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${env[key] ? 'translate-x-5' : 'translate-x-0'}`} />
                             </button>
