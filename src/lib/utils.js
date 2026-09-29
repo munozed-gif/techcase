@@ -33,11 +33,11 @@ async function notifyCaseParticipants(caseId, excludeUserId, title, body, opts =
 // ─────────────────────────────────────────────────────────────
 
 // ── Claude API helper ────────────────────────────────────────
-async function callClaude({ system, messages, max_tokens = 2048, model = 'claude-haiku-4-5-20251001' }) {
+async function callClaude({ system, messages, max_tokens = 2048, model = 'claude-haiku-4-5-20251001', mcp_servers }) {
   const res = await fetch('/api/claude', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ system, messages, max_tokens, model }),
+    body: JSON.stringify({ system, messages, max_tokens, model, ...(mcp_servers?.length ? { mcp_servers } : {}) }),
   });
   if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'Claude API error'); }
   const data = await res.json();

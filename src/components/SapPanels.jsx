@@ -180,6 +180,45 @@ function buildAbapStandardsPrompt(standards, objectType, objectName, act, caseDa
 }
 
 // ============================================================
+// SAP MCP HELPERS
+// ============================================================
+
+/**
+ * Encode SAP env credentials as a base64 Bearer token for the MCP server.
+ * The MCP server decodes this to make ADT calls server-side.
+ */
+function buildSapMcpToken(sapConfig) {
+  if (!sapConfig?.host || !sapConfig?.username || !sapConfig?.password) return null;
+  const payload = {
+    host:     sapConfig.host,
+    username: sapConfig.username,
+    password: sapConfig.password,
+    client:   sapConfig.client ?? '100',
+    type:     sapConfig.type ?? 's4hana',
+    proxyUrl: sapConfig.proxyUrl ?? '',
+  };
+  return btoa(JSON.stringify(payload));
+}
+
+/**
+ * Build the mcp_servers array for callClaude when a SAP env + MCP server URL are configured.
+ * Returns undefined when either is missing so callClaude falls back to plain generation.
+ */
+function buildSapMcpConfig(sapConfig, mcpServerUrl) {
+  if (!mcpServerUrl?.trim() || !sapConfig?.host) return undefined;
+  const token = buildSapMcpToken(sapConfig);
+  if (!token) return undefined;
+  return [
+    {
+      type: 'url',
+      url: mcpServerUrl.trim().replace(/\/$/, '') + '/mcp',
+      name: 'sap-tools',
+      authorization_token: token,
+    },
+  ];
+}
+
+// ============================================================
 // SAP API UTILITIES
 // ============================================================
 
@@ -1797,6 +1836,7 @@ Output ONLY the ABAP source code, no explanations.`;
           system: 'You are an expert SAP ABAP developer. Output only clean ABAP source code.',
           messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
           max_tokens: 3000,
+          mcp_servers: buildSapMcpConfig(sapConfig, ssCtx.settings['sap_mcp_server_url']),
         });
         const code = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
         updateObj(obj.id, { status: 'generated', generatedCode: code });
@@ -2215,6 +2255,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
         system: 'You are an expert SAP ABAP developer. Output only clean, compilable ABAP source code. Follow all coding standards provided in the user message without exception.',
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
         max_tokens: 4000,
+        mcp_servers: buildSapMcpConfig(sapConfig, ssCtx.settings['sap_mcp_server_url']),
       });
       const code = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
       setActField(act.id, { generating: false, generatedCode: code });
