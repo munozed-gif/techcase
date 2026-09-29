@@ -3610,7 +3610,7 @@ function SettingsPlansTab({ ssCtx, auth }) {
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {NAV_ITEMS_CONFIG.map((nav, idx) => (
-                      <tr key={nav.id} className={idx % 2 === 0 ? 'bg-gray-50/40' : ''}>
+                      <tr key={nav.id} className={idx % 2 === 0 ? 'bg-gray-50/50 dark:bg-white/5' : ''}>
                         <td className="px-4 py-2.5 font-medium text-gray-700">{nav.label}</td>
                         {(PLAN_KEYS[rt] ?? []).map(pk => {
                           const visible = (navPlanVis[rt]?.[pk] ?? {})[nav.id] !== false;
@@ -3625,7 +3625,7 @@ function SettingsPlansTab({ ssCtx, auth }) {
                                 className={`inline-flex items-center justify-center w-5 h-5 rounded-full border-2 transition-colors ${
                                   visible
                                     ? 'bg-blue-600 border-blue-600 text-white'
-                                    : 'bg-transparent border-gray-300 text-transparent hover:border-blue-400'
+                                    : 'bg-transparent border-gray-400 dark:border-gray-500 text-transparent hover:border-blue-400'
                                 }`}
                               >
                                 <Check size={11} />
