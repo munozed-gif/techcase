@@ -1730,6 +1730,15 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
   });
 
   async function handleAiSuggest() {
+    const prevAiObjs = objects.filter(o => o.aiSuggested);
+    if (prevAiObjs.length > 0) {
+      const edited = prevAiObjs.filter(o => o.status !== 'planned' || o.generatedCode);
+      const msg = edited.length > 0
+        ? `This will replace ${prevAiObjs.length} AI-suggested objects (${edited.length} have been edited or generated). Continue?`
+        : `This will replace the ${prevAiObjs.length} existing AI-suggested objects with a new set. Continue?`;
+      if (!window.confirm(msg)) return;
+    }
+
     const prompt = `You are an SAP architect. Analyze this implementation case and suggest the SAP development objects needed.
 
 Case: ${caseData.title}
@@ -1774,6 +1783,7 @@ Suggest 5-12 objects that cover the full implementation scope.`;
           transport: transportReq ?? '',
           generatedCode: null,
           appliedAt: null,
+          aiSuggested: true,
         };
       });
       // Resolve name-based dependsOn to ids
@@ -1782,7 +1792,9 @@ Suggest 5-12 objects that cover the full implementation scope.`;
           newObjs[i].dependsOn = item.dependsOn.map(n => nameToId[n]).filter(Boolean);
         }
       });
-      const next = [...newObjs, ...objects];
+      // Keep manually added objects, replace previous AI batch
+      const kept = objects.filter(o => !o.aiSuggested);
+      const next = [...newObjs, ...kept];
       setObjects(next);
       await saveBlueprint(next);
     } catch (e) {
