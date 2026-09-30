@@ -1731,11 +1731,19 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
 
   async function handleAiSuggest() {
     const prevAiObjs = objects.filter(o => o.aiSuggested);
-    if (prevAiObjs.length > 0) {
-      const edited = prevAiObjs.filter(o => o.status !== 'planned' || o.generatedCode);
-      const msg = edited.length > 0
-        ? `This will replace ${prevAiObjs.length} AI-suggested objects (${edited.length} have been edited or generated). Continue?`
-        : `This will replace the ${prevAiObjs.length} existing AI-suggested objects with a new set. Continue?`;
+    const legacyObjs = objects.filter(o => !o.aiSuggested); // added before flag existed
+    if (objects.length > 0) {
+      const edited = objects.filter(o => o.status !== 'planned' || o.generatedCode);
+      let msg;
+      if (prevAiObjs.length > 0) {
+        msg = edited.length > 0
+          ? `Replace ${prevAiObjs.length} AI-suggested objects (${edited.length} modified)? Manually added objects will be kept.`
+          : `Replace ${prevAiObjs.length} AI-suggested objects with a new set? Manually added objects will be kept.`;
+      } else {
+        msg = edited.length > 0
+          ? `The blueprint has ${legacyObjs.length} existing objects (${edited.length} modified). Regenerate will replace all of them. Continue?`
+          : `The blueprint has ${legacyObjs.length} existing objects. Regenerate will replace all of them. Continue?`;
+      }
       if (!window.confirm(msg)) return;
     }
 
@@ -1792,8 +1800,8 @@ Suggest 5-12 objects that cover the full implementation scope.`;
           newObjs[i].dependsOn = item.dependsOn.map(n => nameToId[n]).filter(Boolean);
         }
       });
-      // Keep manually added objects, replace previous AI batch
-      const kept = objects.filter(o => !o.aiSuggested);
+      // Keep manually added objects; for legacy canvases with no flags, replace all
+      const kept = prevAiObjs.length > 0 ? objects.filter(o => !o.aiSuggested) : [];
       const next = [...newObjs, ...kept];
       setObjects(next);
       await saveBlueprint(next);
