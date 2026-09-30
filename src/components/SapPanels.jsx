@@ -2169,7 +2169,9 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   const { settings } = ssCtx;
 
   const allSapConfigs = settings['sap_integration'] ?? {};
-  const clientSapData = allSapConfigs[caseData.client_id] ?? {};
+  const clientSapData = caseData.client_id
+    ? (allSapConfigs[caseData.client_id] ?? {})
+    : (allSapConfigs[`proj_${caseData.project_id}`] ?? {});
   const sapEnvironments = clientSapData.environments ?? (clientSapData.host ? [clientSapData] : []);
   const sapProjectEnvMap = settings['sap_project_env'] ?? {};
   const sapCaseEnvMap   = settings['sap_case_env']    ?? {};
