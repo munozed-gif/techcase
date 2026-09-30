@@ -695,7 +695,10 @@ function AbapTemplateSection({ projectId, canEdit }) {
   const ssCtx = useSystemSettings();
   const allConfigs = ssCtx.settings['sap_integration'] ?? {};
   const storageKey = `proj_${projectId}`;
-  const saved = (allConfigs[storageKey] ?? {}).abap_template ?? null;
+  const projCfg = allConfigs[storageKey] ?? {};
+
+  // Support legacy single-object and new array format
+  const rawSaved = projCfg.abap_templates ?? (projCfg.abap_template ? [projCfg.abap_template] : []);
 
   const [projectDocs, setProjectDocs] = useState([]);
   const [selected, setSelected]       = useState('');
@@ -718,10 +721,10 @@ function AbapTemplateSection({ projectId, canEdit }) {
     loadDocs();
   }, [projectId]);
 
-  async function saveTemplate(tmpl) {
+  async function saveTemplates(list) {
     await ssCtx.setSetting('sap_integration', {
       ...allConfigs,
-      [storageKey]: { ...(allConfigs[storageKey] ?? {}), abap_template: tmpl },
+      [storageKey]: { ...projCfg, abap_templates: list, abap_template: undefined },
     });
   }
 
@@ -729,85 +732,97 @@ function AbapTemplateSection({ projectId, canEdit }) {
     setSelected(docId);
     if (!docId) return;
     const doc = projectDocs.find(d => d.id === docId);
-    if (doc) await saveTemplate({ name: doc.file_name, url: doc.file_url, size_kb: doc.file_size_kb, source: 'case_doc' });
+    if (!doc) return;
+    const already = rawSaved.some(t => t.url === doc.file_url);
+    if (!already) await saveTemplates([...rawSaved, { name: doc.file_name, url: doc.file_url, size_kb: doc.file_size_kb, source: 'case_doc' }]);
+    setSelected('');
   }
 
   async function handleUpload(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
     setUploading(true);
-    try {
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const path = `project-templates/${projectId}/${Date.now()}-${safeName}`;
-      const { error } = await supabase.storage.from('case-documents').upload(path, file, { upsert: false });
-      if (error) throw error;
-      const { data: { publicUrl } } = supabase.storage.from('case-documents').getPublicUrl(path);
-      await saveTemplate({ name: file.name, url: publicUrl, size_kb: Math.round(file.size / 1024), source: 'upload' });
-    } catch (err) { alert(err.message); }
+    const added = [];
+    for (const file of files) {
+      try {
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const path = `project-templates/${projectId}/${Date.now()}-${safeName}`;
+        const { error } = await supabase.storage.from('case-documents').upload(path, file, { upsert: false });
+        if (error) throw error;
+        const { data: { publicUrl } } = supabase.storage.from('case-documents').getPublicUrl(path);
+        added.push({ name: file.name, url: publicUrl, size_kb: Math.round(file.size / 1024), source: 'upload' });
+      } catch (err) { alert(`${file.name}: ${err.message}`); }
+    }
+    if (added.length) await saveTemplates([...rawSaved, ...added]);
     setUploading(false);
     if (fileRef.current) fileRef.current.value = '';
   }
 
-  async function handleRemove() {
-    await saveTemplate(null);
-    setSelected('');
+  async function handleRemove(idx) {
+    await saveTemplates(rawSaved.filter((_, i) => i !== idx));
   }
+
+  // Docs not yet added
+  const availableDocs = projectDocs.filter(d => !rawSaved.some(t => t.url === d.file_url));
 
   return (
     <div className="bg-white dark:bg-gray-800/60 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-5 space-y-4">
       <div className="flex items-center gap-2">
         <FileText size={15} className="text-amber-500" />
-        <h3 className="font-bold text-gray-900 dark:text-gray-100 text-sm">ABAP Standards Document</h3>
+        <h3 className="font-bold text-gray-900 dark:text-gray-100 text-sm">ABAP Standards Documents</h3>
       </div>
       <p className="text-xs text-gray-400 leading-snug -mt-2">
-        Attach your customer's ABAP naming conventions, coding standards, or transport strategy document.
-        It will be included as context when generating functional specs for this project.
+        Attach your customer's ABAP naming conventions, coding standards, or transport strategy documents.
+        They will be included as context when generating functional specs for this project.
       </p>
 
-      {saved ? (
-        <div className="flex items-center gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl px-4 py-3">
-          <FileText size={18} className="text-amber-600 flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{saved.name}</p>
-            {saved.size_kb && <p className="text-xs text-gray-400">{saved.size_kb} KB</p>}
-          </div>
-          <a href={saved.url} target="_blank" rel="noreferrer"
-            className="text-xs text-amber-600 hover:text-amber-800 font-medium px-2 py-1 rounded hover:bg-amber-100 dark:hover:bg-amber-800/30 transition-colors">
-            View
-          </a>
-          {canEdit && (
-            <button onClick={handleRemove} className="text-gray-300 hover:text-red-400 transition-colors ml-1">
-              <X size={15} />
-            </button>
-          )}
+      {rawSaved.length > 0 && (
+        <div className="space-y-2">
+          {rawSaved.map((tmpl, idx) => (
+            <div key={idx} className="flex items-center gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl px-4 py-3">
+              <FileText size={16} className="text-amber-600 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{tmpl.name}</p>
+                {tmpl.size_kb && <p className="text-xs text-gray-400">{tmpl.size_kb} KB</p>}
+              </div>
+              <a href={tmpl.url} target="_blank" rel="noreferrer"
+                className="text-xs text-amber-600 hover:text-amber-800 font-medium px-2 py-1 rounded hover:bg-amber-100 dark:hover:bg-amber-800/30 transition-colors">
+                View
+              </a>
+              {canEdit && (
+                <button onClick={() => handleRemove(idx)} className="text-gray-300 hover:text-red-400 transition-colors ml-1">
+                  <X size={15} />
+                </button>
+              )}
+            </div>
+          ))}
         </div>
-      ) : (
+      )}
+
+      {canEdit && (
         <div className="flex items-center gap-2 flex-wrap">
-          {projectDocs.length > 0 && (
+          {availableDocs.length > 0 && (
             <div className="flex-1 min-w-[200px]">
               <select value={selected} onChange={e => handleSelect(e.target.value)}
                 className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-400">
-                <option value="">— Select from project documents —</option>
-                {projectDocs.map(d => (
+                <option value="">— Add from project documents —</option>
+                {availableDocs.map(d => (
                   <option key={d.id} value={d.id}>{d.file_name}</option>
                 ))}
               </select>
             </div>
           )}
-          {canEdit && (
-            <>
-              <button onClick={() => fileRef.current?.click()} disabled={uploading}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border border-gray-200 dark:border-gray-600 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50">
-                {uploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                {uploading ? 'Uploading…' : 'Upload file'}
-              </button>
-              <input ref={fileRef} type="file" accept=".doc,.docx,.pdf,.md,.txt" className="hidden" onChange={handleUpload} />
-            </>
-          )}
-          {projectDocs.length === 0 && !canEdit && (
-            <p className="text-xs text-gray-400 italic">No document attached.</p>
-          )}
+          <button onClick={() => fileRef.current?.click()} disabled={uploading}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border border-gray-200 dark:border-gray-600 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50">
+            {uploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+            {uploading ? 'Uploading…' : 'Upload files'}
+          </button>
+          <input ref={fileRef} type="file" accept=".doc,.docx,.pdf,.md,.txt" multiple className="hidden" onChange={handleUpload} />
         </div>
+      )}
+
+      {rawSaved.length === 0 && !canEdit && (
+        <p className="text-xs text-gray-400 italic">No documents attached.</p>
       )}
     </div>
   );
