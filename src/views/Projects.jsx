@@ -19,7 +19,7 @@ import { EmptyState, Input, Textarea } from "../components/ui.jsx";
 import { CatalogMultiSelect } from "../components/CreateCaseWizard.jsx";
 import { OnboardingRoadmap } from "./OnboardingViews.jsx";
 import { CaseDetail } from "./CaseDetail.jsx";
-import { SapProfileBadges, SapProfileFields } from "./OperationsViews.jsx";
+import { SapProfileBadges, SapProfileFields, VpnProfileFields, VpnProfileBadges } from "./OperationsViews.jsx";
 import { ProjectSapEnvPanel, ProjectOwnSapPanel } from "../components/SapPanels.jsx";
 import { ApplyTemplateModal, SaveTemplateModal, BUILT_IN_PROJECT_TEMPLATES } from "./CaseTemplates.jsx";
 import {
@@ -1126,6 +1126,7 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
       </div>
       {conn.username && <div className="text-xs text-gray-400">{t("conn.user_label")}{conn.username}</div>}
       {isSapType(conn.db_type) && conn.meta && <SapProfileBadges meta={conn.meta} />}
+      {isVpnType(conn.db_type) && conn.meta && <VpnProfileBadges meta={conn.meta} host={conn.host} port={conn.port} />}
       {conn.notes && <p className="text-xs text-gray-400 italic">{conn.notes}</p>}
     </div>
   );
@@ -1174,6 +1175,10 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
           </div>
           {isSapType(form.db_type) && (
             <SapProfileFields meta={form.meta} dbType={form.db_type}
+              onChange={meta => setForm(p => ({ ...p, meta }))} />
+          )}
+          {isVpnType(form.db_type) && (
+            <VpnProfileFields meta={form.meta}
               onChange={meta => setForm(p => ({ ...p, meta }))} />
           )}
           <div className="flex justify-end gap-2 pt-1">

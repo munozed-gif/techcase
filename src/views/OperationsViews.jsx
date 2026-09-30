@@ -929,6 +929,76 @@ function SapProfileBadges({ meta = {} }) {
   );
 }
 
+function VpnProfileFields({ meta = {}, onChange }) {
+  const set = (k, v) => onChange({ ...meta, [k]: v });
+  const protocols = [
+    { value: 'ssl',   label: 'SSL-VPN' },
+    { value: 'ipsec', label: 'IPsec VPN' },
+    { value: 'other', label: 'Other' },
+  ];
+  const clients = ['FortiClient', 'Cisco AnyConnect', 'OpenVPN', 'GlobalProtect', 'Pulse Secure', 'Other'];
+  return (
+    <div className="border border-slate-200 dark:border-slate-700 bg-slate-50/40 dark:bg-slate-800/30 rounded-xl p-4 space-y-3">
+      <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">VPN Profile</p>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Protocol</label>
+          <div className="flex gap-2">
+            {protocols.map(p => (
+              <button key={p.value} type="button"
+                onClick={() => set('protocol', p.value)}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${(meta.protocol ?? 'ssl') === p.value ? 'bg-slate-700 text-white border-slate-700 dark:bg-slate-500 dark:border-slate-500' : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-slate-400'}`}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Authentication</label>
+          <div className="flex gap-2">
+            {[['prompt','Prompt on login'],['save','Save login']].map(([v, l]) => (
+              <button key={v} type="button"
+                onClick={() => set('auth_mode', v)}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${(meta.auth_mode ?? 'prompt') === v ? 'bg-slate-700 text-white border-slate-700 dark:bg-slate-500 dark:border-slate-500' : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-slate-400'}`}>
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">VPN Client</label>
+          <select value={meta.vpn_client ?? ''} onChange={e => set('vpn_client', e.target.value)}
+            className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-slate-400">
+            <option value="">— Select client —</option>
+            {clients.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Connection Name</label>
+          <input type="text" value={meta.conn_name ?? ''} onChange={e => set('conn_name', e.target.value)}
+            placeholder="e.g. ADMOSA"
+            className="w-full bg-gray-100 dark:bg-gray-700 border-0 rounded-xl px-4 py-3 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-slate-400 shadow-sm" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VpnProfileBadges({ meta = {}, host, port }) {
+  if (!meta.protocol && !meta.vpn_client) return null;
+  const protocolLabel = { ssl: 'SSL-VPN', ipsec: 'IPsec VPN', other: 'VPN' }[meta.protocol ?? 'ssl'] ?? 'VPN';
+  return (
+    <div className="mt-1.5 flex flex-wrap gap-1.5 items-center">
+      <span className="text-xs px-2 py-0.5 rounded-md font-semibold bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200">{protocolLabel}</span>
+      {meta.vpn_client && <span className="text-xs text-gray-500 dark:text-gray-400">{meta.vpn_client}</span>}
+      {meta.conn_name && <span className="text-xs font-mono text-gray-500 dark:text-gray-400">{meta.conn_name}</span>}
+      {meta.auth_mode === 'save' && <span className="text-xs text-gray-400">· Save login</span>}
+    </div>
+  );
+}
+
 function DbConnectionsList({ client, auth }) {
   const { t } = useT();
   const { connections, addConnection, deleteConnection } = useDbConnections(client.id);
@@ -1445,4 +1515,4 @@ function ClientTeamList({ client, auth }) {
   );
 }
 
-export { NotificationsView, UsersView, ReportsView, SlaView, SlaClientDetail, DbConnectionsView, SapProfileFields, SapProfileBadges, DbConnectionsList, ClientTeamView, ClientTeamList };
+export { NotificationsView, UsersView, ReportsView, SlaView, SlaClientDetail, DbConnectionsView, SapProfileFields, SapProfileBadges, VpnProfileFields, VpnProfileBadges, DbConnectionsList, ClientTeamView, ClientTeamList };
