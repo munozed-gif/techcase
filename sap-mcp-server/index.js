@@ -299,13 +299,91 @@ function buildMcpServer(creds) {
   return server;
 }
 
+// ── CORS proxy handler ─────────────────────────────────────────────────────
+// Forwards SAP ADT requests from the browser to the real SAP host server-side,
+// so the platform works without VPN on the client machine.
+// The browser passes the real SAP host in X-Sap-Target; credentials travel
+// in the standard Authorization: Basic header as usual.
+
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGINS ?? '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': [
+    'Authorization', 'Content-Type', 'Accept',
+    'X-CSRF-Token', 'sap-client', 'X-Sap-Target',
+  ].join(', '),
+  'Access-Control-Expose-Headers': 'X-CSRF-Token',
+  'Access-Control-Max-Age': '86400',
+};
+
+async function handleSapProxy(req, res) {
+  // Preflight
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, CORS_HEADERS);
+    res.end();
+    return;
+  }
+
+  const sapTarget = req.headers['x-sap-target'];
+  if (!sapTarget) {
+    res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Missing X-Sap-Target header with the SAP host URL' }));
+    return;
+  }
+
+  // Strip /sap-proxy prefix, keep the ADT path
+  const adtPath = req.url.replace(/^\/sap-proxy/, '') || '/';
+  const targetUrl = sapTarget.replace(/\/$/, '') + adtPath;
+
+  // Collect body
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  const body = chunks.length ? Buffer.concat(chunks) : undefined;
+
+  // Forward all headers except hop-by-hop and our custom routing header
+  const SKIP = new Set(['host', 'x-sap-target', 'connection', 'transfer-encoding', 'keep-alive']);
+  const forwardHeaders = {};
+  for (const [k, v] of Object.entries(req.headers)) {
+    if (!SKIP.has(k.toLowerCase())) forwardHeaders[k] = v;
+  }
+
+  try {
+    const sapRes = await fetch(targetUrl, {
+      method: req.method,
+      headers: forwardHeaders,
+      body: body?.length ? body : undefined,
+    });
+
+    const buf = Buffer.from(await sapRes.arrayBuffer());
+
+    // Build response headers: CORS overrides + SAP response headers
+    const outHeaders = { ...CORS_HEADERS };
+    const SKIP_RES = new Set(['transfer-encoding', 'connection', 'keep-alive', 'access-control-allow-origin']);
+    for (const [k, v] of sapRes.headers.entries()) {
+      if (!SKIP_RES.has(k.toLowerCase())) outHeaders[k] = v;
+    }
+
+    res.writeHead(sapRes.status, outHeaders);
+    res.end(buf);
+  } catch (e) {
+    res.writeHead(502, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: `SAP proxy error: ${e.message}` }));
+  }
+}
+
 // ── HTTP server ────────────────────────────────────────────────────────────
 
 const httpServer = http.createServer(async (req, res) => {
   // Health check
   if (req.method === 'GET' && req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.0.0' }));
+    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.1.0', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', health: '/health' } }));
+    return;
+  }
+
+  // SAP CORS proxy — browser sends ADT requests here instead of directly to SAP
+  if (req.url?.startsWith('/sap-proxy')) {
+    await handleSapProxy(req, res);
     return;
   }
 
@@ -353,5 +431,6 @@ const httpServer = http.createServer(async (req, res) => {
 httpServer.listen(PORT, () => {
   console.log(`TechCase SAP MCP Server running on port ${PORT}`);
   console.log(`  MCP endpoint : http://localhost:${PORT}/mcp`);
+  console.log(`  SAP proxy    : http://localhost:${PORT}/sap-proxy  (enter this as Proxy URL in TechCase)`);
   console.log(`  Health check : http://localhost:${PORT}/health`);
 });

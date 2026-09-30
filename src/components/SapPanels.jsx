@@ -223,12 +223,15 @@ function buildSapMcpConfig(sapConfig, mcpServerUrl) {
 // ============================================================
 
 async function sapApiRequest(config, path, opts = {}) {
-  const base = (config.proxyUrl?.trim() || config.host.trim()).replace(/\/$/, '');
+  const proxyUrl = config.proxyUrl?.trim();
+  const base = (proxyUrl || config.host.trim()).replace(/\/$/, '');
   const auth = btoa(`${config.username}:${config.password}`);
   const headers = {
     Authorization: `Basic ${auth}`,
     Accept: 'application/xml, text/xml, text/plain',
     'sap-client': String(config.client || '100'),
+    // Tell the MCP proxy where to forward when a proxy URL is set
+    ...(proxyUrl ? { 'X-Sap-Target': config.host.trim().replace(/\/$/, '') } : {}),
     ...(opts.headers ?? {}),
   };
   const url = `${base}${path}`;
