@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Activity, AlertTriangle, ArrowRight, Check, CheckCircle2, ChevronRight,
-  Code2, Eye, FileCode2, LayoutGrid, Loader2, Play, Plus,
-  Settings, Sparkles, User, X, XCircle,
+  Code2, Eye, FileCode2, FileText, LayoutGrid, Loader2, Play, Plus,
+  Settings, Sparkles, Upload, User, X, XCircle,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
@@ -689,6 +689,130 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
 }
 
 // ============================================================
+// ABAP STANDARDS DOCUMENT SECTION
+// ============================================================
+function AbapTemplateSection({ projectId, canEdit }) {
+  const ssCtx = useSystemSettings();
+  const allConfigs = ssCtx.settings['sap_integration'] ?? {};
+  const storageKey = `proj_${projectId}`;
+  const saved = (allConfigs[storageKey] ?? {}).abap_template ?? null;
+
+  const [projectDocs, setProjectDocs] = useState([]);
+  const [selected, setSelected]       = useState('');
+  const [uploading, setUploading]     = useState(false);
+  const fileRef = useRef(null);
+
+  useEffect(() => {
+    async function loadDocs() {
+      const { data: cases } = await supabase.from('cases').select('id').eq('project_id', projectId);
+      if (!cases?.length) return;
+      const { data: docs } = await supabase.from('case_documents')
+        .select('id, file_name, file_url, file_type, file_size_kb')
+        .in('case_id', cases.map(c => c.id))
+        .order('created_at', { ascending: false });
+      setProjectDocs((docs ?? []).filter(d =>
+        /\.(docx?|pdf|md|txt)$/i.test(d.file_name ?? '') ||
+        /word|pdf|markdown|plain/i.test(d.file_type ?? '')
+      ));
+    }
+    loadDocs();
+  }, [projectId]);
+
+  async function saveTemplate(tmpl) {
+    await ssCtx.setSetting('sap_integration', {
+      ...allConfigs,
+      [storageKey]: { ...(allConfigs[storageKey] ?? {}), abap_template: tmpl },
+    });
+  }
+
+  async function handleSelect(docId) {
+    setSelected(docId);
+    if (!docId) return;
+    const doc = projectDocs.find(d => d.id === docId);
+    if (doc) await saveTemplate({ name: doc.file_name, url: doc.file_url, size_kb: doc.file_size_kb, source: 'case_doc' });
+  }
+
+  async function handleUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `project-templates/${projectId}/${Date.now()}-${safeName}`;
+      const { error } = await supabase.storage.from('case-documents').upload(path, file, { upsert: false });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from('case-documents').getPublicUrl(path);
+      await saveTemplate({ name: file.name, url: publicUrl, size_kb: Math.round(file.size / 1024), source: 'upload' });
+    } catch (err) { alert(err.message); }
+    setUploading(false);
+    if (fileRef.current) fileRef.current.value = '';
+  }
+
+  async function handleRemove() {
+    await saveTemplate(null);
+    setSelected('');
+  }
+
+  return (
+    <div className="bg-white dark:bg-gray-800/60 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-5 space-y-4">
+      <div className="flex items-center gap-2">
+        <FileText size={15} className="text-amber-500" />
+        <h3 className="font-bold text-gray-900 dark:text-gray-100 text-sm">ABAP Standards Document</h3>
+      </div>
+      <p className="text-xs text-gray-400 leading-snug -mt-2">
+        Attach your customer's ABAP naming conventions, coding standards, or transport strategy document.
+        It will be included as context when generating functional specs for this project.
+      </p>
+
+      {saved ? (
+        <div className="flex items-center gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl px-4 py-3">
+          <FileText size={18} className="text-amber-600 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{saved.name}</p>
+            {saved.size_kb && <p className="text-xs text-gray-400">{saved.size_kb} KB</p>}
+          </div>
+          <a href={saved.url} target="_blank" rel="noreferrer"
+            className="text-xs text-amber-600 hover:text-amber-800 font-medium px-2 py-1 rounded hover:bg-amber-100 dark:hover:bg-amber-800/30 transition-colors">
+            View
+          </a>
+          {canEdit && (
+            <button onClick={handleRemove} className="text-gray-300 hover:text-red-400 transition-colors ml-1">
+              <X size={15} />
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 flex-wrap">
+          {projectDocs.length > 0 && (
+            <div className="flex-1 min-w-[200px]">
+              <select value={selected} onChange={e => handleSelect(e.target.value)}
+                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-400">
+                <option value="">— Select from project documents —</option>
+                {projectDocs.map(d => (
+                  <option key={d.id} value={d.id}>{d.file_name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {canEdit && (
+            <>
+              <button onClick={() => fileRef.current?.click()} disabled={uploading}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border border-gray-200 dark:border-gray-600 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50">
+                {uploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                {uploading ? 'Uploading…' : 'Upload file'}
+              </button>
+              <input ref={fileRef} type="file" accept=".doc,.docx,.pdf,.md,.txt" className="hidden" onChange={handleUpload} />
+            </>
+          )}
+          {projectDocs.length === 0 && !canEdit && (
+            <p className="text-xs text-gray-400 italic">No document attached.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // PROJECT-OWNED SAP PANEL (no client linked)
 // ============================================================
 function ProjectOwnSapPanel({ projectId, auth }) {
@@ -960,6 +1084,7 @@ function ProjectOwnSapPanel({ projectId, auth }) {
         )}
       </div>
 
+      <AbapTemplateSection projectId={projectId} canEdit={canEdit} />
       <AbapStandardsPanel level="project" entityId={projectId} clientId={null} auth={auth} />
     </div>
   );
