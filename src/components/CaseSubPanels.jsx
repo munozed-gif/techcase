@@ -705,6 +705,16 @@ function openHtmlInNewTab(htmlString) {
   else { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.click(); }
 }
 
+function downloadHtml(htmlString, filename = 'prototype.html') {
+  const blob = new Blob([htmlString], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
 const ZOOM_STEPS = [0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 1.0];
 
 function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, generatingSpecs, documents, onBack, onRegenerate, t }) {
@@ -757,6 +767,12 @@ function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, generatingS
             <button onClick={() => openHtmlInNewTab(protoHtmlState)}
               className="px-3 py-1.5 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
               {t("spec.proto_open_btn")}
+            </button>
+          )}
+          {protoHtmlState && (
+            <button onClick={() => downloadHtml(protoHtmlState, 'prototype.html')}
+              className="px-3 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">
+              {t("spec.proto_download_btn")}
             </button>
           )}
           <button onClick={onBack} className="text-xs text-gray-400 hover:text-gray-600 px-2">
