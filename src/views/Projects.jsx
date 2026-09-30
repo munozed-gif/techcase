@@ -1106,7 +1106,7 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
   const canEdit = auth.isAdmin || auth.isManager;
 
   const ConnCard = ({ conn, readOnly }) => (
-    <div className={`bg-white rounded-xl border p-4 space-y-2 ${readOnly ? "opacity-60 border-dashed border-gray-200" : "border-gray-200 shadow-sm"}`}>
+    <div className={`bg-white dark:bg-gray-800 rounded-xl border p-4 space-y-2 ${readOnly ? "opacity-60 border-dashed border-gray-200 dark:border-gray-700" : "border-gray-200 dark:border-gray-700 shadow-sm"}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 flex-wrap">
           <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${CONN_TYPE_COLORS[conn.db_type] ?? "bg-gray-100 text-gray-700"}`}>
@@ -1120,9 +1120,9 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
           </button>
         )}
       </div>
-      <div className="text-sm font-medium text-gray-800">
+      <div className="text-sm font-medium text-gray-800 dark:text-gray-100">
         {conn.host}{conn.port ? `:${conn.port}` : ""}
-        {conn.db_name ? <span className="text-gray-400"> / {conn.db_name}</span> : null}
+        {conn.db_name ? <span className="text-gray-400 dark:text-gray-500"> / {conn.db_name}</span> : null}
       </div>
       {conn.username && <div className="text-xs text-gray-400">{t("conn.user_label")}{conn.username}</div>}
       {isSapType(conn.db_type) && conn.meta && <SapProfileBadges meta={conn.meta} />}
@@ -1145,13 +1145,13 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
       </div>
 
       {showAdd && (
-        <div className="bg-blue-50/60 border border-blue-200 rounded-xl p-5 space-y-3">
-          <p className="text-sm font-semibold text-gray-800">{t("conn.new_project")}</p>
+        <div className="bg-blue-50/60 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-5 space-y-3">
+          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t("conn.new_project")}</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">{t("conn.type_short")}</label>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t("conn.type_short")}</label>
               <select value={form.db_type} onChange={e => handleTypeChange(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400">
                 {Object.entries(CONN_TYPE_LABELS).map(([ty, l]) => <option key={ty} value={ty}>{l}</option>)}
               </select>
             </div>
@@ -1178,7 +1178,7 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
           )}
           <div className="flex justify-end gap-2 pt-1">
             <button onClick={() => { setShowAdd(false); setForm(defaultForm); }}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50">{t("action.cancel")}</button>
+              className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">{t("action.cancel")}</button>
             <button onClick={handleAdd}
               disabled={saving || !form.host || (!isVpnType(form.db_type) && !form.db_name)}
               className="px-4 py-1.5 text-sm bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
@@ -1189,7 +1189,7 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
       )}
 
       {projectConns.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-gray-200 p-8 text-center bg-white">
+        <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 p-8 text-center bg-white dark:bg-gray-800/40">
           <Database size={24} className="text-gray-300 mx-auto mb-2" />
           <p className="text-sm text-gray-400">{t("conn.no_project")}</p>
           {canEdit && <p className="text-xs text-gray-300 mt-1">{t("conn.add_hint")}</p>}
