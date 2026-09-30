@@ -19,7 +19,7 @@ import { EmptyState, Input, Modal, Select, Textarea } from "../components/ui.jsx
 import { AbapStandardsPanel, ProjectSapEnvPanel, SapIntegrationPanel, useClientProfile } from "../components/SapPanels.jsx";
 import { DbConnectionsList, SapProfileFields, SapProfileBadges } from "../views/OperationsViews.jsx";
 import { ROLE_LABEL_KEYS, SLA_DEFAULT_TYPES, SLA_TIER_LABEL_KEYS, SlaMatrixEditor, cap, fmt, fmtDate, makeDefaultMatrix } from "../lib/uiUtils.jsx";
-import { DEFAULT_ACTIVITY_PHASES, ROLE_COLORS, STATUS_COLORS } from "../lib/businessConstants.js";
+import { DEFAULT_ACTIVITY_PHASES, ROLE_COLORS, STATUS_COLORS, GATE_CONDITIONS } from "../lib/businessConstants.js";
 import { CaseDefaultsPanel, AssignmentSettingsPanel } from "../views/SettingsSubViews.jsx";
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
 
@@ -77,6 +77,7 @@ function RequestFullAccessBanner({ auth }) {
 function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
   const { t, lang, setLang } = useT();
   const visCfg = useVisibilitySettings();
+  const { settings: sysSettings } = useSystemSettings();
   // When opened by admin for a specific client, use that clientId; otherwise own profile
   const effectiveClientId = clientIdProp ?? auth.user?.id;
   const isAdminView = !!(clientIdProp && (auth.isAdmin || auth.isManager));
@@ -1153,25 +1154,78 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
             const stages = getTemplateStages(lifecycleMode);
             const active = stages.filter(s => !s.is_terminal);
             const terminal = stages.filter(s => s.is_terminal);
+            const lcGates = (sysSettings["transition_gates"] ?? {})[lifecycleMode] ?? {};
             return (
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("lifecycle.flow_preview")}</p>
-                <div className="flex items-center flex-wrap gap-2">
-                  {active.map((s, i) => (
-                    <span key={s.key} className="flex items-center gap-2">
-                      <span className="px-3 py-1.5 text-xs font-semibold rounded-xl"
-                        style={{ backgroundColor: s.color + "20", color: s.color }}>{s.label}</span>
-                      {i < active.length - 1 && <span className="text-gray-300 text-sm">→</span>}
-                    </span>
-                  ))}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t("lifecycle.flow_preview")}</p>
+                <div className="flex gap-2.5 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
+                  {active.map((s, i) => {
+                    const gate = lcGates[s.key];
+                    const gateOn = gate?.enabled;
+                    const enabledConds = gateOn
+                      ? (gate.conditions ?? []).filter(c => c.enabled)
+                      : [];
+                    return (
+                      <div key={s.key} className="flex-shrink-0 flex items-stretch gap-0">
+                        <div className="w-44 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 shadow-sm">
+                          <div className="px-3 py-2 flex items-center gap-2" style={{ background: s.color + "18" }}>
+                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
+                            <span className="text-xs font-bold truncate flex-1" style={{ color: s.color }}>{s.label}</span>
+                            <span className="text-[10px] text-gray-400 flex-shrink-0 tabular-nums">{i + 1}/{active.length}</span>
+                          </div>
+                          <div className="px-3 py-2.5 min-h-[64px]">
+                            {enabledConds.length > 0 ? (
+                              <div className="space-y-1.5">
+                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide flex items-center gap-1">
+                                  <Lock size={8} /> Entry gates ({enabledConds.length})
+                                </p>
+                                {enabledConds.map(c => {
+                                  const def = GATE_CONDITIONS.find(g => g.key === c.key);
+                                  const isBlock = c.mode !== "warn";
+                                  return (
+                                    <div key={c.key} className="flex items-start gap-1.5">
+                                      <div className="mt-[3px] w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                        style={{ background: isBlock ? "#ef4444" : "#f59e0b" }} />
+                                      <div className="min-w-0 flex-1">
+                                        <p className="text-[10px] text-gray-600 dark:text-gray-300 leading-tight">{def?.label ?? c.key}</p>
+                                        <span className={`text-[9px] font-bold uppercase tracking-wide ${isBlock ? "text-red-500" : "text-amber-500"}`}>
+                                          {isBlock ? "block" : "warn"}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <p className="text-[10px] text-gray-300 dark:text-gray-600 italic mt-1">No entry gates</p>
+                            )}
+                          </div>
+                        </div>
+                        {i < active.length - 1 && (
+                          <div className="flex items-center px-1 flex-shrink-0">
+                            <span className="text-gray-300 dark:text-gray-600 text-sm">→</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                   {terminal.length > 0 && (
-                    <span className="flex items-center gap-2">
-                      <span className="text-gray-300 text-sm">→</span>
+                    <>
+                      <div className="flex items-center px-1 flex-shrink-0">
+                        <span className="text-gray-300 dark:text-gray-600 text-sm">→</span>
+                      </div>
                       {terminal.map(s => (
-                        <span key={s.key} className="px-3 py-1.5 text-xs font-semibold rounded-xl"
-                          style={{ backgroundColor: s.color + "20", color: s.color }}>{s.label}</span>
+                        <div key={s.key} className="flex-shrink-0 w-36 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 opacity-60">
+                          <div className="px-3 py-2 flex items-center gap-2" style={{ background: s.color + "18" }}>
+                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
+                            <span className="text-xs font-bold truncate" style={{ color: s.color }}>{s.label}</span>
+                          </div>
+                          <div className="px-3 py-2.5">
+                            <span className="text-[9px] font-bold uppercase tracking-wide text-gray-400">Terminal</span>
+                          </div>
+                        </div>
                       ))}
-                    </span>
+                    </>
                   )}
                 </div>
               </div>

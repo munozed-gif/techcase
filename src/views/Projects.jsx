@@ -24,7 +24,7 @@ import { ProjectSapEnvPanel, ProjectOwnSapPanel } from "../components/SapPanels.
 import { ApplyTemplateModal, SaveTemplateModal, BUILT_IN_PROJECT_TEMPLATES } from "./CaseTemplates.jsx";
 import {
   LIFECYCLE_PRESETS, SAP_AREAS, INDUSTRY_AREAS, ROLE_COLORS, PROJECT_TYPES,
-  PRIORITY_COLORS, STATUS_COLORS,
+  PRIORITY_COLORS, STATUS_COLORS, GATE_CONDITIONS,
 } from "../lib/businessConstants.js";
 import { STATUS_LABEL_KEYS, PRIORITY_LABEL_KEYS, WORK_MODE_LABEL_KEYS, fmt, cap, fmtDate } from "../lib/uiUtils.jsx";
 
@@ -2630,27 +2630,86 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                 </>
               )}
 
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("project.flow_preview")}</p>
-                <div className="flex items-center flex-wrap gap-2">
-                  {previewActive.map((s, i) => (
-                    <span key={s.key} className="flex items-center gap-2">
-                      <span className="px-3 py-1.5 text-xs font-semibold rounded-xl"
-                        style={{ backgroundColor: s.color + "20", color: s.color }}>{s.label}</span>
-                      {i < previewActive.length - 1 && <span className="text-gray-300 text-sm">→</span>}
-                    </span>
-                  ))}
-                  {previewTerminal.length > 0 && (
-                    <span className="flex items-center gap-2">
-                      <span className="text-gray-300 text-sm">→</span>
-                      {previewTerminal.map(s => (
-                        <span key={s.key} className="px-3 py-1.5 text-xs font-semibold rounded-xl"
-                          style={{ backgroundColor: s.color + "20", color: s.color }}>{s.label}</span>
-                      ))}
-                    </span>
-                  )}
-                </div>
-              </div>
+              {(() => {
+                const lcGates = (_importSS?.["transition_gates"] ?? {})[projLcMode] ?? {};
+                return (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t("project.flow_preview")}</p>
+                    <div className="flex gap-2.5 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
+                      {previewActive.map((s, i) => {
+                        const gate = lcGates[s.key];
+                        const gateOn = gate?.enabled;
+                        const enabledConds = gateOn
+                          ? (gate.conditions ?? []).filter(c => c.enabled)
+                          : [];
+                        return (
+                          <div key={s.key} className="flex-shrink-0 flex items-stretch gap-0">
+                            <div className="w-44 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 shadow-sm">
+                              {/* Status header */}
+                              <div className="px-3 py-2 flex items-center gap-2" style={{ background: s.color + "18" }}>
+                                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
+                                <span className="text-xs font-bold truncate flex-1" style={{ color: s.color }}>{s.label}</span>
+                                <span className="text-[10px] text-gray-400 flex-shrink-0 tabular-nums">{i + 1}/{previewActive.length}</span>
+                              </div>
+                              {/* Gate conditions */}
+                              <div className="px-3 py-2.5 min-h-[64px]">
+                                {enabledConds.length > 0 ? (
+                                  <div className="space-y-1.5">
+                                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide flex items-center gap-1">
+                                      <Lock size={8} /> Entry gates ({enabledConds.length})
+                                    </p>
+                                    {enabledConds.map(c => {
+                                      const def = GATE_CONDITIONS.find(g => g.key === c.key);
+                                      const isBlock = c.mode !== "warn";
+                                      return (
+                                        <div key={c.key} className="flex items-start gap-1.5">
+                                          <div className="mt-[3px] w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                            style={{ background: isBlock ? "#ef4444" : "#f59e0b" }} />
+                                          <div className="min-w-0 flex-1">
+                                            <p className="text-[10px] text-gray-600 dark:text-gray-300 leading-tight">{def?.label ?? c.key}</p>
+                                            <span className={`text-[9px] font-bold uppercase tracking-wide ${isBlock ? "text-red-500" : "text-amber-500"}`}>
+                                              {isBlock ? "block" : "warn"}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <p className="text-[10px] text-gray-300 dark:text-gray-600 italic mt-1">No entry gates</p>
+                                )}
+                              </div>
+                            </div>
+                            {i < previewActive.length - 1 && (
+                              <div className="flex items-center px-1 flex-shrink-0">
+                                <span className="text-gray-300 dark:text-gray-600 text-sm">→</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {previewTerminal.length > 0 && (
+                        <>
+                          <div className="flex items-center px-1 flex-shrink-0">
+                            <span className="text-gray-300 dark:text-gray-600 text-sm">→</span>
+                          </div>
+                          {previewTerminal.map(s => (
+                            <div key={s.key} className="flex-shrink-0 w-36 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 opacity-60">
+                              <div className="px-3 py-2 flex items-center gap-2" style={{ background: s.color + "18" }}>
+                                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
+                                <span className="text-xs font-bold truncate" style={{ color: s.color }}>{s.label}</span>
+                              </div>
+                              <div className="px-3 py-2.5">
+                                <span className="text-[9px] font-bold uppercase tracking-wide text-gray-400">Terminal</span>
+                              </div>
+                            </div>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {canEditLifecycle && projOverrideAllowed && (
                 <div className="flex justify-end pt-2 border-t border-gray-100">
