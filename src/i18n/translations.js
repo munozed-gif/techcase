@@ -2092,6 +2092,8 @@ const TRANSLATIONS = {
     "catalog.skills":               "Skills",
     "catalog.certifications":       "Certifications",
     "catalog.languages":            "Languages",
+    "catalog.doc_types":            "Document Types",
+    "project.tab_documents":        "Documents",
     // Expertise level options
     "exp.any":                      "Any Level",
     "exp.junior":                   "Junior",
@@ -4642,6 +4644,8 @@ const TRANSLATIONS = {
     "catalog.skills":               "Habilidades",
     "catalog.certifications":       "Certificaciones",
     "catalog.languages":            "Idiomas",
+    "catalog.doc_types":            "Tipos de Documento",
+    "project.tab_documents":        "Documentos",
     // Expertise level options
     "exp.any":                      "Cualquier Nivel",
     "exp.junior":                   "Junior",

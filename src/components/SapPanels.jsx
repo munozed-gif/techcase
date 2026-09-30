@@ -838,6 +838,8 @@ function ProjectOwnSapPanel({ projectId, auth }) {
   const projectRaw = allConfigs[storageKey] ?? {};
   const initialEnvs = projectRaw.environments ?? (projectRaw.host ? [{ id: 'default', name: 'Default', envType: 'dev', ...projectRaw }] : []);
 
+  const { projectConns } = useProjectDbConnections(projectId);
+
   const [environments, setEnvironments] = useState(initialEnvs);
   const [expandedId, setExpandedId] = useState(null);
   const [testStates, setTestStates] = useState({});
@@ -1042,7 +1044,41 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                               placeholder={t('sap.conn_ph_proxy')} />
                           </div>
                         </div>
+                        {/* Network connection selector */}
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Network Connection <span className="text-gray-400 font-normal">(optional — VPN or tunnel to reach this SAP)</span></label>
+                          <select value={env.connectionId ?? ''} onChange={e => updateEnvField(env.id, 'connectionId', e.target.value)} disabled={!canEdit}
+                            className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100">
+                            <option value="">— None —</option>
+                            {projectConns.map(c => (
+                              <option key={c.id} value={c.id}>
+                                {c.db_type === 'vpn' ? '🔒 VPN' : c.db_type.toUpperCase()} — {c.host}{c.port ? `:${c.port}` : ''}{c.meta?.conn_name ? ` (${c.meta.conn_name})` : ''}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
+
+                      {/* VPN reminder banner */}
+                      {(() => {
+                        const linkedConn = env.connectionId ? projectConns.find(c => c.id === env.connectionId) : null;
+                        if (!linkedConn) return null;
+                        const isVpn = linkedConn.db_type === 'vpn';
+                        return (
+                          <div className="flex items-start gap-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl px-3 py-2.5 text-xs text-blue-700 dark:text-blue-300">
+                            <Activity size={13} className="mt-0.5 flex-shrink-0" />
+                            {isVpn ? (
+                              <span>
+                                Connect via <strong>{linkedConn.meta?.conn_name || 'VPN'}</strong>
+                                {linkedConn.meta?.remote_gateway ? <> — gateway: <strong>{linkedConn.meta.remote_gateway}</strong></> : ''}
+                                {linkedConn.meta?.vpn_client ? ` (${linkedConn.meta.vpn_client})` : ''} before testing.
+                              </span>
+                            ) : (
+                              <span>Using <strong>{linkedConn.db_type.toUpperCase()}</strong> connection at <strong>{linkedConn.host}</strong>.</span>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {canEdit && (
                         <div className="space-y-1">
@@ -1054,9 +1090,13 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                             {testStatus === 'ok'   && <span className="text-sm text-green-600 font-medium flex items-center gap-1"><CheckCircle2 size={14} />{t('sap.test_ok')}</span>}
                             {testStatus === 'fail' && <span className="text-sm text-red-500 font-medium flex items-center gap-1"><XCircle size={14} />{t('sap.test_fail')}</span>}
                           </div>
-                          {testStatus === 'fail' && testError && (
-                            <p className="text-xs text-red-500 leading-snug max-w-sm">{testError}</p>
-                          )}
+                          {testStatus === 'fail' && testError && (() => {
+                            const linkedConn = env.connectionId ? projectConns.find(c => c.id === env.connectionId) : null;
+                            const vpnHint = linkedConn?.db_type === 'vpn'
+                              ? ` Make sure you're connected to "${linkedConn.meta?.conn_name || 'VPN'}" first.`
+                              : '';
+                            return <p className="text-xs text-red-500 leading-snug max-w-sm">{testError}{vpnHint}</p>;
+                          })()}
                         </div>
                       )}
 

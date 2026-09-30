@@ -1063,6 +1063,216 @@ function ProjectAvatar({ project, size = 44, className = "" }) {
   );
 }
 
+// ─── Document type color palette (rotates by index in catalog) ───────────────
+const DOC_TYPE_COLORS = [
+  "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
+  "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+  "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+  "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
+  "bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300",
+  "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300",
+  "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
+  "bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300",
+  "bg-lime-100 text-lime-700 dark:bg-lime-900/40 dark:text-lime-300",
+  "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300",
+  "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
+  "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
+];
+
+const DEFAULT_DOC_TYPES = [
+  "Functional Spec", "Technical Spec", "ABAP Standards", "Blueprint",
+  "Test Script", "Go-Live Checklist", "Data Migration", "Contract / SOW",
+  "Change Request", "Status Report", "Meeting Minutes", "User Manual",
+  "Training Material", "Other",
+];
+
+function ProjectDocsTab({ projectId, auth }) {
+  const ssCtx = useSystemSettings();
+  const docTypes = ssCtx.settings["catalog_doc_types"] ?? DEFAULT_DOC_TYPES;
+
+  const allDocs   = ssCtx.settings["project_docs"] ?? {};
+  const docs      = allDocs[projectId] ?? [];
+
+  const canEdit = auth.isAdmin || auth.isManager;
+
+  const [showUpload,   setShowUpload]   = useState(false);
+  const [uploadType,   setUploadType]   = useState("");
+  const [uploadLabel,  setUploadLabel]  = useState("");
+  const [uploading,    setUploading]    = useState(false);
+  const [filter,       setFilter]       = useState("");
+  const fileRef = useRef(null);
+
+  function typeColor(typeName) {
+    const idx = docTypes.indexOf(typeName);
+    return DOC_TYPE_COLORS[(idx >= 0 ? idx : docTypes.length - 1) % DOC_TYPE_COLORS.length];
+  }
+
+  async function saveDocs(list) {
+    const latest = ssCtx.settings["project_docs"] ?? {};
+    await ssCtx.setSetting("project_docs", { ...latest, [projectId]: list });
+  }
+
+  async function handleUpload(e) {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    setUploading(true);
+    const added = [];
+    for (const file of files) {
+      try {
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = `project-docs/${projectId}/${Date.now()}-${safeName}`;
+        const { error } = await supabase.storage.from("case-documents").upload(path, file, { upsert: false });
+        if (error) throw error;
+        const { data: { publicUrl } } = supabase.storage.from("case-documents").getPublicUrl(path);
+        added.push({
+          id: crypto.randomUUID(),
+          name: file.name,
+          url: publicUrl,
+          type: uploadType || "Other",
+          label: uploadLabel.trim(),
+          size_kb: Math.round(file.size / 1024),
+          uploaded_at: new Date().toISOString(),
+        });
+      } catch (err) { alert(`${file.name}: ${err.message}`); }
+    }
+    if (added.length) {
+      const current = (ssCtx.settings["project_docs"] ?? {})[projectId] ?? [];
+      await saveDocs([...current, ...added]);
+    }
+    setUploading(false);
+    setUploadLabel("");
+    setShowUpload(false);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  async function handleDelete(docId) {
+    const current = (ssCtx.settings["project_docs"] ?? {})[projectId] ?? [];
+    await saveDocs(current.filter(d => d.id !== docId));
+  }
+
+  const filtered    = filter ? docs.filter(d => d.type === filter) : docs;
+  const typesInUse  = [...new Set(docs.map(d => d.type))];
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Project Documents</h2>
+          <p className="text-sm text-gray-400">{docs.length} document{docs.length !== 1 ? "s" : ""}</p>
+        </div>
+        {canEdit && (
+          <button onClick={() => setShowUpload(v => !v)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors">
+            <Upload size={15} /> Upload
+          </button>
+        )}
+      </div>
+
+      {/* Upload form */}
+      {showUpload && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-2xl p-5 space-y-3">
+          <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">Upload document(s)</p>
+          <div className="flex gap-3 flex-wrap">
+            <div className="flex-1 min-w-[160px]">
+              <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Document type <span className="text-red-400">*</span></label>
+              <select value={uploadType} onChange={e => setUploadType(e.target.value)}
+                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <option value="">— Select type —</option>
+                {docTypes.map(ty => <option key={ty} value={ty}>{ty}</option>)}
+              </select>
+            </div>
+            <div className="flex-1 min-w-[160px]">
+              <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Label <span className="text-gray-300">(optional)</span></label>
+              <input value={uploadLabel} onChange={e => setUploadLabel(e.target.value)}
+                placeholder="e.g. MM-PO Flow v2"
+                className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            </div>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={() => fileRef.current?.click()} disabled={!uploadType || uploading}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors">
+              {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+              {uploading ? "Uploading…" : "Select files"}
+            </button>
+            <button onClick={() => { setShowUpload(false); setUploadType(""); setUploadLabel(""); }}
+              className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+              Cancel
+            </button>
+          </div>
+          <input ref={fileRef} type="file" multiple className="hidden" onChange={handleUpload} />
+        </div>
+      )}
+
+      {/* Type filter chips */}
+      {docs.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={() => setFilter("")}
+            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+              !filter ? "bg-gray-900 text-white border-gray-900 dark:bg-gray-100 dark:text-gray-900"
+                      : "border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+            }`}>
+            All ({docs.length})
+          </button>
+          {typesInUse.map(type => (
+            <button key={type} onClick={() => setFilter(f => f === type ? "" : type)}
+              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                filter === type ? "bg-gray-900 text-white border-gray-900 dark:bg-gray-100 dark:text-gray-900"
+                                : "border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+              }`}>
+              {type} ({docs.filter(d => d.type === type).length})
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Document list */}
+      {filtered.length === 0 ? (
+        <div className="py-16 text-center">
+          <FileText size={32} className="text-gray-200 dark:text-gray-600 mx-auto mb-2" />
+          <p className="text-sm text-gray-400">
+            {docs.length ? "No documents match this filter." : "No documents uploaded yet."}
+          </p>
+          {canEdit && !docs.length && (
+            <button onClick={() => setShowUpload(true)} className="mt-3 text-sm text-blue-600 hover:underline">
+              Upload the first document
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="divide-y divide-gray-100 dark:divide-gray-700 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+          {filtered.map(doc => (
+            <div key={doc.id} className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+              <FileText size={16} className="text-gray-400 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${typeColor(doc.type)}`}>{doc.type}</span>
+                  {doc.label && <span className="text-xs text-gray-500 dark:text-gray-400 italic">{doc.label}</span>}
+                </div>
+                <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate mt-0.5">{doc.name}</p>
+                <p className="text-xs text-gray-400">
+                  {doc.size_kb} KB · {new Date(doc.uploaded_at).toLocaleDateString()}
+                </p>
+              </div>
+              <a href={doc.url} target="_blank" rel="noreferrer"
+                className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors flex-shrink-0">
+                View
+              </a>
+              {canEdit && (
+                <button onClick={() => handleDelete(doc.id)} className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0">
+                  <Trash2 size={14} />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ProjectConnectionsTab({ projectId, clientId, auth }) {
   const { t } = useT();
   const { projectConns, clientConns, addConnection, updateConnection, deleteConnection } = useProjectDbConnections(projectId, clientId);
@@ -1485,6 +1695,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
     { id: "consultants",  label: t("project.tab_consultants"),   icon: UserCheck,         count: consultants.length },
     { id: "requirements", label: t("project.tab_requirements"),  icon: SlidersHorizontal, count: null },
     { id: "cases",        label: t("project.tab_cases"),         icon: FolderOpen,        count: projCases.length },
+    { id: "documents",    label: t("project.tab_documents"),     icon: FileText,          count: null },
     { id: "connections",  label: t("project.tab_connections"),   icon: Database,          count: null },
     ...(canEdit ? [{ id: "lifecycle", label: t("project.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
     ...((auth.isAdmin || auth.isManager || (auth.isClient && project.client_id)) ? [{ id: "sap", label: t("project.tab_sap"), icon: Code2, count: null }] : []),
@@ -2264,6 +2475,11 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
               </div>
             )}
           </div>
+        )}
+
+        {/* Documents */}
+        {tab.id === "documents" && (
+          <ProjectDocsTab projectId={project.id} auth={auth} />
         )}
 
         {/* Connections */}

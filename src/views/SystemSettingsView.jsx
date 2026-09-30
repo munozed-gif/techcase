@@ -546,6 +546,7 @@ function SettingsCatalogTab({ ssCtx }) {
     languages:      ["English", "Spanish", "German", "French", "Portuguese", "Italian", "Dutch", "Polish", "Mandarin", "Japanese", "Arabic", "Russian", "Hindi"],
     deliverables:   ["Business Blueprint", "Functional Specification", "Technical Specification", "Configuration Document", "Data Migration Plan", "Test Scripts", "UAT Report", "Training Material", "Go-Live Checklist", "Cutover Plan", "Gap Analysis", "Integration Test Report", "Migration Report", "Process Flow Diagram", "Project Charter", "System Documentation", "Change Management Plan", "Hypercare Plan", "Project Status Report", "SLA Agreement"],
     project_types:  ["consulting", "help_desk", "implementation", "managed_services", "staff_augmentation", "training", "audit", "development"],
+    doc_types:      ["Functional Spec", "Technical Spec", "ABAP Standards", "Blueprint", "Test Script", "Go-Live Checklist", "Data Migration", "Contract / SOW", "Change Request", "Status Report", "Meeting Minutes", "User Manual", "Training Material", "Other"],
   };
 
   const [selectedCat, setSelectedCat] = useState("sap_areas");
@@ -569,6 +570,7 @@ function SettingsCatalogTab({ ssCtx }) {
     languages:      t("catalog.languages"),
     deliverables:   "Project Deliverables",
     project_types:  "Project Types",
+    doc_types:      "Document Types",
   };
 
   useEffect(() => {
