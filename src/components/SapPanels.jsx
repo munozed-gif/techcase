@@ -7,7 +7,7 @@ import {
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
-import { useDbConnections } from "../hooks/useCoreHooks.js";
+import { useDbConnections, useProjectDbConnections } from "../hooks/useCoreHooks.js";
 import { usePlanConfig, useSystemSettings } from "../hooks/useSystemSettings.jsx";
 import { callClaude, logEvent } from "../lib/utils.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
@@ -2204,10 +2204,26 @@ const SAP_OBJECT_TYPES = [
   { value: 'other',           labelKey: 'sap.obj_type_other' },
 ];
 
+const CONN_TYPE_LABELS = {
+  postgresql: 'PostgreSQL', mysql: 'MySQL', mssql: 'MSSQL', oracle: 'Oracle',
+  mongodb: 'MongoDB', sap_gui: 'SAP GUI', sap_hana: 'SAP HANA',
+  sap_rfc: 'SAP RFC', sap_odata: 'SAP OData', vpn: 'VPN', other: 'Other',
+};
+
 function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   const { t } = useT();
   const ssCtx = useSystemSettings();
   const { settings } = ssCtx;
+
+  // Connections from project + client
+  const { projectConns, clientConns } = useProjectDbConnections(caseData.project_id, caseData.client_id);
+  const allConns = [...projectConns, ...clientConns.map(c => ({ ...c, _inherited: true }))];
+  const sapCaseConnMap = settings['sap_case_conn'] ?? {};
+  const selectedConnId  = sapCaseConnMap[caseData.id] ?? null;
+
+  async function saveCaseConn(connId) {
+    await ssCtx.setSetting('sap_case_conn', { ...sapCaseConnMap, [caseData.id]: connId || null });
+  }
 
   const allSapConfigs = settings['sap_integration'] ?? {};
   const clientSapData = caseData.client_id
@@ -2410,6 +2426,28 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
             <p className="text-xs text-gray-400 mt-0.5">{t('sap.impl_tab_subtitle')}</p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
+            {/* Connection selector */}
+            {allConns.length > 0 && (
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-500 font-medium whitespace-nowrap">Connection:</label>
+                <select
+                  value={selectedConnId ?? ''}
+                  onChange={e => saveCaseConn(e.target.value)}
+                  className="border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1.5 text-sm bg-white dark:bg-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                  <option value="">— None —</option>
+                  {projectConns.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {CONN_TYPE_LABELS[c.db_type] ?? c.db_type} · {c.host}{c.notes ? ` (${c.notes})` : ''}
+                    </option>
+                  ))}
+                  {clientConns.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {CONN_TYPE_LABELS[c.db_type] ?? c.db_type} · {c.host} — client{c.notes ? ` (${c.notes})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             {/* Environment selector */}
             {sapEnvironments.length > 1 && (
               <div className="flex items-center gap-2">
