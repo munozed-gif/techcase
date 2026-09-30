@@ -22,6 +22,7 @@ import { ROLE_LABEL_KEYS, SLA_DEFAULT_TYPES, SLA_TIER_LABEL_KEYS, SlaMatrixEdito
 import { DEFAULT_ACTIVITY_PHASES, ROLE_COLORS, STATUS_COLORS, GATE_CONDITIONS } from "../lib/businessConstants.js";
 import { CaseDefaultsPanel, AssignmentSettingsPanel } from "../views/SettingsSubViews.jsx";
 import { useLifecycleTemplates } from "../hooks/useLifecycleHooks.js";
+import { getStageIcon } from "../components/CaseSubPanels.jsx";
 
 function RequestFullAccessBanner({ auth }) {
   const [status, setStatus] = useState("idle"); // idle | requesting | done | already
@@ -1165,18 +1166,25 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
                     const enabledConds = gateOn
                       ? (gate.conditions ?? []).filter(c => c.enabled)
                       : [];
+                    const WIcon = getStageIcon(s.key);
                     return (
                       <div key={s.key} className="flex-shrink-0 flex items-stretch gap-0">
-                        <div className="w-44 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 shadow-sm">
-                          <div className="px-3 py-2 flex items-center gap-2" style={{ background: s.color + "18" }}>
+                        <div className="w-44 rounded-xl overflow-hidden shadow-sm relative"
+                          style={{ border: `1px solid ${s.color}40`, background: s.color + "18" }}>
+                          {/* Watermark icon */}
+                          <WIcon size={90} style={{ position: "absolute", bottom: 8, right: 8, opacity: 0.18, color: s.color, pointerEvents: "none", zIndex: 0 }} />
+                          {/* Card header */}
+                          <div className="px-3 py-2 flex items-center gap-2 relative z-10"
+                            style={{ borderBottom: `1px solid ${s.color}30`, background: s.color + "28" }}>
                             <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
                             <span className="text-xs font-bold truncate flex-1" style={{ color: s.color }}>{s.label}</span>
-                            <span className="text-[10px] text-gray-400 flex-shrink-0 tabular-nums">{i + 1}/{active.length}</span>
+                            <span className="text-[10px] flex-shrink-0 tabular-nums font-semibold" style={{ color: s.color + "99" }}>{i + 1}/{active.length}</span>
                           </div>
-                          <div className="px-3 py-2.5 min-h-[64px]">
+                          {/* Gate conditions */}
+                          <div className="px-3 py-2.5 min-h-[72px] relative z-10">
                             {enabledConds.length > 0 ? (
                               <div className="space-y-1.5">
-                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide flex items-center gap-1">
+                                <p className="text-[9px] font-bold uppercase tracking-wide flex items-center gap-1" style={{ color: s.color + "bb" }}>
                                   <Lock size={8} /> Entry gates ({enabledConds.length})
                                 </p>
                                 {enabledConds.map(c => {
@@ -1187,7 +1195,7 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
                                       <div className="mt-[3px] w-1.5 h-1.5 rounded-full flex-shrink-0"
                                         style={{ background: isBlock ? "#ef4444" : "#f59e0b" }} />
                                       <div className="min-w-0 flex-1">
-                                        <p className="text-[10px] text-gray-600 dark:text-gray-300 leading-tight">{def?.label ?? c.key}</p>
+                                        <p className="text-[10px] leading-tight" style={{ color: s.color + "cc" }}>{def?.label ?? c.key}</p>
                                         <span className={`text-[9px] font-bold uppercase tracking-wide ${isBlock ? "text-red-500" : "text-amber-500"}`}>
                                           {isBlock ? "block" : "warn"}
                                         </span>
@@ -1197,7 +1205,7 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
                                 })}
                               </div>
                             ) : (
-                              <p className="text-[10px] text-gray-300 dark:text-gray-600 italic mt-1">No entry gates</p>
+                              <p className="text-[10px] italic mt-1" style={{ color: s.color + "66" }}>No entry gates</p>
                             )}
                           </div>
                         </div>
@@ -1214,17 +1222,22 @@ function ClientProfileView({ auth, clientId: clientIdProp, onBack }) {
                       <div className="flex items-center px-1 flex-shrink-0">
                         <span className="text-gray-300 dark:text-gray-600 text-sm">→</span>
                       </div>
-                      {terminal.map(s => (
-                        <div key={s.key} className="flex-shrink-0 w-36 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 opacity-60">
-                          <div className="px-3 py-2 flex items-center gap-2" style={{ background: s.color + "18" }}>
+                      {terminal.map(s => {
+                        const WIcon = getStageIcon(s.key);
+                        return (
+                        <div key={s.key} className="flex-shrink-0 w-36 rounded-xl overflow-hidden opacity-60 relative"
+                          style={{ border: `1px solid ${s.color}40`, background: s.color + "18" }}>
+                          <WIcon size={70} style={{ position: "absolute", bottom: 6, right: 6, opacity: 0.18, color: s.color, pointerEvents: "none" }} />
+                          <div className="px-3 py-2 flex items-center gap-2 relative z-10"
+                            style={{ borderBottom: `1px solid ${s.color}30`, background: s.color + "28" }}>
                             <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
                             <span className="text-xs font-bold truncate" style={{ color: s.color }}>{s.label}</span>
                           </div>
-                          <div className="px-3 py-2.5">
-                            <span className="text-[9px] font-bold uppercase tracking-wide text-gray-400">Terminal</span>
+                          <div className="px-3 py-2.5 relative z-10">
+                            <span className="text-[9px] font-bold uppercase tracking-wide" style={{ color: s.color + "99" }}>Terminal</span>
                           </div>
                         </div>
-                      ))}
+                        ); })}
                     </>
                   )}
                 </div>
