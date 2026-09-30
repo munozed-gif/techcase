@@ -4,7 +4,7 @@ import {
   Camera, Check, CheckCircle2, ChevronLeft, ChevronRight, Code2, Copy,
   Database, DollarSign, FileEdit, FileText, FolderOpen, Layers,
   LayoutTemplate, Loader2, Lock, Pause, PauseCircle, Play, Plus, Search,
-  SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, Upload,
+  Shield, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, Upload,
   UserCheck, Users, X, XCircle, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
@@ -1298,6 +1298,29 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
     sap_odata:"bg-teal-100 text-teal-700", vpn:"bg-slate-100 text-slate-700",
     other:"bg-gray-100 text-gray-700",
   };
+  const CONN_TYPE_BLOCK = {
+    postgresql:"bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300",
+    mysql:     "bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300",
+    mssql:     "bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300",
+    oracle:    "bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300",
+    mongodb:   "bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-300",
+    sap_gui:   "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-300",
+    sap_hana:  "bg-cyan-100 text-cyan-600 dark:bg-cyan-900/40 dark:text-cyan-300",
+    sap_rfc:   "bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-300",
+    sap_odata: "bg-teal-100 text-teal-600 dark:bg-teal-900/40 dark:text-teal-300",
+    vpn:       "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-sky-300",
+    other:     "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
+  };
+  const CONN_TYPE_ICON = {
+    postgresql: Database, mysql: Database, mssql: Database, oracle: Database, mongodb: Database,
+    sap_gui: Code2, sap_hana: Code2, sap_rfc: Code2, sap_odata: Code2,
+    vpn: Shield, other: Database,
+  };
+  const CONN_TYPE_ABBR = {
+    postgresql:"PG", mysql:"MySQL", mssql:"SQL", oracle:"ORA", mongodb:"Mongo",
+    sap_gui:"GUI", sap_hana:"HANA", sap_rfc:"RFC", sap_odata:"OData",
+    vpn:"VPN", other:"—",
+  };
   const DEFAULT_PORTS = { postgresql:5432, mysql:3306, mssql:1433, oracle:1521, mongodb:27017, sap_hana:39015, sap_gui:3200, sap_rfc:3300, sap_odata:443, vpn:1194 };
 
   function handleTypeChange(ty) {
@@ -1392,34 +1415,80 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
           onSave={handleUpdate} onCancel={cancelEdit} isEdit />
       </div>
     );
+
+    const TypeIcon = CONN_TYPE_ICON[conn.db_type] ?? Database;
+    const blockCls = CONN_TYPE_BLOCK[conn.db_type] ?? "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400";
+    const abbr = CONN_TYPE_ABBR[conn.db_type] ?? conn.db_type.toUpperCase().slice(0, 5);
+    const accentChipCls = `text-[10px] font-semibold px-1.5 py-0.5 rounded ${blockCls}`;
+    const plainChipCls  = "text-[10px] font-medium px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300";
+
+    const chips = [];
+    if (isVpnType(conn.db_type) && conn.meta) {
+      if (conn.meta.protocol)  chips.push({ label: conn.meta.protocol.toUpperCase(), accent: true });
+      if (conn.meta.vpn_client) chips.push({ label: conn.meta.vpn_client });
+      if (conn.meta.conn_name)  chips.push({ label: conn.meta.conn_name });
+      if (conn.meta.auth_mode)  chips.push({ label: conn.meta.auth_mode });
+    } else if (isSapType(conn.db_type) && conn.meta) {
+      if (conn.meta.sap_system) chips.push({ label: conn.meta.sap_system, accent: true });
+      if (conn.meta.client)     chips.push({ label: `Client ${conn.meta.client}` });
+      if (conn.meta.system_id)  chips.push({ label: `SID: ${conn.meta.system_id}` });
+    } else {
+      if (conn.db_name) chips.push({ label: conn.db_name });
+    }
+
     return (
-      <div className={`bg-white dark:bg-gray-800 rounded-xl border p-4 space-y-2 ${readOnly ? "opacity-60 border-dashed border-gray-200 dark:border-gray-700" : "border-gray-200 dark:border-gray-700 shadow-sm"}`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${CONN_TYPE_COLORS[conn.db_type] ?? "bg-gray-100 text-gray-700"}`}>
-              {CONN_TYPE_LABELS[conn.db_type] ?? conn.db_type}
-            </span>
-            {readOnly && <span className="text-xs text-gray-400 italic">{t("conn.from_client")}</span>}
+      <div className={`flex overflow-hidden rounded-xl border transition-colors ${
+        readOnly ? "opacity-60 border-dashed border-gray-200 dark:border-gray-700"
+                 : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+      }`}>
+        {/* Colored icon block */}
+        <div className={`w-[52px] flex-shrink-0 flex flex-col items-center justify-center gap-1 py-3 ${blockCls}`}>
+          <TypeIcon size={18} />
+          <span className="text-[8px] font-black tracking-wide uppercase opacity-75">{abbr}</span>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0 bg-white dark:bg-gray-800 px-3 py-2.5 flex flex-col justify-center gap-1.5">
+          {/* Row 1: host:port + actions */}
+          <div className="flex items-center justify-between gap-2">
+            <p className="font-mono text-[12.5px] font-semibold text-gray-900 dark:text-gray-100 truncate flex-1 min-w-0">
+              {conn.host}
+              {conn.port ? <span className="text-gray-400 dark:text-gray-500 font-normal">:{conn.port}</span> : null}
+            </p>
+            {!readOnly && canEdit && (
+              <div className="flex gap-0.5 flex-shrink-0">
+                <button onClick={() => startEdit(conn)}
+                  className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors">
+                  <FileEdit size={12} />
+                </button>
+                <button onClick={() => deleteConnection(conn.id)}
+                  className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors">
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            )}
           </div>
-          {!readOnly && canEdit && (
-            <div className="flex items-center gap-2">
-              <button onClick={() => startEdit(conn)} className="text-gray-300 hover:text-blue-500 transition-colors">
-                <FileEdit size={14} />
-              </button>
-              <button onClick={() => deleteConnection(conn.id)} className="text-gray-300 hover:text-red-500 transition-colors">
-                <Trash2 size={14} />
-              </button>
-            </div>
-          )}
+
+          {/* Row 2: chips + dot + username + notes */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {chips.map((c, i) => (
+              <span key={i} className={c.accent ? accentChipCls : plainChipCls}>{c.label}</span>
+            ))}
+            {readOnly && <span className="text-[10px] text-gray-400 italic">{t("conn.from_client")}</span>}
+            {conn.username && (
+              <>
+                {chips.length > 0 && <span className="w-[3px] h-[3px] rounded-full bg-gray-300 dark:bg-gray-600 flex-shrink-0" />}
+                <span className="text-[11px] text-gray-400 dark:text-gray-500">{conn.username}</span>
+              </>
+            )}
+            {conn.notes && (
+              <>
+                <span className="w-[3px] h-[3px] rounded-full bg-gray-300 dark:bg-gray-600 flex-shrink-0" />
+                <span className="text-[11px] text-gray-400 italic truncate max-w-[120px]">{conn.notes}</span>
+              </>
+            )}
+          </div>
         </div>
-        <div className="text-sm font-medium text-gray-800 dark:text-gray-100">
-          {conn.host}{conn.port ? `:${conn.port}` : ""}
-          {conn.db_name ? <span className="text-gray-400 dark:text-gray-500"> / {conn.db_name}</span> : null}
-        </div>
-        {conn.username && <div className="text-xs text-gray-400">{t("conn.user_label")}{conn.username}</div>}
-        {isSapType(conn.db_type) && conn.meta && <SapProfileBadges meta={conn.meta} />}
-        {isVpnType(conn.db_type) && conn.meta && <VpnProfileBadges meta={conn.meta} host={conn.host} port={conn.port} />}
-        {conn.notes && <p className="text-xs text-gray-400 italic">{conn.notes}</p>}
       </div>
     );
   };
