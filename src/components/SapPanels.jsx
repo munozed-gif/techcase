@@ -1955,7 +1955,7 @@ Output ONLY the ABAP source code, no explanations.`;
           </button>
           <button onClick={handleAiSuggest}
             className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-200 rounded-lg hover:bg-violet-100 transition-colors">
-            <Sparkles size={11} />AI Suggest
+            <Sparkles size={11} />{objects.length > 0 ? 'AI Regenerate' : 'AI Suggest'}
           </button>
           <button onClick={() => { setEditTarget(null); setShowModal(true); }}
             className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">
