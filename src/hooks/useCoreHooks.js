@@ -132,12 +132,18 @@ function useProjectDbConnections(projectId, clientId) {
     await fetchAll();
   }
 
+  async function updateConnection(id, changes) {
+    const { error } = await supabase.from("db_connections").update(changes).eq("id", id);
+    if (error) throw error;
+    await fetchAll();
+  }
+
   async function deleteConnection(id) {
     await supabase.from("db_connections").delete().eq("id", id);
     await fetchAll();
   }
 
-  return { projectConns, clientConns, addConnection, deleteConnection, refetch: fetchAll };
+  return { projectConns, clientConns, addConnection, updateConnection, deleteConnection, refetch: fetchAll };
 }
 
 function useSubCases(parentCaseId) {

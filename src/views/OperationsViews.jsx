@@ -982,6 +982,20 @@ function VpnProfileFields({ meta = {}, onChange }) {
             className="w-full bg-gray-100 dark:bg-gray-700 border-0 rounded-xl px-4 py-3 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-slate-400 shadow-sm" />
         </div>
       </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Password</label>
+          <input type="password" value={meta.password ?? ''} onChange={e => set('password', e.target.value)}
+            placeholder="VPN password"
+            className="w-full bg-gray-100 dark:bg-gray-700 border-0 rounded-xl px-4 py-3 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-slate-400 shadow-sm" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Remote Gateway</label>
+          <input type="text" value={meta.remote_gateway ?? ''} onChange={e => set('remote_gateway', e.target.value)}
+            placeholder="gtspfw.example.com"
+            className="w-full bg-gray-100 dark:bg-gray-700 border-0 rounded-xl px-4 py-3 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-slate-400 shadow-sm" />
+        </div>
+      </div>
     </div>
   );
 }

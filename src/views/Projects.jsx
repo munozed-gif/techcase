@@ -1065,11 +1065,13 @@ function ProjectAvatar({ project, size = 44, className = "" }) {
 
 function ProjectConnectionsTab({ projectId, clientId, auth }) {
   const { t } = useT();
-  const { projectConns, clientConns, addConnection, deleteConnection } = useProjectDbConnections(projectId, clientId);
+  const { projectConns, clientConns, addConnection, updateConnection, deleteConnection } = useProjectDbConnections(projectId, clientId);
   const [showAdd, setShowAdd] = useState(false);
   const defaultForm = { db_type: "postgresql", host: "", port: 5432, db_name: "", username: "", notes: "", meta: {} };
   const [form, setForm]       = useState(defaultForm);
   const [saving, setSaving]   = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm]   = useState(defaultForm);
 
   const isSapType = ty => ["sap_gui","sap_hana","sap_rfc","sap_odata"].includes(ty);
   const isVpnType = ty => ty === "vpn";
@@ -1103,33 +1105,114 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
     setSaving(false);
   }
 
+  function startEdit(conn) {
+    setEditingId(conn.id);
+    setEditForm({ db_type: conn.db_type, host: conn.host, port: conn.port ?? "", db_name: conn.db_name ?? "", username: conn.username ?? "", notes: conn.notes ?? "", meta: conn.meta ?? {} });
+    setShowAdd(false);
+  }
+
+  function cancelEdit() { setEditingId(null); setEditForm(defaultForm); }
+
+  function handleTypeChangeEdit(ty) {
+    setEditForm(p => ({ ...p, db_type: ty, port: DEFAULT_PORTS[ty] ?? p.port, meta: {} }));
+  }
+
+  async function handleUpdate() {
+    if (!editForm.host || (!isVpnType(editForm.db_type) && !editForm.db_name)) return;
+    setSaving(true);
+    try {
+      await updateConnection(editingId, editForm);
+      cancelEdit();
+    } catch (e) { alert(e.message); }
+    setSaving(false);
+  }
+
   const canEdit = auth.isAdmin || auth.isManager;
 
-  const ConnCard = ({ conn, readOnly }) => (
-    <div className={`bg-white dark:bg-gray-800 rounded-xl border p-4 space-y-2 ${readOnly ? "opacity-60 border-dashed border-gray-200 dark:border-gray-700" : "border-gray-200 dark:border-gray-700 shadow-sm"}`}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${CONN_TYPE_COLORS[conn.db_type] ?? "bg-gray-100 text-gray-700"}`}>
-            {CONN_TYPE_LABELS[conn.db_type] ?? conn.db_type}
-          </span>
-          {readOnly && <span className="text-xs text-gray-400 italic">{t("conn.from_client")}</span>}
+  const ConnForm = ({ f, setF, onTypeChange, onSave, onCancel, isEdit }) => (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t("conn.type_short")}</label>
+          <select value={f.db_type} onChange={e => onTypeChange(e.target.value)}
+            className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400">
+            {Object.entries(CONN_TYPE_LABELS).map(([ty, l]) => <option key={ty} value={ty}>{l}</option>)}
+          </select>
         </div>
-        {!readOnly && canEdit && (
-          <button onClick={() => deleteConnection(conn.id)} className="text-gray-300 hover:text-red-500 transition-colors">
-            <Trash2 size={14} />
-          </button>
+        <Input label={t("conn.host_ip")} value={f.host}
+          onChange={e => setF(p => ({ ...p, host: e.target.value }))} placeholder={t("conn.ph_host")} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Input label={t("label.port")} type="number" value={f.port}
+          onChange={e => setF(p => ({ ...p, port: +e.target.value }))} />
+        {!isVpnType(f.db_type) && (
+          <Input label={t("conn.db_sid")} value={f.db_name}
+            onChange={e => setF(p => ({ ...p, db_name: e.target.value }))} placeholder={t("conn.ph_db_name")} />
         )}
       </div>
-      <div className="text-sm font-medium text-gray-800 dark:text-gray-100">
-        {conn.host}{conn.port ? `:${conn.port}` : ""}
-        {conn.db_name ? <span className="text-gray-400 dark:text-gray-500"> / {conn.db_name}</span> : null}
+      <div className="grid grid-cols-2 gap-3">
+        <Input label={t("label.username")} value={f.username}
+          onChange={e => setF(p => ({ ...p, username: e.target.value }))} placeholder={t("conn.ph_username")} />
+        <Input label={t("label.notes")} value={f.notes}
+          onChange={e => setF(p => ({ ...p, notes: e.target.value }))} placeholder={t("conn.ph_notes_eg")} />
       </div>
-      {conn.username && <div className="text-xs text-gray-400">{t("conn.user_label")}{conn.username}</div>}
-      {isSapType(conn.db_type) && conn.meta && <SapProfileBadges meta={conn.meta} />}
-      {isVpnType(conn.db_type) && conn.meta && <VpnProfileBadges meta={conn.meta} host={conn.host} port={conn.port} />}
-      {conn.notes && <p className="text-xs text-gray-400 italic">{conn.notes}</p>}
+      {isSapType(f.db_type) && (
+        <SapProfileFields meta={f.meta} dbType={f.db_type} onChange={meta => setF(p => ({ ...p, meta }))} />
+      )}
+      {isVpnType(f.db_type) && (
+        <VpnProfileFields meta={f.meta} onChange={meta => setF(p => ({ ...p, meta }))} />
+      )}
+      <div className="flex justify-end gap-2 pt-1">
+        <button onClick={onCancel}
+          className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">{t("action.cancel")}</button>
+        <button onClick={onSave}
+          disabled={saving || !f.host || (!isVpnType(f.db_type) && !f.db_name)}
+          className="px-4 py-1.5 text-sm bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
+          {saving ? t("state.saving") : isEdit ? t("action.save") : t("conn.add_action")}
+        </button>
+      </div>
     </div>
   );
+
+  const ConnCard = ({ conn, readOnly }) => {
+    if (editingId === conn.id) return (
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-blue-300 dark:border-blue-700 p-4 shadow-sm">
+        <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-3">Edit connection</p>
+        <ConnForm f={editForm} setF={setEditForm} onTypeChange={handleTypeChangeEdit}
+          onSave={handleUpdate} onCancel={cancelEdit} isEdit />
+      </div>
+    );
+    return (
+      <div className={`bg-white dark:bg-gray-800 rounded-xl border p-4 space-y-2 ${readOnly ? "opacity-60 border-dashed border-gray-200 dark:border-gray-700" : "border-gray-200 dark:border-gray-700 shadow-sm"}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${CONN_TYPE_COLORS[conn.db_type] ?? "bg-gray-100 text-gray-700"}`}>
+              {CONN_TYPE_LABELS[conn.db_type] ?? conn.db_type}
+            </span>
+            {readOnly && <span className="text-xs text-gray-400 italic">{t("conn.from_client")}</span>}
+          </div>
+          {!readOnly && canEdit && (
+            <div className="flex items-center gap-2">
+              <button onClick={() => startEdit(conn)} className="text-gray-300 hover:text-blue-500 transition-colors">
+                <FileEdit size={14} />
+              </button>
+              <button onClick={() => deleteConnection(conn.id)} className="text-gray-300 hover:text-red-500 transition-colors">
+                <Trash2 size={14} />
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="text-sm font-medium text-gray-800 dark:text-gray-100">
+          {conn.host}{conn.port ? `:${conn.port}` : ""}
+          {conn.db_name ? <span className="text-gray-400 dark:text-gray-500"> / {conn.db_name}</span> : null}
+        </div>
+        {conn.username && <div className="text-xs text-gray-400">{t("conn.user_label")}{conn.username}</div>}
+        {isSapType(conn.db_type) && conn.meta && <SapProfileBadges meta={conn.meta} />}
+        {isVpnType(conn.db_type) && conn.meta && <VpnProfileBadges meta={conn.meta} host={conn.host} port={conn.port} />}
+        {conn.notes && <p className="text-xs text-gray-400 italic">{conn.notes}</p>}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-5">
@@ -1146,50 +1229,10 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
       </div>
 
       {showAdd && (
-        <div className="bg-blue-50/60 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-5 space-y-3">
-          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t("conn.new_project")}</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t("conn.type_short")}</label>
-              <select value={form.db_type} onChange={e => handleTypeChange(e.target.value)}
-                className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400">
-                {Object.entries(CONN_TYPE_LABELS).map(([ty, l]) => <option key={ty} value={ty}>{l}</option>)}
-              </select>
-            </div>
-            <Input label={t("conn.host_ip")} value={form.host}
-              onChange={e => setForm(p => ({ ...p, host: e.target.value }))} placeholder={t("conn.ph_host")} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Input label={t("label.port")} type="number" value={form.port}
-              onChange={e => setForm(p => ({ ...p, port: +e.target.value }))} />
-            {!isVpnType(form.db_type) && (
-              <Input label={t("conn.db_sid")} value={form.db_name}
-                onChange={e => setForm(p => ({ ...p, db_name: e.target.value }))} placeholder={t("conn.ph_db_name")} />
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Input label={t("label.username")} value={form.username}
-              onChange={e => setForm(p => ({ ...p, username: e.target.value }))} placeholder={t("conn.ph_username")} />
-            <Input label={t("label.notes")} value={form.notes}
-              onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder={t("conn.ph_notes_eg")} />
-          </div>
-          {isSapType(form.db_type) && (
-            <SapProfileFields meta={form.meta} dbType={form.db_type}
-              onChange={meta => setForm(p => ({ ...p, meta }))} />
-          )}
-          {isVpnType(form.db_type) && (
-            <VpnProfileFields meta={form.meta}
-              onChange={meta => setForm(p => ({ ...p, meta }))} />
-          )}
-          <div className="flex justify-end gap-2 pt-1">
-            <button onClick={() => { setShowAdd(false); setForm(defaultForm); }}
-              className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">{t("action.cancel")}</button>
-            <button onClick={handleAdd}
-              disabled={saving || !form.host || (!isVpnType(form.db_type) && !form.db_name)}
-              className="px-4 py-1.5 text-sm bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50">
-              {saving ? t("state.adding") : t("conn.add_action")}
-            </button>
-          </div>
+        <div className="bg-blue-50/60 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-5">
+          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-3">{t("conn.new_project")}</p>
+          <ConnForm f={form} setF={setForm} onTypeChange={handleTypeChange}
+            onSave={handleAdd} onCancel={() => { setShowAdd(false); setForm(defaultForm); }} />
         </div>
       )}
 
