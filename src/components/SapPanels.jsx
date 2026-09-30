@@ -323,6 +323,7 @@ function SapIntegrationPanel({ clientId, auth }) {
   const [environments, setEnvironments] = useState(initialEnvs);
   const [expandedId, setExpandedId] = useState(null);
   const [testStates, setTestStates] = useState({});
+  const [testErrors, setTestErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -368,11 +369,23 @@ function SapIntegrationPanel({ clientId, auth }) {
 
   async function testConnection(env) {
     setTestStates(p => ({ ...p, [env.id]: 'testing' }));
+    setTestErrors(p => ({ ...p, [env.id]: null }));
     try {
       const result = await sapLiveCheck(env);
-      setTestStates(p => ({ ...p, [env.id]: result ? 'ok' : 'fail' }));
-    } catch {
+      if (result) {
+        setTestStates(p => ({ ...p, [env.id]: 'ok' }));
+      } else {
+        setTestStates(p => ({ ...p, [env.id]: 'fail' }));
+        setTestErrors(p => ({ ...p, [env.id]: env.proxyUrl?.trim()
+          ? 'SAP returned an error. Check credentials and client number.'
+          : 'Failed — SAP may be blocking browser requests (CORS). Set a Proxy URL or enable CORS on your SAP system.' }));
+      }
+    } catch (e) {
       setTestStates(p => ({ ...p, [env.id]: 'fail' }));
+      const msg = e?.message ?? String(e);
+      setTestErrors(p => ({ ...p, [env.id]: /fetch|network|cors|failed to fetch/i.test(msg)
+        ? 'Network error — SAP is likely blocking browser requests (CORS). Set a Proxy URL above.'
+        : msg }));
     }
   }
 
@@ -403,6 +416,7 @@ function SapIntegrationPanel({ clientId, auth }) {
             const isExpanded = expandedId === env.id;
             const typeMeta = SAP_ENV_TYPE_META[env.envType] ?? SAP_ENV_TYPE_META.dev;
             const testStatus = testStates[env.id];
+            const testError  = testErrors[env.id];
             return (
               <div key={env.id} className={`border rounded-xl overflow-hidden transition-all ${isExpanded ? 'border-blue-200' : 'border-gray-100 dark:border-gray-700'}`}>
                 <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
@@ -487,13 +501,18 @@ function SapIntegrationPanel({ clientId, auth }) {
                     </div>
 
                     {canEdit && (
-                      <div className="flex items-center gap-3">
-                        <button onClick={() => testConnection(env)} disabled={testStatus === 'testing' || !env.host || !env.username}
-                          className="px-4 py-2 text-sm font-semibold bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 rounded-xl disabled:opacity-50 transition-colors">
-                          {testStatus === 'testing' ? t('sap.testing') : t('sap.test_connection')}
-                        </button>
-                        {testStatus === 'ok'   && <span className="text-sm text-green-600 font-medium flex items-center gap-1"><CheckCircle2 size={14} />{t('sap.test_ok')}</span>}
-                        {testStatus === 'fail' && <span className="text-sm text-red-500 font-medium flex items-center gap-1"><XCircle size={14} />{t('sap.test_fail')}</span>}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-3">
+                          <button onClick={() => testConnection(env)} disabled={testStatus === 'testing' || !env.host || !env.username}
+                            className="px-4 py-2 text-sm font-semibold bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 rounded-xl disabled:opacity-50 transition-colors">
+                            {testStatus === 'testing' ? t('sap.testing') : t('sap.test_connection')}
+                          </button>
+                          {testStatus === 'ok'   && <span className="text-sm text-green-600 font-medium flex items-center gap-1"><CheckCircle2 size={14} />{t('sap.test_ok')}</span>}
+                          {testStatus === 'fail' && <span className="text-sm text-red-500 font-medium flex items-center gap-1"><XCircle size={14} />{t('sap.test_fail')}</span>}
+                        </div>
+                        {testStatus === 'fail' && testError && (
+                          <p className="text-xs text-red-500 leading-snug max-w-sm">{testError}</p>
+                        )}
                       </div>
                     )}
 
@@ -680,6 +699,7 @@ function ProjectOwnSapPanel({ projectId, auth }) {
   const [environments, setEnvironments] = useState(initialEnvs);
   const [expandedId, setExpandedId] = useState(null);
   const [testStates, setTestStates] = useState({});
+  const [testErrors, setTestErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -732,11 +752,23 @@ function ProjectOwnSapPanel({ projectId, auth }) {
 
   async function testConnection(env) {
     setTestStates(p => ({ ...p, [env.id]: 'testing' }));
+    setTestErrors(p => ({ ...p, [env.id]: null }));
     try {
       const result = await sapLiveCheck(env);
-      setTestStates(p => ({ ...p, [env.id]: result ? 'ok' : 'fail' }));
-    } catch {
+      if (result) {
+        setTestStates(p => ({ ...p, [env.id]: 'ok' }));
+      } else {
+        setTestStates(p => ({ ...p, [env.id]: 'fail' }));
+        setTestErrors(p => ({ ...p, [env.id]: env.proxyUrl?.trim()
+          ? 'SAP returned an error. Check credentials and client number.'
+          : 'Failed — SAP may be blocking browser requests (CORS). Set a Proxy URL or enable CORS on your SAP system.' }));
+      }
+    } catch (e) {
       setTestStates(p => ({ ...p, [env.id]: 'fail' }));
+      const msg = e?.message ?? String(e);
+      setTestErrors(p => ({ ...p, [env.id]: /fetch|network|cors|failed to fetch/i.test(msg)
+        ? 'Network error — SAP is likely blocking browser requests (CORS). Set a Proxy URL above.'
+        : msg }));
     }
   }
 
@@ -778,6 +810,7 @@ function ProjectOwnSapPanel({ projectId, auth }) {
               const isExpanded = expandedId === env.id;
               const typeMeta = SAP_ENV_TYPE_META[env.envType] ?? SAP_ENV_TYPE_META.dev;
               const testStatus = testStates[env.id];
+              const testError  = testErrors[env.id];
               const isDefault = env.id === (selectedEnvId || environments[0]?.id);
               return (
                 <div key={env.id} className={`border rounded-xl overflow-hidden transition-all ${isExpanded ? 'border-blue-200' : 'border-gray-100 dark:border-gray-700'}`}>
@@ -870,13 +903,18 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                       </div>
 
                       {canEdit && (
-                        <div className="flex items-center gap-3">
-                          <button onClick={() => testConnection(env)} disabled={testStatus === 'testing' || !env.host || !env.username}
-                            className="px-4 py-2 text-sm font-semibold bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 rounded-xl disabled:opacity-50 transition-colors">
-                            {testStatus === 'testing' ? t('sap.testing') : t('sap.test_connection')}
-                          </button>
-                          {testStatus === 'ok'   && <span className="text-sm text-green-600 font-medium flex items-center gap-1"><CheckCircle2 size={14} />{t('sap.test_ok')}</span>}
-                          {testStatus === 'fail' && <span className="text-sm text-red-500 font-medium flex items-center gap-1"><XCircle size={14} />{t('sap.test_fail')}</span>}
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-3">
+                            <button onClick={() => testConnection(env)} disabled={testStatus === 'testing' || !env.host || !env.username}
+                              className="px-4 py-2 text-sm font-semibold bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 rounded-xl disabled:opacity-50 transition-colors">
+                              {testStatus === 'testing' ? t('sap.testing') : t('sap.test_connection')}
+                            </button>
+                            {testStatus === 'ok'   && <span className="text-sm text-green-600 font-medium flex items-center gap-1"><CheckCircle2 size={14} />{t('sap.test_ok')}</span>}
+                            {testStatus === 'fail' && <span className="text-sm text-red-500 font-medium flex items-center gap-1"><XCircle size={14} />{t('sap.test_fail')}</span>}
+                          </div>
+                          {testStatus === 'fail' && testError && (
+                            <p className="text-xs text-red-500 leading-snug max-w-sm">{testError}</p>
+                          )}
                         </div>
                       )}
 
