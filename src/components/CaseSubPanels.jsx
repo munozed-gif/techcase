@@ -624,7 +624,7 @@ function GenerationProfileModal({ onConfirm, onClose, title, outputMode, onOutpu
     }
     merged.additional_instructions = sto.additional_instructions ?? def.additional_instructions ?? "";
     merged.prototype_enabled = sto.prototype_enabled ?? false;
-    merged.prototype_style   = sto.prototype_style   ?? 'fiori';
+    merged.prototype_style   = sto.prototype_style   ?? 'auto';
     return merged;
   }
 
@@ -2243,6 +2243,59 @@ Use realistic Z object names matching the customer's described solution for ${ca
   }
 
   function buildPrototypePrompt(specA, specB, style) {
+    if (style === 'auto') {
+      return `You are a SAP prototype generator. Before generating the prototype, you must analyze the case and decide which visual style to use. Read the signals below carefully.
+
+Case: ${caseData.title}
+SAP Module: ${caseData.area_sap ?? ''}
+Industry: ${caseData.area_industry ?? ''}
+Description: ${caseData.description ?? ''}
+
+Spec A (Custom ABAP approach):
+${(specA ?? '').slice(0, 1500)}
+
+Spec B (Standard SAP approach):
+${(specB ?? '').slice(0, 1000)}
+
+STEP 1 — CHOOSE THE STYLE using these rules (apply the FIRST rule that matches):
+
+Rule 1 → SAP GUI style
+  Apply when: the spec involves modifying or extending an EXISTING SAP GUI transaction (classic T-codes like VA02, ME21N, MM01, MB51, IW32, SM30, SE38…), OR the solution approach is Custom ABAP Tier 3 (dialog programs, ALV reports, BAdi/user-exit implementations that change a GUI screen), OR the primary user interaction happens INSIDE an existing SAP GUI screen (adding a field, a tab, a column to an ALV).
+  Signals: T-code names, ALV, dialog, screen painter, BAdI, enhancement spot, user exit, /DBE/, /VSS/, VBAP, VBAK, EKPO, MARA, AUFK…
+
+Rule 2 → SAP Fiori style
+  Apply when: the solution is a NEW Fiori app, Fiori Elements page, OData V2/V4 service, BTP extension, or Launchpad tile. The user works in a browser, not SAP GUI.
+  Signals: OData, CDS view, Fiori tile, F-number, BTP, CAP, SAPUI5, Fiori Elements, smart table, smart form…
+
+Rule 3 → Wireframe style
+  Apply when: the process is entirely NEW with no existing SAP screen to extend, OR the audience is non-technical (business stakeholder, end-user training), OR the SAP technology layer is undecided.
+
+STEP 2 — ADD A COMMENT at the very top of the generated HTML (inside <!-- -->):
+  <!-- Prototype style: [chosen style] | Reason: [one sentence explaining which rule matched and why] -->
+
+STEP 3 — GENERATE the full prototype using EXACTLY the style chosen in Step 1.
+
+SAP GUI STYLE spec:
+- Background #f3f2f1, panel #ffffff, borders #b9b9b9, panel headers #dfe4e8, accent #0854a0 / light #e6f0fa, text #22282f
+- Disclaimer bar (⚠ non-functional notice), SAP blue shellbar, toolbar with mode + status toggles + Grabar button, tab strip with real SAP tabs, split layout (ALV grid left + detail panel right), F4 modal with search, fields spec table at bottom, toast notifications
+- Full blocking logic: isBlocked() = view mode OR status closed; advisory box shows lock reason; F4 button hidden when blocked
+- render() calls renderAlv() + renderDetail() on every state change
+
+SAP Fiori STYLE spec:
+- Background #F7F7F7, shell bar #354A5E, Fiori blue #0070F2, font "72"/system, cards with border-radius 8px and 1px #D9D9D9 border, footer toolbar sticky
+- 4 screens with step-dot navigation: (1) Overview card + metadata grid + KPI tiles + Iniciar button, (2) Table with status badges, (3) Form with 2-column grid layout + section titles in blue uppercase, (4) Success box + operation summary
+- Navigation JS: _show(n), _next(), _back() with step-dot highlight and breadcrumb update
+
+WIREFRAME STYLE spec:
+- Background #F5F5F5, white panels, all borders #CCCCCC, text #333333, no shadows, no gradients, no color accents except one #4A90D9 blue for CTAs
+- 4 screens with same step-dot navigation as Fiori but monochrome
+- Placeholder boxes [IMAGE], [MAP], [CHART] where visuals would go; all labels in gray uppercase
+
+ALL styles: single self-contained HTML file, ALL CSS and JS inline, no external dependencies, no fetch calls.
+
+OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No explanation, no markdown fences, no text before or after the HTML.`;
+    }
+
     if (style === 'sapgui') {
       return `You are a SAP GUI prototype generator. Generate a SINGLE complete self-contained HTML file that simulates a classic SAP GUI screen for this SAP case. The prototype must look and behave like real SAP GUI — not Fiori, not a wizard.
 
@@ -2409,7 +2462,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       // Generate interactive prototype if enabled for this profile
       if (genProfile?.prototype_enabled) {
         try {
-          const protoStyle = genProfile.prototype_style ?? 'fiori';
+          const protoStyle = genProfile.prototype_style ?? 'auto';
           let protoHtml = await callClaude({
             model: protoModel,
             system: 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.',
@@ -3703,7 +3756,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       setProtoHtmlState(null);
                       setProtoSaved(false);
                       setProtoError(false);
-                      const protoStyle = activeProfile.prototype_style ?? 'fiori';
+                      const protoStyle = activeProfile.prototype_style ?? 'auto';
                       try {
                         let html = await callClaude({ model: protoModel, system: 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.', messages: [{ role: 'user', content: buildPrototypePrompt(aiSpecA, aiSpecB, protoStyle) }], max_tokens: 8000 });
                         if (!html) throw new Error('Model returned empty response');

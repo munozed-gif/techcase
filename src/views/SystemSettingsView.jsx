@@ -1464,12 +1464,13 @@ function SettingsGenerationTab({ ssCtx }) {
                 <p className="text-xs font-medium text-gray-600 mb-2">Prototype Style</p>
                 <div className="flex gap-2 flex-wrap">
                   {[
+                    { value: 'auto',      label: '✦ Auto',     desc: 'AI picks style from case signals' },
                     { value: 'fiori',     label: 'SAP Fiori',  desc: 'Fiori shell bar, cards & tables' },
                     { value: 'sapgui',    label: 'SAP GUI',    desc: 'Classic GUI: ALV grid + detail panel' },
                     { value: 'wireframe', label: 'Wireframe',  desc: 'Low-fidelity grey boxes & labels' },
                     { value: 'branded',   label: 'Branded',    desc: 'TechCase Arena dark theme' },
                   ].map(s => {
-                    const sel = (form.profiles[activeProfile].prototype_style ?? 'fiori') === s.value;
+                    const sel = (form.profiles[activeProfile].prototype_style ?? 'auto') === s.value;
                     return (
                       <button key={s.value}
                         onClick={() => setForm(prev => ({
