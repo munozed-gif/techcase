@@ -334,7 +334,7 @@ function SapIntegrationPanel({ clientId, auth }) {
 
   async function saveEnvironments(envs) {
     setSaving(true);
-    await ssCtx.setSetting('sap_integration', { ...allConfigs, [clientId]: { environments: envs } });
+    await ssCtx.setSetting('sap_integration', { ...allConfigs, [clientId]: { ...(allConfigs[clientId] ?? {}), environments: envs } });
     setSaving(false); setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   }
@@ -852,7 +852,7 @@ function ProjectOwnSapPanel({ projectId, auth }) {
 
   async function saveEnvironments(envs) {
     setSaving(true);
-    await ssCtx.setSetting('sap_integration', { ...allConfigs, [storageKey]: { environments: envs } });
+    await ssCtx.setSetting('sap_integration', { ...allConfigs, [storageKey]: { ...(allConfigs[storageKey] ?? {}), environments: envs } });
     setSaving(false); setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   }
