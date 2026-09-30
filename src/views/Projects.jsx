@@ -1419,42 +1419,60 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
     const TypeIcon = CONN_TYPE_ICON[conn.db_type] ?? Database;
     const blockCls = CONN_TYPE_BLOCK[conn.db_type] ?? "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400";
     const abbr = CONN_TYPE_ABBR[conn.db_type] ?? conn.db_type.toUpperCase().slice(0, 5);
-    const accentChipCls = `text-[10px] font-semibold px-1.5 py-0.5 rounded ${blockCls}`;
-    const plainChipCls  = "text-[10px] font-medium px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300";
 
-    const chips = [];
+    // Subtitle shown under the type name
+    const subtitle = isVpnType(conn.db_type)
+      ? conn.meta?.conn_name ?? null
+      : isSapType(conn.db_type)
+        ? conn.meta?.system_id ?? null
+        : conn.db_name ?? null;
+
+    // Key-value grid entries (max 4 to keep 2×2)
+    const grid = [];
     if (isVpnType(conn.db_type) && conn.meta) {
-      if (conn.meta.protocol)  chips.push({ label: conn.meta.protocol.toUpperCase(), accent: true });
-      if (conn.meta.vpn_client) chips.push({ label: conn.meta.vpn_client });
-      if (conn.meta.conn_name)  chips.push({ label: conn.meta.conn_name });
-      if (conn.meta.auth_mode)  chips.push({ label: conn.meta.auth_mode });
+      if (conn.meta.protocol)       grid.push({ k: "Protocol",  v: conn.meta.protocol.toUpperCase() });
+      if (conn.meta.vpn_client)     grid.push({ k: "Client",    v: conn.meta.vpn_client });
+      if (conn.meta.remote_gateway) grid.push({ k: "Gateway",   v: conn.meta.remote_gateway });
+      if (conn.meta.auth_mode)      grid.push({ k: "Auth",      v: conn.meta.auth_mode });
+      if (conn.username && grid.length < 4) grid.push({ k: "Username", v: conn.username });
     } else if (isSapType(conn.db_type) && conn.meta) {
-      if (conn.meta.sap_system) chips.push({ label: conn.meta.sap_system, accent: true });
-      if (conn.meta.client)     chips.push({ label: `Client ${conn.meta.client}` });
-      if (conn.meta.system_id)  chips.push({ label: `SID: ${conn.meta.system_id}` });
+      if (conn.meta.sap_system) grid.push({ k: "System",   v: conn.meta.sap_system });
+      if (conn.meta.client)     grid.push({ k: "Client",   v: conn.meta.client });
+      if (conn.meta.system_id)  grid.push({ k: "SID",      v: conn.meta.system_id });
+      if (conn.username)        grid.push({ k: "Username", v: conn.username });
     } else {
-      if (conn.db_name) chips.push({ label: conn.db_name });
+      if (conn.db_name)  grid.push({ k: "Database", v: conn.db_name });
+      if (conn.username) grid.push({ k: "Username", v: conn.username });
+      if (conn.notes)    grid.push({ k: "Notes",    v: conn.notes });
     }
+
+    const kCls = "text-[9.5px] font-semibold uppercase tracking-[0.5px] text-gray-400 dark:text-gray-500";
+    const vCls = "text-[12px] font-medium text-gray-700 dark:text-gray-200 truncate";
 
     return (
       <div className={`flex overflow-hidden rounded-xl border transition-colors ${
         readOnly ? "opacity-60 border-dashed border-gray-200 dark:border-gray-700"
                  : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
       }`}>
-        {/* Colored icon block */}
-        <div className={`w-[52px] flex-shrink-0 flex flex-col items-center justify-center gap-1 py-3 ${blockCls}`}>
+        {/* Colored icon block (Option C) */}
+        <div className={`w-[54px] flex-shrink-0 flex flex-col items-center justify-center gap-1 ${blockCls}`}>
           <TypeIcon size={18} />
           <span className="text-[8px] font-black tracking-wide uppercase opacity-75">{abbr}</span>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 min-w-0 bg-white dark:bg-gray-800 px-3 py-2.5 flex flex-col justify-center gap-1.5">
-          {/* Row 1: host:port + actions */}
-          <div className="flex items-center justify-between gap-2">
-            <p className="font-mono text-[12.5px] font-semibold text-gray-900 dark:text-gray-100 truncate flex-1 min-w-0">
-              {conn.host}
-              {conn.port ? <span className="text-gray-400 dark:text-gray-500 font-normal">:{conn.port}</span> : null}
-            </p>
+        {/* Content (Option B) */}
+        <div className="flex-1 min-w-0 bg-white dark:bg-gray-800 px-3 py-3 flex flex-col gap-2.5">
+          {/* Header: type label + subtitle + actions */}
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[13px] font-bold text-gray-900 dark:text-gray-100 leading-tight">
+                {CONN_TYPE_LABELS[conn.db_type] ?? conn.db_type}
+              </p>
+              {subtitle && (
+                <p className="text-[11px] text-gray-400 dark:text-gray-500 leading-tight mt-0.5">{subtitle}</p>
+              )}
+              {readOnly && <span className="text-[10px] text-gray-400 italic">{t("conn.from_client")}</span>}
+            </div>
             {!readOnly && canEdit && (
               <div className="flex gap-0.5 flex-shrink-0">
                 <button onClick={() => startEdit(conn)}
@@ -1469,25 +1487,24 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
             )}
           </div>
 
-          {/* Row 2: chips + dot + username + notes */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {chips.map((c, i) => (
-              <span key={i} className={c.accent ? accentChipCls : plainChipCls}>{c.label}</span>
-            ))}
-            {readOnly && <span className="text-[10px] text-gray-400 italic">{t("conn.from_client")}</span>}
-            {conn.username && (
-              <>
-                {chips.length > 0 && <span className="w-[3px] h-[3px] rounded-full bg-gray-300 dark:bg-gray-600 flex-shrink-0" />}
-                <span className="text-[11px] text-gray-400 dark:text-gray-500">{conn.username}</span>
-              </>
-            )}
-            {conn.notes && (
-              <>
-                <span className="w-[3px] h-[3px] rounded-full bg-gray-300 dark:bg-gray-600 flex-shrink-0" />
-                <span className="text-[11px] text-gray-400 italic truncate max-w-[120px]">{conn.notes}</span>
-              </>
-            )}
+          {/* Host:port code box */}
+          <div className="font-mono text-[12px] font-medium text-gray-800 dark:text-gray-100 bg-gray-50 dark:bg-gray-700/60 border border-gray-100 dark:border-gray-700 rounded-lg px-2.5 py-1.5 flex items-center gap-2 min-w-0">
+            <Activity size={10} className="text-gray-400 flex-shrink-0" />
+            <span className="truncate flex-1">{conn.host}</span>
+            {conn.port && <span className="text-gray-400 dark:text-gray-500 flex-shrink-0">:{conn.port}</span>}
           </div>
+
+          {/* 2-col key-value grid */}
+          {grid.length > 0 && (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+              {grid.slice(0, 4).map(({ k, v }) => (
+                <div key={k} className="flex flex-col gap-0.5 min-w-0">
+                  <span className={kCls}>{k}</span>
+                  <span className={vCls}>{v}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
