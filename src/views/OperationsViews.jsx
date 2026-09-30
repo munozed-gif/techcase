@@ -840,13 +840,13 @@ function SapProfileFields({ meta = {}, onChange, dbType }) {
     set("components", comps.includes(comp) ? comps.filter(c => c !== comp) : [...comps, comp]);
   };
   return (
-    <div className="border border-indigo-100 bg-indigo-50/30 rounded-xl p-4 space-y-3">
-      <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide">{t("sap.profile_title")}</p>
+    <div className="border border-indigo-100 dark:border-indigo-800 bg-indigo-50/30 dark:bg-indigo-900/20 rounded-xl p-4 space-y-3">
+      <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide">{t("sap.profile_title")}</p>
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">{t("sap.product_label")}</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t("sap.product_label")}</label>
           <select value={meta.sap_product ?? "S/4HANA"} onChange={e => set("sap_product", e.target.value)}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
+            className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-400">
             {["S/4HANA","ECC 6.0","BW/4HANA","SAP BW","SAP CRM","SAP SRM","SAP GRC","SAP HCM","SAP HANA","SAP PI/PO","Other"].map(v => <option key={v}>{v}</option>)}
           </select>
         </div>
@@ -857,16 +857,16 @@ function SapProfileFields({ meta = {}, onChange, dbType }) {
       </div>
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">{t("sap.role_label")}</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t("sap.role_label")}</label>
           <select value={meta.system_role ?? "DEV"} onChange={e => set("system_role", e.target.value)}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
+            className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-400">
             {[["DEV","sap.role_dev"],["QAS","sap.role_qas"],["PRD","sap.role_prd"],["SBX","sap.role_sbx"],["TRN","sap.role_trn"]].map(([v,k]) => <option key={v} value={v}>{t(k)} ({v})</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">{t("sap.language_label")}</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t("sap.language_label")}</label>
           <select value={meta.language ?? "EN"} onChange={e => set("language", e.target.value)}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400">
+            className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-400">
             {[["EN","English"],["ES","Spanish"],["DE","German"],["FR","French"],["PT","Portuguese"],["IT","Italian"],["NL","Dutch"],["PL","Polish"],["ZH","Chinese"],["JA","Japanese"],["AR","Arabic"]].map(([v,l]) => <option key={v} value={v}>{l} ({v})</option>)}
           </select>
         </div>
@@ -874,13 +874,13 @@ function SapProfileFields({ meta = {}, onChange, dbType }) {
           onChange={e => set("transport_route", e.target.value)} placeholder={t("sap.ph_transport")} />
       </div>
       <div>
-        <label className="block text-xs font-medium text-gray-600 mb-2">{t("sap.components_label")}</label>
+        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">{t("sap.components_label")}</label>
         <div className="flex flex-wrap gap-1.5">
           {SAP_COMPONENTS.map(comp => {
             const active = (meta.components ?? []).includes(comp);
             return (
               <button key={comp} type="button" onClick={() => toggleComp(comp)}
-                className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors ${active ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600"}`}>
+                className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors ${active ? "bg-indigo-600 text-white border-indigo-600" : "bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-indigo-300 hover:text-indigo-600"}`}>
                 {comp}
               </button>
             );
