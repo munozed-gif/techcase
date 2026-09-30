@@ -125,8 +125,9 @@ function useProjectDbConnections(projectId, clientId) {
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   async function addConnection(conn) {
-    const { error } = await supabase.from("db_connections")
-      .insert({ ...conn, client_id: clientId, project_id: projectId });
+    const row = { ...conn, project_id: projectId };
+    if (clientId) row.client_id = clientId;
+    const { error } = await supabase.from("db_connections").insert(row);
     if (error) throw error;
     await fetchAll();
   }
