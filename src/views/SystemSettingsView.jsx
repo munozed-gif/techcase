@@ -1465,6 +1465,7 @@ function SettingsGenerationTab({ ssCtx }) {
                 <div className="flex gap-2 flex-wrap">
                   {[
                     { value: 'fiori',     label: 'SAP Fiori',  desc: 'Fiori shell bar, cards & tables' },
+                    { value: 'sapgui',    label: 'SAP GUI',    desc: 'Classic GUI: ALV grid + detail panel' },
                     { value: 'wireframe', label: 'Wireframe',  desc: 'Low-fidelity grey boxes & labels' },
                     { value: 'branded',   label: 'Branded',    desc: 'TechCase Arena dark theme' },
                   ].map(s => {

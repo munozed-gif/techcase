@@ -2243,6 +2243,62 @@ Use realistic Z object names matching the customer's described solution for ${ca
   }
 
   function buildPrototypePrompt(specA, specB, style) {
+    if (style === 'sapgui') {
+      return `You are a SAP GUI prototype generator. Generate a SINGLE complete self-contained HTML file that simulates a classic SAP GUI screen for this SAP case. The prototype must look and behave like real SAP GUI — not Fiori, not a wizard.
+
+Case: ${caseData.title}
+SAP Module: ${caseData.area_sap ?? ''}
+Industry: ${caseData.area_industry ?? ''}
+Description: ${caseData.description ?? ''}
+
+Spec A (Custom ABAP approach):
+${(specA ?? '').slice(0, 1500)}
+
+Spec B (Standard SAP approach):
+${(specB ?? '').slice(0, 1000)}
+
+VISUAL STYLE — SAP GUI (classic):
+- Background: #f3f2f1 (SAP off-white)
+- Panel/card background: #ffffff
+- Borders: #b9b9b9
+- Panel headers: #dfe4e8
+- Accent / SAP blue: #0854a0
+- Accent light: #e6f0fa
+- Text: #22282f, muted: #6b7280
+- Font: -apple-system, "Segoe UI", Arial, sans-serif, 13px
+- Buttons: flat, 3px border-radius, border #b9b9b9, background #fafafa; primary = #0854a0 text white; active = #e6f0fa border #0854a0 text #0854a0 font-weight 600
+- Inputs: border 1px #b9b9b9, border-radius 3px, padding 5px 7px, 12.5px font; readonly = background #f2f2f2
+- Tables (ALV): border-collapse collapse, th background #eef1f3, th/td padding 6px 8px, td border-bottom 1px #eee, row hover background #e6f0fa, selected row outline 1px #0854a0 background #e6f0fa
+- Badges: display inline-block, padding 1px 6px, border-radius 3px, font-size 11px font-weight 600
+- Warning disclaimer bar at top: background #fff4ce, border-bottom 2px #d29200, padding 8px 16px, font-size 12px
+
+REQUIRED STRUCTURE (in this order):
+1. Disclaimer bar: ⚠ <b>Prototipo no funcional</b> — simulates [transaction code(s) from spec]. Covers CU1–CU[N] from the spec.
+2. Shell bar: background #0854a0, white text, 10px 16px padding, flex space-between. Left: app/module title. Right: transaction code + document number + company name (sample data).
+3. Toolbar: background white, border-bottom 1px #b9b9b9, padding 8px 16px, flex row with gap. Include relevant mode toggles (e.g. Display/Change, Create vs Edit vs View, relevant status toggles) as button groups. Include a 💾 Grabar button that triggers a toast.
+4. Tab strip: tabs relevant to the SAP transaction (use real tab names from the spec such as Cabecera, Ítem, Piezas, Condiciones, etc.). The relevant tab is active (color #0854a0, border-bottom 3px #0854a0, font-weight 600).
+5. Main content area (flex row, gap 14px, padding 14px 16px):
+   - LEFT: ALV grid panel (flex 1.3, min-width 460px). Panel with gray header. Table with real columns from the spec. At least 3–5 realistic sample data rows. Clicking a row highlights it and updates the right detail panel.
+   - RIGHT: Detail panel (flex 1, min-width 340px). Shows fields for the selected row. Use field-row layout: label (width 140px) + input or select. Highlight the KEY field from the spec with a colored border box (border 1px #0854a0, background #e6f0fa, border-radius 4px, padding 10px, relative position with a small tag label). Show lock state when blocked (border #c0392b, background #fdecea, tag background #c0392b).
+6. Fields reference table: below the main content, show a spec table with columns: Campo | Tabla-campo técnico | Tipo | Obligatorio | F4 | Validación — populated with real fields from the spec.
+7. F4 modal (if spec mentions value help / F4 / search help): fixed overlay, modal with search input + results table. Clicking a row assigns the value and closes the modal.
+8. Toast notification: fixed bottom center, dark background, shows on Grabar and on F4 pick.
+
+JAVASCRIPT REQUIREMENTS:
+- Mode toggles update button active states and re-render detail panel (blocked/unblocked field state)
+- Status toggles update button active states and re-render detail panel
+- ALV row click: update selected row index, re-render both ALV (highlight) and detail panel
+- isBlocked() function: returns true when in view/display mode OR when status indicates closed/completed
+- F4 button in detail panel: opens modal; modal search input filters the list; clicking a row assigns the value, closes modal, shows toast, re-renders
+- 💾 Grabar: shows toast "Grabar — simulado. En un caso real, dispara [relevant BAPI/FM from spec]."
+- render() calls renderAlv() and renderDetail() — called on every state change
+- document.addEventListener('DOMContentLoaded', () => render())
+
+ALL CSS and JavaScript must be inline in the single HTML file — no external dependencies, no fetch calls, no external URLs.
+
+OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No explanation, no markdown fences, no text before or after the HTML.`;
+    }
+
     const styleGuide = style === 'wireframe'
       ? `Use a low-fidelity wireframe visual style: white/light-gray backgrounds (#F5F5F5), gray borders (#CCCCCC), dark gray text (#333333), placeholder boxes for images, no gradients or shadows. Label everything clearly. Use a simple sans-serif font.`
       : style === 'branded'
