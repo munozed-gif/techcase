@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   Activity, AlertCircle, AlertTriangle, Archive, BarChart2, Building2,
-  Calendar, Camera, Check, CheckCircle2, ChevronLeft, ChevronRight, Code2, Copy,
+  Calendar, Camera, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Code2, Copy,
   Database, DollarSign, FileEdit, FileText, FolderOpen, Layers,
   LayoutTemplate, Loader2, Lock, Pause, PauseCircle, Play, Plus, Search,
   Shield, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, Upload,
@@ -1573,6 +1573,12 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
   const [activeTab, setActiveTab] = useState("overview");
   const projCarouselRef = useRef(null);
   const projCarouselScrolling = useRef(false);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
+  useEffect(() => {
+    const fn = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', fn);
+    return () => window.removeEventListener('resize', fn);
+  }, []);
   const [projMountedSlides, setProjMountedSlides] = useState(() => new Set(["overview"]));
   const [projManualCompletions, setProjManualCompletionsRaw] = useState(() => {
     try { return JSON.parse(localStorage.getItem(`tc_pmc_${project.id}`) ?? "{}"); } catch { return {}; }
@@ -1815,9 +1821,13 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
     if (idx < 0) return;
     const slide = el.children[idx];
     if (!slide) return;
-    const targetLeft = slide.offsetLeft - (el.offsetWidth - slide.offsetWidth) / 2;
     projCarouselScrolling.current = true;
-    el.scrollTo({ left: targetLeft, behavior: 'smooth' });
+    if (window.innerWidth < 640) {
+      el.scrollTo({ top: slide.offsetTop, behavior: 'smooth' });
+    } else {
+      const targetLeft = slide.offsetLeft - (el.offsetWidth - slide.offsetWidth) / 2;
+      el.scrollTo({ left: targetLeft, behavior: 'smooth' });
+    }
     const tid = setTimeout(() => { projCarouselScrolling.current = false; }, 600);
     return () => clearTimeout(tid);
   }, [activeTab]);
@@ -1975,39 +1985,70 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
           if (projCarouselScrolling.current) return;
           const el = projCarouselRef.current;
           if (!el) return;
-          const center = el.scrollLeft + el.offsetWidth / 2;
           let closest = 0, minDist = Infinity;
-          Array.from(el.children).forEach((child, i) => {
-            const dist = Math.abs((child.offsetLeft + child.offsetWidth / 2) - center);
-            if (dist < minDist) { minDist = dist; closest = i; }
-          });
+          if (window.innerWidth < 640) {
+            const center = el.scrollTop + el.offsetHeight / 2;
+            Array.from(el.children).forEach((child, i) => {
+              const dist = Math.abs((child.offsetTop + child.offsetHeight / 2) - center);
+              if (dist < minDist) { minDist = dist; closest = i; }
+            });
+          } else {
+            const center = el.scrollLeft + el.offsetWidth / 2;
+            Array.from(el.children).forEach((child, i) => {
+              const dist = Math.abs((child.offsetLeft + child.offsetWidth / 2) - center);
+              if (dist < minDist) { minDist = dist; closest = i; }
+            });
+          }
           const tab = projectTabs[closest];
           if (tab && tab.id !== activeTab) setActiveTab(tab.id);
         }
         return (
           <div style={{ position:'relative' }}>
-            {carouselIdx > 0 && (
-              <button onClick={() => scrollTo(carouselIdx - 1)}
-                style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid var(--t-arrow-border)', background:'var(--t-arrow-bg)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.15)', marginTop:-20 }}>
-                <ChevronLeft size={16} style={{color:'var(--t-text2)'}}/>
-              </button>
-            )}
-            {carouselIdx < projectTabs.length - 1 && (
-              <button onClick={() => scrollTo(carouselIdx + 1)}
-                style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid var(--t-arrow-border)', background:'var(--t-arrow-bg)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.15)', marginTop:-20 }}>
-                <ChevronRight size={16} style={{color:'var(--t-text2)'}}/>
-              </button>
+            {isMobile ? (
+              <>
+                {carouselIdx > 0 && (
+                  <button onClick={() => scrollTo(carouselIdx - 1)}
+                    style={{ position:'absolute', top:8, left:'50%', transform:'translateX(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid var(--t-arrow-border)', background:'var(--t-arrow-bg)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.15)' }}>
+                    <ChevronUp size={16} style={{color:'var(--t-text2)'}}/>
+                  </button>
+                )}
+                {carouselIdx < projectTabs.length - 1 && (
+                  <button onClick={() => scrollTo(carouselIdx + 1)}
+                    style={{ position:'absolute', bottom:8, left:'50%', transform:'translateX(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid var(--t-arrow-border)', background:'var(--t-arrow-bg)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.15)' }}>
+                    <ChevronDown size={16} style={{color:'var(--t-text2)'}}/>
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                {carouselIdx > 0 && (
+                  <button onClick={() => scrollTo(carouselIdx - 1)}
+                    style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid var(--t-arrow-border)', background:'var(--t-arrow-bg)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.15)', marginTop:-20 }}>
+                    <ChevronLeft size={16} style={{color:'var(--t-text2)'}}/>
+                  </button>
+                )}
+                {carouselIdx < projectTabs.length - 1 && (
+                  <button onClick={() => scrollTo(carouselIdx + 1)}
+                    style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', zIndex:10, width:32, height:32, borderRadius:'50%', border:'1.5px solid var(--t-arrow-border)', background:'var(--t-arrow-bg)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.15)', marginTop:-20 }}>
+                    <ChevronRight size={16} style={{color:'var(--t-text2)'}}/>
+                  </button>
+                )}
+              </>
             )}
             <div ref={projCarouselRef} onScroll={onScroll}
-              style={{ display:'flex', overflowX:'scroll', scrollSnapType:'x mandatory', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', gap:10, padding:'0 60px' }}>
+              style={isMobile
+                ? { display:'flex', flexDirection:'column', overflowY:'scroll', overflowX:'hidden', scrollSnapType:'y mandatory', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', gap:12, padding:'44px 0', maxHeight:'80vh' }
+                : { display:'flex', overflowX:'scroll', scrollSnapType:'x mandatory', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', gap:10, padding:'0 60px' }}>
               {projectTabs.map((tab, i) => {
                 const isActive = tab.id === activeTab;
                 const Icon = tab.icon;
                 const st = projTabStatus[tab.id];
                 return (
                   <div key={tab.id}
-                    style={{ flex:'0 0 calc(100% - 120px)', width:'calc(100% - 120px)', maxWidth:'calc(100% - 120px)', minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity:isActive?1:0.5, transform:isActive?'scale(1)':'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
-                    <div style={{ borderRadius:12, border:`1px solid ${isActive?'var(--t-border-active)':'var(--t-border)'}`, background:'var(--t-card-bg)', overflow:'hidden', width:'100%', boxSizing:'border-box', height:700, display:'flex', flexDirection:'column', boxShadow:isActive?'0 4px 20px rgba(0,0,0,.12)':'none', transition:'box-shadow .25s' }}>
+                    style={isMobile
+                      ? { flex:'0 0 auto', width:'100%', maxWidth:'100%', minWidth:0, overflow:'hidden', scrollSnapAlign:'start', scrollSnapStop:'always', opacity:isActive?1:0.85, transition:'opacity .25s' }
+                      : { flex:'0 0 calc(100% - 120px)', width:'calc(100% - 120px)', maxWidth:'calc(100% - 120px)', minWidth:0, overflow:'hidden', scrollSnapAlign:'center', scrollSnapStop:'always', opacity:isActive?1:0.5, transform:isActive?'scale(1)':'scale(0.97)', transition:'opacity .25s, transform .25s' }}>
+                    <div style={{ borderRadius:12, border:`1px solid ${isActive?'var(--t-border-active)':'var(--t-border)'}`, background:'var(--t-card-bg)', overflow:'hidden', width:'100%', boxSizing:'border-box', height:isMobile?undefined:700, minHeight:isMobile?400:undefined, display:'flex', flexDirection:'column', boxShadow:isActive?'0 4px 20px rgba(0,0,0,.12)':'none', transition:'box-shadow .25s' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', borderBottom:'1px solid var(--t-tab-border)', background:isActive?'var(--t-tab-active)':'var(--t-tab-inactive)', flexShrink:0, cursor:isActive?'default':'pointer' }}
                         onClick={() => !isActive && scrollTo(i)}>
                         {st === "complete"
