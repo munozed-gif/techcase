@@ -54,6 +54,49 @@ import {
   DEFAULT_ACTIVITY_PHASES, getLifecycleStages, GATE_CONDITIONS,
 } from "../lib/businessConstants.js";
 
+// ── Stable doc-tab helpers (defined outside CaseDetail so refs never change) ──
+function DocSectionHeader({ Icon, iconClass, label, count, accent, children }) {
+  return (
+    <div className="space-y-2">
+      <div className={`flex items-center gap-2 pb-1 border-b ${accent ?? 'border-gray-100'}`}>
+        <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${iconClass ?? 'text-gray-400'}`} />
+        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</span>
+        {count != null && <span className="ml-auto text-xs text-gray-400">{count}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+function DocRow({ doc, auth, deleteDocument, openDocInNewTab, t }) {
+  const icon = doc.file_type?.includes("pdf")
+    ? <FileText className="w-4 h-4 text-red-400" />
+    : doc.file_type?.includes("image")
+    ? <FileImage className="w-4 h-4 text-blue-400" />
+    : <Paperclip className="w-4 h-4 text-gray-400" />;
+  return (
+    <div className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:bg-gray-50">
+      <div className="flex-shrink-0">{icon}</div>
+      <div className="flex-1 min-w-0">
+        <button onClick={() => openDocInNewTab(doc)}
+          className="font-medium text-sm text-blue-600 hover:underline truncate block text-left w-full">{doc.file_name}</button>
+        <div className="text-xs text-gray-400 mt-0.5">
+          {doc.file_size_kb ? `${doc.file_size_kb} KB · ` : ""}
+          {doc.uploader?.full_name ?? t("reports.unknown")} · {doc.created_at ? new Date(doc.created_at).toLocaleDateString() : ""}
+        </div>
+        {doc.notes && (
+          <p className="text-xs text-gray-500 mt-0.5">{doc.notes.replace(/^\[[^\]]+\]\s*/, '')}</p>
+        )}
+      </div>
+      {(auth.isAdmin || auth.isManager) && (
+        <button onClick={() => deleteDocument(doc.id, doc.file_url)}
+          className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded border border-red-100 hover:bg-red-50 flex-shrink-0">
+          {t("action.remove")}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdate, onBack }) {
   const { t } = useT();
   const { settings: cdSettings } = useSystemSettings();
@@ -3798,50 +3841,11 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         const protoDocs = documents.filter(d => isPrototype(d));
         const aiDocs    = documents.filter(d => isAiDoc(d));
         const caseDocs  = documents.filter(d => !isPrototype(d) && !isAiDoc(d));
-        const DOC_ICON = doc => doc.file_type?.includes("pdf")
-          ? <FileText className="w-4 h-4 text-red-400" />
-          : doc.file_type?.includes("image")
-          ? <FileImage className="w-4 h-4 text-blue-400" />
-          : <Paperclip className="w-4 h-4 text-gray-400" />;
-        const DocRow = ({ doc }) => (
-          <div className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:bg-gray-50">
-            <div className="flex-shrink-0">{DOC_ICON(doc)}</div>
-            <div className="flex-1 min-w-0">
-              <button onClick={() => openDocInNewTab(doc)}
-                className="font-medium text-sm text-blue-600 hover:underline truncate block text-left w-full">{doc.file_name}</button>
-              <div className="text-xs text-gray-400 mt-0.5">
-                {doc.file_size_kb ? `${doc.file_size_kb} KB · ` : ""}
-                {doc.uploader?.full_name ?? t("reports.unknown")} · {fmtDate(doc.created_at)}
-              </div>
-              {doc.notes && (
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {doc.notes.replace(/^\[[^\]]+\]\s*/, '')}
-                </p>
-              )}
-            </div>
-            {(auth.isAdmin || auth.isManager) && (
-              <button onClick={() => deleteDocument(doc.id, doc.file_url)}
-                className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded border border-red-100 hover:bg-red-50 flex-shrink-0">
-                {t("action.remove")}
-              </button>
-            )}
-          </div>
-        );
-        const SectionHeader = ({ Icon, iconClass, label, count, accent, children }) => (
-          <div className="space-y-2">
-            <div className={`flex items-center gap-2 pb-1 border-b ${accent ?? 'border-gray-100'}`}>
-              <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${iconClass ?? 'text-gray-400'}`} />
-              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</span>
-              {count != null && <span className="ml-auto text-xs text-gray-400">{count}</span>}
-            </div>
-            {children}
-          </div>
-        );
         return (
           <div className="space-y-6">
             {/* ── Interactive Prototypes ── */}
             {protoDocs.length > 0 && (
-              <SectionHeader Icon={Monitor} iconClass="text-indigo-500" label="Interactive Prototypes" count={protoDocs.length} accent="border-indigo-100">
+              <DocSectionHeader Icon={Monitor} iconClass="text-indigo-500" label="Interactive Prototypes" count={protoDocs.length} accent="border-indigo-100">
                 <div className="space-y-2">
                   {protoDocs.map(doc => (
                     <div key={doc.id} className="flex items-center gap-3 p-3 border border-indigo-100 rounded-xl bg-indigo-50 hover:bg-indigo-100">
@@ -3866,19 +3870,19 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                     </div>
                   ))}
                 </div>
-              </SectionHeader>
+              </DocSectionHeader>
             )}
 
             {/* ── AI Generated ── */}
-            <SectionHeader Icon={Sparkles} iconClass="text-violet-400" label="AI Generated" count={aiDocs.length} accent="border-violet-100">
+            <DocSectionHeader Icon={Sparkles} iconClass="text-violet-400" label="AI Generated" count={aiDocs.length} accent="border-violet-100">
               {aiDocs.length === 0
                 ? <p className="text-xs text-gray-400 py-2 pl-1">No AI-generated documents yet — run the Spec tab to generate them.</p>
-                : <div className="space-y-2">{aiDocs.map(doc => <DocRow key={doc.id} doc={doc} />)}</div>
+                : <div className="space-y-2">{aiDocs.map(doc => <DocRow key={doc.id} doc={doc} auth={auth} deleteDocument={deleteDocument} openDocInNewTab={openDocInNewTab} t={t} />)}</div>
               }
-            </SectionHeader>
+            </DocSectionHeader>
 
             {/* ── Case Documents ── */}
-            <SectionHeader Icon={FolderOpen} iconClass="text-blue-400" label="Case Documents" count={caseDocs.length} accent="border-blue-100">
+            <DocSectionHeader Icon={FolderOpen} iconClass="text-blue-400" label="Case Documents" count={caseDocs.length} accent="border-blue-100">
               {stageRules.can_upload_docs && (
                 <div className="flex justify-end mb-1">
                   <button onClick={() => setShowDocForm(p => !p)}
@@ -3888,12 +3892,12 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                 </div>
               )}
               {showDocForm && (
-                <div className="bg-gray-50 rounded-xl p-4 space-y-3 mb-2">
+                <div className="bg-gray-50 dark:bg-gray-800/60 rounded-xl p-4 space-y-3 mb-2">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Category</label>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Category</label>
                       <select value={docCategory} onChange={e => setDocCategory(e.target.value)}
-                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-300">
+                        className="w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-300">
                         <option value="requirements">Requirements</option>
                         <option value="deliverable">Deliverable</option>
                         <option value="reference">Reference</option>
@@ -3901,14 +3905,21 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">{t("case.file_label")}</label>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t("case.file_label")}</label>
                       <input ref={docFileRef} type="file"
                         onChange={e => setPendingDocFile(e.target.files?.[0] ?? null)}
                         className="block w-full text-sm text-gray-500 file:mr-3 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
                     </div>
                   </div>
-                  <Textarea label={t("case.notes_optional")} value={docNotes}
-                    onChange={e => setDocNotes(e.target.value)} placeholder={t("case.notes_doc_ph")} />
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t("case.notes_optional")}</label>
+                    <textarea
+                      value={docNotes}
+                      onChange={e => setDocNotes(e.target.value)}
+                      placeholder={t("case.notes_doc_ph")}
+                      rows={3}
+                      className="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none" />
+                  </div>
                   <div className="flex gap-2 justify-end">
                     <button onClick={() => { setShowDocForm(false); setPendingDocFile(null); setDocNotes(""); setDocCategory("requirements"); }}
                       className="px-3 py-1.5 text-sm text-gray-500">{t("action.cancel")}</button>
@@ -3934,19 +3945,19 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       return (
                         <div key={cat}>
                           <div className="text-xs text-gray-400 font-medium mb-1 pl-1">{label}</div>
-                          <div className="space-y-1.5">{catDocs.map(doc => <DocRow key={doc.id} doc={doc} />)}</div>
+                          <div className="space-y-1.5">{catDocs.map(doc => <DocRow key={doc.id} doc={doc} auth={auth} deleteDocument={deleteDocument} openDocInNewTab={openDocInNewTab} t={t} />)}</div>
                         </div>
                       );
                     })}
                   </div>
                 )
               }
-            </SectionHeader>
+            </DocSectionHeader>
 
             {/* ── Work Files ── */}
-            <SectionHeader Icon={Paperclip} iconClass="text-amber-400" label="Work Files" accent="border-amber-100">
+            <DocSectionHeader Icon={Paperclip} iconClass="text-amber-400" label="Work Files" accent="border-amber-100">
               <CaseFilesPanel caseId={caseData.id} auth={auth} embedded />
-            </SectionHeader>
+            </DocSectionHeader>
           </div>
         );
       })()}
