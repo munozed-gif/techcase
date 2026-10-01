@@ -584,23 +584,32 @@ function MarkdownAccordion({ text }) {
   return (
     <div className="space-y-1">
       {sections.map((s, i) => (
-        s.title ? (
-          <div key={i} className="border border-gray-200 rounded-xl overflow-hidden">
+        s.title && s.level === 1 ? (
+          /* Document title — always visible, never collapsible */
+          <div key={i} className="px-1 pb-1">
+            <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100 leading-snug">{s.title}</h2>
+            {s.body.trim() && (
+              <div className="mt-1 text-xs text-gray-600 dark:text-gray-400 leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize('<div>' + renderMarkdown(s.body) + '</div>') }} />
+            )}
+          </div>
+        ) : s.title ? (
+          <div key={i} className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
             <button
               onClick={() => setOpen(p => ({ ...p, [i]: !p[i] }))}
-              className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 text-left gap-2">
-              <span className={`font-semibold text-gray-700 leading-snug ${s.level === 1 ? 'text-sm' : s.level === 2 ? 'text-xs' : 'text-xs text-gray-500'}`}>
+              className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-left gap-2">
+              <span className={`font-semibold text-gray-700 dark:text-gray-200 leading-snug ${s.level === 2 ? 'text-xs' : 'text-xs text-gray-500 dark:text-gray-400'}`}>
                 {s.title}
               </span>
               <ChevronDown size={12} className={`text-gray-400 flex-shrink-0 transition-transform duration-150 ${open[i] ? 'rotate-180' : ''}`} />
             </button>
             {open[i] && s.body.trim() && (
-              <div className="px-3 py-2.5 text-xs text-gray-800 leading-relaxed border-t border-gray-100"
+              <div className="px-3 py-2.5 text-xs text-gray-800 dark:text-gray-300 leading-relaxed border-t border-gray-100 dark:border-gray-700"
                 dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize('<div>' + renderMarkdown(s.body) + '</div>') }} />
             )}
           </div>
         ) : s.body.trim() ? (
-          <div key={i} className="text-xs text-gray-600 leading-relaxed px-1 py-1"
+          <div key={i} className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed px-1 py-1"
             dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize('<div>' + renderMarkdown(s.body) + '</div>') }} />
         ) : null
       ))}
