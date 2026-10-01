@@ -3187,8 +3187,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 sub={`${inputDocs.length} ${t("spec.docs_files")}`}
                 status="complete"
                 isActive={activeNode===0}
-                canClick={!specApproved}
-                onClick={() => { if (!specApproved) setActiveNode(0); }}
+                canClick={true}
+                onClick={() => setActiveNode(0)}
               />
 
               {/* Node 1: SAP Verification */}
@@ -3197,8 +3197,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 sub={sapCheck ? sapCheck.coverage : sapStatus==='running' ? t("spec.checking") : sapStatus==='skipped' ? t("spec.skipped") : t("spec.pending")}
                 status={sapStatus}
                 isActive={activeNode===1}
-                canClick={!specApproved}
-                onClick={() => { if (!specApproved) setActiveNode(1); }}
+                canClick={true}
+                onClick={() => setActiveNode(1)}
               />
 
               {/* Node 2: Proposal Validation */}
@@ -3207,8 +3207,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 sub={proposalCheck ? `Score ${proposalCheck.score}/10` : propStatus==='running' ? t("spec.validating") : propStatus==='locked' ? t("spec.locked") : propStatus==='skipped' ? t("spec.skipped") : t("spec.pending")}
                 status={propStatus}
                 isActive={activeNode===2}
-                canClick={!specApproved && propStatus !== 'locked'}
-                onClick={() => { if (!specApproved && propStatus !== 'locked') setActiveNode(2); }}
+                canClick={propStatus !== 'locked'}
+                onClick={() => { if (propStatus !== 'locked') setActiveNode(2); }}
               />
 
               {/* Node 3: Generate Specification + sub-nodes */}
@@ -3217,8 +3217,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 sub={genStatus==='complete' ? `${[aiSpecA,aiSpecB,aiSpecC].filter(Boolean).length} ${t("spec.specs_gen")}` : genStatus==='running' ? t("spec.gen_all_loading") : genStatus==='locked' ? t("spec.locked") : t("spec.pending")}
                 status={genStatus}
                 isActive={activeNode===3}
-                canClick={!specApproved && genStatus !== 'locked'}
-                onClick={() => { if (!specApproved && genStatus !== 'locked') setActiveNode(3); }}
+                canClick={genStatus !== 'locked'}
+                onClick={() => { if (genStatus !== 'locked') setActiveNode(3); }}
               >
                 {/* Sub-nodes for Spec A / B / C + Prototype */}
                 {(aiSpecA || aiSpecB || aiSpecC || activeNode===3) && (
