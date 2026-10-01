@@ -1650,9 +1650,9 @@ ${mdToHtml(markdownContent)}
         { label: t("spec.label_generated"),value: dateLong },
       ];
       const specs = [
-        { key: 'a', content: valSection + specA, prefix: 'SpecA_CustomABAP',       note: 'Opción A — Desarrollo Custom ABAP (auto-generated)',      title: 'Opción A — Desarrollo Custom ABAP' },
-        { key: 'b', content: valSection + specB, prefix: 'SpecB_StandardSAP',      note: 'Opción B — Configuración SAP Estándar (auto-generated)',  title: 'Opción B — Configuración SAP Estándar' },
-        { key: 'c', content: valSection + specC, prefix: 'SpecC_PropuestaCliente', note: 'Opción C — Propuesta del Cliente (auto-generated)',        title: 'Opción C — Propuesta del Cliente' },
+        { key: 'a', content: valSection + specA, prefix: 'SpecA_CustomABAP',       note: 'ABAP (auto-generated)',     title: 'ABAP' },
+        { key: 'b', content: valSection + specB, prefix: 'SpecB_StandardSAP',      note: 'SAP (auto-generated)',      title: 'SAP' },
+        { key: 'c', content: valSection + specC, prefix: 'SpecC_PropuestaCliente', note: 'Customer (auto-generated)', title: 'Customer' },
       ];
       const newUrls = { a: null, b: null, c: null };
       for (const s of specs) {
