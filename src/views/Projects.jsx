@@ -1909,34 +1909,38 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
           </div>
         )}
 
-        {/* Project Next Steps */}
-        {canEdit && (() => {
-          const curStage = PROJECT_LIFECYCLE_STAGES.find(s => s.key === project.status);
-          if (!curStage || curStage.is_terminal) return null;
-          const validNext = PROJECT_LIFECYCLE_STAGES.filter(s => s.key !== project.status);
+        {/* Project status carousel */}
+        {(() => {
+          const curIdx = PROJECT_LIFECYCLE_STAGES.findIndex(s => s.key === project.status);
           return (
-            <div className="mt-4 pt-4 border-t border-gray-100">
+            <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("project.next_steps")}</p>
-              <div className={`grid gap-3 ${validNext.length === 1 ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"}`}>
-                {validNext.map(s => {
+              <div className="flex gap-2.5 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+                {PROJECT_LIFECYCLE_STAGES.map((s, i) => {
+                  const isCurrent = s.key === project.status;
+                  const isPast    = curIdx >= 0 && i < curIdx;
                   const { Icon } = PROJECT_NEXT_META[s.key] ?? { Icon: Zap };
                   const desc = t({ draft: "proj.meta_draft", active: "proj.meta_active", on_hold: "proj.meta_on_hold", completed: "proj.meta_completed", cancelled: "proj.meta_cancelled" }[s.key] ?? "proj.meta_default");
-                  const isCancelled = s.key === "cancelled";
                   return (
-                    <button key={s.key}
-                      onClick={() => handleStatusChange(s.key)}
-                      className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl border-2 text-left transition-all hover:shadow-md active:scale-[0.98] bg-white ${
-                        isCancelled
-                          ? "border-red-100 hover:border-red-300 hover:bg-red-50"
-                          : "border-gray-100 hover:border-blue-200 hover:bg-blue-50/30"
-                      }`}>
-                      <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                        style={{ backgroundColor: s.color + "22" }}>
-                        <Icon className="w-6 h-6" style={{ color: s.color }} />
+                    <button key={s.key} disabled={isCurrent || !canEdit}
+                      onClick={() => !isCurrent && canEdit && handleStatusChange(s.key)}
+                      className="flex-shrink-0 w-40 rounded-2xl overflow-hidden text-left relative transition-all hover:shadow-md active:scale-[0.98] disabled:cursor-default"
+                      style={{ border: `1.5px solid ${isCurrent ? s.color : isPast ? s.color + "60" : s.color + "30"}`, background: isCurrent ? s.color + "18" : isPast ? s.color + "0a" : "var(--t-card-bg, transparent)", opacity: s.is_terminal && !isCurrent && !isPast ? 0.65 : 1 }}>
+                      <Icon size={72} style={{ position: "absolute", bottom: 6, right: 6, opacity: isCurrent ? 0.18 : 0.08, color: s.color, pointerEvents: "none" }} />
+                      <div className="px-3 pt-3 pb-2 flex items-center gap-2 relative z-10">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                          style={{ background: s.color + (isCurrent ? "30" : "20") }}>
+                          {isPast ? <Check size={13} style={{ color: s.color }} /> : <Icon size={13} style={{ color: s.color }} />}
+                        </div>
+                        <span className="text-xs font-bold" style={{ color: isCurrent ? s.color : isPast ? s.color + "cc" : s.color + "88" }}>
+                          {s.labelKey ? t(s.labelKey) : s.label}
+                        </span>
+                        {isCurrent && (
+                          <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background: s.color, color: "#fff" }}>NOW</span>
+                        )}
                       </div>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-gray-900 text-sm">{s.labelKey ? t(s.labelKey) : s.label}</p>
-                        <p className="text-xs text-gray-400 mt-0.5 leading-snug">{desc}</p>
+                      <div className="px-3 pb-3 relative z-10">
+                        <p className="text-[10px] leading-snug" style={{ color: isCurrent ? s.color + "cc" : "#6B7280" }}>{desc}</p>
                       </div>
                     </button>
                   );
@@ -2028,56 +2032,13 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
 
         {/* Overview */}
         {tab.id === "overview" && (() => {
-          const curIdx = PROJECT_LIFECYCLE_STAGES.findIndex(s => s.key === project.status);
           const ptMeta = PROJECT_TYPES.find(pt => pt.value === project.project_type);
           const PtIcon = ptMeta?.Icon;
           return (
             <div className="space-y-5">
 
-              {/* ── Status carousel ── */}
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("project.next_steps")}</p>
-                <div className="flex gap-2.5 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
-                  {PROJECT_LIFECYCLE_STAGES.map((s, i) => {
-                    const isCurrent = s.key === project.status;
-                    const isPast    = curIdx >= 0 && i < curIdx;
-                    const isTerminal = s.is_terminal;
-                    const { Icon } = PROJECT_NEXT_META[s.key] ?? { Icon: Zap };
-                    const desc = t({ draft: "proj.meta_draft", active: "proj.meta_active", on_hold: "proj.meta_on_hold", completed: "proj.meta_completed", cancelled: "proj.meta_cancelled" }[s.key] ?? "proj.meta_default");
-                    return (
-                      <button key={s.key} disabled={isCurrent || !canEdit}
-                        onClick={() => !isCurrent && canEdit && handleStatusChange(s.key)}
-                        className="flex-shrink-0 w-40 rounded-2xl overflow-hidden text-left relative transition-all hover:shadow-md disabled:cursor-default"
-                        style={{ border: `1.5px solid ${isCurrent ? s.color : isPast ? s.color + "60" : s.color + "30"}`, background: isCurrent ? s.color + "18" : isPast ? s.color + "0a" : "var(--t-card-bg, #1e2535)", opacity: isTerminal && !isCurrent && !isPast ? 0.65 : 1 }}>
-                        {/* Watermark */}
-                        <Icon size={72} style={{ position: "absolute", bottom: 6, right: 6, opacity: isCurrent ? 0.18 : 0.08, color: s.color, pointerEvents: "none" }} />
-                        {/* Header */}
-                        <div className="px-3 pt-3 pb-2 flex items-center gap-2 relative z-10">
-                          <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                            style={{ background: s.color + (isCurrent ? "30" : "20") }}>
-                            {isPast
-                              ? <Check size={13} style={{ color: s.color }} />
-                              : <Icon size={13} style={{ color: s.color }} />}
-                          </div>
-                          <span className="text-xs font-bold" style={{ color: isCurrent ? s.color : isPast ? s.color + "cc" : s.color + "88" }}>
-                            {s.labelKey ? t(s.labelKey) : s.label}
-                          </span>
-                          {isCurrent && (
-                            <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background: s.color, color: "#fff" }}>NOW</span>
-                          )}
-                        </div>
-                        {/* Body */}
-                        <div className="px-3 pb-3 relative z-10">
-                          <p className="text-[10px] leading-snug" style={{ color: isCurrent ? s.color + "cc" : "#6B7280" }}>{desc}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
               {/* ── Field grid ── */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 text-sm pt-2 border-t border-gray-100 dark:border-gray-700">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 text-sm">
                 {project.priority && (
                   <div>
                     <span className="text-gray-400 block text-xs mb-1">{t("label.priority")}</span>
