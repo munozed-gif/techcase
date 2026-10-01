@@ -3386,12 +3386,14 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     </div>
                   )}
                 </div>
-                <div className="flex justify-end">
-                  <button onClick={() => setActiveNode(1)}
-                    className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
-                    {t("spec.ai_check_btn")} →
-                  </button>
-                </div>
+                {!specApproved && (
+                  <div className="flex justify-end">
+                    <button onClick={() => setActiveNode(1)}
+                      className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
+                      {t("spec.ai_check_btn")} →
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
