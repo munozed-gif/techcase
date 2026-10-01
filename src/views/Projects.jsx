@@ -2034,123 +2034,177 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         {tab.id === "overview" && (() => {
           const ptMeta = PROJECT_TYPES.find(pt => pt.value === project.project_type);
           const PtIcon = ptMeta?.Icon;
+          const today = new Date();
+          let pctDone = 0;
+          let durationDays = null;
+          if (project.start_date && project.end_date) {
+            const sd = new Date(project.start_date), ed = new Date(project.end_date);
+            const total = ed - sd;
+            durationDays = Math.round(total / 86400000);
+            pctDone = total > 0 ? Math.round((Math.min(Math.max(today - sd, 0), total) / total) * 100) : 0;
+          }
+          const oc = "rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4";
+          const CardHdr = ({ icon, label, color }) => (
+            <div className="flex items-center gap-2 mb-3">
+              <span style={{ color }}>{icon}</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{label}</span>
+            </div>
+          );
           return (
-            <div className="space-y-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
-              {/* ── Field grid ── */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 text-sm">
-                {project.priority && (
-                  <div>
-                    <span className="text-gray-400 block text-xs mb-1">{t("label.priority")}</span>
-                    <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${PRIORITY_COLORS[project.priority] ?? "bg-gray-100 text-gray-600"}`}>{PRIORITY_LABEL_KEYS[project.priority] ? t(PRIORITY_LABEL_KEYS[project.priority]) : cap(project.priority)}</span>
+              {/* 1 — Timeline */}
+              {(project.start_date || project.end_date) && (
+                <div className={`${oc} sm:col-span-2`}>
+                  <CardHdr icon={<Calendar size={13} />} label={t("label.timeline")} color="#6366f1" />
+                  <div className="flex items-center gap-4">
+                    <div className="text-center min-w-[80px]">
+                      <div className="text-[10px] text-gray-400 mb-0.5">{t("label.start_date")}</div>
+                      <div className="font-semibold text-sm text-gray-900 dark:text-gray-100">{project.start_date ? fmtDate(project.start_date) : "—"}</div>
+                    </div>
+                    <div className="flex-1">
+                      <div className="relative h-2 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                        <div className="absolute left-0 top-0 h-full rounded-full bg-indigo-500 transition-all" style={{ width: `${pctDone}%` }} />
+                      </div>
+                      {durationDays !== null && (
+                        <div className="text-[10px] text-center text-gray-400 mt-1">{durationDays} {t("label.days")} · {pctDone}% {t("label.elapsed")}</div>
+                      )}
+                    </div>
+                    <div className="text-center min-w-[80px]">
+                      <div className="text-[10px] text-gray-400 mb-0.5">{t("label.end_date")}</div>
+                      <div className="font-semibold text-sm text-gray-900 dark:text-gray-100">{project.end_date ? fmtDate(project.end_date) : "—"}</div>
+                    </div>
                   </div>
-                )}
-                {project.work_mode && (
-                  <div>
-                    <span className="text-gray-400 block text-xs mb-1">{t("project.work_mode")}</span>
-                    <span className="px-2 py-0.5 text-xs font-semibold rounded-lg bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400">{WORK_MODE_LABEL_KEYS[project.work_mode] ? t(WORK_MODE_LABEL_KEYS[project.work_mode]) : cap(project.work_mode)}</span>
-                  </div>
-                )}
-                {project.project_type && (
-                  <div>
-                    <span className="text-gray-400 block text-xs mb-1">{t("proj.rev_basics")}</span>
-                    <span className="flex items-center gap-1.5 font-semibold text-gray-900 dark:text-gray-100 text-xs">
-                      {PtIcon && <PtIcon size={13} className="text-violet-500 flex-shrink-0" />}
-                      {ptMeta?.label ?? project.project_type}
-                    </span>
-                  </div>
-                )}
-                {project.total_budget && (
-                  <div>
-                    <span className="text-gray-400 block text-xs mb-1">{t("label.budget")}</span>
-                    <span className="font-semibold text-gray-900 dark:text-gray-100">${Number(project.total_budget).toLocaleString()}</span>
-                  </div>
-                )}
-                {project.start_date && (
-                  <div>
-                    <span className="text-gray-400 block text-xs mb-1">{t("label.start_date")}</span>
-                    <span className="font-semibold text-gray-900 dark:text-gray-100">{fmtDate(project.start_date)}</span>
-                  </div>
-                )}
-                {project.end_date && (
-                  <div>
-                    <span className="text-gray-400 block text-xs mb-1">{t("label.end_date")}</span>
-                    <span className="font-semibold text-gray-900 dark:text-gray-100">{fmtDate(project.end_date)}</span>
-                  </div>
-                )}
-                {project.area_sap && (
-                  <div>
-                    <span className="text-gray-400 block text-xs mb-1">{t("project.sap_area")}</span>
-                    <span className="font-semibold text-gray-900 dark:text-gray-100">{project.area_sap}</span>
-                  </div>
-                )}
-                {project.industry && (
-                  <div>
-                    <span className="text-gray-400 block text-xs mb-1">{t("label.industry")}</span>
-                    <span className="font-semibold text-gray-900 dark:text-gray-100">{project.industry}</span>
-                  </div>
-                )}
-                {project.expected_consultants && (
-                  <div>
-                    <span className="text-gray-400 block text-xs mb-1">{t("project.consultants_needed")}</span>
-                    <span className="font-semibold text-gray-900 dark:text-gray-100">{project.expected_consultants}</span>
-                  </div>
-                )}
-                {project.stakeholder_name && (
-                  <div>
-                    <span className="text-gray-400 block text-xs mb-1">{t("project.key_stakeholder")}</span>
-                    <span className="font-semibold text-gray-900 dark:text-gray-100">{project.stakeholder_name}</span>
-                    {project.stakeholder_email && <span className="block text-xs text-gray-400 mt-0.5">{project.stakeholder_email}</span>}
-                  </div>
-                )}
-                {project.billing_contact_name && (
-                  <div>
-                    <span className="text-gray-400 block text-xs mb-1">{t("project.billing_contact")}</span>
-                    <span className="font-semibold text-gray-900 dark:text-gray-100">{project.billing_contact_name}</span>
-                    {project.billing_contact_email && <span className="block text-xs text-gray-400 mt-0.5">{project.billing_contact_email}</span>}
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
 
-              {/* ── Description ── */}
+              {/* 2 — Budget */}
+              {project.total_budget && (
+                <div className={oc}>
+                  <CardHdr icon={<DollarSign size={13} />} label={t("label.budget")} color="#10b981" />
+                  <div className="text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">${Number(project.total_budget).toLocaleString()}</div>
+                  {project.expected_consultants && (
+                    <div className="text-xs text-gray-400 mt-1">{project.expected_consultants} {t("project.consultants_needed")}</div>
+                  )}
+                </div>
+              )}
+
+              {/* 3 — Classification */}
+              {(project.priority || project.work_mode || project.project_type || project.industry || project.area_sap) && (
+                <div className={oc}>
+                  <CardHdr icon={<Layers size={13} />} label={t("label.classification")} color="#8b5cf6" />
+                  <div className="space-y-2">
+                    {project.priority && (
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-gray-400 flex-shrink-0">{t("label.priority")}</span>
+                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${PRIORITY_COLORS[project.priority] ?? "bg-gray-100 text-gray-600"}`}>{PRIORITY_LABEL_KEYS[project.priority] ? t(PRIORITY_LABEL_KEYS[project.priority]) : cap(project.priority)}</span>
+                      </div>
+                    )}
+                    {project.work_mode && (
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-gray-400 flex-shrink-0">{t("project.work_mode")}</span>
+                        <span className="px-2 py-0.5 text-xs font-semibold rounded-lg bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400">{WORK_MODE_LABEL_KEYS[project.work_mode] ? t(WORK_MODE_LABEL_KEYS[project.work_mode]) : cap(project.work_mode)}</span>
+                      </div>
+                    )}
+                    {project.project_type && (
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-gray-400 flex-shrink-0">{t("proj.rev_basics")}</span>
+                        <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-900 dark:text-gray-100">
+                          {PtIcon && <PtIcon size={12} className="text-violet-500" />}
+                          {ptMeta?.label ?? project.project_type}
+                        </span>
+                      </div>
+                    )}
+                    {project.industry && (
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-gray-400 flex-shrink-0">{t("label.industry")}</span>
+                        <span className="text-xs font-semibold text-gray-900 dark:text-gray-100 text-right">{project.industry}</span>
+                      </div>
+                    )}
+                    {project.area_sap && (
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-gray-400 flex-shrink-0">{t("project.sap_area")}</span>
+                        <span className="text-xs font-semibold text-gray-900 dark:text-gray-100 text-right">{project.area_sap}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 4 — People */}
+              {(project.stakeholder_name || project.billing_contact_name) && (
+                <div className={oc}>
+                  <CardHdr icon={<Users size={13} />} label={t("label.people")} color="#0ea5e9" />
+                  <div className="space-y-3">
+                    {project.stakeholder_name && (
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-xs font-bold text-blue-700 dark:text-blue-300 flex-shrink-0 select-none">
+                          {project.stakeholder_name.split(" ").map(w => w[0]).slice(0, 2).join("")}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate">{project.stakeholder_name}</div>
+                          <div className="text-[10px] text-gray-400">{t("project.key_stakeholder")}{project.stakeholder_email ? ` · ${project.stakeholder_email}` : ""}</div>
+                        </div>
+                      </div>
+                    )}
+                    {project.billing_contact_name && (
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-xs font-bold text-emerald-700 dark:text-emerald-300 flex-shrink-0 select-none">
+                          {project.billing_contact_name.split(" ").map(w => w[0]).slice(0, 2).join("")}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate">{project.billing_contact_name}</div>
+                          <div className="text-[10px] text-gray-400">{t("project.billing_contact")}{project.billing_contact_email ? ` · ${project.billing_contact_email}` : ""}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 5 — Description */}
               {project.description && (
-                <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
-                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">{t("label.description")}</span>
-                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{project.description}</p>
+                <div className={`${oc} sm:col-span-2`}>
+                  <CardHdr icon={<FileText size={13} />} label={t("label.description")} color="#64748b" />
+                  <div className="flex gap-3">
+                    <div className="w-1 flex-shrink-0 rounded-full bg-indigo-400 dark:bg-indigo-600 self-stretch" />
+                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{project.description}</p>
+                  </div>
                 </div>
               )}
 
-              {/* ── Skills / Deliverables / Compliance ── */}
-              {(project.skills_required?.length > 0 || project.deliverables?.length > 0 || project.compliance_notes) && (
-                <div className="space-y-3 pt-2 border-t border-gray-100 dark:border-gray-700">
-                  {project.skills_required?.length > 0 && (
-                    <div>
-                      <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">{t("label.skills")}</span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {project.skills_required.map((s, i) => (
-                          <span key={i} className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-semibold rounded-lg">{s}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {project.deliverables?.length > 0 && (
-                    <div>
-                      <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">{t("project.deliverables")}</span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {project.deliverables.map((d, i) => (
-                          <span key={i} className="px-2 py-0.5 bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 text-xs font-semibold rounded-lg">{d}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {project.compliance_notes && (
-                    <div>
-                      <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">{t("project.compliance")}</span>
-                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{project.compliance_notes}</p>
-                    </div>
-                  )}
+              {/* 6 — Skills */}
+              {project.skills_required?.length > 0 && (
+                <div className={oc}>
+                  <CardHdr icon={<Zap size={13} />} label={t("label.skills")} color="#3b82f6" />
+                  <div className="flex flex-wrap gap-1.5">
+                    {project.skills_required.map((s, i) => (
+                      <span key={i} className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-semibold rounded-lg">{s}</span>
+                    ))}
+                  </div>
                 </div>
               )}
+
+              {/* 7 — Deliverables */}
+              {project.deliverables?.length > 0 && (
+                <div className={oc}>
+                  <CardHdr icon={<Target size={13} />} label={t("project.deliverables")} color="#8b5cf6" />
+                  <div className="flex flex-wrap gap-1.5">
+                    {project.deliverables.map((d, i) => (
+                      <span key={i} className="px-2 py-0.5 bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 text-xs font-semibold rounded-lg">{d}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 8 — Compliance */}
+              {project.compliance_notes && (
+                <div className={`${oc} sm:col-span-2 !border-amber-200 dark:!border-amber-800/60 bg-amber-50/60 dark:bg-amber-900/10`}>
+                  <CardHdr icon={<Shield size={13} />} label={t("project.compliance")} color="#f59e0b" />
+                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{project.compliance_notes}</p>
+                </div>
+              )}
+
             </div>
           );
         })()}
