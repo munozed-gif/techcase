@@ -2137,24 +2137,40 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         {tab.id === "team" && (() => {
           const clientName = project.client?.client_profiles?.company_name ?? project.client?.full_name;
           const uniqueManagers = [...new Map(projCases.filter(c => c.manager?.id).map(c => [c.manager.id, c.manager])).values()];
+
+          function TeamCard({ avatar, name, role, email, extra, children }) {
+            return (
+              <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden shadow-sm">
+                <div className="flex items-center gap-4 px-4 py-4">
+                  <div className="flex-shrink-0">{avatar}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-gray-900 dark:text-gray-100 text-sm">{name}</p>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      {role && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">{role}</span>}
+                      {email && <span className="text-xs text-gray-400 truncate">{email}</span>}
+                    </div>
+                    {extra && <div className="mt-1.5">{extra}</div>}
+                  </div>
+                </div>
+                {children}
+              </div>
+            );
+          }
+
           return (
             <div className="space-y-5 text-sm">
               {/* Client */}
               {project.client && (
                 <div>
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("label.client")}</p>
-                  <div className="flex items-center gap-3 border border-gray-100 rounded-xl px-4 py-3">
-                    {project.client?.avatar_url
-                      ? <img src={project.client.avatar_url} alt="" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
-                      : <UserAvatar name={clientName} size={40} />
-                    }
-                    <div>
-                      <p className="font-semibold text-gray-900">{clientName}</p>
-                      {project.client.full_name && project.client.client_profiles?.company_name && (
-                        <p className="text-xs text-gray-500 mt-0.5">{project.client.full_name}</p>
-                      )}
-                    </div>
-                  </div>
+                  <TeamCard
+                    avatar={project.client?.avatar_url
+                      ? <img src={project.client.avatar_url} alt="" className="w-12 h-12 rounded-xl object-cover" />
+                      : <UserAvatar name={clientName} size={48} />}
+                    name={clientName}
+                    role={t("label.client")}
+                    email={project.client.full_name && project.client.client_profiles?.company_name ? project.client.full_name : project.client.email}
+                  />
                 </div>
               )}
 
@@ -2162,16 +2178,23 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
               {uniqueManagers.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("project.managers")}</p>
-                  <div className="space-y-2">
-                    {uniqueManagers.map(m => (
-                      <div key={m.id} className="flex items-center gap-3 border border-gray-100 rounded-xl px-4 py-3">
-                        <UserAvatar name={m.full_name} size={36} />
-                        <div>
-                          <p className="font-semibold text-gray-900">{m.full_name}</p>
-                          {m.email && <p className="text-xs text-gray-500 mt-0.5">{m.email}</p>}
-                        </div>
-                      </div>
-                    ))}
+                  <div className="space-y-3">
+                    {uniqueManagers.map(m => {
+                      const mCases = projCases.filter(c => c.manager?.id === m.id);
+                      return (
+                        <TeamCard key={m.id}
+                          avatar={<UserAvatar name={m.full_name} size={48} />}
+                          name={m.full_name}
+                          role={t("project.managers")}
+                          email={m.email}
+                          extra={mCases.length > 0 && (
+                            <span className="text-[10px] text-gray-400">
+                              {t(mCases.length !== 1 ? "count.case_many" : "count.case_one").replace("{n}", mCases.length)} assigned
+                            </span>
+                          )}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -2180,14 +2203,80 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
               {consultants.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("project.tab_consultants")} ({consultants.length})</p>
-                  <div className="flex flex-wrap gap-2">
-                    {consultants.map(con => (
-                      <div key={con.id} className="flex items-center gap-2 border border-gray-100 rounded-xl px-3 py-2 bg-gray-50">
-                        <UserAvatar name={con.name} size={28} />
-                        <span className="font-medium text-gray-800 text-xs">{con.name}</span>
-                        <span className="text-[10px] text-gray-400">{t(con.cases.length !== 1 ? "count.case_many" : "count.case_one").replace("{n}", con.cases.length)}</span>
-                      </div>
-                    ))}
+                  <div className="space-y-3">
+                    {consultants.map(con => {
+                      const activeCases = con.cases.filter(c => !TERMINAL.includes(c.status));
+                      const doneCases   = con.cases.filter(c => TERMINAL.includes(c.status));
+                      const avgCommit   = con.cases.length
+                        ? Math.round(con.cases.reduce((s, c) => s + (c.time_commitment ?? 0), 0) / con.cases.length)
+                        : 0;
+                      return (
+                        <div key={con.id} className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden shadow-sm">
+                          {/* Consultant header */}
+                          <div className="flex items-center gap-4 px-4 py-4">
+                            <PersonAvatar name={con.name} avatarUrl={con.avatarUrl} size={48} />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-gray-900 dark:text-gray-100 text-sm">{con.name}</p>
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
+                                {t("project.tab_consultants").replace(/s$/i, "")}
+                              </span>
+                            </div>
+                            {/* Stats */}
+                            <div className="flex items-center gap-4 flex-shrink-0">
+                              {activeCases.length > 0 && (
+                                <div className="text-center">
+                                  <p className="text-xl font-bold text-blue-600 dark:text-blue-400 tabular-nums">{activeCases.length}</p>
+                                  <p className="text-[10px] text-gray-400">{t("label.active_count")}</p>
+                                </div>
+                              )}
+                              {doneCases.length > 0 && (
+                                <div className="text-center">
+                                  <p className="text-xl font-bold text-green-600 dark:text-green-400 tabular-nums">{doneCases.length}</p>
+                                  <p className="text-[10px] text-gray-400">{t("label.done_count")}</p>
+                                </div>
+                              )}
+                              {avgCommit > 0 && (
+                                <div className="text-center">
+                                  <p className="text-xl font-bold text-gray-600 dark:text-gray-300 tabular-nums">{avgCommit}%</p>
+                                  <p className="text-[10px] text-gray-400">{t("label.commitment") ?? "Commit"}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          {/* Cases */}
+                          {con.cases.length > 0 && (
+                            <div className="border-t border-gray-100 dark:border-gray-700 px-4 pb-4 pt-3 space-y-2">
+                              {con.cases.map(c => {
+                                const conStage = getProjTmplStages(projLcMode).find(s => s.key === c.status);
+                                const conColor = conStage?.color ?? "#6B7280";
+                                const ConIcon  = getStageIcon(c.status);
+                                return (
+                                  <div key={c.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                                    style={{ background: conColor + "14", border: `1px solid ${conColor}30` }}>
+                                    <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                                      style={{ background: conColor + "28" }}>
+                                      <ConIcon size={13} style={{ color: conColor }} />
+                                    </div>
+                                    <span className="font-medium text-gray-800 dark:text-gray-100 text-sm truncate flex-1">{c.title}</span>
+                                    <span className={`flex-shrink-0 px-2 py-0.5 text-[10px] font-semibold rounded-lg ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
+                                      {STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(fmt(c.status))}
+                                    </span>
+                                    {c.time_commitment != null && (
+                                      <span className="text-[10px] text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full flex-shrink-0">{c.time_commitment}%</span>
+                                    )}
+                                    <button onClick={() => setProjSelectedCase(c)}
+                                      className="text-[10px] font-bold px-2.5 py-1 rounded-lg flex-shrink-0 transition-colors"
+                                      style={{ background: conColor + "20", color: conColor }}>
+                                      {t("project.open")} →
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -2198,24 +2287,20 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("project.contacts")}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {(project.stakeholder_name || project.stakeholder_email) && (
-                      <div className="flex items-center gap-3 border border-gray-100 rounded-xl px-4 py-3">
-                        <UserAvatar name={project.stakeholder_name ?? 'S'} size={36} />
-                        <div>
-                          <p className="text-[10px] text-gray-400 mb-0.5">{t("project.key_stakeholder")}</p>
-                          {project.stakeholder_name && <p className="font-medium text-gray-900">{project.stakeholder_name}</p>}
-                          {project.stakeholder_email && <p className="text-xs text-gray-500 mt-0.5">{project.stakeholder_email}</p>}
-                        </div>
-                      </div>
+                      <TeamCard
+                        avatar={<UserAvatar name={project.stakeholder_name ?? 'S'} size={48} />}
+                        name={project.stakeholder_name ?? "—"}
+                        role={t("project.key_stakeholder")}
+                        email={project.stakeholder_email}
+                      />
                     )}
                     {(project.billing_contact_name || project.billing_contact_email) && (
-                      <div className="flex items-center gap-3 border border-gray-100 rounded-xl px-4 py-3">
-                        <UserAvatar name={project.billing_contact_name ?? 'B'} size={36} />
-                        <div>
-                          <p className="text-[10px] text-gray-400 mb-0.5">{t("project.billing_contact")}</p>
-                          {project.billing_contact_name && <p className="font-medium text-gray-900">{project.billing_contact_name}</p>}
-                          {project.billing_contact_email && <p className="text-xs text-gray-500 mt-0.5">{project.billing_contact_email}</p>}
-                        </div>
-                      </div>
+                      <TeamCard
+                        avatar={<UserAvatar name={project.billing_contact_name ?? 'B'} size={48} />}
+                        name={project.billing_contact_name ?? "—"}
+                        role={t("project.billing_contact")}
+                        email={project.billing_contact_email}
+                      />
                     )}
                   </div>
                 </div>
