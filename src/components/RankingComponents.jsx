@@ -448,7 +448,8 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                 : "border-gray-100 bg-white"
               }`}>
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-bold text-sm flex-shrink-0">{medal}</div>
+                  <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center font-bold text-xs flex-shrink-0">{medal}</div>
+                  <PersonAvatar name={app.consultant?.full_name} avatarUrl={app.consultant?.avatar_url} size={36} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-sm text-gray-900">{app.consultant?.full_name}</span>
