@@ -3413,6 +3413,12 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     </button>
                   </div>
                 )}
+                {!sapCheck && !stepLoading && specApproved && (
+                  <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-400">
+                    <AlertTriangle size={13} className="flex-shrink-0" />
+                    <span>{t("spec.skipped")}</span>
+                  </div>
+                )}
 
                 {stepLoading && aiStep === 1 && (
                   <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
@@ -3484,6 +3490,12 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       className="px-6 py-2.5 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
                       {t("spec.validate_proposal")}
                     </button>
+                  </div>
+                )}
+                {!proposalCheck && !stepLoading && specApproved && (
+                  <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-400">
+                    <AlertTriangle size={13} className="flex-shrink-0" />
+                    <span>{t("spec.skipped")}</span>
                   </div>
                 )}
                 {stepLoading && aiStep === 2 && (
