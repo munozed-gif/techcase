@@ -2238,7 +2238,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                               {avgCommit > 0 && (
                                 <div className="text-center">
                                   <p className="text-xl font-bold text-gray-600 dark:text-gray-300 tabular-nums">{avgCommit}%</p>
-                                  <p className="text-[10px] text-gray-400">{t("label.commitment") ?? "Commit"}</p>
+                                  <p className="text-[10px] text-gray-400">{t("label.commitment")}</p>
                                 </div>
                               )}
                             </div>

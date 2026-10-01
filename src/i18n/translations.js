@@ -1453,6 +1453,7 @@ const TRANSLATIONS = {
     "label.active_count":        "active",
     "label.done_count":          "done",
     "label.completed_count":     "completed",
+    "label.commitment":          "Commit",
     // Spec AI accordion
     "spec.analysis_results":     "Analysis Results from Steps 1 & 2",
     "spec.hide":                 "▲ Hide",
@@ -2809,6 +2810,7 @@ const TRANSLATIONS = {
     "label.active_count":        "activos",
     "label.done_count":          "completados",
     "label.completed_count":     "completados",
+    "label.commitment":          "Dedicación",
     // Spec AI accordion
     "spec.analysis_results":     "Resultados de Análisis — Pasos 1 y 2",
     "spec.hide":                 "▲ Ocultar",
