@@ -259,7 +259,7 @@ async function sapLiveCheck(config) {
     const spVer = xml.match(/sp="([^"]+)"/)?.[1] ?? '';
     const systemInfo = [title, ver && `Release ${ver}`, spVer && `SP ${spVer}`].filter(Boolean).join(' | ') || 'Connected';
     return { systemInfo, components: [], raw: xml.slice(0, 300) };
-  } catch { return null; }
+  } catch (e) { return { error: 0, message: e?.message ?? String(e) }; }
 }
 
 function sapObjectPath(objectType, objectName) {
@@ -384,6 +384,7 @@ function SapIntegrationPanel({ clientId, auth }) {
           : status === 403 ? 'HTTP 403 — User lacks ADT authorizations in SAP.'
           : status === 404 ? 'HTTP 404 — ADT service not active. Enable /sap/bc/adt in SICF.'
           : status ? `HTTP ${status} — SAP returned an error.`
+          : result?.message ? `Proxy error: ${result.message}`
           : null;
         setTestErrors(p => ({ ...p, [env.id]: env.proxyUrl?.trim()
           ? (statusMsg ?? 'SAP returned an error. Check credentials and client number.')
@@ -914,6 +915,7 @@ function ProjectOwnSapPanel({ projectId, auth }) {
           : status === 403 ? 'HTTP 403 — User lacks ADT authorizations in SAP.'
           : status === 404 ? 'HTTP 404 — ADT service not active. Enable /sap/bc/adt in SICF.'
           : status ? `HTTP ${status} — SAP returned an error.`
+          : result?.message ? `Proxy error: ${result.message}`
           : null;
         setTestErrors(p => ({ ...p, [env.id]: env.proxyUrl?.trim()
           ? (statusMsg ?? 'SAP returned an error. Check credentials and client number.')
