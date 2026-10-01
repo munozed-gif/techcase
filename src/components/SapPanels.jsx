@@ -252,7 +252,7 @@ async function sapLiveCheck(config) {
     const res = await sapApiRequest(config, '/sap/bc/adt/discovery', {
       headers: { Accept: 'application/atomsvc+xml' },
     });
-    if (!res.ok) return null;
+    if (!res.ok) return { error: res.status };
     const xml = await res.text();
     const title = xml.match(/<title[^>]*>([^<]+)/)?.[1]?.trim() ?? '';
     const ver   = xml.match(/release="([^"]+)"/)?.[1] ?? xml.match(/version="([^"]+)"/)?.[1] ?? '';
@@ -375,12 +375,18 @@ function SapIntegrationPanel({ clientId, auth }) {
     setTestErrors(p => ({ ...p, [env.id]: null }));
     try {
       const result = await sapLiveCheck(env);
-      if (result) {
+      if (result && !result.error) {
         setTestStates(p => ({ ...p, [env.id]: 'ok' }));
       } else {
         setTestStates(p => ({ ...p, [env.id]: 'fail' }));
+        const status = result?.error;
+        const statusMsg = status === 401 ? 'HTTP 401 — Wrong username, password or client (MANDT).'
+          : status === 403 ? 'HTTP 403 — User lacks ADT authorizations in SAP.'
+          : status === 404 ? 'HTTP 404 — ADT service not active. Enable /sap/bc/adt in SICF.'
+          : status ? `HTTP ${status} — SAP returned an error.`
+          : null;
         setTestErrors(p => ({ ...p, [env.id]: env.proxyUrl?.trim()
-          ? 'SAP returned an error. Check credentials and client number.'
+          ? (statusMsg ?? 'SAP returned an error. Check credentials and client number.')
           : 'Failed — SAP may be blocking browser requests (CORS). Set a Proxy URL or enable CORS on your SAP system.' }));
       }
     } catch (e) {
@@ -899,12 +905,18 @@ function ProjectOwnSapPanel({ projectId, auth }) {
     setTestErrors(p => ({ ...p, [env.id]: null }));
     try {
       const result = await sapLiveCheck(env);
-      if (result) {
+      if (result && !result.error) {
         setTestStates(p => ({ ...p, [env.id]: 'ok' }));
       } else {
         setTestStates(p => ({ ...p, [env.id]: 'fail' }));
+        const status = result?.error;
+        const statusMsg = status === 401 ? 'HTTP 401 — Wrong username, password or client (MANDT).'
+          : status === 403 ? 'HTTP 403 — User lacks ADT authorizations in SAP.'
+          : status === 404 ? 'HTTP 404 — ADT service not active. Enable /sap/bc/adt in SICF.'
+          : status ? `HTTP ${status} — SAP returned an error.`
+          : null;
         setTestErrors(p => ({ ...p, [env.id]: env.proxyUrl?.trim()
-          ? 'SAP returned an error. Check credentials and client number.'
+          ? (statusMsg ?? 'SAP returned an error. Check credentials and client number.')
           : 'Failed — SAP may be blocking browser requests (CORS). Set a Proxy URL or enable CORS on your SAP system.' }));
       }
     } catch (e) {
