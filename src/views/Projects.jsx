@@ -2528,9 +2528,9 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                   const activeCases = con.cases.filter(c => !TERMINAL.includes(c.status));
                   const doneCases = con.cases.filter(c => TERMINAL.includes(c.status));
                   return (
-                    <div key={con.id} className={`border rounded-xl overflow-hidden transition-all ${isExpanded ? "border-blue-200 shadow-sm" : "border-gray-100"}`}>
+                    <div key={con.id} className={`border rounded-xl overflow-hidden transition-all ${isExpanded ? "border-blue-200 dark:border-blue-800 shadow-sm" : "border-gray-200 dark:border-gray-700"} bg-white dark:bg-gray-800`}>
                       <div
-                        className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                        className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                         onClick={() => setExpandedConsultant(isExpanded ? null : con.id)}>
                         <div className="flex items-center gap-3 min-w-0">
                           <ChevronRight size={14} className={`flex-shrink-0 text-gray-400 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
@@ -2555,27 +2555,33 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                       </div>
 
                       {isExpanded && (
-                        <div className="px-4 pb-4 pt-1 border-t border-gray-100 bg-gray-50/50 space-y-1.5">
-                          {con.cases.map(c => (
-                            <div key={c.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                              <div className="flex items-center gap-2 min-w-0 flex-1">
-                                <span className="font-medium text-gray-800 text-sm truncate">{c.title}</span>
+                        <div className="p-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 space-y-2">
+                          {con.cases.map(c => {
+                            const conStage = getProjTmplStages(projLcMode).find(s => s.key === c.status);
+                            const conColor = conStage?.color ?? "#6B7280";
+                            const ConIcon = getStageIcon(c.status);
+                            return (
+                              <div key={c.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                                style={{ background: conColor + "14", border: `1px solid ${conColor}30` }}>
+                                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                                  style={{ background: conColor + "28" }}>
+                                  <ConIcon size={13} style={{ color: conColor }} />
+                                </div>
+                                <span className="font-medium text-gray-800 dark:text-gray-100 text-sm truncate flex-1">{c.title}</span>
                                 <span className={`flex-shrink-0 px-2 py-0.5 text-[10px] font-semibold rounded-lg ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
                                   {STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(fmt(c.status))}
                                 </span>
-                              </div>
-                              <div className="flex items-center gap-3 flex-shrink-0 ml-2">
                                 {c.time_commitment != null && (
-                                  <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{c.time_commitment}%</span>
+                                  <span className="text-[10px] text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full flex-shrink-0">{c.time_commitment}%</span>
                                 )}
-                                <button
-                                  onClick={() => setProjSelectedCase(c)}
-                                  className="text-[10px] font-semibold text-blue-600 hover:text-blue-800">
-                                  {t("project.open")}
+                                <button onClick={() => setProjSelectedCase(c)}
+                                  className="text-[10px] font-bold px-2.5 py-1 rounded-lg flex-shrink-0 transition-colors"
+                                  style={{ background: conColor + "20", color: conColor }}>
+                                  {t("project.open")} →
                                 </button>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
