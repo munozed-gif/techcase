@@ -2732,7 +2732,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                         onClick={() => setExpandedConsultant(isExpanded ? null : con.id)}>
                         <div className="flex items-center gap-3 min-w-0">
                           <ChevronRight size={14} className={`flex-shrink-0 text-gray-400 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
-                          <UserAvatar name={con.name} size={36} />
+                          <PersonAvatar name={con.name} avatarUrl={con.avatarUrl} size={36} />
                           <div className="min-w-0">
                             <p className="font-semibold text-gray-900 text-sm">{con.name}</p>
                             <p className="text-[10px] text-gray-400 mt-0.5">
