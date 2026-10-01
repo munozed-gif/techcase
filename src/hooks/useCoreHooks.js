@@ -31,7 +31,15 @@ function useMilestones(caseId) {
       .insert({ case_id: caseId, title, position: milestones.length + 1 });
     await fetchMilestones();
   }
-  return { milestones, toggleMilestone, addMilestone, refetch: fetchMilestones };
+  async function updateMilestone(id, title) {
+    await supabase.from("case_milestones").update({ title }).eq("id", id);
+    await fetchMilestones();
+  }
+  async function deleteMilestone(id) {
+    await supabase.from("case_milestones").delete().eq("id", id);
+    await fetchMilestones();
+  }
+  return { milestones, toggleMilestone, addMilestone, updateMilestone, deleteMilestone, refetch: fetchMilestones };
 }
 
 function useCaseComments(caseId) {

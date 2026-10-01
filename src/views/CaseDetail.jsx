@@ -61,7 +61,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const genModel      = cdSettings["ai_model"]       ?? 'claude-haiku-4-5-20251001';
   const analysisModel = cdSettings["analysis_model"] ?? 'claude-haiku-4-5-20251001';
   const { applications, apply, reviewApplication } = useApplications(caseData.id);
-  const { milestones, toggleMilestone, addMilestone } = useMilestones(caseData.id);
+  const { milestones, toggleMilestone, addMilestone, updateMilestone, deleteMilestone } = useMilestones(caseData.id);
   const { comments, addComment } = useCaseComments(caseData.id);
   const { subCases, createSubCase, refetch: refetchSubCases } = useSubCases(caseData.id);
   const { documents, addDocument, deleteDocument, refetch: refetchDocuments } = useCaseDocuments(caseData.id);
@@ -115,6 +115,8 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   }
 
   const [newMilestone, setNewMilestone] = useState("");
+  const [editingMilestoneId, setEditingMilestoneId] = useState(null);
+  const [editingMilestoneTitle, setEditingMilestoneTitle] = useState("");
   const [commentForm, setCommentForm]  = useState({ body: "", hoursLogged: 0, progressUpdate: "", isInternal: false });
   const [sendingComment, setSendingComment] = useState(false);
   const [progressPct, setProgressPct]       = useState(caseData.progress_pct ?? 0);
@@ -3327,17 +3329,79 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             </div>
           )}
           {milestones.map(m => (
-            <div key={m.id} className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:bg-gray-50 cursor-pointer"
-              onClick={() => toggleMilestone(m.id, m.is_done)}>
-              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                m.is_done ? "bg-emerald-500 border-emerald-500" : "border-gray-300"}`}>
+            <div key={m.id} className="flex items-center gap-3 p-3 border border-gray-100 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/50 group">
+              {/* Checkbox — toggle done */}
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors cursor-pointer ${
+                m.is_done ? "bg-emerald-500 border-emerald-500" : "border-gray-300 dark:border-gray-600"}`}
+                onClick={() => editingMilestoneId !== m.id && toggleMilestone(m.id, m.is_done)}>
                 {m.is_done && <Check className="w-3 h-3 text-white" />}
               </div>
-              <span className={`text-sm flex-1 ${m.is_done ? "line-through text-gray-400" : "text-gray-800"}`}>
-                {m.title}
-              </span>
-              {m.is_done && m.done_at && (
-                <span className="text-xs text-gray-300">{fmtDate(m.done_at)}</span>
+
+              {/* Title — inline edit when editing */}
+              {editingMilestoneId === m.id ? (
+                <input
+                  autoFocus
+                  value={editingMilestoneTitle}
+                  onChange={e => setEditingMilestoneTitle(e.target.value)}
+                  onKeyDown={async e => {
+                    if (e.key === "Enter" && editingMilestoneTitle.trim()) {
+                      await updateMilestone(m.id, editingMilestoneTitle.trim());
+                      setEditingMilestoneId(null);
+                    } else if (e.key === "Escape") {
+                      setEditingMilestoneId(null);
+                    }
+                  }}
+                  className="flex-1 text-sm border border-blue-300 dark:border-blue-600 rounded-lg px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100"
+                />
+              ) : (
+                <span className={`text-sm flex-1 ${m.is_done ? "line-through text-gray-400 dark:text-gray-500" : "text-gray-800 dark:text-gray-100"}`}>
+                  {m.title}
+                </span>
+              )}
+
+              {/* Done-at date */}
+              {m.is_done && m.done_at && editingMilestoneId !== m.id && (
+                <span className="text-xs text-gray-300 dark:text-gray-600">{fmtDate(m.done_at)}</span>
+              )}
+
+              {/* Edit / Delete — visible on hover (admins/managers/consultants only) */}
+              {(auth.isAdmin || auth.isManager || auth.isConsultant) && stageRules.editable && (
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {editingMilestoneId === m.id ? (
+                    <>
+                      <button
+                        onClick={async () => {
+                          if (editingMilestoneTitle.trim()) {
+                            await updateMilestone(m.id, editingMilestoneTitle.trim());
+                          }
+                          setEditingMilestoneId(null);
+                        }}
+                        className="p-1 rounded text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30">
+                        <Check size={13} />
+                      </button>
+                      <button
+                        onClick={() => setEditingMilestoneId(null)}
+                        className="p-1 rounded text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">
+                        <X size={13} />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => { setEditingMilestoneId(m.id); setEditingMilestoneTitle(m.title); }}
+                        className="p-1 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                        title={t("action.edit")}>
+                        <Pencil size={13} />
+                      </button>
+                      <button
+                        onClick={() => deleteMilestone(m.id)}
+                        className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                        title={t("action.delete")}>
+                        <Trash2 size={13} />
+                      </button>
+                    </>
+                  )}
+                </div>
               )}
             </div>
           ))}
