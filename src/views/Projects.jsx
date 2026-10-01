@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   Activity, AlertCircle, AlertTriangle, Archive, BarChart2, Building2,
-  Camera, Check, CheckCircle2, ChevronLeft, ChevronRight, Code2, Copy,
+  Calendar, Camera, Check, CheckCircle2, ChevronLeft, ChevronRight, Code2, Copy,
   Database, DollarSign, FileEdit, FileText, FolderOpen, Layers,
   LayoutTemplate, Loader2, Lock, Pause, PauseCircle, Play, Plus, Search,
   Shield, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, Upload,
@@ -2385,102 +2385,124 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
             {projCases.length === 0 ? (
               <EmptyState Icon={FolderOpen} title={t("project.no_proj_cases")} subtitle={t("project.no_proj_cases_hint")} />
             ) : (
-              <div className="space-y-2">
+              <div className="grid grid-cols-1 gap-3">
                 {projCases.map(c => {
-                  const isExpanded = expandedCase === c.id;
                   const assignees = c.case_assignments ?? [];
                   const progress = c.progress_pct ?? 0;
                   const isDone = TERMINAL.includes(c.status);
+                  const StageIcon = getStageIcon(c.status);
+                  const lcStages = getProjTmplStages(projLcMode);
+                  const stage = lcStages.find(s => s.key === c.status);
+                  const stageColor = stage?.color ?? "#6B7280";
                   return (
-                    <div key={c.id} className={`border rounded-xl overflow-hidden transition-all ${isExpanded ? "border-blue-200 shadow-sm" : "border-gray-100 dark:border-gray-700"}`}>
-                      {/* Row header */}
-                      <div
-                        className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                        onClick={() => setExpandedCase(isExpanded ? null : c.id)}>
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <ChevronRight size={14} className={`flex-shrink-0 text-gray-400 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
-                          <span className="font-medium text-gray-900 truncate text-sm">{c.title}</span>
-                          <span className={`flex-shrink-0 px-2 py-0.5 text-[10px] font-semibold rounded-lg ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
-                            {STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(fmt(c.status))}
+                    <div key={c.id} className="rounded-2xl overflow-hidden bg-white dark:bg-gray-800 shadow-sm"
+                      style={{ border: `1px solid ${stageColor}40` }}>
+
+                      {/* Card header */}
+                      <div className="flex items-center gap-3 px-4 py-3"
+                        style={{ background: stageColor + "12", borderBottom: `1px solid ${stageColor}25` }}>
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                          style={{ background: stageColor + "28" }}>
+                          <StageIcon size={17} style={{ color: stageColor }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm leading-snug">{c.title}</p>
+                        </div>
+                        <span className={`flex-shrink-0 px-2 py-0.5 text-[10px] font-bold rounded-lg ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
+                          {STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(fmt(c.status))}
+                        </span>
+                        {c.priority && (
+                          <span className={`flex-shrink-0 px-2 py-0.5 text-[10px] font-bold rounded-lg ${PRIORITY_COLORS[c.priority] ?? ""}`}>
+                            {PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}
                           </span>
-                          {c.priority && (
-                            <span className={`flex-shrink-0 px-2 py-0.5 text-[10px] font-semibold rounded-lg ${PRIORITY_COLORS[c.priority] ?? ""}`}>
-                              {PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3 flex-shrink-0 ml-3">
-                          {assignees.length > 0 && (
-                            <div className="flex -space-x-2 hidden sm:flex">
-                              {assignees.slice(0, 3).map(a => (
-                                <PersonAvatar key={a.consultant_id} name={a.users?.full_name ?? '?'} avatarUrl={a.users?.avatar_url} size={24} title={a.users?.full_name} />
-                              ))}
-                              {assignees.length > 3 && (
-                                <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[9px] font-bold text-gray-500 border-2 border-white">
-                                  +{assignees.length - 3}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          {canEdit && (
-                            <button onClick={e => { e.stopPropagation(); handleRemoveCase(c.id); }}
-                              className="text-xs text-red-400 hover:text-red-600">
-                              {t("action.remove")}
-                            </button>
-                          )}
-                        </div>
+                        )}
                       </div>
 
-                      {/* Progress bar (always visible) */}
-                      {progress > 0 && (
-                        <div className="px-4 pb-2">
-                          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full transition-all ${isDone ? "bg-green-500" : "bg-blue-500"}`}
-                              style={{ width: `${progress}%` }} />
+                      {/* Card body */}
+                      <div className="px-4 py-3 space-y-3">
+                        {/* Progress */}
+                        <div>
+                          <div className="flex justify-between items-center mb-1.5">
+                            <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{t("label.progress")}</span>
+                            <span className="text-[10px] font-bold tabular-nums" style={{ color: isDone ? "#22C55E" : stageColor }}>{progress}%</span>
+                          </div>
+                          <div className="h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all"
+                              style={{ width: `${progress}%`, background: isDone ? "#22C55E" : stageColor }} />
                           </div>
                         </div>
-                      )}
 
-                      {/* Expanded detail */}
-                      {isExpanded && (
-                        <div className="px-4 pb-4 pt-1 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-black/20 space-y-3">
-                          {assignees.length === 0 ? (
-                            <p className="text-xs text-gray-400">{t("project.no_case_consultants")}</p>
-                          ) : (
-                            <div>
-                              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">{t("project.assigned_consultants")}</p>
-                              <div className="space-y-1.5">
-                                {assignees.map(a => (
-                                  <div key={a.consultant_id} className="flex items-center gap-2.5">
-                                    <PersonAvatar name={a.users?.full_name ?? '?'} avatarUrl={a.users?.avatar_url} size={28} />
-                                    <span className="text-sm font-medium text-gray-800 dark:text-gray-100">{a.users?.full_name ?? t("user.unknown")}</span>
-                                    {a.time_commitment && (
-                                      <span className="text-[10px] text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">{a.time_commitment}%</span>
-                                    )}
-                                  </div>
-                                ))}
+                        {/* Meta row */}
+                        {(c.due_date || c.budget || c.sap_area) && (
+                          <div className="flex gap-4 flex-wrap">
+                            {c.due_date && (
+                              <div className="flex items-center gap-1.5">
+                                <Calendar size={11} className="text-gray-400 flex-shrink-0" />
+                                <span className="text-[11px] text-gray-500">{fmtDate(c.due_date)}</span>
                               </div>
+                            )}
+                            {c.budget && (
+                              <div className="flex items-center gap-1.5">
+                                <DollarSign size={11} className="text-gray-400 flex-shrink-0" />
+                                <span className="text-[11px] text-gray-500">{c.budget}</span>
+                              </div>
+                            )}
+                            {c.sap_area && (
+                              <div className="flex items-center gap-1.5">
+                                <Layers size={11} className="text-gray-400 flex-shrink-0" />
+                                <span className="text-[11px] text-gray-500">{c.sap_area}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Assignees */}
+                        {assignees.length > 0 && (
+                          <div className="flex items-start gap-2 flex-wrap">
+                            <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mt-0.5 flex-shrink-0">{t("project.assigned_consultants")}</span>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {assignees.slice(0, 4).map(a => (
+                                <div key={a.consultant_id} className="flex items-center gap-1.5">
+                                  <PersonAvatar name={a.users?.full_name ?? '?'} avatarUrl={a.users?.avatar_url} size={22} title={a.users?.full_name} />
+                                  <span className="text-[11px] text-gray-600 dark:text-gray-300 font-medium">{a.users?.full_name?.split(' ')[0] ?? '?'}</span>
+                                  {a.time_commitment && (
+                                    <span className="text-[9px] text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded-full">{a.time_commitment}%</span>
+                                  )}
+                                </div>
+                              ))}
+                              {assignees.length > 4 && (
+                                <span className="text-[11px] text-gray-400">+{assignees.length - 4}</span>
+                              )}
                             </div>
-                          )}
-                          {c.manager && (
-                            <div className="flex items-center gap-2.5">
-                              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-16 flex-shrink-0">{t("project.manager")}</p>
-                              <UserAvatar name={c.manager.full_name} size={24} />
-                              <span className="text-xs text-gray-700 dark:text-gray-300">{c.manager.full_name}</span>
-                            </div>
-                          )}
-                          <div className="flex items-center justify-between pt-1">
-                            <div className="text-xs text-gray-400">
-                              {t("label.progress")}: <span className="font-semibold text-gray-700 dark:text-gray-200">{progress}%</span>
-                            </div>
-                            <button
-                              onClick={() => setProjSelectedCase(c)}
-                              className="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1">
-                              {t("project.open_case")}
+                          </div>
+                        )}
+
+                        {/* Footer: manager + actions */}
+                        <div className="flex items-center justify-between pt-1 border-t dark:border-gray-700" style={{ borderColor: stageColor + "20" }}>
+                          <div className="flex items-center gap-2">
+                            {c.manager && (
+                              <div className="flex items-center gap-1.5">
+                                <PersonAvatar name={c.manager.full_name} avatarUrl={c.manager.avatar_url} size={20} title={`Manager: ${c.manager.full_name}`} />
+                                <span className="text-[11px] text-gray-500">{c.manager.full_name}</span>
+                                <span className="text-[9px] text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded-full">{t("project.manager")}</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {canEdit && (
+                              <button onClick={e => { e.stopPropagation(); handleRemoveCase(c.id); }}
+                                className="text-[11px] text-red-400 hover:text-red-600 font-medium px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                                {t("action.remove")}
+                              </button>
+                            )}
+                            <button onClick={() => setProjSelectedCase(c)}
+                              className="text-[11px] font-bold px-3 py-1.5 rounded-xl transition-colors"
+                              style={{ background: stageColor + "20", color: stageColor }}>
+                              {t("project.open_case")} →
                             </button>
                           </div>
                         </div>
-                      )}
+                      </div>
                     </div>
                   );
                 })}
