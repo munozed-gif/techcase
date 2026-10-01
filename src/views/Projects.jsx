@@ -2027,74 +2027,172 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                         <div style={{ flex:1, overflowY:'auto', padding:'18px 20px' }}>
 
         {/* Overview */}
-        {tab.id === "overview" && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 text-sm">
-            {project.priority && (
+        {tab.id === "overview" && (() => {
+          const curIdx = PROJECT_LIFECYCLE_STAGES.findIndex(s => s.key === project.status);
+          const ptMeta = PROJECT_TYPES.find(pt => pt.value === project.project_type);
+          const PtIcon = ptMeta?.Icon;
+          return (
+            <div className="space-y-5">
+
+              {/* ── Status carousel ── */}
               <div>
-                <span className="text-gray-400 block text-xs mb-1">{t("label.priority")}</span>
-                <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${PRIORITY_COLORS[project.priority] ?? "bg-gray-100 text-gray-600"}`}>{PRIORITY_LABEL_KEYS[project.priority] ? t(PRIORITY_LABEL_KEYS[project.priority]) : cap(project.priority)}</span>
-              </div>
-            )}
-            {project.work_mode && (
-              <div>
-                <span className="text-gray-400 block text-xs mb-1">{t("project.work_mode")}</span>
-                <span className="px-2 py-0.5 text-xs font-semibold rounded-lg bg-sky-50 text-sky-700">{WORK_MODE_LABEL_KEYS[project.work_mode] ? t(WORK_MODE_LABEL_KEYS[project.work_mode]) : cap(project.work_mode)}</span>
-              </div>
-            )}
-            {project.expected_consultants && (
-              <div>
-                <span className="text-gray-400 block text-xs mb-1">{t("project.consultants_needed")}</span>
-                <span className="font-medium text-gray-900">{project.expected_consultants}</span>
-              </div>
-            )}
-            {project.total_budget && (
-              <div>
-                <span className="text-gray-400 block text-xs mb-1">{t("label.budget")}</span>
-                <span className="font-medium text-gray-900">${Number(project.total_budget).toLocaleString()}</span>
-              </div>
-            )}
-            {project.start_date && (
-              <div>
-                <span className="text-gray-400 block text-xs mb-1">{t("label.start_date")}</span>
-                <span className="font-medium text-gray-900">{fmtDate(project.start_date)}</span>
-              </div>
-            )}
-            {project.end_date && (
-              <div>
-                <span className="text-gray-400 block text-xs mb-1">{t("label.end_date")}</span>
-                <span className="font-medium text-gray-900">{fmtDate(project.end_date)}</span>
-              </div>
-            )}
-            {project.project_type && (() => {
-              const ptMeta = PROJECT_TYPES.find(pt => pt.value === project.project_type);
-              const PtIcon = ptMeta?.Icon;
-              return (
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-gray-500 font-medium w-32 shrink-0">Project Type</span>
-                  <span className="flex items-center gap-1.5 font-medium text-gray-900">
-                    {PtIcon && <PtIcon size={14} className="text-violet-500" />}
-                    {ptMeta?.label ?? project.project_type}
-                  </span>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t("project.next_steps")}</p>
+                <div className="flex gap-2.5 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+                  {PROJECT_LIFECYCLE_STAGES.map((s, i) => {
+                    const isCurrent = s.key === project.status;
+                    const isPast    = curIdx >= 0 && i < curIdx;
+                    const isTerminal = s.is_terminal;
+                    const { Icon } = PROJECT_NEXT_META[s.key] ?? { Icon: Zap };
+                    const desc = t({ draft: "proj.meta_draft", active: "proj.meta_active", on_hold: "proj.meta_on_hold", completed: "proj.meta_completed", cancelled: "proj.meta_cancelled" }[s.key] ?? "proj.meta_default");
+                    return (
+                      <button key={s.key} disabled={isCurrent || !canEdit}
+                        onClick={() => !isCurrent && canEdit && handleStatusChange(s.key)}
+                        className="flex-shrink-0 w-40 rounded-2xl overflow-hidden text-left relative transition-all hover:shadow-md disabled:cursor-default"
+                        style={{ border: `1.5px solid ${isCurrent ? s.color : isPast ? s.color + "60" : s.color + "30"}`, background: isCurrent ? s.color + "18" : isPast ? s.color + "0a" : "var(--t-card-bg, #1e2535)", opacity: isTerminal && !isCurrent && !isPast ? 0.65 : 1 }}>
+                        {/* Watermark */}
+                        <Icon size={72} style={{ position: "absolute", bottom: 6, right: 6, opacity: isCurrent ? 0.18 : 0.08, color: s.color, pointerEvents: "none" }} />
+                        {/* Header */}
+                        <div className="px-3 pt-3 pb-2 flex items-center gap-2 relative z-10">
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                            style={{ background: s.color + (isCurrent ? "30" : "20") }}>
+                            {isPast
+                              ? <Check size={13} style={{ color: s.color }} />
+                              : <Icon size={13} style={{ color: s.color }} />}
+                          </div>
+                          <span className="text-xs font-bold" style={{ color: isCurrent ? s.color : isPast ? s.color + "cc" : s.color + "88" }}>
+                            {s.labelKey ? t(s.labelKey) : s.label}
+                          </span>
+                          {isCurrent && (
+                            <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background: s.color, color: "#fff" }}>NOW</span>
+                          )}
+                        </div>
+                        {/* Body */}
+                        <div className="px-3 pb-3 relative z-10">
+                          <p className="text-[10px] leading-snug" style={{ color: isCurrent ? s.color + "cc" : "#6B7280" }}>{desc}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
-              );
-            })()}
-            {project.area_sap && (
-              <div>
-                <span className="text-gray-400 block text-xs mb-1">{t("project.sap_area")}</span>
-                <span className="font-medium text-gray-900">{project.area_sap}</span>
               </div>
-            )}
-            {project.industry && (
-              <div>
-                <span className="text-gray-400 block text-xs mb-1">{t("label.industry")}</span>
-                <span className="font-medium text-gray-900">{project.industry}</span>
+
+              {/* ── Field grid ── */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 text-sm pt-2 border-t border-gray-100 dark:border-gray-700">
+                {project.priority && (
+                  <div>
+                    <span className="text-gray-400 block text-xs mb-1">{t("label.priority")}</span>
+                    <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${PRIORITY_COLORS[project.priority] ?? "bg-gray-100 text-gray-600"}`}>{PRIORITY_LABEL_KEYS[project.priority] ? t(PRIORITY_LABEL_KEYS[project.priority]) : cap(project.priority)}</span>
+                  </div>
+                )}
+                {project.work_mode && (
+                  <div>
+                    <span className="text-gray-400 block text-xs mb-1">{t("project.work_mode")}</span>
+                    <span className="px-2 py-0.5 text-xs font-semibold rounded-lg bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400">{WORK_MODE_LABEL_KEYS[project.work_mode] ? t(WORK_MODE_LABEL_KEYS[project.work_mode]) : cap(project.work_mode)}</span>
+                  </div>
+                )}
+                {project.project_type && (
+                  <div>
+                    <span className="text-gray-400 block text-xs mb-1">{t("proj.rev_basics")}</span>
+                    <span className="flex items-center gap-1.5 font-semibold text-gray-900 dark:text-gray-100 text-xs">
+                      {PtIcon && <PtIcon size={13} className="text-violet-500 flex-shrink-0" />}
+                      {ptMeta?.label ?? project.project_type}
+                    </span>
+                  </div>
+                )}
+                {project.total_budget && (
+                  <div>
+                    <span className="text-gray-400 block text-xs mb-1">{t("label.budget")}</span>
+                    <span className="font-semibold text-gray-900 dark:text-gray-100">${Number(project.total_budget).toLocaleString()}</span>
+                  </div>
+                )}
+                {project.start_date && (
+                  <div>
+                    <span className="text-gray-400 block text-xs mb-1">{t("label.start_date")}</span>
+                    <span className="font-semibold text-gray-900 dark:text-gray-100">{fmtDate(project.start_date)}</span>
+                  </div>
+                )}
+                {project.end_date && (
+                  <div>
+                    <span className="text-gray-400 block text-xs mb-1">{t("label.end_date")}</span>
+                    <span className="font-semibold text-gray-900 dark:text-gray-100">{fmtDate(project.end_date)}</span>
+                  </div>
+                )}
+                {project.area_sap && (
+                  <div>
+                    <span className="text-gray-400 block text-xs mb-1">{t("project.sap_area")}</span>
+                    <span className="font-semibold text-gray-900 dark:text-gray-100">{project.area_sap}</span>
+                  </div>
+                )}
+                {project.industry && (
+                  <div>
+                    <span className="text-gray-400 block text-xs mb-1">{t("label.industry")}</span>
+                    <span className="font-semibold text-gray-900 dark:text-gray-100">{project.industry}</span>
+                  </div>
+                )}
+                {project.expected_consultants && (
+                  <div>
+                    <span className="text-gray-400 block text-xs mb-1">{t("project.consultants_needed")}</span>
+                    <span className="font-semibold text-gray-900 dark:text-gray-100">{project.expected_consultants}</span>
+                  </div>
+                )}
+                {project.stakeholder_name && (
+                  <div>
+                    <span className="text-gray-400 block text-xs mb-1">{t("project.key_stakeholder")}</span>
+                    <span className="font-semibold text-gray-900 dark:text-gray-100">{project.stakeholder_name}</span>
+                    {project.stakeholder_email && <span className="block text-xs text-gray-400 mt-0.5">{project.stakeholder_email}</span>}
+                  </div>
+                )}
+                {project.billing_contact_name && (
+                  <div>
+                    <span className="text-gray-400 block text-xs mb-1">{t("project.billing_contact")}</span>
+                    <span className="font-semibold text-gray-900 dark:text-gray-100">{project.billing_contact_name}</span>
+                    {project.billing_contact_email && <span className="block text-xs text-gray-400 mt-0.5">{project.billing_contact_email}</span>}
+                  </div>
+                )}
               </div>
-            )}
-            {!project.total_budget && !project.start_date && !project.end_date && !project.area_sap && !project.industry && !project.priority && !project.work_mode && !project.expected_consultants && (
-              <p className="text-sm text-gray-400 col-span-3">{t("project.no_overview")}</p>
-            )}
-          </div>
-        )}
+
+              {/* ── Description ── */}
+              {project.description && (
+                <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">{t("label.description")}</span>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{project.description}</p>
+                </div>
+              )}
+
+              {/* ── Skills / Deliverables / Compliance ── */}
+              {(project.skills_required?.length > 0 || project.deliverables?.length > 0 || project.compliance_notes) && (
+                <div className="space-y-3 pt-2 border-t border-gray-100 dark:border-gray-700">
+                  {project.skills_required?.length > 0 && (
+                    <div>
+                      <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">{t("label.skills")}</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {project.skills_required.map((s, i) => (
+                          <span key={i} className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-semibold rounded-lg">{s}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {project.deliverables?.length > 0 && (
+                    <div>
+                      <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">{t("project.deliverables")}</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {project.deliverables.map((d, i) => (
+                          <span key={i} className="px-2 py-0.5 bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 text-xs font-semibold rounded-lg">{d}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {project.compliance_notes && (
+                    <div>
+                      <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide block mb-1.5">{t("project.compliance")}</span>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{project.compliance_notes}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Objectives */}
         {tab.id === "objectives" && (
