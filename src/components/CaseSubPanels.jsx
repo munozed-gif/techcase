@@ -3526,7 +3526,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         } ${selectedSpec === s.key && activeNode===3 && !viewingProto ? 'ring-2 ring-blue-300' : ''}`}>
                         <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${s.dot}`} />
                         <span className="truncate font-medium">{s.label}</span>
-                        {savedSpecUrls[s.key] && <Check size={10} className="text-green-600 ml-auto flex-shrink-0" />}
+                        {s.content && <Check size={10} className="text-green-600 ml-auto flex-shrink-0" />}
                       </button>
                     ))}
                     {/* Prototype sub-node — only when enabled in profile */}
