@@ -2038,7 +2038,6 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
 
   async function loadSapConnInfo() {
     if (sapConnLoading) return;
-    if (!caseData.client_id) { setSapConnInfo({ notFound: true }); return; }
     setSapConnLoading(true);
     try {
       const [{ data: sapCfgRow }, { data: sapProjEnvRow }, { data: sapCaseEnvRow }] = await Promise.all([
@@ -2046,8 +2045,17 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
         supabase.from('system_settings').select('value').eq('key', 'sap_project_env').maybeSingle(),
         supabase.from('system_settings').select('value').eq('key', 'sap_case_env').maybeSingle(),
       ]);
-      const clientSapData = (sapCfgRow?.value ?? {})[caseData.client_id] ?? {};
-      const sapEnvs = clientSapData.environments ?? (clientSapData.host ? [clientSapData] : []);
+      const allSapCfg = sapCfgRow?.value ?? {};
+
+      // Lookup chain: client → project → case
+      const lookupKeys = [caseData.client_id, caseData.project_id, caseData.id].filter(Boolean);
+      let sapEnvs = [];
+      for (const key of lookupKeys) {
+        const entry = allSapCfg[key] ?? {};
+        sapEnvs = entry.environments ?? (entry.host ? [entry] : []);
+        if (sapEnvs.length > 0) break;
+      }
+
       const selectedEnvId = (sapCaseEnvRow?.value ?? {})[caseData.id]
         ?? (sapProjEnvRow?.value ?? {})[caseData.project_id]
         ?? null;
