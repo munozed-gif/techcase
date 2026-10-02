@@ -433,15 +433,4 @@
   --sap-label:      #2a3a5a;
   --sap-field-text: #001280;
 }
-.arena-dark {
-  --sap-bar:        #1A2F44;
-  --sap-toolbar:    #213549;
-  --sap-panel:      #0C1522;
-  --sap-white:      #0C1522;
-  --sap-row-alt:    #132436;
-  --sap-total:      rgba(37,99,235,0.2);
-  --sap-total-text: #60A5FA;
-  --sap-text:       #DCE8F4;
-  --sap-label:      #7090B0;
-  --sap-field-text: #60A5FA;
-}
+/* SAP screen is a light-themed GUI simulation — keep it light in all modes */
