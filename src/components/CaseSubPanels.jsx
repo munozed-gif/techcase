@@ -727,7 +727,7 @@ function downloadHtml(htmlString, filename = 'prototype.html') {
 
 const ZOOM_STEPS = [0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 1.0];
 
-function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, protoError, generatingSpecs, documents, onBack, onRegenerate, t }) {
+function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, protoError, protoErrorMsg, generatingSpecs, documents, onBack, onRegenerate, t }) {
   const [loading, setLoading] = useState(false);
   const [fetchErr, setFetchErr] = useState(null);
   const [zoom, setZoom] = useState(0.55);
@@ -830,7 +830,10 @@ function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, protoError,
       {!protoSaved && !generatingSpecs && (
         <div className={`border rounded-xl p-6 flex flex-col items-center gap-3 text-center ${protoError ? 'bg-red-950 border-red-800' : 'bg-gray-50 border-gray-200'}`}>
           {protoError
-            ? <p className="text-sm text-red-400">{t("spec.proto_error")}</p>
+            ? <>
+                <p className="text-sm text-red-400 font-semibold">{t("spec.proto_error")}</p>
+                {protoErrorMsg && <p className="text-xs text-red-300 break-all max-w-xs">{protoErrorMsg}</p>}
+              </>
             : <p className="text-sm text-gray-500">{t("spec.proto_pending")}</p>
           }
           {onRegenerate && (
@@ -907,6 +910,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [protoHtmlState, setProtoHtmlState] = useState(null);
   const [viewingProto, setViewingProto]     = useState(false);
   const [protoError, setProtoError]         = useState(false);
+  const [protoErrorMsg, setProtoErrorMsg]   = useState('');
   const [protoGenerating, setProtoGenerating] = useState(false);
 
   // SAP live connection info node
@@ -4000,6 +4004,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     setProtoHtmlState={setProtoHtmlState}
                     protoSaved={protoSaved}
                     protoError={protoError}
+                    protoErrorMsg={protoErrorMsg}
                     generatingSpecs={generatingSpecs || protoGenerating}
                     documents={documents}
                     onBack={() => setViewingProto(false)}
@@ -4007,6 +4012,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       setProtoHtmlState(null);
                       setProtoSaved(false);
                       setProtoError(false);
+                      setProtoErrorMsg('');
                       setProtoGenerating(true);
                       const protoStyle = activeProfile.prototype_style ?? 'auto';
                       try {
@@ -4018,8 +4024,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         try {
                           await saveSpec({ mode: 'ai', status: spec?.status ?? 'draft', content: aiSpecA, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent, activeProfile, protoHtml: html }), title: caseData.title + t("spec.doc_title_suffix") });
                           setProtoSaved(true);
-                        } catch (saveErr) { console.warn('Prototype notes save failed:', saveErr?.message); setProtoError(true); }
-                      } catch (e) { setProtoError(true); console.error('Prototype generation error:', e?.message); }
+                        } catch (saveErr) { console.warn('Prototype notes save failed:', saveErr?.message); setProtoError(true); setProtoErrorMsg(`Save failed: ${saveErr?.message}`); }
+                      } catch (e) { setProtoError(true); setProtoErrorMsg(e?.message || 'Unknown error'); console.error('Prototype generation error:', e?.message); }
                       finally { setProtoGenerating(false); }
                     } : null}
                     t={t}
