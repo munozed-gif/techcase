@@ -23,6 +23,7 @@ import {
   LIFECYCLE_PRESETS, SAP_AREAS, INDUSTRY_AREAS, PROJECT_TYPES,
   DEFAULT_ACTIVITY_PHASES, ROLE_COLORS,
 } from "../lib/businessConstants.js";
+import { sapLiveCheck, sapFetchSource } from "../components/SapPanels.jsx";
 
 function ProjectFieldEditor({ caseData, auth }) {
   const { t } = useT();
@@ -906,6 +907,8 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   // SAP live connection info node
   const [sapConnInfo, setSapConnInfo]     = useState(null);
   const [sapConnLoading, setSapConnLoading] = useState(false);
+  const [sapConnCfg, setSapConnCfg]       = useState(null); // full config incl. password, for test
+  const [sapConnTest, setSapConnTest]     = useState(null); // null | 'testing' | { ok, info?, error?, message? }
 
   // ── Document helpers ─────────────────────────────────────────
   function blobToBase64(blob) {
@@ -2073,6 +2076,9 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
           .select('db_type, meta').eq('id', sapCfg.connectionId).maybeSingle();
         if (conn?.db_type === 'vpn') vpnUrl = conn.meta?.proxy_url?.trim() || null;
       }
+      // Store full config (with credentials + proxy) for the test button
+      setSapConnCfg({ ...sapCfg, ...(vpnUrl ? { _vpnProxyUrl: vpnUrl } : {}) });
+      setSapConnTest(null);
       setSapConnInfo({
         host: sapCfg.host,
         username: sapCfg.username,
@@ -2086,6 +2092,28 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
       setSapConnInfo({ error: e.message });
     } finally {
       setSapConnLoading(false);
+    }
+  }
+
+  async function testSapConnection() {
+    if (!sapConnCfg || sapConnTest === 'testing') return;
+    setSapConnTest('testing');
+    try {
+      const result = await sapLiveCheck(sapConnCfg);
+      if (result && !result.error) {
+        setSapConnTest({ ok: true, info: result.systemInfo ?? result.description ?? 'Connected' });
+      } else {
+        const status = result?.error;
+        const msg = status === 401 ? 'HTTP 401 — Wrong username, password or client (MANDT).'
+          : status === 403 ? 'HTTP 403 — User lacks ADT authorizations.'
+          : status === 404 ? 'HTTP 404 — ADT service not active (check SICF).'
+          : status ? `HTTP ${status} — SAP returned an error.`
+          : result?.message ? `Proxy error: ${result.message}`
+          : 'Connection failed.';
+        setSapConnTest({ ok: false, message: msg });
+      }
+    } catch (e) {
+      setSapConnTest({ ok: false, message: e.message });
     }
   }
 
@@ -3424,7 +3452,40 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   </div>
                 )}
 
-                {!sapConnLoading && sapConnInfo && (
+                {!sapConnLoading && sapConnInfo && !sapConnInfo.notFound && !sapConnInfo.error && (
+                  <div className="space-y-2">
+                    {/* Test result */}
+                    {sapConnTest && sapConnTest !== 'testing' && (
+                      <div className={`rounded-xl p-3 flex items-start gap-2 ${sapConnTest.ok ? 'bg-green-950 border border-green-700' : 'bg-red-950 border border-red-700'}`}>
+                        {sapConnTest.ok
+                          ? <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
+                          : <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />}
+                        <div className="min-w-0">
+                          <p className={`text-xs font-semibold ${sapConnTest.ok ? 'text-green-400' : 'text-red-400'}`}>
+                            {sapConnTest.ok ? t("spec.sap_conn_ok") : t("spec.sap_conn_fail")}
+                          </p>
+                          {sapConnTest.info && <p className="text-xs text-gray-400 mt-0.5 break-all">{sapConnTest.info}</p>}
+                          {sapConnTest.message && <p className="text-xs text-gray-400 mt-0.5 break-all">{sapConnTest.message}</p>}
+                        </div>
+                      </div>
+                    )}
+                    {/* Action row */}
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <button
+                        onClick={testSapConnection}
+                        disabled={sapConnTest === 'testing'}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-gray-800 border border-gray-600 text-gray-200 text-xs font-semibold rounded-xl hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        {sapConnTest === 'testing' ? <><Spinner />{t("spec.sap_conn_testing")}</> : <><Zap className="w-3.5 h-3.5" />{t("spec.sap_conn_test_btn")}</>}
+                      </button>
+                      <button onClick={() => setActiveNode(1)}
+                        className="px-4 py-2 bg-[#1A4B8C] text-white text-xs font-semibold rounded-xl hover:bg-blue-900">
+                        {t("spec.sap_conn_continue")}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {!sapConnLoading && sapConnInfo && (sapConnInfo.notFound || sapConnInfo.error) && (
                   <div className="flex justify-end pt-1">
                     <button onClick={() => setActiveNode(1)}
                       className="px-4 py-2 bg-[#1A4B8C] text-white text-xs font-semibold rounded-xl hover:bg-blue-900">
