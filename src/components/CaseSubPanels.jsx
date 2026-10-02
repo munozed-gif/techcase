@@ -2088,7 +2088,11 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
       }
       // Store full config (with credentials + proxy) for the test button
       setSapConnCfg({ ...sapCfg, ...(vpnUrl ? { _vpnProxyUrl: vpnUrl } : {}) });
-      setSapConnTest(null);
+      // Restore persisted test result; default to "configured = green" on first visit
+      try {
+        const stored = localStorage.getItem(`sap_test_${caseData.id}`);
+        setSapConnTest(stored ? JSON.parse(stored) : { ok: true, seeded: true });
+      } catch { setSapConnTest({ ok: true, seeded: true }); }
       setSapConnInfo({
         host: sapCfg.host,
         username: sapCfg.username,
@@ -2108,10 +2112,13 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
   async function testSapConnection() {
     if (!sapConnCfg || sapConnTest === 'testing') return;
     setSapConnTest('testing');
+    const lsKey = `sap_test_${caseData.id}`;
     try {
       const result = await sapLiveCheck(sapConnCfg);
       if (result && !result.error) {
-        setSapConnTest({ ok: true, info: result.systemInfo ?? result.description ?? 'Connected' });
+        const next = { ok: true, info: result.systemInfo ?? result.description ?? 'Connected' };
+        setSapConnTest(next);
+        try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
       } else {
         const status = result?.error;
         const msg = status === 401 ? 'HTTP 401 — Wrong username, password or client (MANDT).'
@@ -2120,10 +2127,14 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
           : status ? `HTTP ${status} — SAP returned an error.`
           : result?.message ? `Proxy error: ${result.message}`
           : 'Connection failed.';
-        setSapConnTest({ ok: false, message: msg });
+        const next = { ok: false, message: msg };
+        setSapConnTest(next);
+        try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
       }
     } catch (e) {
-      setSapConnTest({ ok: false, message: e.message });
+      const next = { ok: false, message: e.message };
+      setSapConnTest(next);
+      try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
     }
   }
 
@@ -3479,8 +3490,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
                 {!sapConnLoading && sapConnInfo && !sapConnInfo.notFound && !sapConnInfo.error && (
                   <div className="space-y-2">
-                    {/* Test result */}
-                    {sapConnTest && sapConnTest !== 'testing' && (
+                    {/* Test result — only shown after an explicit live test, not the seeded green */}
+                    {sapConnTest && sapConnTest !== 'testing' && !sapConnTest.seeded && (
                       <div className={`rounded-xl p-3 flex items-start gap-2 ${sapConnTest.ok ? 'bg-green-950 border border-green-700' : 'bg-red-950 border border-red-700'}`}>
                         {sapConnTest.ok
                           ? <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
@@ -3499,8 +3510,18 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       <button
                         onClick={testSapConnection}
                         disabled={sapConnTest === 'testing'}
-                        className="flex items-center gap-1.5 px-3 py-2 bg-gray-800 border border-gray-600 text-gray-200 text-xs font-semibold rounded-xl hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                        {sapConnTest === 'testing' ? <><Spinner />{t("spec.sap_conn_testing")}</> : <><Zap className="w-3.5 h-3.5" />{t("spec.sap_conn_test_btn")}</>}
+                        className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                          sapConnTest === 'testing'
+                            ? 'bg-gray-800 border border-gray-600 text-gray-200'
+                            : sapConnTest?.ok
+                              ? 'bg-green-900 border border-green-600 text-green-300 hover:bg-green-800'
+                              : 'bg-red-900 border border-red-600 text-red-300 hover:bg-red-800'
+                        }`}>
+                        {sapConnTest === 'testing'
+                          ? <><Spinner />{t("spec.sap_conn_testing")}</>
+                          : sapConnTest?.ok
+                            ? <><CheckCircle2 className="w-3.5 h-3.5" />{t("spec.sap_conn_test_btn")}</>
+                            : <><Zap className="w-3.5 h-3.5" />{t("spec.sap_conn_test_btn")}</>}
                       </button>
                       <button onClick={() => setActiveNode(1)}
                         className="px-4 py-2 bg-[#1A4B8C] text-white text-xs font-semibold rounded-xl hover:bg-blue-900">
