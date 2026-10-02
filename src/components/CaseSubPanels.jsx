@@ -958,6 +958,50 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
     return blocks;
   }
 
+  // Returns { blocks, contextText } with ABAP standards PDFs and naming rules
+  async function buildAbapStandardsForSpec() {
+    const projId   = caseData.project_id;
+    const clientId = caseData.client_id;
+    const caseId   = caseData.id;
+    const sapIntCfg = ssCtx.settings['sap_integration'] ?? {};
+    const rawTemplates = projId
+      ? (sapIntCfg[`proj_${projId}`]?.abap_templates ?? (sapIntCfg[`proj_${projId}`]?.abap_template ? [sapIntCfg[`proj_${projId}`].abap_template] : []))
+      : [];
+
+    const blocks = [];
+    for (const tmpl of rawTemplates) {
+      const url = typeof tmpl === 'string' ? tmpl : (tmpl.url ?? tmpl.file_url);
+      if (!url) continue;
+      try {
+        const resp = await fetch(url);
+        const blob = await resp.blob();
+        const b64  = await blobToBase64(blob);
+        blocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } });
+      } catch (_) {}
+    }
+
+    const clientStd  = (ssCtx.settings['abap_standards_client']  ?? {})[clientId]  ?? {};
+    const projectStd = (ssCtx.settings['abap_standards_project'] ?? {})[projId]    ?? {};
+    const caseStd    = (ssCtx.settings['abap_standards_case']    ?? {})[caseId]    ?? {};
+    const std = { globalPrefix:'Z', namespacePrefix:'', objectTypePrefixes:{}, ...clientStd, ...projectStd, ...caseStd };
+
+    const lines = [];
+    if (std.globalPrefix)     lines.push(`Global object prefix: ${std.globalPrefix}`);
+    if (std.namespacePrefix)  lines.push(`Namespace prefix: ${std.namespacePrefix}`);
+    const pfx = std.objectTypePrefixes ?? {};
+    const pfxParts = Object.entries(pfx).filter(([,v])=>v).map(([k,v])=>`${k}: ${v}`);
+    if (pfxParts.length) lines.push(`Object type prefixes — ${pfxParts.join(', ')}`);
+    if (std.headerTemplate)   lines.push(`Header template:\n${std.headerTemplate}`);
+    if (std.changeLogTemplate) lines.push(`Change-log template: ${std.changeLogTemplate}`);
+    if (std.authorId)         lines.push(`Default author ID: ${std.authorId}`);
+
+    const contextText = lines.length
+      ? `\n\n## Project ABAP Naming & Coding Standards\nApply these conventions to ALL technical objects proposed:\n${lines.join('\n')}`
+      : '';
+
+    return { blocks, contextText };
+  }
+
   function buildCaseDocHtml(docTitle, eyebrow, metaItems, markdownContent) {
     const date = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
     const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -2629,11 +2673,17 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       const docBlocks = await buildDocumentBlocks();
       const pdfNames = (documents ?? []).filter(d => (d.file_name ?? '').toLowerCase().endsWith('.pdf') || (d.file_type ?? '').includes('pdf')).map(d => d.file_name);
       const pdfNote = pdfNames.length > 0 ? `\n\n[Reference PDFs attached: ${pdfNames.join(', ')}]` : '';
-      // callSpec: try with full document blocks; if the model rejects them (no PDF support), retry text-only
-      const callSpec = async (prompt) => {
+
+      // Fetch ABAP standards if any spec with technical_objects is being generated
+      const needsAbap = genProfile?.spec_a?.technical_objects || genProfile?.spec_c?.technical_objects;
+      const abap = needsAbap ? await buildAbapStandardsForSpec() : { blocks: [], contextText: '' };
+
+      // callSpec: try with full document blocks + optional extra blocks; retry text-only on PDF rejection
+      const callSpec = async (prompt, extraBlocks = []) => {
         const sys = 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.';
+        const allBlocks = [...abap.blocks, ...extraBlocks, ...docBlocks];
         try {
-          const content = docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt;
+          const content = allBlocks.length > 0 ? [...allBlocks, { type: 'text', text: prompt }] : prompt;
           return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 4000 });
         } catch (_) {
           return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 4000 });
@@ -2641,10 +2691,11 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       };
       const customerContent = analysisCustomerContent || caseData.description || '';
       const contextStr = await buildGenContext();
+      const abapCtx = abap.contextText;
       const [specA, specB, specC, specD] = await Promise.all([
-        callSpec(buildSpecPrompt(true, genProfile, contextStr)),
+        callSpec(buildSpecPrompt(true,  genProfile, genProfile?.spec_a?.technical_objects  ? contextStr + abapCtx : contextStr)),
         callSpec(buildSpecPrompt(false, genProfile, contextStr)),
-        callSpec(buildSpecCPrompt(customerContent, genProfile, contextStr)),
+        callSpec(buildSpecCPrompt(customerContent, genProfile, genProfile?.spec_c?.technical_objects ? contextStr + abapCtx : contextStr)),
         callSpec(buildSpecDPrompt(customerContent, genProfile, contextStr)),
       ]);
       setAiSpecA(specA);
