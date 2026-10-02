@@ -629,7 +629,7 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
   if (!rawEnvs.length) {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center space-y-2">
-        <Code2 size={36} className="text-gray-200 mx-auto" />
+        <Code2 size={36} className="text-gray-400 mx-auto" />
         <p className="text-sm font-semibold text-gray-700">{t('sap.no_environments')}</p>
         <p className="text-xs text-gray-400">{t('sap.integration_subtitle')}</p>
       </div>
@@ -2607,7 +2607,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
   if (!sapConfig?.host) {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center space-y-2">
-        <Code2 size={36} className="text-gray-200 mx-auto" />
+        <Code2 size={36} className="text-gray-400 mx-auto" />
         <p className="text-sm font-semibold text-gray-700">{t('sap.impl_no_config')}</p>
         <p className="text-xs text-gray-400">{t('sap.impl_configure')}</p>
       </div>

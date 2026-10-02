@@ -127,7 +127,7 @@ function CaseLifecycleTrack({ stages, currentStatus }) {
       <div className="overflow-x-auto -mx-1 px-1">
       <div className="relative flex items-start justify-between min-w-[480px]">
         <div className={`absolute ${lineTop} ${lineX} h-0.5 z-0`}
-          style={{ background: `linear-gradient(to right, #1A4B8C ${progressPct}%, #e5e7eb ${progressPct}%)` }} />
+          style={{ background: `linear-gradient(to right, #1A4B8C ${progressPct}%, var(--t-progress-track,#e5e7eb) ${progressPct}%)` }} />
         {flow.map((stage, i) => {
           const done   = curIsTerminal || i < curIdx;
           const active = !curIsTerminal && i === curIdx;
@@ -136,18 +136,18 @@ function CaseLifecycleTrack({ stages, currentStatus }) {
             <div key={stage.key} className="relative z-10 flex flex-col items-center flex-1 gap-1.5">
               <div className={`${circSz} rounded-full flex items-center justify-center transition-all`}
                 style={{
-                  background: done || active ? stage.color : '#fff',
-                  border: !done && !active ? '2px solid #e5e7eb' : 'none',
+                  background: done || active ? stage.color : 'var(--t-card-bg,#fff)',
+                  border: !done && !active ? '2px solid var(--t-border,#e5e7eb)' : 'none',
                   boxShadow: active ? `0 0 0 4px ${stage.color}30` : undefined,
                 }}>
                 {done
                   ? <Check size={iconSz} color="#fff" />
-                  : <Icon size={iconSz} color={active ? '#fff' : '#9ca3af'} />
+                  : <Icon size={iconSz} color={active ? '#fff' : 'var(--ad-text3,#9ca3af)'} />
                 }
               </div>
               <div className="text-center px-0.5">
                 <div className={`leading-tight font-semibold ${big ? 'text-xs' : 'text-[10px]'}`}
-                  style={{ color: active ? stage.color : done ? '#6b7280' : '#9ca3af' }}>
+                  style={{ color: active ? stage.color : done ? 'var(--t-text2,#6b7280)' : 'var(--ad-text3,#9ca3af)' }}>
                   {stage.label}
                 </div>
               </div>
@@ -213,7 +213,7 @@ function LifecycleFlowDiagram({ stages, currentStatus }) {
               const isDone = state === 'completed';
               const isLast = i === items.length - 1;
 
-              const lineColor = isDone ? stage.color + '60' : '#e5e7eb';
+              const lineColor = isDone ? stage.color + '60' : 'var(--t-border,#e5e7eb)';
 
               return (
                 <div key={stage.key} className="flex items-start gap-2">
@@ -224,10 +224,10 @@ function LifecycleFlowDiagram({ stages, currentStatus }) {
                       height: isCurrent ? 20 : 14,
                       borderRadius: '50%',
                       background: isDone || isCurrent ? stage.color : undefined,
-                      border: isDone || isCurrent ? 'none' : '2px solid #d1d5db',
+                      border: isDone || isCurrent ? 'none' : '2px solid var(--t-border,#d1d5db)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: 8, fontWeight: 700,
-                      color: isDone || isCurrent ? '#fff' : '#9ca3af',
+                      color: isDone || isCurrent ? '#fff' : 'var(--ad-text3,#9ca3af)',
                       flexShrink: 0,
                       boxShadow: isCurrent ? `0 0 0 3px ${stage.color}35` : 'none',
                       marginTop: isCurrent ? -2 : 1,
@@ -256,7 +256,7 @@ function LifecycleFlowDiagram({ stages, currentStatus }) {
                     <span style={{
                       fontSize: 12,
                       fontWeight: isCurrent ? 700 : isDone ? 500 : 400,
-                      color: isCurrent ? stage.color : isDone ? stage.color + 'cc' : '#9ca3af',
+                      color: isCurrent ? stage.color : isDone ? stage.color + 'cc' : 'var(--ad-text3,#9ca3af)',
                     }}>
                       {stage.label}
                     </span>
@@ -340,15 +340,15 @@ function renderMarkdown(md) {
           <span style="background:#b03030;width:16px;height:14px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;border-radius:2px">×</span>
         </span>
       </div>
-      <div style="background:#dde4f0;border-bottom:1px solid #b0bbcc;padding:2px 8px;font-size:10.5px;color:#222;display:flex;gap:14px">
+      <div style="background:var(--sap-bar,#dde4f0);border-bottom:1px solid #b0bbcc;padding:2px 8px;font-size:10.5px;color:var(--sap-text,#222);display:flex;gap:14px">
         ${['Sistema','Editar','Pasar a','Favoritos','Extras','Entorno','Ayuda'].map(m=>`<span>${m}</span>`).join('')}
       </div>
-      <div style="background:#e4eaf5;border-bottom:1px solid #b0bbcc;padding:3px 8px;display:flex;gap:2px;align-items:center">
-        <input style="width:70px;height:18px;border:1px solid #8899bb;font-size:10px;padding:0 4px;background:white" readonly />
+      <div style="background:var(--sap-toolbar,#e4eaf5);border-bottom:1px solid #b0bbcc;padding:3px 8px;display:flex;gap:2px;align-items:center">
+        <input style="width:70px;height:18px;border:1px solid #8899bb;font-size:10px;padding:0 4px;background:var(--sap-white,white)" readonly />
         ${[0,1,2,3,4,5].map(i=>`<span style="background:#c8d4e8;border:1px solid #8899bb;width:20px;height:18px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;${i===2?'margin-left:5px':''}">▶</span>`).join('')}
       </div>
       ${body}
-      <div style="background:#dde4f0;border-top:1px solid #b0bbcc;padding:2px 8px;font-size:10px;color:#334;display:flex;justify-content:space-between">
+      <div style="background:var(--sap-bar,#dde4f0);border-top:1px solid #b0bbcc;padding:2px 8px;font-size:10px;color:var(--sap-text,#334);display:flex;justify-content:space-between">
         <span>Sistema: TechCase-DEV &nbsp;|&nbsp; Mandante: 100</span>
         <span style="color:#006600;font-weight:700">● Listo</span>
       </div>
@@ -358,13 +358,13 @@ function renderMarkdown(md) {
       const dp = params.length ? params : [{label:'Sociedad',value:'1000',req:true},{label:'Ejercicio',value:'2024',req:true},{label:'Período de',value:'01',req:false},{label:'Período a',value:'12',req:false}];
       const fields = dp.map(p=>`<div style="display:flex;align-items:center;margin-bottom:7px">
         <span style="color:#cc0000;width:10px;font-weight:bold;font-size:13px">${p.req?'*':''}</span>
-        <label style="width:185px;color:#2a3a5a;font-size:11.5px">${esc(p.label)}</label>
-        <input value="${esc(p.value)}" style="width:155px;height:21px;border:1px solid #99aabb;border-bottom:2px solid #2855a8;padding:0 6px;font-size:11.5px;color:#001280;background:white" readonly />
+        <label style="width:185px;color:var(--sap-label,#2a3a5a);font-size:11.5px">${esc(p.label)}</label>
+        <input value="${esc(p.value)}" style="width:155px;height:21px;border:1px solid #99aabb;border-bottom:2px solid #2855a8;padding:0 6px;font-size:11.5px;color:var(--sap-field-text,#001280);background:var(--sap-white,white)" readonly />
         <span style="background:#c8d4e8;border:1px solid #8899bb;width:20px;height:21px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;margin-left:2px;cursor:pointer">▼</span>
       </div>`).join('');
-      return chrome(`<div style="background:#f5f7fc;padding:14px 18px">
-        <div style="border:1px solid #8899bb;border-radius:2px;padding:16px 18px;background:white;position:relative;margin-bottom:12px">
-          <div style="position:absolute;top:-9px;left:12px;background:white;padding:0 6px;font-size:10.5px;font-weight:600;color:#1a3764">Parámetros de selección</div>
+      return chrome(`<div style="background:var(--sap-panel,#f5f7fc);padding:14px 18px">
+        <div style="border:1px solid #8899bb;border-radius:2px;padding:16px 18px;background:var(--sap-white,white);position:relative;margin-bottom:12px">
+          <div style="position:absolute;top:-9px;left:12px;background:var(--sap-white,white);padding:0 6px;font-size:10.5px;font-weight:600;color:#1a3764">Parámetros de selección</div>
           ${fields}
         </div>
         <div style="display:flex;gap:8px">
@@ -380,10 +380,10 @@ function renderMarkdown(md) {
       const tw = uc.reduce((s,c)=>s+c.width,0);
       const wp = c=>((c.width/tw)*100).toFixed(1)+'%';
       const hdr = uc.map(c=>`<th style="background:#3a628a;color:white;padding:6px 8px;font-size:11px;font-weight:600;text-align:${c.align==='R'?'right':'left'};border:1px solid #2a4a70;width:${wp(c)}">${esc(c.label)}</th>`).join('');
-      const drows = ur.map((row,ri)=>`<tr>${uc.map((c,ci)=>`<td style="padding:4px 8px;font-size:11px;border:1px solid #c8d4e8;text-align:${c.align==='R'?'right':'left'};background:${ri%2===0?'white':'#f0f5fc'}">${esc(row[ci]||'')}</td>`).join('')}</tr>`).join('');
-      const trow = `<tr>${uc.map((c,ci)=>`<td style="padding:5px 8px;font-size:11px;font-weight:700;border:1px solid #8899bb;text-align:${c.align==='R'?'right':'left'};background:#d0e4f8;color:#00186a">${esc(ut[ci]||'')}</td>`).join('')}</tr>`;
+      const drows = ur.map((row,ri)=>`<tr>${uc.map((c,ci)=>`<td style="padding:4px 8px;font-size:11px;border:1px solid #c8d4e8;text-align:${c.align==='R'?'right':'left'};background:${ri%2===0?'var(--sap-white,white)':'var(--sap-row-alt,#f0f5fc)'}">${esc(row[ci]||'')}</td>`).join('')}</tr>`).join('');
+      const trow = `<tr>${uc.map((c,ci)=>`<td style="padding:5px 8px;font-size:11px;font-weight:700;border:1px solid #8899bb;text-align:${c.align==='R'?'right':'left'};background:var(--sap-total,#d0e4f8);color:var(--sap-total-text,#00186a)">${esc(ut[ci]||'')}</td>`).join('')}</tr>`;
       return chrome(`<div>
-        <div style="background:#e8eff8;border-bottom:1px solid #b0bbcc;padding:3px 8px;display:flex;gap:4px">
+        <div style="background:var(--sap-toolbar,#e8eff8);border-bottom:1px solid #b0bbcc;padding:3px 8px;display:flex;gap:4px">
           ${['Ordenar','Filtro','Suma','Subtotales','Imprimir','Excel'].map(b=>`<button style="background:#c8d4e8;border:1px solid #8899bb;padding:2px 8px;font-size:10.5px;cursor:pointer;border-radius:2px">${b}</button>`).join('')}
         </div>
         <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-family:'Segoe UI',Arial,sans-serif">
@@ -416,7 +416,7 @@ function renderMarkdown(md) {
       while (i < lines.length && !/^```/.test(lines[i])) { codeLines.push(lines[i]); i++; }
       i++;
       const cc = codeLines.join('\n');
-      out.push(/SCREEN:/i.test(cc) ? renderSapScreen(cc) : `<pre style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:10px 14px;overflow-x:auto;font-size:11px;font-family:monospace;white-space:pre">${esc(cc)}</pre>`);
+      out.push(/SCREEN:/i.test(cc) ? renderSapScreen(cc) : `<pre style="background:var(--ad-card,#f3f4f6);border:1px solid var(--ad-b,#e5e7eb);border-radius:6px;padding:10px 14px;overflow-x:auto;font-size:11px;font-family:monospace;white-space:pre;color:var(--ad-text,inherit)">${esc(cc)}</pre>`);
       continue;
     }
     if (line.trim().startsWith('|') && line.includes('|')) {
@@ -428,9 +428,9 @@ function renderMarkdown(md) {
     let m;
     if ((m=line.match(/^####\s+(.+)/))) { out.push(`<h4 style="font-size:0.875rem;font-weight:700;margin:0.75rem 0 0.25rem">${fmt(m[1])}</h4>`); i++; continue; }
     if ((m=line.match(/^###\s+(.+)/)))  { out.push(`<h3 style="font-size:1rem;font-weight:700;margin:1rem 0 0.375rem">${fmt(m[1])}</h3>`); i++; continue; }
-    if ((m=line.match(/^##\s+(.+)/)))   { out.push(`<h2 style="font-size:1.125rem;font-weight:700;margin:1.25rem 0 0.5rem;color:#1A4B8C">${fmt(m[1])}</h2>`); i++; continue; }
-    if ((m=line.match(/^#\s+(.+)/)))    { out.push(`<h1 style="font-size:1.25rem;font-weight:800;margin:1.5rem 0 0.5rem;color:#1A4B8C">${fmt(m[1])}</h1>`); i++; continue; }
-    if (/^---$/.test(line))             { out.push('<hr style="border:none;border-top:1px solid #e5e7eb;margin:1rem 0">'); i++; continue; }
+    if ((m=line.match(/^##\s+(.+)/)))   { out.push(`<h2 style="font-size:1.125rem;font-weight:700;margin:1.25rem 0 0.5rem;color:var(--t-text-accent,#1A4B8C)">${fmt(m[1])}</h2>`); i++; continue; }
+    if ((m=line.match(/^#\s+(.+)/)))    { out.push(`<h1 style="font-size:1.25rem;font-weight:800;margin:1.5rem 0 0.5rem;color:var(--t-text-accent,#1A4B8C)">${fmt(m[1])}</h1>`); i++; continue; }
+    if (/^---$/.test(line))             { out.push('<hr style="border:none;border-top:1px solid var(--ad-b,#e5e7eb);margin:1rem 0">'); i++; continue; }
     if ((m=line.match(/^\s*[-*]\s+(.+)/)))  { out.push(`<li style="margin:0.25rem 0 0.25rem 1.25rem;list-style:disc">${fmt(m[1])}</li>`); i++; continue; }
     if ((m=line.match(/^\d+\.\s+(.+)/)))    { out.push(`<li style="margin:0.25rem 0 0.25rem 1.25rem;list-style:decimal">${fmt(m[1])}</li>`); i++; continue; }
     if (!line.trim())                       { out.push('<br>'); i++; continue; }
