@@ -1718,6 +1718,7 @@ ${mdToHtml(markdownContent)}
           if (nd.prevMode)      setPrevMode(nd.prevMode);
           if (nd.analysisCustomerContent) setAnalysisCustomerContent(nd.analysisCustomerContent);
           if (nd.activeProfile) setActiveProfile(nd.activeProfile);
+          if (nd.protoHtml)    { setProtoHtmlState(nd.protoHtml); setProtoSaved(true); setActiveProfile(p => p ?? { prototype_enabled: true }); }
         } catch (_) {}
       }
       if (spec.content) restoredStep = 3;
@@ -1725,7 +1726,7 @@ ${mdToHtml(markdownContent)}
       const restoredNode = (spec.status === 'approved' || spec.status === 'submitted') ? 4
         : restoredStep === 3 ? 3 : restoredStep === 2 ? 2 : 0;
       setActiveNode(restoredNode);
-      // Detect previously generated prototype from documents list
+      // Fallback: detect prototype from documents list (legacy storage saves)
       const protoDoc = (documents ?? []).find(d => (d.description ?? '').startsWith('[Prototype]') || (d.file_name ?? '').startsWith('Prototype_'));
       if (protoDoc) { setProtoSaved(true); setActiveProfile(p => p ?? { prototype_enabled: true }); }
     } else if (spec.mode === 'wizard') {
@@ -2576,20 +2577,13 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           if (protoHtml.startsWith('```')) {
             protoHtml = protoHtml.replace(/^```(?:html)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
           }
-          // Show the prototype immediately — don't wait for storage to succeed
+          // Show immediately, then persist in spec notes (avoids storage MIME restrictions)
           setProtoHtmlState(protoHtml);
           try {
-            const safeName = (caseData.title ?? 'Prototype').replace(/[^a-z0-9]/gi, '_');
-            const dateStr  = new Date().toISOString().slice(0, 10);
-            const fileName = `Prototype_${safeName}_${dateStr}.html`;
-            const blob = new Blob([protoHtml], { type: 'text/html' });
-            const file = new File([blob], fileName, { type: 'text/html' });
-            await addDocument(file, '[Prototype] Interactive prototype (auto-generated)');
+            await saveSpec({ mode: 'ai', status: saveStatus, content: specA, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, selectedSpec: 'a', prevMode, analysisCustomerContent: customerContent, activeProfile: genProfile, protoHtml }), title: caseData.title + t("spec.doc_title_suffix") });
             setProtoSaved(true);
-            if (refetchDocuments) await refetchDocuments();
           } catch (saveErr) {
-            // Show prototype in memory even if saving to storage failed
-            console.warn('Prototype save failed:', saveErr?.message);
+            console.warn('Prototype notes save failed:', saveErr?.message);
             setProtoError(true);
           }
         } catch (e) {
@@ -4006,12 +4000,9 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         if (html.startsWith('```')) html = html.replace(/^```(?:html)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
                         setProtoHtmlState(html);
                         try {
-                          const safeName = (caseData.title ?? 'Prototype').replace(/[^a-z0-9]/gi, '_');
-                          const fileName = `Prototype_${safeName}_${new Date().toISOString().slice(0,10)}.html`;
-                          await addDocument(new File([new Blob([html], { type: 'text/html' })], fileName, { type: 'text/html' }), '[Prototype] Interactive prototype (auto-generated)');
+                          await saveSpec({ mode: 'ai', status: spec?.status ?? 'draft', content: aiSpecA, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent, activeProfile, protoHtml: html }), title: caseData.title + t("spec.doc_title_suffix") });
                           setProtoSaved(true);
-                          if (refetchDocuments) await refetchDocuments();
-                        } catch (saveErr) { console.warn('Prototype save failed:', saveErr?.message); setProtoError(true); }
+                        } catch (saveErr) { console.warn('Prototype notes save failed:', saveErr?.message); setProtoError(true); }
                       } catch (e) { setProtoError(true); alert('Prototype error: ' + e.message); }
                     } : null}
                     t={t}
