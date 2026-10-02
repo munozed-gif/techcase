@@ -727,7 +727,7 @@ function downloadHtml(htmlString, filename = 'prototype.html') {
 
 const ZOOM_STEPS = [0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 1.0];
 
-function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, generatingSpecs, documents, onBack, onRegenerate, t }) {
+function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, protoError, generatingSpecs, documents, onBack, onRegenerate, t }) {
   const [loading, setLoading] = useState(false);
   const [fetchErr, setFetchErr] = useState(null);
   const [zoom, setZoom] = useState(0.55);
@@ -828,12 +828,15 @@ function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, generatingS
         </div>
       )}
       {!protoSaved && !generatingSpecs && (
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 flex flex-col items-center gap-3 text-center">
-          <p className="text-sm text-gray-500">{t("spec.proto_pending")}</p>
+        <div className={`border rounded-xl p-6 flex flex-col items-center gap-3 text-center ${protoError ? 'bg-red-950 border-red-800' : 'bg-gray-50 border-gray-200'}`}>
+          {protoError
+            ? <p className="text-sm text-red-400">{t("spec.proto_error")}</p>
+            : <p className="text-sm text-gray-500">{t("spec.proto_pending")}</p>
+          }
           {onRegenerate && (
             <button onClick={onRegenerate}
               className="px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-              {t("spec.proto_generate")}
+              {protoError ? t("spec.proto_retry") : t("spec.proto_generate")}
             </button>
           )}
         </div>
@@ -847,7 +850,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const ssCtx = useSystemSettings();
   const genModel       = ssCtx.settings["ai_model"]        ?? 'claude-haiku-4-5-20251001';
   const analysisModel  = ssCtx.settings["analysis_model"]  ?? 'claude-haiku-4-5-20251001';
-  const protoModel     = ssCtx.settings["prototype_model"] ?? 'claude-sonnet-5';
+  const protoModel     = ssCtx.settings["prototype_model"] ?? 'claude-sonnet-5-5';
   const liveCheckEnabled = (ssCtx.settings["generation_context"] ?? {}).sap_live_check === true;
   const { spec, loading: specLoading, saveSpec, refetch } = useCaseSpecification(caseData.id, auth.user?.id);
 
@@ -3995,6 +3998,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     protoHtmlState={protoHtmlState}
                     setProtoHtmlState={setProtoHtmlState}
                     protoSaved={protoSaved}
+                    protoError={protoError}
                     generatingSpecs={generatingSpecs || protoGenerating}
                     documents={documents}
                     onBack={() => setViewingProto(false)}
