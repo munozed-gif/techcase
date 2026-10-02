@@ -884,7 +884,8 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [aiSpecA, setAiSpecA]           = useState(''); // custom dev spec
   const [aiSpecB, setAiSpecB]           = useState(''); // standard SAP spec
   const [aiSpecC, setAiSpecC]           = useState(''); // customer proposal as-is
-  const [selectedSpec, setSelectedSpec] = useState(null); // 'a' | 'b' | 'c'
+  const [aiSpecD, setAiSpecD]           = useState(''); // customer specification (non-technical)
+  const [selectedSpec, setSelectedSpec] = useState(null); // 'a' | 'b' | 'c' | 'd'
   const [generatingSpecs, setGeneratingSpecs] = useState(false);
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [analysisCustomerContent, setAnalysisCustomerContent] = useState('');
@@ -902,7 +903,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [rejectReason, setRejectReason]   = useState('');
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [approving, setApproving]         = useState(false);
-  const [savedSpecUrls, setSavedSpecUrls] = useState({ a: null, b: null, c: null });
+  const [savedSpecUrls, setSavedSpecUrls] = useState({ a: null, b: null, c: null, d: null });
   const [savingDoc, setSavingDoc]         = useState(false);
   const [specHtml, setSpecHtml]           = useState(null);
   const [activeProfile, setActiveProfile] = useState(null);
@@ -1612,7 +1613,7 @@ ${mdToHtml(markdownContent)}
 
   async function handleDownloadSpec() {
     if (!selectedSpec) return;
-    const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA;
+    const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : selectedSpec === 'd' ? aiSpecD : aiSpecA;
     if (!content) return;
     setDownloadingPdf(true);
     try {
@@ -1645,10 +1646,10 @@ ${mdToHtml(markdownContent)}
     setDownloadingPdf(false);
   }
 
-  async function saveAllSpecsAsDocuments(specA, specB, specC, sap, proposal) {
+  async function saveAllSpecsAsDocuments(specA, specB, specC, specD, sap, proposal) {
     setSavingDoc(true);
     try {
-      const SPEC_PREFIXES = ['SpecA_CustomABAP', 'SpecB_StandardSAP', 'SpecC_PropuestaCliente', 'Prototype_'];
+      const SPEC_PREFIXES = ['SpecA_CustomABAP', 'SpecB_StandardSAP', 'SpecC_PropuestaCliente', 'SpecD_EspecCliente', 'Prototype_'];
       if (deleteDocument && documents?.length) {
         const oldDocs = documents.filter(d =>
           d.file_name && SPEC_PREFIXES.some(p => d.file_name.startsWith(p))
@@ -1667,11 +1668,12 @@ ${mdToHtml(markdownContent)}
         { label: t("spec.label_generated"),value: dateLong },
       ];
       const specs = [
-        { key: 'a', content: valSection + specA, prefix: 'SpecA_CustomABAP',       note: 'ABAP (auto-generated)',     title: 'ABAP' },
-        { key: 'b', content: valSection + specB, prefix: 'SpecB_StandardSAP',      note: 'SAP (auto-generated)',      title: 'SAP' },
-        { key: 'c', content: valSection + specC, prefix: 'SpecC_PropuestaCliente', note: 'Customer (auto-generated)', title: 'Customer' },
+        { key: 'a', content: valSection + specA, prefix: 'SpecA_CustomABAP',       note: 'ABAP (auto-generated)',                  title: 'ABAP' },
+        { key: 'b', content: valSection + specB, prefix: 'SpecB_StandardSAP',      note: 'SAP (auto-generated)',                   title: 'SAP' },
+        { key: 'c', content: valSection + specC, prefix: 'SpecC_PropuestaCliente', note: 'Customer (auto-generated)',              title: 'Customer' },
+        ...(specD ? [{ key: 'd', content: valSection + specD, prefix: 'SpecD_EspecCliente', note: 'Client Spec (auto-generated)', title: 'Client Spec' }] : []),
       ];
-      const newUrls = { a: null, b: null, c: null };
+      const newUrls = { a: null, b: null, c: null, d: null };
       for (const s of specs) {
         const htmlString = buildCaseDocHtml(
           s.title,
@@ -1723,6 +1725,7 @@ ${mdToHtml(markdownContent)}
           if (nd.specA)         setAiSpecA(nd.specA);
           if (nd.specB)         setAiSpecB(nd.specB);
           if (nd.specC)         setAiSpecC(nd.specC);
+          if (nd.specD)         setAiSpecD(nd.specD);
           if (nd.selectedSpec)  setSelectedSpec(nd.selectedSpec);
           if (nd.prevMode)      setPrevMode(nd.prevMode);
           if (nd.analysisCustomerContent) setAnalysisCustomerContent(nd.analysisCustomerContent);
@@ -2369,6 +2372,70 @@ TOTAL:||Total|[amount]|
 Use realistic Z object names matching the customer's described solution for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM/COL values.${buildSectionConstraint('spec_c', genProfile)}${buildGenSuffix(genProfile, lang)}`;
   }
 
+  function buildSpecDPrompt(customerContent, genProfile, contextStr = '') {
+    return `Write a Customer Functional Specification — a clear, non-technical business document for the customer's functional team to review and approve.
+
+Do NOT include ABAP objects, Z-program names, function modules, table names, configuration keys, or any SAP technical implementation detail. Write entirely in business language.
+
+Case: ${caseData.title}
+Description: ${caseData.description ?? '(none)'}
+SAP Module: ${caseData.area_sap ?? ''}
+Industry: ${caseData.area_industry ?? ''}${contextStr}
+Customer Proposal / Notes:
+${customerContent || '(see case description above)'}
+
+Generate with EXACTLY these sections:
+
+## 1. Executive Summary
+[2-3 sentences summarizing the business need and solution in plain language]
+
+## 2. Context
+
+| Field | Value |
+|-------|-------|
+| Module | [SAP module name] |
+| Affected Screens | [screen/transaction names the user touches] |
+| Area | [business area] |
+| Usage Frequency | [how often the feature will be used] |
+
+## 3. Actors & Permissions
+
+| Actor | Can |
+|-------|-----|
+| [business role] | [what this role can do with the feature] |
+
+## 4. Scope
+**Includes:**
+- [business capability included]
+
+**Excludes:**
+- [what is explicitly out of scope, stated in business terms]
+
+## 5. Screen Behavior
+
+| Screen | What the user sees / does |
+|--------|--------------------------|
+| [screen name] | [description of user interaction] |
+
+## 6. Business Rules
+- [business rule in functional terms, no code]
+
+## 7. Acceptance Criteria
+1. [testable acceptance criterion a business user can verify]
+
+## 8. Time Estimation
+
+| Phase | Hours |
+|-------|-------|
+| Requirements Analysis | [h] |
+| Design | [h] |
+| Development | [h] |
+| Unit Testing | [h] |
+| Functional Testing | [h] |
+| **Total** | **[total]** |
+${buildSectionConstraint('spec_d', genProfile)}${buildGenSuffix(genProfile, lang)}`;
+  }
+
   // iOS Safari throws "The string did not match the expected pattern" from JSON.stringify
   // when a string contains lone surrogate characters (unpaired UTF-16 surrogates).
   // Strip them before building the prompt.
@@ -2555,6 +2622,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     setAiSpecA('');
     setAiSpecB('');
     setAiSpecC('');
+    setAiSpecD('');
     setSelectedSpec(null);
     try {
       const docBlocks = await buildDocumentBlocks();
@@ -2572,17 +2640,19 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       };
       const customerContent = analysisCustomerContent || caseData.description || '';
       const contextStr = await buildGenContext();
-      const [specA, specB, specC] = await Promise.all([
+      const [specA, specB, specC, specD] = await Promise.all([
         callSpec(buildSpecPrompt(true, genProfile, contextStr)),
         callSpec(buildSpecPrompt(false, genProfile, contextStr)),
         callSpec(buildSpecCPrompt(customerContent, genProfile, contextStr)),
+        callSpec(buildSpecDPrompt(customerContent, genProfile, contextStr)),
       ]);
       setAiSpecA(specA);
       setAiSpecB(specB);
       setAiSpecC(specC);
+      setAiSpecD(specD);
       setSelectedSpec('a');
       setAiContent(specA);
-      setSavedSpecUrls({ a: null, b: null, c: null });
+      setSavedSpecUrls({ a: null, b: null, c: null, d: null });
       setActiveProfile(genProfile);
       setProtoSaved(false);
       setProtoHtmlState(null);
@@ -2590,10 +2660,10 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       setViewingProto(false);
       const saveStatus = autoSubmit ? 'submitted' : 'draft';
       try {
-        await saveSpec({ mode: 'ai', status: saveStatus, content: specA, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, selectedSpec: 'a', prevMode, analysisCustomerContent: customerContent, activeProfile: genProfile }), title: caseData.title + t("spec.doc_title_suffix") });
+        await saveSpec({ mode: 'ai', status: saveStatus, content: specA, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, specD, selectedSpec: 'a', prevMode, analysisCustomerContent: customerContent, activeProfile: genProfile }), title: caseData.title + t("spec.doc_title_suffix") });
         logEvent('spec.generated', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, metadata: { model: genModel } });
       } catch (_) {}
-      await saveAllSpecsAsDocuments(specA, specB, specC, sapCheck, proposalCheck);
+      await saveAllSpecsAsDocuments(specA, specB, specC, specD, sapCheck, proposalCheck);
 
       // Generate interactive prototype if enabled for this profile
       if (genProfile?.prototype_enabled) {
@@ -2644,7 +2714,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         status: 'submitted',
         content: specContent ?? null,
         objects: specObjects ?? [],
-        notes: specMode === 'manual' ? manualNotes : (specMode === 'ai' ? JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent, activeProfile }) : null),
+        notes: specMode === 'manual' ? manualNotes : (specMode === 'ai' ? JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD: aiSpecD, selectedSpec, prevMode, analysisCustomerContent, activeProfile }) : null),
         document_ids: specMode === 'manual' ? manualDocIds : [],
         title: caseData.title + t("spec.doc_title_suffix"),
       });
@@ -2991,7 +3061,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
           <button disabled={!manualNotes.trim()} onClick={() => {
             setAnalysisCustomerContent(manualNotes);
             setPrevMode('manual');
-            setSapCheck(null); setProposalCheck(null); setAiSpecA(''); setAiSpecB(''); setAiSpecC(''); setSelectedSpec(null); setAiStep(1);
+            setSapCheck(null); setProposalCheck(null); setAiSpecA(''); setAiSpecB(''); setAiSpecC(''); setAiSpecD(''); setSelectedSpec(null); setAiStep(1);
             setMode('ai');
           }} className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-40">
             {t("spec.validate_gen")}
@@ -3191,7 +3261,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 const qaSummary = wizardObjects.map(o => `${o.name} (${o.type}): ${(o.questions ?? []).map(q => `${q.question} → ${q.a}`).join('; ')}`).join('\n');
                 setAnalysisCustomerContent(qaSummary || compiledSpec);
                 setPrevMode('wizard');
-                setSapCheck(null); setProposalCheck(null); setAiSpecA(''); setAiSpecB(''); setAiSpecC(''); setSelectedSpec(null); setAiStep(1);
+                setSapCheck(null); setProposalCheck(null); setAiSpecA(''); setAiSpecB(''); setAiSpecC(''); setAiSpecD(''); setSelectedSpec(null); setAiStep(1);
                 setMode('ai');
               }} className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900">
                 {t("spec.validate_gen")}
@@ -3233,7 +3303,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 const qaSummary = wizardObjects.map(o => `${o.name} (${o.type}): ${(o.questions ?? []).map(q => `${q.question} → ${q.a}`).join('; ')}`).join('\n');
                 setAnalysisCustomerContent(qaSummary || compiledSpec);
                 setPrevMode('wizard');
-                setSapCheck(null); setProposalCheck(null); setAiSpecA(''); setAiSpecB(''); setAiSpecC(''); setSelectedSpec(null); setAiStep(1);
+                setSapCheck(null); setProposalCheck(null); setAiSpecA(''); setAiSpecB(''); setAiSpecC(''); setAiSpecD(''); setSelectedSpec(null); setAiStep(1);
                 setMode('ai');
               }} className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900">
                 {t("spec.validate_gen")}
@@ -3255,20 +3325,21 @@ Respond with ONLY a valid JSON object, no markdown fences:
     const inputDocs = (documents ?? []).filter(doc => {
       const name = doc.file_name ?? '';
       const desc = doc.description ?? '';
-      return !/^(SpecA_|SpecB_|SpecC_|Prototype_)/i.test(name) &&
+      return !/^(SpecA_|SpecB_|SpecC_|SpecD_|Prototype_)/i.test(name) &&
              !/^\[(Prototype|Spec)/i.test(desc);
     });
 
     // Node statuses
-    const specsExist = !!(aiSpecA || aiSpecB || aiSpecC);
+    const specsExist = !!(aiSpecA || aiSpecB || aiSpecC || aiSpecD);
     const sapStatus  = sapCheck      ? 'complete' : stepLoading && aiStep === 1 ? 'running' : specsExist ? 'skipped' : 'pending';
     const propStatus = proposalCheck ? 'complete' : stepLoading && aiStep === 2 ? 'running' : specsExist ? 'skipped' : sapCheck ? 'pending' : 'locked';
     const genStatus   = specsExist ? 'complete' : generatingSpecs ? 'running' : proposalCheck ? 'pending' : 'locked';
     const protoStatus = protoSaved ? 'complete' : generatingSpecs ? 'running' : 'pending';
     const SUB = [
-      { key: 'a', label: t("spec.tab_a"), dot: 'bg-amber-400', content: aiSpecA },
-      { key: 'b', label: t("spec.tab_b"), dot: 'bg-green-500', content: aiSpecB },
+      { key: 'a', label: t("spec.tab_a"), dot: 'bg-amber-400',  content: aiSpecA },
+      { key: 'b', label: t("spec.tab_b"), dot: 'bg-green-500',  content: aiSpecB },
       { key: 'c', label: t("spec.tab_c"), dot: 'bg-purple-500', content: aiSpecC },
+      { key: 'd', label: t("spec.tab_d"), dot: 'bg-teal-500',   content: aiSpecD },
     ];
     const NodeBtn = ({ id, icon: Icon, title, sub, status, isActive, canClick, onClick, children }) => {
       const sc = {
@@ -3989,17 +4060,17 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       <div className="flex gap-2 flex-shrink-0">
                         {!specApproved && (
                           <button onClick={async () => {
-                            const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA;
-                            try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent, activeProfile }), title: caseData.title + t("spec.doc_title_suffix") }); await refetch(); } catch (e) { alert(e.message); }
+                            const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : selectedSpec === 'd' ? aiSpecD : aiSpecA;
+                            try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD: aiSpecD, selectedSpec, prevMode, analysisCustomerContent, activeProfile }), title: caseData.title + t("spec.doc_title_suffix") }); await refetch(); } catch (e) { alert(e.message); }
                           }} disabled={!selectedSpec} className="px-3 py-1.5 text-xs border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 disabled:opacity-40">
                             {t("spec.save_draft")}
                           </button>
                         )}
                         {!specApproved && (() => {
-                          const allSaved = savedSpecUrls.a && savedSpecUrls.b && savedSpecUrls.c;
+                          const allSaved = savedSpecUrls.a && savedSpecUrls.b && savedSpecUrls.c && (!aiSpecD || savedSpecUrls.d);
                           return (
-                            <button onClick={() => saveAllSpecsAsDocuments(aiSpecA, aiSpecB, aiSpecC, sapCheck, proposalCheck)}
-                              disabled={savingDoc || allSaved || (!aiSpecA && !aiSpecB && !aiSpecC)}
+                            <button onClick={() => saveAllSpecsAsDocuments(aiSpecA, aiSpecB, aiSpecC, aiSpecD, sapCheck, proposalCheck)}
+                              disabled={savingDoc || allSaved || (!aiSpecA && !aiSpecB && !aiSpecC && !aiSpecD)}
                               className={`flex items-center px-3 py-1.5 text-xs font-semibold rounded-lg disabled:opacity-40 ${allSaved ? 'bg-gray-100 text-gray-500 border border-gray-200 cursor-default' : 'bg-green-600 text-white hover:bg-green-700'}`}>
                               {savingDoc ? t("state.saving") : allSaved ? <><Check size={11} className="mr-1 inline" />{t("spec.pdf_saved3")}</> : <><Paperclip className="w-3 h-3 mr-1" />{t("spec.save_all3")}</>}
                             </button>

@@ -52,6 +52,7 @@ const GENERATION_PROFILE_DEFAULTS = {
       spec_a:   { executive_summary:true, scope:true, pros_cons:false, technical_recommendation:false, technical_objects:true,  time_estimation:true,  screen_prototype:false, risks_assumptions:false, next_steps:false },
       spec_b:   { executive_summary:true, scope:true, pros_cons:false, technical_recommendation:false, configuration_objects:true, implementation_timeline:true, screen_prototype:false, risks_assumptions:false, next_steps:false },
       spec_c:   { executive_summary:true, scope:true, customer_proposal_details:true, technical_objects:true, time_estimation:true, screen_prototype:false, assumptions:false, next_steps:false },
+      spec_d:   { executive_summary:true, context:true, actors_permissions:true, scope:true, screen_behavior:true, business_rules:false, acceptance_criteria:true, time_estimation:true },
       dev_plan: { scope_summary:true, design_phase:true, development_phase:true, dependencies_risks:false, estimated_timeline:false },
     },
     standard: {
@@ -59,6 +60,7 @@ const GENERATION_PROFILE_DEFAULTS = {
       spec_a:   { executive_summary:true, scope:true, pros_cons:true, technical_recommendation:true, technical_objects:true,  time_estimation:true,  screen_prototype:false, risks_assumptions:true, next_steps:false },
       spec_b:   { executive_summary:true, scope:true, pros_cons:true, technical_recommendation:true, configuration_objects:true, implementation_timeline:true, screen_prototype:false, risks_assumptions:true, next_steps:false },
       spec_c:   { executive_summary:true, scope:true, customer_proposal_details:true, technical_objects:true, time_estimation:true, screen_prototype:false, assumptions:true, next_steps:false },
+      spec_d:   { executive_summary:true, context:true, actors_permissions:true, scope:true, screen_behavior:true, business_rules:true, acceptance_criteria:true, time_estimation:true },
       dev_plan: { scope_summary:true, design_phase:true, development_phase:true, dependencies_risks:true, estimated_timeline:false },
     },
     full: {
@@ -66,6 +68,7 @@ const GENERATION_PROFILE_DEFAULTS = {
       spec_a:   { executive_summary:true, scope:true, pros_cons:true, technical_recommendation:true, technical_objects:true,  time_estimation:true,  screen_prototype:true, risks_assumptions:true, next_steps:true },
       spec_b:   { executive_summary:true, scope:true, pros_cons:true, technical_recommendation:true, configuration_objects:true, implementation_timeline:true, screen_prototype:true, risks_assumptions:true, next_steps:true },
       spec_c:   { executive_summary:true, scope:true, customer_proposal_details:true, technical_objects:true, time_estimation:true, screen_prototype:true, assumptions:true, next_steps:true },
+      spec_d:   { executive_summary:true, context:true, actors_permissions:true, scope:true, screen_behavior:true, business_rules:true, acceptance_criteria:true, time_estimation:true },
       dev_plan: { scope_summary:true, design_phase:true, development_phase:true, dependencies_risks:true, estimated_timeline:true },
     },
   },
@@ -104,6 +107,16 @@ const GEN_DOCS = [
     { key:"screen_prototype",           label:"SAP Screen Prototype" },
     { key:"assumptions",                label:"Assumptions" },
     { key:"next_steps",                 label:"Next Steps" },
+  ]},
+  { key:"spec_d",   label:"Spec D — Customer Specification", sections:[
+    { key:"executive_summary",     label:"Executive Summary" },
+    { key:"context",               label:"Context" },
+    { key:"actors_permissions",    label:"Actors & Permissions" },
+    { key:"scope",                 label:"Scope" },
+    { key:"screen_behavior",       label:"Screen Behavior" },
+    { key:"business_rules",        label:"Business Rules" },
+    { key:"acceptance_criteria",   label:"Acceptance Criteria" },
+    { key:"time_estimation",       label:"Time Estimation" },
   ]},
   { key:"dev_plan", label:"Dev & Design Plan",           sections:[
     { key:"scope_summary",       label:"Project Scope Summary" },
