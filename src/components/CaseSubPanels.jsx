@@ -4016,8 +4016,10 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       setProtoErrorMsg('');
                       setProtoGenerating(true);
                       const protoStyle = activeProfile.prototype_style ?? 'auto';
+                      const resolvedModel = protoModel;
+                      console.log('[Prototype] using model:', resolvedModel);
                       try {
-                        let html = await callClaude({ model: protoModel, system: 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.', messages: [{ role: 'user', content: buildPrototypePrompt(aiSpecA, aiSpecB, protoStyle) }], max_tokens: 12000 });
+                        let html = await callClaude({ model: resolvedModel, system: 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.', messages: [{ role: 'user', content: buildPrototypePrompt(aiSpecA, aiSpecB, protoStyle) }], max_tokens: 12000 });
                         if (!html) throw new Error('Model returned empty response');
                         html = html.trim();
                         if (html.startsWith('```')) html = html.replace(/^```(?:html)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
@@ -4026,7 +4028,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                           await saveSpec({ mode: 'ai', status: spec?.status ?? 'draft', content: aiSpecA, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent, activeProfile, protoHtml: html }), title: caseData.title + t("spec.doc_title_suffix") });
                           setProtoSaved(true);
                         } catch (saveErr) { console.warn('Prototype notes save failed:', saveErr?.message); setProtoError(true); setProtoErrorMsg(`Save failed: ${saveErr?.message}`); }
-                      } catch (e) { setProtoError(true); setProtoErrorMsg(e?.message || 'Unknown error'); console.error('Prototype generation error:', e?.message); }
+                      } catch (e) { setProtoError(true); setProtoErrorMsg(`[model: ${resolvedModel}] ${e?.message || 'Unknown error'}`); console.error('Prototype generation error:', resolvedModel, e?.message); }
                       finally { setProtoGenerating(false); }
                     } : null}
                     t={t}
