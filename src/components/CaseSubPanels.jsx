@@ -2355,10 +2355,10 @@ Industry: ${caseData.area_industry ?? ''}
 Description: ${caseData.description ?? ''}
 
 Spec A (Custom ABAP approach):
-${(specA ?? '').slice(0, 1500)}
+${(specA ?? '').slice(0, 6000)}
 
 Spec B (Standard SAP approach):
-${(specB ?? '').slice(0, 1000)}
+${(specB ?? '').slice(0, 4000)}
 
 STEP 1 — CHOOSE THE STYLE using these rules (apply the FIRST rule that matches):
 
@@ -2408,10 +2408,10 @@ Industry: ${caseData.area_industry ?? ''}
 Description: ${caseData.description ?? ''}
 
 Spec A (Custom ABAP approach):
-${(specA ?? '').slice(0, 1500)}
+${(specA ?? '').slice(0, 6000)}
 
 Spec B (Standard SAP approach):
-${(specB ?? '').slice(0, 1000)}
+${(specB ?? '').slice(0, 4000)}
 
 VISUAL STYLE — SAP GUI (classic):
 - Background: #f3f2f1 (SAP off-white)
@@ -2469,10 +2469,10 @@ Industry: ${caseData.area_industry ?? ''}
 Description: ${caseData.description ?? ''}
 
 Spec A (Custom ABAP approach):
-${(specA ?? '').slice(0, 1500)}
+${(specA ?? '').slice(0, 6000)}
 
 Spec B (Standard SAP approach):
-${(specB ?? '').slice(0, 1000)}
+${(specB ?? '').slice(0, 4000)}
 
 REQUIREMENTS:
 1. Generate 4 screens: Overview, Main Process Screen, Detail/Form Screen, Confirmation/Result Screen
@@ -2570,7 +2570,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
             model: protoModel,
             system: 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.',
             messages: [{ role: 'user', content: buildPrototypePrompt(specA, specB, protoStyle) }],
-            max_tokens: 8000,
+            max_tokens: 12000,
           });
           if (!protoHtml) throw new Error('Empty prototype response');
           // Strip markdown code fences the model may add despite instructions
@@ -3996,7 +3996,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       setProtoGenerating(true);
                       const protoStyle = activeProfile.prototype_style ?? 'auto';
                       try {
-                        let html = await callClaude({ model: protoModel, system: 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.', messages: [{ role: 'user', content: buildPrototypePrompt(aiSpecA, aiSpecB, protoStyle) }], max_tokens: 8000 });
+                        let html = await callClaude({ model: protoModel, system: 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.', messages: [{ role: 'user', content: buildPrototypePrompt(aiSpecA, aiSpecB, protoStyle) }], max_tokens: 12000 });
                         if (!html) throw new Error('Model returned empty response');
                         html = html.trim();
                         if (html.startsWith('```')) html = html.replace(/^```(?:html)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
