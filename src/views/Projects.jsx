@@ -1791,7 +1791,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
     { id: "documents",    label: t("project.tab_documents"),     icon: FileText,          count: null },
     { id: "connections",  label: t("project.tab_connections"),   icon: Database,          count: null },
     ...(canEdit ? [{ id: "lifecycle", label: t("project.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
-    ...((auth.isAdmin || auth.isManager || (auth.isClient && project.client_id)) ? [{ id: "sap", label: t("project.tab_sap"), icon: Code2, count: null }] : []),
+    ...((auth.isAdmin || auth.isManager || auth.isClient || auth.isKeyUser || project.created_by === auth.user?.id || consultants.some(c => c.user_id === auth.user?.id)) ? [{ id: "sap", label: t("project.tab_sap"), icon: Code2, count: null }] : []),
   ];
 
   const projTabStatus = (() => {
