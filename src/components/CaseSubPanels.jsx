@@ -2037,7 +2037,8 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
   }
 
   async function loadSapConnInfo() {
-    if (!caseData.client_id || sapConnLoading) return;
+    if (sapConnLoading) return;
+    if (!caseData.client_id) { setSapConnInfo({ notFound: true }); return; }
     setSapConnLoading(true);
     try {
       const [{ data: sapCfgRow }, { data: sapProjEnvRow }, { data: sapCaseEnvRow }] = await Promise.all([
@@ -2075,6 +2076,12 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
       setSapConnLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (activeNode === 5 && liveCheckEnabled && !sapConnInfo && !sapConnLoading) {
+      loadSapConnInfo();
+    }
+  }, [activeNode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── AI Generate — two specs ─────────────────────────────────
 
@@ -3371,18 +3378,9 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   <p className="text-xs text-gray-500">{t("spec.sap_conn_desc")}</p>
                 </div>
 
-                {sapConnLoading && (
+                {(sapConnLoading || !sapConnInfo) && (
                   <div className="flex items-center justify-center py-8 gap-2 text-gray-400">
                     <Spinner /><span className="text-sm">{t("spec.checking")}</span>
-                  </div>
-                )}
-
-                {!sapConnLoading && !sapConnInfo && (
-                  <div className="text-center py-4">
-                    <button onClick={loadSapConnInfo}
-                      className="px-4 py-2 bg-[#1A4B8C] text-white text-xs font-semibold rounded-xl hover:bg-blue-900">
-                      {t("spec.sap_conn_node_lbl")}
-                    </button>
                   </div>
                 )}
 
