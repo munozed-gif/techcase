@@ -794,11 +794,11 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
           }
           // Auto-assign the creating consultant
           if (auth.isConsultant && auth.user?.id) {
-            await supabase.from("case_assignments").insert({
+            await supabase.from("case_assignments").upsert({
               case_id:         newCase.id,
               consultant_id:   auth.user.id,
               time_commitment: 100,
-            }).onConflict("case_id,consultant_id").ignore();
+            }, { onConflict: 'case_id,consultant_id', ignoreDuplicates: true });
           }
         }
         if (saveAsTemplate && templateName.trim()) {
