@@ -2576,16 +2576,26 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           if (protoHtml.startsWith('```')) {
             protoHtml = protoHtml.replace(/^```(?:html)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
           }
-          const safeName = (caseData.title ?? 'Prototype').replace(/[^a-z0-9]/gi, '_');
-          const dateStr  = new Date().toISOString().slice(0, 10);
-          const fileName = `Prototype_${safeName}_${dateStr}.html`;
-          const blob = new Blob([protoHtml], { type: 'text/html' });
-          const file = new File([blob], fileName, { type: 'text/html' });
-          await addDocument(file, '[Prototype] Interactive prototype (auto-generated)');
+          // Show the prototype immediately — don't wait for storage to succeed
           setProtoHtmlState(protoHtml);
-          setProtoSaved(true);
-          if (refetchDocuments) await refetchDocuments();
-        } catch (_) { /* prototype failure is non-fatal */ }
+          try {
+            const safeName = (caseData.title ?? 'Prototype').replace(/[^a-z0-9]/gi, '_');
+            const dateStr  = new Date().toISOString().slice(0, 10);
+            const fileName = `Prototype_${safeName}_${dateStr}.html`;
+            const blob = new Blob([protoHtml], { type: 'text/html' });
+            const file = new File([blob], fileName, { type: 'text/html' });
+            await addDocument(file, '[Prototype] Interactive prototype (auto-generated)');
+            setProtoSaved(true);
+            if (refetchDocuments) await refetchDocuments();
+          } catch (saveErr) {
+            // Show prototype in memory even if saving to storage failed
+            console.warn('Prototype save failed:', saveErr?.message);
+            setProtoError(true);
+          }
+        } catch (e) {
+          setProtoError(true);
+          console.error('Prototype generation failed:', e?.message);
+        }
       }
 
       if (autoSubmit) await refetch();
@@ -3994,12 +4004,14 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         if (!html) throw new Error('Model returned empty response');
                         html = html.trim();
                         if (html.startsWith('```')) html = html.replace(/^```(?:html)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-                        const safeName = (caseData.title ?? 'Prototype').replace(/[^a-z0-9]/gi, '_');
-                        const fileName = `Prototype_${safeName}_${new Date().toISOString().slice(0,10)}.html`;
-                        await addDocument(new File([new Blob([html], { type: 'text/html' })], fileName, { type: 'text/html' }), '[Prototype] Interactive prototype (auto-generated)');
                         setProtoHtmlState(html);
-                        setProtoSaved(true);
-                        if (refetchDocuments) await refetchDocuments();
+                        try {
+                          const safeName = (caseData.title ?? 'Prototype').replace(/[^a-z0-9]/gi, '_');
+                          const fileName = `Prototype_${safeName}_${new Date().toISOString().slice(0,10)}.html`;
+                          await addDocument(new File([new Blob([html], { type: 'text/html' })], fileName, { type: 'text/html' }), '[Prototype] Interactive prototype (auto-generated)');
+                          setProtoSaved(true);
+                          if (refetchDocuments) await refetchDocuments();
+                        } catch (saveErr) { console.warn('Prototype save failed:', saveErr?.message); setProtoError(true); }
                       } catch (e) { setProtoError(true); alert('Prototype error: ' + e.message); }
                     } : null}
                     t={t}
