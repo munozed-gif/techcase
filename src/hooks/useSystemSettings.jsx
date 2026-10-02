@@ -142,7 +142,8 @@ function filterCasesByVisibility(cases, auth, visCfg) {
     const isAssigned = c.case_assignments?.some(a => a.consultant_id === userId);
     const isKeyUser  = c.case_key_users?.some(ku => ku.user_id === userId);
     const isInvited  = visCfg.getCaseInvitations(c.id).some(i => i.consultantId === userId);
-    return isAssigned || isKeyUser || isInvited;
+    const isCreator  = c.created_by === userId;
+    return isAssigned || isKeyUser || isInvited || isCreator;
   });
 }
 
