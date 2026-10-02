@@ -3382,12 +3382,9 @@ Respond with ONLY a valid JSON object, no markdown fences:
             {/* ── Node 5: Live SAP Connection ── */}
             {activeNode === 5 && liveCheckEnabled && (
               <div className="space-y-3">
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Zap className="w-4 h-4 text-blue-600" />
-                    <h3 className="text-sm font-semibold text-gray-800">{t("spec.sap_conn_node_lbl")}</h3>
-                  </div>
-                  <p className="text-xs text-gray-500">{t("spec.sap_conn_desc")}</p>
+                <div className="border border-blue-800 rounded-xl p-3 flex items-start gap-2">
+                  <Zap className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-gray-400">{t("spec.sap_conn_desc")}</p>
                 </div>
 
                 {(sapConnLoading || !sapConnInfo) && (
@@ -3410,18 +3407,18 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 )}
 
                 {!sapConnLoading && sapConnInfo && !sapConnInfo.notFound && !sapConnInfo.error && (
-                  <div className="border border-gray-200 rounded-xl overflow-hidden">
+                  <div className="rounded-xl overflow-hidden border border-gray-200 divide-y divide-gray-200">
                     {[
                       { label: t("spec.sap_conn_host"),    value: sapConnInfo.host },
                       { label: t("spec.sap_conn_user"),    value: sapConnInfo.username },
                       { label: t("spec.sap_conn_mandant"), value: sapConnInfo.client },
                       { label: t("spec.sap_conn_type"),    value: (sapConnInfo.type ?? '').toUpperCase() },
-                      { label: t("spec.sap_conn_vpn"),     value: sapConnInfo.vpnUrl || '—' },
-                      { label: t("spec.sap_conn_env"),     value: sapConnInfo.envName || 'Default' },
-                    ].map(({ label, value }, i) => (
-                      <div key={i} className={`flex items-start gap-3 px-4 py-2.5 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} border-b border-gray-100 last:border-0`}>
-                        <span className="text-xs font-semibold text-gray-500 w-32 flex-shrink-0 pt-0.5">{label}</span>
-                        <span className="text-xs text-gray-800 font-mono break-all">{value || '—'}</span>
+                      { label: t("spec.sap_conn_vpn"),     value: sapConnInfo.vpnUrl || null },
+                      { label: t("spec.sap_conn_env"),     value: sapConnInfo.envName || null },
+                    ].filter(r => r.value).map(({ label, value }, i) => (
+                      <div key={i} className="px-3 py-2">
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide leading-none mb-1">{label}</p>
+                        <p className="text-xs font-mono text-blue-300 break-all leading-snug">{value}</p>
                       </div>
                     ))}
                   </div>
