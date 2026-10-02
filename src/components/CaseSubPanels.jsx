@@ -2139,6 +2139,11 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
   }
 
   useEffect(() => {
+    // Load on mount so the node shows correct status without requiring the user to click it
+    if (liveCheckEnabled && !sapConnInfo && !sapConnLoading) loadSapConnInfo();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     if (activeNode === 5 && liveCheckEnabled && !sapConnInfo && !sapConnLoading) {
       loadSapConnInfo();
     }
