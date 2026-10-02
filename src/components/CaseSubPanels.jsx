@@ -2684,9 +2684,9 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         const allBlocks = [...abap.blocks, ...extraBlocks, ...docBlocks];
         try {
           const content = allBlocks.length > 0 ? [...allBlocks, { type: 'text', text: prompt }] : prompt;
-          return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 4000 });
+          return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 8000 });
         } catch (_) {
-          return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 4000 });
+          return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 8000 });
         }
       };
       const customerContent = analysisCustomerContent || caseData.description || '';
@@ -2771,9 +2771,9 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       const callSpec = async (prompt) => {
         try {
           const content = docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt;
-          return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 4000 });
+          return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 8000 });
         } catch (_) {
-          return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 4000 });
+          return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 8000 });
         }
       };
       const customerContent = analysisCustomerContent || caseData.description || '';
