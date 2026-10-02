@@ -727,7 +727,7 @@ function downloadHtml(htmlString, filename = 'prototype.html') {
 
 const ZOOM_STEPS = [0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 1.0];
 
-function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, protoError, protoErrorMsg, generatingSpecs, documents, onBack, onRegenerate, t }) {
+function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, protoError, protoErrorMsg, generatingSpecs, isRegeneratingProto, documents, onBack, onRegenerate, t }) {
   const [loading, setLoading] = useState(false);
   const [fetchErr, setFetchErr] = useState(null);
   const [zoom, setZoom] = useState(0.55);
@@ -822,12 +822,12 @@ function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, protoError,
           {t("spec.proto_saved")}
         </div>
       )}
-      {!protoSaved && generatingSpecs && (
+      {!protoSaved && (generatingSpecs || isRegeneratingProto) && (
         <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
-          <Spinner /><span className="text-sm">{t("spec.gen_all_loading")}</span>
+          <Spinner /><span className="text-sm">{isRegeneratingProto ? t("spec.proto_generating") : t("spec.gen_all_loading")}</span>
         </div>
       )}
-      {!protoSaved && !generatingSpecs && (
+      {!protoSaved && !generatingSpecs && !isRegeneratingProto && (
         <div className={`border rounded-xl p-6 flex flex-col items-center gap-3 text-center ${protoError ? 'bg-red-950 border-red-800' : 'bg-gray-50 border-gray-200'}`}>
           {protoError
             ? <>
@@ -4005,7 +4005,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     protoSaved={protoSaved}
                     protoError={protoError}
                     protoErrorMsg={protoErrorMsg}
-                    generatingSpecs={generatingSpecs || protoGenerating}
+                    generatingSpecs={generatingSpecs}
+                    isRegeneratingProto={protoGenerating}
                     documents={documents}
                     onBack={() => setViewingProto(false)}
                     onRegenerate={activeProfile?.prototype_enabled && (aiSpecA || aiSpecB) ? async () => {
