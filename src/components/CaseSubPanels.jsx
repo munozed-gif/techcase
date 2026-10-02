@@ -3414,9 +3414,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
           <button onClick={onClick} disabled={!canClick}
             className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl border-2 text-left transition-all ${sc.bg} ${isActive ? 'border-blue-500 shadow-md' : sc.ring} ${canClick ? 'cursor-pointer hover:shadow-sm' : 'cursor-not-allowed'}`}>
             <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${sc.circ}`}>
-              {status === 'complete' ? <Check size={14} className="text-white" />
-               : status === 'running' ? <Spinner />
-               : <Icon size={14} className={status === 'locked' ? 'text-gray-300' : 'text-gray-500'} />}
+              {status === 'running' ? <Spinner />
+               : <Icon size={14} className={status === 'complete' ? 'text-white' : status === 'locked' ? 'text-gray-300' : 'text-gray-500'} />}
             </div>
             <div className="flex-1 min-w-0">
               <p className={`text-sm font-semibold leading-tight truncate ${sc.txt}`}>{title}</p>
