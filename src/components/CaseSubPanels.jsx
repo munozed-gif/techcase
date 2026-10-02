@@ -2345,7 +2345,16 @@ TOTAL:||Total|[amount]|
 Use realistic Z object names matching the customer's described solution for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM/COL values.${buildSectionConstraint('spec_c', genProfile)}${buildGenSuffix(genProfile, lang)}`;
   }
 
+  // iOS Safari throws "The string did not match the expected pattern" from JSON.stringify
+  // when a string contains lone surrogate characters (unpaired UTF-16 surrogates).
+  // Strip them before building the prompt.
+  function sanitizeForJson(s) {
+    return (s ?? '').replace(/[\uD800-\uDFFF]/g, '');
+  }
+
   function buildPrototypePrompt(specA, specB, style) {
+    const safeA = sanitizeForJson(specA);
+    const safeB = sanitizeForJson(specB);
     if (style === 'auto') {
       return `You are a SAP prototype generator. Before generating the prototype, you must analyze the case and decide which visual style to use. Read the signals below carefully.
 
@@ -2355,10 +2364,10 @@ Industry: ${caseData.area_industry ?? ''}
 Description: ${caseData.description ?? ''}
 
 Spec A (Custom ABAP approach):
-${(specA ?? '').slice(0, 6000)}
+${safeA.slice(0, 6000)}
 
 Spec B (Standard SAP approach):
-${(specB ?? '').slice(0, 4000)}
+${safeB.slice(0, 4000)}
 
 STEP 1 — CHOOSE THE STYLE using these rules (apply the FIRST rule that matches):
 
@@ -2408,10 +2417,10 @@ Industry: ${caseData.area_industry ?? ''}
 Description: ${caseData.description ?? ''}
 
 Spec A (Custom ABAP approach):
-${(specA ?? '').slice(0, 6000)}
+${safeA.slice(0, 6000)}
 
 Spec B (Standard SAP approach):
-${(specB ?? '').slice(0, 4000)}
+${safeB.slice(0, 4000)}
 
 VISUAL STYLE — SAP GUI (classic):
 - Background: #f3f2f1 (SAP off-white)
@@ -2469,10 +2478,10 @@ Industry: ${caseData.area_industry ?? ''}
 Description: ${caseData.description ?? ''}
 
 Spec A (Custom ABAP approach):
-${(specA ?? '').slice(0, 6000)}
+${safeA.slice(0, 6000)}
 
 Spec B (Standard SAP approach):
-${(specB ?? '').slice(0, 4000)}
+${safeB.slice(0, 4000)}
 
 REQUIREMENTS:
 1. Generate 4 screens: Overview, Main Process Screen, Detail/Form Screen, Confirmation/Result Screen
@@ -4005,7 +4014,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                           await saveSpec({ mode: 'ai', status: spec?.status ?? 'draft', content: aiSpecA, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent, activeProfile, protoHtml: html }), title: caseData.title + t("spec.doc_title_suffix") });
                           setProtoSaved(true);
                         } catch (saveErr) { console.warn('Prototype notes save failed:', saveErr?.message); setProtoError(true); }
-                      } catch (e) { setProtoError(true); alert('Prototype error: ' + e.message); }
+                      } catch (e) { setProtoError(true); console.error('Prototype generation error:', e?.message); }
                       finally { setProtoGenerating(false); }
                     } : null}
                     t={t}
