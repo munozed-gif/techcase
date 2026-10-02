@@ -2595,13 +2595,16 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           if (protoHtml.startsWith('```')) {
             protoHtml = protoHtml.replace(/^```(?:html)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
           }
-          // Show immediately, then persist in spec notes (avoids storage MIME restrictions)
           setProtoHtmlState(protoHtml);
           try {
-            await saveSpec({ mode: 'ai', status: saveStatus, content: specA, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, selectedSpec: 'a', prevMode, analysisCustomerContent: customerContent, activeProfile: genProfile, protoHtml }), title: caseData.title + t("spec.doc_title_suffix") });
+            const safeName = (caseData.title ?? 'Case').replace(/[^a-z0-9]/gi, '_');
+            const dateStr = new Date().toISOString().slice(0, 10);
+            const protoFile = new File([protoHtml], `Prototype_${safeName}_${dateStr}.html`, { type: 'text/html' });
+            await addDocument(protoFile, '[Prototype] Interactive Prototype');
+            if (refetchDocuments) await refetchDocuments();
             setProtoSaved(true);
           } catch (saveErr) {
-            console.warn('Prototype notes save failed:', saveErr?.message);
+            console.warn('Prototype save failed:', saveErr?.message);
             setProtoError(true);
           }
         } catch (e) {
@@ -4025,9 +4028,17 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         if (html.startsWith('```')) html = html.replace(/^```(?:html)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
                         setProtoHtmlState(html);
                         try {
-                          await saveSpec({ mode: 'ai', status: spec?.status ?? 'draft', content: aiSpecA, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent, activeProfile, protoHtml: html }), title: caseData.title + t("spec.doc_title_suffix") });
+                          if (deleteDocument && documents?.length) {
+                            const old = documents.filter(d => (d.description ?? '').startsWith('[Prototype]') || (d.file_name ?? '').startsWith('Prototype_'));
+                            await Promise.all(old.map(d => deleteDocument(d.id, d.file_url)));
+                          }
+                          const safeName = (caseData.title ?? 'Case').replace(/[^a-z0-9]/gi, '_');
+                          const dateStr = new Date().toISOString().slice(0, 10);
+                          const protoFile = new File([html], `Prototype_${safeName}_${dateStr}.html`, { type: 'text/html' });
+                          await addDocument(protoFile, '[Prototype] Interactive Prototype');
+                          if (refetchDocuments) await refetchDocuments();
                           setProtoSaved(true);
-                        } catch (saveErr) { console.warn('Prototype notes save failed:', saveErr?.message); setProtoError(true); setProtoErrorMsg(`Save failed: ${saveErr?.message}`); }
+                        } catch (saveErr) { console.warn('Prototype save failed:', saveErr?.message); setProtoError(true); setProtoErrorMsg(`Save failed: ${saveErr?.message}`); }
                       } catch (e) { setProtoError(true); setProtoErrorMsg(`[model: ${resolvedModel}] ${e?.message || 'Unknown error'}`); console.error('Prototype generation error:', resolvedModel, e?.message); }
                       finally { setProtoGenerating(false); }
                     } : null}
