@@ -899,10 +899,11 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [savingDoc, setSavingDoc]         = useState(false);
   const [specHtml, setSpecHtml]           = useState(null);
   const [activeProfile, setActiveProfile] = useState(null);
-  const [protoSaved, setProtoSaved]       = useState(false);
+  const [protoSaved, setProtoSaved]         = useState(false);
   const [protoHtmlState, setProtoHtmlState] = useState(null);
-  const [viewingProto, setViewingProto]   = useState(false);
-  const [protoError, setProtoError]       = useState(false);
+  const [viewingProto, setViewingProto]     = useState(false);
+  const [protoError, setProtoError]         = useState(false);
+  const [protoGenerating, setProtoGenerating] = useState(false);
 
   // SAP live connection info node
   const [sapConnInfo, setSapConnInfo]     = useState(null);
@@ -3985,13 +3986,14 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     protoHtmlState={protoHtmlState}
                     setProtoHtmlState={setProtoHtmlState}
                     protoSaved={protoSaved}
-                    generatingSpecs={generatingSpecs}
+                    generatingSpecs={generatingSpecs || protoGenerating}
                     documents={documents}
                     onBack={() => setViewingProto(false)}
                     onRegenerate={activeProfile?.prototype_enabled && (aiSpecA || aiSpecB) ? async () => {
                       setProtoHtmlState(null);
                       setProtoSaved(false);
                       setProtoError(false);
+                      setProtoGenerating(true);
                       const protoStyle = activeProfile.prototype_style ?? 'auto';
                       try {
                         let html = await callClaude({ model: protoModel, system: 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.', messages: [{ role: 'user', content: buildPrototypePrompt(aiSpecA, aiSpecB, protoStyle) }], max_tokens: 8000 });
@@ -4004,6 +4006,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                           setProtoSaved(true);
                         } catch (saveErr) { console.warn('Prototype notes save failed:', saveErr?.message); setProtoError(true); }
                       } catch (e) { setProtoError(true); alert('Prototype error: ' + e.message); }
+                      finally { setProtoGenerating(false); }
                     } : null}
                     t={t}
                   />
