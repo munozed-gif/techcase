@@ -53,7 +53,7 @@ function useCases(filters = {}) {
     return () => supabase.removeChannel(channel);
   }, [fetchCases]);
 
-  async function createCase(data) {
+  async function createCase(data, { autoAssignCreator = false } = {}) {
     // If no lifecycle is set on the case, apply the system default
     let payload = data;
     if (!data.case_lifecycle) {
@@ -99,6 +99,16 @@ function useCases(filters = {}) {
           }
         }
       } catch (_) { /* auto-assign failure is non-fatal */ }
+    }
+
+    // Auto-assign the creating consultant BEFORE fetchCases so RLS allows the row to appear
+    if (autoAssignCreator && row.created_by) {
+      try {
+        await supabase.from("case_assignments").upsert(
+          { case_id: row.id, consultant_id: row.created_by, time_commitment: 100 },
+          { onConflict: 'case_id,consultant_id', ignoreDuplicates: true }
+        );
+      } catch (_) { /* non-fatal */ }
     }
 
     await fetchCases();
