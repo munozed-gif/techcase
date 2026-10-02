@@ -847,6 +847,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const genModel       = ssCtx.settings["ai_model"]        ?? 'claude-haiku-4-5-20251001';
   const analysisModel  = ssCtx.settings["analysis_model"]  ?? 'claude-haiku-4-5-20251001';
   const protoModel     = ssCtx.settings["prototype_model"] ?? 'claude-sonnet-5';
+  const liveCheckEnabled = (ssCtx.settings["generation_context"] ?? {}).sap_live_check === true;
   const { spec, loading: specLoading, saveSpec, refetch } = useCaseSpecification(caseData.id, auth.user?.id);
 
   // Mode selection
@@ -901,6 +902,10 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [protoHtmlState, setProtoHtmlState] = useState(null);
   const [viewingProto, setViewingProto]   = useState(false);
   const [protoError, setProtoError]       = useState(false);
+
+  // SAP live connection info node
+  const [sapConnInfo, setSapConnInfo]     = useState(null);
+  const [sapConnLoading, setSapConnLoading] = useState(false);
 
   // ── Document helpers ─────────────────────────────────────────
   function blobToBase64(blob) {
@@ -2029,6 +2034,46 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
     }
 
     return buildContextString(caseData, genCtx, extra);
+  }
+
+  async function loadSapConnInfo() {
+    if (!caseData.client_id || sapConnLoading) return;
+    setSapConnLoading(true);
+    try {
+      const [{ data: sapCfgRow }, { data: sapProjEnvRow }, { data: sapCaseEnvRow }] = await Promise.all([
+        supabase.from('system_settings').select('value').eq('key', 'sap_integration').maybeSingle(),
+        supabase.from('system_settings').select('value').eq('key', 'sap_project_env').maybeSingle(),
+        supabase.from('system_settings').select('value').eq('key', 'sap_case_env').maybeSingle(),
+      ]);
+      const clientSapData = (sapCfgRow?.value ?? {})[caseData.client_id] ?? {};
+      const sapEnvs = clientSapData.environments ?? (clientSapData.host ? [clientSapData] : []);
+      const selectedEnvId = (sapCaseEnvRow?.value ?? {})[caseData.id]
+        ?? (sapProjEnvRow?.value ?? {})[caseData.project_id]
+        ?? null;
+      const sapCfg = selectedEnvId
+        ? (sapEnvs.find(e => e.id === selectedEnvId) ?? sapEnvs[0] ?? null)
+        : (sapEnvs[0] ?? null);
+      if (!sapCfg?.host) { setSapConnInfo({ notFound: true }); return; }
+      let vpnUrl = sapCfg.proxyUrl?.trim() || null;
+      if (!vpnUrl && sapCfg.connectionId) {
+        const { data: conn } = await supabase.from('db_connections')
+          .select('db_type, meta').eq('id', sapCfg.connectionId).maybeSingle();
+        if (conn?.db_type === 'vpn') vpnUrl = conn.meta?.proxy_url?.trim() || null;
+      }
+      setSapConnInfo({
+        host: sapCfg.host,
+        username: sapCfg.username,
+        client: sapCfg.client,
+        type: sapCfg.type ?? 's4hana',
+        vpnUrl,
+        envName: sapCfg.name ?? sapCfg.label ?? null,
+        envCount: sapEnvs.length,
+      });
+    } catch (e) {
+      setSapConnInfo({ error: e.message });
+    } finally {
+      setSapConnLoading(false);
+    }
   }
 
   // ── AI Generate — two specs ─────────────────────────────────
@@ -3200,6 +3245,28 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 onClick={() => setActiveNode(0)}
               />
 
+              {/* Node 5: Live SAP Connection (only when live check is enabled in settings) */}
+              {liveCheckEnabled && (
+                <NodeBtn id={5} icon={Zap}
+                  title={t("spec.sap_conn_node_lbl")}
+                  sub={sapConnLoading ? t("spec.checking")
+                    : sapConnInfo?.notFound ? t("spec.sap_conn_not_cfg")
+                    : sapConnInfo?.error ? t("spec.sap_conn_not_cfg")
+                    : sapConnInfo ? (sapConnInfo.host ?? t("spec.pending"))
+                    : t("spec.pending")}
+                  status={sapConnLoading ? 'running'
+                    : sapConnInfo?.notFound || sapConnInfo?.error ? 'skipped'
+                    : sapConnInfo ? 'complete'
+                    : 'pending'}
+                  isActive={activeNode===5}
+                  canClick={true}
+                  onClick={() => {
+                    setActiveNode(5);
+                    if (!sapConnInfo && !sapConnLoading) loadSapConnInfo();
+                  }}
+                />
+              )}
+
               {/* Node 1: SAP Verification */}
               <NodeBtn id={1} icon={CheckCircle2}
                 title={t("spec.ai_step1_h")}
@@ -3291,6 +3358,74 @@ Respond with ONLY a valid JSON object, no markdown fences:
             {/* Error banner */}
             {aiError && (
               <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{aiError}</div>
+            )}
+
+            {/* ── Node 5: Live SAP Connection ── */}
+            {activeNode === 5 && liveCheckEnabled && (
+              <div className="space-y-3">
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Zap className="w-4 h-4 text-blue-600" />
+                    <h3 className="text-sm font-semibold text-gray-800">{t("spec.sap_conn_node_lbl")}</h3>
+                  </div>
+                  <p className="text-xs text-gray-500">{t("spec.sap_conn_desc")}</p>
+                </div>
+
+                {sapConnLoading && (
+                  <div className="flex items-center justify-center py-8 gap-2 text-gray-400">
+                    <Spinner /><span className="text-sm">{t("spec.checking")}</span>
+                  </div>
+                )}
+
+                {!sapConnLoading && !sapConnInfo && (
+                  <div className="text-center py-4">
+                    <button onClick={loadSapConnInfo}
+                      className="px-4 py-2 bg-[#1A4B8C] text-white text-xs font-semibold rounded-xl hover:bg-blue-900">
+                      {t("spec.sap_conn_node_lbl")}
+                    </button>
+                  </div>
+                )}
+
+                {!sapConnLoading && sapConnInfo?.notFound && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-700">{t("spec.sap_conn_none")}</p>
+                  </div>
+                )}
+
+                {!sapConnLoading && sapConnInfo?.error && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700">
+                    {sapConnInfo.error}
+                  </div>
+                )}
+
+                {!sapConnLoading && sapConnInfo && !sapConnInfo.notFound && !sapConnInfo.error && (
+                  <div className="border border-gray-200 rounded-xl overflow-hidden">
+                    {[
+                      { label: t("spec.sap_conn_host"),    value: sapConnInfo.host },
+                      { label: t("spec.sap_conn_user"),    value: sapConnInfo.username },
+                      { label: t("spec.sap_conn_mandant"), value: sapConnInfo.client },
+                      { label: t("spec.sap_conn_type"),    value: (sapConnInfo.type ?? '').toUpperCase() },
+                      { label: t("spec.sap_conn_vpn"),     value: sapConnInfo.vpnUrl || '—' },
+                      { label: t("spec.sap_conn_env"),     value: sapConnInfo.envName || 'Default' },
+                    ].map(({ label, value }, i) => (
+                      <div key={i} className={`flex items-start gap-3 px-4 py-2.5 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} border-b border-gray-100 last:border-0`}>
+                        <span className="text-xs font-semibold text-gray-500 w-32 flex-shrink-0 pt-0.5">{label}</span>
+                        <span className="text-xs text-gray-800 font-mono break-all">{value || '—'}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {!sapConnLoading && sapConnInfo && (
+                  <div className="flex justify-end pt-1">
+                    <button onClick={() => setActiveNode(1)}
+                      className="px-4 py-2 bg-[#1A4B8C] text-white text-xs font-semibold rounded-xl hover:bg-blue-900">
+                      {t("spec.sap_conn_continue")}
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* ── Node 4: Approval ── */}
