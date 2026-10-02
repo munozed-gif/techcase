@@ -909,6 +909,12 @@ function ProjectOwnSapPanel({ projectId, auth }) {
     saveEnvironments(updated);
   }
 
+  function enrichEnvWithVpn(env) {
+    const linkedConn = env.connectionId ? projectConns.find(c => c.id === env.connectionId) : null;
+    const vpnProxyUrl = linkedConn?.db_type === 'vpn' ? linkedConn.meta?.proxy_url?.trim() : null;
+    return vpnProxyUrl ? { ...env, _vpnProxyUrl: vpnProxyUrl } : env;
+  }
+
   async function testConnection(env) {
     setTestStates(p => ({ ...p, [env.id]: 'testing' }));
     setTestErrors(p => ({ ...p, [env.id]: null }));
