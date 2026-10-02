@@ -2047,21 +2047,25 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
       ]);
       const allSapCfg = sapCfgRow?.value ?? {};
 
-      // Lookup chain: client → project → case
-      const lookupKeys = [caseData.client_id, caseData.project_id, caseData.id].filter(Boolean);
-      let sapEnvs = [];
-      for (const key of lookupKeys) {
-        const entry = allSapCfg[key] ?? {};
-        sapEnvs = entry.environments ?? (entry.host ? [entry] : []);
-        if (sapEnvs.length > 0) break;
-      }
+      // Inheritance chain: project environments (proj_<id>) → client environments (<client_id>)
+      // Project-owned settings use the "proj_<projectId>" key in sap_integration
+      const projEntry = caseData.project_id ? (allSapCfg[`proj_${caseData.project_id}`] ?? {}) : {};
+      const projEnvs  = projEntry.environments ?? (projEntry.host ? [projEntry] : []);
 
+      const clientEntry = caseData.client_id ? (allSapCfg[caseData.client_id] ?? {}) : {};
+      const clientEnvs  = clientEntry.environments ?? (clientEntry.host ? [clientEntry] : []);
+
+      // All available envs: project first, then client as fallback
+      const allEnvs = projEnvs.length > 0 ? projEnvs : clientEnvs;
+
+      // Case env selection overrides project selection; both point to an env ID within allEnvs
       const selectedEnvId = (sapCaseEnvRow?.value ?? {})[caseData.id]
         ?? (sapProjEnvRow?.value ?? {})[caseData.project_id]
         ?? null;
       const sapCfg = selectedEnvId
-        ? (sapEnvs.find(e => e.id === selectedEnvId) ?? sapEnvs[0] ?? null)
-        : (sapEnvs[0] ?? null);
+        ? (allEnvs.find(e => e.id === selectedEnvId) ?? allEnvs[0] ?? null)
+        : (allEnvs[0] ?? null);
+
       if (!sapCfg?.host) { setSapConnInfo({ notFound: true }); return; }
       let vpnUrl = sapCfg.proxyUrl?.trim() || null;
       if (!vpnUrl && sapCfg.connectionId) {
@@ -2076,7 +2080,7 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
         type: sapCfg.type ?? 's4hana',
         vpnUrl,
         envName: sapCfg.name ?? sapCfg.label ?? null,
-        envCount: sapEnvs.length,
+        envCount: allEnvs.length,
       });
     } catch (e) {
       setSapConnInfo({ error: e.message });
