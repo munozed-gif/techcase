@@ -996,6 +996,15 @@ function VpnProfileFields({ meta = {}, onChange }) {
             className="w-full bg-gray-100 dark:bg-gray-700 border-0 rounded-xl px-4 py-3 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-slate-400 shadow-sm" />
         </div>
       </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+          SAP Proxy URL <span className="font-normal text-gray-400">(optional — local proxy running inside this VPN)</span>
+        </label>
+        <input type="text" value={meta.proxy_url ?? ''} onChange={e => set('proxy_url', e.target.value)}
+          placeholder="http://192.168.1.10:8010  or  https://your-tunnel.trycloudflare.com"
+          className="w-full bg-gray-100 dark:bg-gray-700 border-0 rounded-xl px-4 py-3 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-slate-400 shadow-sm" />
+        <p className="text-[10px] text-gray-400 mt-1">When set, SAP environments linked to this VPN will automatically route through this proxy — no manual Proxy URL entry needed.</p>
+      </div>
     </div>
   );
 }

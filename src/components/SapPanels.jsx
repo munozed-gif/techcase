@@ -223,14 +223,14 @@ function buildSapMcpConfig(sapConfig, mcpServerUrl) {
 // ============================================================
 
 async function sapApiRequest(config, path, opts = {}) {
-  const proxyUrl = config.proxyUrl?.trim();
+  // Prefer manual proxyUrl, then VPN-linked proxy, then direct
+  const proxyUrl = config.proxyUrl?.trim() || config._vpnProxyUrl?.trim();
   const base = (proxyUrl || config.host.trim()).replace(/\/$/, '');
   const auth = btoa(`${config.username}:${config.password}`);
   const headers = {
     Authorization: `Basic ${auth}`,
     Accept: 'application/xml, text/xml, text/plain',
     'sap-client': String(config.client || '100'),
-    // Tell the MCP proxy where to forward when a proxy URL is set
     ...(proxyUrl ? { 'X-Sap-Target': config.host.trim().replace(/\/$/, '') } : {}),
     ...(opts.headers ?? {}),
   };
@@ -370,11 +370,19 @@ function SapIntegrationPanel({ clientId, auth }) {
     saveEnvironments(updated);
   }
 
+  function enrichEnvWithVpn(env) {
+    const linkedConn = env.connectionId ? projectConns.find(c => c.id === env.connectionId) : null;
+    const vpnProxyUrl = linkedConn?.db_type === 'vpn' ? linkedConn.meta?.proxy_url?.trim() : null;
+    return vpnProxyUrl ? { ...env, _vpnProxyUrl: vpnProxyUrl } : env;
+  }
+
   async function testConnection(env) {
     setTestStates(p => ({ ...p, [env.id]: 'testing' }));
     setTestErrors(p => ({ ...p, [env.id]: null }));
+    const enriched = enrichEnvWithVpn(env);
+    const effectiveProxy = enriched.proxyUrl?.trim() || enriched._vpnProxyUrl;
     try {
-      const result = await sapLiveCheck(env);
+      const result = await sapLiveCheck(enriched);
       if (result && !result.error) {
         setTestStates(p => ({ ...p, [env.id]: 'ok' }));
       } else {
@@ -386,7 +394,7 @@ function SapIntegrationPanel({ clientId, auth }) {
           : status ? `HTTP ${status} — SAP returned an error.`
           : result?.message ? `Proxy error: ${result.message}`
           : null;
-        setTestErrors(p => ({ ...p, [env.id]: env.proxyUrl?.trim()
+        setTestErrors(p => ({ ...p, [env.id]: effectiveProxy
           ? (statusMsg ?? 'SAP returned an error. Check credentials and client number.')
           : 'Failed — SAP may be blocking browser requests (CORS). Set a Proxy URL or enable CORS on your SAP system.' }));
       }
@@ -905,7 +913,9 @@ function ProjectOwnSapPanel({ projectId, auth }) {
     setTestStates(p => ({ ...p, [env.id]: 'testing' }));
     setTestErrors(p => ({ ...p, [env.id]: null }));
     try {
-      const result = await sapLiveCheck(env);
+      const enriched = enrichEnvWithVpn(env);
+      const effectiveProxy = enriched.proxyUrl?.trim() || enriched._vpnProxyUrl;
+      const result = await sapLiveCheck(enriched);
       if (result && !result.error) {
         setTestStates(p => ({ ...p, [env.id]: 'ok' }));
       } else {
@@ -917,7 +927,7 @@ function ProjectOwnSapPanel({ projectId, auth }) {
           : status ? `HTTP ${status} — SAP returned an error.`
           : result?.message ? `Proxy error: ${result.message}`
           : null;
-        setTestErrors(p => ({ ...p, [env.id]: env.proxyUrl?.trim()
+        setTestErrors(p => ({ ...p, [env.id]: effectiveProxy
           ? (statusMsg ?? 'SAP returned an error. Check credentials and client number.')
           : 'Failed — SAP may be blocking browser requests (CORS). Set a Proxy URL or enable CORS on your SAP system.' }));
       }
