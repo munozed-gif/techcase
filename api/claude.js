@@ -31,14 +31,28 @@ export default async function handler(req, res) {
   };
   if (betaFeatures.length) headers["anthropic-beta"] = betaFeatures.join(",");
 
-  try {
+  const FALLBACK_MODEL = "claude-haiku-4-5-20251001";
+
+  async function callAnthropicApi(requestBody) {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers,
-      body: JSON.stringify(body),
+      body: JSON.stringify(requestBody),
     });
-
     const data = await response.json();
+    return { response, data };
+  }
+
+  try {
+    let { response, data } = await callAnthropicApi(body);
+
+    // If the model is rejected (pattern mismatch = model not available for this API key),
+    // retry once with the fallback haiku model that we know is available.
+    if (!response.ok && data.error?.message?.includes("did not match the expected pattern") && body.model !== FALLBACK_MODEL) {
+      const fallback = await callAnthropicApi({ ...body, model: FALLBACK_MODEL });
+      response = fallback.response;
+      data = fallback.data;
+    }
 
     if (!response.ok) {
       return res.status(response.status).json({ error: data.error ?? { message: "Anthropic API error" } });
