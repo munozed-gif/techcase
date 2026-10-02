@@ -4133,7 +4133,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                               <Download size={12} />PDF
                             </span>
                           )}
-                          {!specApproved && perms.can('regen_specs') && (
+                          {perms.can('regen_specs') && (
                             <button onClick={handleGenerateSpecs}
                               className="px-2.5 py-1 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
                               {t("spec.regen_all")}
