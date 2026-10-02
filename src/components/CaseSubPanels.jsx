@@ -913,6 +913,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [protoError, setProtoError]         = useState(false);
   const [protoErrorMsg, setProtoErrorMsg]   = useState('');
   const [protoGenerating, setProtoGenerating] = useState(false);
+  const [generatingSpecD, setGeneratingSpecD] = useState(false);
 
   // SAP live connection info node
   const [sapConnInfo, setSapConnInfo]     = useState(null);
@@ -2706,6 +2707,65 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     setGeneratingSpecs(false);
   }
 
+  // ── Standalone Spec D generation (for cases that already have A/B/C) ─────
+  async function handleGenerateSpecD() {
+    if (generatingSpecD) return;
+    setGeneratingSpecD(true);
+    setAiSpecD('');
+    try {
+      const docBlocks = await buildDocumentBlocks();
+      const pdfNames = (documents ?? []).filter(d => (d.file_name ?? '').toLowerCase().endsWith('.pdf') || (d.file_type ?? '').includes('pdf')).map(d => d.file_name);
+      const pdfNote = pdfNames.length > 0 ? `\n\n[Reference PDFs attached: ${pdfNames.join(', ')}]` : '';
+      const sys = 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.';
+      const callSpec = async (prompt) => {
+        try {
+          const content = docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt;
+          return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 4000 });
+        } catch (_) {
+          return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 4000 });
+        }
+      };
+      const customerContent = analysisCustomerContent || caseData.description || '';
+      const contextStr = await buildGenContext();
+      const specD = await callSpec(buildSpecDPrompt(customerContent, activeProfile ?? {}, contextStr));
+      setAiSpecD(specD);
+      setSelectedSpec('d');
+      setAiContent(specD);
+      setSavedSpecUrls(prev => ({ ...prev, d: null }));
+      // Save as document
+      try {
+        const safeName = (caseData.title ?? 'Case').replace(/[^a-z0-9]/gi, '_');
+        const dateStr = new Date().toISOString().slice(0, 10);
+        const dateLong = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+        const baseMeta = [
+          { label: t("spec.label_case_id"), value: '#' + ((caseData.id ?? '').slice(0, 8) || '—') },
+          { label: t("label.sap_area"),     value: caseData.area_sap ?? '—' },
+          { label: t("label.priority"),     value: (caseData.priority ?? '—').toUpperCase() },
+          { label: t("spec.label_generated"), value: dateLong },
+        ];
+        if (deleteDocument && documents?.length) {
+          const old = documents.filter(d => (d.file_name ?? '').startsWith('SpecD_EspecCliente'));
+          await Promise.all(old.map(d => deleteDocument(d.id, d.file_url)));
+        }
+        const htmlString = buildCaseDocHtml('Client Spec', 'SAP Consulting · ' + t("spec.html_title"), baseMeta, specD);
+        const pdfBlob = await htmlStringToPdfBlob(htmlString);
+        const fileName = `SpecD_EspecCliente_${safeName}_${dateStr}.pdf`;
+        const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+        await addDocument(file, 'Client Spec (auto-generated)');
+        setSavedSpecUrls(prev => ({ ...prev, d: fileName }));
+        if (refetchDocuments) await refetchDocuments();
+      } catch (saveErr) { console.warn('Spec D doc save failed:', saveErr?.message); }
+      // Persist in spec notes
+      try {
+        await saveSpec({ mode: 'ai', status: spec?.status ?? 'draft', content: aiSpecA || specD, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD, selectedSpec: selectedSpec || 'd', prevMode, analysisCustomerContent, activeProfile }), title: caseData.title + t("spec.doc_title_suffix") });
+      } catch (_) {}
+    } catch (e) {
+      console.error('Spec D generation error:', e?.message);
+    } finally {
+      setGeneratingSpecD(false);
+    }
+  }
+
   // ── Approval helpers ─────────────────────────────────────────
   async function handleSubmit(specContent, specMode, specObjects) {
     try {
@@ -3449,7 +3509,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
               {/* Node 3: Generate Specification + sub-nodes */}
               <NodeBtn id={3} icon={Sparkles}
                 title={t("spec.ai_step3_lbl")}
-                sub={genStatus==='complete' ? `${[aiSpecA,aiSpecB,aiSpecC].filter(Boolean).length} ${t("spec.specs_gen")}` : genStatus==='running' ? t("spec.gen_all_loading") : genStatus==='locked' ? t("spec.locked") : t("spec.pending")}
+                sub={genStatus==='complete' ? `${[aiSpecA,aiSpecB,aiSpecC,aiSpecD].filter(Boolean).length} ${t("spec.specs_gen")}` : genStatus==='running' ? t("spec.gen_all_loading") : genStatus==='locked' ? t("spec.locked") : t("spec.pending")}
                 status={genStatus}
                 isActive={activeNode===3}
                 canClick={genStatus !== 'locked'}
@@ -3984,7 +4044,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 )}
 
                 {/* Spec tabs + content */}
-                {(aiSpecA || aiSpecB || aiSpecC || (specApproved && spec?.content)) && !generatingSpecs && !viewingProto && (
+                {(aiSpecA || aiSpecB || aiSpecC || aiSpecD || (specApproved && spec?.content)) && !generatingSpecs && !viewingProto && (
                   <div className="space-y-0">
                     <div className="flex border-b border-gray-200">
                       {SUB.map(s => (
@@ -4004,7 +4064,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     <div className="border border-t-0 border-gray-200 rounded-b-xl overflow-hidden">
                       <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200">
                         <span className="text-xs text-gray-500">
-                          {selectedSpec === 'a' ? t("spec.opt_a_long") : selectedSpec === 'b' ? t("spec.opt_b_long") : selectedSpec === 'c' ? t("spec.opt_c_long") : t("spec.select_above")}
+                          {selectedSpec === 'a' ? t("spec.opt_a_long") : selectedSpec === 'b' ? t("spec.opt_b_long") : selectedSpec === 'c' ? t("spec.opt_c_long") : selectedSpec === 'd' ? t("spec.opt_d_long") : t("spec.select_above")}
                         </span>
                         <div className="flex gap-2">
                           {!specApproved && (
@@ -4033,29 +4093,44 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       </div>
 
                       <div className="p-5 max-h-[600px] overflow-y-auto">
-                        {(() => {
-                          const specText = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA;
-                          const displayText = specText || (specApproved ? spec?.content ?? '' : '');
-                          return aiEditing && !specApproved ? (
-                            <textarea
-                              value={specText}
-                              onChange={e => {
-                                const v = e.target.value;
-                                if (selectedSpec === 'b') { setAiSpecB(v); setAiContent(v); }
-                                else if (selectedSpec === 'c') { setAiSpecC(v); setAiContent(v); }
-                                else { setAiSpecA(v); setAiContent(v); }
-                              }}
-                              rows={25} className="w-full border border-gray-200 rounded-xl p-3 text-sm font-mono resize-y focus:outline-none focus:border-blue-400" />
-                          ) : (
-                            <MarkdownAccordion text={displayText} />
-                          );
-                        })()}
+                        {selectedSpec === 'd' && !aiSpecD && !generatingSpecD ? (
+                          <div className="flex flex-col items-center py-10 gap-3">
+                            <p className="text-sm text-gray-500">{t("spec.d_empty_hint")}</p>
+                            <button onClick={handleGenerateSpecD}
+                              className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
+                              {t("spec.gen_d_btn")}
+                            </button>
+                          </div>
+                        ) : selectedSpec === 'd' && generatingSpecD ? (
+                          <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
+                            <Spinner /><span className="text-sm">{t("spec.gen_all_loading")}</span>
+                          </div>
+                        ) : (
+                          (() => {
+                            const specText = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : selectedSpec === 'd' ? aiSpecD : aiSpecA;
+                            const displayText = specText || (specApproved ? spec?.content ?? '' : '');
+                            return aiEditing && !specApproved ? (
+                              <textarea
+                                value={specText}
+                                onChange={e => {
+                                  const v = e.target.value;
+                                  if (selectedSpec === 'b') { setAiSpecB(v); setAiContent(v); }
+                                  else if (selectedSpec === 'c') { setAiSpecC(v); setAiContent(v); }
+                                  else if (selectedSpec === 'd') { setAiSpecD(v); setAiContent(v); }
+                                  else { setAiSpecA(v); setAiContent(v); }
+                                }}
+                                rows={25} className="w-full border border-gray-200 rounded-xl p-3 text-sm font-mono resize-y focus:outline-none focus:border-blue-400" />
+                            ) : (
+                              <MarkdownAccordion text={displayText} />
+                            );
+                          })()
+                        )}
                       </div>
                     </div>
 
                     <div className="flex gap-2 items-center justify-between pt-3 border-t border-gray-100">
                       <p className="text-xs text-gray-500">
-                        {selectedSpec ? t("spec.submit_option").replace("{n}", selectedSpec.toUpperCase()).replace("{label}", selectedSpec === 'a' ? t("spec.tab_a") : selectedSpec === 'b' ? t("spec.tab_b") : t("spec.tab_c")) : t("spec.click_tab_select")}
+                        {selectedSpec ? t("spec.submit_option").replace("{n}", selectedSpec.toUpperCase()).replace("{label}", selectedSpec === 'a' ? t("spec.tab_a") : selectedSpec === 'b' ? t("spec.tab_b") : selectedSpec === 'c' ? t("spec.tab_c") : t("spec.tab_d")) : t("spec.click_tab_select")}
                       </p>
                       <div className="flex gap-2 flex-shrink-0">
                         {!specApproved && (
