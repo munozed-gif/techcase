@@ -158,6 +158,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   }
 
   const [newMilestone, setNewMilestone] = useState("");
+  const [milestoneError, setMilestoneError] = useState(null);
   const [editingMilestoneId, setEditingMilestoneId] = useState(null);
   const [editingMilestoneTitle, setEditingMilestoneTitle] = useState("");
   const [commentForm, setCommentForm]  = useState({ body: "", hoursLogged: 0, progressUpdate: "", isInternal: false });
@@ -531,8 +532,13 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
 
   async function handleAddMilestone() {
     if (!newMilestone.trim()) return;
-    await addMilestone(newMilestone.trim());
-    setNewMilestone("");
+    setMilestoneError(null);
+    try {
+      await addMilestone(newMilestone.trim());
+      setNewMilestone("");
+    } catch (e) {
+      setMilestoneError(e?.message ?? "Failed to add milestone");
+    }
   }
 
   async function handleComment() {
@@ -3452,15 +3458,20 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             <p className="text-sm text-gray-400 text-center py-4">{t("case.no_milestones")}</p>
           )}
           {(auth.isAdmin || auth.isManager || auth.isConsultant) && stageRules.editable && (
-            <div className="flex gap-2 mt-4">
-              <input value={newMilestone} onChange={e => setNewMilestone(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleAddMilestone()}
-                placeholder={t("cs.ph_milestone")}
-                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <button onClick={handleAddMilestone}
-                className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">
-                {t("action.add")}
-              </button>
+            <div className="mt-4 space-y-1.5">
+              <div className="flex gap-2">
+                <input value={newMilestone} onChange={e => setNewMilestone(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleAddMilestone()}
+                  placeholder={t("cs.ph_milestone")}
+                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <button onClick={handleAddMilestone}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">
+                  {t("action.add")}
+                </button>
+              </div>
+              {milestoneError && (
+                <p className="text-xs text-red-500 px-1">{milestoneError}</p>
+              )}
             </div>
           )}
         </div>
