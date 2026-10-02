@@ -1207,10 +1207,15 @@ function SettingsGenerationTab({ ssCtx }) {
     if (!ssCtx.loading) {
       const stored = ssCtx.settings["generation_profiles"] ?? {};
       const storedCtx = ssCtx.settings["generation_context"] ?? {};
+      const validModelVals = AI_MODELS.map(m => m.value);
+      const resolveModel = (key, fallback) => {
+        const v = ssCtx.settings[key];
+        return validModelVals.includes(v) ? v : fallback;
+      };
       const merged = {
-        ai_model:         ssCtx.settings["ai_model"]         ?? "claude-haiku-4-5-20251001",
-        analysis_model:   ssCtx.settings["analysis_model"]   ?? "claude-haiku-4-5-20251001",
-        prototype_model:  ssCtx.settings["prototype_model"]  ?? "claude-sonnet-5-5",
+        ai_model:         resolveModel("ai_model",        "claude-haiku-4-5-20251001"),
+        analysis_model:   resolveModel("analysis_model",  "claude-haiku-4-5-20251001"),
+        prototype_model:  resolveModel("prototype_model", "claude-sonnet-5-5"),
         sap_mcp_server_url: ssCtx.settings["sap_mcp_server_url"] ?? "",
         default_profile: stored.default_profile ?? GENERATION_PROFILE_DEFAULTS.default_profile,
         context: { ...GENERATION_CONTEXT_DEFAULTS, ...storedCtx },
