@@ -3230,7 +3230,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 onClick={() => { if (genStatus !== 'locked') setActiveNode(3); }}
               >
                 {/* Sub-nodes for Spec A / B / C + Prototype */}
-                {(aiSpecA || aiSpecB || aiSpecC || activeNode===3) && (
+                {(aiSpecA || aiSpecB || aiSpecC || activeNode===3 || specApproved) && (
                   <div className="ml-8 mt-1 space-y-1 relative z-10">
                     {SUB.map(s => (
                       <button key={s.key} onClick={() => { setActiveNode(3); setSelectedSpec(s.key); setViewingProto(false); setAiContent(s.content); }}
@@ -3659,7 +3659,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 )}
 
                 {/* Spec tabs + content */}
-                {(aiSpecA || aiSpecB || aiSpecC) && !generatingSpecs && !viewingProto && (
+                {(aiSpecA || aiSpecB || aiSpecC || (specApproved && spec?.content)) && !generatingSpecs && !viewingProto && (
                   <div className="space-y-0">
                     <div className="flex border-b border-gray-200">
                       {SUB.map(s => (
@@ -3708,19 +3708,23 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       </div>
 
                       <div className="p-5 max-h-[600px] overflow-y-auto">
-                        {aiEditing ? (
-                          <textarea
-                            value={selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA}
-                            onChange={e => {
-                              const v = e.target.value;
-                              if (selectedSpec === 'b') { setAiSpecB(v); setAiContent(v); }
-                              else if (selectedSpec === 'c') { setAiSpecC(v); setAiContent(v); }
-                              else { setAiSpecA(v); setAiContent(v); }
-                            }}
-                            rows={25} className="w-full border border-gray-200 rounded-xl p-3 text-sm font-mono resize-y focus:outline-none focus:border-blue-400" />
-                        ) : (
-                          <MarkdownAccordion text={selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA} />
-                        )}
+                        {(() => {
+                          const specText = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA;
+                          const displayText = specText || (specApproved ? spec?.content ?? '' : '');
+                          return aiEditing && !specApproved ? (
+                            <textarea
+                              value={specText}
+                              onChange={e => {
+                                const v = e.target.value;
+                                if (selectedSpec === 'b') { setAiSpecB(v); setAiContent(v); }
+                                else if (selectedSpec === 'c') { setAiSpecC(v); setAiContent(v); }
+                                else { setAiSpecA(v); setAiContent(v); }
+                              }}
+                              rows={25} className="w-full border border-gray-200 rounded-xl p-3 text-sm font-mono resize-y focus:outline-none focus:border-blue-400" />
+                          ) : (
+                            <MarkdownAccordion text={displayText} />
+                          );
+                        })()}
                       </div>
                     </div>
 
@@ -3729,13 +3733,15 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         {selectedSpec ? t("spec.submit_option").replace("{n}", selectedSpec.toUpperCase()).replace("{label}", selectedSpec === 'a' ? t("spec.tab_a") : selectedSpec === 'b' ? t("spec.tab_b") : t("spec.tab_c")) : t("spec.click_tab_select")}
                       </p>
                       <div className="flex gap-2 flex-shrink-0">
-                        <button onClick={async () => {
-                          const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA;
-                          try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent, activeProfile }), title: caseData.title + t("spec.doc_title_suffix") }); await refetch(); } catch (e) { alert(e.message); }
-                        }} disabled={!selectedSpec} className="px-3 py-1.5 text-xs border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 disabled:opacity-40">
-                          {t("spec.save_draft")}
-                        </button>
-                        {(() => {
+                        {!specApproved && (
+                          <button onClick={async () => {
+                            const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA;
+                            try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent, activeProfile }), title: caseData.title + t("spec.doc_title_suffix") }); await refetch(); } catch (e) { alert(e.message); }
+                          }} disabled={!selectedSpec} className="px-3 py-1.5 text-xs border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 disabled:opacity-40">
+                            {t("spec.save_draft")}
+                          </button>
+                        )}
+                        {!specApproved && (() => {
                           const allSaved = savedSpecUrls.a && savedSpecUrls.b && savedSpecUrls.c;
                           return (
                             <button onClick={() => saveAllSpecsAsDocuments(aiSpecA, aiSpecB, aiSpecC, sapCheck, proposalCheck)}
