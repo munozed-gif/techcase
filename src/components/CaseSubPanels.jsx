@@ -4134,8 +4134,13 @@ Respond with ONLY a valid JSON object, no markdown fences:
                             </span>
                           )}
                           {perms.can('regen_specs') && (
-                            <button onClick={handleGenerateSpecs}
-                              className="px-2.5 py-1 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
+                            <button
+                              onClick={() => {
+                                if (specApproved && !window.confirm(t("spec.regen_approved_confirm"))) return;
+                                handleGenerateSpecs();
+                              }}
+                              title={specApproved ? t("spec.regen_approved_tooltip") : undefined}
+                              className={`px-2.5 py-1 text-xs font-semibold rounded-lg hover:bg-blue-50 border ${specApproved ? 'border-amber-300 text-amber-700 hover:bg-amber-50' : 'border-blue-200 text-blue-700'}`}>
                               {t("spec.regen_all")}
                             </button>
                           )}

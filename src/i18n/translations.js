@@ -1921,7 +1921,9 @@ const TRANSLATIONS = {
     "spec.select_above":      "Select an option above",
     "spec.preview_lbl":       "Preview",
     "spec.edit_lbl":          "Edit",
-    "spec.regen_all":         "Re-generate all",
+    "spec.regen_all":              "Re-generate all",
+    "spec.regen_approved_tooltip": "This spec is approved — regenerating will move it back to draft",
+    "spec.regen_approved_confirm": "This spec is currently approved. Regenerating will replace all specs and move the status back to draft. Continue?",
     // CaseDetail — cancel reasons
     "cd.cancel_reason_withdrew":    "Client withdrew the request",
     "cd.cancel_reason_budget":      "Budget constraints",
@@ -3300,7 +3302,9 @@ const TRANSLATIONS = {
     "spec.select_above":      "Selecciona una opción arriba",
     "spec.preview_lbl":       "Vista previa",
     "spec.edit_lbl":          "Editar",
-    "spec.regen_all":         "Regenerar todo",
+    "spec.regen_all":              "Regenerar todo",
+    "spec.regen_approved_tooltip": "Esta especificación está aprobada — regenerar la moverá de vuelta a borrador",
+    "spec.regen_approved_confirm": "Esta especificación está aprobada. Regenerar reemplazará todos los docs y moverá el estado a borrador. ¿Continuar?",
     // CaseDetail — cancel reasons
     "cd.cancel_reason_withdrew":    "El cliente retiró la solicitud",
     "cd.cancel_reason_budget":      "Restricciones de presupuesto",
