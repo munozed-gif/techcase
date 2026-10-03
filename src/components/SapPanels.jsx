@@ -2136,8 +2136,17 @@ Output ONLY the ABAP source code, no explanations.`;
     setRunning(false);
   }
 
-  function handleRunAll() { handleRun(objects); }
-  function handleRunSelected() { handleRun(objects.filter(o => checkedIds.has(o.id))); }
+  function confirmAndRun(subset) {
+    if (autoImplEnabled && sapConfig?.host) {
+      const names = subset.filter(o => o.aiCapable).map(o => o.name).join(', ');
+      const msg = `Auto-implement is ON. This will write the following objects directly to SAP (${sapConfig.host}):\n\n${names || '(none AI-capable)'}\n\nContinue?`;
+      if (!window.confirm(msg)) return;
+    }
+    handleRun(subset);
+  }
+
+  function handleRunAll() { confirmAndRun(objects); }
+  function handleRunSelected() { confirmAndRun(objects.filter(o => checkedIds.has(o.id))); }
 
   function toggleCheck(id, e) {
     e.stopPropagation();
