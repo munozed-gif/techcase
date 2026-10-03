@@ -246,7 +246,38 @@ async function sapGetCsrfToken(config) {
     method: 'GET',
     headers: { 'X-CSRF-Token': 'Fetch', Accept: 'application/atomsvc+xml' },
   });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`CSRF fetch failed HTTP ${res.status}${body ? ': ' + body.slice(0, 120) : ''}`);
+  }
   return res.headers.get('X-CSRF-Token') ?? '';
+}
+
+async function sapWriteSourceDetail(config, objectType, objectName, source, transportRequest) {
+  const path = sapObjectPath(objectType, objectName);
+  let csrfToken;
+  try {
+    csrfToken = await sapGetCsrfToken(config);
+  } catch (e) {
+    return { ok: false, phase: 'csrf', error: e.message };
+  }
+  let res;
+  try {
+    res = await sapApiRequest(config, path, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'X-CSRF-Token': csrfToken,
+        Accept: 'application/xml',
+        ...(transportRequest ? { corrNbr: transportRequest } : {}),
+      },
+      body: source,
+    });
+  } catch (e) {
+    return { ok: false, phase: 'write', error: e.message };
+  }
+  const body = await res.text().catch(() => '');
+  return { ok: res.ok, status: res.status, body: body.slice(0, 200), phase: 'write' };
 }
 
 async function sapLiveCheck(config) {
@@ -2118,13 +2149,20 @@ Output ONLY the ABAP source code, no explanations.`;
 
         if (autoImplEnabled && sapConfig?.host) {
           updateObj(obj.id, { status: 'applying' });
-          addLog(`${obj.name}: applying to SAP...`, 'applying');
-          const ok = await sapWriteSource(sapConfig, obj.type, obj.name, code, obj.transport || transportReq || undefined);
-          if (ok) {
+          addLog(`${obj.name}: applying to SAP via /api/sap-proxy → ${sapConfig.host}`, 'applying');
+          const result = await sapWriteSourceDetail(sapConfig, obj.type, obj.name, code, obj.transport || transportReq || undefined);
+          if (result.ok) {
             updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString() });
-            addLog(`${obj.name}: applied successfully.`, 'done');
+            addLog(`${obj.name}: ✓ applied (HTTP ${result.status}).`, 'done');
           } else {
-            throw new Error('SAP write returned false');
+            const detail = result.status ? `HTTP ${result.status}` : result.error;
+            throw new Error(
+              result.phase === 'csrf' ? `CSRF fetch failed — ${result.error}`
+              : result.status === 401 ? `HTTP 401 — wrong credentials`
+              : result.status === 403 ? `HTTP 403 — insufficient ADT authorizations`
+              : result.status === 404 ? `HTTP 404 — ${obj.name} not found in SAP`
+              : detail
+            );
           }
         } else {
           updateObj(obj.id, { status: 'generated' });
@@ -2168,19 +2206,24 @@ Output ONLY the ABAP source code, no explanations.`;
     const code = obj.generatedCode;
     if (!code) return;
     if (!window.confirm(`Apply ${obj.name} directly to SAP (${sapConfig.host})?`)) return;
-    updateObj(obj.id, { status: 'applying' });
-    try {
-      const ok = await sapWriteSource(sapConfig, obj.type, obj.name, code, obj.transport || transportReq || undefined);
-      if (ok) {
-        updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString() });
-        addLog(`${obj.name}: applied successfully.`, 'done');
-      } else {
-        updateObj(obj.id, { status: 'generated', error: 'SAP write returned false' });
-        alert('SAP write failed. Check connection and transport request.');
-      }
-    } catch (e) {
-      updateObj(obj.id, { status: 'generated', error: e.message });
-      alert('Apply failed: ' + e.message);
+    updateObj(obj.id, { status: 'applying', error: null });
+    const mcpUrl = ssCtx.settings['sap_mcp_server_url'];
+    addLog(`${obj.name}: connecting to SAP via /api/sap-proxy → ${sapConfig.host}`, 'applying');
+    if (mcpUrl) addLog(`MCP server configured: ${mcpUrl}`, 'generated');
+    const result = await sapWriteSourceDetail(sapConfig, obj.type, obj.name, code, obj.transport || transportReq || undefined);
+    if (result.ok) {
+      updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString(), error: null });
+      addLog(`${obj.name}: ✓ applied successfully (HTTP ${result.status}).`, 'done');
+    } else {
+      const detail = result.status ? `HTTP ${result.status}` : result.error;
+      const hint = result.phase === 'csrf'
+        ? `CSRF token fetch failed — SAP may not have CORS configured for ${window.location.origin}`
+        : result.status === 401 ? 'HTTP 401 — wrong username or password'
+        : result.status === 403 ? 'HTTP 403 — missing ADT authorization in SAP'
+        : result.status === 404 ? `HTTP 404 — object ${obj.name} not found in SAP (create it first)`
+        : result.body || detail;
+      updateObj(obj.id, { status: 'generated', error: detail });
+      addLog(`${obj.name}: ✗ ${hint}`, 'error');
     }
   }
 
@@ -2648,34 +2691,36 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
     const obj = objectMap[act.id];
     const code = actState[act.id]?.generatedCode;
     if (!obj?.objectName || !code) return;
-    setActField(act.id, { applying: true });
-    try {
-      const ok = await sapWriteSource(enrichedSapConfig, obj.objectType ?? 'program', obj.objectName, code, transportReq || undefined);
-      if (ok) {
-        setActField(act.id, { applying: false, applied: true });
-        // Update activity progress to 100%
-        await updateActivity(act.id, { progress_pct: 100 });
-        // Log the implementation
-        const cur = settings['sap_impl_log'] ?? {};
-        const caseLog = cur[caseData.id] ?? [];
-        await ssCtx.setSetting('sap_impl_log', {
-          ...cur,
-          [caseData.id]: [...caseLog, {
-            activityId: act.id,
-            activityTitle: act.title,
-            objectName: obj.objectName,
-            objectType: obj.objectType,
-            appliedAt: new Date().toISOString(),
-            transport: transportReq,
-          }],
-        });
-      } else {
-        setActField(act.id, { applying: false });
-        alert('SAP write failed. Check connection and transport request.');
-      }
-    } catch (e) {
-      setActField(act.id, { applying: false });
-      alert('Apply failed: ' + e.message);
+    setActField(act.id, { applying: true, applyLog: [`Connecting to SAP via /api/sap-proxy → ${sapConfig.host}…`] });
+    const pushLog = msg => setActField(act.id, s => ({ applyLog: [...(s.applyLog ?? []), msg] }));
+    const result = await sapWriteSourceDetail(enrichedSapConfig, obj.objectType ?? 'program', obj.objectName, code, transportReq || undefined);
+    if (result.ok) {
+      pushLog(`✓ Applied successfully (HTTP ${result.status})`);
+      setActField(act.id, { applying: false, applied: true });
+      await updateActivity(act.id, { progress_pct: 100 });
+      const cur = settings['sap_impl_log'] ?? {};
+      const caseLog = cur[caseData.id] ?? [];
+      await ssCtx.setSetting('sap_impl_log', {
+        ...cur,
+        [caseData.id]: [...caseLog, {
+          activityId: act.id,
+          activityTitle: act.title,
+          objectName: obj.objectName,
+          objectType: obj.objectType,
+          appliedAt: new Date().toISOString(),
+          transport: transportReq,
+        }],
+      });
+    } else {
+      const detail = result.status ? `HTTP ${result.status}` : result.error;
+      const hint = result.phase === 'csrf'
+        ? `CSRF fetch failed — SAP may not expose CORS headers for ${window.location.origin}. Detail: ${result.error}`
+        : result.status === 401 ? 'HTTP 401 — wrong username or password'
+        : result.status === 403 ? 'HTTP 403 — insufficient ADT authorizations in SAP'
+        : result.status === 404 ? `HTTP 404 — object ${obj.objectName} does not exist in SAP yet`
+        : result.body ? `${detail}: ${result.body}` : detail;
+      pushLog(`✗ ${hint}`);
+      setActField(act.id, { applying: false, applyError: hint });
     }
   }
 
@@ -2941,6 +2986,15 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
                     </button>
                   )}
                 </div>
+
+                {/* Apply log */}
+                {(as.applyLog?.length > 0 || as.applyError) && (
+                  <div className="rounded-xl bg-gray-950 p-3 space-y-1">
+                    {(as.applyLog ?? []).map((msg, i) => (
+                      <p key={i} className={`text-xs font-mono leading-snug ${msg.startsWith('✓') ? 'text-green-400' : msg.startsWith('✗') ? 'text-red-400' : 'text-gray-400'}`}>{msg}</p>
+                    ))}
+                  </div>
+                )}
 
                 {/* Existing source (from SAP check) */}
                 {as.checkResult?.found && as.checkResult.source && (
