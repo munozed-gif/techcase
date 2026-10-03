@@ -2721,12 +2721,15 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       if (genProfile?.prototype_enabled) {
         try {
           const protoStyle = genProfile.prototype_style ?? 'auto';
-          let protoHtml = await callClaude({
-            model: protoModel,
-            system: 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.',
-            messages: [{ role: 'user', content: buildPrototypePrompt(specA, specB, protoStyle) }],
-            max_tokens: 12000,
-          });
+          const protoSys = 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.';
+          const protoMsgs = [{ role: 'user', content: buildPrototypePrompt(specA, specB, protoStyle) }];
+          let protoHtml = await callClaude({ model: protoModel, system: protoSys, messages: protoMsgs, max_tokens: 12000 })
+            .catch(e => {
+              if (e.message?.includes('did not match the expected pattern')) {
+                return callClaude({ model: 'claude-haiku-4-5-20251001', system: protoSys, messages: protoMsgs, max_tokens: 12000 });
+              }
+              throw e;
+            });
           if (!protoHtml) throw new Error('Empty prototype response');
           // Strip markdown code fences the model may add despite instructions
           protoHtml = protoHtml.trim();
@@ -4253,7 +4256,15 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       const resolvedModel = protoModel;
                       console.log('[Prototype] using model:', resolvedModel);
                       try {
-                        let html = await callClaude({ model: resolvedModel, system: 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.', messages: [{ role: 'user', content: buildPrototypePrompt(aiSpecA, aiSpecB, protoStyle) }], max_tokens: 12000 });
+                        const _protoSys = 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.';
+                        const _protoMsgs = [{ role: 'user', content: buildPrototypePrompt(aiSpecA, aiSpecB, protoStyle) }];
+                        let html = await callClaude({ model: resolvedModel, system: _protoSys, messages: _protoMsgs, max_tokens: 12000 })
+                          .catch(e => {
+                            if (e.message?.includes('did not match the expected pattern')) {
+                              return callClaude({ model: 'claude-haiku-4-5-20251001', system: _protoSys, messages: _protoMsgs, max_tokens: 12000 });
+                            }
+                            throw e;
+                          });
                         if (!html) throw new Error('Model returned empty response');
                         html = html.trim();
                         if (html.startsWith('```')) html = html.replace(/^```(?:html)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
