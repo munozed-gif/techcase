@@ -2505,6 +2505,8 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   const [objectMap, setObjectMap] = useState(savedObjects);
   // Per-activity state: { [actId]: { checking, checkResult, generatedCode, applying, applied, expanded } }
   const [actState, setActState] = useState({});
+  // Multi-select for apply
+  const [checkedActIds, setCheckedActIds] = useState(new Set());
 
   const [transportReq, setTransportReq] = useState(settings['sap_impl_transport']?.[caseData.id] ?? '');
   const [savingTransport, setSavingTransport] = useState(false);
@@ -2645,6 +2647,34 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
     }
   }
 
+  async function handleApplySelected() {
+    for (const act of implActivities) {
+      if (!checkedActIds.has(act.id)) continue;
+      const obj = objectMap[act.id];
+      const code = actState[act.id]?.generatedCode;
+      if (obj?.objectName && code && !actState[act.id]?.applied) {
+        await handleApplyToSap(act);
+      }
+    }
+  }
+
+  function toggleActCheck(actId, e) {
+    e.stopPropagation();
+    setCheckedActIds(prev => {
+      const next = new Set(prev);
+      next.has(actId) ? next.delete(actId) : next.add(actId);
+      return next;
+    });
+  }
+
+  function toggleActCheckAll() {
+    if (checkedActIds.size === implActivities.length) {
+      setCheckedActIds(new Set());
+    } else {
+      setCheckedActIds(new Set(implActivities.map(a => a.id)));
+    }
+  }
+
   const implLog = (settings['sap_impl_log'] ?? {})[caseData.id] ?? [];
   const appliedCount = implLog.length;
   const totalCount   = implActivities.length;
@@ -2734,10 +2764,23 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
                 className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm w-32 focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
             {autoImplEnabled && (
-              <button onClick={handleApplyAll}
-                className="px-4 py-2 text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-colors">
-                {t('sap.impl_apply_all')}
-              </button>
+              <>
+                <button onClick={toggleActCheckAll}
+                  className="px-3 py-1.5 text-xs font-semibold border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                  {checkedActIds.size === implActivities.length && implActivities.length > 0
+                    ? t('sap.deselect_all') : t('sap.select_all')}
+                </button>
+                {checkedActIds.size > 0 && (
+                  <button onClick={handleApplySelected}
+                    className="px-4 py-2 text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-colors">
+                    {t('sap.impl_apply_selected').replace('{n}', checkedActIds.size)}
+                  </button>
+                )}
+                <button onClick={handleApplyAll}
+                  className="px-4 py-2 text-sm font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-xl transition-colors">
+                  {t('sap.impl_apply_all')}
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -2775,10 +2818,17 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
         const isApplied = as.applied || implLog.some(l => l.activityId === act.id);
 
         return (
-          <div key={act.id} className={`bg-white rounded-2xl border shadow-sm transition-all ${isApplied ? 'border-green-200 bg-green-50/40' : 'border-gray-100'}`}>
+          <div key={act.id} className={`bg-white rounded-2xl border shadow-sm transition-all ${isApplied ? 'border-green-200 bg-green-50/40' : checkedActIds.has(act.id) ? 'border-amber-300' : 'border-gray-100'}`}>
             {/* Card header */}
             <div className="p-4 flex items-start gap-3 cursor-pointer"
               onClick={() => setActField(act.id, { expanded: !as.expanded })}>
+              {autoImplEnabled && (
+                <input type="checkbox"
+                  checked={checkedActIds.has(act.id)}
+                  onChange={e => toggleActCheck(act.id, e)}
+                  onClick={e => e.stopPropagation()}
+                  className="mt-1.5 flex-shrink-0 accent-amber-500 cursor-pointer" />
+              )}
               <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${isApplied ? 'bg-green-100' : 'bg-blue-100'}`}>
                 {isApplied ? <CheckCircle2 size={14} className="text-green-600" /> : <Code2 size={14} className="text-blue-600" />}
               </div>
