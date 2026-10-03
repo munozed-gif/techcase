@@ -2125,7 +2125,7 @@ Output ONLY the ABAP source code, no explanations.`;
         if (autoImplEnabled && sapConfig?.host) {
           updateObj(obj.id, { status: 'applying' });
           addLog(`${obj.name}: applying to SAP...`, 'applying');
-          const ok = await sapWriteSource(withMcpProxy(sapConfig, ssCtx.settings['sap_mcp_server_url']), obj.type, obj.name, code, obj.transport || transportReq || undefined);
+          const ok = await sapWriteSource(sapConfig, obj.type, obj.name, code, obj.transport || transportReq || undefined);
           if (ok) {
             updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString() });
             addLog(`${obj.name}: applied successfully.`, 'done');
@@ -2176,7 +2176,7 @@ Output ONLY the ABAP source code, no explanations.`;
     if (!window.confirm(`Apply ${obj.name} directly to SAP (${sapConfig.host})?`)) return;
     updateObj(obj.id, { status: 'applying' });
     try {
-      const ok = await sapWriteSource(withMcpProxy(sapConfig, ssCtx.settings['sap_mcp_server_url']), obj.type, obj.name, code, obj.transport || transportReq || undefined);
+      const ok = await sapWriteSource(sapConfig, obj.type, obj.name, code, obj.transport || transportReq || undefined);
       if (ok) {
         updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString() });
         addLog(`${obj.name}: applied successfully.`, 'done');
@@ -2534,6 +2534,16 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
     : (sapEnvironments[0] ?? null);
   const autoImplEnabled = sapConfig?.autoImplementEnabled ?? false;
 
+  // Enrich sapConfig with VPN proxy URL from linked connection (same as settings test panel)
+  const allConnsForEnrich = [...projectConns, ...clientConns];
+  function enrichWithVpn(env) {
+    if (!env) return env;
+    const linked = env.connectionId ? allConnsForEnrich.find(c => c.id === env.connectionId) : null;
+    const vpnProxyUrl = linked?.db_type === 'vpn' ? linked.meta?.proxy_url?.trim() : null;
+    return vpnProxyUrl ? { ...env, _vpnProxyUrl: vpnProxyUrl } : env;
+  }
+  const enrichedSapConfig = enrichWithVpn(sapConfig);
+
   async function saveCaseEnv(envId) {
     await ssCtx.setSetting('sap_case_env', { ...sapCaseEnvMap, [caseData.id]: envId || null });
   }
@@ -2584,7 +2594,7 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
     if (!obj?.objectName) return;
     setActField(actId, { checking: true, checkResult: null });
     try {
-      const src = await sapFetchSource(withMcpProxy(sapConfig, settings['sap_mcp_server_url']), obj.objectType ?? 'program', obj.objectName);
+      const src = await sapFetchSource(enrichedSapConfig, obj.objectType ?? 'program', obj.objectName);
       setActField(actId, { checking: false, checkResult: src ? { found: true, source: src } : { found: false } });
     } catch (e) {
       setActField(actId, { checking: false, checkResult: { found: false, error: e.message } });
@@ -2646,7 +2656,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
     if (!obj?.objectName || !code) return;
     setActField(act.id, { applying: true });
     try {
-      const ok = await sapWriteSource(withMcpProxy(sapConfig, settings['sap_mcp_server_url']), obj.objectType ?? 'program', obj.objectName, code, transportReq || undefined);
+      const ok = await sapWriteSource(enrichedSapConfig, obj.objectType ?? 'program', obj.objectName, code, transportReq || undefined);
       if (ok) {
         setActField(act.id, { applying: false, applied: true });
         // Update activity progress to 100%
@@ -2733,7 +2743,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
         caseData={caseData}
         auth={auth}
         activities={implActivities}
-        sapConfig={sapConfig}
+        sapConfig={enrichedSapConfig}
         autoImplEnabled={autoImplEnabled}
         genModel={genModel}
         transportReq={transportReq}
