@@ -1927,6 +1927,7 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
   const [running, setRunning] = useState(false);
   const [runLog, setRunLog] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
+  const [checkedIds, setCheckedIds] = useState(new Set());
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [transportView, setTransportView] = useState(false);
@@ -2061,12 +2062,12 @@ Suggest 5-12 objects that cover the full implementation scope.`;
     }
   }
 
-  async function handleRunAll() {
+  async function handleRun(subset) {
     if (running) { stopRef.current = true; return; }
     stopRef.current = false;
     setRunning(true);
     setRunLog([]);
-    const sorted = topoSort(objects);
+    const sorted = topoSort(subset);
     const standards = resolveAbapStandards(settings, caseData.client_id, caseData.project_id, caseData.id);
 
     for (const obj of sorted) {
@@ -2133,6 +2134,22 @@ Output ONLY the ABAP source code, no explanations.`;
       }
     }
     setRunning(false);
+  }
+
+  function handleRunAll() { handleRun(objects); }
+  function handleRunSelected() { handleRun(objects.filter(o => checkedIds.has(o.id))); }
+
+  function toggleCheck(id, e) {
+    e.stopPropagation();
+    setCheckedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleCheckAll() {
+    setCheckedIds(prev => prev.size === objects.length ? new Set() : new Set(objects.map(o => o.id)));
   }
 
   function handleAddObject(form) {
@@ -2212,7 +2229,19 @@ Output ONLY the ABAP source code, no explanations.`;
             className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">
             <Plus size={11} />Add Object
           </button>
-          <button onClick={handleRunAll}
+          {objects.length > 0 && (
+            <button onClick={toggleCheckAll}
+              className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors">
+              {checkedIds.size === objects.length ? 'Deselect All' : 'Select All'}
+            </button>
+          )}
+          {checkedIds.size > 0 && !running && (
+            <button onClick={handleRunSelected}
+              className="flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors">
+              <Play size={11} />Run Selected ({checkedIds.size})
+            </button>
+          )}
+          <button onClick={() => { if (running) { stopRef.current = true; } else { handleRunAll(); } }}
             className={`flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${running ? 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
             {running ? <><X size={11} />Stop</> : <><Play size={11} />Run All</>}
           </button>
@@ -2264,8 +2293,12 @@ Output ONLY the ABAP source code, no explanations.`;
                               key={obj.id}
                               ref={el => { if (el) cardRefs.current[obj.id] = el; else delete cardRefs.current[obj.id]; }}
                               onClick={() => setSelectedId(isSelected ? null : obj.id)}
-                              className={`w-52 rounded-xl border-2 p-2.5 cursor-pointer transition-all select-none ${BP_STATUS_STYLE[obj.status] ?? BP_STATUS_STYLE.planned} ${isSelected ? 'ring-2 ring-blue-400 ring-offset-1' : 'hover:shadow-md'}`}>
+                              className={`w-52 rounded-xl border-2 p-2.5 cursor-pointer transition-all select-none ${BP_STATUS_STYLE[obj.status] ?? BP_STATUS_STYLE.planned} ${isSelected ? 'ring-2 ring-blue-400 ring-offset-1' : 'hover:shadow-md'} ${checkedIds.has(obj.id) ? 'outline outline-2 outline-blue-500 outline-offset-1' : ''}`}>
                               <div className="flex items-start gap-1.5">
+                                <input type="checkbox" checked={checkedIds.has(obj.id)}
+                                  onClick={e => toggleCheck(obj.id, e)}
+                                  onChange={() => {}}
+                                  className="mt-1 flex-shrink-0 cursor-pointer accent-blue-600" />
                                 <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${statusDotColor[obj.status] ?? 'bg-gray-300'}`} />
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1 flex-wrap">
@@ -2317,7 +2350,10 @@ Output ONLY the ABAP source code, no explanations.`;
                     {objs.map(obj => (
                       <div key={obj.id}
                         onClick={() => setSelectedId(selectedId === obj.id ? null : obj.id)}
-                        className={`px-3 py-1.5 rounded-lg border-2 text-xs font-mono cursor-pointer transition-all ${BP_STATUS_STYLE[obj.status] ?? BP_STATUS_STYLE.planned} ${selectedId === obj.id ? 'ring-2 ring-blue-400' : ''}`}>
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 text-xs font-mono cursor-pointer transition-all ${BP_STATUS_STYLE[obj.status] ?? BP_STATUS_STYLE.planned} ${selectedId === obj.id ? 'ring-2 ring-blue-400' : ''} ${checkedIds.has(obj.id) ? 'outline outline-2 outline-blue-500 outline-offset-1' : ''}`}>
+                        <input type="checkbox" checked={checkedIds.has(obj.id)}
+                          onClick={e => toggleCheck(obj.id, e)} onChange={() => {}}
+                          className="cursor-pointer accent-blue-600 flex-shrink-0" />
                         {obj.name} <span className="opacity-50">{BP_TYPES[obj.type]?.short ?? ''}</span>
                       </div>
                     ))}
