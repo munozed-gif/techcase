@@ -223,17 +223,15 @@ function buildSapMcpConfig(sapConfig, mcpServerUrl) {
 // ============================================================
 
 async function sapApiRequest(config, path, opts = {}) {
-  // Always route through the Vercel /api/sap-proxy to avoid CORS and self-signed cert issues.
-  // Manual proxyUrl or VPN-linked proxy takes precedence.
-  const explicitProxy = config.proxyUrl?.trim() || config._vpnProxyUrl?.trim();
-  const proxyUrl = explicitProxy || '/api/sap-proxy';
-  const base = proxyUrl.replace(/\/$/, '');
+  // Prefer manual proxyUrl or VPN-linked proxy; otherwise call SAP directly.
+  const proxyUrl = config.proxyUrl?.trim() || config._vpnProxyUrl?.trim();
+  const base = (proxyUrl || config.host.trim()).replace(/\/$/, '');
   const auth = btoa(`${config.username}:${config.password}`);
   const headers = {
     Authorization: `Basic ${auth}`,
     Accept: 'application/xml, text/xml, text/plain',
     'sap-client': String(config.client || '100'),
-    'X-Sap-Target': config.host.trim().replace(/\/$/, ''),
+    ...(proxyUrl ? { 'X-Sap-Target': config.host.trim().replace(/\/$/, '') } : {}),
     ...(opts.headers ?? {}),
   };
   const url = `${base}${path}`;
@@ -255,28 +253,46 @@ async function sapGetCsrfToken(config) {
 
 async function sapWriteSourceDetail(config, objectType, objectName, source, transportRequest) {
   const path = sapObjectPath(objectType, objectName);
-  let csrfToken;
+
+  // Try to get CSRF token; if it fails (e.g. CORS blocks X-CSRF-Token header),
+  // attempt the PUT without a token — some SAP systems don't enforce it.
+  let csrfToken = '';
+  let csrfError = null;
   try {
     csrfToken = await sapGetCsrfToken(config);
   } catch (e) {
-    return { ok: false, phase: 'csrf', error: e.message };
+    csrfError = e.message;
+    // Continue without token — will fail with 403 if SAP requires it
   }
+
   let res;
   try {
     res = await sapApiRequest(config, path, {
       method: 'PUT',
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
-        'X-CSRF-Token': csrfToken,
+        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
         Accept: 'application/xml',
         ...(transportRequest ? { corrNbr: transportRequest } : {}),
       },
       body: source,
     });
   } catch (e) {
-    return { ok: false, phase: 'write', error: e.message };
+    // Network/CORS error on the PUT itself
+    const corsHint = `Load failed — SAP needs CORS configured for PUT requests from ${typeof window !== 'undefined' ? window.location.origin : 'this domain'}. ` +
+      `Ask your SAP basis team to allow PUT, X-CSRF-Token, corrNbr in SICF CORS settings.` +
+      (csrfError ? ` (CSRF fetch also failed: ${csrfError})` : '');
+    return { ok: false, phase: 'write', error: corsHint };
   }
+
   const body = await res.text().catch(() => '');
+  if (!res.ok && res.status === 403 && csrfError) {
+    return {
+      ok: false, phase: 'csrf', status: res.status,
+      error: `SAP requires CSRF token but the prefetch was blocked (likely CORS). ` +
+        `Enable X-CSRF-Token in SICF CORS allowed headers. Detail: ${csrfError}`,
+    };
+  }
   return { ok: res.ok, status: res.status, body: body.slice(0, 200), phase: 'write' };
 }
 
@@ -2216,12 +2232,10 @@ Output ONLY the ABAP source code, no explanations.`;
       addLog(`${obj.name}: ✓ applied successfully (HTTP ${result.status}).`, 'done');
     } else {
       const detail = result.status ? `HTTP ${result.status}` : result.error;
-      const hint = result.phase === 'csrf'
-        ? `CSRF token fetch failed — SAP may not have CORS configured for ${window.location.origin}`
-        : result.status === 401 ? 'HTTP 401 — wrong username or password'
-        : result.status === 403 ? 'HTTP 403 — missing ADT authorization in SAP'
+      const hint = result.status === 401 ? 'HTTP 401 — wrong username or password'
+        : result.status === 403 ? (result.error || 'HTTP 403 — missing ADT authorization or CSRF token rejected')
         : result.status === 404 ? `HTTP 404 — object ${obj.name} not found in SAP (create it first)`
-        : result.body || detail;
+        : result.error || detail;
       updateObj(obj.id, { status: 'generated', error: detail });
       addLog(`${obj.name}: ✗ ${hint}`, 'error');
     }
@@ -2713,12 +2727,10 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
       });
     } else {
       const detail = result.status ? `HTTP ${result.status}` : result.error;
-      const hint = result.phase === 'csrf'
-        ? `CSRF fetch failed — SAP may not expose CORS headers for ${window.location.origin}. Detail: ${result.error}`
-        : result.status === 401 ? 'HTTP 401 — wrong username or password'
-        : result.status === 403 ? 'HTTP 403 — insufficient ADT authorizations in SAP'
+      const hint = result.status === 401 ? 'HTTP 401 — wrong username or password'
+        : result.status === 403 ? (result.error || 'HTTP 403 — missing ADT authorization or CSRF token rejected')
         : result.status === 404 ? `HTTP 404 — object ${obj.objectName} does not exist in SAP yet`
-        : result.body ? `${detail}: ${result.body}` : detail;
+        : result.error || (result.body ? `${detail}: ${result.body}` : detail);
       pushLog(`✗ ${hint}`);
       setActField(act.id, { applying: false, applyError: hint });
     }
