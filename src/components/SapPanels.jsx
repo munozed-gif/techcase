@@ -2161,6 +2161,27 @@ Output ONLY the ABAP source code, no explanations.`;
     setCheckedIds(prev => prev.size === objects.length ? new Set() : new Set(objects.map(o => o.id)));
   }
 
+  async function handleApplyOne(obj) {
+    if (!sapConfig?.host || !autoImplEnabled) return;
+    const code = obj.generatedCode;
+    if (!code) return;
+    if (!window.confirm(`Apply ${obj.name} directly to SAP (${sapConfig.host})?`)) return;
+    updateObj(obj.id, { status: 'applying' });
+    try {
+      const ok = await sapWriteSource(sapConfig, obj.type, obj.name, code, obj.transport || transportReq || undefined);
+      if (ok) {
+        updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString() });
+        addLog(`${obj.name}: applied successfully.`, 'done');
+      } else {
+        updateObj(obj.id, { status: 'generated', error: 'SAP write returned false' });
+        alert('SAP write failed. Check connection and transport request.');
+      }
+    } catch (e) {
+      updateObj(obj.id, { status: 'generated', error: e.message });
+      alert('Apply failed: ' + e.message);
+    }
+  }
+
   function handleAddObject(form) {
     const newObj = {
       id: crypto.randomUUID(),
@@ -2389,12 +2410,21 @@ Output ONLY the ABAP source code, no explanations.`;
                     <p className="text-xs text-green-600 mt-1">Applied: {new Date(selectedObj.appliedAt).toLocaleString()}</p>
                   )}
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
                   <button onClick={() => { setEditTarget(selectedObj); setShowModal(true); }}
                     className="px-2.5 py-1 text-xs font-medium border border-gray-200 rounded-lg hover:bg-white transition-colors">Edit</button>
                   {selectedObj.status === 'error' && (
                     <button onClick={() => updateObj(selectedObj.id, { status: 'planned', error: null })}
                       className="px-2.5 py-1 text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors">Retry</button>
+                  )}
+                  {autoImplEnabled && selectedObj.generatedCode && selectedObj.status !== 'done' && selectedObj.status !== 'applying' && (
+                    <button onClick={() => handleApplyOne(selectedObj)}
+                      className="px-2.5 py-1 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors">
+                      Apply to SAP
+                    </button>
+                  )}
+                  {selectedObj.status === 'applying' && (
+                    <span className="px-2.5 py-1 text-xs text-amber-700 font-medium">Applying…</span>
                   )}
                   <button onClick={() => handleDelete(selectedObj.id)}
                     className="px-2.5 py-1 text-xs font-medium bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">Delete</button>
