@@ -222,6 +222,14 @@ function buildSapMcpConfig(sapConfig, mcpServerUrl) {
 // SAP API UTILITIES
 // ============================================================
 
+// When the SAP host is not browser-reachable (VPN / firewall), route through
+// the Railway MCP server's /sap-proxy endpoint instead of calling SAP directly.
+function withMcpProxy(config, mcpServerUrl) {
+  if (!mcpServerUrl?.trim()) return config;
+  if (config.proxyUrl?.trim() || config._vpnProxyUrl?.trim()) return config;
+  return { ...config, proxyUrl: mcpServerUrl.trim().replace(/\/$/, '') + '/sap-proxy' };
+}
+
 async function sapApiRequest(config, path, opts = {}) {
   // Prefer manual proxyUrl, then VPN-linked proxy, then direct
   const proxyUrl = config.proxyUrl?.trim() || config._vpnProxyUrl?.trim();
@@ -2117,7 +2125,7 @@ Output ONLY the ABAP source code, no explanations.`;
         if (autoImplEnabled && sapConfig?.host) {
           updateObj(obj.id, { status: 'applying' });
           addLog(`${obj.name}: applying to SAP...`, 'applying');
-          const ok = await sapWriteSource(sapConfig, obj.type, obj.name, code, obj.transport || transportReq || undefined);
+          const ok = await sapWriteSource(withMcpProxy(sapConfig, ssCtx.settings['sap_mcp_server_url']), obj.type, obj.name, code, obj.transport || transportReq || undefined);
           if (ok) {
             updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString() });
             addLog(`${obj.name}: applied successfully.`, 'done');
@@ -2168,7 +2176,7 @@ Output ONLY the ABAP source code, no explanations.`;
     if (!window.confirm(`Apply ${obj.name} directly to SAP (${sapConfig.host})?`)) return;
     updateObj(obj.id, { status: 'applying' });
     try {
-      const ok = await sapWriteSource(sapConfig, obj.type, obj.name, code, obj.transport || transportReq || undefined);
+      const ok = await sapWriteSource(withMcpProxy(sapConfig, ssCtx.settings['sap_mcp_server_url']), obj.type, obj.name, code, obj.transport || transportReq || undefined);
       if (ok) {
         updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString() });
         addLog(`${obj.name}: applied successfully.`, 'done');
@@ -2576,7 +2584,7 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
     if (!obj?.objectName) return;
     setActField(actId, { checking: true, checkResult: null });
     try {
-      const src = await sapFetchSource(sapConfig, obj.objectType ?? 'program', obj.objectName);
+      const src = await sapFetchSource(withMcpProxy(sapConfig, settings['sap_mcp_server_url']), obj.objectType ?? 'program', obj.objectName);
       setActField(actId, { checking: false, checkResult: src ? { found: true, source: src } : { found: false } });
     } catch (e) {
       setActField(actId, { checking: false, checkResult: { found: false, error: e.message } });
@@ -2638,7 +2646,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
     if (!obj?.objectName || !code) return;
     setActField(act.id, { applying: true });
     try {
-      const ok = await sapWriteSource(sapConfig, obj.objectType ?? 'program', obj.objectName, code, transportReq || undefined);
+      const ok = await sapWriteSource(withMcpProxy(sapConfig, settings['sap_mcp_server_url']), obj.objectType ?? 'program', obj.objectName, code, transportReq || undefined);
       if (ok) {
         setActField(act.id, { applying: false, applied: true });
         // Update activity progress to 100%
