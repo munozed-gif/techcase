@@ -2165,7 +2165,7 @@ Output ONLY the ABAP source code, no explanations.`;
 
         if (autoImplEnabled && sapConfig?.host) {
           updateObj(obj.id, { status: 'applying' });
-          addLog(`${obj.name}: applying to SAP via /api/sap-proxy → ${sapConfig.host}`, 'applying');
+          addLog(`${obj.name}: applying directly browser → ${sapConfig.host}`, 'applying');
           const result = await sapWriteSourceDetail(sapConfig, obj.type, obj.name, code, obj.transport || transportReq || undefined);
           if (result.ok) {
             updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString() });
@@ -2224,8 +2224,9 @@ Output ONLY the ABAP source code, no explanations.`;
     if (!window.confirm(`Apply ${obj.name} directly to SAP (${sapConfig.host})?`)) return;
     updateObj(obj.id, { status: 'applying', error: null });
     const mcpUrl = ssCtx.settings['sap_mcp_server_url'];
-    addLog(`${obj.name}: connecting to SAP via /api/sap-proxy → ${sapConfig.host}`, 'applying');
-    if (mcpUrl) addLog(`MCP server configured: ${mcpUrl}`, 'generated');
+    const proxyInUse = sapConfig.proxyUrl?.trim() || sapConfig._vpnProxyUrl?.trim();
+    addLog(`${obj.name}: connecting directly browser → ${sapConfig.host}${proxyInUse ? ` via proxy ${proxyInUse}` : ''}`, 'applying');
+    if (mcpUrl) addLog(`MCP server (AI generation): ${mcpUrl}`, 'generated');
     const result = await sapWriteSourceDetail(sapConfig, obj.type, obj.name, code, obj.transport || transportReq || undefined);
     if (result.ok) {
       updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString(), error: null });
