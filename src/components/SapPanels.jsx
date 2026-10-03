@@ -222,24 +222,18 @@ function buildSapMcpConfig(sapConfig, mcpServerUrl) {
 // SAP API UTILITIES
 // ============================================================
 
-// When the SAP host is not browser-reachable (VPN / firewall), route through
-// the Railway MCP server's /sap-proxy endpoint instead of calling SAP directly.
-function withMcpProxy(config, mcpServerUrl) {
-  if (!mcpServerUrl?.trim()) return config;
-  if (config.proxyUrl?.trim() || config._vpnProxyUrl?.trim()) return config;
-  return { ...config, proxyUrl: mcpServerUrl.trim().replace(/\/$/, '') + '/sap-proxy' };
-}
-
 async function sapApiRequest(config, path, opts = {}) {
-  // Prefer manual proxyUrl, then VPN-linked proxy, then direct
-  const proxyUrl = config.proxyUrl?.trim() || config._vpnProxyUrl?.trim();
-  const base = (proxyUrl || config.host.trim()).replace(/\/$/, '');
+  // Always route through the Vercel /api/sap-proxy to avoid CORS and self-signed cert issues.
+  // Manual proxyUrl or VPN-linked proxy takes precedence.
+  const explicitProxy = config.proxyUrl?.trim() || config._vpnProxyUrl?.trim();
+  const proxyUrl = explicitProxy || '/api/sap-proxy';
+  const base = proxyUrl.replace(/\/$/, '');
   const auth = btoa(`${config.username}:${config.password}`);
   const headers = {
     Authorization: `Basic ${auth}`,
     Accept: 'application/xml, text/xml, text/plain',
     'sap-client': String(config.client || '100'),
-    ...(proxyUrl ? { 'X-Sap-Target': config.host.trim().replace(/\/$/, '') } : {}),
+    'X-Sap-Target': config.host.trim().replace(/\/$/, ''),
     ...(opts.headers ?? {}),
   };
   const url = `${base}${path}`;
