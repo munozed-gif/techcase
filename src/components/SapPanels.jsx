@@ -2002,7 +2002,10 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
 
   // Reviewer
   const [reviewerEmail, setReviewerEmail] = useState('');
+  const [reviewerUserId, setReviewerUserId] = useState(null);
   const [reviewerInput, setReviewerInput] = useState('');
+  const [reviewerLookup, setReviewerLookup] = useState(null); // null | 'searching' | { found, user, isFunctional }
+  const reviewerDebounce = useRef(null);
   const [reviewerSaving, setReviewerSaving] = useState(false);
   const [parentConsultant, setParentConsultant] = useState(null);
   const [approvalLinkCopied, setApprovalLinkCopied] = useState(false);
@@ -2020,6 +2023,7 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
         .single();
       if (!c) return;
       if (c.reviewer_email) setReviewerEmail(c.reviewer_email);
+      if (c.reviewer_user_id) setReviewerUserId(c.reviewer_user_id);
       if (c.parent_case_id) {
         const { data: parent } = await supabase
           .from('cases')
@@ -2033,13 +2037,40 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
     loadReviewer();
   }, [caseId]);
 
+  function handleReviewerInputChange(val) {
+    setReviewerInput(val);
+    setReviewerLookup(null);
+    clearTimeout(reviewerDebounce.current);
+    const clean = val.trim().toLowerCase();
+    if (!clean.includes('@') || !clean.includes('.')) return;
+    reviewerDebounce.current = setTimeout(async () => {
+      setReviewerLookup('searching');
+      const { data } = await supabase
+        .from('users')
+        .select('id, full_name, email, role')
+        .eq('email', clean)
+        .maybeSingle();
+      if (!data) { setReviewerLookup({ found: false }); return; }
+      const FUNCTIONAL = ['key_user', 'project_manager', 'internal_consultant'];
+      setReviewerLookup({ found: true, user: data, isFunctional: FUNCTIONAL.includes(data.role) });
+    }, 500);
+  }
+
   async function saveReviewer() {
-    const email = reviewerInput.trim();
+    const email = reviewerInput.trim().toLowerCase();
     if (!email) return;
     setReviewerSaving(true);
-    await supabase.from('cases').update({ reviewer_email: email }).eq('id', caseId);
+    const userId = (reviewerLookup?.found && reviewerLookup?.isFunctional)
+      ? reviewerLookup.user.id
+      : null;
+    await supabase.from('cases').update({
+      reviewer_email: email,
+      reviewer_user_id: userId,
+    }).eq('id', caseId);
     setReviewerEmail(email);
+    setReviewerUserId(userId);
     setReviewerInput('');
+    setReviewerLookup(null);
     setReviewerSaving(false);
   }
 
@@ -2553,24 +2584,54 @@ Output ONLY the ABAP source code, no explanations.`;
               <span className="text-[10px] text-indigo-400/60 font-normal ml-0.5">(inherited)</span>
             </span>
           ) : reviewerEmail ? (
-            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-green-500/15 border border-green-500/30 rounded-lg text-green-300 font-medium">
+            <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg font-medium ${
+              reviewerUserId
+                ? 'bg-green-500/15 border border-green-500/30 text-green-300'
+                : 'bg-blue-500/15 border border-blue-500/30 text-blue-300'
+            }`}>
               {reviewerEmail}
+              <span className="text-[10px] font-normal opacity-60 ml-0.5">
+                {reviewerUserId ? '· in-app' : '· external link'}
+              </span>
             </span>
           ) : reviewerInput !== undefined ? (
-            <div className="flex items-center gap-1.5">
-              <input
-                value={reviewerInput}
-                onChange={e => setReviewerInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && saveReviewer()}
-                placeholder="reviewer@email.com"
-                className="text-xs border border-white/20 bg-white/5 text-white/80 placeholder-white/25 rounded-lg px-2 py-0.5 w-48 focus:outline-none focus:border-indigo-400/60"
-              />
-              <button
-                onClick={saveReviewer}
-                disabled={reviewerSaving || !reviewerInput.trim()}
-                className="px-2 py-0.5 text-xs font-medium bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-lg hover:bg-indigo-500/30 disabled:opacity-40 transition-colors">
-                {reviewerSaving ? '…' : 'Save'}
-              </button>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1.5">
+                <input
+                  value={reviewerInput}
+                  onChange={e => handleReviewerInputChange(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && saveReviewer()}
+                  placeholder="reviewer@email.com"
+                  className="text-xs border border-white/20 bg-white/5 text-white/80 placeholder-white/25 rounded-lg px-2 py-0.5 w-48 focus:outline-none focus:border-indigo-400/60"
+                />
+                <button
+                  onClick={saveReviewer}
+                  disabled={reviewerSaving || !reviewerInput.trim() || reviewerLookup === 'searching'}
+                  className="px-2 py-0.5 text-xs font-medium bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-lg hover:bg-indigo-500/30 disabled:opacity-40 transition-colors">
+                  {reviewerSaving ? '…' : 'Save'}
+                </button>
+              </div>
+              {/* Lookup feedback */}
+              {reviewerLookup === 'searching' && (
+                <span className="text-[10px] text-white/30 flex items-center gap-1">
+                  <Loader2 size={9} className="animate-spin" />Checking…
+                </span>
+              )}
+              {reviewerLookup?.found && reviewerLookup.isFunctional && (
+                <span className="text-[10px] text-green-400 flex items-center gap-1">
+                  <Check size={9} />{reviewerLookup.user.full_name} · on platform — will see this in-app
+                </span>
+              )}
+              {reviewerLookup?.found && !reviewerLookup.isFunctional && (
+                <span className="text-[10px] text-amber-400 flex items-center gap-1">
+                  ⚠ {reviewerLookup.user.full_name} is on the platform but has role <strong>{reviewerLookup.user.role}</strong> — not a functional reviewer. They'll receive an external link instead.
+                </span>
+              )}
+              {reviewerLookup?.found === false && (
+                <span className="text-[10px] text-blue-400/60 flex items-center gap-1">
+                  Not on platform — you'll share an external review link with them
+                </span>
+              )}
             </div>
           ) : null}
 
