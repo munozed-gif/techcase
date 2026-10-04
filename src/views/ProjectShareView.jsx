@@ -86,7 +86,14 @@ export default function ProjectShareView({ token }) {
       {/* Top bar */}
       <div className="bg-[#0B0F1A] px-6 py-2 flex items-center gap-3">
         <NovaLogo size={32} />
-        <span className="text-sm font-semibold text-white">{branding.name}</span>
+        <span className="text-sm font-bold">
+          {(() => {
+            const parts = branding.name.split(' ');
+            return parts.length > 1
+              ? <><span style={{ color: '#4F6EF7' }}>{parts[0]}</span> <span className="text-white">{parts.slice(1).join(' ')}</span></>
+              : <span style={{ color: '#4F6EF7' }}>{branding.name}</span>;
+          })()}
+        </span>
         <span className="text-gray-600 mx-1">·</span>
         <span className="text-sm text-gray-400">Project Status</span>
       </div>
