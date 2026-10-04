@@ -2003,6 +2003,7 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
   // Reviewer
   const [reviewerEmail, setReviewerEmail] = useState('');
   const [reviewerUserId, setReviewerUserId] = useState(null);
+  const [reviewerName, setReviewerName] = useState('');
   const [reviewerInput, setReviewerInput] = useState('');
   const [reviewerLookup, setReviewerLookup] = useState(null); // null | 'searching' | { found, user, isFunctional }
   const reviewerDebounce = useRef(null);
@@ -2023,7 +2024,11 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
         .single();
       if (!c) return;
       if (c.reviewer_email) setReviewerEmail(c.reviewer_email);
-      if (c.reviewer_user_id) setReviewerUserId(c.reviewer_user_id);
+      if (c.reviewer_user_id) {
+        setReviewerUserId(c.reviewer_user_id);
+        const { data: u } = await supabase.from('users').select('full_name').eq('id', c.reviewer_user_id).single();
+        if (u?.full_name) setReviewerName(u.full_name);
+      }
       if (c.parent_case_id) {
         const { data: parent } = await supabase
           .from('cases')
@@ -2069,6 +2074,7 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
     }).eq('id', caseId);
     setReviewerEmail(email);
     setReviewerUserId(userId);
+    setReviewerName(reviewerLookup?.user?.full_name ?? '');
     setReviewerInput('');
     setReviewerLookup(null);
     setReviewerSaving(false);
@@ -2589,7 +2595,7 @@ Output ONLY the ABAP source code, no explanations.`;
                 ? 'bg-green-500/15 border border-green-500/30 text-green-300'
                 : 'bg-blue-500/15 border border-blue-500/30 text-blue-300'
             }`}>
-              {reviewerEmail}
+              {reviewerUserId && reviewerName ? reviewerName : reviewerEmail}
               <span className="text-[10px] font-normal opacity-60 ml-0.5">
                 {reviewerUserId ? '· in-app' : '· external link'}
               </span>
