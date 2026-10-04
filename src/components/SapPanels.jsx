@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Activity, AlertTriangle, ArrowRight, Check, CheckCircle2, ChevronRight,
   Clock, Code2, Eye, FileCode2, FileText, FolderOpen, LayoutGrid, Loader2,
+  Link2, Mail, RefreshCw,
   Play, Plus, Save, Settings, Sparkles, ThumbsDown, ThumbsUp, Upload, User, X, XCircle,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
@@ -1999,6 +2000,130 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
   const [templateName, setTemplateName] = useState('');
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
 
+  // Reviewer
+  const [reviewerEmail, setReviewerEmail] = useState('');
+  const [reviewerInput, setReviewerInput] = useState('');
+  const [reviewerSaving, setReviewerSaving] = useState(false);
+  const [parentConsultant, setParentConsultant] = useState(null);
+  const [approvalLinkCopied, setApprovalLinkCopied] = useState(false);
+  const [genLinkLoading, setGenLinkLoading] = useState(false);
+  const [syncingReviews, setSyncingReviews] = useState(false);
+  const [syncedCount, setSyncedCount] = useState(null);
+
+  // Load reviewer info on mount
+  useEffect(() => {
+    async function loadReviewer() {
+      const { data: c } = await supabase
+        .from('cases')
+        .select('reviewer_email, reviewer_user_id, parent_case_id')
+        .eq('id', caseId)
+        .single();
+      if (!c) return;
+      if (c.reviewer_email) setReviewerEmail(c.reviewer_email);
+      if (c.parent_case_id) {
+        const { data: parent } = await supabase
+          .from('cases')
+          .select('case_assignments(users(full_name, email))')
+          .eq('id', c.parent_case_id)
+          .single();
+        const consultant = parent?.case_assignments?.[0]?.users;
+        if (consultant) setParentConsultant(consultant);
+      }
+    }
+    loadReviewer();
+  }, [caseId]);
+
+  async function saveReviewer() {
+    const email = reviewerInput.trim();
+    if (!email) return;
+    setReviewerSaving(true);
+    await supabase.from('cases').update({ reviewer_email: email }).eq('id', caseId);
+    setReviewerEmail(email);
+    setReviewerInput('');
+    setReviewerSaving(false);
+  }
+
+  async function generateApprovalLink() {
+    const email = parentConsultant?.email ?? reviewerEmail;
+    if (!email) return;
+    setGenLinkLoading(true);
+    try {
+      // Find or create pending request for this case
+      let { data: existing } = await supabase
+        .from('approval_requests')
+        .select('id, token')
+        .eq('case_id', caseId)
+        .eq('status', 'pending')
+        .maybeSingle();
+
+      if (!existing) {
+        const { data: created } = await supabase
+          .from('approval_requests')
+          .insert({ reviewer_email: email, case_id: caseId, project_id: caseData.project_id ?? null })
+          .select('id, token')
+          .single();
+        existing = created;
+      }
+
+      if (!existing) { setGenLinkLoading(false); return; }
+
+      // Sync all pending_review objects into approval_request_objects
+      const pendingObjs = objects.filter(o => o.approval_status === 'pending_review');
+      if (pendingObjs.length > 0) {
+        await supabase.from('approval_request_objects').upsert(
+          pendingObjs.map(o => ({
+            approval_request_id: existing.id,
+            object_id:          o.id,
+            object_name:        o.name,
+            object_type:        o.type,
+            object_description: o.description ?? null,
+            object_phase:       o.phase ?? null,
+          })),
+          { onConflict: 'approval_request_id,object_id', ignoreDuplicates: false }
+        );
+      }
+
+      const link = `${window.location.origin}/approve/${existing.token}`;
+      await navigator.clipboard.writeText(link);
+      setApprovalLinkCopied(true);
+      setTimeout(() => setApprovalLinkCopied(false), 2500);
+    } finally {
+      setGenLinkLoading(false);
+    }
+  }
+
+  async function syncReviews() {
+    setSyncingReviews(true);
+    setSyncedCount(null);
+    const { data: req } = await supabase
+      .from('approval_requests')
+      .select('id')
+      .eq('case_id', caseId)
+      .eq('status', 'pending')
+      .maybeSingle();
+    if (!req) { setSyncingReviews(false); return; }
+
+    const { data: decisions } = await supabase
+      .from('approval_request_objects')
+      .select('object_id, decision, rejection_reason, decided_at')
+      .eq('approval_request_id', req.id)
+      .not('decision', 'is', null);
+
+    if (!decisions?.length) { setSyncingReviews(false); setSyncedCount(0); return; }
+
+    let count = 0;
+    const next = objects.map(o => {
+      const d = decisions.find(d => d.object_id === o.id);
+      if (!d) return o;
+      count++;
+      return { ...o, approval_status: d.decision, approved_by: 'reviewer', approved_at: d.decided_at, rejected_reason: d.rejection_reason ?? o.rejected_reason };
+    });
+    setObjects(next);
+    saveBlueprint(next);
+    setSyncedCount(count);
+    setSyncingReviews(false);
+  }
+
   async function loadBpTemplates() {
     const { data } = await supabase
       .from('case_templates')
@@ -2414,6 +2539,76 @@ Output ONLY the ABAP source code, no explanations.`;
           )}
         </div>
       </div>
+
+      {/* Reviewer row */}
+      {canDevelop && (
+        <div className="px-4 py-2 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3 flex-wrap text-xs">
+          <Mail size={12} className="text-indigo-400 flex-shrink-0" />
+          <span className="font-medium text-gray-500 flex-shrink-0">Reviewer:</span>
+
+          {/* Inherited from parent case */}
+          {parentConsultant ? (
+            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 border border-indigo-200 rounded-lg text-indigo-700 font-medium">
+              {parentConsultant.full_name} · {parentConsultant.email}
+              <span className="text-[10px] text-indigo-400 font-normal ml-0.5">(inherited)</span>
+            </span>
+          ) : reviewerEmail ? (
+            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-green-50 border border-green-200 rounded-lg text-green-700 font-medium">
+              {reviewerEmail}
+            </span>
+          ) : reviewerInput !== undefined ? (
+            <div className="flex items-center gap-1.5">
+              <input
+                value={reviewerInput}
+                onChange={e => setReviewerInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && saveReviewer()}
+                placeholder="reviewer@email.com"
+                className="text-xs border border-gray-200 rounded-lg px-2 py-0.5 w-48 focus:outline-none focus:border-indigo-400"
+              />
+              <button
+                onClick={saveReviewer}
+                disabled={reviewerSaving || !reviewerInput.trim()}
+                className="px-2 py-0.5 text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-100 disabled:opacity-40 transition-colors">
+                {reviewerSaving ? '…' : 'Save'}
+              </button>
+            </div>
+          ) : null}
+
+          {/* Change reviewer */}
+          {reviewerEmail && !parentConsultant && (
+            <button
+              onClick={() => { setReviewerEmail(''); setReviewerInput(''); }}
+              className="text-gray-400 hover:text-gray-600 transition-colors text-[10px] underline">
+              change
+            </button>
+          )}
+
+          {/* Generate / copy link */}
+          {(reviewerEmail || parentConsultant) && objects.some(o => o.approval_status === 'pending_review') && (
+            <button
+              onClick={generateApprovalLink}
+              disabled={genLinkLoading}
+              className={`ml-auto flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors ${
+                approvalLinkCopied
+                  ? 'bg-green-50 border-green-300 text-green-700'
+                  : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
+              }`}>
+              {approvalLinkCopied ? <><Check size={11} />Copied!</> : <><Link2 size={11} />{genLinkLoading ? 'Generating…' : 'Copy Review Link'}</>}
+            </button>
+          )}
+
+          {/* Sync reviews back from reviewer decisions */}
+          {objects.some(o => o.approval_status === 'pending_review') && (
+            <button
+              onClick={syncReviews}
+              disabled={syncingReviews}
+              className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-gray-200 text-gray-500 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-40">
+              <RefreshCw size={11} className={syncingReviews ? 'animate-spin' : ''} />
+              {syncedCount !== null ? `Synced ${syncedCount}` : 'Sync Reviews'}
+            </button>
+          )}
+        </div>
+      )}
 
       {!collapsed && (
         <>
