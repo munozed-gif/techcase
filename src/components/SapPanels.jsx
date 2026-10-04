@@ -2075,6 +2075,13 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
     setReviewerEmail(email);
     setReviewerUserId(userId);
     setReviewerName(reviewerLookup?.user?.full_name ?? '');
+
+    // Add platform reviewer to case_key_users so they can access the case
+    if (userId) {
+      await supabase.from('case_key_users')
+        .upsert({ case_id: caseId, user_id: userId, area: 'reviewer' }, { onConflict: 'case_id,user_id', ignoreDuplicates: true });
+    }
+
     setReviewerInput('');
     setReviewerLookup(null);
     setReviewerSaving(false);

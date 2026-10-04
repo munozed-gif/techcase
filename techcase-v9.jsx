@@ -135,6 +135,7 @@ import { AuthScreen } from "./src/views/AuthScreen.jsx";
 import { LandingView } from "./src/views/LandingView.jsx";
 import ProjectShareView from "./src/views/ProjectShareView.jsx";
 import ApprovalView from "./src/views/ApprovalView.jsx";
+import MyReviewsView from "./src/views/MyReviewsView.jsx";
 
 
 // ============================================================
@@ -732,6 +733,7 @@ export default function App() {
       case "approvals":      return (auth.isAdmin || auth.isManager) ? <UserApprovalQueue /> : <Dashboard auth={auth} />;
       case "templates":      return (auth.isAdmin || auth.isManager) ? <CaseTemplatesView auth={auth} /> : <Dashboard auth={auth} />;
       case "notifications":  return <NotificationsView />;
+      case "my-reviews":    return <MyReviewsView auth={auth} />;
       case "invoices":       return <InvoicesView auth={auth} />;
       case "kanban":         return <KanbanView auth={auth} />;
       case "time":           return <TimeEntriesView auth={auth} />;
