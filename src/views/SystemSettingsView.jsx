@@ -931,7 +931,7 @@ const NAV_VIS_ROLES = ["manager", "consultant", "client", "key_user", "headhunte
 function SettingsRolesTab({ ssCtx }) {
   const { t } = useT();
 
-  const ALL_ROLES = ["admin", "manager", "consultant", "client", "key_user", "headhunter", "final_user", "dispatch", "area_leader"];
+  const ALL_ROLES = ["admin", "manager", "consultant", "internal_consultant", "project_manager", "client", "key_user", "headhunter", "final_user", "dispatch", "area_leader"];
   const CAPABILITIES = Object.keys(ROLE_PERMISSIONS_DEFAULTS);
 
   const WIZARD_TYPES = ["case", "project"];
@@ -2786,7 +2786,7 @@ function SettingsInvoiceTab({ ssCtx }) {
 // ── People tab — users + permissions combined ─────────────────
 function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
   const { t } = useT();
-  const ALL_ROLES = ["admin", "manager", "consultant", "client", "key_user", "headhunter", "final_user", "dispatch", "area_leader"];
+  const ALL_ROLES = ["admin", "manager", "consultant", "internal_consultant", "project_manager", "client", "key_user", "headhunter", "final_user", "dispatch", "area_leader"];
   const CAPS = Object.keys(ROLE_PERMISSIONS_DEFAULTS);
 
   const PERSONA_TABS = [
