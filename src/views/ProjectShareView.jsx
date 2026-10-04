@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { CheckCircle2, Clock, AlertCircle, BarChart2, FolderOpen, Code2, Layers } from "lucide-react";
+import { CheckCircle2, Clock, AlertCircle, BarChart2, FolderOpen, Layers } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
+import { TECHCASE_LOGO_URI } from "../lib/businessConstants.js";
 
 const STATUS_COLORS = {
   draft:     "bg-gray-100 text-gray-600",
@@ -23,16 +24,25 @@ export default function ProjectShareView({ token }) {
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [branding, setBranding] = useState({ name: 'Arena', logoUrl: null });
 
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const { data: proj, error: projErr } = await supabase
-        .from("projects")
-        .select("id, name, description, status, start_date, end_date, area_sap, share_token")
-        .eq("share_token", token)
-        .single();
-      if (projErr || !proj) { setError("Project not found or link is invalid."); setLoading(false); return; }
+
+      // Fetch branding and project in parallel
+      const [brandRes, projRes] = await Promise.all([
+        supabase.from("system_settings").select("key, value").in("key", ["platform_name", "brand_logo_url"]),
+        supabase.from("projects").select("id, name, description, status, start_date, end_date, area_sap, share_token").eq("share_token", token).single(),
+      ]);
+
+      if (brandRes.data) {
+        const map = Object.fromEntries(brandRes.data.map(r => [r.key, r.value]));
+        setBranding({ name: map['platform_name'] || 'Arena', logoUrl: map['brand_logo_url'] || null });
+      }
+
+      const proj = projRes.data;
+      if (projRes.error || !proj) { setError("Project not found or link is invalid."); setLoading(false); return; }
       setProject(proj);
 
       const { data: caseRows } = await supabase
@@ -75,10 +85,11 @@ export default function ProjectShareView({ token }) {
     <div className="min-h-screen bg-gray-50">
       {/* Top bar */}
       <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center gap-3">
-        <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
-          <Layers size={14} className="text-white" />
-        </div>
-        <span className="text-sm font-semibold text-gray-700">TechCase</span>
+        {branding.logoUrl
+          ? <img src={branding.logoUrl} alt={branding.name} className="h-7 w-auto object-contain" />
+          : <img src={TECHCASE_LOGO_URI} alt={branding.name} className="h-7 w-auto object-contain" />
+        }
+        <span className="text-sm font-semibold text-gray-700">{branding.name}</span>
         <span className="text-gray-300 mx-1">·</span>
         <span className="text-sm text-gray-500">Project Status</span>
       </div>
@@ -170,7 +181,7 @@ export default function ProjectShareView({ token }) {
         )}
 
         <p className="text-center text-xs text-gray-300 pb-4">
-          Powered by TechCase · Read-only view
+          Powered by {branding.name} · Read-only view
         </p>
       </div>
     </div>
