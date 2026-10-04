@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   Activity, AlertCircle, AlertTriangle, Archive, BarChart2, Building2,
   Calendar, Camera, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Code2, Copy,
-  Database, DollarSign, FileEdit, FileText, FolderOpen, Layers,
+  Database, DollarSign, FileEdit, FileText, FolderOpen, Layers, Link2,
   LayoutTemplate, Loader2, Lock, Pause, PauseCircle, Play, Plus, Search,
   Shield, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, Upload,
   UserCheck, Users, X, XCircle, Zap,
@@ -1612,6 +1612,28 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
   // Project templates
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showSaveTmplModal, setShowSaveTmplModal] = useState(false);
+  // Share link
+  const [shareCopied, setShareCopied] = useState(false);
+  const [shareToken, setShareToken] = useState(project.share_token ?? null);
+
+  async function handleShareLink() {
+    let token = shareToken;
+    if (!token) {
+      const { data } = await supabase
+        .from("projects")
+        .update({ share_token: crypto.randomUUID() })
+        .eq("id", project.id)
+        .select("share_token")
+        .single();
+      token = data?.share_token;
+      if (token) setShareToken(token);
+    }
+    if (!token) return;
+    const url = `${window.location.origin}/share/${token}`;
+    try { await navigator.clipboard.writeText(url); } catch { prompt("Copy this link:", url); return; }
+    setShareCopied(true);
+    setTimeout(() => setShareCopied(false), 2500);
+  }
 
   async function handleImportExtract() {
     if (!importFile) return;
@@ -1891,10 +1913,14 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
             <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${PROJECT_STATUS_COLORS[project.status] ?? "bg-gray-100 text-gray-600"}`}>
               {STATUS_LABEL_KEYS[project.status] ? t(STATUS_LABEL_KEYS[project.status]) : cap(fmt(project.status))}
             </span>
+            <button onClick={handleShareLink}
+              className={`flex items-center gap-1.5 text-sm border rounded-xl px-3 py-1.5 transition-colors ${shareCopied ? 'border-green-300 bg-green-50 text-green-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+              {shareCopied ? <><Check size={13} />Copied!</> : <><Link2 size={13} />Share</>}
+            </button>
             {canEdit && (
               <button onClick={() => setShowEditWizard(true)}
                 className="text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-3 py-1.5">

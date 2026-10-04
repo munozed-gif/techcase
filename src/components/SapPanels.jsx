@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Activity, AlertTriangle, ArrowRight, Check, CheckCircle2, ChevronRight,
-  Code2, Eye, FileCode2, FileText, LayoutGrid, Loader2, Play, Plus,
-  Settings, Sparkles, Upload, User, X, XCircle,
+  Clock, Code2, Eye, FileCode2, FileText, FolderOpen, LayoutGrid, Loader2,
+  Play, Plus, Save, Settings, Sparkles, ThumbsDown, ThumbsUp, Upload, User, X, XCircle,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
@@ -1986,6 +1986,52 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
   const cardRefs = useRef({});
   const stopRef = useRef(false);
 
+  // Role-based access
+  const userRole = auth?.profile?.role ?? auth?.role ?? '';
+  const isReadOnly = ['client', 'invited_client'].includes(userRole);
+  const isFunctional = ['key_user', 'project_manager', 'internal_consultant'].includes(userRole);
+  const canDevelop = !isReadOnly && !isFunctional; // consultant, admin, manager
+
+  // Blueprint templates
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [bpTemplates, setBpTemplates] = useState([]);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+
+  async function loadBpTemplates() {
+    const { data } = await supabase
+      .from('case_templates')
+      .select('id, name, description, template_data, created_at')
+      .eq('category', 'blueprint')
+      .order('created_at', { ascending: false });
+    setBpTemplates(data ?? []);
+  }
+
+  async function saveAsTemplate() {
+    if (!templateName.trim() || objects.length === 0) return;
+    setSavingTemplate(true);
+    await supabase.from('case_templates').insert({
+      name: templateName.trim(),
+      category: 'blueprint',
+      description: `${objects.length} objects`,
+      template_data: { objects: objects.map(o => ({ ...o, status: 'planned', generatedCode: null, appliedAt: null, error: null, approval_status: 'draft', approved_by: null, approved_at: null })) },
+      is_global: false,
+      created_by: auth?.user?.id ?? null,
+    });
+    setSavingTemplate(false);
+    setTemplateName('');
+    setShowSaveTemplate(false);
+  }
+
+  async function applyTemplate(tpl) {
+    const tplObjects = (tpl.template_data?.objects ?? []).map(o => ({ ...o, id: crypto.randomUUID(), status: 'planned', generatedCode: null, appliedAt: null, error: null, approval_status: 'draft' }));
+    const next = [...objects, ...tplObjects];
+    setObjects(next);
+    await saveBlueprint(next);
+    setShowTemplates(false);
+  }
+
   async function saveBlueprint(newObjects, newStopOnError) {
     const all = settings[bpKey] ?? {};
     await ssCtx.setSetting(bpKey, { ...all, [caseId]: { objects: newObjects, stopOnError: newStopOnError ?? stopOnError } });
@@ -1997,6 +2043,18 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
       saveBlueprint(next);
       return next;
     });
+  }
+
+  function submitForReview(id) {
+    updateObj(id, { approval_status: 'pending_review' });
+  }
+
+  function approveObj(id) {
+    updateObj(id, { approval_status: 'approved', approved_by: auth?.user?.id, approved_at: new Date().toISOString() });
+  }
+
+  function rejectObj(id, reason = '') {
+    updateObj(id, { approval_status: 'rejected', rejected_reason: reason, approved_by: auth?.user?.id, approved_at: new Date().toISOString() });
   }
 
   function addLog(msg, status) {
@@ -2297,44 +2355,63 @@ Output ONLY the ABAP source code, no explanations.`;
           <LayoutGrid size={15} className="text-violet-600" />
           <span className="font-bold text-gray-900 text-sm">Implementation Blueprint</span>
           <span className="text-xs text-gray-400 hidden sm:inline">({objects.length} objects)</span>
+          {isReadOnly && <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md font-medium">Read-only</span>}
+          {isFunctional && <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-md font-medium">Reviewer</span>}
           <button onClick={() => setCollapsed(p => !p)}
             className="text-xs text-gray-400 hover:text-gray-600 ml-1 px-1.5 py-0.5 border border-gray-200 rounded-lg">
             {collapsed ? 'Expand' : 'Collapse'}
           </button>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
-            <input type="checkbox" checked={stopOnError} onChange={e => { setStopOnError(e.target.checked); saveBlueprint(objects, e.target.checked); }} />
-            Stop on error
-          </label>
+          {canDevelop && (
+            <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+              <input type="checkbox" checked={stopOnError} onChange={e => { setStopOnError(e.target.checked); saveBlueprint(objects, e.target.checked); }} />
+              Stop on error
+            </label>
+          )}
           <button onClick={() => setTransportView(p => !p)}
             className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors ${transportView ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
             Transport view
           </button>
-          <button onClick={handleAiSuggest}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-200 rounded-lg hover:bg-violet-100 transition-colors">
-            <Sparkles size={11} />{objects.length > 0 ? 'AI Regenerate' : 'AI Suggest'}
+          {/* Template buttons */}
+          <button onClick={() => { loadBpTemplates(); setShowTemplates(true); }}
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors">
+            <FolderOpen size={11} />Templates
           </button>
-          <button onClick={() => { setEditTarget(null); setShowModal(true); }}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">
-            <Plus size={11} />Add Object
-          </button>
-          {objects.length > 0 && (
-            <button onClick={toggleCheckAll}
-              className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors">
-              {checkedIds.size === objects.length ? 'Deselect All' : 'Select All'}
+          {canDevelop && objects.length > 0 && (
+            <button onClick={() => setShowSaveTemplate(true)}
+              className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors">
+              <Save size={11} />Save Template
             </button>
           )}
-          {checkedIds.size > 0 && !running && (
-            <button onClick={handleRunSelected}
-              className="flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors">
-              <Play size={11} />Run Selected ({checkedIds.size})
-            </button>
+          {canDevelop && (
+            <>
+              <button onClick={handleAiSuggest}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-200 rounded-lg hover:bg-violet-100 transition-colors">
+                <Sparkles size={11} />{objects.length > 0 ? 'AI Regenerate' : 'AI Suggest'}
+              </button>
+              <button onClick={() => { setEditTarget(null); setShowModal(true); }}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">
+                <Plus size={11} />Add Object
+              </button>
+              {objects.length > 0 && (
+                <button onClick={toggleCheckAll}
+                  className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors">
+                  {checkedIds.size === objects.length ? 'Deselect All' : 'Select All'}
+                </button>
+              )}
+              {checkedIds.size > 0 && !running && (
+                <button onClick={handleRunSelected}
+                  className="flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors">
+                  <Play size={11} />Run Selected ({checkedIds.size})
+                </button>
+              )}
+              <button onClick={() => { if (running) { stopRef.current = true; } else { handleRunAll(); } }}
+                className={`flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${running ? 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
+                {running ? <><X size={11} />Stop</> : <><Play size={11} />Run All</>}
+              </button>
+            </>
           )}
-          <button onClick={() => { if (running) { stopRef.current = true; } else { handleRunAll(); } }}
-            className={`flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${running ? 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
-            {running ? <><X size={11} />Stop</> : <><Play size={11} />Run All</>}
-          </button>
         </div>
       </div>
 
@@ -2385,10 +2462,12 @@ Output ONLY the ABAP source code, no explanations.`;
                               onClick={() => setSelectedId(isSelected ? null : obj.id)}
                               className={`w-52 rounded-xl border-2 p-2.5 cursor-pointer transition-all select-none ${BP_STATUS_STYLE[obj.status] ?? BP_STATUS_STYLE.planned} ${isSelected ? 'ring-2 ring-blue-400 ring-offset-1' : 'hover:shadow-md'} ${checkedIds.has(obj.id) ? 'outline outline-2 outline-blue-500 outline-offset-1' : ''}`}>
                               <div className="flex items-start gap-1.5">
-                                <input type="checkbox" checked={checkedIds.has(obj.id)}
-                                  onClick={e => toggleCheck(obj.id, e)}
-                                  onChange={() => {}}
-                                  className="mt-1 flex-shrink-0 cursor-pointer accent-blue-600" />
+                                {canDevelop && (
+                                  <input type="checkbox" checked={checkedIds.has(obj.id)}
+                                    onClick={e => toggleCheck(obj.id, e)}
+                                    onChange={() => {}}
+                                    className="mt-1 flex-shrink-0 cursor-pointer accent-blue-600" />
+                                )}
                                 <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${statusDotColor[obj.status] ?? 'bg-gray-300'}`} />
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1 flex-wrap">
@@ -2402,6 +2481,19 @@ Output ONLY the ABAP source code, no explanations.`;
                                     <span className="text-[9px]">{obj.aiCapable ? '🤖' : '🔧'}</span>
                                     <span className={`text-[9px] capitalize font-medium`}>{obj.status}</span>
                                   </div>
+                                  {/* Approval status badge */}
+                                  {obj.approval_status && obj.approval_status !== 'draft' && (
+                                    <div className={`mt-1 inline-flex items-center gap-0.5 text-[9px] font-semibold px-1 py-0 rounded ${
+                                      obj.approval_status === 'approved' ? 'bg-green-100 text-green-700' :
+                                      obj.approval_status === 'pending_review' ? 'bg-amber-100 text-amber-700' :
+                                      obj.approval_status === 'rejected' ? 'bg-red-100 text-red-700' : ''
+                                    }`}>
+                                      {obj.approval_status === 'approved' && <Check size={7} />}
+                                      {obj.approval_status === 'pending_review' && <Clock size={7} />}
+                                      {obj.approval_status === 'rejected' && <X size={7} />}
+                                      {obj.approval_status === 'approved' ? 'Approved' : obj.approval_status === 'pending_review' ? 'In Review' : 'Rejected'}
+                                    </div>
+                                  )}
                                   {obj.description && (
                                     <p className="text-[10px] text-gray-500 mt-1 line-clamp-2 leading-snug">{obj.description}</p>
                                   )}
@@ -2486,10 +2578,48 @@ Output ONLY the ABAP source code, no explanations.`;
                   {selectedObj.status === 'applying' && (
                     <span className="px-2.5 py-1 text-xs text-amber-700 font-medium">Applying…</span>
                   )}
-                  <button onClick={() => handleDelete(selectedObj.id)}
-                    className="px-2.5 py-1 text-xs font-medium bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">Delete</button>
+                  {canDevelop && (
+                    <button onClick={() => handleDelete(selectedObj.id)}
+                      className="px-2.5 py-1 text-xs font-medium bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">Delete</button>
+                  )}
                 </div>
               </div>
+
+              {/* Approval gate row */}
+              <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-gray-500 font-medium">Review:</span>
+                {(!selectedObj.approval_status || selectedObj.approval_status === 'draft') && canDevelop && (
+                  <button onClick={() => submitForReview(selectedObj.id)}
+                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors">
+                    <Clock size={11} />Submit for Review
+                  </button>
+                )}
+                {selectedObj.approval_status === 'pending_review' && isFunctional && (
+                  <>
+                    <button onClick={() => approveObj(selectedObj.id)}
+                      className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors">
+                      <ThumbsUp size={11} />Approve
+                    </button>
+                    <button onClick={() => { const r = prompt('Rejection reason (optional):') ?? ''; rejectObj(selectedObj.id, r); }}
+                      className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">
+                      <ThumbsDown size={11} />Reject
+                    </button>
+                  </>
+                )}
+                {selectedObj.approval_status === 'approved' && (
+                  <span className="flex items-center gap-1 text-xs text-green-600 font-medium"><Check size={12} />Approved</span>
+                )}
+                {selectedObj.approval_status === 'rejected' && (
+                  <span className="flex items-center gap-1 text-xs text-red-600 font-medium"><X size={12} />Rejected{selectedObj.rejected_reason ? `: ${selectedObj.rejected_reason}` : ''}</span>
+                )}
+                {(!selectedObj.approval_status || selectedObj.approval_status === 'draft') && !canDevelop && (
+                  <span className="text-xs text-gray-400">Not submitted yet</span>
+                )}
+                {selectedObj.approval_status === 'pending_review' && !isFunctional && (
+                  <span className="flex items-center gap-1 text-xs text-amber-600 font-medium"><Clock size={11} />Waiting for review</span>
+                )}
+              </div>
+
               {selectedObj.generatedCode && (
                 <details>
                   <summary className="text-xs font-semibold text-gray-500 uppercase tracking-wide cursor-pointer select-none mb-1">
@@ -2520,6 +2650,68 @@ Output ONLY the ABAP source code, no explanations.`;
             </div>
           )}
         </>
+      )}
+
+      {/* Blueprint templates modal */}
+      {showTemplates && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2"><FolderOpen size={15} className="text-blue-600" />Blueprint Templates</h3>
+              <button onClick={() => setShowTemplates(false)} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-3 space-y-2">
+              {bpTemplates.length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-8">No templates saved yet.<br/>Save the current blueprint as a template to reuse it.</p>
+              )}
+              {bpTemplates.map(tpl => (
+                <div key={tpl.id} className="flex items-center justify-between gap-3 p-3 border border-gray-100 rounded-xl hover:bg-gray-50">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-800 truncate">{tpl.name}</p>
+                    {tpl.description && <p className="text-xs text-gray-400">{tpl.description}</p>}
+                  </div>
+                  {canDevelop && (
+                    <button onClick={() => applyTemplate(tpl)}
+                      className="px-3 py-1 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 flex-shrink-0">
+                      Apply
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Save as template modal */}
+      {showSaveTemplate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2"><Save size={14} />Save as Template</h3>
+              <button onClick={() => { setShowSaveTemplate(false); setTemplateName(''); }} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Template name</label>
+              <input
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                placeholder="e.g. S/4 Credit Management"
+                value={templateName}
+                onChange={e => setTemplateName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && saveAsTemplate()}
+              />
+              <p className="text-xs text-gray-400 mt-1">{objects.length} objects will be saved (status and code are reset)</p>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => { setShowSaveTemplate(false); setTemplateName(''); }}
+                className="px-3 py-1.5 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50">Cancel</button>
+              <button onClick={saveAsTemplate} disabled={!templateName.trim() || savingTemplate}
+                className="px-3 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
+                {savingTemplate ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}Save
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Add/Edit modal */}

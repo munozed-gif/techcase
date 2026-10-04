@@ -133,6 +133,7 @@ import { EmptyState, Modal, Input, Textarea, Select } from "./src/components/ui.
 // ============================================================
 import { AuthScreen } from "./src/views/AuthScreen.jsx";
 import { LandingView } from "./src/views/LandingView.jsx";
+import ProjectShareView from "./src/views/ProjectShareView.jsx";
 
 
 // ============================================================
@@ -549,6 +550,8 @@ function StartDateMonitor({ auth }) {
 
 // Intercept /join/:token before any auth flow
 const _joinMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/join\/([^/?#]+)/);
+// Intercept /share/:token — public read-only project view, no auth required
+const _shareMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/share\/([^/?#]+)/);
 
 export default function App() {
   const auth = useAuth();
@@ -587,6 +590,11 @@ export default function App() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, []);
+
+  // /share/:token — public read-only project view, no login needed
+  if (_shareMatch) {
+    return <ProjectShareView token={_shareMatch[1]} />;
+  }
 
   // /join/:token — show branded join screen before any auth check
   if (_joinMatch) {
