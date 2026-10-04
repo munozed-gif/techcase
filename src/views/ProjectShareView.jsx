@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { CheckCircle2, Clock, AlertCircle, BarChart2, FolderOpen, Layers } from "lucide-react";
+import { CheckCircle2, Clock, AlertCircle, BarChart2, FolderOpen } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
-import { TECHCASE_LOGO_URI } from "../lib/businessConstants.js";
+import { NovaLogo } from "../components/Sidebar.jsx";
 
 const STATUS_COLORS = {
   draft:     "bg-gray-100 text-gray-600",
@@ -84,14 +84,11 @@ export default function ProjectShareView({ token }) {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Top bar */}
-      <div className="bg-white border-b border-gray-100 px-6 py-3 flex items-center gap-3">
-        {branding.logoUrl
-          ? <img src={branding.logoUrl} alt={branding.name} className="h-7 w-auto object-contain" />
-          : <img src={TECHCASE_LOGO_URI} alt={branding.name} className="h-7 w-auto object-contain" />
-        }
-        <span className="text-sm font-semibold text-gray-700">{branding.name}</span>
-        <span className="text-gray-300 mx-1">·</span>
-        <span className="text-sm text-gray-500">Project Status</span>
+      <div className="bg-[#0B0F1A] px-6 py-2 flex items-center gap-3">
+        <NovaLogo size={32} />
+        <span className="text-sm font-semibold text-white">{branding.name}</span>
+        <span className="text-gray-600 mx-1">·</span>
+        <span className="text-sm text-gray-400">Project Status</span>
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-5">

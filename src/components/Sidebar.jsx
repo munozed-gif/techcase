@@ -318,4 +318,4 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
   );
 }
 
-export { Sidebar };
+export { Sidebar, NovaLogo };
