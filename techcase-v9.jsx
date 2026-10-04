@@ -593,7 +593,11 @@ export default function App() {
 
   // /share/:token — public read-only project view, no login needed
   if (_shareMatch) {
-    return <ProjectShareView token={_shareMatch[1]} />;
+    return (
+      <LanguageProvider>
+        <ProjectShareView token={_shareMatch[1]} />
+      </LanguageProvider>
+    );
   }
 
   // /join/:token — show branded join screen before any auth check

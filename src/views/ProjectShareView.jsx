@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { CheckCircle2, Clock, AlertCircle, BarChart2, FolderOpen } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { NovaLandingMark } from "./LandingView.jsx";
+import { useT } from "../i18n/index.jsx";
 
 const STATUS_COLORS = {
   draft:     "bg-white/10 text-blue-200",
@@ -28,6 +29,7 @@ function PlatformName({ name }) {
 }
 
 export default function ProjectShareView({ token }) {
+  const { lang, setLang } = useT();
   const [project, setProject] = useState(null);
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -96,7 +98,13 @@ export default function ProjectShareView({ token }) {
         <NovaLandingMark size={32} />
         <span className="text-sm font-bold"><PlatformName name={branding.name} /></span>
         <span className="text-white/20 mx-1">·</span>
-        <span className="text-sm text-blue-400/70">Project Status</span>
+        <span className="text-sm text-blue-400/70">{lang === 'es' ? 'Estado del Proyecto' : 'Project Status'}</span>
+        <button
+          onClick={() => setLang(lang === 'en' ? 'es' : 'en')}
+          className="ml-auto text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors px-2 py-1 rounded-lg border border-blue-900 hover:border-blue-700"
+          style={{ letterSpacing: '.04em' }}>
+          {lang === 'en' ? 'ES' : 'EN'}
+        </button>
       </nav>
 
       {/* Project hero */}
@@ -119,9 +127,9 @@ export default function ProjectShareView({ token }) {
         {/* Summary tiles */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: "Total Cases", value: total, icon: <FolderOpen size={16} className="text-blue-400" /> },
-            { label: "Completed",   value: done,  icon: <CheckCircle2 size={16} className="text-green-400" /> },
-            { label: "In Progress", value: active, icon: <Clock size={16} className="text-amber-400" /> },
+            { label: lang === 'es' ? 'Total Casos' : 'Total Cases',    value: total,  icon: <FolderOpen size={16} className="text-blue-400" /> },
+            { label: lang === 'es' ? 'Completados' : 'Completed',      value: done,   icon: <CheckCircle2 size={16} className="text-green-400" /> },
+            { label: lang === 'es' ? 'En Progreso' : 'In Progress',    value: active, icon: <Clock size={16} className="text-amber-400" /> },
           ].map(tile => (
             <div key={tile.label} className="rounded-xl border border-white/10 p-4 text-center" style={{ background: 'rgba(255,255,255,0.04)' }}>
               <div className="flex justify-center mb-1">{tile.icon}</div>
@@ -135,13 +143,17 @@ export default function ProjectShareView({ token }) {
         <div className="rounded-2xl border border-white/10 p-5" style={{ background: 'rgba(255,255,255,0.04)' }}>
           <div className="flex items-center gap-2 mb-3">
             <BarChart2 size={14} className="text-blue-400" />
-            <span className="font-semibold text-sm text-white">Overall Progress</span>
+            <span className="font-semibold text-sm text-white">{lang === 'es' ? 'Progreso General' : 'Overall Progress'}</span>
             <span className="ml-auto text-sm font-bold text-blue-300">{pct}%</span>
           </div>
           <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
             <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${pct}%` }} />
           </div>
-          <p className="text-xs text-blue-400/50 mt-2">{done} of {total} cases completed · avg. {avgProg}% across all cases</p>
+          <p className="text-xs text-blue-400/50 mt-2">
+            {lang === 'es'
+              ? `${done} de ${total} casos completados · promedio ${avgProg}% en todos los casos`
+              : `${done} of ${total} cases completed · avg. ${avgProg}% across all cases`}
+          </p>
         </div>
 
         {/* Cases list */}
@@ -149,7 +161,7 @@ export default function ProjectShareView({ token }) {
           <div className="rounded-2xl border border-white/10 overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
             <div className="px-5 py-3 border-b border-white/5 flex items-center gap-2">
               <FolderOpen size={13} className="text-blue-400" />
-              <span className="text-sm font-semibold text-white">Cases</span>
+              <span className="text-sm font-semibold text-white">{lang === 'es' ? 'Casos' : 'Cases'}</span>
             </div>
             <div className="divide-y divide-white/5">
               {cases.map(c => (
@@ -181,7 +193,7 @@ export default function ProjectShareView({ token }) {
         )}
 
         <p className="text-center text-xs text-blue-400/30 pt-2">
-          Powered by <PlatformName name={branding.name} /> · Read-only view
+          {lang === 'es' ? 'Desarrollado por' : 'Powered by'} <PlatformName name={branding.name} /> · {lang === 'es' ? 'Vista de solo lectura' : 'Read-only view'}
         </p>
       </div>
     </div>
