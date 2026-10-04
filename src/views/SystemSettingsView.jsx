@@ -759,14 +759,25 @@ function SettingsPlatformTab({ ssCtx }) {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
-            <input value={form.brand_logo_url}
-              onChange={e => setForm(p => ({ ...p, brand_logo_url: e.target.value }))}
-              placeholder="https://…/logo.png"
-              className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full font-mono text-xs" />
-            {form.brand_logo_url && (
+            <div className="flex gap-2">
+              <input value={form.brand_logo_url}
+                onChange={e => setForm(p => ({ ...p, brand_logo_url: e.target.value }))}
+                placeholder="Leave empty to use Nova Logo"
+                className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full font-mono text-xs" />
+              {form.brand_logo_url && (
+                <button
+                  onClick={() => setForm(p => ({ ...p, brand_logo_url: "" }))}
+                  className="flex-shrink-0 px-3 py-2 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-xl hover:bg-blue-100 whitespace-nowrap">
+                  Use Nova Logo
+                </button>
+              )}
+            </div>
+            {form.brand_logo_url ? (
               <img src={form.brand_logo_url} alt="Logo preview"
                 className="mt-2 h-10 object-contain rounded border border-gray-100 p-1"
                 onError={e => { e.currentTarget.style.display = 'none'; }} />
+            ) : (
+              <p className="text-xs text-gray-400 mt-1">Nova Logo will be used (animated, shown in sidebar)</p>
             )}
           </div>
           <div>
