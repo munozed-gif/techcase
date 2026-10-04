@@ -2542,18 +2542,18 @@ Output ONLY the ABAP source code, no explanations.`;
 
       {/* Reviewer row */}
       {canDevelop && (
-        <div className="px-4 py-2 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3 flex-wrap text-xs">
+        <div className="px-4 py-2 border-b border-white/10 flex items-center gap-3 flex-wrap text-xs">
           <Mail size={12} className="text-indigo-400 flex-shrink-0" />
-          <span className="font-medium text-gray-500 flex-shrink-0">Reviewer:</span>
+          <span className="font-medium text-gray-400 flex-shrink-0">Reviewer:</span>
 
           {/* Inherited from parent case */}
           {parentConsultant ? (
-            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 border border-indigo-200 rounded-lg text-indigo-700 font-medium">
+            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-500/15 border border-indigo-500/30 rounded-lg text-indigo-300 font-medium">
               {parentConsultant.full_name} · {parentConsultant.email}
-              <span className="text-[10px] text-indigo-400 font-normal ml-0.5">(inherited)</span>
+              <span className="text-[10px] text-indigo-400/60 font-normal ml-0.5">(inherited)</span>
             </span>
           ) : reviewerEmail ? (
-            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-green-50 border border-green-200 rounded-lg text-green-700 font-medium">
+            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-green-500/15 border border-green-500/30 rounded-lg text-green-300 font-medium">
               {reviewerEmail}
             </span>
           ) : reviewerInput !== undefined ? (
@@ -2563,12 +2563,12 @@ Output ONLY the ABAP source code, no explanations.`;
                 onChange={e => setReviewerInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && saveReviewer()}
                 placeholder="reviewer@email.com"
-                className="text-xs border border-gray-200 rounded-lg px-2 py-0.5 w-48 focus:outline-none focus:border-indigo-400"
+                className="text-xs border border-white/20 bg-white/5 text-white/80 placeholder-white/25 rounded-lg px-2 py-0.5 w-48 focus:outline-none focus:border-indigo-400/60"
               />
               <button
                 onClick={saveReviewer}
                 disabled={reviewerSaving || !reviewerInput.trim()}
-                className="px-2 py-0.5 text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-100 disabled:opacity-40 transition-colors">
+                className="px-2 py-0.5 text-xs font-medium bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-lg hover:bg-indigo-500/30 disabled:opacity-40 transition-colors">
                 {reviewerSaving ? '…' : 'Save'}
               </button>
             </div>
@@ -2578,7 +2578,7 @@ Output ONLY the ABAP source code, no explanations.`;
           {reviewerEmail && !parentConsultant && (
             <button
               onClick={() => { setReviewerEmail(''); setReviewerInput(''); }}
-              className="text-gray-400 hover:text-gray-600 transition-colors text-[10px] underline">
+              className="text-white/30 hover:text-white/60 transition-colors text-[10px] underline">
               change
             </button>
           )}
@@ -2590,8 +2590,8 @@ Output ONLY the ABAP source code, no explanations.`;
               disabled={genLinkLoading}
               className={`ml-auto flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors ${
                 approvalLinkCopied
-                  ? 'bg-green-50 border-green-300 text-green-700'
-                  : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
+                  ? 'bg-green-500/20 border-green-500/30 text-green-300'
+                  : 'bg-indigo-500/20 border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/30'
               }`}>
               {approvalLinkCopied ? <><Check size={11} />Copied!</> : <><Link2 size={11} />{genLinkLoading ? 'Generating…' : 'Copy Review Link'}</>}
             </button>
@@ -2602,7 +2602,7 @@ Output ONLY the ABAP source code, no explanations.`;
             <button
               onClick={syncReviews}
               disabled={syncingReviews}
-              className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-gray-200 text-gray-500 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-40">
+              className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-white/15 text-white/40 rounded-lg hover:bg-white/5 hover:text-white/60 transition-colors disabled:opacity-40">
               <RefreshCw size={11} className={syncingReviews ? 'animate-spin' : ''} />
               {syncedCount !== null ? `Synced ${syncedCount}` : 'Sync Reviews'}
             </button>
