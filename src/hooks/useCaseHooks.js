@@ -21,10 +21,11 @@ function useCases(filters = {}) {
     // For key users, resolve their case IDs first via a simple lookup
     let caseIdFilter = null;
     if (filters.key_user_id) {
-      const { data: kuRows } = await supabase
+      const { data: kuRows, error: kuErr } = await supabase
         .from('case_key_users')
         .select('case_id')
         .eq('user_id', filters.key_user_id);
+      console.log('[useCases] key_user lookup', { userId: filters.key_user_id, rows: kuRows, err: kuErr });
       caseIdFilter = (kuRows ?? []).map(r => r.case_id);
       if (caseIdFilter.length === 0) {
         setCases([]); setTotalCount(0); setLoading(false); return;
