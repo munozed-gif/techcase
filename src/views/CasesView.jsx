@@ -58,13 +58,51 @@ function CasesView({ auth, initialCaseId }) {
     return () => clearTimeout(debounceRef.current);
   }, [search]);
 
-  const { cases: _rawCasesCV, loading, createCase, updateCase, deleteCase, refetch, hasMore, loadMore } = useCases({
+  const { cases: _rawCasesCV, loading: _loadingCV, createCase, updateCase, deleteCase, refetch: _refetchCV, hasMore, loadMore } = useCases({
     search: debouncedSearch || undefined,
     client_id: auth.isClient ? auth.user?.id : undefined,
     key_user_id: auth.isKeyUser ? auth.user?.id : undefined,
   });
   const _casesViewVisCfg = useVisibilitySettings();
-  const cases = filterCasesByVisibility(_rawCasesCV, auth, _casesViewVisCfg);
+
+  // Key users get their cases directly from case_key_users to avoid pagination issues
+  const [_kuCases, _setKuCases] = useState([]);
+  const [_kuLoading, _setKuLoading] = useState(false);
+  useEffect(() => {
+    if (!auth.isKeyUser || !auth.user?.id) return;
+    _setKuLoading(true);
+    supabase.from('case_key_users')
+      .select(`case_id, area, cases(
+        *, created_by,
+        client:client_id(id, full_name, email, avatar_url, client_profiles(company_name)),
+        manager:manager_id(id, full_name, email, avatar_url),
+        case_assignments(consultant_id, time_commitment, users:consultant_id(id, full_name, avatar_url)),
+        case_key_users(user_id, area, users:user_id(full_name, email, role)),
+        applications(consultant_id, submitted_at, consultant:consultant_id(full_name, avatar_url)),
+        project:project_id(id, name, avatar_url, client:client_id(id, avatar_url))
+      )`)
+      .eq('user_id', auth.user.id)
+      .then(({ data, error }) => {
+        if (error) console.error('[CasesView] key user cases:', error.message);
+        _setKuCases((data ?? []).map(r => r.cases).filter(Boolean));
+        _setKuLoading(false);
+      });
+  }, [auth.isKeyUser, auth.user?.id, debouncedSearch]);
+
+  const loading = auth.isKeyUser ? _kuLoading : _loadingCV;
+  const refetch = auth.isKeyUser
+    ? () => {
+        if (!auth.user?.id) return;
+        _setKuLoading(true);
+        supabase.from('case_key_users')
+          .select(`case_id, area, cases(*, created_by, client:client_id(id, full_name, email, avatar_url, client_profiles(company_name)), manager:manager_id(id, full_name, email, avatar_url), case_assignments(consultant_id, time_commitment, users:consultant_id(id, full_name, avatar_url)), case_key_users(user_id, area, users:user_id(full_name, email, role)), applications(consultant_id, submitted_at, consultant:consultant_id(full_name, avatar_url)), project:project_id(id, name, avatar_url, client:client_id(id, avatar_url)))`)
+          .eq('user_id', auth.user.id)
+          .then(({ data }) => { _setKuCases((data ?? []).map(r => r.cases).filter(Boolean)); _setKuLoading(false); });
+      }
+    : _refetchCV;
+
+  const _rawCasesForVis = auth.isKeyUser ? _kuCases : _rawCasesCV;
+  const cases = auth.isKeyUser ? _kuCases : filterCasesByVisibility(_rawCasesForVis, auth, _casesViewVisCfg);
 
   // Open a specific case when navigated from GlobalSearch
   const [initialCaseOpened, setInitialCaseOpened] = useState(false);
