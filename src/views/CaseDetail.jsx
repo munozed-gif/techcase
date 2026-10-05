@@ -3155,8 +3155,10 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           {/* Case Team card */}
           {(() => {
             const consultant = caseData.case_assignments?.[0];
-            const teamMembers = caseData.case_key_users ?? [];
-            const hasTeam = consultant || teamMembers.length > 0 || caseData.key_user_email || caseData.is_head_hunter;
+            const reviewerMember = (caseData.case_key_users ?? []).find(ku => ku.area === 'reviewer');
+            const teamMembers = (caseData.case_key_users ?? []).filter(ku => ku.area !== 'reviewer');
+            const reviewerDisplay = reviewerMember?.users?.full_name ?? caseData.reviewer_email;
+            const hasTeam = consultant || teamMembers.length > 0 || caseData.key_user_email || caseData.is_head_hunter || caseData.reviewer_email;
             if (!hasTeam) return null;
             const ROLE_BADGE = {
               consultant:          "bg-green-100 text-green-700",
@@ -3206,6 +3208,21 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                   })}
                   {caseData.key_user_email && !teamMembers.length && (
                     <div className="text-xs text-gray-500 px-1">{t("case.key_user_invited")}: {caseData.key_user_email}</div>
+                  )}
+                  {caseData.reviewer_email && (
+                    <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-lg px-2.5 py-1.5">
+                      <UserCheck className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-gray-900 text-xs truncate">{reviewerDisplay}</div>
+                        {reviewerMember?.users?.full_name && (
+                          <div className="text-[10px] text-gray-400 truncate">{caseData.reviewer_email}</div>
+                        )}
+                        <div className="text-[10px] text-indigo-400">Blueprint Reviewer</div>
+                      </div>
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded flex-shrink-0">
+                        {caseData.reviewer_user_id ? 'In-app' : 'External'}
+                      </span>
+                    </div>
                   )}
                   {caseData.is_head_hunter && (
                     <div className="flex items-center gap-2 bg-pink-50 border border-pink-100 rounded-lg px-2.5 py-1.5">
