@@ -23,6 +23,7 @@ import {
   LIFECYCLE_PRESETS, SAP_AREAS, INDUSTRY_AREAS, PROJECT_TYPES,
   DEFAULT_ACTIVITY_PHASES, ROLE_COLORS,
 } from "../lib/businessConstants.js";
+import { sapLiveCheck, sapFetchSource } from "../components/SapPanels.jsx";
 
 function ProjectFieldEditor({ caseData, auth }) {
   const { t } = useT();
@@ -127,7 +128,7 @@ function CaseLifecycleTrack({ stages, currentStatus }) {
       <div className="overflow-x-auto -mx-1 px-1">
       <div className="relative flex items-start justify-between min-w-[480px]">
         <div className={`absolute ${lineTop} ${lineX} h-0.5 z-0`}
-          style={{ background: `linear-gradient(to right, #1A4B8C ${progressPct}%, #e5e7eb ${progressPct}%)` }} />
+          style={{ background: `linear-gradient(to right, #1A4B8C ${progressPct}%, var(--t-progress-track,#e5e7eb) ${progressPct}%)` }} />
         {flow.map((stage, i) => {
           const done   = curIsTerminal || i < curIdx;
           const active = !curIsTerminal && i === curIdx;
@@ -136,18 +137,18 @@ function CaseLifecycleTrack({ stages, currentStatus }) {
             <div key={stage.key} className="relative z-10 flex flex-col items-center flex-1 gap-1.5">
               <div className={`${circSz} rounded-full flex items-center justify-center transition-all`}
                 style={{
-                  background: done || active ? stage.color : '#fff',
-                  border: !done && !active ? '2px solid #e5e7eb' : 'none',
+                  background: done || active ? stage.color : 'var(--t-card-bg,#fff)',
+                  border: !done && !active ? '2px solid var(--t-border,#e5e7eb)' : 'none',
                   boxShadow: active ? `0 0 0 4px ${stage.color}30` : undefined,
                 }}>
                 {done
                   ? <Check size={iconSz} color="#fff" />
-                  : <Icon size={iconSz} color={active ? '#fff' : '#9ca3af'} />
+                  : <Icon size={iconSz} color={active ? '#fff' : 'var(--ad-text3,#9ca3af)'} />
                 }
               </div>
               <div className="text-center px-0.5">
                 <div className={`leading-tight font-semibold ${big ? 'text-xs' : 'text-[10px]'}`}
-                  style={{ color: active ? stage.color : done ? '#6b7280' : '#9ca3af' }}>
+                  style={{ color: active ? stage.color : done ? 'var(--t-text2,#6b7280)' : 'var(--ad-text3,#9ca3af)' }}>
                   {stage.label}
                 </div>
               </div>
@@ -213,7 +214,7 @@ function LifecycleFlowDiagram({ stages, currentStatus }) {
               const isDone = state === 'completed';
               const isLast = i === items.length - 1;
 
-              const lineColor = isDone ? stage.color + '60' : '#e5e7eb';
+              const lineColor = isDone ? stage.color + '60' : 'var(--t-border,#e5e7eb)';
 
               return (
                 <div key={stage.key} className="flex items-start gap-2">
@@ -224,10 +225,10 @@ function LifecycleFlowDiagram({ stages, currentStatus }) {
                       height: isCurrent ? 20 : 14,
                       borderRadius: '50%',
                       background: isDone || isCurrent ? stage.color : undefined,
-                      border: isDone || isCurrent ? 'none' : '2px solid #d1d5db',
+                      border: isDone || isCurrent ? 'none' : '2px solid var(--t-border,#d1d5db)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: 8, fontWeight: 700,
-                      color: isDone || isCurrent ? '#fff' : '#9ca3af',
+                      color: isDone || isCurrent ? '#fff' : 'var(--ad-text3,#9ca3af)',
                       flexShrink: 0,
                       boxShadow: isCurrent ? `0 0 0 3px ${stage.color}35` : 'none',
                       marginTop: isCurrent ? -2 : 1,
@@ -256,7 +257,7 @@ function LifecycleFlowDiagram({ stages, currentStatus }) {
                     <span style={{
                       fontSize: 12,
                       fontWeight: isCurrent ? 700 : isDone ? 500 : 400,
-                      color: isCurrent ? stage.color : isDone ? stage.color + 'cc' : '#9ca3af',
+                      color: isCurrent ? stage.color : isDone ? stage.color + 'cc' : 'var(--ad-text3,#9ca3af)',
                     }}>
                       {stage.label}
                     </span>
@@ -340,15 +341,15 @@ function renderMarkdown(md) {
           <span style="background:#b03030;width:16px;height:14px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;border-radius:2px">×</span>
         </span>
       </div>
-      <div style="background:#dde4f0;border-bottom:1px solid #b0bbcc;padding:2px 8px;font-size:10.5px;color:#222;display:flex;gap:14px">
+      <div style="background:var(--sap-bar,#dde4f0);border-bottom:1px solid #b0bbcc;padding:2px 8px;font-size:10.5px;color:var(--sap-text,#222);display:flex;gap:14px">
         ${['Sistema','Editar','Pasar a','Favoritos','Extras','Entorno','Ayuda'].map(m=>`<span>${m}</span>`).join('')}
       </div>
-      <div style="background:#e4eaf5;border-bottom:1px solid #b0bbcc;padding:3px 8px;display:flex;gap:2px;align-items:center">
-        <input style="width:70px;height:18px;border:1px solid #8899bb;font-size:10px;padding:0 4px;background:white" readonly />
+      <div style="background:var(--sap-toolbar,#e4eaf5);border-bottom:1px solid #b0bbcc;padding:3px 8px;display:flex;gap:2px;align-items:center">
+        <input style="width:70px;height:18px;border:1px solid #8899bb;font-size:10px;padding:0 4px;background:var(--sap-white,white)" readonly />
         ${[0,1,2,3,4,5].map(i=>`<span style="background:#c8d4e8;border:1px solid #8899bb;width:20px;height:18px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;${i===2?'margin-left:5px':''}">▶</span>`).join('')}
       </div>
       ${body}
-      <div style="background:#dde4f0;border-top:1px solid #b0bbcc;padding:2px 8px;font-size:10px;color:#334;display:flex;justify-content:space-between">
+      <div style="background:var(--sap-bar,#dde4f0);border-top:1px solid #b0bbcc;padding:2px 8px;font-size:10px;color:var(--sap-text,#334);display:flex;justify-content:space-between">
         <span>Sistema: TechCase-DEV &nbsp;|&nbsp; Mandante: 100</span>
         <span style="color:#006600;font-weight:700">● Listo</span>
       </div>
@@ -358,13 +359,13 @@ function renderMarkdown(md) {
       const dp = params.length ? params : [{label:'Sociedad',value:'1000',req:true},{label:'Ejercicio',value:'2024',req:true},{label:'Período de',value:'01',req:false},{label:'Período a',value:'12',req:false}];
       const fields = dp.map(p=>`<div style="display:flex;align-items:center;margin-bottom:7px">
         <span style="color:#cc0000;width:10px;font-weight:bold;font-size:13px">${p.req?'*':''}</span>
-        <label style="width:185px;color:#2a3a5a;font-size:11.5px">${esc(p.label)}</label>
-        <input value="${esc(p.value)}" style="width:155px;height:21px;border:1px solid #99aabb;border-bottom:2px solid #2855a8;padding:0 6px;font-size:11.5px;color:#001280;background:white" readonly />
+        <label style="width:185px;color:var(--sap-label,#2a3a5a);font-size:11.5px">${esc(p.label)}</label>
+        <input value="${esc(p.value)}" style="width:155px;height:21px;border:1px solid #99aabb;border-bottom:2px solid #2855a8;padding:0 6px;font-size:11.5px;color:var(--sap-field-text,#001280);background:var(--sap-white,white)" readonly />
         <span style="background:#c8d4e8;border:1px solid #8899bb;width:20px;height:21px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;margin-left:2px;cursor:pointer">▼</span>
       </div>`).join('');
-      return chrome(`<div style="background:#f5f7fc;padding:14px 18px">
-        <div style="border:1px solid #8899bb;border-radius:2px;padding:16px 18px;background:white;position:relative;margin-bottom:12px">
-          <div style="position:absolute;top:-9px;left:12px;background:white;padding:0 6px;font-size:10.5px;font-weight:600;color:#1a3764">Parámetros de selección</div>
+      return chrome(`<div style="background:var(--sap-panel,#f5f7fc);padding:14px 18px">
+        <div style="border:1px solid #8899bb;border-radius:2px;padding:16px 18px;background:var(--sap-white,white);position:relative;margin-bottom:12px">
+          <div style="position:absolute;top:-9px;left:12px;background:var(--sap-white,white);padding:0 6px;font-size:10.5px;font-weight:600;color:#1a3764">Parámetros de selección</div>
           ${fields}
         </div>
         <div style="display:flex;gap:8px">
@@ -380,10 +381,10 @@ function renderMarkdown(md) {
       const tw = uc.reduce((s,c)=>s+c.width,0);
       const wp = c=>((c.width/tw)*100).toFixed(1)+'%';
       const hdr = uc.map(c=>`<th style="background:#3a628a;color:white;padding:6px 8px;font-size:11px;font-weight:600;text-align:${c.align==='R'?'right':'left'};border:1px solid #2a4a70;width:${wp(c)}">${esc(c.label)}</th>`).join('');
-      const drows = ur.map((row,ri)=>`<tr>${uc.map((c,ci)=>`<td style="padding:4px 8px;font-size:11px;border:1px solid #c8d4e8;text-align:${c.align==='R'?'right':'left'};background:${ri%2===0?'white':'#f0f5fc'}">${esc(row[ci]||'')}</td>`).join('')}</tr>`).join('');
-      const trow = `<tr>${uc.map((c,ci)=>`<td style="padding:5px 8px;font-size:11px;font-weight:700;border:1px solid #8899bb;text-align:${c.align==='R'?'right':'left'};background:#d0e4f8;color:#00186a">${esc(ut[ci]||'')}</td>`).join('')}</tr>`;
+      const drows = ur.map((row,ri)=>`<tr>${uc.map((c,ci)=>`<td style="padding:4px 8px;font-size:11px;border:1px solid #c8d4e8;text-align:${c.align==='R'?'right':'left'};background:${ri%2===0?'var(--sap-white,white)':'var(--sap-row-alt,#f0f5fc)'}">${esc(row[ci]||'')}</td>`).join('')}</tr>`).join('');
+      const trow = `<tr>${uc.map((c,ci)=>`<td style="padding:5px 8px;font-size:11px;font-weight:700;border:1px solid #8899bb;text-align:${c.align==='R'?'right':'left'};background:var(--sap-total,#d0e4f8);color:var(--sap-total-text,#00186a)">${esc(ut[ci]||'')}</td>`).join('')}</tr>`;
       return chrome(`<div>
-        <div style="background:#e8eff8;border-bottom:1px solid #b0bbcc;padding:3px 8px;display:flex;gap:4px">
+        <div style="background:var(--sap-toolbar,#e8eff8);border-bottom:1px solid #b0bbcc;padding:3px 8px;display:flex;gap:4px">
           ${['Ordenar','Filtro','Suma','Subtotales','Imprimir','Excel'].map(b=>`<button style="background:#c8d4e8;border:1px solid #8899bb;padding:2px 8px;font-size:10.5px;cursor:pointer;border-radius:2px">${b}</button>`).join('')}
         </div>
         <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-family:'Segoe UI',Arial,sans-serif">
@@ -416,7 +417,7 @@ function renderMarkdown(md) {
       while (i < lines.length && !/^```/.test(lines[i])) { codeLines.push(lines[i]); i++; }
       i++;
       const cc = codeLines.join('\n');
-      out.push(/SCREEN:/i.test(cc) ? renderSapScreen(cc) : `<pre style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:10px 14px;overflow-x:auto;font-size:11px;font-family:monospace;white-space:pre">${esc(cc)}</pre>`);
+      out.push(/SCREEN:/i.test(cc) ? renderSapScreen(cc) : `<pre style="background:var(--ad-card,#f3f4f6);border:1px solid var(--ad-b,#e5e7eb);border-radius:6px;padding:10px 14px;overflow-x:auto;font-size:11px;font-family:monospace;white-space:pre;color:var(--ad-text,inherit)">${esc(cc)}</pre>`);
       continue;
     }
     if (line.trim().startsWith('|') && line.includes('|')) {
@@ -428,9 +429,9 @@ function renderMarkdown(md) {
     let m;
     if ((m=line.match(/^####\s+(.+)/))) { out.push(`<h4 style="font-size:0.875rem;font-weight:700;margin:0.75rem 0 0.25rem">${fmt(m[1])}</h4>`); i++; continue; }
     if ((m=line.match(/^###\s+(.+)/)))  { out.push(`<h3 style="font-size:1rem;font-weight:700;margin:1rem 0 0.375rem">${fmt(m[1])}</h3>`); i++; continue; }
-    if ((m=line.match(/^##\s+(.+)/)))   { out.push(`<h2 style="font-size:1.125rem;font-weight:700;margin:1.25rem 0 0.5rem;color:#1A4B8C">${fmt(m[1])}</h2>`); i++; continue; }
-    if ((m=line.match(/^#\s+(.+)/)))    { out.push(`<h1 style="font-size:1.25rem;font-weight:800;margin:1.5rem 0 0.5rem;color:#1A4B8C">${fmt(m[1])}</h1>`); i++; continue; }
-    if (/^---$/.test(line))             { out.push('<hr style="border:none;border-top:1px solid #e5e7eb;margin:1rem 0">'); i++; continue; }
+    if ((m=line.match(/^##\s+(.+)/)))   { out.push(`<h2 style="font-size:1.125rem;font-weight:700;margin:1.25rem 0 0.5rem;color:var(--t-text-accent,#1A4B8C)">${fmt(m[1])}</h2>`); i++; continue; }
+    if ((m=line.match(/^#\s+(.+)/)))    { out.push(`<h1 style="font-size:1.25rem;font-weight:800;margin:1.5rem 0 0.5rem;color:var(--t-text-accent,#1A4B8C)">${fmt(m[1])}</h1>`); i++; continue; }
+    if (/^---$/.test(line))             { out.push('<hr style="border:none;border-top:1px solid var(--ad-b,#e5e7eb);margin:1rem 0">'); i++; continue; }
     if ((m=line.match(/^\s*[-*]\s+(.+)/)))  { out.push(`<li style="margin:0.25rem 0 0.25rem 1.25rem;list-style:disc">${fmt(m[1])}</li>`); i++; continue; }
     if ((m=line.match(/^\d+\.\s+(.+)/)))    { out.push(`<li style="margin:0.25rem 0 0.25rem 1.25rem;list-style:decimal">${fmt(m[1])}</li>`); i++; continue; }
     if (!line.trim())                       { out.push('<br>'); i++; continue; }
@@ -726,7 +727,7 @@ function downloadHtml(htmlString, filename = 'prototype.html') {
 
 const ZOOM_STEPS = [0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 1.0];
 
-function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, generatingSpecs, documents, onBack, onRegenerate, t }) {
+function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, protoError, protoErrorMsg, generatingSpecs, isRegeneratingProto, documents, onBack, onRegenerate, t }) {
   const [loading, setLoading] = useState(false);
   const [fetchErr, setFetchErr] = useState(null);
   const [zoom, setZoom] = useState(0.55);
@@ -821,18 +822,24 @@ function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, generatingS
           {t("spec.proto_saved")}
         </div>
       )}
-      {!protoSaved && generatingSpecs && (
+      {!protoSaved && (generatingSpecs || isRegeneratingProto) && (
         <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
-          <Spinner /><span className="text-sm">{t("spec.gen_all_loading")}</span>
+          <Spinner /><span className="text-sm">{isRegeneratingProto ? t("spec.proto_generating") : t("spec.gen_all_loading")}</span>
         </div>
       )}
-      {!protoSaved && !generatingSpecs && (
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 flex flex-col items-center gap-3 text-center">
-          <p className="text-sm text-gray-500">{t("spec.proto_pending")}</p>
+      {!protoSaved && !generatingSpecs && !isRegeneratingProto && (
+        <div className={`border rounded-xl p-6 flex flex-col items-center gap-3 text-center ${protoError ? 'bg-red-950 border-red-800' : 'bg-gray-50 border-gray-200'}`}>
+          {protoError
+            ? <>
+                <p className="text-sm text-red-400 font-semibold">{t("spec.proto_error")}</p>
+                {protoErrorMsg && <p className="text-xs text-red-300 break-all max-w-xs">{protoErrorMsg}</p>}
+              </>
+            : <p className="text-sm text-gray-500">{t("spec.proto_pending")}</p>
+          }
           {onRegenerate && (
             <button onClick={onRegenerate}
               className="px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-              {t("spec.proto_generate")}
+              {protoError ? t("spec.proto_retry") : t("spec.proto_generate")}
             </button>
           )}
         </div>
@@ -846,7 +853,9 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const ssCtx = useSystemSettings();
   const genModel       = ssCtx.settings["ai_model"]        ?? 'claude-haiku-4-5-20251001';
   const analysisModel  = ssCtx.settings["analysis_model"]  ?? 'claude-haiku-4-5-20251001';
-  const protoModel     = ssCtx.settings["prototype_model"] ?? 'claude-sonnet-5';
+  const _protoModelRaw = ssCtx.settings["prototype_model"] ?? 'claude-sonnet-5-5';
+  const protoModel     = _protoModelRaw === 'claude-sonnet-5' ? 'claude-sonnet-5-5' : _protoModelRaw;
+  const liveCheckEnabled = (ssCtx.settings["generation_context"] ?? {}).sap_live_check === true;
   const { spec, loading: specLoading, saveSpec, refetch } = useCaseSpecification(caseData.id, auth.user?.id);
 
   // Mode selection
@@ -875,7 +884,8 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [aiSpecA, setAiSpecA]           = useState(''); // custom dev spec
   const [aiSpecB, setAiSpecB]           = useState(''); // standard SAP spec
   const [aiSpecC, setAiSpecC]           = useState(''); // customer proposal as-is
-  const [selectedSpec, setSelectedSpec] = useState(null); // 'a' | 'b' | 'c'
+  const [aiSpecD, setAiSpecD]           = useState(''); // customer specification (non-technical)
+  const [selectedSpec, setSelectedSpec] = useState(null); // 'a' | 'b' | 'c' | 'd'
   const [generatingSpecs, setGeneratingSpecs] = useState(false);
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [analysisCustomerContent, setAnalysisCustomerContent] = useState('');
@@ -893,14 +903,23 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [rejectReason, setRejectReason]   = useState('');
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [approving, setApproving]         = useState(false);
-  const [savedSpecUrls, setSavedSpecUrls] = useState({ a: null, b: null, c: null });
+  const [savedSpecUrls, setSavedSpecUrls] = useState({ a: null, b: null, c: null, d: null });
   const [savingDoc, setSavingDoc]         = useState(false);
   const [specHtml, setSpecHtml]           = useState(null);
   const [activeProfile, setActiveProfile] = useState(null);
-  const [protoSaved, setProtoSaved]       = useState(false);
+  const [protoSaved, setProtoSaved]         = useState(false);
   const [protoHtmlState, setProtoHtmlState] = useState(null);
-  const [viewingProto, setViewingProto]   = useState(false);
-  const [protoError, setProtoError]       = useState(false);
+  const [viewingProto, setViewingProto]     = useState(false);
+  const [protoError, setProtoError]         = useState(false);
+  const [protoErrorMsg, setProtoErrorMsg]   = useState('');
+  const [protoGenerating, setProtoGenerating] = useState(false);
+  const [generatingSpecD, setGeneratingSpecD] = useState(false);
+
+  // SAP live connection info node
+  const [sapConnInfo, setSapConnInfo]     = useState(null);
+  const [sapConnLoading, setSapConnLoading] = useState(false);
+  const [sapConnCfg, setSapConnCfg]       = useState(null); // full config incl. password, for test
+  const [sapConnTest, setSapConnTest]     = useState(null); // null | 'testing' | { ok, info?, error?, message? }
 
   // ── Document helpers ─────────────────────────────────────────
   function blobToBase64(blob) {
@@ -937,6 +956,50 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
       }
     }
     return blocks;
+  }
+
+  // Returns { blocks, contextText } with ABAP standards PDFs and naming rules
+  async function buildAbapStandardsForSpec() {
+    const projId   = caseData.project_id;
+    const clientId = caseData.client_id;
+    const caseId   = caseData.id;
+    const sapIntCfg = ssCtx.settings['sap_integration'] ?? {};
+    const rawTemplates = projId
+      ? (sapIntCfg[`proj_${projId}`]?.abap_templates ?? (sapIntCfg[`proj_${projId}`]?.abap_template ? [sapIntCfg[`proj_${projId}`].abap_template] : []))
+      : [];
+
+    const blocks = [];
+    for (const tmpl of rawTemplates) {
+      const url = typeof tmpl === 'string' ? tmpl : (tmpl.url ?? tmpl.file_url);
+      if (!url) continue;
+      try {
+        const resp = await fetch(url);
+        const blob = await resp.blob();
+        const b64  = await blobToBase64(blob);
+        blocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } });
+      } catch (_) {}
+    }
+
+    const clientStd  = (ssCtx.settings['abap_standards_client']  ?? {})[clientId]  ?? {};
+    const projectStd = (ssCtx.settings['abap_standards_project'] ?? {})[projId]    ?? {};
+    const caseStd    = (ssCtx.settings['abap_standards_case']    ?? {})[caseId]    ?? {};
+    const std = { globalPrefix:'Z', namespacePrefix:'', objectTypePrefixes:{}, ...clientStd, ...projectStd, ...caseStd };
+
+    const lines = [];
+    if (std.globalPrefix)     lines.push(`Global object prefix: ${std.globalPrefix}`);
+    if (std.namespacePrefix)  lines.push(`Namespace prefix: ${std.namespacePrefix}`);
+    const pfx = std.objectTypePrefixes ?? {};
+    const pfxParts = Object.entries(pfx).filter(([,v])=>v).map(([k,v])=>`${k}: ${v}`);
+    if (pfxParts.length) lines.push(`Object type prefixes — ${pfxParts.join(', ')}`);
+    if (std.headerTemplate)   lines.push(`Header template:\n${std.headerTemplate}`);
+    if (std.changeLogTemplate) lines.push(`Change-log template: ${std.changeLogTemplate}`);
+    if (std.authorId)         lines.push(`Default author ID: ${std.authorId}`);
+
+    const contextText = lines.length
+      ? `\n\n## Project ABAP Naming & Coding Standards\nApply these conventions to ALL technical objects proposed:\n${lines.join('\n')}`
+      : '';
+
+    return { blocks, contextText };
   }
 
   function buildCaseDocHtml(docTitle, eyebrow, metaItems, markdownContent) {
@@ -1595,7 +1658,7 @@ ${mdToHtml(markdownContent)}
 
   async function handleDownloadSpec() {
     if (!selectedSpec) return;
-    const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA;
+    const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : selectedSpec === 'd' ? aiSpecD : aiSpecA;
     if (!content) return;
     setDownloadingPdf(true);
     try {
@@ -1628,10 +1691,10 @@ ${mdToHtml(markdownContent)}
     setDownloadingPdf(false);
   }
 
-  async function saveAllSpecsAsDocuments(specA, specB, specC, sap, proposal) {
+  async function saveAllSpecsAsDocuments(specA, specB, specC, specD, sap, proposal) {
     setSavingDoc(true);
     try {
-      const SPEC_PREFIXES = ['SpecA_CustomABAP', 'SpecB_StandardSAP', 'SpecC_PropuestaCliente', 'Prototype_'];
+      const SPEC_PREFIXES = ['SpecA_CustomABAP', 'SpecB_StandardSAP', 'SpecC_PropuestaCliente', 'SpecD_EspecCliente', 'Prototype_'];
       if (deleteDocument && documents?.length) {
         const oldDocs = documents.filter(d =>
           d.file_name && SPEC_PREFIXES.some(p => d.file_name.startsWith(p))
@@ -1650,11 +1713,12 @@ ${mdToHtml(markdownContent)}
         { label: t("spec.label_generated"),value: dateLong },
       ];
       const specs = [
-        { key: 'a', content: valSection + specA, prefix: 'SpecA_CustomABAP',       note: 'ABAP (auto-generated)',     title: 'ABAP' },
-        { key: 'b', content: valSection + specB, prefix: 'SpecB_StandardSAP',      note: 'SAP (auto-generated)',      title: 'SAP' },
-        { key: 'c', content: valSection + specC, prefix: 'SpecC_PropuestaCliente', note: 'Customer (auto-generated)', title: 'Customer' },
+        { key: 'a', content: valSection + specA, prefix: 'SpecA_CustomABAP',       note: 'ABAP (auto-generated)',                  title: 'ABAP' },
+        { key: 'b', content: valSection + specB, prefix: 'SpecB_StandardSAP',      note: 'SAP (auto-generated)',                   title: 'SAP' },
+        { key: 'c', content: valSection + specC, prefix: 'SpecC_PropuestaCliente', note: 'Customer (auto-generated)',              title: 'Customer' },
+        ...(specD ? [{ key: 'd', content: valSection + specD, prefix: 'SpecD_EspecCliente', note: 'Client Spec (auto-generated)', title: 'Client Spec' }] : []),
       ];
-      const newUrls = { a: null, b: null, c: null };
+      const newUrls = { a: null, b: null, c: null, d: null };
       for (const s of specs) {
         const htmlString = buildCaseDocHtml(
           s.title,
@@ -1706,10 +1770,12 @@ ${mdToHtml(markdownContent)}
           if (nd.specA)         setAiSpecA(nd.specA);
           if (nd.specB)         setAiSpecB(nd.specB);
           if (nd.specC)         setAiSpecC(nd.specC);
+          if (nd.specD)         setAiSpecD(nd.specD);
           if (nd.selectedSpec)  setSelectedSpec(nd.selectedSpec);
           if (nd.prevMode)      setPrevMode(nd.prevMode);
           if (nd.analysisCustomerContent) setAnalysisCustomerContent(nd.analysisCustomerContent);
           if (nd.activeProfile) setActiveProfile(nd.activeProfile);
+          if (nd.protoHtml)    { setProtoHtmlState(nd.protoHtml); setProtoSaved(true); setActiveProfile(p => p ?? { prototype_enabled: true }); }
         } catch (_) {}
       }
       if (spec.content) restoredStep = 3;
@@ -1717,7 +1783,7 @@ ${mdToHtml(markdownContent)}
       const restoredNode = (spec.status === 'approved' || spec.status === 'submitted') ? 4
         : restoredStep === 3 ? 3 : restoredStep === 2 ? 2 : 0;
       setActiveNode(restoredNode);
-      // Detect previously generated prototype from documents list
+      // Fallback: detect prototype from documents list (legacy storage saves)
       const protoDoc = (documents ?? []).find(d => (d.description ?? '').startsWith('[Prototype]') || (d.file_name ?? '').startsWith('Prototype_'));
       if (protoDoc) { setProtoSaved(true); setActiveProfile(p => p ?? { prototype_enabled: true }); }
     } else if (spec.mode === 'wizard') {
@@ -2031,6 +2097,106 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
     return buildContextString(caseData, genCtx, extra);
   }
 
+  async function loadSapConnInfo() {
+    if (sapConnLoading) return;
+    setSapConnLoading(true);
+    try {
+      const [{ data: sapCfgRow }, { data: sapProjEnvRow }, { data: sapCaseEnvRow }] = await Promise.all([
+        supabase.from('system_settings').select('value').eq('key', 'sap_integration').maybeSingle(),
+        supabase.from('system_settings').select('value').eq('key', 'sap_project_env').maybeSingle(),
+        supabase.from('system_settings').select('value').eq('key', 'sap_case_env').maybeSingle(),
+      ]);
+      const allSapCfg = sapCfgRow?.value ?? {};
+
+      // Inheritance chain: project environments (proj_<id>) → client environments (<client_id>)
+      // Project-owned settings use the "proj_<projectId>" key in sap_integration
+      const projEntry = caseData.project_id ? (allSapCfg[`proj_${caseData.project_id}`] ?? {}) : {};
+      const projEnvs  = projEntry.environments ?? (projEntry.host ? [projEntry] : []);
+
+      const clientEntry = caseData.client_id ? (allSapCfg[caseData.client_id] ?? {}) : {};
+      const clientEnvs  = clientEntry.environments ?? (clientEntry.host ? [clientEntry] : []);
+
+      // All available envs: project first, then client as fallback
+      const allEnvs = projEnvs.length > 0 ? projEnvs : clientEnvs;
+
+      // Case env selection overrides project selection; both point to an env ID within allEnvs
+      const selectedEnvId = (sapCaseEnvRow?.value ?? {})[caseData.id]
+        ?? (sapProjEnvRow?.value ?? {})[caseData.project_id]
+        ?? null;
+      const sapCfg = selectedEnvId
+        ? (allEnvs.find(e => e.id === selectedEnvId) ?? allEnvs[0] ?? null)
+        : (allEnvs[0] ?? null);
+
+      if (!sapCfg?.host) { setSapConnInfo({ notFound: true }); return; }
+      let vpnUrl = sapCfg.proxyUrl?.trim() || null;
+      if (!vpnUrl && sapCfg.connectionId) {
+        const { data: conn } = await supabase.from('db_connections')
+          .select('db_type, meta').eq('id', sapCfg.connectionId).maybeSingle();
+        if (conn?.db_type === 'vpn') vpnUrl = conn.meta?.proxy_url?.trim() || null;
+      }
+      // Store full config (with credentials + proxy) for the test button
+      setSapConnCfg({ ...sapCfg, ...(vpnUrl ? { _vpnProxyUrl: vpnUrl } : {}) });
+      // Restore persisted test result; default to "configured = green" on first visit
+      try {
+        const stored = localStorage.getItem(`sap_test_${caseData.id}`);
+        setSapConnTest(stored ? JSON.parse(stored) : { ok: true, seeded: true });
+      } catch { setSapConnTest({ ok: true, seeded: true }); }
+      setSapConnInfo({
+        host: sapCfg.host,
+        username: sapCfg.username,
+        client: sapCfg.client,
+        type: sapCfg.type ?? 's4hana',
+        vpnUrl,
+        envName: sapCfg.name ?? sapCfg.label ?? null,
+        envCount: allEnvs.length,
+      });
+    } catch (e) {
+      setSapConnInfo({ error: e.message });
+    } finally {
+      setSapConnLoading(false);
+    }
+  }
+
+  async function testSapConnection() {
+    if (!sapConnCfg || sapConnTest === 'testing') return;
+    setSapConnTest('testing');
+    const lsKey = `sap_test_${caseData.id}`;
+    try {
+      const result = await sapLiveCheck(sapConnCfg);
+      if (result && !result.error) {
+        const next = { ok: true, info: result.systemInfo ?? result.description ?? 'Connected' };
+        setSapConnTest(next);
+        try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
+      } else {
+        const status = result?.error;
+        const msg = status === 401 ? 'HTTP 401 — Wrong username, password or client (MANDT).'
+          : status === 403 ? 'HTTP 403 — User lacks ADT authorizations.'
+          : status === 404 ? 'HTTP 404 — ADT service not active (check SICF).'
+          : status ? `HTTP ${status} — SAP returned an error.`
+          : result?.message ? `Proxy error: ${result.message}`
+          : 'Connection failed.';
+        const next = { ok: false, message: msg };
+        setSapConnTest(next);
+        try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
+      }
+    } catch (e) {
+      const next = { ok: false, message: e.message };
+      setSapConnTest(next);
+      try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
+    }
+  }
+
+  useEffect(() => {
+    // Load on mount so the node shows correct status without requiring the user to click it
+    if (liveCheckEnabled && !sapConnInfo && !sapConnLoading) loadSapConnInfo();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (activeNode === 5 && liveCheckEnabled && !sapConnInfo && !sapConnLoading) {
+      loadSapConnInfo();
+    }
+  }, [activeNode]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── AI Generate — two specs ─────────────────────────────────
 
   function buildSpecPrompt(isCustomDev, genProfile, contextStr = '') {
@@ -2251,7 +2417,80 @@ TOTAL:||Total|[amount]|
 Use realistic Z object names matching the customer's described solution for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM/COL values.${buildSectionConstraint('spec_c', genProfile)}${buildGenSuffix(genProfile, lang)}`;
   }
 
+  function buildSpecDPrompt(customerContent, genProfile, contextStr = '') {
+    return `Write a Customer Functional Specification — a clear, non-technical business document for the customer's functional team to review and approve.
+
+Do NOT include ABAP objects, Z-program names, function modules, table names, configuration keys, or any SAP technical implementation detail. Write entirely in business language.
+
+Case: ${caseData.title}
+Description: ${caseData.description ?? '(none)'}
+SAP Module: ${caseData.area_sap ?? ''}
+Industry: ${caseData.area_industry ?? ''}${contextStr}
+Customer Proposal / Notes:
+${customerContent || '(see case description above)'}
+
+Generate with EXACTLY these sections:
+
+## 1. Executive Summary
+[2-3 sentences summarizing the business need and solution in plain language]
+
+## 2. Context
+
+| Field | Value |
+|-------|-------|
+| Module | [SAP module name] |
+| Affected Screens | [screen/transaction names the user touches] |
+| Area | [business area] |
+| Usage Frequency | [how often the feature will be used] |
+
+## 3. Actors & Permissions
+
+| Actor | Can |
+|-------|-----|
+| [business role] | [what this role can do with the feature] |
+
+## 4. Scope
+**Includes:**
+- [business capability included]
+
+**Excludes:**
+- [what is explicitly out of scope, stated in business terms]
+
+## 5. Screen Behavior
+
+| Screen | What the user sees / does |
+|--------|--------------------------|
+| [screen name] | [description of user interaction] |
+
+## 6. Business Rules
+- [business rule in functional terms, no code]
+
+## 7. Acceptance Criteria
+1. [testable acceptance criterion a business user can verify]
+
+## 8. Time Estimation
+
+| Phase | Hours |
+|-------|-------|
+| Requirements Analysis | [h] |
+| Design | [h] |
+| Development | [h] |
+| Unit Testing | [h] |
+| Functional Testing | [h] |
+| **Total** | **[total]** |
+${buildSectionConstraint('spec_d', genProfile)}${buildGenSuffix(genProfile, lang)}`;
+  }
+
+  // iOS Safari throws "The string did not match the expected pattern" from JSON.stringify
+  // when a string contains lone surrogate characters (unpaired UTF-16 surrogates).
+  // Strip them before building the prompt.
+  function sanitizeForJson(s) {
+    return (s ?? '').replace(/[\uD800-\uDFFF]/g, '');
+  }
+
   function buildPrototypePrompt(specA, specB, style) {
+    const safeA = sanitizeForJson(specA);
+    const safeB = sanitizeForJson(specB);
     if (style === 'auto') {
       return `You are a SAP prototype generator. Before generating the prototype, you must analyze the case and decide which visual style to use. Read the signals below carefully.
 
@@ -2261,10 +2500,10 @@ Industry: ${caseData.area_industry ?? ''}
 Description: ${caseData.description ?? ''}
 
 Spec A (Custom ABAP approach):
-${(specA ?? '').slice(0, 1500)}
+${safeA.slice(0, 6000)}
 
 Spec B (Standard SAP approach):
-${(specB ?? '').slice(0, 1000)}
+${safeB.slice(0, 4000)}
 
 STEP 1 — CHOOSE THE STYLE using these rules (apply the FIRST rule that matches):
 
@@ -2314,10 +2553,10 @@ Industry: ${caseData.area_industry ?? ''}
 Description: ${caseData.description ?? ''}
 
 Spec A (Custom ABAP approach):
-${(specA ?? '').slice(0, 1500)}
+${safeA.slice(0, 6000)}
 
 Spec B (Standard SAP approach):
-${(specB ?? '').slice(0, 1000)}
+${safeB.slice(0, 4000)}
 
 VISUAL STYLE — SAP GUI (classic):
 - Background: #f3f2f1 (SAP off-white)
@@ -2375,10 +2614,10 @@ Industry: ${caseData.area_industry ?? ''}
 Description: ${caseData.description ?? ''}
 
 Spec A (Custom ABAP approach):
-${(specA ?? '').slice(0, 1500)}
+${safeA.slice(0, 6000)}
 
 Spec B (Standard SAP approach):
-${(specB ?? '').slice(0, 1000)}
+${safeB.slice(0, 4000)}
 
 REQUIREMENTS:
 1. Generate 4 screens: Overview, Main Process Screen, Detail/Form Screen, Confirmation/Result Screen
@@ -2428,34 +2667,44 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     setAiSpecA('');
     setAiSpecB('');
     setAiSpecC('');
+    setAiSpecD('');
     setSelectedSpec(null);
     try {
       const docBlocks = await buildDocumentBlocks();
       const pdfNames = (documents ?? []).filter(d => (d.file_name ?? '').toLowerCase().endsWith('.pdf') || (d.file_type ?? '').includes('pdf')).map(d => d.file_name);
       const pdfNote = pdfNames.length > 0 ? `\n\n[Reference PDFs attached: ${pdfNames.join(', ')}]` : '';
-      // callSpec: try with full document blocks; if the model rejects them (no PDF support), retry text-only
-      const callSpec = async (prompt) => {
+
+      // Fetch ABAP standards if any spec with technical_objects is being generated
+      const needsAbap = genProfile?.spec_a?.technical_objects || genProfile?.spec_c?.technical_objects;
+      const abap = needsAbap ? await buildAbapStandardsForSpec() : { blocks: [], contextText: '' };
+
+      // callSpec: try with full document blocks + optional extra blocks; retry text-only on PDF rejection
+      const callSpec = async (prompt, extraBlocks = []) => {
         const sys = 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.';
+        const allBlocks = [...abap.blocks, ...extraBlocks, ...docBlocks];
         try {
-          const content = docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt;
-          return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 4000 });
+          const content = allBlocks.length > 0 ? [...allBlocks, { type: 'text', text: prompt }] : prompt;
+          return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 8000 });
         } catch (_) {
-          return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 4000 });
+          return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 8000 });
         }
       };
       const customerContent = analysisCustomerContent || caseData.description || '';
       const contextStr = await buildGenContext();
-      const [specA, specB, specC] = await Promise.all([
-        callSpec(buildSpecPrompt(true, genProfile, contextStr)),
+      const abapCtx = abap.contextText;
+      const [specA, specB, specC, specD] = await Promise.all([
+        callSpec(buildSpecPrompt(true,  genProfile, genProfile?.spec_a?.technical_objects  ? contextStr + abapCtx : contextStr)),
         callSpec(buildSpecPrompt(false, genProfile, contextStr)),
-        callSpec(buildSpecCPrompt(customerContent, genProfile, contextStr)),
+        callSpec(buildSpecCPrompt(customerContent, genProfile, genProfile?.spec_c?.technical_objects ? contextStr + abapCtx : contextStr)),
+        callSpec(buildSpecDPrompt(customerContent, genProfile, contextStr)),
       ]);
       setAiSpecA(specA);
       setAiSpecB(specB);
       setAiSpecC(specC);
+      setAiSpecD(specD);
       setSelectedSpec('a');
       setAiContent(specA);
-      setSavedSpecUrls({ a: null, b: null, c: null });
+      setSavedSpecUrls({ a: null, b: null, c: null, d: null });
       setActiveProfile(genProfile);
       setProtoSaved(false);
       setProtoHtmlState(null);
@@ -2463,37 +2712,46 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       setViewingProto(false);
       const saveStatus = autoSubmit ? 'submitted' : 'draft';
       try {
-        await saveSpec({ mode: 'ai', status: saveStatus, content: specA, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, selectedSpec: 'a', prevMode, analysisCustomerContent: customerContent, activeProfile: genProfile }), title: caseData.title + t("spec.doc_title_suffix") });
+        await saveSpec({ mode: 'ai', status: saveStatus, content: specA, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, specD, selectedSpec: 'a', prevMode, analysisCustomerContent: customerContent, activeProfile: genProfile }), title: caseData.title + t("spec.doc_title_suffix") });
         logEvent('spec.generated', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, metadata: { model: genModel } });
       } catch (_) {}
-      await saveAllSpecsAsDocuments(specA, specB, specC, sapCheck, proposalCheck);
+      await saveAllSpecsAsDocuments(specA, specB, specC, specD, sapCheck, proposalCheck);
 
       // Generate interactive prototype if enabled for this profile
       if (genProfile?.prototype_enabled) {
         try {
           const protoStyle = genProfile.prototype_style ?? 'auto';
-          let protoHtml = await callClaude({
-            model: protoModel,
-            system: 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.',
-            messages: [{ role: 'user', content: buildPrototypePrompt(specA, specB, protoStyle) }],
-            max_tokens: 8000,
-          });
+          const protoSys = 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.';
+          const protoMsgs = [{ role: 'user', content: buildPrototypePrompt(specA, specB, protoStyle) }];
+          let protoHtml = await callClaude({ model: protoModel, system: protoSys, messages: protoMsgs, max_tokens: 12000 })
+            .catch(e => {
+              if (e.message?.includes('did not match the expected pattern')) {
+                return callClaude({ model: 'claude-haiku-4-5-20251001', system: protoSys, messages: protoMsgs, max_tokens: 12000 });
+              }
+              throw e;
+            });
           if (!protoHtml) throw new Error('Empty prototype response');
           // Strip markdown code fences the model may add despite instructions
           protoHtml = protoHtml.trim();
           if (protoHtml.startsWith('```')) {
             protoHtml = protoHtml.replace(/^```(?:html)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
           }
-          const safeName = (caseData.title ?? 'Prototype').replace(/[^a-z0-9]/gi, '_');
-          const dateStr  = new Date().toISOString().slice(0, 10);
-          const fileName = `Prototype_${safeName}_${dateStr}.html`;
-          const blob = new Blob([protoHtml], { type: 'text/html' });
-          const file = new File([blob], fileName, { type: 'text/html' });
-          await addDocument(file, '[Prototype] Interactive prototype (auto-generated)');
           setProtoHtmlState(protoHtml);
-          setProtoSaved(true);
-          if (refetchDocuments) await refetchDocuments();
-        } catch (_) { /* prototype failure is non-fatal */ }
+          try {
+            const safeName = (caseData.title ?? 'Case').replace(/[^a-z0-9]/gi, '_');
+            const dateStr = new Date().toISOString().slice(0, 10);
+            const protoFile = new File([protoHtml], `Prototype_${safeName}_${dateStr}.html`, { type: 'text/html' });
+            await addDocument(protoFile, '[Prototype] Interactive Prototype');
+            if (refetchDocuments) await refetchDocuments();
+            setProtoSaved(true);
+          } catch (saveErr) {
+            console.warn('Prototype save failed:', saveErr?.message);
+            setProtoError(true);
+          }
+        } catch (e) {
+          setProtoError(true);
+          console.error('Prototype generation failed:', e?.message);
+        }
       }
 
       if (autoSubmit) await refetch();
@@ -2501,6 +2759,65 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       setAiError(e.message);
     }
     setGeneratingSpecs(false);
+  }
+
+  // ── Standalone Spec D generation (for cases that already have A/B/C) ─────
+  async function handleGenerateSpecD() {
+    if (generatingSpecD) return;
+    setGeneratingSpecD(true);
+    setAiSpecD('');
+    try {
+      const docBlocks = await buildDocumentBlocks();
+      const pdfNames = (documents ?? []).filter(d => (d.file_name ?? '').toLowerCase().endsWith('.pdf') || (d.file_type ?? '').includes('pdf')).map(d => d.file_name);
+      const pdfNote = pdfNames.length > 0 ? `\n\n[Reference PDFs attached: ${pdfNames.join(', ')}]` : '';
+      const sys = 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.';
+      const callSpec = async (prompt) => {
+        try {
+          const content = docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt;
+          return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 8000 });
+        } catch (_) {
+          return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 8000 });
+        }
+      };
+      const customerContent = analysisCustomerContent || caseData.description || '';
+      const contextStr = await buildGenContext();
+      const specD = await callSpec(buildSpecDPrompt(customerContent, activeProfile ?? {}, contextStr));
+      setAiSpecD(specD);
+      setSelectedSpec('d');
+      setAiContent(specD);
+      setSavedSpecUrls(prev => ({ ...prev, d: null }));
+      // Save as document
+      try {
+        const safeName = (caseData.title ?? 'Case').replace(/[^a-z0-9]/gi, '_');
+        const dateStr = new Date().toISOString().slice(0, 10);
+        const dateLong = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+        const baseMeta = [
+          { label: t("spec.label_case_id"), value: '#' + ((caseData.id ?? '').slice(0, 8) || '—') },
+          { label: t("label.sap_area"),     value: caseData.area_sap ?? '—' },
+          { label: t("label.priority"),     value: (caseData.priority ?? '—').toUpperCase() },
+          { label: t("spec.label_generated"), value: dateLong },
+        ];
+        if (deleteDocument && documents?.length) {
+          const old = documents.filter(d => (d.file_name ?? '').startsWith('SpecD_EspecCliente'));
+          await Promise.all(old.map(d => deleteDocument(d.id, d.file_url)));
+        }
+        const htmlString = buildCaseDocHtml('Client Spec', 'SAP Consulting · ' + t("spec.html_title"), baseMeta, specD);
+        const pdfBlob = await htmlStringToPdfBlob(htmlString);
+        const fileName = `SpecD_EspecCliente_${safeName}_${dateStr}.pdf`;
+        const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+        await addDocument(file, 'Client Spec (auto-generated)');
+        setSavedSpecUrls(prev => ({ ...prev, d: fileName }));
+        if (refetchDocuments) await refetchDocuments();
+      } catch (saveErr) { console.warn('Spec D doc save failed:', saveErr?.message); }
+      // Persist in spec notes
+      try {
+        await saveSpec({ mode: 'ai', status: spec?.status ?? 'draft', content: aiSpecA || specD, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD, selectedSpec: selectedSpec || 'd', prevMode, analysisCustomerContent, activeProfile }), title: caseData.title + t("spec.doc_title_suffix") });
+      } catch (_) {}
+    } catch (e) {
+      console.error('Spec D generation error:', e?.message);
+    } finally {
+      setGeneratingSpecD(false);
+    }
   }
 
   // ── Approval helpers ─────────────────────────────────────────
@@ -2511,7 +2828,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         status: 'submitted',
         content: specContent ?? null,
         objects: specObjects ?? [],
-        notes: specMode === 'manual' ? manualNotes : (specMode === 'ai' ? JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent, activeProfile }) : null),
+        notes: specMode === 'manual' ? manualNotes : (specMode === 'ai' ? JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD: aiSpecD, selectedSpec, prevMode, analysisCustomerContent, activeProfile }) : null),
         document_ids: specMode === 'manual' ? manualDocIds : [],
         title: caseData.title + t("spec.doc_title_suffix"),
       });
@@ -2858,7 +3175,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
           <button disabled={!manualNotes.trim()} onClick={() => {
             setAnalysisCustomerContent(manualNotes);
             setPrevMode('manual');
-            setSapCheck(null); setProposalCheck(null); setAiSpecA(''); setAiSpecB(''); setAiSpecC(''); setSelectedSpec(null); setAiStep(1);
+            setSapCheck(null); setProposalCheck(null); setAiSpecA(''); setAiSpecB(''); setAiSpecC(''); setAiSpecD(''); setSelectedSpec(null); setAiStep(1);
             setMode('ai');
           }} className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900 disabled:opacity-40">
             {t("spec.validate_gen")}
@@ -3058,7 +3375,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 const qaSummary = wizardObjects.map(o => `${o.name} (${o.type}): ${(o.questions ?? []).map(q => `${q.question} → ${q.a}`).join('; ')}`).join('\n');
                 setAnalysisCustomerContent(qaSummary || compiledSpec);
                 setPrevMode('wizard');
-                setSapCheck(null); setProposalCheck(null); setAiSpecA(''); setAiSpecB(''); setAiSpecC(''); setSelectedSpec(null); setAiStep(1);
+                setSapCheck(null); setProposalCheck(null); setAiSpecA(''); setAiSpecB(''); setAiSpecC(''); setAiSpecD(''); setSelectedSpec(null); setAiStep(1);
                 setMode('ai');
               }} className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900">
                 {t("spec.validate_gen")}
@@ -3100,7 +3417,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 const qaSummary = wizardObjects.map(o => `${o.name} (${o.type}): ${(o.questions ?? []).map(q => `${q.question} → ${q.a}`).join('; ')}`).join('\n');
                 setAnalysisCustomerContent(qaSummary || compiledSpec);
                 setPrevMode('wizard');
-                setSapCheck(null); setProposalCheck(null); setAiSpecA(''); setAiSpecB(''); setAiSpecC(''); setSelectedSpec(null); setAiStep(1);
+                setSapCheck(null); setProposalCheck(null); setAiSpecA(''); setAiSpecB(''); setAiSpecC(''); setAiSpecD(''); setSelectedSpec(null); setAiStep(1);
                 setMode('ai');
               }} className="px-4 py-2 text-sm bg-[#1A4B8C] text-white font-semibold rounded-xl hover:bg-blue-900">
                 {t("spec.validate_gen")}
@@ -3122,20 +3439,21 @@ Respond with ONLY a valid JSON object, no markdown fences:
     const inputDocs = (documents ?? []).filter(doc => {
       const name = doc.file_name ?? '';
       const desc = doc.description ?? '';
-      return !/^(SpecA_|SpecB_|SpecC_|Prototype_)/i.test(name) &&
+      return !/^(SpecA_|SpecB_|SpecC_|SpecD_|Prototype_)/i.test(name) &&
              !/^\[(Prototype|Spec)/i.test(desc);
     });
 
     // Node statuses
-    const specsExist = !!(aiSpecA || aiSpecB || aiSpecC);
+    const specsExist = !!(aiSpecA || aiSpecB || aiSpecC || aiSpecD);
     const sapStatus  = sapCheck      ? 'complete' : stepLoading && aiStep === 1 ? 'running' : specsExist ? 'skipped' : 'pending';
     const propStatus = proposalCheck ? 'complete' : stepLoading && aiStep === 2 ? 'running' : specsExist ? 'skipped' : sapCheck ? 'pending' : 'locked';
     const genStatus   = specsExist ? 'complete' : generatingSpecs ? 'running' : proposalCheck ? 'pending' : 'locked';
     const protoStatus = protoSaved ? 'complete' : generatingSpecs ? 'running' : 'pending';
     const SUB = [
-      { key: 'a', label: t("spec.tab_a"), dot: 'bg-amber-400', content: aiSpecA },
-      { key: 'b', label: t("spec.tab_b"), dot: 'bg-green-500', content: aiSpecB },
+      { key: 'a', label: t("spec.tab_a"), dot: 'bg-amber-400',  content: aiSpecA },
+      { key: 'b', label: t("spec.tab_b"), dot: 'bg-green-500',  content: aiSpecB },
       { key: 'c', label: t("spec.tab_c"), dot: 'bg-purple-500', content: aiSpecC },
+      { key: 'd', label: t("spec.tab_d"), dot: 'bg-teal-500',   content: aiSpecD },
     ];
     const NodeBtn = ({ id, icon: Icon, title, sub, status, isActive, canClick, onClick, children }) => {
       const sc = {
@@ -3150,9 +3468,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
           <button onClick={onClick} disabled={!canClick}
             className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl border-2 text-left transition-all ${sc.bg} ${isActive ? 'border-blue-500 shadow-md' : sc.ring} ${canClick ? 'cursor-pointer hover:shadow-sm' : 'cursor-not-allowed'}`}>
             <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${sc.circ}`}>
-              {status === 'complete' ? <Check size={14} className="text-white" />
-               : status === 'running' ? <Spinner />
-               : <Icon size={14} className={status === 'locked' ? 'text-gray-300' : 'text-gray-500'} />}
+              {status === 'running' ? <Spinner />
+               : <Icon size={14} className={status === 'complete' ? 'text-white' : status === 'locked' ? 'text-gray-300' : 'text-gray-500'} />}
             </div>
             <div className="flex-1 min-w-0">
               <p className={`text-sm font-semibold leading-tight truncate ${sc.txt}`}>{title}</p>
@@ -3200,6 +3517,28 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 onClick={() => setActiveNode(0)}
               />
 
+              {/* Node 5: Live SAP Connection (only when live check is enabled in settings) */}
+              {liveCheckEnabled && (
+                <NodeBtn id={5} icon={Zap}
+                  title={t("spec.sap_conn_node_lbl")}
+                  sub={sapConnLoading ? t("spec.checking")
+                    : sapConnInfo?.notFound ? t("spec.sap_conn_not_cfg")
+                    : sapConnInfo?.error ? t("spec.sap_conn_not_cfg")
+                    : sapConnInfo ? (sapConnInfo.host ?? t("spec.pending"))
+                    : t("spec.pending")}
+                  status={sapConnLoading ? 'running'
+                    : sapConnInfo?.notFound || sapConnInfo?.error ? 'skipped'
+                    : sapConnInfo ? 'complete'
+                    : 'pending'}
+                  isActive={activeNode===5}
+                  canClick={true}
+                  onClick={() => {
+                    setActiveNode(5);
+                    if (!sapConnInfo && !sapConnLoading) loadSapConnInfo();
+                  }}
+                />
+              )}
+
               {/* Node 1: SAP Verification */}
               <NodeBtn id={1} icon={CheckCircle2}
                 title={t("spec.ai_step1_h")}
@@ -3223,14 +3562,14 @@ Respond with ONLY a valid JSON object, no markdown fences:
               {/* Node 3: Generate Specification + sub-nodes */}
               <NodeBtn id={3} icon={Sparkles}
                 title={t("spec.ai_step3_lbl")}
-                sub={genStatus==='complete' ? `${[aiSpecA,aiSpecB,aiSpecC].filter(Boolean).length} ${t("spec.specs_gen")}` : genStatus==='running' ? t("spec.gen_all_loading") : genStatus==='locked' ? t("spec.locked") : t("spec.pending")}
+                sub={genStatus==='complete' ? `${[aiSpecA,aiSpecB,aiSpecC,aiSpecD].filter(Boolean).length} ${t("spec.specs_gen")}` : genStatus==='running' ? t("spec.gen_all_loading") : genStatus==='locked' ? t("spec.locked") : t("spec.pending")}
                 status={genStatus}
                 isActive={activeNode===3}
                 canClick={genStatus !== 'locked'}
                 onClick={() => { if (genStatus !== 'locked') setActiveNode(3); }}
               >
                 {/* Sub-nodes for Spec A / B / C + Prototype */}
-                {(aiSpecA || aiSpecB || aiSpecC || activeNode===3) && (
+                {(aiSpecA || aiSpecB || aiSpecC || activeNode===3 || specApproved) && (
                   <div className="ml-8 mt-1 space-y-1 relative z-10">
                     {SUB.map(s => (
                       <button key={s.key} onClick={() => { setActiveNode(3); setSelectedSpec(s.key); setViewingProto(false); setAiContent(s.content); }}
@@ -3240,7 +3579,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         } ${selectedSpec === s.key && activeNode===3 && !viewingProto ? 'ring-2 ring-blue-300' : ''}`}>
                         <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${s.dot}`} />
                         <span className="truncate font-medium">{s.label}</span>
-                        {savedSpecUrls[s.key] && <Check size={10} className="text-green-600 ml-auto flex-shrink-0" />}
+                        {s.content && <Check size={10} className="text-green-600 ml-auto flex-shrink-0" />}
                       </button>
                     ))}
                     {/* Prototype sub-node — only when enabled in profile */}
@@ -3291,6 +3630,105 @@ Respond with ONLY a valid JSON object, no markdown fences:
             {/* Error banner */}
             {aiError && (
               <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{aiError}</div>
+            )}
+
+            {/* ── Node 5: Live SAP Connection ── */}
+            {activeNode === 5 && liveCheckEnabled && (
+              <div className="space-y-3">
+                <div className="border border-blue-800 rounded-xl p-3 flex items-start gap-2">
+                  <Zap className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-gray-400">{t("spec.sap_conn_desc")}</p>
+                </div>
+
+                {(sapConnLoading || !sapConnInfo) && (
+                  <div className="flex items-center justify-center py-8 gap-2 text-gray-400">
+                    <Spinner /><span className="text-sm">{t("spec.checking")}</span>
+                  </div>
+                )}
+
+                {!sapConnLoading && sapConnInfo?.notFound && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-700">{t("spec.sap_conn_none")}</p>
+                  </div>
+                )}
+
+                {!sapConnLoading && sapConnInfo?.error && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-700">
+                    {sapConnInfo.error}
+                  </div>
+                )}
+
+                {!sapConnLoading && sapConnInfo && !sapConnInfo.notFound && !sapConnInfo.error && (
+                  <div className="rounded-xl overflow-hidden border border-gray-200 divide-y divide-gray-200">
+                    {[
+                      { label: t("spec.sap_conn_host"),    value: sapConnInfo.host },
+                      { label: t("spec.sap_conn_user"),    value: sapConnInfo.username },
+                      { label: t("spec.sap_conn_mandant"), value: sapConnInfo.client },
+                      { label: t("spec.sap_conn_type"),    value: (sapConnInfo.type ?? '').toUpperCase() },
+                      { label: t("spec.sap_conn_vpn"),     value: sapConnInfo.vpnUrl || null },
+                      { label: t("spec.sap_conn_env"),     value: sapConnInfo.envName || null },
+                    ].filter(r => r.value).map(({ label, value }, i) => (
+                      <div key={i} className="px-3 py-2">
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide leading-none mb-1">{label}</p>
+                        <p className="text-xs font-mono text-blue-300 break-all leading-snug">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {!sapConnLoading && sapConnInfo && !sapConnInfo.notFound && !sapConnInfo.error && (
+                  <div className="space-y-2">
+                    {/* Test result — only shown after an explicit live test, not the seeded green */}
+                    {sapConnTest && sapConnTest !== 'testing' && !sapConnTest.seeded && (
+                      <div className={`rounded-xl p-3 flex items-start gap-2 ${sapConnTest.ok ? 'bg-green-950 border border-green-700' : 'bg-red-950 border border-red-700'}`}>
+                        {sapConnTest.ok
+                          ? <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
+                          : <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />}
+                        <div className="min-w-0">
+                          <p className={`text-xs font-semibold ${sapConnTest.ok ? 'text-green-400' : 'text-red-400'}`}>
+                            {sapConnTest.ok ? t("spec.sap_conn_ok") : t("spec.sap_conn_fail")}
+                          </p>
+                          {sapConnTest.info && <p className="text-xs text-gray-400 mt-0.5 break-all">{sapConnTest.info}</p>}
+                          {sapConnTest.message && <p className="text-xs text-gray-400 mt-0.5 break-all">{sapConnTest.message}</p>}
+                        </div>
+                      </div>
+                    )}
+                    {/* Action row */}
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <button
+                        onClick={testSapConnection}
+                        disabled={sapConnTest === 'testing'}
+                        className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                          sapConnTest === 'testing'
+                            ? 'bg-gray-800 border border-gray-600 text-gray-200'
+                            : sapConnTest?.ok
+                              ? 'bg-green-900 border border-green-600 text-green-300 hover:bg-green-800'
+                              : 'bg-red-900 border border-red-600 text-red-300 hover:bg-red-800'
+                        }`}>
+                        {sapConnTest === 'testing'
+                          ? <><Spinner />{t("spec.sap_conn_testing")}</>
+                          : sapConnTest?.ok
+                            ? <><CheckCircle2 className="w-3.5 h-3.5" />{t("spec.sap_conn_test_btn")}</>
+                            : <><Zap className="w-3.5 h-3.5" />{t("spec.sap_conn_test_btn")}</>}
+                      </button>
+                      <button onClick={() => setActiveNode(1)}
+                        className="px-4 py-2 bg-[#1A4B8C] text-white text-xs font-semibold rounded-xl hover:bg-blue-900">
+                        {t("spec.sap_conn_continue")}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {!sapConnLoading && sapConnInfo && (sapConnInfo.notFound || sapConnInfo.error) && (
+                  <div className="flex justify-end pt-1">
+                    <button onClick={() => setActiveNode(1)}
+                      className="px-4 py-2 bg-[#1A4B8C] text-white text-xs font-semibold rounded-xl hover:bg-blue-900">
+                      {t("spec.sap_conn_continue")}
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* ── Node 4: Approval ── */}
@@ -3644,6 +4082,10 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"/><strong>A</strong> — {t("spec.opt_a")}</span>
                       <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"/><strong>B</strong> — {t("spec.opt_b")}</span>
                       <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-purple-400 inline-block"/><strong>C</strong> — {t("spec.opt_c")}</span>
+                      <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-teal-500 inline-block"/><strong>D</strong> — {t("spec.opt_d")}</span>
+                      {activeProfile?.prototype_enabled && (
+                        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"/>+ {t("spec.opt_proto")}</span>
+                      )}
                     </div>
                     <button onClick={handleGenerateSpecs}
                       className="px-6 py-3 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
@@ -3659,7 +4101,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 )}
 
                 {/* Spec tabs + content */}
-                {(aiSpecA || aiSpecB || aiSpecC) && !generatingSpecs && !viewingProto && (
+                {(aiSpecA || aiSpecB || aiSpecC || aiSpecD || (specApproved && spec?.content)) && !generatingSpecs && !viewingProto && (
                   <div className="space-y-0">
                     <div className="flex border-b border-gray-200">
                       {SUB.map(s => (
@@ -3679,7 +4121,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     <div className="border border-t-0 border-gray-200 rounded-b-xl overflow-hidden">
                       <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200">
                         <span className="text-xs text-gray-500">
-                          {selectedSpec === 'a' ? t("spec.opt_a_long") : selectedSpec === 'b' ? t("spec.opt_b_long") : selectedSpec === 'c' ? t("spec.opt_c_long") : t("spec.select_above")}
+                          {selectedSpec === 'a' ? t("spec.opt_a_long") : selectedSpec === 'b' ? t("spec.opt_b_long") : selectedSpec === 'c' ? t("spec.opt_c_long") : selectedSpec === 'd' ? t("spec.opt_d_long") : t("spec.select_above")}
                         </span>
                         <div className="flex gap-2">
                           {!specApproved && (
@@ -3698,9 +4140,14 @@ Respond with ONLY a valid JSON object, no markdown fences:
                               <Download size={12} />PDF
                             </span>
                           )}
-                          {!specApproved && perms.can('regen_specs') && (
-                            <button onClick={handleGenerateSpecs}
-                              className="px-2.5 py-1 text-xs font-semibold border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50">
+                          {perms.can('regen_specs') && (
+                            <button
+                              onClick={() => {
+                                if (specApproved && !window.confirm(t("spec.regen_approved_confirm"))) return;
+                                handleGenerateSpecs();
+                              }}
+                              title={specApproved ? t("spec.regen_approved_tooltip") : undefined}
+                              className={`px-2.5 py-1 text-xs font-semibold rounded-lg hover:bg-blue-50 border ${specApproved ? 'border-amber-300 text-amber-700 hover:bg-amber-50' : 'border-blue-200 text-blue-700'}`}>
                               {t("spec.regen_all")}
                             </button>
                           )}
@@ -3708,38 +4155,59 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       </div>
 
                       <div className="p-5 max-h-[600px] overflow-y-auto">
-                        {aiEditing ? (
-                          <textarea
-                            value={selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA}
-                            onChange={e => {
-                              const v = e.target.value;
-                              if (selectedSpec === 'b') { setAiSpecB(v); setAiContent(v); }
-                              else if (selectedSpec === 'c') { setAiSpecC(v); setAiContent(v); }
-                              else { setAiSpecA(v); setAiContent(v); }
-                            }}
-                            rows={25} className="w-full border border-gray-200 rounded-xl p-3 text-sm font-mono resize-y focus:outline-none focus:border-blue-400" />
+                        {selectedSpec === 'd' && !aiSpecD && !generatingSpecD ? (
+                          <div className="flex flex-col items-center py-10 gap-3">
+                            <p className="text-sm text-gray-500">{t("spec.d_empty_hint")}</p>
+                            <button onClick={handleGenerateSpecD}
+                              className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
+                              {t("spec.gen_d_btn")}
+                            </button>
+                          </div>
+                        ) : selectedSpec === 'd' && generatingSpecD ? (
+                          <div className="flex items-center justify-center py-10 gap-3 text-gray-400">
+                            <Spinner /><span className="text-sm">{t("spec.gen_all_loading")}</span>
+                          </div>
                         ) : (
-                          <MarkdownAccordion text={selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA} />
+                          (() => {
+                            const specText = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : selectedSpec === 'd' ? aiSpecD : aiSpecA;
+                            const displayText = specText || (specApproved ? spec?.content ?? '' : '');
+                            return aiEditing && !specApproved ? (
+                              <textarea
+                                value={specText}
+                                onChange={e => {
+                                  const v = e.target.value;
+                                  if (selectedSpec === 'b') { setAiSpecB(v); setAiContent(v); }
+                                  else if (selectedSpec === 'c') { setAiSpecC(v); setAiContent(v); }
+                                  else if (selectedSpec === 'd') { setAiSpecD(v); setAiContent(v); }
+                                  else { setAiSpecA(v); setAiContent(v); }
+                                }}
+                                rows={25} className="w-full border border-gray-200 rounded-xl p-3 text-sm font-mono resize-y focus:outline-none focus:border-blue-400" />
+                            ) : (
+                              <MarkdownAccordion text={displayText} />
+                            );
+                          })()
                         )}
                       </div>
                     </div>
 
                     <div className="flex gap-2 items-center justify-between pt-3 border-t border-gray-100">
                       <p className="text-xs text-gray-500">
-                        {selectedSpec ? t("spec.submit_option").replace("{n}", selectedSpec.toUpperCase()).replace("{label}", selectedSpec === 'a' ? t("spec.tab_a") : selectedSpec === 'b' ? t("spec.tab_b") : t("spec.tab_c")) : t("spec.click_tab_select")}
+                        {selectedSpec ? t("spec.submit_option").replace("{n}", selectedSpec.toUpperCase()).replace("{label}", selectedSpec === 'a' ? t("spec.tab_a") : selectedSpec === 'b' ? t("spec.tab_b") : selectedSpec === 'c' ? t("spec.tab_c") : t("spec.tab_d")) : t("spec.click_tab_select")}
                       </p>
                       <div className="flex gap-2 flex-shrink-0">
-                        <button onClick={async () => {
-                          const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : aiSpecA;
-                          try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, selectedSpec, prevMode, analysisCustomerContent, activeProfile }), title: caseData.title + t("spec.doc_title_suffix") }); await refetch(); } catch (e) { alert(e.message); }
-                        }} disabled={!selectedSpec} className="px-3 py-1.5 text-xs border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 disabled:opacity-40">
-                          {t("spec.save_draft")}
-                        </button>
-                        {(() => {
-                          const allSaved = savedSpecUrls.a && savedSpecUrls.b && savedSpecUrls.c;
+                        {!specApproved && (
+                          <button onClick={async () => {
+                            const content = selectedSpec === 'b' ? aiSpecB : selectedSpec === 'c' ? aiSpecC : selectedSpec === 'd' ? aiSpecD : aiSpecA;
+                            try { await saveSpec({ mode: 'ai', status: 'draft', content, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA: aiSpecA, specB: aiSpecB, specC: aiSpecC, specD: aiSpecD, selectedSpec, prevMode, analysisCustomerContent, activeProfile }), title: caseData.title + t("spec.doc_title_suffix") }); await refetch(); } catch (e) { alert(e.message); }
+                          }} disabled={!selectedSpec} className="px-3 py-1.5 text-xs border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 disabled:opacity-40">
+                            {t("spec.save_draft")}
+                          </button>
+                        )}
+                        {!specApproved && (() => {
+                          const allSaved = savedSpecUrls.a && savedSpecUrls.b && savedSpecUrls.c && (!aiSpecD || savedSpecUrls.d);
                           return (
-                            <button onClick={() => saveAllSpecsAsDocuments(aiSpecA, aiSpecB, aiSpecC, sapCheck, proposalCheck)}
-                              disabled={savingDoc || allSaved || (!aiSpecA && !aiSpecB && !aiSpecC)}
+                            <button onClick={() => saveAllSpecsAsDocuments(aiSpecA, aiSpecB, aiSpecC, aiSpecD, sapCheck, proposalCheck)}
+                              disabled={savingDoc || allSaved || (!aiSpecA && !aiSpecB && !aiSpecC && !aiSpecD)}
                               className={`flex items-center px-3 py-1.5 text-xs font-semibold rounded-lg disabled:opacity-40 ${allSaved ? 'bg-gray-100 text-gray-500 border border-gray-200 cursor-default' : 'bg-green-600 text-white hover:bg-green-700'}`}>
                               {savingDoc ? t("state.saving") : allSaved ? <><Check size={11} className="mr-1 inline" />{t("spec.pdf_saved3")}</> : <><Paperclip className="w-3 h-3 mr-1" />{t("spec.save_all3")}</>}
                             </button>
@@ -3772,26 +4240,49 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     protoHtmlState={protoHtmlState}
                     setProtoHtmlState={setProtoHtmlState}
                     protoSaved={protoSaved}
+                    protoError={protoError}
+                    protoErrorMsg={protoErrorMsg}
                     generatingSpecs={generatingSpecs}
+                    isRegeneratingProto={protoGenerating}
                     documents={documents}
                     onBack={() => setViewingProto(false)}
                     onRegenerate={activeProfile?.prototype_enabled && (aiSpecA || aiSpecB) ? async () => {
                       setProtoHtmlState(null);
                       setProtoSaved(false);
                       setProtoError(false);
+                      setProtoErrorMsg('');
+                      setProtoGenerating(true);
                       const protoStyle = activeProfile.prototype_style ?? 'auto';
+                      const resolvedModel = protoModel;
+                      console.log('[Prototype] using model:', resolvedModel);
                       try {
-                        let html = await callClaude({ model: protoModel, system: 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.', messages: [{ role: 'user', content: buildPrototypePrompt(aiSpecA, aiSpecB, protoStyle) }], max_tokens: 8000 });
+                        const _protoSys = 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.';
+                        const _protoMsgs = [{ role: 'user', content: buildPrototypePrompt(aiSpecA, aiSpecB, protoStyle) }];
+                        let html = await callClaude({ model: resolvedModel, system: _protoSys, messages: _protoMsgs, max_tokens: 12000 })
+                          .catch(e => {
+                            if (e.message?.includes('did not match the expected pattern')) {
+                              return callClaude({ model: 'claude-haiku-4-5-20251001', system: _protoSys, messages: _protoMsgs, max_tokens: 12000 });
+                            }
+                            throw e;
+                          });
                         if (!html) throw new Error('Model returned empty response');
                         html = html.trim();
                         if (html.startsWith('```')) html = html.replace(/^```(?:html)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-                        const safeName = (caseData.title ?? 'Prototype').replace(/[^a-z0-9]/gi, '_');
-                        const fileName = `Prototype_${safeName}_${new Date().toISOString().slice(0,10)}.html`;
-                        await addDocument(new File([new Blob([html], { type: 'text/html' })], fileName, { type: 'text/html' }), '[Prototype] Interactive prototype (auto-generated)');
                         setProtoHtmlState(html);
-                        setProtoSaved(true);
-                        if (refetchDocuments) await refetchDocuments();
-                      } catch (e) { setProtoError(true); alert('Prototype error: ' + e.message); }
+                        try {
+                          if (deleteDocument && documents?.length) {
+                            const old = documents.filter(d => (d.description ?? '').startsWith('[Prototype]') || (d.file_name ?? '').startsWith('Prototype_'));
+                            await Promise.all(old.map(d => deleteDocument(d.id, d.file_url)));
+                          }
+                          const safeName = (caseData.title ?? 'Case').replace(/[^a-z0-9]/gi, '_');
+                          const dateStr = new Date().toISOString().slice(0, 10);
+                          const protoFile = new File([html], `Prototype_${safeName}_${dateStr}.html`, { type: 'text/html' });
+                          await addDocument(protoFile, '[Prototype] Interactive Prototype');
+                          if (refetchDocuments) await refetchDocuments();
+                          setProtoSaved(true);
+                        } catch (saveErr) { console.warn('Prototype save failed:', saveErr?.message); setProtoError(true); setProtoErrorMsg(`Save failed: ${saveErr?.message}`); }
+                      } catch (e) { setProtoError(true); setProtoErrorMsg(`[model: ${resolvedModel}] ${e?.message || 'Unknown error'}`); console.error('Prototype generation error:', resolvedModel, e?.message); }
+                      finally { setProtoGenerating(false); }
                     } : null}
                     t={t}
                   />

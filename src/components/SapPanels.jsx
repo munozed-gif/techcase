@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Activity, AlertTriangle, ArrowRight, Check, CheckCircle2, ChevronRight,
-  Code2, Eye, FileCode2, FileText, LayoutGrid, Loader2, Play, Plus,
-  Settings, Sparkles, Upload, User, X, XCircle,
+  Clock, Code2, Eye, FileCode2, FileText, FolderOpen, LayoutGrid, Loader2,
+  Link2, Mail, RefreshCw,
+  Play, Plus, Save, Settings, Sparkles, ThumbsDown, ThumbsUp, Upload, User, X, XCircle,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
@@ -223,14 +224,14 @@ function buildSapMcpConfig(sapConfig, mcpServerUrl) {
 // ============================================================
 
 async function sapApiRequest(config, path, opts = {}) {
-  const proxyUrl = config.proxyUrl?.trim();
+  // Prefer manual proxyUrl or VPN-linked proxy; otherwise call SAP directly.
+  const proxyUrl = config.proxyUrl?.trim() || config._vpnProxyUrl?.trim();
   const base = (proxyUrl || config.host.trim()).replace(/\/$/, '');
   const auth = btoa(`${config.username}:${config.password}`);
   const headers = {
     Authorization: `Basic ${auth}`,
     Accept: 'application/xml, text/xml, text/plain',
     'sap-client': String(config.client || '100'),
-    // Tell the MCP proxy where to forward when a proxy URL is set
     ...(proxyUrl ? { 'X-Sap-Target': config.host.trim().replace(/\/$/, '') } : {}),
     ...(opts.headers ?? {}),
   };
@@ -244,7 +245,56 @@ async function sapGetCsrfToken(config) {
     method: 'GET',
     headers: { 'X-CSRF-Token': 'Fetch', Accept: 'application/atomsvc+xml' },
   });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`CSRF fetch failed HTTP ${res.status}${body ? ': ' + body.slice(0, 120) : ''}`);
+  }
   return res.headers.get('X-CSRF-Token') ?? '';
+}
+
+async function sapWriteSourceDetail(config, objectType, objectName, source, transportRequest) {
+  const path = sapObjectPath(objectType, objectName);
+
+  // Try to get CSRF token; if it fails (e.g. CORS blocks X-CSRF-Token header),
+  // attempt the PUT without a token — some SAP systems don't enforce it.
+  let csrfToken = '';
+  let csrfError = null;
+  try {
+    csrfToken = await sapGetCsrfToken(config);
+  } catch (e) {
+    csrfError = e.message;
+    // Continue without token — will fail with 403 if SAP requires it
+  }
+
+  let res;
+  try {
+    res = await sapApiRequest(config, path, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+        Accept: 'application/xml',
+        ...(transportRequest ? { corrNbr: transportRequest } : {}),
+      },
+      body: source,
+    });
+  } catch (e) {
+    // Network/CORS error on the PUT itself
+    const corsHint = `Load failed — SAP needs CORS configured for PUT requests from ${typeof window !== 'undefined' ? window.location.origin : 'this domain'}. ` +
+      `Ask your SAP basis team to allow PUT, X-CSRF-Token, corrNbr in SICF CORS settings.` +
+      (csrfError ? ` (CSRF fetch also failed: ${csrfError})` : '');
+    return { ok: false, phase: 'write', error: corsHint };
+  }
+
+  const body = await res.text().catch(() => '');
+  if (!res.ok && res.status === 403 && csrfError) {
+    return {
+      ok: false, phase: 'csrf', status: res.status,
+      error: `SAP requires CSRF token but the prefetch was blocked (likely CORS). ` +
+        `Enable X-CSRF-Token in SICF CORS allowed headers. Detail: ${csrfError}`,
+    };
+  }
+  return { ok: res.ok, status: res.status, body: body.slice(0, 200), phase: 'write' };
 }
 
 async function sapLiveCheck(config) {
@@ -259,7 +309,7 @@ async function sapLiveCheck(config) {
     const spVer = xml.match(/sp="([^"]+)"/)?.[1] ?? '';
     const systemInfo = [title, ver && `Release ${ver}`, spVer && `SP ${spVer}`].filter(Boolean).join(' | ') || 'Connected';
     return { systemInfo, components: [], raw: xml.slice(0, 300) };
-  } catch { return null; }
+  } catch (e) { return { error: 0, message: e?.message ?? String(e) }; }
 }
 
 function sapObjectPath(objectType, objectName) {
@@ -370,11 +420,19 @@ function SapIntegrationPanel({ clientId, auth }) {
     saveEnvironments(updated);
   }
 
+  function enrichEnvWithVpn(env) {
+    const linkedConn = env.connectionId ? projectConns.find(c => c.id === env.connectionId) : null;
+    const vpnProxyUrl = linkedConn?.db_type === 'vpn' ? linkedConn.meta?.proxy_url?.trim() : null;
+    return vpnProxyUrl ? { ...env, _vpnProxyUrl: vpnProxyUrl } : env;
+  }
+
   async function testConnection(env) {
     setTestStates(p => ({ ...p, [env.id]: 'testing' }));
     setTestErrors(p => ({ ...p, [env.id]: null }));
+    const enriched = enrichEnvWithVpn(env);
+    const effectiveProxy = enriched.proxyUrl?.trim() || enriched._vpnProxyUrl;
     try {
-      const result = await sapLiveCheck(env);
+      const result = await sapLiveCheck(enriched);
       if (result && !result.error) {
         setTestStates(p => ({ ...p, [env.id]: 'ok' }));
       } else {
@@ -384,8 +442,9 @@ function SapIntegrationPanel({ clientId, auth }) {
           : status === 403 ? 'HTTP 403 — User lacks ADT authorizations in SAP.'
           : status === 404 ? 'HTTP 404 — ADT service not active. Enable /sap/bc/adt in SICF.'
           : status ? `HTTP ${status} — SAP returned an error.`
+          : result?.message ? `Proxy error: ${result.message}`
           : null;
-        setTestErrors(p => ({ ...p, [env.id]: env.proxyUrl?.trim()
+        setTestErrors(p => ({ ...p, [env.id]: effectiveProxy
           ? (statusMsg ?? 'SAP returned an error. Check credentials and client number.')
           : 'Failed — SAP may be blocking browser requests (CORS). Set a Proxy URL or enable CORS on your SAP system.' }));
       }
@@ -620,7 +679,7 @@ function ProjectSapEnvPanel({ projectId, clientId, auth }) {
   if (!rawEnvs.length) {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center space-y-2">
-        <Code2 size={36} className="text-gray-200 mx-auto" />
+        <Code2 size={36} className="text-gray-400 mx-auto" />
         <p className="text-sm font-semibold text-gray-700">{t('sap.no_environments')}</p>
         <p className="text-xs text-gray-400">{t('sap.integration_subtitle')}</p>
       </div>
@@ -900,11 +959,19 @@ function ProjectOwnSapPanel({ projectId, auth }) {
     saveEnvironments(updated);
   }
 
+  function enrichEnvWithVpn(env) {
+    const linkedConn = env.connectionId ? projectConns.find(c => c.id === env.connectionId) : null;
+    const vpnProxyUrl = linkedConn?.db_type === 'vpn' ? linkedConn.meta?.proxy_url?.trim() : null;
+    return vpnProxyUrl ? { ...env, _vpnProxyUrl: vpnProxyUrl } : env;
+  }
+
   async function testConnection(env) {
     setTestStates(p => ({ ...p, [env.id]: 'testing' }));
     setTestErrors(p => ({ ...p, [env.id]: null }));
     try {
-      const result = await sapLiveCheck(env);
+      const enriched = enrichEnvWithVpn(env);
+      const effectiveProxy = enriched.proxyUrl?.trim() || enriched._vpnProxyUrl;
+      const result = await sapLiveCheck(enriched);
       if (result && !result.error) {
         setTestStates(p => ({ ...p, [env.id]: 'ok' }));
       } else {
@@ -914,8 +981,9 @@ function ProjectOwnSapPanel({ projectId, auth }) {
           : status === 403 ? 'HTTP 403 — User lacks ADT authorizations in SAP.'
           : status === 404 ? 'HTTP 404 — ADT service not active. Enable /sap/bc/adt in SICF.'
           : status ? `HTTP ${status} — SAP returned an error.`
+          : result?.message ? `Proxy error: ${result.message}`
           : null;
-        setTestErrors(p => ({ ...p, [env.id]: env.proxyUrl?.trim()
+        setTestErrors(p => ({ ...p, [env.id]: effectiveProxy
           ? (statusMsg ?? 'SAP returned an error. Check credentials and client number.')
           : 'Failed — SAP may be blocking browser requests (CORS). Set a Proxy URL or enable CORS on your SAP system.' }));
       }
@@ -1909,6 +1977,7 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
   const [running, setRunning] = useState(false);
   const [runLog, setRunLog] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
+  const [checkedIds, setCheckedIds] = useState(new Set());
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [transportView, setTransportView] = useState(false);
@@ -1917,6 +1986,228 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
   const containerRef = useRef(null);
   const cardRefs = useRef({});
   const stopRef = useRef(false);
+
+  // Role-based access
+  const userRole = auth?.profile?.role ?? auth?.role ?? '';
+  const isReadOnly = ['client', 'invited_client'].includes(userRole);
+  const isFunctional = ['key_user', 'project_manager', 'internal_consultant'].includes(userRole);
+  const canDevelop = !isReadOnly && !isFunctional; // consultant, admin, manager
+
+  // Blueprint templates
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [bpTemplates, setBpTemplates] = useState([]);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+
+  // Reviewer
+  const [reviewerEmail, setReviewerEmail] = useState('');
+  const [reviewerUserId, setReviewerUserId] = useState(null);
+  const [reviewerName, setReviewerName] = useState('');
+  const [reviewerInput, setReviewerInput] = useState('');
+  const [reviewerLookup, setReviewerLookup] = useState(null); // null | 'searching' | { found, user, isFunctional }
+  const reviewerDebounce = useRef(null);
+  const [reviewerSaving, setReviewerSaving] = useState(false);
+  const [parentConsultant, setParentConsultant] = useState(null);
+  const [approvalLinkCopied, setApprovalLinkCopied] = useState(false);
+  const [genLinkLoading, setGenLinkLoading] = useState(false);
+  const [syncingReviews, setSyncingReviews] = useState(false);
+  const [syncedCount, setSyncedCount] = useState(null);
+
+  // Load reviewer info on mount
+  useEffect(() => {
+    async function loadReviewer() {
+      const { data: c } = await supabase
+        .from('cases')
+        .select('reviewer_email, reviewer_user_id, reviewer_name, parent_case_id')
+        .eq('id', caseId)
+        .single();
+      if (!c) return;
+      if (c.reviewer_email) setReviewerEmail(c.reviewer_email);
+      if (c.reviewer_user_id) setReviewerUserId(c.reviewer_user_id);
+      if (c.reviewer_name) {
+        setReviewerName(c.reviewer_name);
+      } else if (c.reviewer_user_id) {
+        const { data: u } = await supabase.from('users').select('full_name').eq('id', c.reviewer_user_id).single();
+        if (u?.full_name) setReviewerName(u.full_name);
+      }
+      if (c.parent_case_id) {
+        const { data: parent } = await supabase
+          .from('cases')
+          .select('case_assignments(users(full_name, email))')
+          .eq('id', c.parent_case_id)
+          .single();
+        const consultant = parent?.case_assignments?.[0]?.users;
+        if (consultant) setParentConsultant(consultant);
+      }
+    }
+    loadReviewer();
+  }, [caseId]);
+
+  function handleReviewerInputChange(val) {
+    setReviewerInput(val);
+    setReviewerLookup(null);
+    clearTimeout(reviewerDebounce.current);
+    const clean = val.trim().toLowerCase();
+    if (!clean.includes('@') || !clean.includes('.')) return;
+    reviewerDebounce.current = setTimeout(async () => {
+      setReviewerLookup('searching');
+      const { data } = await supabase
+        .from('users')
+        .select('id, full_name, email, role')
+        .eq('email', clean)
+        .maybeSingle();
+      if (!data) { setReviewerLookup({ found: false }); return; }
+      const FUNCTIONAL = ['key_user', 'project_manager', 'internal_consultant'];
+      setReviewerLookup({ found: true, user: data, isFunctional: FUNCTIONAL.includes(data.role) });
+    }, 500);
+  }
+
+  async function saveReviewer() {
+    const email = reviewerInput.trim().toLowerCase();
+    if (!email) return;
+    setReviewerSaving(true);
+    const userId = (reviewerLookup?.found && reviewerLookup?.isFunctional)
+      ? reviewerLookup.user.id
+      : null;
+    const name = reviewerLookup?.user?.full_name ?? null;
+    await supabase.from('cases').update({
+      reviewer_email: email,
+      reviewer_user_id: userId,
+      reviewer_name: name,
+    }).eq('id', caseId);
+    setReviewerEmail(email);
+    setReviewerUserId(userId);
+    setReviewerName(reviewerLookup?.user?.full_name ?? '');
+
+    // Add platform reviewer to case_key_users so they can access the case
+    if (userId) {
+      const { error: ckuErr } = await supabase.from('case_key_users')
+        .upsert(
+          { case_id: caseId, user_id: userId, area: 'reviewer' },
+          { onConflict: 'case_id,user_id' }
+        );
+      if (ckuErr) console.warn('case_key_users upsert:', ckuErr.message, ckuErr.details);
+    }
+
+    setReviewerInput('');
+    setReviewerLookup(null);
+    setReviewerSaving(false);
+  }
+
+  async function generateApprovalLink() {
+    const email = parentConsultant?.email ?? reviewerEmail;
+    if (!email) return;
+    setGenLinkLoading(true);
+    try {
+      // Find or create pending request for this case
+      let { data: existing } = await supabase
+        .from('approval_requests')
+        .select('id, token')
+        .eq('case_id', caseId)
+        .eq('status', 'pending')
+        .maybeSingle();
+
+      if (!existing) {
+        const { data: created } = await supabase
+          .from('approval_requests')
+          .insert({ reviewer_email: email, case_id: caseId, project_id: caseData.project_id ?? null })
+          .select('id, token')
+          .single();
+        existing = created;
+      }
+
+      if (!existing) { setGenLinkLoading(false); return; }
+
+      // Sync all pending_review objects into approval_request_objects
+      const pendingObjs = objects.filter(o => o.approval_status === 'pending_review');
+      if (pendingObjs.length > 0) {
+        await supabase.from('approval_request_objects').upsert(
+          pendingObjs.map(o => ({
+            approval_request_id: existing.id,
+            object_id:          o.id,
+            object_name:        o.name,
+            object_type:        o.type,
+            object_description: o.description ?? null,
+            object_phase:       o.phase ?? null,
+          })),
+          { onConflict: 'approval_request_id,object_id', ignoreDuplicates: false }
+        );
+      }
+
+      const link = `${window.location.origin}/approve/${existing.token}`;
+      await navigator.clipboard.writeText(link);
+      setApprovalLinkCopied(true);
+      setTimeout(() => setApprovalLinkCopied(false), 2500);
+    } finally {
+      setGenLinkLoading(false);
+    }
+  }
+
+  async function syncReviews() {
+    setSyncingReviews(true);
+    setSyncedCount(null);
+    const { data: req } = await supabase
+      .from('approval_requests')
+      .select('id')
+      .eq('case_id', caseId)
+      .eq('status', 'pending')
+      .maybeSingle();
+    if (!req) { setSyncingReviews(false); return; }
+
+    const { data: decisions } = await supabase
+      .from('approval_request_objects')
+      .select('object_id, decision, rejection_reason, decided_at')
+      .eq('approval_request_id', req.id)
+      .not('decision', 'is', null);
+
+    if (!decisions?.length) { setSyncingReviews(false); setSyncedCount(0); return; }
+
+    let count = 0;
+    const next = objects.map(o => {
+      const d = decisions.find(d => d.object_id === o.id);
+      if (!d) return o;
+      count++;
+      return { ...o, approval_status: d.decision, approved_by: 'reviewer', approved_at: d.decided_at, rejected_reason: d.rejection_reason ?? o.rejected_reason };
+    });
+    setObjects(next);
+    saveBlueprint(next);
+    setSyncedCount(count);
+    setSyncingReviews(false);
+  }
+
+  async function loadBpTemplates() {
+    const { data } = await supabase
+      .from('case_templates')
+      .select('id, name, description, template_data, created_at')
+      .eq('category', 'blueprint')
+      .order('created_at', { ascending: false });
+    setBpTemplates(data ?? []);
+  }
+
+  async function saveAsTemplate() {
+    if (!templateName.trim() || objects.length === 0) return;
+    setSavingTemplate(true);
+    await supabase.from('case_templates').insert({
+      name: templateName.trim(),
+      category: 'blueprint',
+      description: `${objects.length} objects`,
+      template_data: { objects: objects.map(o => ({ ...o, status: 'planned', generatedCode: null, appliedAt: null, error: null, approval_status: 'draft', approved_by: null, approved_at: null })) },
+      is_global: false,
+      created_by: auth?.user?.id ?? null,
+    });
+    setSavingTemplate(false);
+    setTemplateName('');
+    setShowSaveTemplate(false);
+  }
+
+  async function applyTemplate(tpl) {
+    const tplObjects = (tpl.template_data?.objects ?? []).map(o => ({ ...o, id: crypto.randomUUID(), status: 'planned', generatedCode: null, appliedAt: null, error: null, approval_status: 'draft' }));
+    const next = [...objects, ...tplObjects];
+    setObjects(next);
+    await saveBlueprint(next);
+    setShowTemplates(false);
+  }
 
   async function saveBlueprint(newObjects, newStopOnError) {
     const all = settings[bpKey] ?? {};
@@ -1929,6 +2220,18 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
       saveBlueprint(next);
       return next;
     });
+  }
+
+  function submitForReview(id) {
+    updateObj(id, { approval_status: 'pending_review' });
+  }
+
+  function approveObj(id) {
+    updateObj(id, { approval_status: 'approved', approved_by: auth?.user?.id, approved_at: new Date().toISOString() });
+  }
+
+  function rejectObj(id, reason = '') {
+    updateObj(id, { approval_status: 'rejected', rejected_reason: reason, approved_by: auth?.user?.id, approved_at: new Date().toISOString() });
   }
 
   function addLog(msg, status) {
@@ -2043,12 +2346,12 @@ Suggest 5-12 objects that cover the full implementation scope.`;
     }
   }
 
-  async function handleRunAll() {
+  async function handleRun(subset) {
     if (running) { stopRef.current = true; return; }
     stopRef.current = false;
     setRunning(true);
     setRunLog([]);
-    const sorted = topoSort(objects);
+    const sorted = topoSort(subset);
     const standards = resolveAbapStandards(settings, caseData.client_id, caseData.project_id, caseData.id);
 
     for (const obj of sorted) {
@@ -2097,13 +2400,20 @@ Output ONLY the ABAP source code, no explanations.`;
 
         if (autoImplEnabled && sapConfig?.host) {
           updateObj(obj.id, { status: 'applying' });
-          addLog(`${obj.name}: applying to SAP...`, 'applying');
-          const ok = await sapWriteSource(sapConfig, obj.type, obj.name, code, obj.transport || transportReq || undefined);
-          if (ok) {
+          addLog(`${obj.name}: applying directly browser → ${sapConfig.host}`, 'applying');
+          const result = await sapWriteSourceDetail(sapConfig, obj.type, obj.name, code, obj.transport || transportReq || undefined);
+          if (result.ok) {
             updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString() });
-            addLog(`${obj.name}: applied successfully.`, 'done');
+            addLog(`${obj.name}: ✓ applied (HTTP ${result.status}).`, 'done');
           } else {
-            throw new Error('SAP write returned false');
+            const detail = result.status ? `HTTP ${result.status}` : result.error;
+            throw new Error(
+              result.phase === 'csrf' ? `CSRF fetch failed — ${result.error}`
+              : result.status === 401 ? `HTTP 401 — wrong credentials`
+              : result.status === 403 ? `HTTP 403 — insufficient ADT authorizations`
+              : result.status === 404 ? `HTTP 404 — ${obj.name} not found in SAP`
+              : detail
+            );
           }
         } else {
           updateObj(obj.id, { status: 'generated' });
@@ -2115,6 +2425,56 @@ Output ONLY the ABAP source code, no explanations.`;
       }
     }
     setRunning(false);
+  }
+
+  function confirmAndRun(subset) {
+    if (autoImplEnabled && sapConfig?.host) {
+      const names = subset.filter(o => o.aiCapable).map(o => o.name).join(', ');
+      const msg = `Auto-implement is ON. This will write the following objects directly to SAP (${sapConfig.host}):\n\n${names || '(none AI-capable)'}\n\nContinue?`;
+      if (!window.confirm(msg)) return;
+    }
+    handleRun(subset);
+  }
+
+  function handleRunAll() { confirmAndRun(objects); }
+  function handleRunSelected() { confirmAndRun(objects.filter(o => checkedIds.has(o.id))); }
+
+  function toggleCheck(id, e) {
+    e.stopPropagation();
+    setCheckedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleCheckAll() {
+    setCheckedIds(prev => prev.size === objects.length ? new Set() : new Set(objects.map(o => o.id)));
+  }
+
+  async function handleApplyOne(obj) {
+    if (!sapConfig?.host || !autoImplEnabled) return;
+    const code = obj.generatedCode;
+    if (!code) return;
+    if (!window.confirm(`Apply ${obj.name} directly to SAP (${sapConfig.host})?`)) return;
+    updateObj(obj.id, { status: 'applying', error: null });
+    const mcpUrl = ssCtx.settings['sap_mcp_server_url'];
+    const proxyInUse = sapConfig.proxyUrl?.trim() || sapConfig._vpnProxyUrl?.trim();
+    addLog(`${obj.name}: connecting directly browser → ${sapConfig.host}${proxyInUse ? ` via proxy ${proxyInUse}` : ''}`, 'applying');
+    if (mcpUrl) addLog(`MCP server (AI generation): ${mcpUrl}`, 'generated');
+    const result = await sapWriteSourceDetail(sapConfig, obj.type, obj.name, code, obj.transport || transportReq || undefined);
+    if (result.ok) {
+      updateObj(obj.id, { status: 'done', appliedAt: new Date().toISOString(), error: null });
+      addLog(`${obj.name}: ✓ applied successfully (HTTP ${result.status}).`, 'done');
+    } else {
+      const detail = result.status ? `HTTP ${result.status}` : result.error;
+      const hint = result.status === 401 ? 'HTTP 401 — wrong username or password'
+        : result.status === 403 ? (result.error || 'HTTP 403 — missing ADT authorization or CSRF token rejected')
+        : result.status === 404 ? `HTTP 404 — object ${obj.name} not found in SAP (create it first)`
+        : result.error || detail;
+      updateObj(obj.id, { status: 'generated', error: detail });
+      addLog(`${obj.name}: ✗ ${hint}`, 'error');
+    }
   }
 
   function handleAddObject(form) {
@@ -2172,34 +2532,165 @@ Output ONLY the ABAP source code, no explanations.`;
           <LayoutGrid size={15} className="text-violet-600" />
           <span className="font-bold text-gray-900 text-sm">Implementation Blueprint</span>
           <span className="text-xs text-gray-400 hidden sm:inline">({objects.length} objects)</span>
+          {isReadOnly && <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md font-medium">Read-only</span>}
+          {isFunctional && <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-md font-medium">Reviewer</span>}
           <button onClick={() => setCollapsed(p => !p)}
             className="text-xs text-gray-400 hover:text-gray-600 ml-1 px-1.5 py-0.5 border border-gray-200 rounded-lg">
             {collapsed ? 'Expand' : 'Collapse'}
           </button>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
-            <input type="checkbox" checked={stopOnError} onChange={e => { setStopOnError(e.target.checked); saveBlueprint(objects, e.target.checked); }} />
-            Stop on error
-          </label>
+          {canDevelop && (
+            <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+              <input type="checkbox" checked={stopOnError} onChange={e => { setStopOnError(e.target.checked); saveBlueprint(objects, e.target.checked); }} />
+              Stop on error
+            </label>
+          )}
           <button onClick={() => setTransportView(p => !p)}
             className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors ${transportView ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
             Transport view
           </button>
-          <button onClick={handleAiSuggest}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-200 rounded-lg hover:bg-violet-100 transition-colors">
-            <Sparkles size={11} />{objects.length > 0 ? 'AI Regenerate' : 'AI Suggest'}
+          {/* Template buttons */}
+          <button onClick={() => { loadBpTemplates(); setShowTemplates(true); }}
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors">
+            <FolderOpen size={11} />Templates
           </button>
-          <button onClick={() => { setEditTarget(null); setShowModal(true); }}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">
-            <Plus size={11} />Add Object
-          </button>
-          <button onClick={handleRunAll}
-            className={`flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${running ? 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
-            {running ? <><X size={11} />Stop</> : <><Play size={11} />Run All</>}
-          </button>
+          {canDevelop && objects.length > 0 && (
+            <button onClick={() => setShowSaveTemplate(true)}
+              className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors">
+              <Save size={11} />Save Template
+            </button>
+          )}
+          {canDevelop && (
+            <>
+              <button onClick={handleAiSuggest}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-200 rounded-lg hover:bg-violet-100 transition-colors">
+                <Sparkles size={11} />{objects.length > 0 ? 'AI Regenerate' : 'AI Suggest'}
+              </button>
+              <button onClick={() => { setEditTarget(null); setShowModal(true); }}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">
+                <Plus size={11} />Add Object
+              </button>
+              {objects.length > 0 && (
+                <button onClick={toggleCheckAll}
+                  className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors">
+                  {checkedIds.size === objects.length ? 'Deselect All' : 'Select All'}
+                </button>
+              )}
+              {checkedIds.size > 0 && !running && (
+                <button onClick={handleRunSelected}
+                  className="flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors">
+                  <Play size={11} />Run Selected ({checkedIds.size})
+                </button>
+              )}
+              <button onClick={() => { if (running) { stopRef.current = true; } else { handleRunAll(); } }}
+                className={`flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${running ? 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
+                {running ? <><X size={11} />Stop</> : <><Play size={11} />Run All</>}
+              </button>
+            </>
+          )}
         </div>
       </div>
+
+      {/* Reviewer row */}
+      {canDevelop && (
+        <div className="px-4 py-2 border-b border-white/10 flex items-center gap-3 flex-wrap text-xs">
+          <Mail size={12} className="text-indigo-400 flex-shrink-0" />
+          <span className="font-medium text-gray-400 flex-shrink-0">Reviewer:</span>
+
+          {/* Inherited from parent case */}
+          {parentConsultant ? (
+            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-500/15 border border-indigo-500/30 rounded-lg text-indigo-300 font-medium">
+              {parentConsultant.full_name} · {parentConsultant.email}
+              <span className="text-[10px] text-indigo-400/60 font-normal ml-0.5">(inherited)</span>
+            </span>
+          ) : reviewerEmail ? (
+            <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg font-medium ${
+              reviewerUserId
+                ? 'bg-green-500/15 border border-green-500/30 text-green-300'
+                : 'bg-blue-500/15 border border-blue-500/30 text-blue-300'
+            }`}>
+              {reviewerUserId && reviewerName ? reviewerName : reviewerEmail}
+              <span className="text-[10px] font-normal opacity-60 ml-0.5">
+                {reviewerUserId ? '· in-app' : '· external link'}
+              </span>
+            </span>
+          ) : reviewerInput !== undefined ? (
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1.5">
+                <input
+                  value={reviewerInput}
+                  onChange={e => handleReviewerInputChange(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && saveReviewer()}
+                  placeholder="reviewer@email.com"
+                  className="text-xs border border-white/20 bg-white/5 text-white/80 placeholder-white/25 rounded-lg px-2 py-0.5 w-48 focus:outline-none focus:border-indigo-400/60"
+                />
+                <button
+                  onClick={saveReviewer}
+                  disabled={reviewerSaving || !reviewerInput.trim() || reviewerLookup === 'searching'}
+                  className="px-2 py-0.5 text-xs font-medium bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-lg hover:bg-indigo-500/30 disabled:opacity-40 transition-colors">
+                  {reviewerSaving ? '…' : 'Save'}
+                </button>
+              </div>
+              {/* Lookup feedback */}
+              {reviewerLookup === 'searching' && (
+                <span className="text-[10px] text-white/30 flex items-center gap-1">
+                  <Loader2 size={9} className="animate-spin" />Checking…
+                </span>
+              )}
+              {reviewerLookup?.found && reviewerLookup.isFunctional && (
+                <span className="text-[10px] text-green-400 flex items-center gap-1">
+                  <Check size={9} />{reviewerLookup.user.full_name} · on platform — will see this in-app
+                </span>
+              )}
+              {reviewerLookup?.found && !reviewerLookup.isFunctional && (
+                <span className="text-[10px] text-amber-400 flex items-center gap-1">
+                  ⚠ {reviewerLookup.user.full_name} is on the platform but has role <strong>{reviewerLookup.user.role}</strong> — not a functional reviewer. They'll receive an external link instead.
+                </span>
+              )}
+              {reviewerLookup?.found === false && (
+                <span className="text-[10px] text-blue-400/60 flex items-center gap-1">
+                  Not on platform — you'll share an external review link with them
+                </span>
+              )}
+            </div>
+          ) : null}
+
+          {/* Change reviewer */}
+          {reviewerEmail && !parentConsultant && (
+            <button
+              onClick={() => { setReviewerEmail(''); setReviewerInput(''); }}
+              className="text-white/30 hover:text-white/60 transition-colors text-[10px] underline">
+              change
+            </button>
+          )}
+
+          {/* Generate / copy link */}
+          {(reviewerEmail || parentConsultant) && objects.some(o => o.approval_status === 'pending_review') && (
+            <button
+              onClick={generateApprovalLink}
+              disabled={genLinkLoading}
+              className={`ml-auto flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors ${
+                approvalLinkCopied
+                  ? 'bg-green-500/20 border-green-500/30 text-green-300'
+                  : 'bg-indigo-500/20 border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/30'
+              }`}>
+              {approvalLinkCopied ? <><Check size={11} />Copied!</> : <><Link2 size={11} />{genLinkLoading ? 'Generating…' : 'Copy Review Link'}</>}
+            </button>
+          )}
+
+          {/* Sync reviews back from reviewer decisions */}
+          {objects.some(o => o.approval_status === 'pending_review') && (
+            <button
+              onClick={syncReviews}
+              disabled={syncingReviews}
+              className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium border border-white/15 text-white/40 rounded-lg hover:bg-white/5 hover:text-white/60 transition-colors disabled:opacity-40">
+              <RefreshCw size={11} className={syncingReviews ? 'animate-spin' : ''} />
+              {syncedCount !== null ? `Synced ${syncedCount}` : 'Sync Reviews'}
+            </button>
+          )}
+        </div>
+      )}
 
       {!collapsed && (
         <>
@@ -2246,8 +2737,14 @@ Output ONLY the ABAP source code, no explanations.`;
                               key={obj.id}
                               ref={el => { if (el) cardRefs.current[obj.id] = el; else delete cardRefs.current[obj.id]; }}
                               onClick={() => setSelectedId(isSelected ? null : obj.id)}
-                              className={`w-52 rounded-xl border-2 p-2.5 cursor-pointer transition-all select-none ${BP_STATUS_STYLE[obj.status] ?? BP_STATUS_STYLE.planned} ${isSelected ? 'ring-2 ring-blue-400 ring-offset-1' : 'hover:shadow-md'}`}>
+                              className={`w-52 rounded-xl border-2 p-2.5 cursor-pointer transition-all select-none ${BP_STATUS_STYLE[obj.status] ?? BP_STATUS_STYLE.planned} ${isSelected ? 'ring-2 ring-blue-400 ring-offset-1' : 'hover:shadow-md'} ${checkedIds.has(obj.id) ? 'outline outline-2 outline-blue-500 outline-offset-1' : ''}`}>
                               <div className="flex items-start gap-1.5">
+                                {canDevelop && (
+                                  <input type="checkbox" checked={checkedIds.has(obj.id)}
+                                    onClick={e => toggleCheck(obj.id, e)}
+                                    onChange={() => {}}
+                                    className="mt-1 flex-shrink-0 cursor-pointer accent-blue-600" />
+                                )}
                                 <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${statusDotColor[obj.status] ?? 'bg-gray-300'}`} />
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1 flex-wrap">
@@ -2261,6 +2758,19 @@ Output ONLY the ABAP source code, no explanations.`;
                                     <span className="text-[9px]">{obj.aiCapable ? '🤖' : '🔧'}</span>
                                     <span className={`text-[9px] capitalize font-medium`}>{obj.status}</span>
                                   </div>
+                                  {/* Approval status badge */}
+                                  {obj.approval_status && obj.approval_status !== 'draft' && (
+                                    <div className={`mt-1 inline-flex items-center gap-0.5 text-[9px] font-semibold px-1 py-0 rounded ${
+                                      obj.approval_status === 'approved' ? 'bg-green-100 text-green-700' :
+                                      obj.approval_status === 'pending_review' ? 'bg-amber-100 text-amber-700' :
+                                      obj.approval_status === 'rejected' ? 'bg-red-100 text-red-700' : ''
+                                    }`}>
+                                      {obj.approval_status === 'approved' && <Check size={7} />}
+                                      {obj.approval_status === 'pending_review' && <Clock size={7} />}
+                                      {obj.approval_status === 'rejected' && <X size={7} />}
+                                      {obj.approval_status === 'approved' ? 'Approved' : obj.approval_status === 'pending_review' ? 'In Review' : 'Rejected'}
+                                    </div>
+                                  )}
                                   {obj.description && (
                                     <p className="text-[10px] text-gray-500 mt-1 line-clamp-2 leading-snug">{obj.description}</p>
                                   )}
@@ -2299,7 +2809,10 @@ Output ONLY the ABAP source code, no explanations.`;
                     {objs.map(obj => (
                       <div key={obj.id}
                         onClick={() => setSelectedId(selectedId === obj.id ? null : obj.id)}
-                        className={`px-3 py-1.5 rounded-lg border-2 text-xs font-mono cursor-pointer transition-all ${BP_STATUS_STYLE[obj.status] ?? BP_STATUS_STYLE.planned} ${selectedId === obj.id ? 'ring-2 ring-blue-400' : ''}`}>
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 text-xs font-mono cursor-pointer transition-all ${BP_STATUS_STYLE[obj.status] ?? BP_STATUS_STYLE.planned} ${selectedId === obj.id ? 'ring-2 ring-blue-400' : ''} ${checkedIds.has(obj.id) ? 'outline outline-2 outline-blue-500 outline-offset-1' : ''}`}>
+                        <input type="checkbox" checked={checkedIds.has(obj.id)}
+                          onClick={e => toggleCheck(obj.id, e)} onChange={() => {}}
+                          className="cursor-pointer accent-blue-600 flex-shrink-0" />
                         {obj.name} <span className="opacity-50">{BP_TYPES[obj.type]?.short ?? ''}</span>
                       </div>
                     ))}
@@ -2326,17 +2839,64 @@ Output ONLY the ABAP source code, no explanations.`;
                     <p className="text-xs text-green-600 mt-1">Applied: {new Date(selectedObj.appliedAt).toLocaleString()}</p>
                   )}
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
                   <button onClick={() => { setEditTarget(selectedObj); setShowModal(true); }}
                     className="px-2.5 py-1 text-xs font-medium border border-gray-200 rounded-lg hover:bg-white transition-colors">Edit</button>
                   {selectedObj.status === 'error' && (
                     <button onClick={() => updateObj(selectedObj.id, { status: 'planned', error: null })}
                       className="px-2.5 py-1 text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors">Retry</button>
                   )}
-                  <button onClick={() => handleDelete(selectedObj.id)}
-                    className="px-2.5 py-1 text-xs font-medium bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">Delete</button>
+                  {autoImplEnabled && selectedObj.generatedCode && selectedObj.status !== 'done' && selectedObj.status !== 'applying' && (
+                    <button onClick={() => handleApplyOne(selectedObj)}
+                      className="px-2.5 py-1 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors">
+                      Apply to SAP
+                    </button>
+                  )}
+                  {selectedObj.status === 'applying' && (
+                    <span className="px-2.5 py-1 text-xs text-amber-700 font-medium">Applying…</span>
+                  )}
+                  {canDevelop && (
+                    <button onClick={() => handleDelete(selectedObj.id)}
+                      className="px-2.5 py-1 text-xs font-medium bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">Delete</button>
+                  )}
                 </div>
               </div>
+
+              {/* Approval gate row */}
+              <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-gray-500 font-medium">Review:</span>
+                {(!selectedObj.approval_status || selectedObj.approval_status === 'draft') && canDevelop && (
+                  <button onClick={() => submitForReview(selectedObj.id)}
+                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors">
+                    <Clock size={11} />Submit for Review
+                  </button>
+                )}
+                {selectedObj.approval_status === 'pending_review' && isFunctional && (
+                  <>
+                    <button onClick={() => approveObj(selectedObj.id)}
+                      className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors">
+                      <ThumbsUp size={11} />Approve
+                    </button>
+                    <button onClick={() => { const r = prompt('Rejection reason (optional):') ?? ''; rejectObj(selectedObj.id, r); }}
+                      className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">
+                      <ThumbsDown size={11} />Reject
+                    </button>
+                  </>
+                )}
+                {selectedObj.approval_status === 'approved' && (
+                  <span className="flex items-center gap-1 text-xs text-green-600 font-medium"><Check size={12} />Approved</span>
+                )}
+                {selectedObj.approval_status === 'rejected' && (
+                  <span className="flex items-center gap-1 text-xs text-red-600 font-medium"><X size={12} />Rejected{selectedObj.rejected_reason ? `: ${selectedObj.rejected_reason}` : ''}</span>
+                )}
+                {(!selectedObj.approval_status || selectedObj.approval_status === 'draft') && !canDevelop && (
+                  <span className="text-xs text-gray-400">Not submitted yet</span>
+                )}
+                {selectedObj.approval_status === 'pending_review' && !isFunctional && (
+                  <span className="flex items-center gap-1 text-xs text-amber-600 font-medium"><Clock size={11} />Waiting for review</span>
+                )}
+              </div>
+
               {selectedObj.generatedCode && (
                 <details>
                   <summary className="text-xs font-semibold text-gray-500 uppercase tracking-wide cursor-pointer select-none mb-1">
@@ -2367,6 +2927,68 @@ Output ONLY the ABAP source code, no explanations.`;
             </div>
           )}
         </>
+      )}
+
+      {/* Blueprint templates modal */}
+      {showTemplates && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2"><FolderOpen size={15} className="text-blue-600" />Blueprint Templates</h3>
+              <button onClick={() => setShowTemplates(false)} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-3 space-y-2">
+              {bpTemplates.length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-8">No templates saved yet.<br/>Save the current blueprint as a template to reuse it.</p>
+              )}
+              {bpTemplates.map(tpl => (
+                <div key={tpl.id} className="flex items-center justify-between gap-3 p-3 border border-gray-100 rounded-xl hover:bg-gray-50">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-800 truncate">{tpl.name}</p>
+                    {tpl.description && <p className="text-xs text-gray-400">{tpl.description}</p>}
+                  </div>
+                  {canDevelop && (
+                    <button onClick={() => applyTemplate(tpl)}
+                      className="px-3 py-1 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 flex-shrink-0">
+                      Apply
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Save as template modal */}
+      {showSaveTemplate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2"><Save size={14} />Save as Template</h3>
+              <button onClick={() => { setShowSaveTemplate(false); setTemplateName(''); }} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Template name</label>
+              <input
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                placeholder="e.g. S/4 Credit Management"
+                value={templateName}
+                onChange={e => setTemplateName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && saveAsTemplate()}
+              />
+              <p className="text-xs text-gray-400 mt-1">{objects.length} objects will be saved (status and code are reset)</p>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => { setShowSaveTemplate(false); setTemplateName(''); }}
+                className="px-3 py-1.5 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50">Cancel</button>
+              <button onClick={saveAsTemplate} disabled={!templateName.trim() || savingTemplate}
+                className="px-3 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
+                {savingTemplate ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}Save
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Add/Edit modal */}
@@ -2433,6 +3055,16 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
     : (sapEnvironments[0] ?? null);
   const autoImplEnabled = sapConfig?.autoImplementEnabled ?? false;
 
+  // Enrich sapConfig with VPN proxy URL from linked connection (same as settings test panel)
+  const allConnsForEnrich = [...projectConns, ...clientConns];
+  function enrichWithVpn(env) {
+    if (!env) return env;
+    const linked = env.connectionId ? allConnsForEnrich.find(c => c.id === env.connectionId) : null;
+    const vpnProxyUrl = linked?.db_type === 'vpn' ? linked.meta?.proxy_url?.trim() : null;
+    return vpnProxyUrl ? { ...env, _vpnProxyUrl: vpnProxyUrl } : env;
+  }
+  const enrichedSapConfig = enrichWithVpn(sapConfig);
+
   async function saveCaseEnv(envId) {
     await ssCtx.setSetting('sap_case_env', { ...sapCaseEnvMap, [caseData.id]: envId || null });
   }
@@ -2442,6 +3074,8 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   const [objectMap, setObjectMap] = useState(savedObjects);
   // Per-activity state: { [actId]: { checking, checkResult, generatedCode, applying, applied, expanded } }
   const [actState, setActState] = useState({});
+  // Multi-select for apply
+  const [checkedActIds, setCheckedActIds] = useState(new Set());
 
   const [transportReq, setTransportReq] = useState(settings['sap_impl_transport']?.[caseData.id] ?? '');
   const [savingTransport, setSavingTransport] = useState(false);
@@ -2481,7 +3115,7 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
     if (!obj?.objectName) return;
     setActField(actId, { checking: true, checkResult: null });
     try {
-      const src = await sapFetchSource(sapConfig, obj.objectType ?? 'program', obj.objectName);
+      const src = await sapFetchSource(enrichedSapConfig, obj.objectType ?? 'program', obj.objectName);
       setActField(actId, { checking: false, checkResult: src ? { found: true, source: src } : { found: false } });
     } catch (e) {
       setActField(actId, { checking: false, checkResult: { found: false, error: e.message } });
@@ -2541,34 +3175,34 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
     const obj = objectMap[act.id];
     const code = actState[act.id]?.generatedCode;
     if (!obj?.objectName || !code) return;
-    setActField(act.id, { applying: true });
-    try {
-      const ok = await sapWriteSource(sapConfig, obj.objectType ?? 'program', obj.objectName, code, transportReq || undefined);
-      if (ok) {
-        setActField(act.id, { applying: false, applied: true });
-        // Update activity progress to 100%
-        await updateActivity(act.id, { progress_pct: 100 });
-        // Log the implementation
-        const cur = settings['sap_impl_log'] ?? {};
-        const caseLog = cur[caseData.id] ?? [];
-        await ssCtx.setSetting('sap_impl_log', {
-          ...cur,
-          [caseData.id]: [...caseLog, {
-            activityId: act.id,
-            activityTitle: act.title,
-            objectName: obj.objectName,
-            objectType: obj.objectType,
-            appliedAt: new Date().toISOString(),
-            transport: transportReq,
-          }],
-        });
-      } else {
-        setActField(act.id, { applying: false });
-        alert('SAP write failed. Check connection and transport request.');
-      }
-    } catch (e) {
-      setActField(act.id, { applying: false });
-      alert('Apply failed: ' + e.message);
+    setActField(act.id, { applying: true, applyLog: [`Connecting to SAP via /api/sap-proxy → ${sapConfig.host}…`] });
+    const pushLog = msg => setActField(act.id, s => ({ applyLog: [...(s.applyLog ?? []), msg] }));
+    const result = await sapWriteSourceDetail(enrichedSapConfig, obj.objectType ?? 'program', obj.objectName, code, transportReq || undefined);
+    if (result.ok) {
+      pushLog(`✓ Applied successfully (HTTP ${result.status})`);
+      setActField(act.id, { applying: false, applied: true });
+      await updateActivity(act.id, { progress_pct: 100 });
+      const cur = settings['sap_impl_log'] ?? {};
+      const caseLog = cur[caseData.id] ?? [];
+      await ssCtx.setSetting('sap_impl_log', {
+        ...cur,
+        [caseData.id]: [...caseLog, {
+          activityId: act.id,
+          activityTitle: act.title,
+          objectName: obj.objectName,
+          objectType: obj.objectType,
+          appliedAt: new Date().toISOString(),
+          transport: transportReq,
+        }],
+      });
+    } else {
+      const detail = result.status ? `HTTP ${result.status}` : result.error;
+      const hint = result.status === 401 ? 'HTTP 401 — wrong username or password'
+        : result.status === 403 ? (result.error || 'HTTP 403 — missing ADT authorization or CSRF token rejected')
+        : result.status === 404 ? `HTTP 404 — object ${obj.objectName} does not exist in SAP yet`
+        : result.error || (result.body ? `${detail}: ${result.body}` : detail);
+      pushLog(`✗ ${hint}`);
+      setActField(act.id, { applying: false, applyError: hint });
     }
   }
 
@@ -2582,6 +3216,34 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
     }
   }
 
+  async function handleApplySelected() {
+    for (const act of implActivities) {
+      if (!checkedActIds.has(act.id)) continue;
+      const obj = objectMap[act.id];
+      const code = actState[act.id]?.generatedCode;
+      if (obj?.objectName && code && !actState[act.id]?.applied) {
+        await handleApplyToSap(act);
+      }
+    }
+  }
+
+  function toggleActCheck(actId, e) {
+    e.stopPropagation();
+    setCheckedActIds(prev => {
+      const next = new Set(prev);
+      next.has(actId) ? next.delete(actId) : next.add(actId);
+      return next;
+    });
+  }
+
+  function toggleActCheckAll() {
+    if (checkedActIds.size === implActivities.length) {
+      setCheckedActIds(new Set());
+    } else {
+      setCheckedActIds(new Set(implActivities.map(a => a.id)));
+    }
+  }
+
   const implLog = (settings['sap_impl_log'] ?? {})[caseData.id] ?? [];
   const appliedCount = implLog.length;
   const totalCount   = implActivities.length;
@@ -2589,7 +3251,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
   if (!sapConfig?.host) {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center space-y-2">
-        <Code2 size={36} className="text-gray-200 mx-auto" />
+        <Code2 size={36} className="text-gray-400 mx-auto" />
         <p className="text-sm font-semibold text-gray-700">{t('sap.impl_no_config')}</p>
         <p className="text-xs text-gray-400">{t('sap.impl_configure')}</p>
       </div>
@@ -2602,7 +3264,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
         caseData={caseData}
         auth={auth}
         activities={implActivities}
-        sapConfig={sapConfig}
+        sapConfig={enrichedSapConfig}
         autoImplEnabled={autoImplEnabled}
         genModel={genModel}
         transportReq={transportReq}
@@ -2671,10 +3333,23 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
                 className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm w-32 focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
             {autoImplEnabled && (
-              <button onClick={handleApplyAll}
-                className="px-4 py-2 text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-colors">
-                {t('sap.impl_apply_all')}
-              </button>
+              <>
+                <button onClick={toggleActCheckAll}
+                  className="px-3 py-1.5 text-xs font-semibold border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                  {checkedActIds.size === implActivities.length && implActivities.length > 0
+                    ? t('sap.deselect_all') : t('sap.select_all')}
+                </button>
+                {checkedActIds.size > 0 && (
+                  <button onClick={handleApplySelected}
+                    className="px-4 py-2 text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-colors">
+                    {t('sap.impl_apply_selected').replace('{n}', checkedActIds.size)}
+                  </button>
+                )}
+                <button onClick={handleApplyAll}
+                  className="px-4 py-2 text-sm font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-xl transition-colors">
+                  {t('sap.impl_apply_all')}
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -2712,10 +3387,17 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
         const isApplied = as.applied || implLog.some(l => l.activityId === act.id);
 
         return (
-          <div key={act.id} className={`bg-white rounded-2xl border shadow-sm transition-all ${isApplied ? 'border-green-200 bg-green-50/40' : 'border-gray-100'}`}>
+          <div key={act.id} className={`bg-white rounded-2xl border shadow-sm transition-all ${isApplied ? 'border-green-200 bg-green-50/40' : checkedActIds.has(act.id) ? 'border-amber-300' : 'border-gray-100'}`}>
             {/* Card header */}
             <div className="p-4 flex items-start gap-3 cursor-pointer"
               onClick={() => setActField(act.id, { expanded: !as.expanded })}>
+              {autoImplEnabled && (
+                <input type="checkbox"
+                  checked={checkedActIds.has(act.id)}
+                  onChange={e => toggleActCheck(act.id, e)}
+                  onClick={e => e.stopPropagation()}
+                  className="mt-1.5 flex-shrink-0 accent-amber-500 cursor-pointer" />
+              )}
               <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${isApplied ? 'bg-green-100' : 'bg-blue-100'}`}>
                 {isApplied ? <CheckCircle2 size={14} className="text-green-600" /> : <Code2 size={14} className="text-blue-600" />}
               </div>
@@ -2787,6 +3469,15 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
                   )}
                 </div>
 
+                {/* Apply log */}
+                {(as.applyLog?.length > 0 || as.applyError) && (
+                  <div className="rounded-xl bg-gray-950 p-3 space-y-1">
+                    {(as.applyLog ?? []).map((msg, i) => (
+                      <p key={i} className={`text-xs font-mono leading-snug ${msg.startsWith('✓') ? 'text-green-400' : msg.startsWith('✗') ? 'text-red-400' : 'text-gray-400'}`}>{msg}</p>
+                    ))}
+                  </div>
+                )}
+
                 {/* Existing source (from SAP check) */}
                 {as.checkResult?.found && as.checkResult.source && (
                   <div>
@@ -2841,4 +3532,4 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
   );
 }
 
-export { useClientProfile, ABAP_STANDARDS_DEFAULTS, resolveAbapStandards, buildAbapStandardsPrompt, sapObjectPath, SAP_ENV_TYPE_META, SapIntegrationPanel, ProjectSapEnvPanel, ProjectOwnSapPanel, AbapStandardsPanel, AbapTemplatesSection, SAP_OBJECT_TYPES, SapImplementationTab, SapBlueprintCanvas, BP_PHASES, BP_TYPES, BP_STATUS_STYLE };
+export { useClientProfile, ABAP_STANDARDS_DEFAULTS, resolveAbapStandards, buildAbapStandardsPrompt, sapObjectPath, SAP_ENV_TYPE_META, SapIntegrationPanel, ProjectSapEnvPanel, ProjectOwnSapPanel, AbapStandardsPanel, AbapTemplatesSection, SAP_OBJECT_TYPES, SapImplementationTab, SapBlueprintCanvas, BP_PHASES, BP_TYPES, BP_STATUS_STYLE, sapLiveCheck, sapFetchSource };

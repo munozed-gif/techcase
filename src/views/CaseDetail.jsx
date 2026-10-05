@@ -158,6 +158,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   }
 
   const [newMilestone, setNewMilestone] = useState("");
+  const [milestoneError, setMilestoneError] = useState(null);
   const [editingMilestoneId, setEditingMilestoneId] = useState(null);
   const [editingMilestoneTitle, setEditingMilestoneTitle] = useState("");
   const [commentForm, setCommentForm]  = useState({ body: "", hoursLogged: 0, progressUpdate: "", isInternal: false });
@@ -531,8 +532,13 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
 
   async function handleAddMilestone() {
     if (!newMilestone.trim()) return;
-    await addMilestone(newMilestone.trim());
-    setNewMilestone("");
+    setMilestoneError(null);
+    try {
+      await addMilestone(newMilestone.trim());
+      setNewMilestone("");
+    } catch (e) {
+      setMilestoneError(e?.message ?? "Failed to add milestone");
+    }
   }
 
   async function handleComment() {
@@ -3149,8 +3155,10 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
           {/* Case Team card */}
           {(() => {
             const consultant = caseData.case_assignments?.[0];
-            const teamMembers = caseData.case_key_users ?? [];
-            const hasTeam = consultant || teamMembers.length > 0 || caseData.key_user_email || caseData.is_head_hunter;
+            const reviewerMember = (caseData.case_key_users ?? []).find(ku => ku.area === 'reviewer');
+            const teamMembers = (caseData.case_key_users ?? []).filter(ku => ku.area !== 'reviewer');
+            const reviewerDisplay = caseData.reviewer_name ?? reviewerMember?.users?.full_name ?? caseData.reviewer_email;
+            const hasTeam = consultant || teamMembers.length > 0 || caseData.key_user_email || caseData.is_head_hunter || caseData.reviewer_email;
             if (!hasTeam) return null;
             const ROLE_BADGE = {
               consultant:          "bg-green-100 text-green-700",
@@ -3200,6 +3208,21 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                   })}
                   {caseData.key_user_email && !teamMembers.length && (
                     <div className="text-xs text-gray-500 px-1">{t("case.key_user_invited")}: {caseData.key_user_email}</div>
+                  )}
+                  {caseData.reviewer_email && (
+                    <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-lg px-2.5 py-1.5">
+                      <UserCheck className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-gray-900 text-xs truncate">{reviewerDisplay}</div>
+                        {(caseData.reviewer_name || reviewerMember?.users?.full_name) && (
+                          <div className="text-[10px] text-gray-400 truncate">{caseData.reviewer_email}</div>
+                        )}
+                        <div className="text-[10px] text-indigo-400">Blueprint Reviewer</div>
+                      </div>
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded flex-shrink-0">
+                        {caseData.reviewer_user_id ? 'In-app' : 'External'}
+                      </span>
+                    </div>
                   )}
                   {caseData.is_head_hunter && (
                     <div className="flex items-center gap-2 bg-pink-50 border border-pink-100 rounded-lg px-2.5 py-1.5">
@@ -3452,15 +3475,20 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             <p className="text-sm text-gray-400 text-center py-4">{t("case.no_milestones")}</p>
           )}
           {(auth.isAdmin || auth.isManager || auth.isConsultant) && stageRules.editable && (
-            <div className="flex gap-2 mt-4">
-              <input value={newMilestone} onChange={e => setNewMilestone(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleAddMilestone()}
-                placeholder={t("cs.ph_milestone")}
-                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              <button onClick={handleAddMilestone}
-                className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">
-                {t("action.add")}
-              </button>
+            <div className="mt-4 space-y-1.5">
+              <div className="flex gap-2">
+                <input value={newMilestone} onChange={e => setNewMilestone(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleAddMilestone()}
+                  placeholder={t("cs.ph_milestone")}
+                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <button onClick={handleAddMilestone}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700">
+                  {t("action.add")}
+                </button>
+              </div>
+              {milestoneError && (
+                <p className="text-xs text-red-500 px-1">{milestoneError}</p>
+              )}
             </div>
           )}
         </div>

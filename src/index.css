@@ -409,3 +409,28 @@
 
 /* ── disabled/bg-gray-300 in dark mode ── */
 .arena-dark .disabled\:bg-gray-300:disabled { background-color: var(--ad-inner2) !important; }
+
+/* ── Gray-700 / Gray-800 (confidential badges, active selection states) ── */
+.arena-dark .bg-gray-700 { background-color: var(--ad-inner)  !important; }
+.arena-dark .bg-gray-800 { background-color: var(--ad-inner2) !important; }
+
+/* ── text-gray-200 (icon placeholders) ── */
+.arena-dark .text-gray-200 { color: var(--ad-text3) !important; }
+
+/* ── SAP screen chrome tokens ─────────────────────────────────────────────
+   Used by the renderSapScreen() template-literal HTML in CaseSubPanels.jsx.
+   CSS variables work inside innerHTML because they follow the DOM cascade.
+─────────────────────────────────────────────────────────────────────────── */
+:root {
+  --sap-bar:        #dde4f0;
+  --sap-toolbar:    #e4eaf5;
+  --sap-panel:      #f5f7fc;
+  --sap-white:      white;
+  --sap-row-alt:    #f0f5fc;
+  --sap-total:      #d0e4f8;
+  --sap-total-text: #00186a;
+  --sap-text:       #222222;
+  --sap-label:      #2a3a5a;
+  --sap-field-text: #001280;
+}
+/* SAP screen is a light-themed GUI simulation — keep it light in all modes */

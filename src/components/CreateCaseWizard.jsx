@@ -765,7 +765,7 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
             }
           }
         }
-        const newCase = await createCase(payload);
+        const newCase = await createCase(payload, { autoAssignCreator: auth.isConsultant && !!auth.user?.id });
         if (newCase?.id) {
           if (caseVisMode !== 'public') {
             await _visCfg.setCaseVisibility(newCase.id, caseVisMode);
@@ -775,9 +775,10 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
             kuRows.push({ user_id: auth.user?.id, area: null });
           }
           if (kuRows.length > 0) {
-            await supabase.from("case_key_users").insert(
-              kuRows.map(ku => ({ case_id: newCase.id, user_id: ku.user_id, area: ku.area || null }))
-            ).onConflict("case_id,user_id").ignore();
+            await supabase.from("case_key_users").upsert(
+              kuRows.map(ku => ({ case_id: newCase.id, user_id: ku.user_id, area: ku.area || null })),
+              { onConflict: 'case_id,user_id', ignoreDuplicates: true }
+            );
           }
           if (milestones.length > 0) {
             await supabase.from("case_milestones").insert(
@@ -791,14 +792,6 @@ function CreateCaseWizard({ auth, createCase, onComplete, onSave, onCancel, init
               invited_email: consultantClientEmail.trim().toLowerCase(),
               invited_by:    auth.user?.id,
             });
-          }
-          // Auto-assign the creating consultant
-          if (auth.isConsultant && auth.user?.id) {
-            await supabase.from("case_assignments").insert({
-              case_id:         newCase.id,
-              consultant_id:   auth.user.id,
-              time_commitment: 100,
-            }).onConflict("case_id,consultant_id").ignore();
           }
         }
         if (saveAsTemplate && templateName.trim()) {

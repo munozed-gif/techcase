@@ -27,8 +27,9 @@ function useMilestones(caseId) {
     }
   }
   async function addMilestone(title) {
-    await supabase.from("case_milestones")
+    const { error } = await supabase.from("case_milestones")
       .insert({ case_id: caseId, title, position: milestones.length + 1 });
+    if (error) throw error;
     await fetchMilestones();
   }
   async function updateMilestone(id, title) {

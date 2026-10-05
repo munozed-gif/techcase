@@ -121,7 +121,7 @@ function useAuth() {
     isConsultant:     profile?.role === "consultant",
     isClient:         profile?.role === "client",
     isInvitedClient:  profile?.role === "invited_client",
-    isKeyUser:        profile?.role === "key_user",
+    isKeyUser:        ["key_user", "internal_consultant", "project_manager"].includes(profile?.role),
     isHeadhunter:     profile?.role === "headhunter",
     isFinalUser:      profile?.role === "final_user",
     isDispatch:       profile?.role === "dispatch",

@@ -133,6 +133,9 @@ import { EmptyState, Modal, Input, Textarea, Select } from "./src/components/ui.
 // ============================================================
 import { AuthScreen } from "./src/views/AuthScreen.jsx";
 import { LandingView } from "./src/views/LandingView.jsx";
+import ProjectShareView from "./src/views/ProjectShareView.jsx";
+import ApprovalView from "./src/views/ApprovalView.jsx";
+import MyReviewsView from "./src/views/MyReviewsView.jsx";
 
 
 // ============================================================
@@ -549,6 +552,10 @@ function StartDateMonitor({ auth }) {
 
 // Intercept /join/:token before any auth flow
 const _joinMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/join\/([^/?#]+)/);
+// Intercept /share/:token — public read-only project view, no auth required
+const _shareMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/share\/([^/?#]+)/);
+// Intercept /approve/:token — tokenized blueprint review view, no auth required
+const _approveMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/approve\/([^/?#]+)/);
 
 export default function App() {
   const auth = useAuth();
@@ -587,6 +594,20 @@ export default function App() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, []);
+
+  // /share/:token — public read-only project view, no login needed
+  if (_shareMatch) {
+    return (
+      <LanguageProvider>
+        <ProjectShareView token={_shareMatch[1]} />
+      </LanguageProvider>
+    );
+  }
+
+  // /approve/:token — tokenized blueprint review, no login needed
+  if (_approveMatch) {
+    return <ApprovalView token={_approveMatch[1]} />;
+  }
 
   // /join/:token — show branded join screen before any auth check
   if (_joinMatch) {
@@ -712,6 +733,7 @@ export default function App() {
       case "approvals":      return (auth.isAdmin || auth.isManager) ? <UserApprovalQueue /> : <Dashboard auth={auth} />;
       case "templates":      return (auth.isAdmin || auth.isManager) ? <CaseTemplatesView auth={auth} /> : <Dashboard auth={auth} />;
       case "notifications":  return <NotificationsView />;
+      case "my-reviews":    return <MyReviewsView auth={auth} />;
       case "invoices":       return <InvoicesView auth={auth} />;
       case "kanban":         return <KanbanView auth={auth} />;
       case "time":           return <TimeEntriesView auth={auth} />;

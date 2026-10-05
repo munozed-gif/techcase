@@ -759,14 +759,25 @@ function SettingsPlatformTab({ ssCtx }) {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
-            <input value={form.brand_logo_url}
-              onChange={e => setForm(p => ({ ...p, brand_logo_url: e.target.value }))}
-              placeholder="https://…/logo.png"
-              className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full font-mono text-xs" />
-            {form.brand_logo_url && (
+            <div className="flex gap-2">
+              <input value={form.brand_logo_url}
+                onChange={e => setForm(p => ({ ...p, brand_logo_url: e.target.value }))}
+                placeholder="Leave empty to use Nova Logo"
+                className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-full font-mono text-xs" />
+              {form.brand_logo_url && (
+                <button
+                  onClick={() => setForm(p => ({ ...p, brand_logo_url: "" }))}
+                  className="flex-shrink-0 px-3 py-2 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-xl hover:bg-blue-100 whitespace-nowrap">
+                  Use Nova Logo
+                </button>
+              )}
+            </div>
+            {form.brand_logo_url ? (
               <img src={form.brand_logo_url} alt="Logo preview"
                 className="mt-2 h-10 object-contain rounded border border-gray-100 p-1"
                 onError={e => { e.currentTarget.style.display = 'none'; }} />
+            ) : (
+              <p className="text-xs text-gray-400 mt-1">Nova Logo will be used (animated, shown in sidebar)</p>
             )}
           </div>
           <div>
@@ -913,14 +924,15 @@ const NAV_ITEMS_CONFIG = [
   { id: 'invoices',      label: 'Invoices' },
   { id: 'reports',       label: 'Reports' },
   { id: 'notifications', label: 'Notifications' },
+  { id: 'my-reviews',    label: 'My Reviews' },
 ];
 
-const NAV_VIS_ROLES = ["manager", "consultant", "client", "key_user", "headhunter", "final_user", "dispatch", "area_leader"];
+const NAV_VIS_ROLES = ["manager", "consultant", "internal_consultant", "project_manager", "client", "key_user", "headhunter", "final_user", "dispatch", "area_leader"];
 
 function SettingsRolesTab({ ssCtx }) {
   const { t } = useT();
 
-  const ALL_ROLES = ["admin", "manager", "consultant", "client", "key_user", "headhunter", "final_user", "dispatch", "area_leader"];
+  const ALL_ROLES = ["admin", "manager", "consultant", "internal_consultant", "project_manager", "client", "key_user", "headhunter", "final_user", "dispatch", "area_leader"];
   const CAPABILITIES = Object.keys(ROLE_PERMISSIONS_DEFAULTS);
 
   const WIZARD_TYPES = ["case", "project"];
@@ -1199,7 +1211,7 @@ function SettingsGenerationTab({ ssCtx }) {
 
   const AI_MODELS = [
     { value: "claude-haiku-4-5-20251001", labelKey: "model.haiku_label" },
-    { value: "claude-sonnet-5",           labelKey: "model.sonnet_label" },
+    { value: "claude-sonnet-5-5",         labelKey: "model.sonnet_label" },
     { value: "claude-opus-5-5",           labelKey: "model.opus_label" },
   ];
 
@@ -1207,10 +1219,15 @@ function SettingsGenerationTab({ ssCtx }) {
     if (!ssCtx.loading) {
       const stored = ssCtx.settings["generation_profiles"] ?? {};
       const storedCtx = ssCtx.settings["generation_context"] ?? {};
+      const validModelVals = AI_MODELS.map(m => m.value);
+      const resolveModel = (key, fallback) => {
+        const v = ssCtx.settings[key];
+        return validModelVals.includes(v) ? v : fallback;
+      };
       const merged = {
-        ai_model:         ssCtx.settings["ai_model"]         ?? "claude-haiku-4-5-20251001",
-        analysis_model:   ssCtx.settings["analysis_model"]   ?? "claude-haiku-4-5-20251001",
-        prototype_model:  ssCtx.settings["prototype_model"]  ?? "claude-sonnet-5",
+        ai_model:         resolveModel("ai_model",        "claude-haiku-4-5-20251001"),
+        analysis_model:   resolveModel("analysis_model",  "claude-haiku-4-5-20251001"),
+        prototype_model:  resolveModel("prototype_model", "claude-sonnet-5-5"),
         sap_mcp_server_url: ssCtx.settings["sap_mcp_server_url"] ?? "",
         default_profile: stored.default_profile ?? GENERATION_PROFILE_DEFAULTS.default_profile,
         context: { ...GENERATION_CONTEXT_DEFAULTS, ...storedCtx },
@@ -2770,7 +2787,7 @@ function SettingsInvoiceTab({ ssCtx }) {
 // ── People tab — users + permissions combined ─────────────────
 function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
   const { t } = useT();
-  const ALL_ROLES = ["admin", "manager", "consultant", "client", "key_user", "headhunter", "final_user", "dispatch", "area_leader"];
+  const ALL_ROLES = ["admin", "manager", "consultant", "internal_consultant", "project_manager", "client", "key_user", "headhunter", "final_user", "dispatch", "area_leader"];
   const CAPS = Object.keys(ROLE_PERMISSIONS_DEFAULTS);
 
   const PERSONA_TABS = [
