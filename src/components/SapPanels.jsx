@@ -2082,8 +2082,12 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
 
     // Add platform reviewer to case_key_users so they can access the case
     if (userId) {
-      await supabase.from('case_key_users')
-        .upsert({ case_id: caseId, user_id: userId, area: 'reviewer' }, { onConflict: 'case_id,user_id', ignoreDuplicates: true });
+      const { error: ckuErr } = await supabase.from('case_key_users')
+        .upsert(
+          { case_id: caseId, user_id: userId, area: 'reviewer' },
+          { onConflict: 'case_id,user_id' }
+        );
+      if (ckuErr) console.warn('case_key_users upsert:', ckuErr.message, ckuErr.details);
     }
 
     setReviewerInput('');
