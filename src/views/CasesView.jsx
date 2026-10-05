@@ -61,6 +61,7 @@ function CasesView({ auth, initialCaseId }) {
   const { cases: _rawCasesCV, loading, createCase, updateCase, deleteCase, refetch, hasMore, loadMore } = useCases({
     search: debouncedSearch || undefined,
     client_id: auth.isClient ? auth.user?.id : undefined,
+    key_user_id: auth.isKeyUser ? auth.user?.id : undefined,
   });
   const _casesViewVisCfg = useVisibilitySettings();
   const cases = filterCasesByVisibility(_rawCasesCV, auth, _casesViewVisCfg);
