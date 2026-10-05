@@ -226,7 +226,22 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
                 : <span style={{color:'#4F6EF7'}}>{branding.platformName}</span>;
             })()}
           </div>
-          <div className="text-xs text-blue-300 capitalize">{role} Portal</div>
+          <div className="text-xs text-blue-300">
+            {({
+              admin:               'Admin',
+              manager:             'Manager',
+              consultant:          'Consultant',
+              internal_consultant: 'Functional Consultant',
+              project_manager:     'Project Manager',
+              client:              'Client',
+              key_user:            'Key User',
+              headhunter:          'Headhunter',
+              final_user:          'End User',
+              dispatch:            'Dispatch',
+              area_leader:         'Area Leader',
+              invited_client:      'Client',
+            }[role] ?? role)} Portal
+          </div>
         </div>
       </div>
 
