@@ -17,8 +17,20 @@ function useCases(filters = {}) {
 
   const fetchCases = useCallback(async () => {
     setLoading(true);
-    // Use !inner join when filtering by key_user_id so the server excludes unrelated cases
-    const caseKeyUsersJoin = filters.key_user_id ? 'case_key_users!inner' : 'case_key_users';
+
+    // For key users, resolve their case IDs first via a simple lookup
+    let caseIdFilter = null;
+    if (filters.key_user_id) {
+      const { data: kuRows } = await supabase
+        .from('case_key_users')
+        .select('case_id')
+        .eq('user_id', filters.key_user_id);
+      caseIdFilter = (kuRows ?? []).map(r => r.case_id);
+      if (caseIdFilter.length === 0) {
+        setCases([]); setTotalCount(0); setLoading(false); return;
+      }
+    }
+
     let query = supabase
       .from("cases")
       .select(`
@@ -27,21 +39,21 @@ function useCases(filters = {}) {
         manager:manager_id(id, full_name, email, avatar_url),
         case_assignments(consultant_id, time_commitment,
           users:consultant_id(id, full_name, avatar_url)),
-        ${caseKeyUsersJoin}(user_id, area, users:user_id(full_name, email, role)),
+        case_key_users(user_id, area, users:user_id(full_name, email, role)),
         applications(consultant_id, submitted_at, consultant:consultant_id(full_name, avatar_url)),
         project:project_id(id, name, avatar_url, client:client_id(id, avatar_url))
       `, { count: "exact" })
       .order("created_at", { ascending: false })
       .limit(limit);
 
-    if (filters.status)       query = query.eq("status", filters.status);
-    if (filters.priority)     query = query.eq("priority", filters.priority);
-    if (filters.search)       query = query.ilike("title", `%${filters.search}%`);
-    if (filters.client_id)    query = query.eq("client_id", filters.client_id);
-    if (filters.key_user_id)  query = query.eq("case_key_users.user_id", filters.key_user_id);
+    if (filters.status)    query = query.eq("status", filters.status);
+    if (filters.priority)  query = query.eq("priority", filters.priority);
+    if (filters.search)    query = query.ilike("title", `%${filters.search}%`);
+    if (filters.client_id) query = query.eq("client_id", filters.client_id);
+    if (caseIdFilter)      query = query.in("id", caseIdFilter);
 
     const { data, error, count } = await query;
-    if (error) setError(error.message);
+    if (error) { console.error('useCases fetchCases:', error.message); setError(error.message); }
     else { setCases(data ?? []); setTotalCount(count ?? 0); }
     setLoading(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
