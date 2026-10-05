@@ -2019,13 +2019,15 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
     async function loadReviewer() {
       const { data: c } = await supabase
         .from('cases')
-        .select('reviewer_email, reviewer_user_id, parent_case_id')
+        .select('reviewer_email, reviewer_user_id, reviewer_name, parent_case_id')
         .eq('id', caseId)
         .single();
       if (!c) return;
       if (c.reviewer_email) setReviewerEmail(c.reviewer_email);
-      if (c.reviewer_user_id) {
-        setReviewerUserId(c.reviewer_user_id);
+      if (c.reviewer_user_id) setReviewerUserId(c.reviewer_user_id);
+      if (c.reviewer_name) {
+        setReviewerName(c.reviewer_name);
+      } else if (c.reviewer_user_id) {
         const { data: u } = await supabase.from('users').select('full_name').eq('id', c.reviewer_user_id).single();
         if (u?.full_name) setReviewerName(u.full_name);
       }
@@ -2068,9 +2070,11 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
     const userId = (reviewerLookup?.found && reviewerLookup?.isFunctional)
       ? reviewerLookup.user.id
       : null;
+    const name = reviewerLookup?.user?.full_name ?? null;
     await supabase.from('cases').update({
       reviewer_email: email,
       reviewer_user_id: userId,
+      reviewer_name: name,
     }).eq('id', caseId);
     setReviewerEmail(email);
     setReviewerUserId(userId);

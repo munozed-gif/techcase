@@ -194,15 +194,16 @@ export default function MyReviewsView({ auth }) {
 
   const load = useCallback(async () => {
     setLoading(true);
+    const userEmail = auth.profile?.email ?? auth.user?.email ?? '';
     const { data } = await supabase
       .from("approval_requests")
       .select(`
-        id, status, expires_at, reviewer_email,
+        id, status, expires_at, reviewer_email, reviewer_user_id,
         cases(title, area_sap, project_id),
         projects(name),
         approval_request_objects(id, object_id, object_name, object_type, object_description, object_phase, decision, rejection_reason, decided_at)
       `)
-      .eq("reviewer_user_id", auth.user.id)
+      .or(`reviewer_user_id.eq.${auth.user.id},reviewer_email.eq.${userEmail}`)
       .eq("status", "pending")
       .gt("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false });

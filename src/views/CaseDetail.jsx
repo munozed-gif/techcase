@@ -3157,7 +3157,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             const consultant = caseData.case_assignments?.[0];
             const reviewerMember = (caseData.case_key_users ?? []).find(ku => ku.area === 'reviewer');
             const teamMembers = (caseData.case_key_users ?? []).filter(ku => ku.area !== 'reviewer');
-            const reviewerDisplay = reviewerMember?.users?.full_name ?? caseData.reviewer_email;
+            const reviewerDisplay = caseData.reviewer_name ?? reviewerMember?.users?.full_name ?? caseData.reviewer_email;
             const hasTeam = consultant || teamMembers.length > 0 || caseData.key_user_email || caseData.is_head_hunter || caseData.reviewer_email;
             if (!hasTeam) return null;
             const ROLE_BADGE = {
@@ -3214,7 +3214,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       <UserCheck className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
                         <div className="font-medium text-gray-900 text-xs truncate">{reviewerDisplay}</div>
-                        {reviewerMember?.users?.full_name && (
+                        {(caseData.reviewer_name || reviewerMember?.users?.full_name) && (
                           <div className="text-[10px] text-gray-400 truncate">{caseData.reviewer_email}</div>
                         )}
                         <div className="text-[10px] text-indigo-400">Blueprint Reviewer</div>
