@@ -924,9 +924,10 @@ const NAV_ITEMS_CONFIG = [
   { id: 'invoices',      label: 'Invoices' },
   { id: 'reports',       label: 'Reports' },
   { id: 'notifications', label: 'Notifications' },
+  { id: 'my-reviews',    label: 'My Reviews' },
 ];
 
-const NAV_VIS_ROLES = ["manager", "consultant", "client", "key_user", "headhunter", "final_user", "dispatch", "area_leader"];
+const NAV_VIS_ROLES = ["manager", "consultant", "internal_consultant", "project_manager", "client", "key_user", "headhunter", "final_user", "dispatch", "area_leader"];
 
 function SettingsRolesTab({ ssCtx }) {
   const { t } = useT();
