@@ -606,22 +606,30 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const totalTimeHours = timeEntries.reduce((s, e) => s + (e.hours ?? 0), 0);
 
   async function openDocInNewTab(doc) {
-    // Supabase can serve files with wrong Content-Type — fetch and re-open as a typed blob
     const isPdf  = doc.file_name?.toLowerCase().endsWith('.pdf') || (doc.file_type ?? '').includes('pdf');
     const isHtml = doc.file_name?.toLowerCase().endsWith('.html') || (doc.file_type ?? '').includes('html');
     if (isPdf || isHtml) {
+      // Open the window synchronously (before any await) so iOS Safari doesn't block it as a popup.
+      // Then redirect it once we have the blob URL.
+      const win = window.open('', '_blank');
       try {
         const resp = await fetch(doc.file_url);
         if (isHtml) {
-          openHtmlInNewTab(await resp.text());
+          if (win) { win.document.open(); win.document.write(await resp.text()); win.document.close(); }
+          else openHtmlInNewTab(await resp.text());
         } else {
           const blob = new Blob([await resp.blob()], { type: 'application/pdf' });
           const url = URL.createObjectURL(blob);
-          const win = window.open(url, '_blank');
-          if (win) setTimeout(() => URL.revokeObjectURL(url), 60000);
+          if (win) {
+            win.location.href = url;
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+          } else {
+            window.open(url, '_blank');
+          }
         }
       } catch (_) {
-        window.open(doc.file_url, '_blank');
+        if (win) win.location.href = doc.file_url;
+        else window.open(doc.file_url, '_blank');
       }
     } else {
       window.open(doc.file_url, '_blank');
