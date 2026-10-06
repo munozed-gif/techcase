@@ -2933,8 +2933,8 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
                       {/* Content */}
                       {mountedSlides.has(tab.id) ? (
                         <div className="space-y-4" style={{ flex:1, overflowY:'auto', padding:'18px 20px', color:'var(--t-text)' }}>
-                          {/* Stage lock banner (shown only on active tab) */}
-                          {isActive && currentStage?.rules && (() => {
+                          {/* Stage lock banner (shown only on active tab, only to roles that can edit) */}
+                          {isActive && currentStage?.rules && (auth.isAdmin || auth.isManager || auth.isConsultant) && (() => {
                             const locked = [
                               !stageRules.editable && t("cd.lock_editing"),
                               !stageRules.can_log_time && t("cd.lock_time"),
@@ -5451,7 +5451,7 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         <SpecificationTab caseData={caseData} auth={auth} documents={documents} addDocument={addDocument} deleteDocument={deleteDocument} refetchDocuments={refetchDocuments} onUpdate={onUpdate} />
       )}
 
-                    {tab.id === "implementation" && (auth.isAdmin || auth.isManager || auth.isConsultant) && (
+                    {tab.id === "implementation" && (auth.isAdmin || auth.isManager || auth.isConsultant || auth.isKeyUser) && (
         <SapImplementationTab caseData={caseData} auth={auth} activities={activities} updateActivity={updateActivity} />
       )}
 
