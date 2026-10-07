@@ -2767,7 +2767,7 @@ Output ONLY the ABAP source code, no explanations.`;
                                     <span className="text-[9px] px-1 py-0 rounded font-semibold bg-white/60 border border-current">
                                       {typeMeta.short}
                                     </span>
-                                    <span className="text-[9px]">{obj.aiCapable ? '🤖' : '🔧'}</span>
+                                    {obj.aiCapable ? <Sparkles size={9} /> : <Settings size={9} />}
                                     <span className={`text-[9px] capitalize font-medium`}>{obj.status}</span>
                                   </div>
                                   {/* Approval status badge */}
@@ -2837,7 +2837,7 @@ Output ONLY the ABAP source code, no explanations.`;
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div>
                   <p className="font-mono font-bold text-gray-900">{selectedObj.name}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{BP_TYPES[selectedObj.type]?.label ?? selectedObj.type} · {selectedObj.phase} · {selectedObj.aiCapable ? '🤖 AI-capable' : '🔧 Manual'}</p>
+                  <p className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">{BP_TYPES[selectedObj.type]?.label ?? selectedObj.type} · {selectedObj.phase} · {selectedObj.aiCapable ? <><Sparkles size={10} /> AI-capable</> : <><Settings size={10} /> Manual</>}</p>
                   {selectedObj.description && <p className="text-sm text-gray-600 mt-1">{selectedObj.description}</p>}
                   {selectedObj.error && (
                     <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
@@ -3616,9 +3616,9 @@ Output ONLY the ABAP source (CLASS DEFINITION ... CLASS IMPLEMENTATION ... ENDCL
 
           <SectionLabel>Execution Options</SectionLabel>
           <div className="flex gap-2 mb-3">
-            {[['all', '🔄 All Objects at Once'], ['one-by-one', '⚙️ Object by Object']].map(([val, lbl]) => (
+            {[['all', <><RefreshCw size={11} /> All Objects at Once</>], ['one-by-one', <><Settings size={11} /> Object by Object</>]].map(([val, lbl]) => (
               <button key={val} onClick={() => setImplMode(val)}
-                className={`flex-1 py-2.5 text-xs font-semibold rounded-lg border transition-all
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold rounded-lg border transition-all
                   ${implMode === val ? 'border-blue-500 bg-blue-500/20 text-blue-300' : 'border-white/15 text-white/40 hover:border-white/25'}`}>
                 {lbl}
               </button>
@@ -3705,9 +3705,9 @@ Output ONLY the ABAP source (CLASS DEFINITION ... CLASS IMPLEMENTATION ... ENDCL
                                 <div className="border-t border-amber-500/20">
                                   {/* tab row */}
                                   <div className="flex gap-0 px-3 pt-2">
-                                    {[['guide','📋 Creation Guide'], ...(canAdt ? [['adt','💻 ADT Code']] : [])].map(([key, lbl]) => (
+                                    {[['guide', <><FileText size={10} /> Creation Guide</>], ...(canAdt ? [['adt', <><Code2 size={10} /> ADT Code</>]] : [])].map(([key, lbl]) => (
                                       <button key={key} onClick={() => setDetailTab(key)}
-                                        className={`px-3 py-1.5 text-[10px] font-bold rounded-t-lg border-b-2 transition-colors
+                                        className={`flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold rounded-t-lg border-b-2 transition-colors
                                           ${detailTab === key ? 'border-amber-400 text-amber-300' : 'border-transparent text-white/30 hover:text-white/60'}`}>
                                         {lbl}
                                       </button>
@@ -3984,8 +3984,8 @@ Output ONLY the ABAP source (CLASS DEFINITION ... CLASS IMPLEMENTATION ... ENDCL
                   return (
                     <div key={act.id} className="rounded-xl border border-white/10 overflow-hidden">
                       <div className="px-3 py-2 bg-white/5 border-b border-white/10 flex justify-between items-center">
-                        <span className="text-xs font-semibold text-white/70">
-                          🤖 {obj.objectName || act.title}
+                        <span className="flex items-center gap-1.5 text-xs font-semibold text-white/70">
+                          <Sparkles size={11} /> {obj.objectName || act.title}
                         </span>
                         <span className="text-[10px] text-green-400 font-semibold">Generated</span>
                       </div>
