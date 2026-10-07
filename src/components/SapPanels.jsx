@@ -1981,11 +1981,9 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [transportView, setTransportView] = useState(false);
-  const [arrows, setArrows] = useState([]);
   const [collapsed, setCollapsed] = useState(false);
   const [hoveredId, setHoveredId] = useState(null);
   const containerRef = useRef(null);
-  const cardRefs = useRef({});
   const stopRef = useRef(false);
 
   // Role-based access
@@ -2241,32 +2239,6 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
     setRunLog(p => [...p, { msg, status, ts: new Date().toLocaleTimeString() }]);
   }
 
-  // Compute SVG arrows
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const cont = containerRef.current;
-    const contRect = cont.getBoundingClientRect();
-    const scrollLeft = cont.scrollLeft;
-    const newArrows = [];
-    for (const obj of objects) {
-      if (!obj.dependsOn?.length) continue;
-      const toEl = cardRefs.current[obj.id];
-      if (!toEl) continue;
-      const toRect = toEl.getBoundingClientRect();
-      for (const depId of obj.dependsOn) {
-        const fromEl = cardRefs.current[depId];
-        if (!fromEl) continue;
-        const fromRect = fromEl.getBoundingClientRect();
-        const x1 = fromRect.right - contRect.left + scrollLeft;
-        const y1 = fromRect.top + fromRect.height / 2 - contRect.top;
-        const x2 = toRect.left - contRect.left + scrollLeft;
-        const y2 = toRect.top + toRect.height / 2 - contRect.top;
-        const mx = (x1 + x2) / 2;
-        newArrows.push({ id: `${depId}-${obj.id}`, x1, y1, x2, y2, mx });
-      }
-    }
-    setArrows(newArrows);
-  });
 
   async function handleAiSuggest() {
     const prevAiObjs = objects.filter(o => o.aiSuggested);
@@ -2718,42 +2690,6 @@ Output ONLY the ABAP source code, no explanations.`;
           {/* Canvas body */}
           {!transportView ? (
             <div className="relative overflow-x-auto" ref={containerRef} style={{ minHeight: 300 }}>
-              {/* SVG arrows */}
-              {arrows.length > 0 && (
-                <svg className="absolute inset-0 pointer-events-none z-10"
-                  style={{ width: '100%', height: '100%', minWidth: '100%', minHeight: '100%' }}>
-                  <defs>
-                    <marker id="bp-arrow-dim" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
-                      <path d="M0,0 L0,6 L7,3 z" fill="#cbd5e1" fillOpacity="0.35" />
-                    </marker>
-                    <marker id="bp-arrow-hi" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-                      <path d="M0,0 L0,6 L8,3 z" fill="#3b82f6" />
-                    </marker>
-                    <marker id="bp-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-                      <path d="M0,0 L0,6 L8,3 z" fill="#6366f1" />
-                    </marker>
-                  </defs>
-                  {arrows.map(a => {
-                    const [fromId, toId] = a.id.split('-');
-                    const inChain = hoveredChain && (
-                      fromId === hoveredId || toId === hoveredId ||
-                      hoveredChain.upstream.has(fromId) || hoveredChain.upstream.has(toId) ||
-                      hoveredChain.downstream.has(fromId) || hoveredChain.downstream.has(toId)
-                    );
-                    const dimmed = hoveredChain && !inChain;
-                    return (
-                      <path key={a.id}
-                        d={`M ${a.x1},${a.y1} C ${a.mx},${a.y1} ${a.mx},${a.y2} ${a.x2},${a.y2}`}
-                        fill="none"
-                        stroke={dimmed ? '#cbd5e1' : inChain ? '#3b82f6' : '#6366f1'}
-                        strokeOpacity={dimmed ? 0.25 : inChain ? 1 : 0.55}
-                        strokeWidth={inChain ? 2 : 1.5}
-                        markerEnd={dimmed ? 'url(#bp-arrow-dim)' : inChain ? 'url(#bp-arrow-hi)' : 'url(#bp-arrow)'}
-                      />
-                    );
-                  })}
-                </svg>
-              )}
               {/* Phase swim lanes */}
               <div className="flex gap-0 min-w-max">
                 {BP_PHASES.map(phase => {
@@ -2775,7 +2711,6 @@ Output ONLY the ABAP source code, no explanations.`;
                           return (
                             <div
                               key={obj.id}
-                              ref={el => { if (el) cardRefs.current[obj.id] = el; else delete cardRefs.current[obj.id]; }}
                               onClick={() => setSelectedId(isSelected ? null : obj.id)}
                               onMouseEnter={() => setHoveredId(obj.id)}
                               onMouseLeave={() => setHoveredId(null)}
