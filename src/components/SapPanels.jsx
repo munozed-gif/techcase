@@ -2101,24 +2101,38 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
     if (!email) return;
     setGenLinkLoading(true);
     try {
-      // Find or create pending request for this case
+      // Look for any existing request for this case (any status)
       let { data: existing } = await supabase
         .from('approval_requests')
-        .select('id, token')
+        .select('id, token, status')
         .eq('case_id', caseId)
-        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
+      if (existing && existing.status !== 'pending') {
+        // Reactivate it — reset to pending and refresh expiry
+        await supabase
+          .from('approval_requests')
+          .update({
+            status: 'pending',
+            reviewer_email: email,
+            expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          })
+          .eq('id', existing.id);
+      }
+
       if (!existing) {
-        const { data: created } = await supabase
+        const { data: created, error: insErr } = await supabase
           .from('approval_requests')
           .insert({ reviewer_email: email, case_id: caseId, project_id: caseData.project_id ?? null })
-          .select('id, token')
+          .select('id, token, status')
           .single();
+        if (insErr) { alert('Could not create review link: ' + insErr.message); return; }
         existing = created;
       }
 
-      if (!existing) { setGenLinkLoading(false); return; }
+      if (!existing?.token) { alert('Review link generation failed — no token returned.'); return; }
 
       // Sync all pending_review objects into approval_request_objects
       const pendingObjs = objects.filter(o => o.approval_status === 'pending_review');
@@ -2140,6 +2154,8 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
       await navigator.clipboard.writeText(link);
       setApprovalLinkCopied(true);
       setTimeout(() => setApprovalLinkCopied(false), 2500);
+    } catch (e) {
+      alert('Review link error: ' + e.message);
     } finally {
       setGenLinkLoading(false);
     }
