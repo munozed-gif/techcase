@@ -161,7 +161,7 @@ export default function ApprovalView({ token }) {
         supabase.from("system_settings").select("key, value").in("key", ["platform_name", "platform_tagline"]),
         supabase
           .from("approval_requests")
-          .select("id, reviewer_email, status, expires_at, case_id, project_id, cases(title, area_sap), projects(name)")
+          .select("id, reviewer_email, status, expires_at, case_id, project_id, cases(title, area_sap, reviewer_name, reviewer_user_id, reviewer:reviewer_user_id(full_name, avatar_url)), projects(name)")
           .eq("token", token)
           .single(),
       ]);
@@ -176,15 +176,12 @@ export default function ApprovalView({ token }) {
       }
       setRequest(reqRes.data);
 
-      // Look up reviewer profile by email (best-effort — no auth required)
-      const email = reqRes.data.reviewer_email;
-      if (email) {
-        const { data: prof } = await supabase
-          .from("users")
-          .select("full_name, avatar_url")
-          .eq("email", email)
-          .maybeSingle();
-        if (prof) setReviewerProfile(prof);
+      // Build reviewer profile from joined case data
+      const c = reqRes.data.cases;
+      if (c) {
+        const name = c.reviewer?.full_name ?? c.reviewer_name ?? null;
+        const avatar = c.reviewer?.avatar_url ?? null;
+        if (name || avatar) setReviewerProfile({ full_name: name, avatar_url: avatar });
       }
 
       const { data: objs } = await supabase
