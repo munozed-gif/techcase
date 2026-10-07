@@ -127,7 +127,7 @@ function DocSectionHeader({ Icon, iconClass, label, count, accent, children }) {
     </div>
   );
 }
-function DocRow({ doc, auth, deleteDocument, openDocInNewTab, t, checked, onCheck, onDownloadPdf, canDownloadPdf }) {
+function DocRow({ doc, auth, deleteDocument, openDocInNewTab, t, onDownloadPdf, canDownloadPdf }) {
   const isHtml = doc.file_name?.toLowerCase().endsWith('.html') || (doc.file_type ?? '').includes('html');
   const icon = doc.file_type?.includes("pdf")
     ? <FileText className="w-4 h-4 text-red-400" />
@@ -138,10 +138,6 @@ function DocRow({ doc, auth, deleteDocument, openDocInNewTab, t, checked, onChec
     : <Paperclip className="w-4 h-4 text-gray-400" />;
   return (
     <div className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:bg-gray-50">
-      {onCheck != null && (
-        <input type="checkbox" checked={!!checked} onChange={e => onCheck(doc.id, e.target.checked)}
-          className="w-3.5 h-3.5 accent-violet-600 flex-shrink-0" />
-      )}
       <div className="flex-shrink-0">{icon}</div>
       <div className="flex-1 min-w-0">
         <button onClick={() => openDocInNewTab(doc)}
@@ -249,7 +245,6 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [showDocForm, setShowDocForm]   = useState(false);
   const [pendingDocFile, setPendingDocFile] = useState(null);
-  const [checkedAiDocIds, setCheckedAiDocIds] = useState(new Set());
   // V9 Time entry state
   const [showTimeForm, setShowTimeForm] = useState(false);
   const [timeForm, setTimeForm]         = useState({ date: new Date().toISOString().slice(0, 10), hours: 1, description: "", is_billable: true, activity_id: "" });
@@ -728,12 +723,6 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
     } catch (_) {
       if (win) win.location.href = doc.file_url;
       else window.open(doc.file_url, '_blank');
-    }
-  }
-
-  async function downloadDocsPdf(docs) {
-    for (const doc of docs) {
-      await downloadDocAsPdf(doc);
     }
   }
 
@@ -3769,56 +3758,25 @@ ${tableHtml(['Role','Name','Signature','Date'],[
             )}
 
             {/* ── AI Generated ── */}
-            {(() => {
-              const canExportPdf = perms.can('export_pdf_docs');
-              const htmlAiDocs = aiDocs.filter(d => d.file_name?.toLowerCase().endsWith('.html') || (d.file_type ?? '').includes('html'));
-              const checkedHtmlDocs = htmlAiDocs.filter(d => checkedAiDocIds.has(d.id));
-              return (
-                <DocSectionHeader Icon={Sparkles} iconClass="text-violet-400" label="AI Generated" count={aiDocs.length} accent="border-violet-100">
-                  {aiDocs.length === 0
-                    ? <p className="text-xs text-gray-400 py-2 pl-1">No AI-generated documents yet — run the Spec tab to generate them.</p>
-                    : <>
-                        {canExportPdf && htmlAiDocs.length > 0 && (
-                          <div className="flex items-center gap-2 mb-2">
-                            <button
-                              onClick={() => downloadDocsPdf(htmlAiDocs)}
-                              className="text-xs px-2.5 py-1 rounded border border-violet-200 text-violet-700 hover:bg-violet-50 font-medium">
-                              Download All PDF
-                            </button>
-                            {checkedHtmlDocs.length > 0 && (
-                              <button
-                                onClick={() => downloadDocsPdf(checkedHtmlDocs)}
-                                className="text-xs px-2.5 py-1 rounded border border-violet-300 bg-violet-50 text-violet-800 hover:bg-violet-100 font-medium">
-                                Download Checked ({checkedHtmlDocs.length}) PDF
-                              </button>
-                            )}
-                          </div>
-                        )}
-                        <div className="space-y-2">
-                          {aiDocs.map(doc => (
-                            <DocRow
-                              key={doc.id}
-                              doc={doc}
-                              auth={auth}
-                              deleteDocument={deleteDocument}
-                              openDocInNewTab={openDocInNewTab}
-                              t={t}
-                              checked={checkedAiDocIds.has(doc.id)}
-                              onCheck={(id, checked) => setCheckedAiDocIds(prev => {
-                                const next = new Set(prev);
-                                checked ? next.add(id) : next.delete(id);
-                                return next;
-                              })}
-                              canDownloadPdf={canExportPdf}
-                              onDownloadPdf={downloadDocAsPdf}
-                            />
-                          ))}
-                        </div>
-                      </>
-                  }
-                </DocSectionHeader>
-              );
-            })()}
+            <DocSectionHeader Icon={Sparkles} iconClass="text-violet-400" label="AI Generated" count={aiDocs.length} accent="border-violet-100">
+              {aiDocs.length === 0
+                ? <p className="text-xs text-gray-400 py-2 pl-1">No AI-generated documents yet — run the Spec tab to generate them.</p>
+                : <div className="space-y-2">
+                    {aiDocs.map(doc => (
+                      <DocRow
+                        key={doc.id}
+                        doc={doc}
+                        auth={auth}
+                        deleteDocument={deleteDocument}
+                        openDocInNewTab={openDocInNewTab}
+                        t={t}
+                        canDownloadPdf={perms.can('export_pdf_docs')}
+                        onDownloadPdf={downloadDocAsPdf}
+                      />
+                    ))}
+                  </div>
+              }
+            </DocSectionHeader>
 
             {/* ── Case Documents ── */}
             <DocSectionHeader Icon={FolderOpen} iconClass="text-blue-400" label="Case Documents" count={caseDocs.length} accent="border-blue-100">
