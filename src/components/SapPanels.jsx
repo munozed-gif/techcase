@@ -2110,22 +2110,31 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
         .limit(1)
         .maybeSingle();
 
+      const reviewerMeta = {
+        reviewer_email: email,
+        reviewer_name: reviewerName || null,
+        reviewer_avatar_url: reviewerAvatar || null,
+      };
+
       if (existing && existing.status !== 'pending') {
         // Reactivate it — reset to pending and refresh expiry
         await supabase
           .from('approval_requests')
           .update({
+            ...reviewerMeta,
             status: 'pending',
-            reviewer_email: email,
             expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
           })
           .eq('id', existing.id);
+      } else if (existing) {
+        // Update reviewer info in case it changed
+        await supabase.from('approval_requests').update(reviewerMeta).eq('id', existing.id);
       }
 
       if (!existing) {
         const { data: created, error: insErr } = await supabase
           .from('approval_requests')
-          .insert({ reviewer_email: email, case_id: caseId, project_id: caseData.project_id ?? null })
+          .insert({ ...reviewerMeta, case_id: caseId, project_id: caseData.project_id ?? null })
           .select('id, token, status')
           .single();
         if (insErr) { alert('Could not create review link: ' + insErr.message); return; }
