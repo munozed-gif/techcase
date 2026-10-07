@@ -1642,9 +1642,8 @@ ${mdToHtml(markdownContent)}
       const safeName = (caseData.title ?? 'Spec').replace(/[^a-z0-9]/gi, '_');
       const prefix = filePrefix ?? 'FuncSpec';
       const dateStr = new Date().toISOString().slice(0, 10);
-      const pdfBlob = await htmlStringToPdfBlob(htmlString);
-      const fileName = `${prefix}_${safeName}_${dateStr}.pdf`;
-      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+      const fileName = `${prefix}_${safeName}_${dateStr}.html`;
+      const file = new File([htmlString], fileName, { type: 'text/html' });
       await addDocument(file, docNote ?? 'Auto-generated functional specification');
       setSavedSpecUrls(p => ({ ...p, a: fileName }));
       if (refetchDocuments) await refetchDocuments();
@@ -1674,12 +1673,12 @@ ${mdToHtml(markdownContent)}
         ],
         content
       );
-      const pdfBlob = await htmlStringToPdfBlob(htmlString);
       const safeName = (caseData.title ?? 'Spec').replace(/[^a-z0-9]/gi, '_');
       const prefixMap = { a: 'SpecA_CustomABAP', b: 'SpecB_StandardSAP', c: 'SpecC_PropuestaCliente' };
       const dateStr = new Date().toISOString().slice(0, 10);
-      const fileName = `${prefixMap[selectedSpec] ?? 'Spec'}_${safeName}_${dateStr}.pdf`;
-      const url = URL.createObjectURL(pdfBlob);
+      const fileName = `${prefixMap[selectedSpec] ?? 'Spec'}_${safeName}_${dateStr}.html`;
+      const blob = new Blob([htmlString], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = fileName;
       document.body.appendChild(a); a.click();
@@ -1726,9 +1725,8 @@ ${mdToHtml(markdownContent)}
           baseMeta,
           s.content
         );
-        const pdfBlob = await htmlStringToPdfBlob(htmlString);
-        const fileName = `${s.prefix}_${safeName}_${dateStr}.pdf`;
-        const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+        const fileName = `${s.prefix}_${safeName}_${dateStr}.html`;
+        const file = new File([htmlString], fileName, { type: 'text/html' });
         await addDocument(file, s.note);
         newUrls[s.key] = fileName;
       }
@@ -2802,9 +2800,8 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           await Promise.all(old.map(d => deleteDocument(d.id, d.file_url)));
         }
         const htmlString = buildCaseDocHtml('Client Spec', 'SAP Consulting · ' + t("spec.html_title"), baseMeta, specD);
-        const pdfBlob = await htmlStringToPdfBlob(htmlString);
-        const fileName = `SpecD_EspecCliente_${safeName}_${dateStr}.pdf`;
-        const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+        const fileName = `SpecD_EspecCliente_${safeName}_${dateStr}.html`;
+        const file = new File([htmlString], fileName, { type: 'text/html' });
         await addDocument(file, 'Client Spec (auto-generated)');
         setSavedSpecUrls(prev => ({ ...prev, d: fileName }));
         if (refetchDocuments) await refetchDocuments();
