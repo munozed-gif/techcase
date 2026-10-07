@@ -54,6 +54,66 @@ import {
   DEFAULT_ACTIVITY_PHASES, getLifecycleStages, GATE_CONDITIONS,
 } from "../lib/businessConstants.js";
 
+// ── HTML document builder for AI-generated markdown docs ──────────────────────
+function buildMarkdownHtmlDoc({ eyebrow, title, caseTitle, date, accentRgb, metaRows, markdown }) {
+  const e = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const accent = `rgb(${accentRgb.join(',')})`;
+  const accentAlpha = `rgba(${accentRgb.join(',')},0.08)`;
+  const lines = markdown.split('\n');
+  let body = '';
+  let inList = false;
+  for (const rawLine of lines) {
+    const line = rawLine.trimEnd();
+    if (line.startsWith('## ')) {
+      if (inList) { body += '</ul>'; inList = false; }
+      body += `<h2>${e(line.slice(3))}</h2>`;
+    } else if (line.startsWith('### ')) {
+      if (inList) { body += '</ul>'; inList = false; }
+      body += `<h3>${e(line.slice(4))}</h3>`;
+    } else if ((line.startsWith('- ') || line.startsWith('* '))) {
+      if (!inList) { body += '<ul>'; inList = true; }
+      body += `<li>${e(line.slice(2))}</li>`;
+    } else if (/^\d+\. /.test(line)) {
+      if (inList) { body += '</ul>'; inList = false; }
+      body += `<li style="list-style:decimal;margin-left:20px">${e(line.replace(/^\d+\. /,''))}</li>`;
+    } else if (line.startsWith('**') && line.endsWith('**') && line.length > 4) {
+      if (inList) { body += '</ul>'; inList = false; }
+      body += `<p><strong>${e(line.slice(2,-2))}</strong></p>`;
+    } else if (line.trim()) {
+      if (inList) { body += '</ul>'; inList = false; }
+      body += `<p>${e(line).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')}</p>`;
+    } else {
+      if (inList) { body += '</ul>'; inList = false; }
+      body += '<div style="height:8px"></div>';
+    }
+  }
+  if (inList) body += '</ul>';
+  const metaHtml = (metaRows ?? []).map(([k,v]) => `<tr><td class="k">${e(k)}</td><td>${e(v)}</td></tr>`).join('');
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${e(title)}</title><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;font-size:13px;line-height:1.6;color:#1a1a2e;background:#fff;max-width:860px;margin:0 auto;padding:32px 24px}
+header{background:${accent};color:#fff;padding:24px 28px 20px;border-radius:8px;margin-bottom:24px}
+header .ey{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;opacity:.75;margin-bottom:6px}
+header h1{font-size:22px;font-weight:700;margin-bottom:4px}
+header .ct{font-size:13px;opacity:.85;margin-bottom:4px}
+header .dt{font-size:11px;opacity:.7}
+table.meta{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:12px}
+table.meta td{padding:6px 10px;border-bottom:1px solid #e5e7eb}
+table.meta td.k{font-weight:600;color:#6b7280;width:160px;background:#f9fafb}
+h2{font-size:14px;font-weight:700;color:#fff;background:${accent};padding:6px 12px;border-radius:4px;margin:20px 0 8px}
+h3{font-size:13px;font-weight:600;color:${accent};margin:14px 0 4px}
+p{margin:4px 0 8px;color:#374151}
+ul{padding-left:20px;margin:6px 0 10px}
+li{margin:3px 0;color:#374151}
+@media print{body{max-width:none;padding:0}}
+</style></head><body>
+<header><div class="ey">${e(eyebrow)}</div><h1>${e(title)}</h1><p class="ct">${e(caseTitle)}</p><p class="dt">${e(date)}</p></header>
+${metaHtml ? `<table class="meta">${metaHtml}</table>` : ''}
+${body}
+</body></html>`;
+}
+
 // ── Stable doc-tab helpers (defined outside CaseDetail so refs never change) ──
 function DocSectionHeader({ Icon, iconClass, label, count, accent, children }) {
   return (
@@ -67,14 +127,21 @@ function DocSectionHeader({ Icon, iconClass, label, count, accent, children }) {
     </div>
   );
 }
-function DocRow({ doc, auth, deleteDocument, openDocInNewTab, t }) {
+function DocRow({ doc, auth, deleteDocument, openDocInNewTab, t, checked, onCheck, onDownloadPdf, canDownloadPdf }) {
+  const isHtml = doc.file_name?.toLowerCase().endsWith('.html') || (doc.file_type ?? '').includes('html');
   const icon = doc.file_type?.includes("pdf")
     ? <FileText className="w-4 h-4 text-red-400" />
     : doc.file_type?.includes("image")
     ? <FileImage className="w-4 h-4 text-blue-400" />
+    : isHtml
+    ? <FileText className="w-4 h-4 text-violet-400" />
     : <Paperclip className="w-4 h-4 text-gray-400" />;
   return (
     <div className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:bg-gray-50">
+      {onCheck != null && (
+        <input type="checkbox" checked={!!checked} onChange={e => onCheck(doc.id, e.target.checked)}
+          className="w-3.5 h-3.5 accent-violet-600 flex-shrink-0" />
+      )}
       <div className="flex-shrink-0">{icon}</div>
       <div className="flex-1 min-w-0">
         <button onClick={() => openDocInNewTab(doc)}
@@ -87,6 +154,12 @@ function DocRow({ doc, auth, deleteDocument, openDocInNewTab, t }) {
           <p className="text-xs text-gray-500 mt-0.5">{doc.notes.replace(/^\[[^\]]+\]\s*/, '')}</p>
         )}
       </div>
+      {isHtml && canDownloadPdf && onDownloadPdf && (
+        <button onClick={() => onDownloadPdf(doc)}
+          className="text-xs text-violet-600 hover:text-violet-800 px-2 py-1 rounded border border-violet-200 hover:bg-violet-50 flex-shrink-0 whitespace-nowrap">
+          PDF
+        </button>
+      )}
       {(auth.isAdmin || auth.isManager) && (
         <button onClick={() => deleteDocument(doc.id, doc.file_url)}
           className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded border border-red-100 hover:bg-red-50 flex-shrink-0">
@@ -176,6 +249,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [showDocForm, setShowDocForm]   = useState(false);
   const [pendingDocFile, setPendingDocFile] = useState(null);
+  const [checkedAiDocIds, setCheckedAiDocIds] = useState(new Set());
   // V9 Time entry state
   const [showTimeForm, setShowTimeForm] = useState(false);
   const [timeForm, setTimeForm]         = useState({ date: new Date().toISOString().slice(0, 10), hours: 1, description: "", is_billable: true, activity_id: "" });
@@ -636,6 +710,33 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
     }
   }
 
+  async function downloadDocAsPdf(doc) {
+    // Open window sync first so iOS Safari doesn't block
+    const win = window.open('', '_blank');
+    try {
+      const resp = await fetch(doc.file_url);
+      const html = await resp.text();
+      if (win) {
+        win.document.open();
+        win.document.write(html);
+        win.document.close();
+        setTimeout(() => win.print(), 800);
+      } else {
+        const w2 = window.open('', '_blank');
+        if (w2) { w2.document.open(); w2.document.write(html); w2.document.close(); setTimeout(() => w2.print(), 800); }
+      }
+    } catch (_) {
+      if (win) win.location.href = doc.file_url;
+      else window.open(doc.file_url, '_blank');
+    }
+  }
+
+  async function downloadDocsPdf(docs) {
+    for (const doc of docs) {
+      await downloadDocAsPdf(doc);
+    }
+  }
+
   async function handleDocUpload() {
     if (!pendingDocFile) return;
     setUploadingDoc(true);
@@ -906,78 +1007,26 @@ Tester signature, Approver signature, Date.`;
       // Strip JSON block from markdown
       const markdown = raw.replace(/```json[\s\S]*?```/, '').trim();
 
-      // Save PDF document
-      const { jsPDF } = await import('jspdf');
-      const { default: autoTable } = await import('jspdf-autotable');
-      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-      const W = 210, L = 12, R = 198;
-      const headerColor = [26, 75, 140];
+      // Save as HTML document
       const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-
-      doc.setFillColor(...headerColor);
-      doc.rect(0, 0, W, 38, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(7);
-      doc.text('SAP CONSULTING — TEST PLAN', L, 10);
-      doc.setFontSize(14);
-      doc.text(targetLabel.toUpperCase(), L, 20);
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.text(caseData.title ?? '', L, 29);
-      doc.text(date, R, 29, { align: 'right' });
-      doc.setTextColor(0, 0, 0);
-
-      let y = 45;
-      autoTable(doc, {
-        startY: y,
-        head: [['Case', 'SAP Module', 'Industry', 'Test Type', 'Date']],
-        body: [[caseData.title ?? '', caseData.area_sap ?? '', caseData.area_industry ?? '', targetLabel, date]],
-        styles: { fontSize: 8, cellPadding: 3 },
-        headStyles: { fillColor: headerColor, textColor: 255, fontStyle: 'bold' },
-        margin: { left: L, right: W - R },
+      const htmlContent = buildMarkdownHtmlDoc({
+        eyebrow: 'SAP CONSULTING — TEST PLAN',
+        title: targetLabel,
+        caseTitle: caseData.title ?? '',
+        date,
+        accentRgb: [26, 75, 140],
+        metaRows: [
+          ['Case', caseData.title ?? ''],
+          ['SAP Module', caseData.area_sap ?? ''],
+          ['Industry', caseData.area_industry ?? ''],
+          ['Test Type', targetLabel],
+          ['Date', date],
+        ],
+        markdown,
       });
-      y = doc.lastAutoTable.finalY + 8;
-
-      const lines = markdown.split('\n');
-      doc.setFont('helvetica', 'normal');
-      for (const raw2 of lines) {
-        const line = raw2.trimEnd();
-        if (y > 275) { doc.addPage(); y = 15; }
-        if (line.startsWith('## ')) {
-          y += 3;
-          doc.setFillColor(...headerColor);
-          doc.rect(L, y - 4, R - L, 7, 'F');
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
-          doc.text(line.replace(/^## /, ''), L + 2, y);
-          doc.setTextColor(0, 0, 0); y += 6;
-        } else if (line.startsWith('### ')) {
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(26, 75, 140);
-          doc.text(line.replace(/^### /, ''), L, y); doc.setTextColor(0, 0, 0); y += 5;
-        } else if (line.startsWith('**') && line.endsWith('**')) {
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
-          doc.text(line.replace(/\*\*/g, ''), L + 2, y); y += 5;
-        } else if (line.startsWith('- ') || line.startsWith('* ')) {
-          doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-          const wrapped = doc.splitTextToSize('• ' + line.slice(2), R - L - 4);
-          wrapped.forEach(l => { if (y > 275) { doc.addPage(); y = 15; } doc.text(l, L + 4, y); y += 4.5; });
-        } else if (/^\d+\. /.test(line)) {
-          doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-          const wrapped = doc.splitTextToSize(line, R - L - 4);
-          wrapped.forEach(l => { if (y > 275) { doc.addPage(); y = 15; } doc.text(l, L + 4, y); y += 4.5; });
-        } else if (line.trim()) {
-          doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-          const wrapped = doc.splitTextToSize(line, R - L);
-          wrapped.forEach(l => { if (y > 275) { doc.addPage(); y = 15; } doc.text(l, L, y); y += 4.5; });
-        } else {
-          y += 2;
-        }
-      }
-
-      const pdfBlob = doc.output('blob');
       const safeName = (caseData.title ?? 'Case').replace(/[^a-z0-9]/gi, '_');
-      const fileName = `TestPlan_${toPhaseKey}_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`;
-      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+      const fileName = `TestPlan_${toPhaseKey}_${safeName}_${new Date().toISOString().slice(0, 10)}.html`;
+      const file = new File([htmlContent], fileName, { type: 'text/html' });
       await addDocument(file, `${targetLabel} Plan — auto-generated`);
       if (refetchDocuments) await refetchDocuments();
       setTestPlanSaved(true);
@@ -1125,78 +1174,26 @@ Approver signature, Date.`;
       }
       const markdown = raw.replace(/```json[\s\S]*?```/, '').trim();
 
-      // Save PDF
-      const { jsPDF } = await import('jspdf');
-      const { default: autoTable } = await import('jspdf-autotable');
-      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-      const W = 210, L = 12, R = 198;
-      const headerColor = [14, 116, 144]; // teal
+      // Save as HTML document
       const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-
-      doc.setFillColor(...headerColor);
-      doc.rect(0, 0, W, 38, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(7);
-      doc.text('SAP CONSULTING — ADJUSTMENT PLAN', L, 10);
-      doc.setFontSize(14);
-      doc.text(adjLabel.toUpperCase(), L, 20);
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.text(caseData.title ?? '', L, 29);
-      doc.text(date, R, 29, { align: 'right' });
-      doc.setTextColor(0, 0, 0);
-
-      let y = 45;
-      autoTable(doc, {
-        startY: y,
-        head: [['Case', 'SAP Module', 'Issues Found', 'Adjustment Type', 'Date']],
-        body: [[caseData.title ?? '', caseData.area_sap ?? '', String(failedActivities.length), adjLabel, date]],
-        styles: { fontSize: 8, cellPadding: 3 },
-        headStyles: { fillColor: headerColor, textColor: 255, fontStyle: 'bold' },
-        margin: { left: L, right: W - R },
+      const htmlContent = buildMarkdownHtmlDoc({
+        eyebrow: 'SAP CONSULTING — ADJUSTMENT PLAN',
+        title: adjLabel,
+        caseTitle: caseData.title ?? '',
+        date,
+        accentRgb: [14, 116, 144],
+        metaRows: [
+          ['Case', caseData.title ?? ''],
+          ['SAP Module', caseData.area_sap ?? ''],
+          ['Issues Found', String(failedActivities.length)],
+          ['Adjustment Type', adjLabel],
+          ['Date', date],
+        ],
+        markdown,
       });
-      y = doc.lastAutoTable.finalY + 8;
-
-      const lines = markdown.split('\n');
-      doc.setFont('helvetica', 'normal');
-      for (const raw2 of lines) {
-        const line = raw2.trimEnd();
-        if (y > 275) { doc.addPage(); y = 15; }
-        if (line.startsWith('## ')) {
-          y += 3;
-          doc.setFillColor(...headerColor);
-          doc.rect(L, y - 4, R - L, 7, 'F');
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
-          doc.text(line.replace(/^## /, ''), L + 2, y);
-          doc.setTextColor(0, 0, 0); y += 6;
-        } else if (line.startsWith('### ')) {
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(14, 116, 144);
-          doc.text(line.replace(/^### /, ''), L, y); doc.setTextColor(0, 0, 0); y += 5;
-        } else if (line.startsWith('**') && line.endsWith('**')) {
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
-          doc.text(line.replace(/\*\*/g, ''), L + 2, y); y += 5;
-        } else if (line.startsWith('- ') || line.startsWith('* ')) {
-          doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-          const wrapped = doc.splitTextToSize('• ' + line.slice(2), R - L - 4);
-          wrapped.forEach(l => { if (y > 275) { doc.addPage(); y = 15; } doc.text(l, L + 4, y); y += 4.5; });
-        } else if (/^\d+\. /.test(line)) {
-          doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-          const wrapped = doc.splitTextToSize(line, R - L - 4);
-          wrapped.forEach(l => { if (y > 275) { doc.addPage(); y = 15; } doc.text(l, L + 4, y); y += 4.5; });
-        } else if (line.trim()) {
-          doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-          const wrapped = doc.splitTextToSize(line, R - L);
-          wrapped.forEach(l => { if (y > 275) { doc.addPage(); y = 15; } doc.text(l, L, y); y += 4.5; });
-        } else {
-          y += 2;
-        }
-      }
-
-      const pdfBlob = doc.output('blob');
       const safeName = (caseData.title ?? 'Case').replace(/[^a-z0-9]/gi, '_');
-      const fileName = `AdjPlan_${adjPhase}_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`;
-      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+      const fileName = `AdjPlan_${adjPhase}_${safeName}_${new Date().toISOString().slice(0, 10)}.html`;
+      const file = new File([htmlContent], fileName, { type: 'text/html' });
       await addDocument(file, `${adjLabel} Plan — auto-generated from test results`);
       if (refetchDocuments) await refetchDocuments();
 
@@ -1726,13 +1723,12 @@ Keep each section concise.${buildSectionConstraint('dev_plan', genProfile)}${bui
       const actItems = selected.filter(a => a._type === 'activity');
       const subItems = selected.filter(a => a._type === 'subcase');
 
-      // Upload PDF document
+      // Upload HTML document
       const safeName = (caseData.title ?? 'Case').replace(/[^a-z0-9]/gi, '_');
       const dateStr = new Date().toISOString().slice(0, 10);
-      const pdfBlob = await htmlStringToPdfBlob(planHtml);
-      const fileName = `DevPlan_${safeName}_${dateStr}.pdf`;
-      const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
-      await addDocument(pdfFile, 'Design & Development Plan — auto-generated from approved spec');
+      const fileName = `DevPlan_${safeName}_${dateStr}.html`;
+      const htmlFile = new File([planHtml], fileName, { type: 'text/html' });
+      await addDocument(htmlFile, 'Design & Development Plan — auto-generated from approved spec');
       if (refetchDocuments) await refetchDocuments();
       openHtmlInNewTab(planHtml);
 
@@ -1900,297 +1896,160 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
         max_tokens: 4000,
       });
 
-      // Build the PDF
-      const { jsPDF } = await import('jspdf');
-      const { default: autoTable } = await import('jspdf-autotable');
-      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-      const W = 210, L = 12, R = 198, PW = R - L;
-      const headerColor = [26, 75, 140];
-      const accentColor = [16, 185, 129];
-      const today = new Date();
-      const dateStr = today.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-
-      function addPage() { doc.addPage(); return 20; }
-
-      function sectionHeader(y, title, color) {
-        if (y > 260) y = addPage();
-        doc.setFillColor(...(color ?? headerColor));
-        doc.rect(L, y, PW, 8, 'F');
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(255, 255, 255);
-        doc.text(title, L + 3, y + 5.5);
-        doc.setTextColor(0, 0, 0);
-        return y + 12;
-      }
-
-      function paragraph(y, text, indent) {
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(50, 50, 50);
-        const x = L + (indent ?? 0);
-        const wrapped = doc.splitTextToSize(text, PW - (indent ?? 0));
-        wrapped.forEach(l => {
-          if (y > 275) { doc.addPage(); y = 15; }
-          doc.text(l, x, y); y += 4.5;
-        });
-        doc.setTextColor(0, 0, 0);
-        return y + 2;
-      }
-
-      function renderMarkdownSection(y, md) {
-        const lines = md.split('\n');
-        for (const raw of lines) {
-          const line = raw.trimEnd();
-          if (y > 275) { doc.addPage(); y = 15; }
-          if (line.startsWith('## ')) {
-            y += 2;
-            doc.setFillColor(230, 237, 250);
-            doc.rect(L, y - 4, PW, 7, 'F');
-            doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(26, 75, 140);
-            doc.text(line.replace(/^## /, ''), L + 2, y);
-            doc.setTextColor(0, 0, 0); y += 6;
-          } else if (line.startsWith('### ')) {
-            doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(26, 75, 140);
-            doc.text(line.replace(/^### /, ''), L + 2, y); doc.setTextColor(0, 0, 0); y += 5;
-          } else if (line.startsWith('**') && line.endsWith('**')) {
-            doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
-            doc.text(line.replace(/\*\*/g, ''), L + 2, y); y += 5;
-          } else if (line.startsWith('- ') || line.startsWith('* ')) {
-            doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-            const wrapped = doc.splitTextToSize('• ' + line.slice(2), PW - 6);
-            wrapped.forEach(l => { if (y > 275) { doc.addPage(); y = 15; } doc.text(l, L + 5, y); y += 4.5; });
-          } else if (/^\d+\. /.test(line)) {
-            doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-            const wrapped = doc.splitTextToSize(line, PW - 6);
-            wrapped.forEach(l => { if (y > 275) { doc.addPage(); y = 15; } doc.text(l, L + 5, y); y += 4.5; });
-          } else if (line.trim()) {
-            doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-            const wrapped = doc.splitTextToSize(line, PW);
-            wrapped.forEach(l => { if (y > 275) { doc.addPage(); y = 15; } doc.text(l, L, y); y += 4.5; });
-          } else {
-            y += 2;
-          }
-        }
-        return y + 3;
-      }
-
-      // ── PAGE 1: Cover ──────────────────────────────────────────
-      doc.setFillColor(...headerColor);
-      doc.rect(0, 0, W, 60, 'F');
-      doc.setFillColor(...accentColor);
-      doc.rect(0, 60, W, 3, 'F');
-
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(180, 200, 230);
-      doc.text('SAP CONSULTING — CASE CLOSURE REPORT', L, 14);
-      doc.setFontSize(20); doc.setTextColor(255, 255, 255);
-      const titleLines = doc.splitTextToSize(caseData.title ?? 'Case Closure Report', PW - 10);
-      titleLines.forEach((l, i) => doc.text(l, L, 26 + i * 9));
-      doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-      doc.text(dateStr, L, 56);
-
-      let y = 80;
-      autoTable(doc, {
-        startY: y,
-        body: [
-          ['Case Reference', caseData.case_ref ?? '—'],
-          ['Client', caseData.client_name ?? '—'],
-          ['SAP Module', caseData.area_sap ?? '—'],
-          ['Industry', caseData.area_industry ?? '—'],
-          ['Priority', caseData.priority ?? '—'],
-          ['Approved', dateStr],
-          [bypass ? 'Approval Note' : 'Approval', bypass ? `Bypassed — ${bypassReason}` : 'All activities at 100%'],
-        ],
-        styles: { fontSize: 9, cellPadding: 3.5 },
-        columnStyles: { 0: { fontStyle: 'bold', fillColor: [245, 247, 250], cellWidth: 50 } },
-        margin: { left: L, right: W - R },
-      });
-      y = doc.lastAutoTable.finalY + 12;
-
-      // Summary stats
+      // Build HTML closure report
+      const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
       const totalHrs = timeEntries.reduce((s, e) => s + (e.hours ?? 0), 0);
-      autoTable(doc, {
-        startY: y,
-        head: [['Total Activities', 'Hours Logged', 'Test Phases', 'Adjustments']],
-        body: [[
-          String(activities.length),
-          totalHrs.toFixed(1) + 'h',
-          String(testPhases.filter(pk => activities.some(a => a.phase === pk)).length),
-          String(adjPhases.filter(pk => activities.some(a => a.phase === pk)).length),
-        ]],
-        styles: { fontSize: 9, cellPadding: 3, halign: 'center' },
-        headStyles: { fillColor: headerColor, textColor: 255, fontStyle: 'bold' },
-        margin: { left: L, right: W - R },
-      });
-
-      // ── SECTION 1: Initial Request ─────────────────────────────
-      doc.addPage(); y = 15;
-      y = sectionHeader(y, '1. INITIAL REQUEST', headerColor);
-      y = paragraph(y, caseData.description ?? '(No description provided.)');
-
-      if (specData?.notes) {
-        try {
-          const notes = JSON.parse(specData.notes);
-          if (notes.analysisCustomerContent) {
-            y += 3;
-            doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(26, 75, 140);
-            doc.text('Customer Input:', L, y); doc.setTextColor(0, 0, 0); y += 6;
-            y = paragraph(y, notes.analysisCustomerContent.slice(0, 1500));
-          }
-        } catch (_) {}
-      }
-
-      // ── SECTION 2: Functional Specification ───────────────────
-      if (y > 220) { doc.addPage(); y = 15; }
-      y = sectionHeader(y, '2. FUNCTIONAL SPECIFICATION', headerColor);
-      if (specContent) {
-        y = renderMarkdownSection(y, specContent.slice(0, 4000));
-      } else {
-        y = paragraph(y, '(No functional specification was recorded for this case.)');
-      }
-
-      // ── SECTION 3: Development Scope ──────────────────────────
-      doc.addPage(); y = 15;
-      y = sectionHeader(y, '3. DEVELOPMENT SCOPE', headerColor);
-      if (devActs.length > 0) {
-        autoTable(doc, {
-          startY: y,
-          head: [['#', 'Activity', 'Description', 'Est. Hours', 'Progress']],
-          body: devActs.map((a, i) => [
-            String(i + 1),
-            a.title,
-            (a.description ?? '').slice(0, 80),
-            String(a.est_hours ?? '—'),
-            actEffectivePct(a) + '%',
-          ]),
-          styles: { fontSize: 7.5, cellPadding: 2.5 },
-          headStyles: { fillColor: headerColor, textColor: 255, fontStyle: 'bold' },
-          columnStyles: { 0: { cellWidth: 8 }, 3: { cellWidth: 18 }, 4: { cellWidth: 16 } },
-          margin: { left: L, right: W - R },
-        });
-        y = doc.lastAutoTable.finalY + 8;
-      } else {
-        y = paragraph(y, '(No development activities recorded.)');
-      }
-
-      // ── SECTION 4: Quality Assurance / Test Results ───────────
-      if (y > 220) { doc.addPage(); y = 15; }
-      y = sectionHeader(y, '4. QUALITY ASSURANCE — TEST RESULTS', headerColor);
       const testPhasesDone = testPhases.filter(pk => activities.some(a => a.phase === pk));
-      if (testPhasesDone.length > 0) {
-        for (const pk of testPhasesDone) {
-          const label = DEFAULT_ACTIVITY_PHASES.find(p => p.key === pk)?.label ?? pk;
-          const phActs = activities.filter(a => a.phase === pk);
-          const passed = phActs.filter(a => a.test_outcome === 'passed').length;
-          const failed = phActs.filter(a => a.test_outcome === 'needs_adjustment').length;
-          if (y > 240) { doc.addPage(); y = 15; }
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(26, 75, 140);
-          doc.text(`${label} — ${passed}/${phActs.length} passed`, L, y); doc.setTextColor(0, 0, 0); y += 6;
-          autoTable(doc, {
-            startY: y,
-            head: [['Activity', 'Outcome', 'Coverage', 'Issue / Notes']],
-            body: phActs.map(a => [
-              a.title,
-              a.test_outcome === 'passed' ? '✓ Passed' : a.test_outcome === 'needs_adjustment' ? '⚠ Adjustment' : 'Pending',
-              a.coverage_pct != null ? a.coverage_pct + '%' : '—',
-              (a.adjustment_notes ?? '').slice(0, 100),
-            ]),
-            styles: { fontSize: 7.5, cellPadding: 2.5 },
-            headStyles: { fillColor: [240, 245, 255], textColor: headerColor, fontStyle: 'bold' },
-            columnStyles: { 1: { cellWidth: 22 }, 2: { cellWidth: 18 } },
-            didParseCell: (data) => {
-              if (data.column.index === 1) {
-                if (data.cell.raw === '✓ Passed') data.cell.styles.textColor = [5, 150, 105];
-                if (data.cell.raw === '⚠ Adjustment') data.cell.styles.textColor = [180, 83, 9];
-              }
-            },
-            margin: { left: L, right: W - R },
-          });
-          y = doc.lastAutoTable.finalY + 8;
-          if (failed > 0) y += 2;
-        }
-      } else {
-        y = paragraph(y, '(No test activities recorded.)');
-      }
-
-      // ── SECTION 5: Adjustments Made ──────────────────────────
-      if (y > 220) { doc.addPage(); y = 15; }
-      y = sectionHeader(y, '5. ADJUSTMENTS MADE', headerColor);
       const adjPhasesDone = adjPhases.filter(pk => activities.some(a => a.phase === pk));
-      if (adjPhasesDone.length > 0) {
-        for (const pk of adjPhasesDone) {
-          const label = DEFAULT_ACTIVITY_PHASES.find(p => p.key === pk)?.label ?? pk;
-          const phActs = activities.filter(a => a.phase === pk);
-          if (y > 240) { doc.addPage(); y = 15; }
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(26, 75, 140);
-          doc.text(label, L, y); doc.setTextColor(0, 0, 0); y += 6;
-          autoTable(doc, {
-            startY: y,
-            head: [['#', 'Corrective Activity', 'Description', 'Est. Hours']],
-            body: phActs.map((a, i) => [
-              String(i + 1),
-              a.title,
-              (a.description ?? '').slice(0, 100),
-              String(a.est_hours ?? '—'),
-            ]),
-            styles: { fontSize: 7.5, cellPadding: 2.5 },
-            headStyles: { fillColor: [240, 245, 255], textColor: headerColor, fontStyle: 'bold' },
-            columnStyles: { 0: { cellWidth: 8 }, 3: { cellWidth: 18 } },
-            margin: { left: L, right: W - R },
-          });
-          y = doc.lastAutoTable.finalY + 8;
-        }
-      } else {
-        y = paragraph(y, '(No adjustments were required.)');
-      }
-
-      // ── SECTION 6: Final Delivered Scope ─────────────────────
-      if (y > 220) { doc.addPage(); y = 15; }
-      y = sectionHeader(y, '6. FINAL DELIVERED SCOPE', headerColor);
-      // All activities that are 100% done
       const deliveredActs = activities.filter(a => actEffectivePct(a) === 100 && a.activity_type !== 'sub_case');
-      if (deliveredActs.length > 0) {
-        autoTable(doc, {
-          startY: y,
-          head: [['Phase', 'Delivered Item', 'Hours Logged']],
-          body: deliveredActs.map(a => {
-            const phaseDef = DEFAULT_ACTIVITY_PHASES.find(p => p.key === a.phase);
-            const logged = timeEntries.filter(e => e.activity_id === a.id).reduce((s, e) => s + (e.hours ?? 0), 0);
-            return [phaseDef?.label ?? 'Unassigned', a.title, logged.toFixed(1) + 'h'];
-          }),
-          styles: { fontSize: 7.5, cellPadding: 2.5 },
-          headStyles: { fillColor: headerColor, textColor: 255, fontStyle: 'bold' },
-          columnStyles: { 2: { cellWidth: 22 } },
-          margin: { left: L, right: W - R },
-        });
-        y = doc.lastAutoTable.finalY + 8;
-      } else {
-        y = paragraph(y, '(No completed activities recorded.)');
+
+      const he = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+      function mdToHtml(md) {
+        const lines = (md ?? '').split('\n');
+        let out = ''; let inUl = false;
+        for (const rawL of lines) {
+          const l = rawL.trimEnd();
+          if (l.startsWith('## ')) { if (inUl){out+='</ul>';inUl=false;} out+=`<h3 class="md2">${he(l.slice(3))}</h3>`; }
+          else if (l.startsWith('### ')) { if (inUl){out+='</ul>';inUl=false;} out+=`<h4 class="md3">${he(l.slice(4))}</h4>`; }
+          else if (l.startsWith('- ')||l.startsWith('* ')) { if(!inUl){out+='<ul>';inUl=true;} out+=`<li>${he(l.slice(2))}</li>`; }
+          else if (/^\d+\. /.test(l)) { if(inUl){out+='</ul>';inUl=false;} out+=`<li style="list-style:decimal;margin-left:20px">${he(l.replace(/^\d+\. /,''))}</li>`; }
+          else if (l.trim()) { if(inUl){out+='</ul>';inUl=false;} out+=`<p>${he(l).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')}</p>`; }
+          else { if(inUl){out+='</ul>';inUl=false;} out+='<div style="height:6px"></div>'; }
+        }
+        if(inUl) out+='</ul>';
+        return out;
       }
 
-      // ── SECTION 7: User Manual ────────────────────────────────
-      doc.addPage(); y = 15;
-      y = sectionHeader(y, '7. USER MANUAL', [16, 185, 129]);
-      y = renderMarkdownSection(y, userManual);
+      function tableHtml(head, rows, colWidths) {
+        const ths = head.map((h,i) => `<th style="${colWidths?.[i]?`width:${colWidths[i]}`:''}">${he(h)}</th>`).join('');
+        const trs = rows.map(r => `<tr>${r.map(c=>`<td>${he(c)}</td>`).join('')}</tr>`).join('');
+        return `<table class="t"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+      }
 
-      // ── Sign-off page ─────────────────────────────────────────
-      if (y > 220) { doc.addPage(); y = 15; }
-      y = sectionHeader(y, 'SIGN-OFF', headerColor);
-      autoTable(doc, {
-        startY: y,
-        head: [['Role', 'Name', 'Signature', 'Date']],
-        body: [
-          ['Project Manager', '', '', ''],
-          ['Lead Consultant', '', '', ''],
-          ['Client Representative', '', '', ''],
-          ['Quality Approver', '', '', ''],
-        ],
-        styles: { fontSize: 9, cellPadding: 6 },
-        headStyles: { fillColor: headerColor, textColor: 255, fontStyle: 'bold' },
-        margin: { left: L, right: W - R },
-      });
+      let customerInput = '';
+      if (specData?.notes) {
+        try { const n = JSON.parse(specData.notes); if (n.analysisCustomerContent) customerInput = n.analysisCustomerContent.slice(0,1500); } catch(_){}
+      }
 
-      // Save
-      const pdfBlob = doc.output('blob');
+      const closureHtml = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Closure Report — ${he(caseData.title ?? '')}</title><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;font-size:13px;line-height:1.6;color:#1a1a2e;background:#fff;max-width:900px;margin:0 auto;padding:32px 24px}
+.cover{background:#1a4b8c;color:#fff;padding:28px;border-radius:8px;margin-bottom:28px;border-bottom:4px solid #10b981}
+.cover .ey{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;opacity:.7;margin-bottom:8px}
+.cover h1{font-size:24px;font-weight:700;margin-bottom:6px}
+.cover .dt{font-size:12px;opacity:.7;margin-top:8px}
+.meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:28px;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;font-size:12px}
+.meta-grid div{padding:8px 12px;border-bottom:1px solid #e5e7eb}
+.meta-grid div:last-child,.meta-grid div:nth-last-child(2){border-bottom:none}
+.meta-grid .mk{font-weight:600;color:#6b7280;background:#f9fafb}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px}
+.stat{text-align:center;padding:12px;background:#f0f5ff;border-radius:6px}
+.stat .n{font-size:22px;font-weight:700;color:#1a4b8c}
+.stat .l{font-size:11px;color:#6b7280;margin-top:2px}
+h2{font-size:14px;font-weight:700;color:#fff;background:#1a4b8c;padding:8px 14px;border-radius:4px;margin:28px 0 12px}
+h2.green{background:#10b981}
+h3.md2{font-size:13px;font-weight:700;color:#fff;background:#1a4b8c;padding:4px 10px;border-radius:3px;margin:14px 0 6px}
+h4.md3{font-size:12px;font-weight:600;color:#1a4b8c;margin:10px 0 4px}
+p{margin:4px 0 8px;color:#374151}
+ul{padding-left:20px;margin:6px 0 10px}
+li{margin:3px 0;color:#374151}
+table.t{width:100%;border-collapse:collapse;margin:8px 0 16px;font-size:12px}
+table.t th{background:#1a4b8c;color:#fff;padding:6px 8px;text-align:left;font-weight:600}
+table.t td{padding:5px 8px;border-bottom:1px solid #e5e7eb;vertical-align:top}
+table.t tr:nth-child(even) td{background:#f9fafb}
+.pass{color:#059669;font-weight:600}
+.adj{color:#b45309;font-weight:600}
+.signoff table.t th{background:#6b7280}
+.subsec{font-size:12px;font-weight:600;color:#1a4b8c;margin:12px 0 6px;padding-bottom:4px;border-bottom:1px solid #dbeafe}
+@media print{body{max-width:none;padding:0}.stats{break-inside:avoid}}
+</style></head><body>
+<div class="cover">
+  <div class="ey">SAP CONSULTING — CASE CLOSURE REPORT</div>
+  <h1>${he(caseData.title ?? 'Case Closure Report')}</h1>
+  <div class="dt">${he(dateStr)}</div>
+</div>
+<div class="meta-grid">
+  <div class="mk">Case Reference</div><div>${he(caseData.case_ref ?? '—')}</div>
+  <div class="mk">Client</div><div>${he(caseData.client_name ?? '—')}</div>
+  <div class="mk">SAP Module</div><div>${he(caseData.area_sap ?? '—')}</div>
+  <div class="mk">Industry</div><div>${he(caseData.area_industry ?? '—')}</div>
+  <div class="mk">Priority</div><div>${he(caseData.priority ?? '—')}</div>
+  <div class="mk">Approved</div><div>${he(dateStr)}</div>
+  <div class="mk">${bypass ? 'Approval Note' : 'Approval'}</div><div>${bypass ? he(`Bypassed — ${bypassReason}`) : 'All activities at 100%'}</div>
+</div>
+<div class="stats">
+  <div class="stat"><div class="n">${he(String(activities.length))}</div><div class="l">Total Activities</div></div>
+  <div class="stat"><div class="n">${he(totalHrs.toFixed(1))}h</div><div class="l">Hours Logged</div></div>
+  <div class="stat"><div class="n">${he(String(testPhasesDone.length))}</div><div class="l">Test Phases</div></div>
+  <div class="stat"><div class="n">${he(String(adjPhasesDone.length))}</div><div class="l">Adjustments</div></div>
+</div>
+
+<h2>1. Initial Request</h2>
+<p>${he(caseData.description ?? '(No description provided.)')}</p>
+${customerInput ? `<p class="subsec">Customer Input</p><p>${he(customerInput)}</p>` : ''}
+
+<h2>2. Functional Specification</h2>
+${specContent ? mdToHtml(specContent.slice(0,4000)) : '<p>(No functional specification was recorded for this case.)</p>'}
+
+<h2>3. Development Scope</h2>
+${devActs.length > 0 ? tableHtml(['#','Activity','Description','Est. Hours','Progress'],
+  devActs.map((a,i) => [String(i+1), a.title, (a.description??'').slice(0,80), String(a.est_hours??'—'), actEffectivePct(a)+'%'])
+) : '<p>(No development activities recorded.)</p>'}
+
+<h2>4. Quality Assurance — Test Results</h2>
+${testPhasesDone.length > 0 ? testPhasesDone.map(pk => {
+  const lbl = DEFAULT_ACTIVITY_PHASES.find(p=>p.key===pk)?.label??pk;
+  const phActs = activities.filter(a=>a.phase===pk);
+  const passed = phActs.filter(a=>a.test_outcome==='passed').length;
+  const rows = phActs.map(a => {
+    const outcomeHtml = a.test_outcome==='passed'
+      ? '<span class="pass">✓ Passed</span>'
+      : a.test_outcome==='needs_adjustment'
+      ? '<span class="adj">⚠ Adjustment</span>'
+      : 'Pending';
+    return `<tr><td>${he(a.title)}</td><td>${outcomeHtml}</td><td>${a.coverage_pct!=null?he(a.coverage_pct+'%'):'—'}</td><td>${he((a.adjustment_notes??'').slice(0,100))}</td></tr>`;
+  }).join('');
+  return `<p class="subsec">${he(lbl)} — ${he(String(passed))}/${he(String(phActs.length))} passed</p>
+<table class="t"><thead><tr><th>Activity</th><th style="width:100px">Outcome</th><th style="width:80px">Coverage</th><th>Issue / Notes</th></tr></thead><tbody>${rows}</tbody></table>`;
+}).join('') : '<p>(No test activities recorded.)</p>'}
+
+<h2>5. Adjustments Made</h2>
+${adjPhasesDone.length > 0 ? adjPhasesDone.map(pk => {
+  const lbl = DEFAULT_ACTIVITY_PHASES.find(p=>p.key===pk)?.label??pk;
+  const phActs = activities.filter(a=>a.phase===pk);
+  return `<p class="subsec">${he(lbl)}</p>${tableHtml(['#','Corrective Activity','Description','Est. Hours'],
+    phActs.map((a,i)=>[String(i+1),a.title,(a.description??'').slice(0,100),String(a.est_hours??'—')]))}`;
+}).join('') : '<p>(No adjustments were required.)</p>'}
+
+<h2>6. Final Delivered Scope</h2>
+${deliveredActs.length > 0 ? tableHtml(['Phase','Delivered Item','Hours Logged'],
+  deliveredActs.map(a => {
+    const phaseDef = DEFAULT_ACTIVITY_PHASES.find(p=>p.key===a.phase);
+    const logged = timeEntries.filter(e=>e.activity_id===a.id).reduce((s,e)=>s+(e.hours??0),0);
+    return [phaseDef?.label??'Unassigned', a.title, logged.toFixed(1)+'h'];
+  })
+) : '<p>(No completed activities recorded.)</p>'}
+
+<h2 class="green">7. User Manual</h2>
+${mdToHtml(userManual)}
+
+<div class="signoff">
+<h2>Sign-Off</h2>
+${tableHtml(['Role','Name','Signature','Date'],[
+  ['Project Manager','','',''],
+  ['Lead Consultant','','',''],
+  ['Client Representative','','',''],
+  ['Quality Approver','','',''],
+])}
+</div>
+</body></html>`;
+
+      // Save as HTML
       const safeName = (caseData.title ?? 'Case').replace(/[^a-z0-9]/gi, '_');
-      const fileName = `ClosureReport_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`;
-      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+      const fileName = `ClosureReport_${safeName}_${new Date().toISOString().slice(0, 10)}.html`;
+      const file = new File([closureHtml], fileName, { type: 'text/html' });
       await addDocument(file, 'Case Closure Report — auto-generated on approval');
       if (refetchDocuments) await refetchDocuments();
 
@@ -3910,12 +3769,56 @@ Be practical, concise, and written from the end-user perspective. Avoid technica
             )}
 
             {/* ── AI Generated ── */}
-            <DocSectionHeader Icon={Sparkles} iconClass="text-violet-400" label="AI Generated" count={aiDocs.length} accent="border-violet-100">
-              {aiDocs.length === 0
-                ? <p className="text-xs text-gray-400 py-2 pl-1">No AI-generated documents yet — run the Spec tab to generate them.</p>
-                : <div className="space-y-2">{aiDocs.map(doc => <DocRow key={doc.id} doc={doc} auth={auth} deleteDocument={deleteDocument} openDocInNewTab={openDocInNewTab} t={t} />)}</div>
-              }
-            </DocSectionHeader>
+            {(() => {
+              const canExportPdf = perms.can('export_pdf_docs');
+              const htmlAiDocs = aiDocs.filter(d => d.file_name?.toLowerCase().endsWith('.html') || (d.file_type ?? '').includes('html'));
+              const checkedHtmlDocs = htmlAiDocs.filter(d => checkedAiDocIds.has(d.id));
+              return (
+                <DocSectionHeader Icon={Sparkles} iconClass="text-violet-400" label="AI Generated" count={aiDocs.length} accent="border-violet-100">
+                  {aiDocs.length === 0
+                    ? <p className="text-xs text-gray-400 py-2 pl-1">No AI-generated documents yet — run the Spec tab to generate them.</p>
+                    : <>
+                        {canExportPdf && htmlAiDocs.length > 0 && (
+                          <div className="flex items-center gap-2 mb-2">
+                            <button
+                              onClick={() => downloadDocsPdf(htmlAiDocs)}
+                              className="text-xs px-2.5 py-1 rounded border border-violet-200 text-violet-700 hover:bg-violet-50 font-medium">
+                              Download All PDF
+                            </button>
+                            {checkedHtmlDocs.length > 0 && (
+                              <button
+                                onClick={() => downloadDocsPdf(checkedHtmlDocs)}
+                                className="text-xs px-2.5 py-1 rounded border border-violet-300 bg-violet-50 text-violet-800 hover:bg-violet-100 font-medium">
+                                Download Checked ({checkedHtmlDocs.length}) PDF
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        <div className="space-y-2">
+                          {aiDocs.map(doc => (
+                            <DocRow
+                              key={doc.id}
+                              doc={doc}
+                              auth={auth}
+                              deleteDocument={deleteDocument}
+                              openDocInNewTab={openDocInNewTab}
+                              t={t}
+                              checked={checkedAiDocIds.has(doc.id)}
+                              onCheck={(id, checked) => setCheckedAiDocIds(prev => {
+                                const next = new Set(prev);
+                                checked ? next.add(id) : next.delete(id);
+                                return next;
+                              })}
+                              canDownloadPdf={canExportPdf}
+                              onDownloadPdf={downloadDocAsPdf}
+                            />
+                          ))}
+                        </div>
+                      </>
+                  }
+                </DocSectionHeader>
+              );
+            })()}
 
             {/* ── Case Documents ── */}
             <DocSectionHeader Icon={FolderOpen} iconClass="text-blue-400" label="Case Documents" count={caseDocs.length} accent="border-blue-100">
