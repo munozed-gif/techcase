@@ -3100,6 +3100,7 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   const [logTab, setLogTab] = useState('platform');
   const [expandedManual, setExpandedManual] = useState(new Set());
   const [manualSpecs, setManualSpecs] = useState({});
+  const [bcsetSysType, setBcsetSysType] = useState('s4_onprem'); // 'ecc' | 's4_onprem' | 's4_cloud'
 
   // ── Existing handlers ───────────────────────────────────
   function setActField(actId, updates) {
@@ -3329,8 +3330,47 @@ Output ONLY the ABAP source (CLASS DEFINITION ... CLASS IMPLEMENTATION ... ENDCL
 
   async function handleGenerateBcsetInfo(obj) {
     setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), generatingBcset: true } }));
-    try {
-      const prompt = `You are an SAP Best Practices expert. For the following SAP customizing parameter, identify the relevant SAP Best Practices BCset(s) and provide activation guidance.
+    const sysLabel = bcsetSysType === 'ecc' ? 'SAP ECC 6.0'
+      : bcsetSysType === 's4_onprem'        ? 'SAP S/4HANA On-Premise / Private Cloud Edition'
+      :                                        'SAP S/4HANA Cloud Public Edition';
+
+    const promptEccOnprem = `You are an SAP Best Practices expert for ${sysLabel}. For the following SAP customizing parameter, identify the relevant SAP Best Practices BCset(s) and provide activation guidance.
+
+Configuration: ${obj.name}
+Description: ${obj.description ?? 'No description provided'}
+SAP Module: ${caseData.area_sap ?? 'general'}
+Project: ${caseData.title}
+Target System: ${sysLabel}
+
+Respond in this exact structure (plain text, no markdown):
+
+BCSET NAME(S):
+[Exact SAP Best Practices BCset name(s) for ${sysLabel}, e.g. /SMB40/J_1BTXJUR_C — or "Not covered by standard BCsets" if none exist]
+
+SCOPE ITEM / PACKAGE:
+[The Best Practices scope item and package this BCset belongs to, e.g. "J45 – Accounts Payable" in package "SAP Best Practices for SAP S/4HANA"]
+
+CUSTOMIZING TABLES AFFECTED:
+[Main customizing tables this BCset writes to, e.g. T001, TVKO, T005]
+
+ACTIVATION STEPS:
+1. Go to SAP Best Practices Explorer (rapid.sap.com) → download the scope item if not installed
+2. ${bcsetSysType === 'ecc' ? 'Run transaction /SMB/BBI or SPRO → Activate SAP Best Practices' : 'Run SPRO → SAP Reference IMG → Activate SAP Best Practices, or transaction /SMB/BBI'}
+3. [Continue with exact SCPR20 steps: find BCset → activation mode → client assignment → execute]
+
+ACTIVATION MODE:
+[Client-specific (client-dependent) or Cross-client (client-independent), and what that means for transport]
+
+PREREQUISITES:
+[BCsets or configuration that must exist first]
+
+TRANSPORT GENERATED:
+[Transport type created on save and how to assign it]
+
+IF NOT INSTALLED:
+[How to obtain: download from rapid.sap.com → import via /SMB/BBI → or configure manually via SPRO as fallback]`;
+
+    const promptCloud = `You are an SAP Best Practices expert for SAP S/4HANA Cloud Public Edition. For the following configuration parameter, provide the activation path using SAP Central Business Configuration (CBC) and the Configure Your Solution app.
 
 Configuration: ${obj.name}
 Description: ${obj.description ?? 'No description provided'}
@@ -3339,33 +3379,36 @@ Project: ${caseData.title}
 
 Respond in this exact structure (plain text, no markdown):
 
-BCSET NAME(S):
-[List the exact SAP Best Practices BCset name(s), e.g. /SMB40/J_1BTXJUR_C, or "Not covered by standard Best Practices BCsets" if none exist]
-
 SCOPE ITEM:
-[The SAP Best Practices scope item or solution package this BCset belongs to, e.g. "J45 – Accounts Payable (Brazil)" or the generic package]
+[The SAP S/4HANA Cloud Best Practices scope item ID and name, e.g. "J45 – Accounts Payable" — this replaces BCsets in Cloud]
 
-CUSTOMIZING TABLES AFFECTED:
-[List the main customizing tables this BCset writes to, e.g. T001, TVKO, T005]
+CBC ACTIVATION PATH:
+[SAP Central Business Configuration steps: which product / solution scope to select, how to activate this process area]
 
-ACTIVATION STEPS (SCPR20):
-1. [Step-by-step: transaction SCPR20 → find BCset → activation mode → client assignment → execute]
+CONFIGURE YOUR SOLUTION (Fiori):
+[Steps in the "Configure Your Solution" Fiori app — which configuration activity covers this parameter, the activity path, and what values to set]
 
-ACTIVATION MODE:
-[Client-specific (client-dependent) or Cross-client (client-independent) — and what that means for transport]
+MANAGED CONFIGURATION:
+[Whether SAP manages this setting centrally (customer cannot change) or it is customer-configurable]
 
-PREREQUISITES:
-[Any BCsets or configuration that must be activated first]
+TRANSPORT / CHANGE MANAGEMENT:
+[How changes are tracked in S/4HANA Cloud — Change Management app, transport to Production via 3-system landscape or 2-system landscape]
 
-TRANSPORT GENERATED:
-[What transport request type is created and how to handle it]
+LIMITATIONS vs ON-PREM:
+[What cannot be changed in S/4HANA Cloud that would be configurable on-premise — important for fit-gap analysis]
 
-IF BCSET NOT AVAILABLE:
-[What to do if the BCset is not installed — e.g. download from SAP Best Practices Explorer, import via /SMB/BBI, or configure manually via SPRO]`;
+FALLBACK:
+[If the parameter is not configurable via CBC, what extensibility option exists: key user extensibility, partner extensibility, or SAP support request]`;
+
+    try {
+      const prompt = bcsetSysType === 's4_cloud' ? promptCloud : promptEccOnprem;
+      const system = bcsetSysType === 's4_cloud'
+        ? 'You are an expert SAP S/4HANA Cloud consultant. Focus on CBC, Configure Your Solution, and the cloud activation model. Be precise about what is and is not customer-configurable.'
+        : 'You are an expert SAP Best Practices consultant. Always provide exact BCset names. If a BCset does not exist for this configuration, say so clearly and explain the manual SPRO alternative.';
 
       const resp = await callClaude({
         model: genModel,
-        system: 'You are an expert SAP Best Practices consultant. Always provide exact BCset names when they exist. If a BCset is not part of standard Best Practices, say so clearly and explain the manual alternative.',
+        system,
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
         max_tokens: 1800,
       });
@@ -3864,12 +3907,38 @@ IF BCSET NOT AVAILABLE:
                                     {/* BCset tab — config objects only */}
                                     {detailTab === 'bcset' && obj.type === 'config' && (
                                       <>
-                                        <div className="mb-2 p-2.5 rounded-lg bg-violet-500/10 border border-violet-500/20 text-[10px] text-violet-300 leading-relaxed space-y-1">
-                                          <p><strong>SAP Best Practices BCsets</strong> are pre-packaged customizing sets activated via <span className="font-mono">SCPR20</span>. They write directly to customizing tables — no IMG clicking required.</p>
-                                          <p>If the BCset is not installed, download it from <strong>SAP Best Practices Explorer</strong> (rapid.sap.com) and import via <span className="font-mono">/SMB/BBI</span>.</p>
+                                        {/* System type selector */}
+                                        <div className="flex gap-1 mb-2.5">
+                                          {[
+                                            ['ecc',        'ECC 6.0'],
+                                            ['s4_onprem',  'S/4HANA On-Prem'],
+                                            ['s4_cloud',   'S/4HANA Cloud'],
+                                          ].map(([val, lbl]) => (
+                                            <button key={val} onClick={() => setBcsetSysType(val)}
+                                              className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg border transition-all
+                                                ${bcsetSysType === val
+                                                  ? 'border-violet-500 bg-violet-500/20 text-violet-300'
+                                                  : 'border-white/15 text-white/30 hover:border-white/25 hover:text-white/50'}`}>
+                                              {lbl}
+                                            </button>
+                                          ))}
                                         </div>
+
+                                        {/* Context banner */}
+                                        <div className="mb-2 p-2.5 rounded-lg bg-violet-500/10 border border-violet-500/20 text-[10px] text-violet-300 leading-relaxed">
+                                          {bcsetSysType === 's4_cloud' ? (
+                                            <>S/4HANA Cloud uses <strong>SAP Central Business Configuration (CBC)</strong> and the <strong>Configure Your Solution</strong> Fiori app — BCsets don't exist here. SAP manages activation; customers configure through scoped activities.</>
+                                          ) : (
+                                            <>BCsets are activated via <span className="font-mono">SCPR20</span> — they write directly to customizing tables, no IMG clicking required. Download missing content from <strong>rapid.sap.com</strong> → import via <span className="font-mono">/SMB/BBI</span>.</>
+                                          )}
+                                        </div>
+
                                         <div className="flex items-center justify-between mb-2">
-                                          <span className="text-[10px] text-white/30">BCset name · activation steps · tables affected</span>
+                                          <span className="text-[10px] text-white/30">
+                                            {bcsetSysType === 's4_cloud'
+                                              ? 'Scope item · CBC path · Configure Your Solution steps'
+                                              : 'BCset name · SCPR20 steps · tables affected'}
+                                          </span>
                                           <div className="flex gap-2">
                                             {specState.bcsetInfo && (
                                               <button onClick={() => navigator.clipboard?.writeText(specState.bcsetInfo)}
@@ -3880,7 +3949,10 @@ IF BCSET NOT AVAILABLE:
                                             <button onClick={() => handleGenerateBcsetInfo(obj)} disabled={specState.generatingBcset}
                                               className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-violet-500/20 text-violet-300 border border-violet-500/30 hover:bg-violet-500/30 disabled:opacity-50 transition-colors">
                                               <Sparkles size={11} />
-                                              {specState.generatingBcset ? 'Generating…' : specState.bcsetInfo ? 'Regenerate' : 'Find BCset'}
+                                              {specState.generatingBcset ? 'Generating…'
+                                                : specState.bcsetInfo   ? 'Regenerate'
+                                                : bcsetSysType === 's4_cloud' ? 'Find Scope Item'
+                                                : 'Find BCset'}
                                             </button>
                                           </div>
                                         </div>
@@ -3888,7 +3960,11 @@ IF BCSET NOT AVAILABLE:
                                         {specState.bcsetInfo ? (
                                           <pre className="text-xs text-violet-200 font-mono leading-relaxed whitespace-pre-wrap bg-black/20 rounded-lg p-3 max-h-72 overflow-y-auto">{specState.bcsetInfo}</pre>
                                         ) : !specState.generatingBcset && (
-                                          <p className="text-xs text-white/30 py-2">Click "Find BCset" to identify the SAP Best Practices BCset for this configuration, with SCPR20 activation steps and affected tables.</p>
+                                          <p className="text-xs text-white/30 py-2">
+                                            {bcsetSysType === 's4_cloud'
+                                              ? 'Click "Find Scope Item" for the CBC activation path and Configure Your Solution steps.'
+                                              : 'Click "Find BCset" for the exact BCset name, SCPR20 activation steps, and affected customizing tables.'}
+                                          </p>
                                         )}
                                       </>
                                     )}
