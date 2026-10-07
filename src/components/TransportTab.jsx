@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import {
   AlertTriangle, ArrowDown, ArrowUp, Check, CheckCircle2,
-  Clock, Copy, Eye, FileText, Link2, Loader2, Package, Play,
-  Plus, RefreshCw, Settings, Trash2, Upload, X, XCircle,
+  Clock, Copy, Eye, FileText, GripVertical, Link2, List,
+  Loader2, Package, Play, Plus, RefreshCw, Settings,
+  Trash2, Upload, X, XCircle,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
@@ -54,6 +55,7 @@ async function sapImportTransport(config, requestNumber, targetClient) {
 const TR_STEPS = [
   { label: 'Setup',    icon: <Settings size={13} />    },
   { label: 'Requests', icon: <Package size={13} />     },
+  { label: 'Sequence', icon: <List size={13} />        },
   { label: 'Approval', icon: <Eye size={13} />         },
   { label: 'Run',      icon: <Play size={13} />        },
   { label: 'Results',  icon: <CheckCircle2 size={13} />},
@@ -174,9 +176,43 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
     finally { setGenLinkLoading(false); }
   }
 
+  // ── Sequence drag-and-drop ────────────────────────────────
+  const [dragIdx, setDragIdx] = useState(null);
+  const [dropIdx, setDropIdx] = useState(null);
+
+  async function reorderRequests(fromIdx, toIdx) {
+    if (fromIdx === toIdx || fromIdx == null || toIdx == null) return;
+    const newOrder = [...requests];
+    const [moved] = newOrder.splice(fromIdx, 1);
+    newOrder.splice(toIdx, 0, moved);
+    const updated = newOrder.map((r, i) => ({ ...r, seq_order: i }));
+    setRequests(updated);
+    await Promise.all(updated.map(r => supabase.from('transport_requests').update({ seq_order: r.seq_order }).eq('id', r.id)));
+  }
+
   // ── File upload ───────────────────────────────────────────
   const fileInputRef = useRef(null);
+  const bulkFileRef  = useRef(null);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+
+  function handleBulkFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const text = e.target.result ?? '';
+      // CSV: split by comma or semicolon per line → number,description,type
+      // Plain text: one number (+ optional description) per line
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const parsed = lines.map(line => {
+        const parts = line.split(/[,;]/).map(p => p.trim());
+        if (parts.length >= 2) return `${parts[0]} ${parts.slice(1).join(' ')}`.trim();
+        return parts[0];
+      }).filter(Boolean);
+      setBulkText(parsed.join('\n'));
+      setShowBulk(true);
+    };
+    reader.readAsText(file);
+  }
 
   async function handleFileUpload(files) {
     setUploadingFiles(true);
@@ -386,11 +422,9 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
               ? <span className="text-[10px] text-green-400 flex items-center gap-0.5 flex-shrink-0"><Check size={10} />Files</span>
               : <span className="text-[10px] text-white/25 flex-shrink-0">No files</span>
           )}
-          {!showStatus && <>
-            <button onClick={() => moveRequest(req.id, -1)} className="text-white/30 hover:text-white/70 flex-shrink-0 transition-colors"><ArrowUp size={12} /></button>
-            <button onClick={() => moveRequest(req.id, +1)} className="text-white/30 hover:text-white/70 flex-shrink-0 transition-colors"><ArrowDown size={12} /></button>
+          {!showStatus && (
             <button onClick={() => deleteRequest(req.id)} className="text-white/20 hover:text-red-400 flex-shrink-0 transition-colors"><Trash2 size={12} /></button>
-          </>}
+          )}
         </div>
         {showStatus && is.log?.length > 0 && (
           <div className="px-3 pb-2 font-mono text-[10px] text-white/40 space-y-0.5 border-t border-white/5">
@@ -526,6 +560,12 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
               className="px-3 py-2 text-xs font-semibold border border-white/15 rounded-lg text-white/50 hover:bg-white/5 transition-colors">
               Bulk
             </button>
+            <button onClick={() => bulkFileRef.current?.click()}
+              className="flex items-center gap-1 px-3 py-2 text-xs font-semibold border border-white/15 rounded-lg text-white/50 hover:bg-white/5 transition-colors">
+              <Upload size={11} />From file
+            </button>
+            <input ref={bulkFileRef} type="file" accept=".csv,.txt,.tsv" className="hidden"
+              onChange={e => { handleBulkFile(e.target.files?.[0]); e.target.value = ''; }} />
           </div>
 
           {/* Bulk add */}
@@ -565,19 +605,72 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
             <div className="text-center py-8 text-sm text-white/30">No transport requests yet.</div>
           ) : (
             <>
-              <SectionLabel>Sequence · customizing runs before workbench</SectionLabel>
+              <SectionLabel>{totalCount} requests · customizing first at runtime</SectionLabel>
               <div className="space-y-2">
-                {ordered.map((req, i) => <RequestRow key={req.id} req={req} i={i} />)}
+                {[...requests].sort((a, b) => (a.seq_order ?? 0) - (b.seq_order ?? 0)).map((req, i) => (
+                  <RequestRow key={req.id} req={req} i={i} />
+                ))}
               </div>
             </>
           )}
 
-          <StepNav prev={1} next={3} nextLabel="Set Approval →" />
+          <StepNav prev={1} next={3} nextLabel="Set Sequence →" />
         </Panel>
       )}
 
-      {/* ── Step 3: Approval ───────────────────────────────── */}
+      {/* ── Step 3: Sequence ──────────────────────────────── */}
       {trStep === 3 && (
+        <Panel icon={<List size={15} />} title="Import Sequence"
+          sub="Drag to reorder. Customizing always executes before workbench at runtime.">
+
+          {requests.length === 0 ? (
+            <div className="text-center py-8 text-sm text-white/30">No transport requests to order.</div>
+          ) : (
+            <>
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300">
+                <strong>Execution order:</strong> customizing transports always run before workbench, regardless of sequence. Use this step to set the order within each type group.
+              </div>
+              <div className="space-y-2">
+                {[...requests]
+                  .sort((a, b) => (a.seq_order ?? 0) - (b.seq_order ?? 0))
+                  .map((req, i, arr) => {
+                    const meta = TR_TYPE_META[req.request_type] ?? TR_TYPE_META.workbench;
+                    const isDragOver = dropIdx === i;
+                    return (
+                      <div key={req.id}
+                        draggable
+                        onDragStart={() => setDragIdx(i)}
+                        onDragOver={e => { e.preventDefault(); setDropIdx(i); }}
+                        onDragLeave={() => setDropIdx(null)}
+                        onDrop={e => { e.preventDefault(); reorderRequests(dragIdx, i); setDragIdx(null); setDropIdx(null); }}
+                        onDragEnd={() => { setDragIdx(null); setDropIdx(null); }}
+                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border ${meta.border} bg-white/5 cursor-grab active:cursor-grabbing transition-all
+                          ${isDragOver ? 'border-blue-500/50 bg-blue-500/10 scale-[1.01]' : ''}
+                          ${dragIdx === i ? 'opacity-40' : ''}`}>
+                        <GripVertical size={14} className="text-white/20 flex-shrink-0" />
+                        <span className="w-5 h-5 rounded text-[10px] font-bold bg-white/10 text-white/50 flex items-center justify-center font-mono flex-shrink-0">{i + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-mono text-sm font-semibold text-white truncate">{req.request_number}</div>
+                          {req.description && <div className="text-xs text-white/40 truncate">{req.description}</div>}
+                        </div>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${meta.color}`}>{meta.label}</span>
+                        <button onClick={() => moveRequest(req.id, -1)} disabled={i === 0}
+                          className="text-white/20 hover:text-white/60 flex-shrink-0 disabled:opacity-20 transition-colors"><ArrowUp size={12} /></button>
+                        <button onClick={() => moveRequest(req.id, +1)} disabled={i === arr.length - 1}
+                          className="text-white/20 hover:text-white/60 flex-shrink-0 disabled:opacity-20 transition-colors"><ArrowDown size={12} /></button>
+                      </div>
+                    );
+                  })}
+              </div>
+            </>
+          )}
+
+          <StepNav prev={2} next={4} nextLabel="Set Approval →" />
+        </Panel>
+      )}
+
+      {/* ── Step 4: Approval ───────────────────────────────── */}
+      {trStep === 4 && (
         <Panel icon={<Eye size={15} />} title="Approval"
           sub="Assign a reviewer and send them the approval link">
 
@@ -625,12 +718,12 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
             {linkCopied ? 'Copied to clipboard!' : genLinkLoading ? 'Generating…' : batchApproval.token ? 'Regenerate & Copy Link' : 'Generate & Copy Link'}
           </button>
 
-          <StepNav prev={2} next={4} nextLabel="Go to Run →" />
+          <StepNav prev={3} next={5} nextLabel="Go to Run →" />
         </Panel>
       )}
 
-      {/* ── Step 4: Run ────────────────────────────────────── */}
-      {trStep === 4 && (
+      {/* ── Step 5: Run ────────────────────────────────────── */}
+      {trStep === 5 && (
         <Panel icon={<Play size={15} />} title="Import Run"
           sub={`${totalCount} requests · ${transportMode === 'internal' ? 'internal client transport' : 'external system import'} · customizing first`}>
 
@@ -657,12 +750,12 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
             </div>
           )}
 
-          <StepNav prev={3} next={5} nextLabel="See Results →" />
+          <StepNav prev={4} next={6} nextLabel="See Results →" />
         </Panel>
       )}
 
-      {/* ── Step 5: Results ────────────────────────────────── */}
-      {trStep === 5 && (
+      {/* ── Step 6: Results ────────────────────────────────── */}
+      {trStep === 6 && (
         <Panel icon={<CheckCircle2 size={15} />} title="Results"
           sub={doneCount > 0 ? `Last import ${new Date(requests.find(r => r.applied_at)?.applied_at ?? Date.now()).toLocaleString()}` : 'No imports run yet'}>
 
@@ -711,12 +804,12 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
             </>
           )}
 
-          <StepNav prev={4} next={6} nextLabel="View Logs →" />
+          <StepNav prev={5} next={7} nextLabel="View Logs →" />
         </Panel>
       )}
 
-      {/* ── Step 6: Logs ───────────────────────────────────── */}
-      {trStep === 6 && (
+      {/* ── Step 7: Logs ───────────────────────────────────── */}
+      {trStep === 7 && (
         <Panel icon={<FileText size={15} />} title="Import Logs"
           sub="Platform events and CTS response detail">
 
@@ -773,7 +866,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
               )
           )}
 
-          <StepNav prev={5} />
+          <StepNav prev={6} />
         </Panel>
       )}
     </div>
