@@ -6,7 +6,7 @@ import {
   Flag, FolderOpen, Globe, Handshake, Inbox, Layers, LayoutTemplate, Link,
   Link2, ListChecks, Lock, MessageSquare, Monitor, Paperclip, PauseCircle, Pencil,
   Play, Receipt, RefreshCw, RotateCcw, Search, Send, SlidersHorizontal, Sparkles, Star,
-  Target, Trash2, TrendingUp, Upload, User, UserCheck, UserPlus, Users,
+  Target, Trash2, TrendingUp, Truck, Upload, User, UserCheck, UserPlus, Users,
   Wand2, X, XCircle, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
@@ -41,6 +41,7 @@ import {
   INVOICE_STATUS_COLORS, INV_STATUS_LABEL_KEYS, timeAgo,
 } from "../lib/uiUtils.jsx";
 import { SAP_ENV_TYPE_META, SapImplementationTab } from "../components/SapPanels.jsx";
+import { TransportTab } from "../components/TransportTab.jsx";
 import { useCaseSpecification } from "../hooks/useNotificationHooks.js";
 import { GENERATION_CONTEXT_DEFAULTS } from "../lib/constants.js";
 import { SaveCaseAsTemplateModal } from "./CaseTemplates.jsx";
@@ -2096,6 +2097,9 @@ ${tableHtml(['Role','Name','Signature','Date'],[
     { id: "spec",           label: t("case.tab_spec"),         icon: FileText, count: null },
     ...((auth.isAdmin || auth.isManager || auth.isConsultant || auth.isKeyUser)
       ? [{ id: "implementation", label: t("sap.impl_tab_title"), icon: Code2, count: null }]
+      : []),
+    ...((auth.isAdmin || auth.isManager || auth.isConsultant || auth.isKeyUser)
+      ? [{ id: "transport", label: "Transports", icon: Truck, count: null }]
       : []),
     ...(perms.can("view_audit_log") ? [{ id: "audit_log", label: t("case.tab_audit_log"), icon: ClipboardList, count: null }] : []),
   ];
@@ -5322,6 +5326,10 @@ ${tableHtml(['Role','Name','Signature','Date'],[
 
                     {tab.id === "implementation" && (auth.isAdmin || auth.isManager || auth.isConsultant || auth.isKeyUser) && (
         <SapImplementationTab caseData={caseData} auth={auth} activities={activities} updateActivity={updateActivity} />
+      )}
+
+                    {tab.id === "transport" && (auth.isAdmin || auth.isManager || auth.isConsultant || auth.isKeyUser) && (
+        <TransportTab caseData={caseData} auth={auth} />
       )}
 
                     {tab.id === "lifecycle" && perms.can("view_lifecycle") && (() => {

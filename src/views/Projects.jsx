@@ -4,7 +4,7 @@ import {
   Calendar, Camera, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Code2, Copy,
   Database, DollarSign, FileEdit, FileText, FolderOpen, Layers, Link2,
   LayoutTemplate, Loader2, Lock, Pause, PauseCircle, Play, Plus, Search,
-  Shield, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, Upload,
+  Shield, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, Truck, Upload,
   UserCheck, Users, X, XCircle, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
@@ -22,6 +22,7 @@ import { CaseDetail } from "./CaseDetail.jsx";
 import { getStageIcon } from "../components/CaseSubPanels.jsx";
 import { SapProfileBadges, SapProfileFields, VpnProfileFields, VpnProfileBadges } from "./OperationsViews.jsx";
 import { ProjectSapEnvPanel, ProjectOwnSapPanel } from "../components/SapPanels.jsx";
+import { TransportTab } from "../components/TransportTab.jsx";
 import { ApplyTemplateModal, SaveTemplateModal, BUILT_IN_PROJECT_TEMPLATES } from "./CaseTemplates.jsx";
 import {
   LIFECYCLE_PRESETS, SAP_AREAS, INDUSTRY_AREAS, ROLE_COLORS, PROJECT_TYPES,
@@ -1814,6 +1815,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
     { id: "connections",  label: t("project.tab_connections"),   icon: Database,          count: null },
     ...(canEdit ? [{ id: "lifecycle", label: t("project.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
     ...((auth.isAdmin || auth.isManager || auth.isClient || auth.isKeyUser || project.created_by === auth.user?.id || consultants.some(c => c.user_id === auth.user?.id)) ? [{ id: "sap", label: t("project.tab_sap"), icon: Code2, count: null }] : []),
+    ...((auth.isAdmin || auth.isManager || auth.isConsultant || auth.isKeyUser) ? [{ id: "transport", label: "Transports", icon: Truck, count: null }] : []),
   ];
 
   const projTabStatus = (() => {
@@ -2872,6 +2874,11 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
           project.client_id
             ? <ProjectSapEnvPanel projectId={project.id} clientId={project.client_id} auth={auth} />
             : <ProjectOwnSapPanel projectId={project.id} auth={auth} />
+        )}
+
+        {/* Transports */}
+        {tab.id === "transport" && (auth.isAdmin || auth.isManager || auth.isConsultant || auth.isKeyUser) && (
+          <TransportTab projectData={project} projectCases={projCases} auth={auth} />
         )}
 
         {/* Lifecycle */}
