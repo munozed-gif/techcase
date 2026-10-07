@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Activity, AlertTriangle, ArrowRight, Check, CheckCircle2, ChevronRight,
-  Clock, Code2, Eye, FileCode2, FileText, FolderOpen, LayoutGrid, Loader2,
+  Clock, Code2, Copy, Eye, FileCode2, FileText, FolderOpen, LayoutGrid, Loader2,
   Link2, Mail, RefreshCw,
   Play, Plus, Save, Settings, Sparkles, ThumbsDown, ThumbsUp, Upload, User, X, XCircle,
 } from "lucide-react";
@@ -3037,6 +3037,8 @@ const CONN_TYPE_LABELS = {
 const TYPE_PRIORITY    = { config:0, table:1, enhancement:2, badi:3, class:4, function_module:5, program:6, other:7 };
 const MANUAL_TYPES     = new Set(['table','enhancement','badi','config']);
 const OBJ_TRANSACTION  = { table:'SE11', enhancement:'SE18', badi:'SE18', config:'SPRO', class:'SE24', function_module:'SE37', program:'SE38', other:'SE80' };
+// config (SPRO) has no ADT-pasteable code — pure IMG customizing
+const ADT_CODE_TYPES   = new Set(['table','structure','enhancement','badi']);
 
 function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   const { t } = useT();
@@ -3249,6 +3251,47 @@ Be concise and use numbered steps. Format as plain text, no markdown headers.`;
       setManualSpecs(p => ({ ...p, [obj.id]: { generating: false, spec } }));
     } catch (e) {
       setManualSpecs(p => ({ ...p, [obj.id]: { generating: false, error: e.message } }));
+    }
+  }
+  async function handleGenerateAdtCode(obj) {
+    const typeMeta = BP_TYPES[obj.type] ?? {};
+    setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), generatingAdt: true } }));
+    const prompts = {
+      table: `Generate ABAP CDS DDL source code for a transparent database table named ${obj.name} in SAP ADT.
+Description: ${obj.description ?? ''}
+Case: ${caseData.title} · SAP Module: ${caseData.area_sap ?? 'general'}
+Use @AbapCatalog annotations, define all key fields (mandt, then business key), add relevant data element references.
+Output ONLY the CDS DDL source (no explanation). Start with @AbapCatalog.sqlViewName.`,
+
+      structure: `Generate ABAP CDS DDL source code for a flat structure (no key, no MANDT) named ${obj.name} in SAP ADT.
+Description: ${obj.description ?? ''}
+Case: ${caseData.title} · SAP Module: ${caseData.area_sap ?? 'general'}
+Use @AbapCatalog annotations. Output ONLY the CDS DDL source (no explanation).`,
+
+      enhancement: `Generate the ABAP class skeleton for a BAdI implementation of enhancement ${obj.name} in SAP ADT.
+Description: ${obj.description ?? ''}
+Case: ${caseData.title} · SAP Module: ${caseData.area_sap ?? 'general'}
+Include: CLASS DEFINITION with PUBLIC FINAL CREATE PUBLIC, the relevant interface, and stub METHOD implementations.
+Output ONLY the ABAP source (CLASS DEFINITION ... CLASS IMPLEMENTATION ... ENDCLASS). No explanation.`,
+
+      badi: `Generate the ABAP implementation class skeleton for BAdI ${obj.name} in SAP ADT (Eclipse).
+Description: ${obj.description ?? ''}
+Case: ${caseData.title} · SAP Module: ${caseData.area_sap ?? 'general'}
+Include: CLASS DEFINITION with the BAdI interface, constructor, and stub method implementations.
+Output ONLY the ABAP source (CLASS DEFINITION ... CLASS IMPLEMENTATION ... ENDCLASS). No explanation.`,
+    };
+    const prompt = prompts[obj.type] ?? `Generate ABAP source code for ${typeMeta.label ?? obj.type} object ${obj.name}.\nDescription: ${obj.description ?? ''}\nOutput ONLY the ABAP source.`;
+    try {
+      const resp = await callClaude({
+        model: genModel,
+        system: 'You are an expert SAP ABAP developer. Output only clean, compilable ABAP or CDS DDL source code. No markdown fences, no explanations.',
+        messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
+        max_tokens: 3000,
+      });
+      const adtCode = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
+      setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), generatingAdt: false, adtCode } }));
+    } catch (e) {
+      setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), generatingAdt: false, adtError: e.message } }));
     }
   }
 
@@ -3655,30 +3698,77 @@ Be concise and use numbered steps. Format as plain text, no markdown headers.`;
                               {obj.status === 'done' && <CheckCircle2 size={13} className="text-green-400 flex-shrink-0" />}
                               <span className="text-white/30 flex-shrink-0">{isOpen ? '▲' : '▼'}</span>
                             </div>
-                            {isOpen && (
-                              <div className="px-3 pb-3 pt-0 border-t border-amber-500/20">
-                                <div className="flex items-center justify-between mt-2 mb-2">
-                                  <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Creation Guide</span>
-                                  <button
-                                    onClick={() => handleGenerateManualSpec(obj)}
-                                    disabled={specState.generating}
-                                    className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 disabled:opacity-50 transition-colors">
-                                    <Sparkles size={11} />
-                                    {specState.generating ? 'Generating…' : specState.spec ? 'Regenerate' : 'Generate Steps'}
-                                  </button>
+                            {isOpen && (() => {
+                              const canAdt = ADT_CODE_TYPES.has(obj.type);
+                              const [detailTab, setDetailTab] = [specState._tab ?? 'guide', v => setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), _tab: v } }))];
+                              return (
+                                <div className="border-t border-amber-500/20">
+                                  {/* tab row */}
+                                  <div className="flex gap-0 px-3 pt-2">
+                                    {[['guide','📋 Creation Guide'], ...(canAdt ? [['adt','💻 ADT Code']] : [])].map(([key, lbl]) => (
+                                      <button key={key} onClick={() => setDetailTab(key)}
+                                        className={`px-3 py-1.5 text-[10px] font-bold rounded-t-lg border-b-2 transition-colors
+                                          ${detailTab === key ? 'border-amber-400 text-amber-300' : 'border-transparent text-white/30 hover:text-white/60'}`}>
+                                        {lbl}
+                                      </button>
+                                    ))}
+                                    {obj.type === 'config' && (
+                                      <span className="ml-auto text-[10px] text-white/25 self-center pr-1">SPRO only — no ADT code</span>
+                                    )}
+                                  </div>
+
+                                  <div className="px-3 pb-3 pt-2">
+                                    {/* Creation Guide tab */}
+                                    {detailTab === 'guide' && (
+                                      <>
+                                        <div className="flex items-center justify-between mb-2">
+                                          <span className="text-[10px] text-white/30">Step-by-step SAP creation instructions</span>
+                                          <button onClick={() => handleGenerateManualSpec(obj)} disabled={specState.generating}
+                                            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 disabled:opacity-50 transition-colors">
+                                            <Sparkles size={11} />
+                                            {specState.generating ? 'Generating…' : specState.spec ? 'Regenerate' : 'Generate Steps'}
+                                          </button>
+                                        </div>
+                                        {specState.error && <p className="text-xs text-red-400 py-2">Error: {specState.error}</p>}
+                                        {specState.spec ? (
+                                          <pre className="text-xs text-white/70 font-mono leading-relaxed whitespace-pre-wrap bg-black/20 rounded-lg p-3 max-h-64 overflow-y-auto">{specState.spec}</pre>
+                                        ) : !specState.generating && (
+                                          <p className="text-xs text-white/30 py-2">Click "Generate Steps" for AI-written creation instructions.</p>
+                                        )}
+                                      </>
+                                    )}
+
+                                    {/* ADT Code tab */}
+                                    {detailTab === 'adt' && canAdt && (
+                                      <>
+                                        <div className="flex items-center justify-between mb-2">
+                                          <span className="text-[10px] text-white/30">Paste into Eclipse ADT to create this object</span>
+                                          <div className="flex gap-2">
+                                            {specState.adtCode && (
+                                              <button onClick={() => navigator.clipboard?.writeText(specState.adtCode)}
+                                                className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-white/10 text-white/60 border border-white/15 hover:bg-white/15 transition-colors">
+                                                <Copy size={10} />Copy
+                                              </button>
+                                            )}
+                                            <button onClick={() => handleGenerateAdtCode(obj)} disabled={specState.generatingAdt}
+                                              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 disabled:opacity-50 transition-colors">
+                                              <Sparkles size={11} />
+                                              {specState.generatingAdt ? 'Generating…' : specState.adtCode ? 'Regenerate' : 'Generate Code'}
+                                            </button>
+                                          </div>
+                                        </div>
+                                        {specState.adtError && <p className="text-xs text-red-400 py-2">Error: {specState.adtError}</p>}
+                                        {specState.adtCode ? (
+                                          <pre className="text-xs text-green-300 font-mono leading-relaxed whitespace-pre-wrap bg-black/30 rounded-lg p-3 max-h-72 overflow-y-auto">{specState.adtCode}</pre>
+                                        ) : !specState.generatingAdt && (
+                                          <p className="text-xs text-white/30 py-2">Click "Generate Code" for ADT-ready source to paste in Eclipse.</p>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
                                 </div>
-                                {specState.error && (
-                                  <p className="text-xs text-red-400 py-2">Error: {specState.error}</p>
-                                )}
-                                {specState.spec ? (
-                                  <pre className="text-xs text-white/70 font-mono leading-relaxed whitespace-pre-wrap bg-black/20 rounded-lg p-3 max-h-64 overflow-y-auto">
-                                    {specState.spec}
-                                  </pre>
-                                ) : !specState.generating && (
-                                  <p className="text-xs text-white/30 py-2">Click "Generate Steps" to get AI-written creation instructions for this object.</p>
-                                )}
-                              </div>
-                            )}
+                              );
+                            })()}
                           </div>
                         );
                       })}
