@@ -2696,6 +2696,7 @@ Output ONLY the ABAP source code, no explanations.`;
                   const phaseObjs = objects
                     .filter(o => o.phase === phase.id)
                     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+                  if (phaseObjs.length === 0) return null;
                   return (
                     <div key={phase.id} className="flex flex-col border-r border-gray-100 dark:border-gray-700 last:border-0" style={{ minWidth: 220 }}>
                       {/* Lane header */}
@@ -2770,9 +2771,6 @@ Output ONLY the ABAP source code, no explanations.`;
                             </div>
                           );
                         })}
-                        {phaseObjs.length === 0 && (
-                          <p className={`text-[10px] text-center py-4 opacity-40 ${phase.textCls}`}>No objects</p>
-                        )}
                       </div>
                     </div>
                   );
