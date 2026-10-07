@@ -3222,6 +3222,11 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
   const appliedCount = implLog.length;
   const totalCount   = implActivities.length;
 
+  // Blueprint canvas objects (primary source for Sequence step)
+  const bpObjects = (settings['sap_blueprint'] ?? {})[caseData.id]?.objects ?? [];
+  const bpSorted  = bpObjects.length > 0 ? topoSort(bpObjects) : [];
+
+  // Activity-based objects (for Run step)
   const sortedActivities = [...implActivities]
     .filter(a => objectMap[a.id]?.objectName)
     .sort((a, b) => {
@@ -3230,8 +3235,12 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
       return ta - tb;
     });
   const unassignedActivities = implActivities.filter(a => !objectMap[a.id]?.objectName);
-  const manualCount = sortedActivities.filter(a => MANUAL_TYPES.has(objectMap[a.id]?.objectType ?? '')).length;
-  const autoCount   = sortedActivities.length - manualCount;
+  const manualCount = bpSorted.length > 0
+    ? bpSorted.filter(o => !(o.aiCapable ?? BP_TYPES[o.type]?.ai ?? true)).length
+    : sortedActivities.filter(a => MANUAL_TYPES.has(objectMap[a.id]?.objectType ?? '')).length;
+  const autoCount = bpSorted.length > 0
+    ? bpSorted.filter(o => (o.aiCapable ?? BP_TYPES[o.type]?.ai ?? true)).length
+    : sortedActivities.length - manualCount;
 
   // ── Pipeline stepper ────────────────────────────────────
   const PIPELINE_STEPS = [
@@ -3551,89 +3560,97 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
       )}
 
       {/* ── STEP 2: Sequence Map ───────────────────────── */}
-      {implStep === 2 && (
-        <Panel icon={<LayoutGrid size={15} />} title="Object Sequence Map"
-          sub={`${sortedActivities.length} objects · ${manualCount} manual · ${autoCount} auto · dependency order`}>
+      {implStep === 2 && (() => {
+        // Use blueprint canvas objects if available; fall back to activity-assigned objects
+        const seqObjects = bpSorted.length > 0 ? bpSorted : sortedActivities.map(a => ({
+          id: a.id,
+          name: objectMap[a.id].objectName,
+          type: objectMap[a.id].objectType ?? 'program',
+          description: a.title,
+          aiCapable: !(MANUAL_TYPES.has(objectMap[a.id].objectType ?? '')),
+          dependsOn: [],
+          status: actState[a.id]?.applied || implLog.some(l => l.activityId === a.id) ? 'done' : 'planned',
+        }));
+        const seqManual = seqObjects.filter(o => !(o.aiCapable ?? BP_TYPES[o.type]?.ai ?? true));
+        const seqAuto   = seqObjects.filter(o =>  (o.aiCapable ?? BP_TYPES[o.type]?.ai ?? true));
+        const nameById  = Object.fromEntries(bpSorted.map(o => [o.id, o.name]));
 
-          {sortedActivities.length === 0 ? (
-            <div className="text-center py-8">
-              <Code2 size={28} className="text-gray-300 mx-auto mb-2" />
-              <p className="text-sm text-gray-400">No objects assigned yet.</p>
-              <p className="text-xs text-gray-300 mt-1">Go to <strong>Run</strong> and assign SAP object names to each activity.</p>
-            </div>
-          ) : (
-            <>
-              {manualCount > 0 && (
-                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
-                  <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
-                  <span>Objects marked <strong>Manual</strong> must be created in SAP first. Auto objects that depend on them will wait until you verify creation in the Run step.</span>
-                </div>
-              )}
+        return (
+          <Panel icon={<LayoutGrid size={15} />} title="Object Sequence Map"
+            sub={`${seqObjects.length} objects · ${seqManual.length} manual · ${seqAuto.length} auto · dependency order`}>
 
-              {/* Group by phase: manual first, then auto */}
-              {manualCount > 0 && (
-                <>
-                  <SectionLabel>Phase 1 — Manual (create in SAP before running)</SectionLabel>
-                  <div className="space-y-2">
-                    {sortedActivities.filter(a => MANUAL_TYPES.has(objectMap[a.id]?.objectType ?? '')).map((act, i) => {
-                      const obj = objectMap[act.id];
-                      const tx  = OBJ_TRANSACTION[obj.objectType ?? ''] ?? 'SE80';
-                      const typeLabel = t(SAP_OBJECT_TYPES.find(o => o.value === obj.objectType)?.labelKey ?? '') || obj.objectType;
-                      return (
-                        <div key={act.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-amber-200 bg-amber-50/50">
-                          <span className="w-5 h-5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 flex items-center justify-center font-mono flex-shrink-0">{i + 1}</span>
-                          <span className="font-mono text-sm font-semibold text-gray-800 flex-1 truncate">{obj.objectName}</span>
-                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 flex-shrink-0">{typeLabel}</span>
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-200 text-amber-800 flex-shrink-0">Manual · {tx}</span>
-                        </div>
-                      );
-                    })}
+            {seqObjects.length === 0 ? (
+              <div className="text-center py-8">
+                <Code2 size={28} className="text-gray-300 mx-auto mb-2" />
+                <p className="text-sm text-gray-400">No objects in blueprint yet.</p>
+                <p className="text-xs text-gray-300 mt-1">Add objects in the <strong>Blueprint Canvas</strong> above, or go to <strong>Run</strong> and assign SAP object names to activities.</p>
+              </div>
+            ) : (
+              <>
+                {seqManual.length > 0 && (
+                  <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                    <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
+                    <span>Objects marked <strong>Manual</strong> must be created in SAP first. Auto objects that depend on them will wait until you verify creation in the Run step.</span>
                   </div>
-                </>
-              )}
+                )}
 
-              {autoCount > 0 && (
-                <>
-                  <SectionLabel>Phase {manualCount > 0 ? '2' : '1'} — Auto (implemented via ADT)</SectionLabel>
-                  <div className="space-y-2">
-                    {sortedActivities.filter(a => !MANUAL_TYPES.has(objectMap[a.id]?.objectType ?? '')).map((act, i) => {
-                      const obj = objectMap[act.id];
-                      const tx  = OBJ_TRANSACTION[obj.objectType ?? ''] ?? 'SE80';
-                      const typeLabel = t(SAP_OBJECT_TYPES.find(o => o.value === obj.objectType)?.labelKey ?? '') || obj.objectType;
-                      const seq = (manualCount > 0 ? manualCount : 0) + i + 1;
-                      return (
-                        <div key={act.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-blue-100 bg-blue-50/30">
-                          <span className="w-5 h-5 rounded text-[10px] font-bold bg-blue-100 text-blue-600 flex items-center justify-center font-mono flex-shrink-0">{seq}</span>
-                          <span className="font-mono text-sm font-semibold text-gray-800 flex-1 truncate">{obj.objectName}</span>
-                          <span className="text-xs text-gray-400 truncate max-w-[120px] hidden sm:block">{act.title}</span>
-                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 flex-shrink-0">{typeLabel}</span>
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-100 text-green-700 flex-shrink-0">Auto · {tx}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
+                {seqManual.length > 0 && (
+                  <>
+                    <SectionLabel>Phase 1 — Manual (create in SAP before running)</SectionLabel>
+                    <div className="space-y-2">
+                      {seqManual.map((obj, i) => {
+                        const bpType = BP_TYPES[obj.type] ?? {};
+                        const deps = (obj.dependsOn ?? []).map(id => nameById[id] ?? id).filter(Boolean);
+                        return (
+                          <div key={obj.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-amber-200 bg-amber-50/50">
+                            <span className="w-5 h-5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 flex items-center justify-center font-mono flex-shrink-0">{i + 1}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-mono text-sm font-semibold text-gray-800 truncate">{obj.name}</div>
+                              {obj.description && <div className="text-xs text-gray-400 truncate">{obj.description}</div>}
+                              {deps.length > 0 && <div className="text-[10px] text-amber-600 mt-0.5">← requires: {deps.join(', ')}</div>}
+                            </div>
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 flex-shrink-0">{bpType.label ?? obj.type}</span>
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-200 text-amber-800 flex-shrink-0">Manual · {bpType.short ?? '—'}</span>
+                            {obj.status === 'done' && <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
 
-              {unassignedActivities.length > 0 && (
-                <>
-                  <SectionLabel>Unassigned — go to Run to add object names</SectionLabel>
-                  <div className="space-y-1">
-                    {unassignedActivities.map(act => (
-                      <div key={act.id} className="flex items-center gap-3 px-3 py-2 rounded-xl border border-dashed border-gray-200 text-gray-400">
-                        <span className="text-xs truncate flex-1">{act.title}</span>
-                        <span className="text-[10px]">No object assigned</span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </>
-          )}
+                {seqAuto.length > 0 && (
+                  <>
+                    <SectionLabel>Phase {seqManual.length > 0 ? '2' : '1'} — Auto (implemented via ADT)</SectionLabel>
+                    <div className="space-y-2">
+                      {seqAuto.map((obj, i) => {
+                        const bpType = BP_TYPES[obj.type] ?? {};
+                        const deps = (obj.dependsOn ?? []).map(id => nameById[id] ?? id).filter(Boolean);
+                        const seq  = seqManual.length + i + 1;
+                        return (
+                          <div key={obj.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-blue-100 bg-blue-50/30">
+                            <span className="w-5 h-5 rounded text-[10px] font-bold bg-blue-100 text-blue-600 flex items-center justify-center font-mono flex-shrink-0">{seq}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-mono text-sm font-semibold text-gray-800 truncate">{obj.name}</div>
+                              {obj.description && <div className="text-xs text-gray-400 truncate">{obj.description}</div>}
+                              {deps.length > 0 && <div className="text-[10px] text-blue-500 mt-0.5">← requires: {deps.join(', ')}</div>}
+                            </div>
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 flex-shrink-0">{bpType.label ?? obj.type}</span>
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-100 text-green-700 flex-shrink-0">Auto · {bpType.short ?? '—'}</span>
+                            {obj.status === 'done' && <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </>
+            )}
 
-          <StepNav prev={1} next={3} nextLabel="Confirm Sequence →" />
-        </Panel>
-      )}
+            <StepNav prev={1} next={3} nextLabel="Confirm Sequence →" />
+          </Panel>
+        );
+      })()}
 
       {/* ── STEP 3: Review ────────────────────────────── */}
       {implStep === 3 && (
@@ -3643,19 +3660,20 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
             <span>The review link is managed in the <strong>Blueprint</strong> tab. Select a reviewer there and generate the approval link — the reviewer sees the object list and approves or rejects each one.</span>
           </div>
 
-          {sortedActivities.length > 0 && (
+          {bpSorted.length > 0 && (
             <>
-              <SectionLabel>Objects that will be reviewed</SectionLabel>
+              <SectionLabel>Objects that will be reviewed ({bpSorted.length})</SectionLabel>
               <div className="space-y-1.5">
-                {sortedActivities.map((act, i) => {
-                  const obj = objectMap[act.id];
-                  const isManual = MANUAL_TYPES.has(obj.objectType ?? '');
+                {bpSorted.map((obj, i) => {
+                  const isAuto = obj.aiCapable ?? BP_TYPES[obj.type]?.ai ?? true;
+                  const bpType = BP_TYPES[obj.type] ?? {};
                   return (
-                    <div key={act.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-gray-100 bg-gray-50">
+                    <div key={obj.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-gray-100 bg-gray-50">
                       <span className="w-4 h-4 rounded text-[9px] font-bold bg-gray-200 text-gray-600 flex items-center justify-center font-mono flex-shrink-0">{i + 1}</span>
-                      <span className="font-mono text-xs font-semibold text-gray-800 flex-1 truncate">{obj.objectName}</span>
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isManual ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
-                        {isManual ? 'Manual' : 'Auto'}
+                      <span className="font-mono text-xs font-semibold text-gray-800 flex-1 truncate">{obj.name}</span>
+                      <span className="text-[10px] text-gray-400 truncate max-w-[100px] hidden sm:block">{bpType.label ?? obj.type}</span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${!isAuto ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+                        {!isAuto ? 'Manual' : 'Auto'}
                       </span>
                     </div>
                   );
