@@ -3033,38 +3033,36 @@ const CONN_TYPE_LABELS = {
   sap_rfc: 'SAP RFC', sap_odata: 'SAP OData', vpn: 'VPN', other: 'Other',
 };
 
+// Object type ordering for implementation sequence
+const TYPE_PRIORITY    = { config:0, table:1, enhancement:2, badi:3, class:4, function_module:5, program:6, other:7 };
+const MANUAL_TYPES     = new Set(['table','enhancement','badi','config']);
+const OBJ_TRANSACTION  = { table:'SE11', enhancement:'SE18', badi:'SE18', config:'SPRO', class:'SE24', function_module:'SE37', program:'SE38', other:'SE80' };
+
 function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   const { t } = useT();
   const ssCtx = useSystemSettings();
   const { settings } = ssCtx;
 
-  // Connections from project + client
+  // ── Connections / environments ──────────────────────────
   const { projectConns, clientConns } = useProjectDbConnections(caseData.project_id, caseData.client_id);
   const allConns = [...projectConns, ...clientConns.map(c => ({ ...c, _inherited: true }))];
-  const sapCaseConnMap = settings['sap_case_conn'] ?? {};
+  const sapCaseConnMap  = settings['sap_case_conn'] ?? {};
   const selectedConnId  = sapCaseConnMap[caseData.id] ?? null;
-
   async function saveCaseConn(connId) {
     await ssCtx.setSetting('sap_case_conn', { ...sapCaseConnMap, [caseData.id]: connId || null });
   }
-
-  const allSapConfigs = settings['sap_integration'] ?? {};
-  const clientSapData = caseData.client_id
+  const allSapConfigs   = settings['sap_integration'] ?? {};
+  const clientSapData   = caseData.client_id
     ? (allSapConfigs[caseData.client_id] ?? {})
     : (allSapConfigs[`proj_${caseData.project_id}`] ?? {});
   const sapEnvironments = clientSapData.environments ?? (clientSapData.host ? [clientSapData] : []);
   const sapProjectEnvMap = settings['sap_project_env'] ?? {};
-  const sapCaseEnvMap   = settings['sap_case_env']    ?? {};
-  // Resolution: case env → project env → first client env
-  const selectedSapEnvId = sapCaseEnvMap[caseData.id]
-    ?? sapProjectEnvMap[caseData.project_id]
-    ?? null;
+  const sapCaseEnvMap    = settings['sap_case_env']    ?? {};
+  const selectedSapEnvId = sapCaseEnvMap[caseData.id] ?? sapProjectEnvMap[caseData.project_id] ?? null;
   const sapConfig = selectedSapEnvId
     ? (sapEnvironments.find(e => e.id === selectedSapEnvId) ?? sapEnvironments[0] ?? null)
     : (sapEnvironments[0] ?? null);
   const autoImplEnabled = sapConfig?.autoImplementEnabled ?? false;
-
-  // Enrich sapConfig with VPN proxy URL from linked connection (same as settings test panel)
   const allConnsForEnrich = [...projectConns, ...clientConns];
   function enrichWithVpn(env) {
     if (!env) return env;
@@ -3073,51 +3071,50 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
     return vpnProxyUrl ? { ...env, _vpnProxyUrl: vpnProxyUrl } : env;
   }
   const enrichedSapConfig = enrichWithVpn(sapConfig);
-
   async function saveCaseEnv(envId) {
     await ssCtx.setSetting('sap_case_env', { ...sapCaseEnvMap, [caseData.id]: envId || null });
   }
 
-  // Per-activity SAP object assignments: { [actId]: { objectType, objectName } }
+  // ── Object / activity state ─────────────────────────────
   const savedObjects = settings['sap_activity_objects'] ?? {};
   const [objectMap, setObjectMap] = useState(savedObjects);
-  // Per-activity state: { [actId]: { checking, checkResult, generatedCode, applying, applied, expanded } }
   const [actState, setActState] = useState({});
-  // Multi-select for apply
   const [checkedActIds, setCheckedActIds] = useState(new Set());
-
   const [transportReq, setTransportReq] = useState(settings['sap_impl_transport']?.[caseData.id] ?? '');
   const [savingTransport, setSavingTransport] = useState(false);
-
   const genModel = settings["ai_model"] ?? 'claude-haiku-4-5-20251001';
 
-  // Only show development-phase activities
   const implActivities = activities.filter(a =>
     !['completed'].includes(a.phase) &&
     (a.phase === 'development' || a.phase === 'design' || !a.phase || a.progress_pct < 100)
   );
 
+  // ── Pipeline step state ─────────────────────────────────
+  const [implStep, setImplStep] = useState(1);
+  const [stopOnError,      setStopOnError]      = useState(true);
+  const [implMode,         setImplMode]         = useState('all');
+  const [includeViewer,    setIncludeViewer]    = useState(true);
+  const [notifyOnComplete, setNotifyOnComplete] = useState(false);
+  const [logTab, setLogTab] = useState('platform');
+
+  // ── Existing handlers ───────────────────────────────────
   function setActField(actId, updates) {
     setActState(p => ({ ...p, [actId]: { ...(p[actId] ?? {}), ...updates } }));
   }
-
   async function saveObjectMap(newMap) {
     setObjectMap(newMap);
     await ssCtx.setSetting('sap_activity_objects', newMap);
   }
-
   function setObjectField(actId, field, value) {
     const updated = { ...objectMap, [actId]: { ...(objectMap[actId] ?? {}), [field]: value } };
     saveObjectMap(updated);
   }
-
   async function saveTransport(val) {
     setSavingTransport(true);
     const cur = settings['sap_impl_transport'] ?? {};
     await ssCtx.setSetting('sap_impl_transport', { ...cur, [caseData.id]: val });
     setSavingTransport(false);
   }
-
   async function handleCheckSap(actId) {
     if (!sapConfig?.host) return;
     const obj = objectMap[actId];
@@ -3130,7 +3127,6 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
       setActField(actId, { checking: false, checkResult: { found: false, error: e.message } });
     }
   }
-
   async function handleGenerateCode(act) {
     const obj = objectMap[act.id];
     if (!obj?.objectName) return;
@@ -3138,21 +3134,8 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
     try {
       const existingSource = actState[act.id]?.checkResult?.source ?? '';
       const isModification = !!existingSource;
-      const standards = resolveAbapStandards(
-        settings,
-        caseData.client_id,
-        caseData.project_id,
-        caseData.id,
-      );
-      const standardsBlock = buildAbapStandardsPrompt(
-        standards,
-        obj.objectType ?? 'program',
-        obj.objectName,
-        act,
-        caseData,
-        transportReq,
-        isModification,
-      );
+      const standards = resolveAbapStandards(settings, caseData.client_id, caseData.project_id, caseData.id);
+      const standardsBlock = buildAbapStandardsPrompt(standards, obj.objectType ?? 'program', obj.objectName, act, caseData, transportReq, isModification);
       const prompt = `You are an SAP ABAP developer. ${isModification ? 'MODIFY' : 'CREATE'} ${obj.objectType ?? 'ABAP program'} code for SAP object ${obj.objectName}.
 
 Activity: ${act.title}
@@ -3178,10 +3161,9 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
       alert('Code generation failed: ' + e.message);
     }
   }
-
   async function handleApplyToSap(act) {
     if (!sapConfig?.host || !autoImplEnabled) return;
-    const obj = objectMap[act.id];
+    const obj  = objectMap[act.id];
     const code = actState[act.id]?.generatedCode;
     if (!obj?.objectName || !code) return;
     setActField(act.id, { applying: true, applyLog: [`Connecting to SAP via /api/sap-proxy → ${sapConfig.host}…`] });
@@ -3196,12 +3178,9 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
       await ssCtx.setSetting('sap_impl_log', {
         ...cur,
         [caseData.id]: [...caseLog, {
-          activityId: act.id,
-          activityTitle: act.title,
-          objectName: obj.objectName,
-          objectType: obj.objectType,
-          appliedAt: new Date().toISOString(),
-          transport: transportReq,
+          activityId: act.id, activityTitle: act.title,
+          objectName: obj.objectName, objectType: obj.objectType,
+          appliedAt: new Date().toISOString(), transport: transportReq,
         }],
       });
     } else {
@@ -3214,49 +3193,239 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
       setActField(act.id, { applying: false, applyError: hint });
     }
   }
-
   async function handleApplyAll() {
     for (const act of implActivities) {
-      const obj = objectMap[act.id];
+      const obj  = objectMap[act.id];
       const code = actState[act.id]?.generatedCode;
-      if (obj?.objectName && code && !actState[act.id]?.applied) {
-        await handleApplyToSap(act);
-      }
+      if (obj?.objectName && code && !actState[act.id]?.applied) await handleApplyToSap(act);
     }
   }
-
   async function handleApplySelected() {
     for (const act of implActivities) {
       if (!checkedActIds.has(act.id)) continue;
-      const obj = objectMap[act.id];
+      const obj  = objectMap[act.id];
       const code = actState[act.id]?.generatedCode;
-      if (obj?.objectName && code && !actState[act.id]?.applied) {
-        await handleApplyToSap(act);
-      }
+      if (obj?.objectName && code && !actState[act.id]?.applied) await handleApplyToSap(act);
     }
   }
-
   function toggleActCheck(actId, e) {
     e.stopPropagation();
-    setCheckedActIds(prev => {
-      const next = new Set(prev);
-      next.has(actId) ? next.delete(actId) : next.add(actId);
-      return next;
-    });
+    setCheckedActIds(prev => { const n = new Set(prev); n.has(actId) ? n.delete(actId) : n.add(actId); return n; });
   }
-
   function toggleActCheckAll() {
-    if (checkedActIds.size === implActivities.length) {
-      setCheckedActIds(new Set());
-    } else {
-      setCheckedActIds(new Set(implActivities.map(a => a.id)));
-    }
+    if (checkedActIds.size === implActivities.length) setCheckedActIds(new Set());
+    else setCheckedActIds(new Set(implActivities.map(a => a.id)));
   }
 
-  const implLog = (settings['sap_impl_log'] ?? {})[caseData.id] ?? [];
+  // ── Derived data ────────────────────────────────────────
+  const implLog      = (settings['sap_impl_log'] ?? {})[caseData.id] ?? [];
   const appliedCount = implLog.length;
   const totalCount   = implActivities.length;
 
+  const sortedActivities = [...implActivities]
+    .filter(a => objectMap[a.id]?.objectName)
+    .sort((a, b) => {
+      const ta = TYPE_PRIORITY[objectMap[a.id]?.objectType ?? 'other'] ?? 7;
+      const tb = TYPE_PRIORITY[objectMap[b.id]?.objectType ?? 'other'] ?? 7;
+      return ta - tb;
+    });
+  const unassignedActivities = implActivities.filter(a => !objectMap[a.id]?.objectName);
+  const manualCount = sortedActivities.filter(a => MANUAL_TYPES.has(objectMap[a.id]?.objectType ?? '')).length;
+  const autoCount   = sortedActivities.length - manualCount;
+
+  // ── Pipeline stepper ────────────────────────────────────
+  const PIPELINE_STEPS = [
+    { label: 'Setup',    icon: <Settings size={13} /> },
+    { label: 'Sequence', icon: <LayoutGrid size={13} /> },
+    { label: 'Review',   icon: <Eye size={13} /> },
+    { label: 'Run',      icon: <Play size={13} /> },
+    { label: 'Results',  icon: <CheckCircle2 size={13} /> },
+    { label: 'Logs',     icon: <FileText size={13} /> },
+  ];
+
+  const PipelineStepper = () => (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3">
+      <div className="flex items-start overflow-x-auto gap-0 pb-0.5">
+        {PIPELINE_STEPS.map((s, i) => {
+          const n = i + 1;
+          const isActive = implStep === n;
+          const isDone   = implStep > n;
+          return (
+            <button key={n} onClick={() => setImplStep(n)}
+              className="flex flex-col items-center flex-1 min-w-[52px] relative">
+              {i > 0 && (
+                <div className={`absolute top-[15px] right-1/2 w-full h-0.5 ${isDone ? 'bg-blue-400' : 'bg-gray-200'}`} />
+              )}
+              <div className={`w-[30px] h-[30px] rounded-full border-2 flex items-center justify-center relative z-10 transition-all
+                ${isActive ? 'border-blue-500 bg-blue-50 text-blue-600 shadow shadow-blue-100'
+                : isDone   ? 'border-green-500 bg-green-50 text-green-600'
+                           : 'border-gray-200 bg-white text-gray-400'}`}>
+                {isDone ? <Check size={12} /> : s.icon}
+              </div>
+              <span className={`text-[9px] font-bold mt-1 uppercase tracking-wider
+                ${isActive ? 'text-blue-600' : isDone ? 'text-green-600' : 'text-gray-400'}`}>
+                {s.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  // ── Toggle row helper ───────────────────────────────────
+  const ToggleRow = ({ label, desc, value, onChange }) => (
+    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer"
+      onClick={() => onChange(!value)}>
+      <div>
+        <p className="text-sm font-medium text-gray-800">{label}</p>
+        {desc && <p className="text-xs text-gray-400 mt-0.5">{desc}</p>}
+      </div>
+      <div className={`w-9 h-5 rounded-full relative transition-colors flex-shrink-0 ${value ? 'bg-blue-500' : 'bg-gray-300'}`}>
+        <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${value ? 'left-[18px]' : 'left-0.5'}`} />
+      </div>
+    </div>
+  );
+
+  // ── Activity card (used in both Sequence and Run steps) ──
+  const ActivityCard = ({ act, seqNum, showControls = false }) => {
+    const obj = objectMap[act.id] ?? {};
+    const as  = actState[act.id] ?? {};
+    const isApplied  = as.applied || implLog.some(l => l.activityId === act.id);
+    const isManual   = MANUAL_TYPES.has(obj.objectType ?? '');
+    const transaction = OBJ_TRANSACTION[obj.objectType ?? ''] ?? 'SE80';
+    const checkRes   = as.checkResult;
+
+    return (
+      <div className={`rounded-xl border transition-all ${
+        isApplied  ? 'border-green-200 bg-green-50/50' :
+        isManual   ? 'border-amber-200 bg-amber-50/30' :
+                     'border-gray-100 bg-white'
+      }`}>
+        <div className="px-4 py-3 flex items-center gap-3 cursor-pointer"
+          onClick={() => setActField(act.id, { expanded: !as.expanded })}>
+          {/* Status dot */}
+          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+            isApplied   ? 'bg-green-500' :
+            as.applying ? 'bg-amber-400 animate-pulse' :
+            isManual    ? 'bg-amber-400' :
+                          'bg-gray-300'
+          }`} />
+          {/* Seq number */}
+          {seqNum != null && (
+            <span className="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold bg-gray-100 text-gray-500 flex-shrink-0 font-mono">
+              {seqNum}
+            </span>
+          )}
+          {/* Name + badges */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              {obj.objectName
+                ? <span className="font-mono text-xs font-semibold text-gray-800">{obj.objectName}</span>
+                : <span className="text-xs text-gray-400 italic">{act.title}</span>}
+              {obj.objectName && (
+                <span className="text-xs text-gray-500 truncate">{act.title}</span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+              {obj.objectType && (
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600">
+                  {t(SAP_OBJECT_TYPES.find(o => o.value === obj.objectType)?.labelKey ?? '') || obj.objectType}
+                </span>
+              )}
+              {isManual
+                ? <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">{transaction}</span>
+                : obj.objectName && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-50 text-green-700">Auto</span>}
+              {isApplied && <span className="text-[10px] font-bold text-green-600 flex items-center gap-0.5"><CheckCircle2 size={9} />Applied</span>}
+            </div>
+          </div>
+          <ChevronRight size={13} className={`text-gray-300 flex-shrink-0 transition-transform ${as.expanded ? 'rotate-90' : ''}`} />
+        </div>
+
+        {as.expanded && (
+          <div className="border-t border-gray-100 p-4 space-y-3">
+            {/* Object type + name */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">{t('sap.impl_object_type')}</label>
+                <select value={obj.objectType ?? 'program'}
+                  onChange={e => setObjectField(act.id, 'objectType', e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                  {SAP_OBJECT_TYPES.map(ot => <option key={ot.value} value={ot.value}>{t(ot.labelKey)}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">{t('sap.impl_object_name')}</label>
+                <input value={obj.objectName ?? ''}
+                  onChange={e => setObjectField(act.id, 'objectName', e.target.value.toUpperCase())}
+                  placeholder="ZOBJ_NAME"
+                  className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+            </div>
+            {/* Actions */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <button onClick={() => handleCheckSap(act.id)}
+                disabled={as.checking || !obj.objectName}
+                className="px-3 py-1.5 text-xs font-semibold border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors">
+                {as.checking ? t('sap.impl_checking') : t('sap.impl_check_sap')}
+              </button>
+              {checkRes && (
+                checkRes.found
+                  ? <span className="text-xs text-blue-600 font-medium flex items-center gap-1"><CheckCircle2 size={10} />{t('sap.impl_found')}</span>
+                  : <span className="text-xs text-gray-400 flex items-center gap-1"><XCircle size={10} />{t('sap.impl_not_found')}</span>
+              )}
+              <button onClick={() => handleGenerateCode(act)}
+                disabled={as.generating || !obj.objectName}
+                className="px-3 py-1.5 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors">
+                {as.generating ? t('sap.impl_generating') : t('sap.impl_gen_code')}
+              </button>
+              {autoImplEnabled && as.generatedCode && (
+                <button onClick={() => handleApplyToSap(act)}
+                  disabled={as.applying || isApplied}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg disabled:opacity-50 transition-colors
+                    ${isApplied ? 'bg-green-100 text-green-700' : 'bg-amber-500 hover:bg-amber-600 text-white'}`}>
+                  {as.applying ? t('sap.impl_applying') : isApplied ? t('sap.impl_applied') : t('sap.impl_apply')}
+                </button>
+              )}
+            </div>
+            {/* Apply log */}
+            {as.applyLog?.length > 0 && (
+              <div className="rounded-lg bg-gray-950 p-3 space-y-1">
+                {as.applyLog.map((msg, i) => (
+                  <p key={i} className={`text-xs font-mono leading-snug
+                    ${msg.startsWith('✓') ? 'text-green-400' : msg.startsWith('✗') ? 'text-red-400' : 'text-gray-400'}`}>{msg}</p>
+                ))}
+              </div>
+            )}
+            {/* Existing source */}
+            {checkRes?.found && checkRes.source && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1">
+                  <Eye size={10} />{t('sap.live_existing_source')}
+                </p>
+                <pre className="bg-gray-900 text-green-300 text-xs rounded-lg p-3 overflow-x-auto max-h-44 leading-relaxed">
+                  {checkRes.source.slice(0, 2000)}
+                </pre>
+              </div>
+            )}
+            {/* Generated code */}
+            {as.generatedCode && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1">
+                  <Code2 size={10} />Generated ABAP
+                </p>
+                <textarea value={as.generatedCode}
+                  onChange={e => setActField(act.id, { generatedCode: e.target.value })}
+                  className="w-full bg-gray-900 text-green-300 text-xs rounded-lg p-3 font-mono leading-relaxed h-56 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-y" />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ── No config guard ─────────────────────────────────────
   if (!sapConfig?.host) {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center space-y-2">
@@ -3267,275 +3436,403 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
     );
   }
 
+  // ── Panel shell ─────────────────────────────────────────
+  const Panel = ({ icon, title, sub, children }) => (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 flex-shrink-0">
+          {icon}
+        </div>
+        <div>
+          <p className="font-bold text-gray-900 text-sm">{title}</p>
+          {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+        </div>
+      </div>
+      <div className="p-5 space-y-4">{children}</div>
+    </div>
+  );
+
+  const StepNav = ({ prev, next, prevLabel = '← Back', nextLabel = 'Continue →' }) => (
+    <div className="flex gap-2 pt-2">
+      {prev && <button onClick={() => setImplStep(prev)} className="px-4 py-2 text-xs font-semibold border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors">{prevLabel}</button>}
+      {next && <button onClick={() => setImplStep(next)} className="px-4 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">{nextLabel}</button>}
+    </div>
+  );
+
+  const SectionLabel = ({ children }) => (
+    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-2 mb-3">{children}</p>
+  );
+
+  // ── Render ──────────────────────────────────────────────
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
+      {/* Blueprint canvas stays on top */}
       <SapBlueprintCanvas
-        caseData={caseData}
-        auth={auth}
-        activities={implActivities}
-        sapConfig={enrichedSapConfig}
-        autoImplEnabled={autoImplEnabled}
-        genModel={genModel}
-        transportReq={transportReq}
-        ssCtx={ssCtx}
+        caseData={caseData} auth={auth} activities={implActivities}
+        sapConfig={enrichedSapConfig} autoImplEnabled={autoImplEnabled}
+        genModel={genModel} transportReq={transportReq} ssCtx={ssCtx}
       />
-      {/* Header */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h3 className="font-bold text-gray-900 flex items-center gap-2">
-              <Code2 size={16} className="text-blue-600" />{t('sap.impl_tab_title')}
-            </h3>
-            <p className="text-xs text-gray-400 mt-0.5">{t('sap.impl_tab_subtitle')}</p>
-          </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            {/* Connection selector */}
+
+      {/* Pipeline stepper */}
+      <PipelineStepper />
+
+      {/* ── STEP 1: Setup ─────────────────────────────── */}
+      {implStep === 1 && (
+        <Panel icon={<Settings size={15} />} title="Setup & Parameters" sub="Connection, environment and execution options">
+
+          <SectionLabel>SAP Connection</SectionLabel>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {allConns.length > 0 && (
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-500 font-medium whitespace-nowrap">Connection:</label>
-                <select
-                  value={selectedConnId ?? ''}
-                  onChange={e => saveCaseConn(e.target.value)}
-                  className="border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1.5 text-sm bg-white dark:bg-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Connection</label>
+                <select value={selectedConnId ?? ''} onChange={e => saveCaseConn(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
                   <option value="">— None —</option>
                   {projectConns.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {CONN_TYPE_LABELS[c.db_type] ?? c.db_type} · {c.host}{c.notes ? ` (${c.notes})` : ''}
-                    </option>
+                    <option key={c.id} value={c.id}>{CONN_TYPE_LABELS[c.db_type] ?? c.db_type} · {c.host}{c.notes ? ` (${c.notes})` : ''}</option>
                   ))}
                   {clientConns.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {CONN_TYPE_LABELS[c.db_type] ?? c.db_type} · {c.host} — client{c.notes ? ` (${c.notes})` : ''}
-                    </option>
+                    <option key={c.id} value={c.id}>{CONN_TYPE_LABELS[c.db_type] ?? c.db_type} · {c.host} — client{c.notes ? ` (${c.notes})` : ''}</option>
                   ))}
                 </select>
               </div>
             )}
-            {/* Environment selector */}
-            {sapEnvironments.length > 1 && (
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-500 font-medium">{t('sap.case_env_label')}:</label>
-                <select
-                  value={sapCaseEnvMap[caseData.id] ?? ''}
-                  onChange={e => saveCaseEnv(e.target.value)}
-                  className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
-                  <option value="">{t('sap.case_env_inherit')}</option>
-                  {sapEnvironments.map(env => {
-                    const meta = SAP_ENV_TYPE_META[env.envType] ?? SAP_ENV_TYPE_META.dev;
-                    return <option key={env.id} value={env.id}>{env.name} ({meta.label})</option>;
-                  })}
-                </select>
-                {sapConfig && (
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${(SAP_ENV_TYPE_META[sapConfig.envType] ?? SAP_ENV_TYPE_META.dev).color}`}>
-                    {sapConfig.name}
-                  </span>
-                )}
+            {sapEnvironments.length > 0 && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">{t('sap.case_env_label')}</label>
+                <div className="flex gap-2 items-center">
+                  <select value={sapCaseEnvMap[caseData.id] ?? ''} onChange={e => saveCaseEnv(e.target.value)}
+                    className="flex-1 border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    <option value="">{t('sap.case_env_inherit')}</option>
+                    {sapEnvironments.map(env => {
+                      const meta = SAP_ENV_TYPE_META[env.envType] ?? SAP_ENV_TYPE_META.dev;
+                      return <option key={env.id} value={env.id}>{env.name} ({meta.label})</option>;
+                    })}
+                  </select>
+                  {sapConfig && (
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap ${(SAP_ENV_TYPE_META[sapConfig.envType] ?? SAP_ENV_TYPE_META.dev).color}`}>
+                      {sapConfig.name}
+                    </span>
+                  )}
+                </div>
               </div>
             )}
-            {/* Transport request */}
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-gray-500 font-medium">{t('sap.transport_req')}:</label>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">{t('sap.transport_req')}</label>
               <input value={transportReq}
                 onChange={e => setTransportReq(e.target.value)}
                 onBlur={() => saveTransport(transportReq)}
                 placeholder={t('sap.ph_transport_req')}
-                className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm w-32 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
-            {autoImplEnabled && (
-              <>
-                <button onClick={toggleActCheckAll}
-                  className="px-3 py-1.5 text-xs font-semibold border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-                  {checkedActIds.size === implActivities.length && implActivities.length > 0
-                    ? t('sap.deselect_all') : t('sap.select_all')}
-                </button>
-                {checkedActIds.size > 0 && (
-                  <button onClick={handleApplySelected}
-                    className="px-4 py-2 text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-colors">
-                    {t('sap.impl_apply_selected').replace('{n}', checkedActIds.size)}
-                  </button>
-                )}
-                <button onClick={handleApplyAll}
-                  className="px-4 py-2 text-sm font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-xl transition-colors">
-                  {t('sap.impl_apply_all')}
-                </button>
-              </>
-            )}
           </div>
-        </div>
 
-        {/* Progress bar */}
-        <div className="mt-4">
-          <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-            <span>{t('sap.impl_progress_title')}</span>
-            <span>{t('sap.impl_done_count').replace('{n}', appliedCount).replace('{total}', totalCount)}</span>
+          <SectionLabel>Execution Options</SectionLabel>
+          <div className="flex gap-2 mb-3">
+            {[['all', '🔄 All Objects at Once'], ['one-by-one', '⚙️ Object by Object']].map(([val, lbl]) => (
+              <button key={val} onClick={() => setImplMode(val)}
+                className={`flex-1 py-2.5 text-xs font-semibold rounded-lg border transition-all
+                  ${implMode === val ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                {lbl}
+              </button>
+            ))}
           </div>
-          <div className="w-full bg-gray-100 rounded-full h-2">
-            <div className="bg-green-500 h-2 rounded-full transition-all"
-              style={{ width: totalCount ? `${Math.round(appliedCount / totalCount * 100)}%` : '0%' }} />
+          <div className="space-y-2">
+            <ToggleRow label="Stop on Error" desc="Pause the process if any object fails to implement" value={stopOnError} onChange={setStopOnError} />
+            <ToggleRow label="Include Viewer in Transport" desc="Add viewer/display variants alongside main objects" value={includeViewer} onChange={setIncludeViewer} />
+            <ToggleRow label="Notify Reviewer on Complete" desc="Send an email when implementation finishes" value={notifyOnComplete} onChange={setNotifyOnComplete} />
           </div>
-        </div>
-      </div>
 
-      {/* Case-level ABAP Standards override */}
-      <AbapStandardsPanel
-        level="case"
-        entityId={caseData.id}
-        clientId={caseData.client_id}
-        projectId={caseData.project_id}
-        auth={auth}
-      />
+          <SectionLabel>ABAP Standards</SectionLabel>
+          <AbapStandardsPanel level="case" entityId={caseData.id} clientId={caseData.client_id} projectId={caseData.project_id} auth={auth} />
 
-      {/* Activity cards */}
-      {implActivities.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-sm text-gray-400">
-          No implementation activities found.
-        </div>
-      ) : implActivities.map(act => {
-        const obj  = objectMap[act.id] ?? {};
-        const as   = actState[act.id] ?? {};
-        const isApplied = as.applied || implLog.some(l => l.activityId === act.id);
+          <StepNav next={2} nextLabel="Save & Continue →" />
+        </Panel>
+      )}
 
-        return (
-          <div key={act.id} className={`bg-white rounded-2xl border shadow-sm transition-all ${isApplied ? 'border-green-200 bg-green-50/40' : checkedActIds.has(act.id) ? 'border-amber-300' : 'border-gray-100'}`}>
-            {/* Card header */}
-            <div className="p-4 flex items-start gap-3 cursor-pointer"
-              onClick={() => setActField(act.id, { expanded: !as.expanded })}>
-              {autoImplEnabled && (
-                <input type="checkbox"
-                  checked={checkedActIds.has(act.id)}
-                  onChange={e => toggleActCheck(act.id, e)}
-                  onClick={e => e.stopPropagation()}
-                  className="mt-1.5 flex-shrink-0 accent-amber-500 cursor-pointer" />
+      {/* ── STEP 2: Sequence Map ───────────────────────── */}
+      {implStep === 2 && (
+        <Panel icon={<LayoutGrid size={15} />} title="Object Sequence Map"
+          sub={`${sortedActivities.length} objects · ${manualCount} manual · ${autoCount} auto · dependency order`}>
+
+          {sortedActivities.length === 0 ? (
+            <div className="text-center py-8">
+              <Code2 size={28} className="text-gray-300 mx-auto mb-2" />
+              <p className="text-sm text-gray-400">No objects assigned yet.</p>
+              <p className="text-xs text-gray-300 mt-1">Go to <strong>Run</strong> and assign SAP object names to each activity.</p>
+            </div>
+          ) : (
+            <>
+              {manualCount > 0 && (
+                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                  <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
+                  <span>Objects marked <strong>Manual</strong> must be created in SAP first. Auto objects that depend on them will wait until you verify creation in the Run step.</span>
+                </div>
               )}
-              <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${isApplied ? 'bg-green-100' : 'bg-blue-100'}`}>
-                {isApplied ? <CheckCircle2 size={14} className="text-green-600" /> : <Code2 size={14} className="text-blue-600" />}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm text-gray-900 leading-tight">{act.title}</p>
-                {act.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{act.description}</p>}
-                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  {act.phase && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 capitalize">{act.phase?.replace(/_/g,' ')}</span>}
-                  {obj.objectName && <span className="text-xs text-blue-600 font-mono">{obj.objectName}</span>}
-                  {isApplied && <span className="text-xs text-green-600 font-semibold flex items-center gap-1"><CheckCircle2 size={10} />{t('sap.impl_applied')}</span>}
-                </div>
-              </div>
-              <ChevronRight size={14} className={`text-gray-400 mt-1 transition-transform flex-shrink-0 ${as.expanded ? 'rotate-90' : ''}`} />
-            </div>
 
-            {as.expanded && (
-              <div className="border-t border-gray-100 p-4 space-y-4">
-                {/* Object configuration */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.impl_object_type')}</label>
-                    <select value={obj.objectType ?? 'program'}
-                      onChange={e => setObjectField(act.id, 'objectType', e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
-                      {SAP_OBJECT_TYPES.map(ot => (
-                        <option key={ot.value} value={ot.value}>{t(ot.labelKey)}</option>
-                      ))}
-                    </select>
+              {/* Group by phase: manual first, then auto */}
+              {manualCount > 0 && (
+                <>
+                  <SectionLabel>Phase 1 — Manual (create in SAP before running)</SectionLabel>
+                  <div className="space-y-2">
+                    {sortedActivities.filter(a => MANUAL_TYPES.has(objectMap[a.id]?.objectType ?? '')).map((act, i) => {
+                      const obj = objectMap[act.id];
+                      const tx  = OBJ_TRANSACTION[obj.objectType ?? ''] ?? 'SE80';
+                      const typeLabel = t(SAP_OBJECT_TYPES.find(o => o.value === obj.objectType)?.labelKey ?? '') || obj.objectType;
+                      return (
+                        <div key={act.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-amber-200 bg-amber-50/50">
+                          <span className="w-5 h-5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 flex items-center justify-center font-mono flex-shrink-0">{i + 1}</span>
+                          <span className="font-mono text-sm font-semibold text-gray-800 flex-1 truncate">{obj.objectName}</span>
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 flex-shrink-0">{typeLabel}</span>
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-200 text-amber-800 flex-shrink-0">Manual · {tx}</span>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">{t('sap.impl_object_name')}</label>
-                    <input value={obj.objectName ?? ''}
-                      onChange={e => setObjectField(act.id, 'objectName', e.target.value.toUpperCase())}
-                      placeholder="ZFIN_PAYMENT_REP"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                </>
+              )}
+
+              {autoCount > 0 && (
+                <>
+                  <SectionLabel>Phase {manualCount > 0 ? '2' : '1'} — Auto (implemented via ADT)</SectionLabel>
+                  <div className="space-y-2">
+                    {sortedActivities.filter(a => !MANUAL_TYPES.has(objectMap[a.id]?.objectType ?? '')).map((act, i) => {
+                      const obj = objectMap[act.id];
+                      const tx  = OBJ_TRANSACTION[obj.objectType ?? ''] ?? 'SE80';
+                      const typeLabel = t(SAP_OBJECT_TYPES.find(o => o.value === obj.objectType)?.labelKey ?? '') || obj.objectType;
+                      const seq = (manualCount > 0 ? manualCount : 0) + i + 1;
+                      return (
+                        <div key={act.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-blue-100 bg-blue-50/30">
+                          <span className="w-5 h-5 rounded text-[10px] font-bold bg-blue-100 text-blue-600 flex items-center justify-center font-mono flex-shrink-0">{seq}</span>
+                          <span className="font-mono text-sm font-semibold text-gray-800 flex-1 truncate">{obj.objectName}</span>
+                          <span className="text-xs text-gray-400 truncate max-w-[120px] hidden sm:block">{act.title}</span>
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 flex-shrink-0">{typeLabel}</span>
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-100 text-green-700 flex-shrink-0">Auto · {tx}</span>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
+                </>
+              )}
 
-                {/* Actions row */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  {/* Check in SAP */}
-                  <button
-                    onClick={() => handleCheckSap(act.id)}
-                    disabled={as.checking || !obj.objectName || !sapConfig?.host}
-                    className="px-3 py-1.5 text-xs font-semibold border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors">
-                    {as.checking ? t('sap.impl_checking') : t('sap.impl_check_sap')}
-                  </button>
-                  {/* Check result badge */}
-                  {as.checkResult && (
-                    as.checkResult.found
-                      ? <span className="text-xs text-blue-600 font-medium flex items-center gap-1"><CheckCircle2 size={10} />{t('sap.impl_found')}</span>
-                      : <span className="text-xs text-gray-400 flex items-center gap-1"><XCircle size={10} />{t('sap.impl_not_found')}</span>
-                  )}
-                  {/* Generate code */}
-                  <button
-                    onClick={() => handleGenerateCode(act)}
-                    disabled={as.generating || !obj.objectName}
-                    className="px-3 py-1.5 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-xl hover:bg-blue-100 disabled:opacity-50 transition-colors">
-                    {as.generating ? t('sap.impl_generating') : t('sap.impl_gen_code')}
-                  </button>
-                  {/* Apply to SAP */}
-                  {autoImplEnabled && as.generatedCode && (
-                    <button
-                      onClick={() => handleApplyToSap(act)}
-                      disabled={as.applying || isApplied}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-xl disabled:opacity-50 transition-colors ${isApplied ? 'bg-green-100 text-green-700' : 'bg-amber-500 hover:bg-amber-600 text-white'}`}>
-                      {as.applying ? t('sap.impl_applying') : isApplied ? t('sap.impl_applied') : t('sap.impl_apply')}
-                    </button>
-                  )}
-                </div>
-
-                {/* Apply log */}
-                {(as.applyLog?.length > 0 || as.applyError) && (
-                  <div className="rounded-xl bg-gray-950 p-3 space-y-1">
-                    {(as.applyLog ?? []).map((msg, i) => (
-                      <p key={i} className={`text-xs font-mono leading-snug ${msg.startsWith('✓') ? 'text-green-400' : msg.startsWith('✗') ? 'text-red-400' : 'text-gray-400'}`}>{msg}</p>
+              {unassignedActivities.length > 0 && (
+                <>
+                  <SectionLabel>Unassigned — go to Run to add object names</SectionLabel>
+                  <div className="space-y-1">
+                    {unassignedActivities.map(act => (
+                      <div key={act.id} className="flex items-center gap-3 px-3 py-2 rounded-xl border border-dashed border-gray-200 text-gray-400">
+                        <span className="text-xs truncate flex-1">{act.title}</span>
+                        <span className="text-[10px]">No object assigned</span>
+                      </div>
                     ))}
                   </div>
-                )}
+                </>
+              )}
+            </>
+          )}
 
-                {/* Existing source (from SAP check) */}
-                {as.checkResult?.found && as.checkResult.source && (
-                  <div>
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1">
-                      <Eye size={10} />{t('sap.live_existing_source')}
-                    </p>
-                    <pre className="bg-gray-900 text-green-300 text-xs rounded-xl p-4 overflow-x-auto max-h-48 leading-relaxed">
-                      {as.checkResult.source.slice(0, 2000)}
-                    </pre>
-                  </div>
-                )}
+          <StepNav prev={1} next={3} nextLabel="Confirm Sequence →" />
+        </Panel>
+      )}
 
-                {/* Generated code */}
-                {as.generatedCode && (
-                  <div>
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1">
-                      <Code2 size={10} />Generated ABAP
-                    </p>
-                    <textarea
-                      value={as.generatedCode}
-                      onChange={e => setActField(act.id, { generatedCode: e.target.value })}
-                      className="w-full bg-gray-900 text-green-300 text-xs rounded-xl p-4 font-mono leading-relaxed h-64 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-y"
-                    />
-                  </div>
-                )}
-              </div>
-            )}
+      {/* ── STEP 3: Review ────────────────────────────── */}
+      {implStep === 3 && (
+        <Panel icon={<Eye size={15} />} title="Functional Review" sub="Send objects to reviewer for approval before going live">
+          <div className="flex items-start gap-2.5 p-3 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-800">
+            <Link2 size={14} className="flex-shrink-0 mt-0.5" />
+            <span>The review link is managed in the <strong>Blueprint</strong> tab. Select a reviewer there and generate the approval link — the reviewer sees the object list and approves or rejects each one.</span>
           </div>
-        );
-      })}
 
-      {/* Implementation log */}
-      {implLog.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <h4 className="font-semibold text-gray-800 text-sm mb-3 flex items-center gap-2">
-            <CheckCircle2 size={14} className="text-green-500" />Implementation Log
-          </h4>
-          <div className="space-y-2">
-            {implLog.map((entry, i) => (
-              <div key={i} className="flex items-center gap-3 text-xs text-gray-600 py-1.5 border-b border-gray-50 last:border-0">
-                <span className="font-mono text-blue-600 font-medium">{entry.objectName}</span>
-                <span className="text-gray-400">·</span>
-                <span className="truncate flex-1">{entry.activityTitle}</span>
-                {entry.transport && <span className="text-gray-400 font-mono">{entry.transport}</span>}
-                <span className="text-gray-300">{new Date(entry.appliedAt).toLocaleDateString()}</span>
+          {sortedActivities.length > 0 && (
+            <>
+              <SectionLabel>Objects that will be reviewed</SectionLabel>
+              <div className="space-y-1.5">
+                {sortedActivities.map((act, i) => {
+                  const obj = objectMap[act.id];
+                  const isManual = MANUAL_TYPES.has(obj.objectType ?? '');
+                  return (
+                    <div key={act.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-gray-100 bg-gray-50">
+                      <span className="w-4 h-4 rounded text-[9px] font-bold bg-gray-200 text-gray-600 flex items-center justify-center font-mono flex-shrink-0">{i + 1}</span>
+                      <span className="font-mono text-xs font-semibold text-gray-800 flex-1 truncate">{obj.objectName}</span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isManual ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+                        {isManual ? 'Manual' : 'Auto'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          <StepNav prev={2} next={4} nextLabel="Go to Run →" />
+        </Panel>
+      )}
+
+      {/* ── STEP 4: Run ───────────────────────────────── */}
+      {implStep === 4 && (
+        <Panel icon={<Play size={15} />} title="Implementation Run"
+          sub={`${totalCount} activities · ${autoImplEnabled ? 'auto-implement enabled' : 'manual apply mode'}`}>
+
+          {/* Progress bar */}
+          <div>
+            <div className="flex justify-between text-xs text-gray-500 mb-1.5">
+              <span>{t('sap.impl_progress_title')}</span>
+              <span>{t('sap.impl_done_count').replace('{n}', appliedCount).replace('{total}', totalCount)}</span>
+            </div>
+            <div className="w-full bg-gray-100 rounded-full h-2">
+              <div className="bg-green-500 h-2 rounded-full transition-all"
+                style={{ width: totalCount ? `${Math.round(appliedCount / totalCount * 100)}%` : '0%' }} />
+            </div>
+          </div>
+
+          {/* Bulk actions (auto mode) */}
+          {autoImplEnabled && (
+            <div className="flex gap-2 flex-wrap">
+              <button onClick={toggleActCheckAll}
+                className="px-3 py-1.5 text-xs font-semibold border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                {checkedActIds.size === implActivities.length && implActivities.length > 0 ? t('sap.deselect_all') : t('sap.select_all')}
+              </button>
+              {checkedActIds.size > 0 && (
+                <button onClick={handleApplySelected}
+                  className="px-3 py-1.5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors">
+                  {t('sap.impl_apply_selected').replace('{n}', checkedActIds.size)}
+                </button>
+              )}
+              <button onClick={handleApplyAll}
+                className="px-3 py-1.5 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors">
+                {t('sap.impl_apply_all')}
+              </button>
+            </div>
+          )}
+
+          {/* Activity list */}
+          {implActivities.length === 0 ? (
+            <div className="text-center py-8 text-sm text-gray-400">No implementation activities found.</div>
+          ) : (
+            <div className="space-y-2">
+              {/* Sorted (assigned) activities first */}
+              {sortedActivities.map((act, i) => (
+                <ActivityCard key={act.id} act={act} seqNum={i + 1} showControls />
+              ))}
+              {/* Unassigned activities at bottom */}
+              {unassignedActivities.map(act => (
+                <ActivityCard key={act.id} act={act} seqNum={null} showControls />
+              ))}
+            </div>
+          )}
+
+          <StepNav prev={3} next={5} nextLabel="See Results →" />
+        </Panel>
+      )}
+
+      {/* ── STEP 5: Results ───────────────────────────── */}
+      {implStep === 5 && (
+        <Panel icon={<CheckCircle2 size={15} />} title="Results"
+          sub={appliedCount > 0 ? `Last applied ${new Date(implLog[implLog.length - 1]?.appliedAt).toLocaleString()}` : 'No objects applied yet'}>
+
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: 'Total',        value: totalCount,   color: 'text-blue-600' },
+              { label: 'Auto Applied', value: implLog.filter(l => !MANUAL_TYPES.has(l.objectType ?? '')).length, color: 'text-green-600' },
+              { label: 'Manual',       value: manualCount,  color: 'text-amber-600' },
+              { label: '% Complete',   value: totalCount ? `${Math.round(appliedCount / totalCount * 100)}%` : '—', color: 'text-blue-600' },
+              { label: 'Applied',      value: appliedCount, color: 'text-green-600' },
+              { label: 'Remaining',    value: Math.max(0, totalCount - appliedCount), color: totalCount - appliedCount > 0 ? 'text-amber-500' : 'text-gray-400' },
+            ].map(s => (
+              <div key={s.label} className="rounded-xl border border-gray-100 p-3 text-center">
+                <p className={`text-2xl font-bold font-variant-numeric-tabular ${s.color}`}>{s.value}</p>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mt-0.5">{s.label}</p>
               </div>
             ))}
           </div>
-        </div>
+
+          {implLog.length > 0 && (
+            <>
+              <SectionLabel>Applied Objects</SectionLabel>
+              <div className="space-y-1.5">
+                {implLog.map((entry, i) => (
+                  <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-green-100 bg-green-50/40">
+                    <CheckCircle2 size={12} className="text-green-500 flex-shrink-0" />
+                    <span className="font-mono text-xs font-semibold text-gray-800 flex-shrink-0">{entry.objectName}</span>
+                    <span className="text-xs text-gray-500 truncate flex-1">{entry.activityTitle}</span>
+                    {entry.transport && <span className="text-[10px] text-gray-400 font-mono flex-shrink-0">{entry.transport}</span>}
+                    <span className="text-[10px] text-gray-300 flex-shrink-0">{new Date(entry.appliedAt).toLocaleDateString()}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          <StepNav prev={4} next={6} nextLabel="View Logs →" />
+        </Panel>
+      )}
+
+      {/* ── STEP 6: Logs ──────────────────────────────── */}
+      {implStep === 6 && (
+        <Panel icon={<FileText size={15} />} title="Implementation Logs" sub="Platform events · AI code generation trace">
+          <div className="flex gap-0 border-b border-gray-100 -mt-2 mb-4">
+            {[['platform', 'Platform Logs'], ['ai', 'AI Code Trace']].map(([key, label]) => (
+              <button key={key} onClick={() => setLogTab(key)}
+                className={`px-4 py-2 text-xs font-semibold border-b-2 transition-colors -mb-px
+                  ${logTab === key ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {logTab === 'platform' && (
+            implLog.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-6">No implementation events yet.</p>
+            ) : (
+              <div className="space-y-1 font-mono text-xs max-h-80 overflow-y-auto">
+                {implLog.map((entry, i) => (
+                  <div key={i} className="flex items-start gap-3 py-1.5 px-2 rounded hover:bg-gray-50">
+                    <span className="text-gray-300 flex-shrink-0">{new Date(entry.appliedAt).toLocaleTimeString()}</span>
+                    <span className="text-green-600 font-bold flex-shrink-0 w-8"> OK </span>
+                    <span className="text-gray-700">
+                      <span className="text-blue-600">{entry.objectName}</span>
+                      {' '}applied{entry.transport ? ` → ${entry.transport}` : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )
+          )}
+
+          {logTab === 'ai' && (
+            <div className="space-y-3 max-h-80 overflow-y-auto">
+              {implActivities
+                .filter(a => actState[a.id]?.generatedCode)
+                .map(act => {
+                  const obj = objectMap[act.id] ?? {};
+                  const as  = actState[act.id] ?? {};
+                  return (
+                    <div key={act.id} className="rounded-xl border border-gray-100 overflow-hidden">
+                      <div className="px-3 py-2 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+                        <span className="text-xs font-semibold text-gray-600">
+                          🤖 {obj.objectName || act.title}
+                        </span>
+                        <span className="text-[10px] text-green-600 font-semibold">Generated</span>
+                      </div>
+                      <div className="px-3 py-2 text-xs text-gray-500 border-b border-gray-50 bg-blue-50/30 font-mono">
+                        PROMPT → {obj.objectType ?? 'program'} {obj.objectName} · {act.title}
+                      </div>
+                      <div className="px-3 py-2 max-h-28 overflow-y-auto">
+                        <pre className="text-xs text-gray-700 font-mono leading-relaxed whitespace-pre-wrap">
+                          {as.generatedCode?.slice(0, 600)}{as.generatedCode?.length > 600 ? '\n…' : ''}
+                        </pre>
+                      </div>
+                    </div>
+                  );
+                })}
+              {implActivities.filter(a => actState[a.id]?.generatedCode).length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-6">No code generated yet. Go to <strong>Run</strong> and use Generate on any activity.</p>
+              )}
+            </div>
+          )}
+
+          <StepNav prev={5} />
+        </Panel>
       )}
     </div>
   );
