@@ -3253,7 +3253,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
   ];
 
   const PipelineStepper = () => (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3">
+    <div className="bg-gray-900/60 rounded-2xl border border-white/10 shadow-sm px-4 py-3">
       <div className="flex items-start overflow-x-auto gap-0 pb-0.5">
         {PIPELINE_STEPS.map((s, i) => {
           const n = i + 1;
@@ -3263,16 +3263,16 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
             <button key={n} onClick={() => setImplStep(n)}
               className="flex flex-col items-center flex-1 min-w-[52px] relative">
               {i > 0 && (
-                <div className={`absolute top-[15px] right-1/2 w-full h-0.5 ${isDone ? 'bg-blue-400' : 'bg-gray-200'}`} />
+                <div className={`absolute top-[15px] right-1/2 w-full h-0.5 ${isDone ? 'bg-blue-500' : 'bg-white/15'}`} />
               )}
               <div className={`w-[30px] h-[30px] rounded-full border-2 flex items-center justify-center relative z-10 transition-all
-                ${isActive ? 'border-blue-500 bg-blue-50 text-blue-600 shadow shadow-blue-100'
-                : isDone   ? 'border-green-500 bg-green-50 text-green-600'
-                           : 'border-gray-200 bg-white text-gray-400'}`}>
+                ${isActive ? 'border-blue-500 bg-blue-500/20 text-blue-400'
+                : isDone   ? 'border-green-500 bg-green-500/20 text-green-400'
+                           : 'border-white/20 bg-white/5 text-white/30'}`}>
                 {isDone ? <Check size={12} /> : s.icon}
               </div>
               <span className={`text-[9px] font-bold mt-1 uppercase tracking-wider
-                ${isActive ? 'text-blue-600' : isDone ? 'text-green-600' : 'text-gray-400'}`}>
+                ${isActive ? 'text-blue-400' : isDone ? 'text-green-400' : 'text-white/30'}`}>
                 {s.label}
               </span>
             </button>
@@ -3284,13 +3284,13 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
 
   // ── Toggle row helper ───────────────────────────────────
   const ToggleRow = ({ label, desc, value, onChange }) => (
-    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer"
+    <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10 cursor-pointer"
       onClick={() => onChange(!value)}>
       <div>
-        <p className="text-sm font-medium text-gray-800">{label}</p>
-        {desc && <p className="text-xs text-gray-400 mt-0.5">{desc}</p>}
+        <p className="text-sm font-medium text-white">{label}</p>
+        {desc && <p className="text-xs text-white/40 mt-0.5">{desc}</p>}
       </div>
-      <div className={`w-9 h-5 rounded-full relative transition-colors flex-shrink-0 ${value ? 'bg-blue-500' : 'bg-gray-300'}`}>
+      <div className={`w-9 h-5 rounded-full relative transition-colors flex-shrink-0 ${value ? 'bg-blue-500' : 'bg-white/20'}`}>
         <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${value ? 'left-[18px]' : 'left-0.5'}`} />
       </div>
     </div>
@@ -3447,14 +3447,14 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
 
   // ── Panel shell ─────────────────────────────────────────
   const Panel = ({ icon, title, sub, children }) => (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 flex-shrink-0">
+    <div className="bg-gray-900/60 rounded-2xl border border-white/10 shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-white/10 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400 flex-shrink-0">
           {icon}
         </div>
         <div>
-          <p className="font-bold text-gray-900 text-sm">{title}</p>
-          {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+          <p className="font-bold text-white text-sm">{title}</p>
+          {sub && <p className="text-xs text-white/40 mt-0.5">{sub}</p>}
         </div>
       </div>
       <div className="p-5 space-y-4">{children}</div>
@@ -3463,13 +3463,13 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
 
   const StepNav = ({ prev, next, prevLabel = '← Back', nextLabel = 'Continue →' }) => (
     <div className="flex gap-2 pt-2">
-      {prev && <button onClick={() => setImplStep(prev)} className="px-4 py-2 text-xs font-semibold border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors">{prevLabel}</button>}
+      {prev && <button onClick={() => setImplStep(prev)} className="px-4 py-2 text-xs font-semibold border border-white/15 rounded-lg hover:bg-white/5 text-white/60 transition-colors">{prevLabel}</button>}
       {next && <button onClick={() => setImplStep(next)} className="px-4 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">{nextLabel}</button>}
     </div>
   );
 
   const SectionLabel = ({ children }) => (
-    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-2 mb-3">{children}</p>
+    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest border-b border-white/10 pb-2 mb-3">{children}</p>
   );
 
   // ── Render ──────────────────────────────────────────────
@@ -3493,9 +3493,9 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {allConns.length > 0 && (
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Connection</label>
+                <label className="block text-xs font-medium text-white/50 mb-1">Connection</label>
                 <select value={selectedConnId ?? ''} onChange={e => saveCaseConn(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                  className="w-full border border-white/15 rounded-lg px-2.5 py-2 text-sm bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-400">
                   <option value="">— None —</option>
                   {projectConns.map(c => (
                     <option key={c.id} value={c.id}>{CONN_TYPE_LABELS[c.db_type] ?? c.db_type} · {c.host}{c.notes ? ` (${c.notes})` : ''}</option>
@@ -3508,10 +3508,10 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
             )}
             {sapEnvironments.length > 0 && (
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">{t('sap.case_env_label')}</label>
+                <label className="block text-xs font-medium text-white/50 mb-1">{t('sap.case_env_label')}</label>
                 <div className="flex gap-2 items-center">
                   <select value={sapCaseEnvMap[caseData.id] ?? ''} onChange={e => saveCaseEnv(e.target.value)}
-                    className="flex-1 border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    className="flex-1 border border-white/15 rounded-lg px-2.5 py-2 text-sm bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-400">
                     <option value="">{t('sap.case_env_inherit')}</option>
                     {sapEnvironments.map(env => {
                       const meta = SAP_ENV_TYPE_META[env.envType] ?? SAP_ENV_TYPE_META.dev;
@@ -3527,12 +3527,12 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
               </div>
             )}
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">{t('sap.transport_req')}</label>
+              <label className="block text-xs font-medium text-white/50 mb-1">{t('sap.transport_req')}</label>
               <input value={transportReq}
                 onChange={e => setTransportReq(e.target.value)}
                 onBlur={() => saveTransport(transportReq)}
                 placeholder={t('sap.ph_transport_req')}
-                className="w-full border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                className="w-full border border-white/15 rounded-lg px-2.5 py-2 text-sm font-mono bg-gray-800 text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
           </div>
 
@@ -3541,7 +3541,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
             {[['all', '🔄 All Objects at Once'], ['one-by-one', '⚙️ Object by Object']].map(([val, lbl]) => (
               <button key={val} onClick={() => setImplMode(val)}
                 className={`flex-1 py-2.5 text-xs font-semibold rounded-lg border transition-all
-                  ${implMode === val ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                  ${implMode === val ? 'border-blue-500 bg-blue-500/20 text-blue-300' : 'border-white/15 text-white/40 hover:border-white/25'}`}>
                 {lbl}
               </button>
             ))}
@@ -3588,7 +3588,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
             ) : (
               <>
                 {seqManual.length > 0 && (
-                  <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                  <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-sm text-amber-300">
                     <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
                     <span>Objects marked <strong>Manual</strong> must be created in SAP first. Auto objects that depend on them will wait until you verify creation in the Run step.</span>
                   </div>
@@ -3602,15 +3602,15 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
                         const bpType = BP_TYPES[obj.type] ?? {};
                         const deps = (obj.dependsOn ?? []).map(id => nameById[id] ?? id).filter(Boolean);
                         return (
-                          <div key={obj.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-amber-200 bg-amber-50/50">
-                            <span className="w-5 h-5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 flex items-center justify-center font-mono flex-shrink-0">{i + 1}</span>
+                          <div key={obj.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10">
+                            <span className="w-5 h-5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 flex items-center justify-center font-mono flex-shrink-0">{i + 1}</span>
                             <div className="flex-1 min-w-0">
-                              <div className="font-mono text-sm font-semibold text-gray-800 truncate">{obj.name}</div>
-                              {obj.description && <div className="text-xs text-gray-400 truncate">{obj.description}</div>}
-                              {deps.length > 0 && <div className="text-[10px] text-amber-600 mt-0.5">← requires: {deps.join(', ')}</div>}
+                              <div className="font-mono text-sm font-semibold text-white truncate">{obj.name}</div>
+                              {obj.description && <div className="text-xs text-white/50 truncate">{obj.description}</div>}
+                              {deps.length > 0 && <div className="text-[10px] text-amber-400 mt-0.5">← requires: {deps.join(', ')}</div>}
                             </div>
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 flex-shrink-0">{bpType.label ?? obj.type}</span>
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-200 text-amber-800 flex-shrink-0">Manual · {bpType.short ?? '—'}</span>
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 flex-shrink-0">{bpType.label ?? obj.type}</span>
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 flex-shrink-0">Manual · {bpType.short ?? '—'}</span>
                             {obj.status === 'done' && <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />}
                           </div>
                         );
@@ -3628,15 +3628,15 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
                         const deps = (obj.dependsOn ?? []).map(id => nameById[id] ?? id).filter(Boolean);
                         const seq  = seqManual.length + i + 1;
                         return (
-                          <div key={obj.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-blue-100 bg-blue-50/30">
-                            <span className="w-5 h-5 rounded text-[10px] font-bold bg-blue-100 text-blue-600 flex items-center justify-center font-mono flex-shrink-0">{seq}</span>
+                          <div key={obj.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-blue-500/30 bg-blue-500/10">
+                            <span className="w-5 h-5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-300 flex items-center justify-center font-mono flex-shrink-0">{seq}</span>
                             <div className="flex-1 min-w-0">
-                              <div className="font-mono text-sm font-semibold text-gray-800 truncate">{obj.name}</div>
-                              {obj.description && <div className="text-xs text-gray-400 truncate">{obj.description}</div>}
-                              {deps.length > 0 && <div className="text-[10px] text-blue-500 mt-0.5">← requires: {deps.join(', ')}</div>}
+                              <div className="font-mono text-sm font-semibold text-white truncate">{obj.name}</div>
+                              {obj.description && <div className="text-xs text-white/50 truncate">{obj.description}</div>}
+                              {deps.length > 0 && <div className="text-[10px] text-blue-400 mt-0.5">← requires: {deps.join(', ')}</div>}
                             </div>
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 flex-shrink-0">{bpType.label ?? obj.type}</span>
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-100 text-green-700 flex-shrink-0">Auto · {bpType.short ?? '—'}</span>
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 flex-shrink-0">{bpType.label ?? obj.type}</span>
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-300 flex-shrink-0">Auto · {bpType.short ?? '—'}</span>
                             {obj.status === 'done' && <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />}
                           </div>
                         );
@@ -3655,7 +3655,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
       {/* ── STEP 3: Review ────────────────────────────── */}
       {implStep === 3 && (
         <Panel icon={<Eye size={15} />} title="Functional Review" sub="Send objects to reviewer for approval before going live">
-          <div className="flex items-start gap-2.5 p-3 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-800">
+          <div className="flex items-start gap-2.5 p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-sm text-blue-300">
             <Link2 size={14} className="flex-shrink-0 mt-0.5" />
             <span>The review link is managed in the <strong>Blueprint</strong> tab. Select a reviewer there and generate the approval link — the reviewer sees the object list and approves or rejects each one.</span>
           </div>
@@ -3668,11 +3668,11 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
                   const isAuto = obj.aiCapable ?? BP_TYPES[obj.type]?.ai ?? true;
                   const bpType = BP_TYPES[obj.type] ?? {};
                   return (
-                    <div key={obj.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-gray-100 bg-gray-50">
-                      <span className="w-4 h-4 rounded text-[9px] font-bold bg-gray-200 text-gray-600 flex items-center justify-center font-mono flex-shrink-0">{i + 1}</span>
-                      <span className="font-mono text-xs font-semibold text-gray-800 flex-1 truncate">{obj.name}</span>
-                      <span className="text-[10px] text-gray-400 truncate max-w-[100px] hidden sm:block">{bpType.label ?? obj.type}</span>
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${!isAuto ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+                    <div key={obj.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-white/10 bg-white/5">
+                      <span className="w-4 h-4 rounded text-[9px] font-bold bg-white/10 text-white/60 flex items-center justify-center font-mono flex-shrink-0">{i + 1}</span>
+                      <span className="font-mono text-xs font-semibold text-white flex-1 truncate">{obj.name}</span>
+                      <span className="text-[10px] text-white/40 truncate max-w-[100px] hidden sm:block">{bpType.label ?? obj.type}</span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${!isAuto ? 'bg-amber-500/20 text-amber-300' : 'bg-green-500/20 text-green-300'}`}>
                         {!isAuto ? 'Manual' : 'Auto'}
                       </span>
                     </div>
@@ -3693,11 +3693,11 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
 
           {/* Progress bar */}
           <div>
-            <div className="flex justify-between text-xs text-gray-500 mb-1.5">
+            <div className="flex justify-between text-xs text-white/40 mb-1.5">
               <span>{t('sap.impl_progress_title')}</span>
               <span>{t('sap.impl_done_count').replace('{n}', appliedCount).replace('{total}', totalCount)}</span>
             </div>
-            <div className="w-full bg-gray-100 rounded-full h-2">
+            <div className="w-full bg-white/10 rounded-full h-2">
               <div className="bg-green-500 h-2 rounded-full transition-all"
                 style={{ width: totalCount ? `${Math.round(appliedCount / totalCount * 100)}%` : '0%' }} />
             </div>
@@ -3707,7 +3707,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
           {autoImplEnabled && (
             <div className="flex gap-2 flex-wrap">
               <button onClick={toggleActCheckAll}
-                className="px-3 py-1.5 text-xs font-semibold border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                className="px-3 py-1.5 text-xs font-semibold border border-white/15 rounded-lg hover:bg-white/5 text-white/60 transition-colors">
                 {checkedActIds.size === implActivities.length && implActivities.length > 0 ? t('sap.deselect_all') : t('sap.select_all')}
               </button>
               {checkedActIds.size > 0 && (
@@ -3725,7 +3725,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
 
           {/* Activity list */}
           {implActivities.length === 0 ? (
-            <div className="text-center py-8 text-sm text-gray-400">No implementation activities found.</div>
+            <div className="text-center py-8 text-sm text-white/40">No implementation activities found.</div>
           ) : (
             <div className="space-y-2">
               {/* Sorted (assigned) activities first */}
@@ -3750,16 +3750,16 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
 
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: 'Total',        value: totalCount,   color: 'text-blue-600' },
-              { label: 'Auto Applied', value: implLog.filter(l => !MANUAL_TYPES.has(l.objectType ?? '')).length, color: 'text-green-600' },
-              { label: 'Manual',       value: manualCount,  color: 'text-amber-600' },
-              { label: '% Complete',   value: totalCount ? `${Math.round(appliedCount / totalCount * 100)}%` : '—', color: 'text-blue-600' },
-              { label: 'Applied',      value: appliedCount, color: 'text-green-600' },
-              { label: 'Remaining',    value: Math.max(0, totalCount - appliedCount), color: totalCount - appliedCount > 0 ? 'text-amber-500' : 'text-gray-400' },
+              { label: 'Total',        value: totalCount,   color: 'text-blue-400' },
+              { label: 'Auto Applied', value: implLog.filter(l => !MANUAL_TYPES.has(l.objectType ?? '')).length, color: 'text-green-400' },
+              { label: 'Manual',       value: manualCount,  color: 'text-amber-400' },
+              { label: '% Complete',   value: totalCount ? `${Math.round(appliedCount / totalCount * 100)}%` : '—', color: 'text-blue-400' },
+              { label: 'Applied',      value: appliedCount, color: 'text-green-400' },
+              { label: 'Remaining',    value: Math.max(0, totalCount - appliedCount), color: totalCount - appliedCount > 0 ? 'text-amber-400' : 'text-white/30' },
             ].map(s => (
-              <div key={s.label} className="rounded-xl border border-gray-100 p-3 text-center">
+              <div key={s.label} className="rounded-xl border border-white/10 bg-white/5 p-3 text-center">
                 <p className={`text-2xl font-bold font-variant-numeric-tabular ${s.color}`}>{s.value}</p>
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mt-0.5">{s.label}</p>
+                <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wide mt-0.5">{s.label}</p>
               </div>
             ))}
           </div>
@@ -3769,12 +3769,12 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
               <SectionLabel>Applied Objects</SectionLabel>
               <div className="space-y-1.5">
                 {implLog.map((entry, i) => (
-                  <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-green-100 bg-green-50/40">
-                    <CheckCircle2 size={12} className="text-green-500 flex-shrink-0" />
-                    <span className="font-mono text-xs font-semibold text-gray-800 flex-shrink-0">{entry.objectName}</span>
-                    <span className="text-xs text-gray-500 truncate flex-1">{entry.activityTitle}</span>
-                    {entry.transport && <span className="text-[10px] text-gray-400 font-mono flex-shrink-0">{entry.transport}</span>}
-                    <span className="text-[10px] text-gray-300 flex-shrink-0">{new Date(entry.appliedAt).toLocaleDateString()}</span>
+                  <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-green-500/30 bg-green-500/10">
+                    <CheckCircle2 size={12} className="text-green-400 flex-shrink-0" />
+                    <span className="font-mono text-xs font-semibold text-white flex-shrink-0">{entry.objectName}</span>
+                    <span className="text-xs text-white/50 truncate flex-1">{entry.activityTitle}</span>
+                    {entry.transport && <span className="text-[10px] text-white/30 font-mono flex-shrink-0">{entry.transport}</span>}
+                    <span className="text-[10px] text-white/25 flex-shrink-0">{new Date(entry.appliedAt).toLocaleDateString()}</span>
                   </div>
                 ))}
               </div>
@@ -3788,11 +3788,11 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
       {/* ── STEP 6: Logs ──────────────────────────────── */}
       {implStep === 6 && (
         <Panel icon={<FileText size={15} />} title="Implementation Logs" sub="Platform events · AI code generation trace">
-          <div className="flex gap-0 border-b border-gray-100 -mt-2 mb-4">
+          <div className="flex gap-0 border-b border-white/10 -mt-2 mb-4">
             {[['platform', 'Platform Logs'], ['ai', 'AI Code Trace']].map(([key, label]) => (
               <button key={key} onClick={() => setLogTab(key)}
                 className={`px-4 py-2 text-xs font-semibold border-b-2 transition-colors -mb-px
-                  ${logTab === key ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+                  ${logTab === key ? 'border-blue-500 text-blue-400' : 'border-transparent text-white/30 hover:text-white/60'}`}>
                 {label}
               </button>
             ))}
@@ -3800,15 +3800,15 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
 
           {logTab === 'platform' && (
             implLog.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-6">No implementation events yet.</p>
+              <p className="text-sm text-white/40 text-center py-6">No implementation events yet.</p>
             ) : (
               <div className="space-y-1 font-mono text-xs max-h-80 overflow-y-auto">
                 {implLog.map((entry, i) => (
-                  <div key={i} className="flex items-start gap-3 py-1.5 px-2 rounded hover:bg-gray-50">
-                    <span className="text-gray-300 flex-shrink-0">{new Date(entry.appliedAt).toLocaleTimeString()}</span>
-                    <span className="text-green-600 font-bold flex-shrink-0 w-8"> OK </span>
-                    <span className="text-gray-700">
-                      <span className="text-blue-600">{entry.objectName}</span>
+                  <div key={i} className="flex items-start gap-3 py-1.5 px-2 rounded hover:bg-white/5">
+                    <span className="text-white/25 flex-shrink-0">{new Date(entry.appliedAt).toLocaleTimeString()}</span>
+                    <span className="text-green-400 font-bold flex-shrink-0 w-8"> OK </span>
+                    <span className="text-white/60">
+                      <span className="text-blue-400">{entry.objectName}</span>
                       {' '}applied{entry.transport ? ` → ${entry.transport}` : ''}
                     </span>
                   </div>
@@ -3825,18 +3825,18 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
                   const obj = objectMap[act.id] ?? {};
                   const as  = actState[act.id] ?? {};
                   return (
-                    <div key={act.id} className="rounded-xl border border-gray-100 overflow-hidden">
-                      <div className="px-3 py-2 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
-                        <span className="text-xs font-semibold text-gray-600">
+                    <div key={act.id} className="rounded-xl border border-white/10 overflow-hidden">
+                      <div className="px-3 py-2 bg-white/5 border-b border-white/10 flex justify-between items-center">
+                        <span className="text-xs font-semibold text-white/70">
                           🤖 {obj.objectName || act.title}
                         </span>
-                        <span className="text-[10px] text-green-600 font-semibold">Generated</span>
+                        <span className="text-[10px] text-green-400 font-semibold">Generated</span>
                       </div>
-                      <div className="px-3 py-2 text-xs text-gray-500 border-b border-gray-50 bg-blue-50/30 font-mono">
+                      <div className="px-3 py-2 text-xs text-blue-300/70 border-b border-white/5 bg-blue-500/10 font-mono">
                         PROMPT → {obj.objectType ?? 'program'} {obj.objectName} · {act.title}
                       </div>
                       <div className="px-3 py-2 max-h-28 overflow-y-auto">
-                        <pre className="text-xs text-gray-700 font-mono leading-relaxed whitespace-pre-wrap">
+                        <pre className="text-xs text-white/60 font-mono leading-relaxed whitespace-pre-wrap">
                           {as.generatedCode?.slice(0, 600)}{as.generatedCode?.length > 600 ? '\n…' : ''}
                         </pre>
                       </div>
@@ -3844,7 +3844,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
                   );
                 })}
               {implActivities.filter(a => actState[a.id]?.generatedCode).length === 0 && (
-                <p className="text-sm text-gray-400 text-center py-6">No code generated yet. Go to <strong>Run</strong> and use Generate on any activity.</p>
+                <p className="text-sm text-white/40 text-center py-6">No code generated yet. Go to <strong>Run</strong> and use Generate on any activity.</p>
               )}
             </div>
           )}
