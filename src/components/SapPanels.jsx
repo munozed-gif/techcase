@@ -1983,6 +1983,7 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
   const [transportView, setTransportView] = useState(false);
   const [arrows, setArrows] = useState([]);
   const [collapsed, setCollapsed] = useState(false);
+  const [hoveredId, setHoveredId] = useState(null);
   const containerRef = useRef(null);
   const cardRefs = useRef({});
   const stopRef = useRef(false);
@@ -2510,6 +2511,17 @@ Output ONLY the ABAP source code, no explanations.`;
 
   const selectedObj = objects.find(o => o.id === selectedId);
 
+  // Compute highlighted chain for hovered node (upstream + downstream)
+  const hoveredChain = (() => {
+    if (!hoveredId) return null;
+    const upstream = new Set();
+    const downstream = new Set();
+    function findUp(id) { objects.find(o => o.id === id)?.dependsOn?.forEach(d => { upstream.add(d); findUp(d); }); }
+    function findDown(id) { objects.filter(o => (o.dependsOn ?? []).includes(id)).forEach(o => { downstream.add(o.id); findDown(o.id); }); }
+    findUp(hoveredId); findDown(hoveredId);
+    return { upstream, downstream };
+  })();
+
   // Transport view grouping
   const transportGroups = {};
   if (transportView) {
@@ -2711,16 +2723,35 @@ Output ONLY the ABAP source code, no explanations.`;
                 <svg className="absolute inset-0 pointer-events-none z-10"
                   style={{ width: '100%', height: '100%', minWidth: '100%', minHeight: '100%' }}>
                   <defs>
+                    <marker id="bp-arrow-dim" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+                      <path d="M0,0 L0,6 L7,3 z" fill="#cbd5e1" fillOpacity="0.35" />
+                    </marker>
+                    <marker id="bp-arrow-hi" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                      <path d="M0,0 L0,6 L8,3 z" fill="#3b82f6" />
+                    </marker>
                     <marker id="bp-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-                      <path d="M0,0 L0,6 L8,3 z" fill="#94a3b8" />
+                      <path d="M0,0 L0,6 L8,3 z" fill="#6366f1" />
                     </marker>
                   </defs>
-                  {arrows.map(a => (
-                    <path key={a.id}
-                      d={`M ${a.x1},${a.y1} C ${a.mx},${a.y1} ${a.mx},${a.y2} ${a.x2},${a.y2}`}
-                      fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeDasharray="4 3"
-                      markerEnd="url(#bp-arrow)" />
-                  ))}
+                  {arrows.map(a => {
+                    const [fromId, toId] = a.id.split('-');
+                    const inChain = hoveredChain && (
+                      fromId === hoveredId || toId === hoveredId ||
+                      hoveredChain.upstream.has(fromId) || hoveredChain.upstream.has(toId) ||
+                      hoveredChain.downstream.has(fromId) || hoveredChain.downstream.has(toId)
+                    );
+                    const dimmed = hoveredChain && !inChain;
+                    return (
+                      <path key={a.id}
+                        d={`M ${a.x1},${a.y1} C ${a.mx},${a.y1} ${a.mx},${a.y2} ${a.x2},${a.y2}`}
+                        fill="none"
+                        stroke={dimmed ? '#cbd5e1' : inChain ? '#3b82f6' : '#6366f1'}
+                        strokeOpacity={dimmed ? 0.25 : inChain ? 1 : 0.55}
+                        strokeWidth={inChain ? 2 : 1.5}
+                        markerEnd={dimmed ? 'url(#bp-arrow-dim)' : inChain ? 'url(#bp-arrow-hi)' : 'url(#bp-arrow)'}
+                      />
+                    );
+                  })}
                 </svg>
               )}
               {/* Phase swim lanes */}
@@ -2746,7 +2777,18 @@ Output ONLY the ABAP source code, no explanations.`;
                               key={obj.id}
                               ref={el => { if (el) cardRefs.current[obj.id] = el; else delete cardRefs.current[obj.id]; }}
                               onClick={() => setSelectedId(isSelected ? null : obj.id)}
-                              className={`w-52 rounded-xl border-2 p-2.5 cursor-pointer transition-all select-none ${BP_STATUS_STYLE[obj.status] ?? BP_STATUS_STYLE.planned} ${isSelected ? 'ring-2 ring-blue-400 ring-offset-1' : 'hover:shadow-md'} ${checkedIds.has(obj.id) ? 'outline outline-2 outline-blue-500 outline-offset-1' : ''}`}>
+                              onMouseEnter={() => setHoveredId(obj.id)}
+                              onMouseLeave={() => setHoveredId(null)}
+                              style={{ transition: 'opacity .15s, box-shadow .15s, transform .1s' }}
+                              className={`w-52 rounded-xl border-2 p-2.5 cursor-pointer select-none ${BP_STATUS_STYLE[obj.status] ?? BP_STATUS_STYLE.planned} ${isSelected ? 'ring-2 ring-blue-400 ring-offset-1' : ''} ${checkedIds.has(obj.id) ? 'outline outline-2 outline-blue-500 outline-offset-1' : ''} ${
+                                hoveredChain
+                                  ? obj.id === hoveredId
+                                    ? 'shadow-lg scale-[1.02] ring-2 ring-blue-400 ring-offset-1'
+                                    : (hoveredChain.upstream.has(obj.id) || hoveredChain.downstream.has(obj.id))
+                                      ? 'shadow-md ring-1 ring-indigo-300'
+                                      : 'opacity-35'
+                                  : 'hover:shadow-md'
+                              }`}>
                               <div className="flex items-start gap-1.5">
                                 {canDevelop && (
                                   <input type="checkbox" checked={checkedIds.has(obj.id)}
