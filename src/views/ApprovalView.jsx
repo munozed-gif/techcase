@@ -147,6 +147,7 @@ function ObjectCard({ obj, onDecide, saving }) {
 
 export default function ApprovalView({ token }) {
   const [request, setRequest] = useState(null);
+  const [reviewerProfile, setReviewerProfile] = useState(null);
   const [objects, setObjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -174,6 +175,18 @@ export default function ApprovalView({ token }) {
         return;
       }
       setRequest(reqRes.data);
+
+      // Look up reviewer profile by email (best-effort — no auth required)
+      const email = reqRes.data.reviewer_email;
+      if (email) {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("full_name, avatar_url")
+          .eq("email", email)
+          .maybeSingle();
+        if (prof) setReviewerProfile(prof);
+      }
+
       const { data: objs } = await supabase
         .from("approval_request_objects")
         .select("*")
@@ -256,12 +269,23 @@ export default function ApprovalView({ token }) {
         {request.cases?.area_sap && (
           <p className="text-xs text-blue-400/50 mt-1">SAP Module: {request.cases.area_sap}</p>
         )}
-        <p className="text-xs text-blue-400/40 mt-2">
-          Reviewing as <span className="text-blue-300/70">{request.reviewer_email}</span>
-          {request.expires_at && (
-            <span className="ml-2">· Expires {new Date(request.expires_at).toLocaleDateString()}</span>
-          )}
-        </p>
+        <div className="flex items-center justify-center gap-2 mt-3">
+          {reviewerProfile?.avatar_url
+            ? <img src={reviewerProfile.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover ring-2 ring-blue-500/30" />
+            : <div className="w-7 h-7 rounded-full bg-blue-600/30 flex items-center justify-center text-xs font-bold text-blue-300 ring-2 ring-blue-500/30">
+                {(reviewerProfile?.full_name ?? request.reviewer_email ?? '?')[0].toUpperCase()}
+              </div>
+          }
+          <div className="text-left">
+            {reviewerProfile?.full_name && (
+              <p className="text-xs font-semibold text-blue-200">{reviewerProfile.full_name}</p>
+            )}
+            <p className="text-[11px] text-blue-400/50">
+              {request.reviewer_email}
+              {request.expires_at && <span className="ml-1">· Expires {new Date(request.expires_at).toLocaleDateString()}</span>}
+            </p>
+          </div>
+        </div>
       </div>
 
       <div className="max-w-2xl mx-auto px-4 pb-12 space-y-4">
