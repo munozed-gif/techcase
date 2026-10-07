@@ -180,7 +180,7 @@ export default function ApprovalView({ token }) {
       const email = reqRes.data.reviewer_email;
       if (email) {
         const { data: prof } = await supabase
-          .from("profiles")
+          .from("users")
           .select("full_name, avatar_url")
           .eq("email", email)
           .maybeSingle();
