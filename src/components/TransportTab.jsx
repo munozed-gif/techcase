@@ -249,16 +249,20 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
   const [reviewerEmail, setReviewerEmail] = useState(batchApproval.reviewer_email ?? '');
   const [reviewerName, setReviewerName]   = useState(batchApproval.reviewer_name ?? '');
   const [reviewerProfile, setReviewerProfile] = useState(null);
+  const [reviewerChecking, setReviewerChecking] = useState(false);
   const [genLinkLoading, setGenLinkLoading] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
-    if (!reviewerEmail) { setReviewerProfile(null); return; }
+    const clean = reviewerEmail.trim().toLowerCase();
+    if (!clean.includes('@') || !clean.includes('.')) { setReviewerProfile(null); return; }
+    setReviewerChecking(true);
     const t = setTimeout(async () => {
-      const { data } = await supabase.from('users').select('full_name, avatar_url').eq('email', reviewerEmail).maybeSingle();
+      const { data } = await supabase.from('users').select('full_name, avatar_url, role').eq('email', clean).maybeSingle();
       setReviewerProfile(data ?? null);
-    }, 600);
-    return () => clearTimeout(t);
+      setReviewerChecking(false);
+    }, 500);
+    return () => { clearTimeout(t); setReviewerChecking(false); };
   }, [reviewerEmail]);
 
   async function generateApprovalLink() {
@@ -704,8 +708,14 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
               <input value={reviewerName} onChange={e => setReviewerName(e.target.value)}
                 placeholder={reviewerProfile?.full_name ?? 'Reviewer name (optional)'}
                 className="w-full border border-white/15 rounded-lg px-2.5 py-2 text-sm bg-gray-800 text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-blue-400" />
-              {reviewerProfile && (
+              {reviewerChecking && (
+                <p className="text-xs text-white/40 flex items-center gap-1.5"><Loader2 size={10} className="animate-spin" />Checking…</p>
+              )}
+              {!reviewerChecking && reviewerProfile && (
                 <p className="text-xs text-green-400 flex items-center gap-1.5"><Check size={10} />{reviewerProfile.full_name} is a platform user</p>
+              )}
+              {!reviewerChecking && !reviewerProfile && reviewerEmail.includes('@') && reviewerEmail.includes('.') && (
+                <p className="text-xs text-white/30 flex items-center gap-1.5">Not a platform user — approval link will be sent by email</p>
               )}
             </div>
           </div>
