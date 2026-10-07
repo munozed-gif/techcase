@@ -3096,6 +3096,8 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   const [includeViewer,    setIncludeViewer]    = useState(true);
   const [notifyOnComplete, setNotifyOnComplete] = useState(false);
   const [logTab, setLogTab] = useState('platform');
+  const [expandedManual, setExpandedManual] = useState(new Set());
+  const [manualSpecs, setManualSpecs] = useState({});
 
   // ── Existing handlers ───────────────────────────────────
   function setActField(actId, updates) {
@@ -3215,6 +3217,39 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
   function toggleActCheckAll() {
     if (checkedActIds.size === implActivities.length) setCheckedActIds(new Set());
     else setCheckedActIds(new Set(implActivities.map(a => a.id)));
+  }
+  async function handleGenerateManualSpec(obj) {
+    const typeMeta = BP_TYPES[obj.type] ?? {};
+    const transaction = OBJ_TRANSACTION[obj.type] ?? 'SE80';
+    setManualSpecs(p => ({ ...p, [obj.id]: { generating: true } }));
+    try {
+      const prompt = `You are an SAP functional/technical consultant. Provide clear, step-by-step instructions for manually creating the following SAP object.
+
+Object Name: ${obj.name}
+Object Type: ${typeMeta.label ?? obj.type} (${typeMeta.short ?? obj.type})
+SAP Transaction: ${transaction}
+Description: ${obj.description ?? 'No description provided'}
+Case: ${caseData.title}
+SAP Module: ${caseData.area_sap ?? 'general'}
+
+Provide:
+1. Which SAP transaction to open and menu path
+2. Step-by-step field values / settings to configure
+3. Any technical notes (activation, transport assignment, naming conventions)
+4. How to verify the object was created correctly
+
+Be concise and use numbered steps. Format as plain text, no markdown headers.`;
+      const resp = await callClaude({
+        model: genModel,
+        system: 'You are an expert SAP consultant. Provide concise, actionable step-by-step creation instructions for SAP objects.',
+        messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
+        max_tokens: 1500,
+      });
+      const spec = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
+      setManualSpecs(p => ({ ...p, [obj.id]: { generating: false, spec } }));
+    } catch (e) {
+      setManualSpecs(p => ({ ...p, [obj.id]: { generating: false, error: e.message } }));
+    }
   }
 
   // ── Derived data ────────────────────────────────────────
@@ -3599,19 +3634,51 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
                     <SectionLabel>Phase 1 — Manual (create in SAP before running)</SectionLabel>
                     <div className="space-y-2">
                       {seqManual.map((obj, i) => {
-                        const bpType = BP_TYPES[obj.type] ?? {};
-                        const deps = (obj.dependsOn ?? []).map(id => nameById[id] ?? id).filter(Boolean);
+                        const bpType    = BP_TYPES[obj.type] ?? {};
+                        const deps      = (obj.dependsOn ?? []).map(id => nameById[id] ?? id).filter(Boolean);
+                        const tx        = OBJ_TRANSACTION[obj.type] ?? 'SE80';
+                        const isOpen    = expandedManual.has(obj.id);
+                        const specState = manualSpecs[obj.id] ?? {};
+                        const toggleOpen = () => setExpandedManual(p => { const n = new Set(p); n.has(obj.id) ? n.delete(obj.id) : n.add(obj.id); return n; });
                         return (
-                          <div key={obj.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10">
-                            <span className="w-5 h-5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 flex items-center justify-center font-mono flex-shrink-0">{i + 1}</span>
-                            <div className="flex-1 min-w-0">
-                              <div className="font-mono text-sm font-semibold text-white truncate">{obj.name}</div>
-                              {obj.description && <div className="text-xs text-white/50 truncate">{obj.description}</div>}
-                              {deps.length > 0 && <div className="text-[10px] text-amber-400 mt-0.5">← requires: {deps.join(', ')}</div>}
+                          <div key={obj.id} className="rounded-xl border border-amber-500/40 bg-amber-500/10 overflow-hidden">
+                            <div className="flex items-center gap-3 px-3 py-2.5 cursor-pointer" onClick={toggleOpen}>
+                              <span className="w-5 h-5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 flex items-center justify-center font-mono flex-shrink-0">{i + 1}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-mono text-sm font-semibold text-white truncate">{obj.name}</div>
+                                {obj.description && <div className="text-xs text-white/50 truncate">{obj.description}</div>}
+                                {deps.length > 0 && <div className="text-[10px] text-amber-400 mt-0.5">← requires: {deps.join(', ')}</div>}
+                              </div>
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 flex-shrink-0">{bpType.label ?? obj.type}</span>
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-700 text-amber-300 flex-shrink-0 font-mono">{tx}</span>
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 flex-shrink-0">Manual</span>
+                              {obj.status === 'done' && <CheckCircle2 size={13} className="text-green-400 flex-shrink-0" />}
+                              <span className="text-white/30 flex-shrink-0">{isOpen ? '▲' : '▼'}</span>
                             </div>
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 flex-shrink-0">{bpType.label ?? obj.type}</span>
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 flex-shrink-0">Manual · {bpType.short ?? '—'}</span>
-                            {obj.status === 'done' && <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />}
+                            {isOpen && (
+                              <div className="px-3 pb-3 pt-0 border-t border-amber-500/20">
+                                <div className="flex items-center justify-between mt-2 mb-2">
+                                  <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Creation Guide</span>
+                                  <button
+                                    onClick={() => handleGenerateManualSpec(obj)}
+                                    disabled={specState.generating}
+                                    className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 disabled:opacity-50 transition-colors">
+                                    <Sparkles size={11} />
+                                    {specState.generating ? 'Generating…' : specState.spec ? 'Regenerate' : 'Generate Steps'}
+                                  </button>
+                                </div>
+                                {specState.error && (
+                                  <p className="text-xs text-red-400 py-2">Error: {specState.error}</p>
+                                )}
+                                {specState.spec ? (
+                                  <pre className="text-xs text-white/70 font-mono leading-relaxed whitespace-pre-wrap bg-black/20 rounded-lg p-3 max-h-64 overflow-y-auto">
+                                    {specState.spec}
+                                  </pre>
+                                ) : !specState.generating && (
+                                  <p className="text-xs text-white/30 py-2">Click "Generate Steps" to get AI-written creation instructions for this object.</p>
+                                )}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
