@@ -3223,9 +3223,38 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
   async function handleGenerateManualSpec(obj) {
     const typeMeta = BP_TYPES[obj.type] ?? {};
     const transaction = OBJ_TRANSACTION[obj.type] ?? 'SE80';
+    const isConfig = obj.type === 'config';
     setManualSpecs(p => ({ ...p, [obj.id]: { generating: true } }));
     try {
-      const prompt = `You are an SAP functional/technical consultant. Provide clear, step-by-step instructions for manually creating the following SAP object.
+      const prompt = isConfig
+        ? `You are an SAP functional consultant. Provide the exact SPRO/IMG customizing instructions for the following configuration object.
+
+Configuration Parameter: ${obj.name}
+Description: ${obj.description ?? 'No description provided'}
+SAP Module: ${caseData.area_sap ?? 'general'}
+Project: ${caseData.title}
+
+Respond in this exact structure (plain text, no markdown):
+
+DIRECT T-CODE: [if a direct transaction exists besides SPRO, e.g. OX09, OBA7, OME9 — otherwise write "SPRO only"]
+
+IMG PATH:
+[Full customizing path, e.g.:
+SPRO → Enterprise Structure → Definition → Materials Management → Maintain Storage Locations]
+
+WHAT TO CONFIGURE:
+[Numbered steps: field names, values to set, key fields to fill in]
+
+TRANSPORT:
+[Whether saving this parameter creates a customizing transport request, what type (client-specific / cross-client), and how to assign it to a transport]
+
+VERIFICATION:
+[How to confirm the configuration is active and correct]
+
+NOTES:
+[Any dependencies, activation steps, or client-specific vs. cross-client considerations]`
+
+        : `You are an SAP functional/technical consultant. Provide clear, step-by-step instructions for manually creating the following SAP object.
 
 Object Name: ${obj.name}
 Object Type: ${typeMeta.label ?? obj.type} (${typeMeta.short ?? obj.type})
@@ -3241,11 +3270,14 @@ Provide:
 4. How to verify the object was created correctly
 
 Be concise and use numbered steps. Format as plain text, no markdown headers.`;
+
       const resp = await callClaude({
         model: genModel,
-        system: 'You are an expert SAP consultant. Provide concise, actionable step-by-step creation instructions for SAP objects.',
+        system: isConfig
+          ? 'You are an expert SAP functional consultant. Always provide the exact IMG customizing path and direct t-code when one exists. Be precise about field names and values.'
+          : 'You are an expert SAP consultant. Provide concise, actionable step-by-step creation instructions for SAP objects.',
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
-        max_tokens: 1500,
+        max_tokens: 1800,
       });
       const spec = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
       setManualSpecs(p => ({ ...p, [obj.id]: { generating: false, spec } }));
@@ -3721,19 +3753,32 @@ Output ONLY the ABAP source (CLASS DEFINITION ... CLASS IMPLEMENTATION ... ENDCL
                                     {/* Creation Guide tab */}
                                     {detailTab === 'guide' && (
                                       <>
+                                        {obj.type === 'config' && (
+                                          <div className="mb-2 p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-[10px] text-blue-300 leading-relaxed">
+                                            SPRO customizing cannot be automated — it must be done manually in DEV.<br />
+                                            Once saved, SAP creates a customizing transport request automatically.<br />
+                                            Use the <strong>Transports</strong> tab to apply it to QA/PRD.
+                                          </div>
+                                        )}
                                         <div className="flex items-center justify-between mb-2">
-                                          <span className="text-[10px] text-white/30">Step-by-step SAP creation instructions</span>
+                                          <span className="text-[10px] text-white/30">
+                                            {obj.type === 'config' ? 'IMG path · direct t-code · field values' : 'Step-by-step SAP creation instructions'}
+                                          </span>
                                           <button onClick={() => handleGenerateManualSpec(obj)} disabled={specState.generating}
                                             className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 disabled:opacity-50 transition-colors">
                                             <Sparkles size={11} />
-                                            {specState.generating ? 'Generating…' : specState.spec ? 'Regenerate' : 'Generate Steps'}
+                                            {specState.generating ? 'Generating…' : specState.spec ? 'Regenerate' : obj.type === 'config' ? 'Generate SPRO Path' : 'Generate Steps'}
                                           </button>
                                         </div>
                                         {specState.error && <p className="text-xs text-red-400 py-2">Error: {specState.error}</p>}
                                         {specState.spec ? (
                                           <pre className="text-xs text-white/70 font-mono leading-relaxed whitespace-pre-wrap bg-black/20 rounded-lg p-3 max-h-64 overflow-y-auto">{specState.spec}</pre>
                                         ) : !specState.generating && (
-                                          <p className="text-xs text-white/30 py-2">Click "Generate Steps" for AI-written creation instructions.</p>
+                                          <p className="text-xs text-white/30 py-2">
+                                            {obj.type === 'config'
+                                              ? 'Click "Generate SPRO Path" for the exact IMG route, direct t-code, and field values.'
+                                              : 'Click "Generate Steps" for AI-written creation instructions.'}
+                                          </p>
                                         )}
                                       </>
                                     )}
