@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import {
   AlertTriangle, ArrowDown, ArrowUp, Check, CheckCircle2,
-  Clock, Copy, Eye, FileText, GripVertical, Link2, List,
-  Loader2, Package, Play, Plus, RefreshCw, Settings,
-  Trash2, Upload, X, XCircle,
+  Eye, FileText, GripVertical, Link2, List,
+  Loader2, Package, Play, Plus, Settings,
+  Trash2, Upload, XCircle,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
-import { useT } from "../i18n/index.jsx";
 import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
 
 // ── SAP CTS transport import ─────────────────────────────────
@@ -66,6 +65,123 @@ const TR_TYPE_META = {
   workbench:   { label: 'Workbench',   color: 'bg-blue-500/20 text-blue-300',   border: 'border-blue-500/30'  },
   customizing: { label: 'Customizing', color: 'bg-amber-500/20 text-amber-300', border: 'border-amber-500/40' },
 };
+
+// ── Shared UI components (defined outside to avoid focus loss) ─
+
+function TrPanel({ icon, title, sub, children }) {
+  return (
+    <div className="bg-gray-900/60 rounded-2xl border border-white/10 shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-white/10 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400 flex-shrink-0">{icon}</div>
+        <div>
+          <p className="font-bold text-white text-sm">{title}</p>
+          {sub && <p className="text-xs text-white/40 mt-0.5">{sub}</p>}
+        </div>
+      </div>
+      <div className="p-5 space-y-4">{children}</div>
+    </div>
+  );
+}
+
+function TrSectionLabel({ children }) {
+  return (
+    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest border-b border-white/10 pb-2 mb-3">{children}</p>
+  );
+}
+
+function TrToggleRow({ label, desc, value, onChange }) {
+  return (
+    <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10 cursor-pointer" onClick={() => onChange(!value)}>
+      <div>
+        <p className="text-sm font-medium text-white">{label}</p>
+        {desc && <p className="text-xs text-white/40 mt-0.5">{desc}</p>}
+      </div>
+      <div className={`w-9 h-5 rounded-full relative transition-colors flex-shrink-0 ${value ? 'bg-blue-500' : 'bg-white/20'}`}>
+        <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${value ? 'left-[18px]' : 'left-0.5'}`} />
+      </div>
+    </div>
+  );
+}
+
+function TrStepNav({ prev, next, onStep, prevLabel = '← Back', nextLabel = 'Continue →' }) {
+  return (
+    <div className="flex gap-2 pt-2">
+      {prev && <button onClick={() => onStep(prev)} className="px-4 py-2 text-xs font-semibold border border-white/15 rounded-lg hover:bg-white/5 text-white/60 transition-colors">{prevLabel}</button>}
+      {next && <button onClick={() => onStep(next)} className="px-4 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">{nextLabel}</button>}
+    </div>
+  );
+}
+
+function TrStepper({ step, onStep }) {
+  return (
+    <div className="bg-gray-900/60 rounded-2xl border border-white/10 px-4 py-3">
+      <div className="flex items-start overflow-x-auto gap-0 pb-0.5">
+        {TR_STEPS.map((s, i) => {
+          const n = i + 1, isActive = step === n, isDone = step > n;
+          return (
+            <button key={n} onClick={() => onStep(n)} className="flex flex-col items-center flex-1 min-w-[52px] relative">
+              {i > 0 && <div className={`absolute top-[15px] right-1/2 w-full h-0.5 ${isDone ? 'bg-blue-500' : 'bg-white/15'}`} />}
+              <div className={`w-[30px] h-[30px] rounded-full border-2 flex items-center justify-center relative z-10 transition-all
+                ${isActive ? 'border-blue-500 bg-blue-500/20 text-blue-400' : isDone ? 'border-green-500 bg-green-500/20 text-green-400' : 'border-white/20 bg-white/5 text-white/30'}`}>
+                {isDone ? <Check size={12} /> : s.icon}
+              </div>
+              <span className={`text-[9px] font-bold mt-1 uppercase tracking-wider ${isActive ? 'text-blue-400' : isDone ? 'text-green-400' : 'text-white/30'}`}>{s.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function TrRequestRow({ req, i, showStatus, importStates, caseId, projectCases, onDelete }) {
+  const meta   = TR_TYPE_META[req.request_type] ?? TR_TYPE_META.workbench;
+  const is     = importStates[req.id] ?? {};
+  const status = is.status ?? req.status ?? 'pending';
+  return (
+    <div className={`rounded-xl border ${meta.border} bg-white/5 overflow-hidden`}>
+      <div className="flex items-center gap-2.5 px-3 py-2.5">
+        <span className="w-5 h-5 rounded text-[10px] font-bold bg-white/10 text-white/50 flex items-center justify-center font-mono flex-shrink-0">{i + 1}</span>
+        <div className="flex-1 min-w-0">
+          <div className="font-mono text-sm font-semibold text-white truncate">{req.request_number}</div>
+          {req.description && <div className="text-xs text-white/50 truncate">{req.description}</div>}
+          {!caseId && req.case_id && (
+            <div className="text-[10px] text-white/30 truncate">
+              {(projectCases ?? []).find(c => c.id === req.case_id)?.title ?? req.case_id}
+            </div>
+          )}
+        </div>
+        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${meta.color}`}>{meta.label}</span>
+        {showStatus && (
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${
+            status === 'done'      ? 'bg-green-500/20 text-green-300' :
+            status === 'error'     ? 'bg-red-500/20 text-red-300' :
+            status === 'importing' ? 'bg-blue-500/20 text-blue-300' :
+            status === 'approved'  ? 'bg-teal-500/20 text-teal-300' :
+                                     'bg-white/10 text-white/40'
+          }`}>
+            {status === 'importing'
+              ? <span className="flex items-center gap-1"><Loader2 size={9} className="animate-spin" />Running</span>
+              : status}
+          </span>
+        )}
+        {!showStatus && (
+          req.cofile_path
+            ? <span className="text-[10px] text-green-400 flex items-center gap-0.5 flex-shrink-0"><Check size={10} />Files</span>
+            : <span className="text-[10px] text-white/25 flex-shrink-0">No files</span>
+        )}
+        {!showStatus && (
+          <button onClick={() => onDelete(req.id)} className="text-white/20 hover:text-red-400 flex-shrink-0 transition-colors"><Trash2 size={12} /></button>
+        )}
+      </div>
+      {showStatus && is.log?.length > 0 && (
+        <div className="px-3 pb-2 font-mono text-[10px] text-white/40 space-y-0.5 border-t border-white/5">
+          {is.log.map((l, j) => <div key={j}>{l}</div>)}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── TransportTab ─────────────────────────────────────────────
 // Props:
@@ -200,8 +316,6 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
     const reader = new FileReader();
     reader.onload = e => {
       const text = e.target.result ?? '';
-      // CSV: split by comma or semicolon per line → number,description,type
-      // Plain text: one number (+ optional description) per line
       const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
       const parsed = lines.map(line => {
         const parts = line.split(/[,;]/).map(p => p.trim());
@@ -294,10 +408,11 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
   }
 
   async function moveRequest(id, dir) {
-    const idx = requests.findIndex(r => r.id === id);
+    const sorted = [...requests].sort((a, b) => (a.seq_order ?? 0) - (b.seq_order ?? 0));
+    const idx = sorted.findIndex(r => r.id === id);
     const nxt = idx + dir;
-    if (nxt < 0 || nxt >= requests.length) return;
-    const a = requests[idx], b = requests[nxt];
+    if (nxt < 0 || nxt >= sorted.length) return;
+    const a = sorted[idx], b = sorted[nxt];
     await Promise.all([
       supabase.from('transport_requests').update({ seq_order: b.seq_order }).eq('id', a.id),
       supabase.from('transport_requests').update({ seq_order: a.seq_order }).eq('id', b.id),
@@ -342,118 +457,13 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
   }
 
   // ── Derived counts ─────────────────────────────────────────
-  const doneCount  = requests.filter(r => r.status === 'done').length;
-  const errorCount = requests.filter(r => r.status === 'error').length;
-  const totalCount = requests.length;
+  const doneCount   = requests.filter(r => r.status === 'done').length;
+  const errorCount  = requests.filter(r => r.status === 'error').length;
+  const totalCount  = requests.length;
   const customizing = requests.filter(r => r.request_type === 'customizing');
   const workbench   = requests.filter(r => r.request_type === 'workbench');
   const ordered     = [...customizing, ...workbench];
-
-  // ── Sub-components ─────────────────────────────────────────
-  const Panel = ({ icon, title, sub, children }) => (
-    <div className="bg-gray-900/60 rounded-2xl border border-white/10 shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b border-white/10 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400 flex-shrink-0">{icon}</div>
-        <div>
-          <p className="font-bold text-white text-sm">{title}</p>
-          {sub && <p className="text-xs text-white/40 mt-0.5">{sub}</p>}
-        </div>
-      </div>
-      <div className="p-5 space-y-4">{children}</div>
-    </div>
-  );
-
-  const StepNav = ({ prev, next, prevLabel = '← Back', nextLabel = 'Continue →' }) => (
-    <div className="flex gap-2 pt-2">
-      {prev && <button onClick={() => setTrStep(prev)} className="px-4 py-2 text-xs font-semibold border border-white/15 rounded-lg hover:bg-white/5 text-white/60 transition-colors">{prevLabel}</button>}
-      {next && <button onClick={() => setTrStep(next)} className="px-4 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">{nextLabel}</button>}
-    </div>
-  );
-
-  const SectionLabel = ({ children }) => (
-    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest border-b border-white/10 pb-2 mb-3">{children}</p>
-  );
-
-  const ToggleRow = ({ label, desc, value, onChange }) => (
-    <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10 cursor-pointer" onClick={() => onChange(!value)}>
-      <div>
-        <p className="text-sm font-medium text-white">{label}</p>
-        {desc && <p className="text-xs text-white/40 mt-0.5">{desc}</p>}
-      </div>
-      <div className={`w-9 h-5 rounded-full relative transition-colors flex-shrink-0 ${value ? 'bg-blue-500' : 'bg-white/20'}`}>
-        <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${value ? 'left-[18px]' : 'left-0.5'}`} />
-      </div>
-    </div>
-  );
-
-  const RequestRow = ({ req, i, showStatus = false }) => {
-    const meta = TR_TYPE_META[req.request_type] ?? TR_TYPE_META.workbench;
-    const is   = importStates[req.id] ?? {};
-    const status = is.status ?? req.status ?? 'pending';
-    return (
-      <div className={`rounded-xl border ${meta.border} bg-white/5 overflow-hidden`}>
-        <div className="flex items-center gap-2.5 px-3 py-2.5">
-          <span className="w-5 h-5 rounded text-[10px] font-bold bg-white/10 text-white/50 flex items-center justify-center font-mono flex-shrink-0">{i + 1}</span>
-          <div className="flex-1 min-w-0">
-            <div className="font-mono text-sm font-semibold text-white truncate">{req.request_number}</div>
-            {req.description && <div className="text-xs text-white/50 truncate">{req.description}</div>}
-            {!caseId && req.case_id && (
-              <div className="text-[10px] text-white/30 truncate">
-                {projectCases.find(c => c.id === req.case_id)?.title ?? req.case_id}
-              </div>
-            )}
-          </div>
-          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${meta.color}`}>{meta.label}</span>
-          {showStatus && (
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${
-              status === 'done'       ? 'bg-green-500/20 text-green-300' :
-              status === 'error'      ? 'bg-red-500/20 text-red-300' :
-              status === 'importing'  ? 'bg-blue-500/20 text-blue-300' :
-              status === 'approved'   ? 'bg-teal-500/20 text-teal-300' :
-                                        'bg-white/10 text-white/40'
-            }`}>
-              {status === 'importing'
-                ? <span className="flex items-center gap-1"><Loader2 size={9} className="animate-spin" />Running</span>
-                : status}
-            </span>
-          )}
-          {!showStatus && (
-            req.cofile_path
-              ? <span className="text-[10px] text-green-400 flex items-center gap-0.5 flex-shrink-0"><Check size={10} />Files</span>
-              : <span className="text-[10px] text-white/25 flex-shrink-0">No files</span>
-          )}
-          {!showStatus && (
-            <button onClick={() => deleteRequest(req.id)} className="text-white/20 hover:text-red-400 flex-shrink-0 transition-colors"><Trash2 size={12} /></button>
-          )}
-        </div>
-        {showStatus && is.log?.length > 0 && (
-          <div className="px-3 pb-2 font-mono text-[10px] text-white/40 space-y-0.5 border-t border-white/5">
-            {is.log.map((l, j) => <div key={j}>{l}</div>)}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const Stepper = () => (
-    <div className="bg-gray-900/60 rounded-2xl border border-white/10 px-4 py-3">
-      <div className="flex items-start overflow-x-auto gap-0 pb-0.5">
-        {TR_STEPS.map((s, i) => {
-          const n = i + 1, isActive = trStep === n, isDone = trStep > n;
-          return (
-            <button key={n} onClick={() => setTrStep(n)} className="flex flex-col items-center flex-1 min-w-[52px] relative">
-              {i > 0 && <div className={`absolute top-[15px] right-1/2 w-full h-0.5 ${isDone ? 'bg-blue-500' : 'bg-white/15'}`} />}
-              <div className={`w-[30px] h-[30px] rounded-full border-2 flex items-center justify-center relative z-10 transition-all
-                ${isActive ? 'border-blue-500 bg-blue-500/20 text-blue-400' : isDone ? 'border-green-500 bg-green-500/20 text-green-400' : 'border-white/20 bg-white/5 text-white/30'}`}>
-                {isDone ? <Check size={12} /> : s.icon}
-              </div>
-              <span className={`text-[9px] font-bold mt-1 uppercase tracking-wider ${isActive ? 'text-blue-400' : isDone ? 'text-green-400' : 'text-white/30'}`}>{s.label}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
+  const sortedBySeq = [...requests].sort((a, b) => (a.seq_order ?? 0) - (b.seq_order ?? 0));
 
   if (loading) return (
     <div className="flex justify-center py-12">
@@ -463,14 +473,14 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
 
   return (
     <div className="space-y-4">
-      <Stepper />
+      <TrStepper step={trStep} onStep={setTrStep} />
 
       {/* ── Step 1: Setup ──────────────────────────────────── */}
       {trStep === 1 && (
-        <Panel icon={<Settings size={15} />} title="Transport Setup"
+        <TrPanel icon={<Settings size={15} />} title="Transport Setup"
           sub="Configure mode, environments and target client">
 
-          <SectionLabel>Transport Mode</SectionLabel>
+          <TrSectionLabel>Transport Mode</TrSectionLabel>
           <div className="flex gap-2">
             {[['external', 'External (different systems)'], ['internal', 'Internal (same system)']].map(([val, lbl]) => (
               <button key={val} onClick={() => setTransportMode(val)}
@@ -528,14 +538,14 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
             </div>
           </div>
 
-          <ToggleRow label="Stop on Error" desc="Pause the import sequence if any transport fails" value={stopOnError} onChange={setStopOnError} />
-          <StepNav next={2} nextLabel="Add Requests →" />
-        </Panel>
+          <TrToggleRow label="Stop on Error" desc="Pause the import sequence if any transport fails" value={stopOnError} onChange={setStopOnError} />
+          <TrStepNav next={2} onStep={setTrStep} nextLabel="Add Requests →" />
+        </TrPanel>
       )}
 
       {/* ── Step 2: Requests ───────────────────────────────── */}
       {trStep === 2 && (
-        <Panel icon={<Package size={15} />} title="Transport Requests"
+        <TrPanel icon={<Package size={15} />} title="Transport Requests"
           sub={`${totalCount} total · ${customizing.length} customizing · ${workbench.length} workbench`}>
 
           {/* Single add */}
@@ -605,22 +615,24 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
             <div className="text-center py-8 text-sm text-white/30">No transport requests yet.</div>
           ) : (
             <>
-              <SectionLabel>{totalCount} requests · customizing first at runtime</SectionLabel>
+              <TrSectionLabel>{totalCount} requests · customizing first at runtime</TrSectionLabel>
               <div className="space-y-2">
-                {[...requests].sort((a, b) => (a.seq_order ?? 0) - (b.seq_order ?? 0)).map((req, i) => (
-                  <RequestRow key={req.id} req={req} i={i} />
+                {sortedBySeq.map((req, i) => (
+                  <TrRequestRow key={req.id} req={req} i={i}
+                    importStates={importStates} caseId={caseId} projectCases={projectCases}
+                    onDelete={deleteRequest} />
                 ))}
               </div>
             </>
           )}
 
-          <StepNav prev={1} next={3} nextLabel="Set Sequence →" />
-        </Panel>
+          <TrStepNav prev={1} next={3} onStep={setTrStep} nextLabel="Set Sequence →" />
+        </TrPanel>
       )}
 
       {/* ── Step 3: Sequence ──────────────────────────────── */}
       {trStep === 3 && (
-        <Panel icon={<List size={15} />} title="Import Sequence"
+        <TrPanel icon={<List size={15} />} title="Import Sequence"
           sub="Drag to reorder. Customizing always executes before workbench at runtime.">
 
           {requests.length === 0 ? (
@@ -631,54 +643,52 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
                 <strong>Execution order:</strong> customizing transports always run before workbench, regardless of sequence. Use this step to set the order within each type group.
               </div>
               <div className="space-y-2">
-                {[...requests]
-                  .sort((a, b) => (a.seq_order ?? 0) - (b.seq_order ?? 0))
-                  .map((req, i, arr) => {
-                    const meta = TR_TYPE_META[req.request_type] ?? TR_TYPE_META.workbench;
-                    const isDragOver = dropIdx === i;
-                    return (
-                      <div key={req.id}
-                        draggable
-                        onDragStart={() => setDragIdx(i)}
-                        onDragOver={e => { e.preventDefault(); setDropIdx(i); }}
-                        onDragLeave={() => setDropIdx(null)}
-                        onDrop={e => { e.preventDefault(); reorderRequests(dragIdx, i); setDragIdx(null); setDropIdx(null); }}
-                        onDragEnd={() => { setDragIdx(null); setDropIdx(null); }}
-                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border ${meta.border} bg-white/5 cursor-grab active:cursor-grabbing transition-all
-                          ${isDragOver ? 'border-blue-500/50 bg-blue-500/10 scale-[1.01]' : ''}
-                          ${dragIdx === i ? 'opacity-40' : ''}`}>
-                        <GripVertical size={14} className="text-white/20 flex-shrink-0" />
-                        <span className="w-5 h-5 rounded text-[10px] font-bold bg-white/10 text-white/50 flex items-center justify-center font-mono flex-shrink-0">{i + 1}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-mono text-sm font-semibold text-white truncate">{req.request_number}</div>
-                          {req.description && <div className="text-xs text-white/40 truncate">{req.description}</div>}
-                        </div>
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${meta.color}`}>{meta.label}</span>
-                        <button onClick={() => moveRequest(req.id, -1)} disabled={i === 0}
-                          className="text-white/20 hover:text-white/60 flex-shrink-0 disabled:opacity-20 transition-colors"><ArrowUp size={12} /></button>
-                        <button onClick={() => moveRequest(req.id, +1)} disabled={i === arr.length - 1}
-                          className="text-white/20 hover:text-white/60 flex-shrink-0 disabled:opacity-20 transition-colors"><ArrowDown size={12} /></button>
+                {sortedBySeq.map((req, i, arr) => {
+                  const meta = TR_TYPE_META[req.request_type] ?? TR_TYPE_META.workbench;
+                  const isDragOver = dropIdx === i;
+                  return (
+                    <div key={req.id}
+                      draggable
+                      onDragStart={() => setDragIdx(i)}
+                      onDragOver={e => { e.preventDefault(); setDropIdx(i); }}
+                      onDragLeave={() => setDropIdx(null)}
+                      onDrop={e => { e.preventDefault(); reorderRequests(dragIdx, i); setDragIdx(null); setDropIdx(null); }}
+                      onDragEnd={() => { setDragIdx(null); setDropIdx(null); }}
+                      className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border ${meta.border} bg-white/5 cursor-grab active:cursor-grabbing transition-all
+                        ${isDragOver ? 'border-blue-500/50 bg-blue-500/10 scale-[1.01]' : ''}
+                        ${dragIdx === i ? 'opacity-40' : ''}`}>
+                      <GripVertical size={14} className="text-white/20 flex-shrink-0" />
+                      <span className="w-5 h-5 rounded text-[10px] font-bold bg-white/10 text-white/50 flex items-center justify-center font-mono flex-shrink-0">{i + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-mono text-sm font-semibold text-white truncate">{req.request_number}</div>
+                        {req.description && <div className="text-xs text-white/40 truncate">{req.description}</div>}
                       </div>
-                    );
-                  })}
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${meta.color}`}>{meta.label}</span>
+                      <button onClick={() => moveRequest(req.id, -1)} disabled={i === 0}
+                        className="text-white/20 hover:text-white/60 flex-shrink-0 disabled:opacity-20 transition-colors"><ArrowUp size={12} /></button>
+                      <button onClick={() => moveRequest(req.id, +1)} disabled={i === arr.length - 1}
+                        className="text-white/20 hover:text-white/60 flex-shrink-0 disabled:opacity-20 transition-colors"><ArrowDown size={12} /></button>
+                    </div>
+                  );
+                })}
               </div>
             </>
           )}
 
-          <StepNav prev={2} next={4} nextLabel="Set Approval →" />
-        </Panel>
+          <TrStepNav prev={2} next={4} onStep={setTrStep} nextLabel="Set Approval →" />
+        </TrPanel>
       )}
 
       {/* ── Step 4: Approval ───────────────────────────────── */}
       {trStep === 4 && (
-        <Panel icon={<Eye size={15} />} title="Approval"
+        <TrPanel icon={<Eye size={15} />} title="Approval"
           sub="Assign a reviewer and send them the approval link">
 
           <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-xs text-blue-300">
             Generate a link to send to the reviewer before running the import. They can approve or reject the transport list.
           </div>
 
-          <SectionLabel>Reviewer</SectionLabel>
+          <TrSectionLabel>Reviewer</TrSectionLabel>
           <div className="flex gap-3 items-start">
             {reviewerProfile?.avatar_url ? (
               <img src={reviewerProfile.avatar_url} className="w-9 h-9 rounded-full object-cover flex-shrink-0 mt-1" alt="" />
@@ -718,13 +728,13 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
             {linkCopied ? 'Copied to clipboard!' : genLinkLoading ? 'Generating…' : batchApproval.token ? 'Regenerate & Copy Link' : 'Generate & Copy Link'}
           </button>
 
-          <StepNav prev={3} next={5} nextLabel="Go to Run →" />
-        </Panel>
+          <TrStepNav prev={3} next={5} onStep={setTrStep} nextLabel="Go to Run →" />
+        </TrPanel>
       )}
 
       {/* ── Step 5: Run ────────────────────────────────────── */}
       {trStep === 5 && (
-        <Panel icon={<Play size={15} />} title="Import Run"
+        <TrPanel icon={<Play size={15} />} title="Import Run"
           sub={`${totalCount} requests · ${transportMode === 'internal' ? 'internal client transport' : 'external system import'} · customizing first`}>
 
           <div className="flex justify-between text-xs text-white/40 mb-1.5">
@@ -736,7 +746,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
               style={{ width: totalCount ? `${Math.round(doneCount / totalCount * 100)}%` : '0%' }} />
           </div>
 
-          <ToggleRow label="Stop on Error" desc="Pause if any transport import fails" value={stopOnError} onChange={setStopOnError} />
+          <TrToggleRow label="Stop on Error" desc="Pause if any transport import fails" value={stopOnError} onChange={setStopOnError} />
 
           <button onClick={runImport} disabled={requests.length === 0 || requests.every(r => r.status === 'done')}
             className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold bg-green-600 hover:bg-green-700 text-white rounded-xl disabled:opacity-50 transition-colors">
@@ -745,18 +755,22 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
 
           {totalCount > 0 && (
             <div className="space-y-2">
-              <SectionLabel>Queue · customizing → workbench</SectionLabel>
-              {ordered.map((req, i) => <RequestRow key={req.id} req={req} i={i} showStatus />)}
+              <TrSectionLabel>Queue · customizing → workbench</TrSectionLabel>
+              {ordered.map((req, i) => (
+                <TrRequestRow key={req.id} req={req} i={i} showStatus
+                  importStates={importStates} caseId={caseId} projectCases={projectCases}
+                  onDelete={deleteRequest} />
+              ))}
             </div>
           )}
 
-          <StepNav prev={4} next={6} nextLabel="See Results →" />
-        </Panel>
+          <TrStepNav prev={4} next={6} onStep={setTrStep} nextLabel="See Results →" />
+        </TrPanel>
       )}
 
       {/* ── Step 6: Results ────────────────────────────────── */}
       {trStep === 6 && (
-        <Panel icon={<CheckCircle2 size={15} />} title="Results"
+        <TrPanel icon={<CheckCircle2 size={15} />} title="Results"
           sub={doneCount > 0 ? `Last import ${new Date(requests.find(r => r.applied_at)?.applied_at ?? Date.now()).toLocaleString()}` : 'No imports run yet'}>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -775,7 +789,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
 
           {requests.filter(r => r.status === 'done').length > 0 && (
             <>
-              <SectionLabel>Completed ({doneCount})</SectionLabel>
+              <TrSectionLabel>Completed ({doneCount})</TrSectionLabel>
               <div className="space-y-1.5">
                 {requests.filter(r => r.status === 'done').map(req => (
                   <div key={req.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-green-500/30 bg-green-500/10">
@@ -791,7 +805,7 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
 
           {errorCount > 0 && (
             <>
-              <SectionLabel>Errors ({errorCount})</SectionLabel>
+              <TrSectionLabel>Errors ({errorCount})</TrSectionLabel>
               <div className="space-y-1.5">
                 {requests.filter(r => r.status === 'error').map(req => (
                   <div key={req.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-red-500/30 bg-red-500/10">
@@ -804,13 +818,13 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
             </>
           )}
 
-          <StepNav prev={5} next={7} nextLabel="View Logs →" />
-        </Panel>
+          <TrStepNav prev={5} next={7} onStep={setTrStep} nextLabel="View Logs →" />
+        </TrPanel>
       )}
 
       {/* ── Step 7: Logs ───────────────────────────────────── */}
       {trStep === 7 && (
-        <Panel icon={<FileText size={15} />} title="Import Logs"
+        <TrPanel icon={<FileText size={15} />} title="Import Logs"
           sub="Platform events and CTS response detail">
 
           <div className="flex gap-0 border-b border-white/10 -mt-2 mb-4">
@@ -866,8 +880,8 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
               )
           )}
 
-          <StepNav prev={6} />
-        </Panel>
+          <TrStepNav prev={6} onStep={setTrStep} />
+        </TrPanel>
       )}
     </div>
   );
