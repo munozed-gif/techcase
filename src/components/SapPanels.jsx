@@ -3327,6 +3327,55 @@ Output ONLY the ABAP source (CLASS DEFINITION ... CLASS IMPLEMENTATION ... ENDCL
     }
   }
 
+  async function handleGenerateBcsetInfo(obj) {
+    setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), generatingBcset: true } }));
+    try {
+      const prompt = `You are an SAP Best Practices expert. For the following SAP customizing parameter, identify the relevant SAP Best Practices BCset(s) and provide activation guidance.
+
+Configuration: ${obj.name}
+Description: ${obj.description ?? 'No description provided'}
+SAP Module: ${caseData.area_sap ?? 'general'}
+Project: ${caseData.title}
+
+Respond in this exact structure (plain text, no markdown):
+
+BCSET NAME(S):
+[List the exact SAP Best Practices BCset name(s), e.g. /SMB40/J_1BTXJUR_C, or "Not covered by standard Best Practices BCsets" if none exist]
+
+SCOPE ITEM:
+[The SAP Best Practices scope item or solution package this BCset belongs to, e.g. "J45 – Accounts Payable (Brazil)" or the generic package]
+
+CUSTOMIZING TABLES AFFECTED:
+[List the main customizing tables this BCset writes to, e.g. T001, TVKO, T005]
+
+ACTIVATION STEPS (SCPR20):
+1. [Step-by-step: transaction SCPR20 → find BCset → activation mode → client assignment → execute]
+
+ACTIVATION MODE:
+[Client-specific (client-dependent) or Cross-client (client-independent) — and what that means for transport]
+
+PREREQUISITES:
+[Any BCsets or configuration that must be activated first]
+
+TRANSPORT GENERATED:
+[What transport request type is created and how to handle it]
+
+IF BCSET NOT AVAILABLE:
+[What to do if the BCset is not installed — e.g. download from SAP Best Practices Explorer, import via /SMB/BBI, or configure manually via SPRO]`;
+
+      const resp = await callClaude({
+        model: genModel,
+        system: 'You are an expert SAP Best Practices consultant. Always provide exact BCset names when they exist. If a BCset is not part of standard Best Practices, say so clearly and explain the manual alternative.',
+        messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
+        max_tokens: 1800,
+      });
+      const bcsetInfo = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
+      setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), generatingBcset: false, bcsetInfo } }));
+    } catch (e) {
+      setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), generatingBcset: false, bcsetError: e.message } }));
+    }
+  }
+
   // ── Derived data ────────────────────────────────────────
   const implLog      = (settings['sap_impl_log'] ?? {})[caseData.id] ?? [];
   const appliedCount = implLog.length;
@@ -3737,16 +3786,17 @@ Output ONLY the ABAP source (CLASS DEFINITION ... CLASS IMPLEMENTATION ... ENDCL
                                 <div className="border-t border-amber-500/20">
                                   {/* tab row */}
                                   <div className="flex gap-0 px-3 pt-2">
-                                    {[['guide', <><FileText size={10} /> Creation Guide</>], ...(canAdt ? [['adt', <><Code2 size={10} /> ADT Code</>]] : [])].map(([key, lbl]) => (
+                                    {[
+                                      ['guide', <><FileText size={10} /> {obj.type === 'config' ? 'SPRO Guide' : 'Creation Guide'}</>],
+                                      ...(canAdt ? [['adt', <><Code2 size={10} /> ADT Code</>]] : []),
+                                      ...(obj.type === 'config' ? [['bcset', <><Sparkles size={10} /> BCset</>]] : []),
+                                    ].map(([key, lbl]) => (
                                       <button key={key} onClick={() => setDetailTab(key)}
                                         className={`flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold rounded-t-lg border-b-2 transition-colors
                                           ${detailTab === key ? 'border-amber-400 text-amber-300' : 'border-transparent text-white/30 hover:text-white/60'}`}>
                                         {lbl}
                                       </button>
                                     ))}
-                                    {obj.type === 'config' && (
-                                      <span className="ml-auto text-[10px] text-white/25 self-center pr-1">SPRO only — no ADT code</span>
-                                    )}
                                   </div>
 
                                   <div className="px-3 pb-3 pt-2">
@@ -3807,6 +3857,38 @@ Output ONLY the ABAP source (CLASS DEFINITION ... CLASS IMPLEMENTATION ... ENDCL
                                           <pre className="text-xs text-green-300 font-mono leading-relaxed whitespace-pre-wrap bg-black/30 rounded-lg p-3 max-h-72 overflow-y-auto">{specState.adtCode}</pre>
                                         ) : !specState.generatingAdt && (
                                           <p className="text-xs text-white/30 py-2">Click "Generate Code" for ADT-ready source to paste in Eclipse.</p>
+                                        )}
+                                      </>
+                                    )}
+
+                                    {/* BCset tab — config objects only */}
+                                    {detailTab === 'bcset' && obj.type === 'config' && (
+                                      <>
+                                        <div className="mb-2 p-2.5 rounded-lg bg-violet-500/10 border border-violet-500/20 text-[10px] text-violet-300 leading-relaxed space-y-1">
+                                          <p><strong>SAP Best Practices BCsets</strong> are pre-packaged customizing sets activated via <span className="font-mono">SCPR20</span>. They write directly to customizing tables — no IMG clicking required.</p>
+                                          <p>If the BCset is not installed, download it from <strong>SAP Best Practices Explorer</strong> (rapid.sap.com) and import via <span className="font-mono">/SMB/BBI</span>.</p>
+                                        </div>
+                                        <div className="flex items-center justify-between mb-2">
+                                          <span className="text-[10px] text-white/30">BCset name · activation steps · tables affected</span>
+                                          <div className="flex gap-2">
+                                            {specState.bcsetInfo && (
+                                              <button onClick={() => navigator.clipboard?.writeText(specState.bcsetInfo)}
+                                                className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-white/10 text-white/60 border border-white/15 hover:bg-white/15 transition-colors">
+                                                <Copy size={10} />Copy
+                                              </button>
+                                            )}
+                                            <button onClick={() => handleGenerateBcsetInfo(obj)} disabled={specState.generatingBcset}
+                                              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-violet-500/20 text-violet-300 border border-violet-500/30 hover:bg-violet-500/30 disabled:opacity-50 transition-colors">
+                                              <Sparkles size={11} />
+                                              {specState.generatingBcset ? 'Generating…' : specState.bcsetInfo ? 'Regenerate' : 'Find BCset'}
+                                            </button>
+                                          </div>
+                                        </div>
+                                        {specState.bcsetError && <p className="text-xs text-red-400 py-2">Error: {specState.bcsetError}</p>}
+                                        {specState.bcsetInfo ? (
+                                          <pre className="text-xs text-violet-200 font-mono leading-relaxed whitespace-pre-wrap bg-black/20 rounded-lg p-3 max-h-72 overflow-y-auto">{specState.bcsetInfo}</pre>
+                                        ) : !specState.generatingBcset && (
+                                          <p className="text-xs text-white/30 py-2">Click "Find BCset" to identify the SAP Best Practices BCset for this configuration, with SCPR20 activation steps and affected tables.</p>
                                         )}
                                       </>
                                     )}
