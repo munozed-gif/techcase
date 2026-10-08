@@ -2291,22 +2291,28 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
       if (!window.confirm(msg)) return;
     }
 
-    const prompt = `You are an SAP architect. Analyze this implementation case and suggest the SAP development objects needed.
+    const prompt = `You are an SAP architect. Analyze this implementation case and suggest ALL SAP objects needed — both custom ABAP development AND SPRO/IMG customizing configuration.
 
 Case: ${caseData.title}
 Description: ${caseData.description ?? ''}
 SAP Module: ${caseData.area_sap ?? 'general'}
-Activities: ${activities.slice(0, 10).map(a => a.title).join(', ')}
+Activities: ${activities.slice(0, 15).map(a => a.title).join(', ')}
 
-Return ONLY a valid JSON array (no markdown, no explanation) of objects. Each object must have:
-- name: string (SAP object name, e.g. ZPROG_ORDER)
+Include BOTH:
+1. ABAP development objects (programs, classes, BAdIs, tables, etc.)
+2. Customizing/SPRO objects (type "config") — any IMG setting, parameter, movement type, account key, payment term, plant config, etc. that needs to be created or adjusted.
+
+For config objects: use a short uppercase descriptor as name (e.g. MT_901, PAYMENT_TERMS_30D, PLANT_CONFIG_1000). Include the source entry to copy from in the description if applicable.
+
+Return ONLY a valid JSON array (no markdown, no explanation). Each object must have:
+- name: string
 - type: one of [${Object.keys(BP_TYPES).join(', ')}]
-- phase: one of [dictionary, development, integration, enhancement, ui]
-- description: string (one sentence)
-- aiCapable: boolean
-- dependsOn: array of names of other objects in this list that this depends on (use names, not ids)
+- phase: one of [config, dictionary, development, integration, enhancement, ui]
+- description: string (for config: describe what to configure and source key if copying)
+- aiCapable: boolean (always false for type "config")
+- dependsOn: array of names of other objects in this list this depends on
 
-Suggest 5-12 objects that cover the full implementation scope.`;
+Suggest 5-15 objects covering the full scope.`;
 
     try {
       const resp = await callClaude({
@@ -2325,7 +2331,7 @@ Suggest 5-12 objects that cover the full implementation scope.`;
           id,
           name: item.name,
           type: BP_TYPES[item.type] ? item.type : 'program',
-          phase: item.phase ?? BP_TYPES[item.type]?.phase ?? 'development',
+          phase: (item.phase && BP_PHASES.some(p => p.id === item.phase)) ? item.phase : (BP_TYPES[item.type]?.phase ?? 'development'),
           description: item.description ?? '',
           aiCapable: item.aiCapable ?? (BP_TYPES[item.type]?.ai ?? true),
           dependsOn: [],
@@ -3133,6 +3139,126 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
     const cur = settings['sap_impl_specs'] ?? {};
     await ssCtx.setSetting('sap_impl_specs', { ...cur, [caseData.id]: newSpecs });
   }
+
+  async function handleGenerateConfigScript(obj) {
+    const isCloud = bcsetSysType === 's4_cloud';
+    setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), generatingScript: true, scriptError: null } }));
+    try {
+      let prompt, system;
+      if (isCloud) {
+        prompt = `You are an SAP S/4HANA Cloud Public Edition configuration expert.
+For the following customizing requirement, determine if SAP provides a standard OData/REST API on the SAP API Business Hub.
+
+Configuration: ${obj.name}
+Description: ${obj.description ?? ''}
+SAP Module: ${caseData.area_sap ?? 'general'}
+Project: ${caseData.title}
+
+Respond in this exact structure:
+
+API AVAILABLE: [Yes / No / Partial]
+API ENDPOINT: [if Yes: full OData service name + entity set + HTTP method, e.g. POST /sap/opu/odata/sap/API_PAYMENTTERMS_SRV/A_PaymentTerms]
+REQUEST BODY: [if Yes: minimal JSON/XML sample showing required fields and values]
+AUTHENTICATION: [OAuth2 / Basic — and which scope if OAuth2]
+
+CBC PATH: [if No/Partial: exact path in "Configure Your Solution" or Central Business Configuration: Scope Item > Configuration Activity > field values]
+FIORI APP: [Fiori app name/ID if applicable]
+
+LIMITATIONS: [what cannot be configured via API or CBC — escalate to SAP]
+NOTES: [transport/change management, release dependency, prerequisites]`;
+        system = 'You are an expert SAP S/4HANA Cloud configuration specialist. Be precise and honest about API availability.';
+      } else {
+        prompt = `You are an SAP ABAP developer. Generate a complete, executable ABAP report to implement this customizing configuration in SAP ECC or S/4HANA On-Premise.
+
+Configuration: ${obj.name}
+Description: ${obj.description ?? ''}
+SAP Module: ${caseData.area_sap ?? 'general'}
+Transport Request: ${transportReq || 'will be assigned at runtime'}
+Project: ${caseData.title}
+
+Requirements:
+- REPORT name must start with ZTECHCASE_ followed by a short descriptor (max 30 chars total)
+- If copying an existing entry (e.g. MT 101 → 901): read from source customizing tables and INSERT target rows
+- Use standard SAP customizing tables directly (e.g. T156/T156X/T156W for movement types, T052/T052U for payment terms)
+- Assign changes to transport: use CALL FUNCTION 'TR_OBJECT_INSERT' or set sy-tcode and let SAP auto-assign
+- Output results with WRITE: object created, transport assigned, errors
+- Handle exceptions: check if target already exists before inserting
+- Comment each section
+
+Return ONLY the ABAP code — no explanation, no markdown fences.`;
+        system = 'You are an expert SAP ABAP developer specializing in customizing automation. Return only raw ABAP code.';
+      }
+      const resp = await callClaude({
+        model: genModel, system,
+        messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
+        max_tokens: 3500,
+      });
+      const configScript = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
+      const newSpecs = { ...manualSpecs, [obj.id]: { ...(manualSpecs[obj.id] ?? {}), generatingScript: false, configScript, scriptType: isCloud ? 'cloud' : 'abap' } };
+      setManualSpecs(newSpecs);
+      saveSpecs(newSpecs);
+    } catch (e) {
+      setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), generatingScript: false, scriptError: e.message } }));
+    }
+  }
+
+  async function handleApplyConfigScript(obj) {
+    if (!sapConfig?.host) return;
+    const specState = manualSpecs[obj.id] ?? {};
+    if (!specState.configScript || specState.scriptType !== 'abap') return;
+    const programName = ('ZTECHCASE_' + obj.name.replace(/[^A-Z0-9]/gi, '').toUpperCase()).slice(0, 30);
+    const addLog = (msg) => setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), scriptLog: [...(p[obj.id]?.scriptLog ?? []), msg] } }));
+    setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), applyingScript: true, scriptLog: [], appliedScript: false, scriptApplyError: null } }));
+    try {
+      addLog(`Writing ${programName} to SAP…`);
+      const writeResult = await sapWriteSourceDetail(enrichedSapConfig, 'program', programName, specState.configScript, transportReq || undefined);
+      if (!writeResult.ok) throw new Error(writeResult.error ?? writeResult.hint ?? `HTTP ${writeResult.status}`);
+      addLog('✓ Program written to SAP');
+      addLog('Activating…');
+      try {
+        const csrfToken = await sapGetCsrfToken(enrichedSapConfig);
+        const activateBody = `<?xml version="1.0" encoding="utf-8"?><adtcore:objectReferences xmlns:adtcore="http://www.sap.com/adt/core"><adtcore:objectReference adtcore:uri="/sap/bc/adt/programs/programs/${programName}" adtcore:name="${programName}"/></adtcore:objectReferences>`;
+        await sapApiRequest(enrichedSapConfig, '/sap/bc/adt/activation/activate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/vnd.sap.adt.activation.request+xml; charset=utf-8', 'X-CSRF-Token': csrfToken },
+          body: activateBody,
+        });
+        addLog('✓ Activated');
+      } catch (e) { addLog(`⚠ Activation: ${e.message}`); }
+      const newSpecs = { ...manualSpecs, [obj.id]: { ...(manualSpecs[obj.id] ?? {}), applyingScript: false, appliedScript: true, appliedProgramName: programName, scriptLog: [...(manualSpecs[obj.id]?.scriptLog ?? []), '→ Click "Run on SAP" to execute'] } };
+      setManualSpecs(newSpecs);
+      saveSpecs(newSpecs);
+    } catch (e) {
+      const newSpecs = { ...manualSpecs, [obj.id]: { ...(manualSpecs[obj.id] ?? {}), applyingScript: false, scriptApplyError: e.message } };
+      setManualSpecs(newSpecs);
+      saveSpecs(newSpecs);
+    }
+  }
+
+  async function handleRunConfigScript(obj) {
+    if (!sapConfig?.host) return;
+    const specState = manualSpecs[obj.id] ?? {};
+    const programName = specState.appliedProgramName;
+    if (!programName) return;
+    setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), runningScript: true, runError: null } }));
+    try {
+      const csrfToken = await sapGetCsrfToken(enrichedSapConfig);
+      const runResp = await sapApiRequest(enrichedSapConfig, `/sap/bc/adt/programs/programs/${programName}/executions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/vnd.sap.adt.programs.runs.newrun+xml', 'X-CSRF-Token': csrfToken },
+        body: `<?xml version="1.0"?><programs:newRun xmlns:programs="http://www.sap.com/adt/programs"><programs:mode>foreground</programs:mode></programs:newRun>`,
+      });
+      const ok = runResp.ok || runResp.status === 200 || runResp.status === 201;
+      const newSpecs = { ...manualSpecs, [obj.id]: { ...(manualSpecs[obj.id] ?? {}), runningScript: false, scriptExecuted: ok, runError: ok ? null : `SAP returned HTTP ${runResp.status} — run manually in SE38` } };
+      setManualSpecs(newSpecs);
+      saveSpecs(newSpecs);
+    } catch (e) {
+      const newSpecs = { ...manualSpecs, [obj.id]: { ...(manualSpecs[obj.id] ?? {}), runningScript: false, runError: e.message } };
+      setManualSpecs(newSpecs);
+      saveSpecs(newSpecs);
+    }
+  }
+
   async function handleCheckSap(actId) {
     if (!sapConfig?.host) return;
     const obj = objectMap[actId];
@@ -3852,6 +3978,7 @@ FALLBACK:
                                       ['guide', <><FileText size={10} /> {obj.type === 'config' ? 'SPRO Guide' : 'Creation Guide'}</>],
                                       ...(canAdt ? [['adt', <><Code2 size={10} /> ADT Code</>]] : []),
                                       ...(obj.type === 'config' ? [['bcset', <><Sparkles size={10} /> BCset</>]] : []),
+                                      ...(obj.type === 'config' && sapConfig?.host ? [['autoconfig', <><Play size={10} /> Auto Config</>]] : []),
                                     ].map(([key, lbl]) => (
                                       <button key={key} onClick={() => setDetailTab(key)}
                                         className={`flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold rounded-t-lg border-b-2 transition-colors
@@ -3983,6 +4110,99 @@ FALLBACK:
                                             {bcsetSysType === 's4_cloud'
                                               ? 'Click "Find Scope Item" for the CBC activation path and Configure Your Solution steps.'
                                               : 'Click "Find BCset" for the exact BCset name, SCPR20 activation steps, and affected customizing tables.'}
+                                          </p>
+                                        )}
+                                      </>
+                                    )}
+
+                                    {/* Auto Config tab — On-Prem: ABAP script + apply + run; Cloud: OData/CBC guide */}
+                                    {detailTab === 'autoconfig' && obj.type === 'config' && sapConfig?.host && (
+                                      <>
+                                        {/* Step indicators */}
+                                        <div className="flex items-center gap-1.5 mb-3">
+                                          {[
+                                            { n: 1, label: 'Generate', done: !!specState.configScript },
+                                            { n: 2, label: 'Write to SAP', done: !!specState.appliedScript },
+                                            { n: 3, label: 'Execute', done: !!specState.scriptExecuted },
+                                          ].map((s, i, arr) => (
+                                            <div key={s.n} className="flex items-center gap-1">
+                                              <span className={`w-5 h-5 rounded-full text-[9px] font-bold flex items-center justify-center ${s.done ? 'bg-green-500 text-white' : 'bg-white/10 text-white/40'}`}>{s.done ? '✓' : s.n}</span>
+                                              <span className={`text-[10px] ${s.done ? 'text-green-400' : 'text-white/30'}`}>{s.label}</span>
+                                              {i < arr.length - 1 && <span className="text-white/20 text-[10px]">→</span>}
+                                            </div>
+                                          ))}
+                                          {bcsetSysType === 's4_cloud' && <span className="ml-auto text-[9px] text-violet-300 bg-violet-500/20 px-2 py-0.5 rounded-full">Cloud Mode</span>}
+                                        </div>
+
+                                        {/* Step 1: Generate script */}
+                                        <div className="flex items-center justify-between mb-1.5">
+                                          <span className="text-[10px] text-white/30">
+                                            {bcsetSysType === 's4_cloud' ? 'OData API or CBC configuration guide' : 'ABAP report to implement the customizing change'}
+                                          </span>
+                                          <div className="flex gap-2">
+                                            {specState.configScript && (
+                                              <button onClick={() => navigator.clipboard?.writeText(specState.configScript)}
+                                                className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-lg bg-white/10 text-white/50 border border-white/15 hover:bg-white/15 transition-colors">
+                                                <Copy size={9} />Copy
+                                              </button>
+                                            )}
+                                            <button onClick={() => handleGenerateConfigScript(obj)} disabled={specState.generatingScript}
+                                              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-green-500/20 text-green-300 border border-green-500/30 hover:bg-green-500/30 disabled:opacity-50 transition-colors">
+                                              <Sparkles size={11} />
+                                              {specState.generatingScript ? 'Generating…' : specState.configScript ? 'Regenerate' : bcsetSysType === 's4_cloud' ? 'Generate Cloud Guide' : 'Generate ABAP Script'}
+                                            </button>
+                                          </div>
+                                        </div>
+                                        {specState.scriptError && <p className="text-xs text-red-400 mb-2">Error: {specState.scriptError}</p>}
+                                        {specState.configScript && (
+                                          <pre className="text-xs font-mono leading-relaxed whitespace-pre-wrap rounded-lg p-3 max-h-56 overflow-y-auto mb-3 bg-black/30 text-green-200">{specState.configScript}</pre>
+                                        )}
+
+                                        {/* Step 2 & 3: Write + Run (On-Prem only) */}
+                                        {specState.configScript && bcsetSysType !== 's4_cloud' && (
+                                          <div className="space-y-2">
+                                            <div className="flex items-center gap-2">
+                                              <button onClick={() => handleApplyConfigScript(obj)}
+                                                disabled={specState.applyingScript || specState.appliedScript}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 disabled:opacity-40 transition-colors">
+                                                <Upload size={11} />
+                                                {specState.applyingScript ? 'Writing to SAP…' : specState.appliedScript ? '✓ Written to SAP' : 'Write to SAP'}
+                                              </button>
+                                              {specState.appliedScript && (
+                                                <button onClick={() => handleRunConfigScript(obj)}
+                                                  disabled={specState.runningScript || specState.scriptExecuted}
+                                                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-green-500/20 text-green-300 border border-green-500/30 hover:bg-green-500/30 disabled:opacity-40 transition-colors">
+                                                  <Play size={11} />
+                                                  {specState.runningScript ? 'Running…' : specState.scriptExecuted ? '✓ Executed' : 'Run on SAP'}
+                                                </button>
+                                              )}
+                                            </div>
+                                            {specState.scriptLog?.length > 0 && (
+                                              <div className="bg-black/30 rounded-lg p-2.5 space-y-0.5">
+                                                {specState.scriptLog.map((line, i) => (
+                                                  <p key={i} className={`text-[10px] font-mono ${line.startsWith('✓') ? 'text-green-400' : line.startsWith('⚠') ? 'text-amber-400' : line.startsWith('→') ? 'text-blue-300' : 'text-white/50'}`}>{line}</p>
+                                                ))}
+                                              </div>
+                                            )}
+                                            {specState.scriptApplyError && <p className="text-xs text-red-400">Error: {specState.scriptApplyError}</p>}
+                                            {specState.runError && (
+                                              <div className="text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2">
+                                                ADT execution not available: {specState.runError}<br />
+                                                <span className="text-white/50">Run manually: SE38 → {specState.appliedProgramName} → Execute (F8)</span>
+                                              </div>
+                                            )}
+                                            {specState.scriptExecuted && (
+                                              <div className="text-[10px] text-green-300 bg-green-500/10 border border-green-500/20 rounded-lg p-2">
+                                                ✓ Customizing applied. Check transport {transportReq || 'in SE01'} to verify entries.
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+                                        {!specState.configScript && !specState.generatingScript && (
+                                          <p className="text-xs text-white/30 py-1">
+                                            {bcsetSysType === 's4_cloud'
+                                              ? 'Generate a Cloud guide: checks SAP API Hub for an OData endpoint, or gives you the CBC path.'
+                                              : 'Generate an ABAP script, write it to SAP via ADT, then execute it automatically.'}
                                           </p>
                                         )}
                                       </>
