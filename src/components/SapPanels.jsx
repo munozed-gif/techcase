@@ -2505,6 +2505,7 @@ Output ONLY the ABAP source code, no explanations.`;
     setObjects(next);
     saveBlueprint(next);
     setEditTarget(null);
+    setShowModal(false);
   }
 
   function handleDelete(id) {
