@@ -1974,7 +1974,7 @@ function AddEditBlueprintObjectModal({ existing, allObjects, onSave, onClose }) 
   );
 }
 
-function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEnabled, genModel, transportReq, ssCtx }) {
+function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEnabled, genModel, transportReq, ssCtx, configOps }) {
   const { settings } = ssCtx;
   const caseId = caseData.id;
   const bpKey = 'sap_blueprint';
@@ -2931,6 +2931,142 @@ Output ONLY the ABAP source code, no explanations.`;
                   </pre>
                 </details>
               )}
+
+              {/* Config object tools — SPRO Guide, BCset, Auto Config */}
+              {selectedObj.type === 'config' && configOps && (() => {
+                const { manualSpecs, setManualSpecs, saveSpecs, bcsetSysType, setBcsetSysType,
+                        onGenerateSpro, onGenerateBcset, onGenerateConfigScript,
+                        onApplyConfigScript, onRunConfigScript } = configOps;
+                const specState = manualSpecs[selectedObj.id] ?? {};
+                const cfgTab = specState._cfgTab ?? 'spro';
+                const setTab = (v) => setManualSpecs(p => ({ ...p, [selectedObj.id]: { ...(p[selectedObj.id] ?? {}), _cfgTab: v } }));
+                return (
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    {/* Tab row */}
+                    <div className="flex gap-0 border-b border-gray-200 mb-3">
+                      {[
+                        ['spro',       'SPRO Guide'],
+                        ['bcset',      'BCset'],
+                        ...(sapConfig?.host ? [['autoconfig', 'Auto Config']] : []),
+                      ].map(([k, lbl]) => (
+                        <button key={k} onClick={() => setTab(k)}
+                          className={`px-3 py-1.5 text-xs font-semibold border-b-2 -mb-px transition-colors
+                            ${cfgTab === k ? 'border-amber-500 text-amber-700' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+                          {lbl}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* SPRO Guide */}
+                    {cfgTab === 'spro' && (
+                      <div className="space-y-2">
+                        <div className="p-2 rounded-lg bg-blue-50 border border-blue-100 text-xs text-blue-700">
+                          Customizing done manually in DEV via SPRO/IMG. SAP creates the transport automatically.
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-400">IMG path · direct t-code · field values</span>
+                          <button onClick={() => onGenerateSpro(selectedObj)} disabled={specState.generating}
+                            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 disabled:opacity-50 transition-colors">
+                            <Sparkles size={11} />{specState.generating ? 'Generating…' : specState.spec ? 'Regenerate' : 'Generate SPRO Path'}
+                          </button>
+                        </div>
+                        {specState.error && <p className="text-xs text-red-500">Error: {specState.error}</p>}
+                        {specState.spec
+                          ? <pre className="text-xs text-gray-700 font-mono leading-relaxed whitespace-pre-wrap bg-gray-50 border border-gray-200 rounded-lg p-3 max-h-[28rem] overflow-y-auto">{specState.spec}</pre>
+                          : !specState.generating && <p className="text-xs text-gray-400">Click "Generate SPRO Path" for the exact IMG route, direct t-code, and field values.</p>}
+                      </div>
+                    )}
+
+                    {/* BCset */}
+                    {cfgTab === 'bcset' && (
+                      <div className="space-y-2">
+                        <div className="flex gap-1 mb-1">
+                          {[['ecc','ECC 6.0'],['s4_onprem','S/4HANA On-Prem'],['s4_cloud','S/4HANA Cloud']].map(([val,lbl]) => (
+                            <button key={val} onClick={() => setBcsetSysType(val)}
+                              className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition-all
+                                ${bcsetSysType === val ? 'border-violet-400 bg-violet-50 text-violet-700' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}>
+                              {lbl}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-gray-400 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-1.5">
+                          {bcsetSysType === 's4_cloud'
+                            ? 'S/4HANA Cloud uses Central Business Configuration (CBC) — BCsets don\'t exist.'
+                            : 'BCsets activate via SCPR20 and write directly to customizing tables.'}
+                        </p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-400">{bcsetSysType === 's4_cloud' ? 'Scope item · CBC path' : 'BCset name · SCPR20 steps'}</span>
+                          <div className="flex gap-2">
+                            {specState.bcsetInfo && <button onClick={() => navigator.clipboard?.writeText(specState.bcsetInfo)} className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-lg bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200"><Copy size={9}/>Copy</button>}
+                            <button onClick={() => onGenerateBcset(selectedObj)} disabled={specState.generatingBcset}
+                              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 disabled:opacity-50 transition-colors">
+                              <Sparkles size={11} />{specState.generatingBcset ? 'Generating…' : specState.bcsetInfo ? 'Regenerate' : bcsetSysType === 's4_cloud' ? 'Find Scope Item' : 'Find BCset'}
+                            </button>
+                          </div>
+                        </div>
+                        {specState.bcsetError && <p className="text-xs text-red-500">Error: {specState.bcsetError}</p>}
+                        {specState.bcsetInfo
+                          ? <pre className="text-xs text-violet-900 font-mono leading-relaxed whitespace-pre-wrap bg-violet-50 border border-violet-100 rounded-lg p-3 max-h-72 overflow-y-auto">{specState.bcsetInfo}</pre>
+                          : !specState.generatingBcset && <p className="text-xs text-gray-400">{bcsetSysType === 's4_cloud' ? 'Find CBC scope item and activation path.' : 'Find BCset name and SCPR20 steps.'}</p>}
+                      </div>
+                    )}
+
+                    {/* Auto Config */}
+                    {cfgTab === 'autoconfig' && sapConfig?.host && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          {[{n:1,label:'Generate',done:!!specState.configScript},{n:2,label:'Write to SAP',done:!!specState.appliedScript},{n:3,label:'Execute',done:!!specState.scriptExecuted}].map((s,i,arr) => (
+                            <div key={s.n} className="flex items-center gap-1">
+                              <span className={`w-5 h-5 rounded-full text-[9px] font-bold flex items-center justify-center ${s.done ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-400'}`}>{s.done ? '✓' : s.n}</span>
+                              <span className={`text-[10px] ${s.done ? 'text-green-600' : 'text-gray-400'}`}>{s.label}</span>
+                              {i < arr.length-1 && <span className="text-gray-300 text-[10px]">→</span>}
+                            </div>
+                          ))}
+                          {bcsetSysType === 's4_cloud' && <span className="ml-auto text-[9px] text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-200">Cloud</span>}
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-400">{bcsetSysType === 's4_cloud' ? 'OData API or CBC guide' : 'ABAP report for customizing automation'}</span>
+                          <div className="flex gap-2">
+                            {specState.configScript && <button onClick={() => navigator.clipboard?.writeText(specState.configScript)} className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-lg bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200"><Copy size={9}/>Copy</button>}
+                            <button onClick={() => onGenerateConfigScript(selectedObj)} disabled={specState.generatingScript}
+                              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 disabled:opacity-50 transition-colors">
+                              <Sparkles size={11} />{specState.generatingScript ? 'Generating…' : specState.configScript ? 'Regenerate' : bcsetSysType === 's4_cloud' ? 'Generate Cloud Guide' : 'Generate ABAP Script'}
+                            </button>
+                          </div>
+                        </div>
+                        {specState.scriptError && <p className="text-xs text-red-500">Error: {specState.scriptError}</p>}
+                        {specState.configScript && (
+                          <pre className="text-xs text-gray-800 font-mono leading-relaxed whitespace-pre-wrap bg-gray-50 border border-gray-200 rounded-lg p-3 max-h-56 overflow-y-auto">{specState.configScript}</pre>
+                        )}
+                        {specState.configScript && bcsetSysType !== 's4_cloud' && (
+                          <div className="flex items-center gap-2 pt-1">
+                            <button onClick={() => onApplyConfigScript(selectedObj)} disabled={specState.applyingScript || specState.appliedScript}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 disabled:opacity-40 transition-colors">
+                              <Upload size={11} />{specState.applyingScript ? 'Writing…' : specState.appliedScript ? '✓ Written to SAP' : 'Write to SAP'}
+                            </button>
+                            {specState.appliedScript && (
+                              <button onClick={() => onRunConfigScript(selectedObj)} disabled={specState.runningScript || specState.scriptExecuted}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 disabled:opacity-40 transition-colors">
+                                <Play size={11} />{specState.runningScript ? 'Running…' : specState.scriptExecuted ? '✓ Executed' : 'Run on SAP'}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        {specState.scriptLog?.length > 0 && (
+                          <div className="bg-gray-900 rounded-lg p-2.5 space-y-0.5">
+                            {specState.scriptLog.map((line, i) => (
+                              <p key={i} className={`text-[10px] font-mono ${line.startsWith('✓') ? 'text-green-400' : line.startsWith('⚠') ? 'text-amber-400' : line.startsWith('→') ? 'text-blue-300' : 'text-white/50'}`}>{line}</p>
+                            ))}
+                          </div>
+                        )}
+                        {specState.runError && <p className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">ADT run unavailable — open SE38 → {specState.appliedProgramName} → F8</p>}
+                        {specState.scriptExecuted && <p className="text-xs text-green-600 bg-green-50 border border-green-100 rounded-lg px-2.5 py-1.5">✓ Customizing applied. Check transport in SE01.</p>}
+                        {!specState.configScript && !specState.generatingScript && <p className="text-xs text-gray-400">Generate an ABAP script, then write and run it directly on SAP.</p>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -3109,9 +3245,10 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   // ── Pipeline step state ─────────────────────────────────
   const [implStep, setImplStep] = useState(1);
   const [stopOnError,      setStopOnError]      = useState(true);
-  const [implMode,         setImplMode]         = useState('all');
-  const [includeViewer,    setIncludeViewer]    = useState(true);
-  const [notifyOnComplete, setNotifyOnComplete] = useState(false);
+  const _savedSetup = settings['sap_impl_setup']?.[caseData.id] ?? {};
+  const [implMode,         setImplModeRaw]      = useState(_savedSetup.implMode         ?? 'all');
+  const [includeViewer,    setIncludeViewerRaw] = useState(_savedSetup.includeViewer    ?? true);
+  const [notifyOnComplete, setNotifyRaw]        = useState(_savedSetup.notifyOnComplete ?? false);
   const [logTab, setLogTab] = useState('platform');
   const [expandedManual, setExpandedManual] = useState(new Set());
   const [manualSpecs, setManualSpecs] = useState(settings['sap_impl_specs']?.[caseData.id] ?? {});
@@ -3139,6 +3276,13 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
     const cur = settings['sap_impl_specs'] ?? {};
     await ssCtx.setSetting('sap_impl_specs', { ...cur, [caseData.id]: newSpecs });
   }
+  async function _saveSetup(patch) {
+    const cur = settings['sap_impl_setup'] ?? {};
+    await ssCtx.setSetting('sap_impl_setup', { ...cur, [caseData.id]: { implMode, includeViewer, notifyOnComplete, ...patch } });
+  }
+  function setImplMode(v)        { setImplModeRaw(v);       _saveSetup({ implMode: v }); }
+  function setIncludeViewer(v)   { setIncludeViewerRaw(v);  _saveSetup({ includeViewer: v }); }
+  function setNotifyOnComplete(v){ setNotifyRaw(v);         _saveSetup({ notifyOnComplete: v }); }
 
   async function handleGenerateConfigScript(obj) {
     const isCloud = bcsetSysType === 's4_cloud';
@@ -3827,6 +3971,15 @@ FALLBACK:
         caseData={caseData} auth={auth} activities={implActivities}
         sapConfig={enrichedSapConfig} autoImplEnabled={autoImplEnabled}
         genModel={genModel} transportReq={transportReq} ssCtx={ssCtx}
+        configOps={{
+          manualSpecs, setManualSpecs, saveSpecs,
+          bcsetSysType, setBcsetSysType,
+          onGenerateSpro:         handleGenerateManualSpec,
+          onGenerateBcset:        handleGenerateBcsetInfo,
+          onGenerateConfigScript: handleGenerateConfigScript,
+          onApplyConfigScript:    handleApplyConfigScript,
+          onRunConfigScript:      handleRunConfigScript,
+        }}
       />
 
       {/* Pipeline stepper */}
@@ -3969,16 +4122,40 @@ FALLBACK:
                             </div>
                             {isOpen && (() => {
                               const canAdt = ADT_CODE_TYPES.has(obj.type);
+                              // Config objects: lightweight status — full detail lives in the Blueprint canvas panel
+                              if (obj.type === 'config') {
+                                return (
+                                  <div className="border-t border-amber-500/20 px-3 py-3">
+                                    <div className="flex items-center gap-1.5 flex-wrap mb-2.5">
+                                      {[
+                                        { label: 'SPRO Guide', ready: !!specState.spec },
+                                        { label: 'BCset',      ready: !!specState.bcsetInfo },
+                                        { label: 'Script',     ready: !!specState.configScript },
+                                        { label: 'Executed',   ready: !!specState.scriptExecuted },
+                                      ].map(({ label, ready }) => (
+                                        <span key={label} className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border
+                                          ${ready
+                                            ? 'bg-green-500/15 border-green-500/30 text-green-400'
+                                            : 'bg-white/5 border-white/10 text-white/25'}`}>
+                                          {ready ? <CheckCircle2 size={9} /> : <span className="w-2 h-2 rounded-full border border-current inline-block" />}
+                                          {label}
+                                        </span>
+                                      ))}
+                                    </div>
+                                    <p className="text-[10px] text-white/30 leading-relaxed">
+                                      Click this object in the <strong className="text-white/50">Blueprint canvas</strong> to view and generate the SPRO Guide, BCset, and Auto Config details.
+                                    </p>
+                                  </div>
+                                );
+                              }
                               const [detailTab, setDetailTab] = [specState._tab ?? 'guide', v => setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), _tab: v } }))];
                               return (
                                 <div className="border-t border-amber-500/20">
                                   {/* tab row */}
                                   <div className="flex gap-0 px-3 pt-2">
                                     {[
-                                      ['guide', <><FileText size={10} /> {obj.type === 'config' ? 'SPRO Guide' : 'Creation Guide'}</>],
+                                      ['guide', <><FileText size={10} /> Creation Guide</>],
                                       ...(canAdt ? [['adt', <><Code2 size={10} /> ADT Code</>]] : []),
-                                      ...(obj.type === 'config' ? [['bcset', <><Sparkles size={10} /> BCset</>]] : []),
-                                      ...(obj.type === 'config' && sapConfig?.host ? [['autoconfig', <><Play size={10} /> Auto Config</>]] : []),
                                     ].map(([key, lbl]) => (
                                       <button key={key} onClick={() => setDetailTab(key)}
                                         className={`flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold rounded-t-lg border-b-2 transition-colors
@@ -3992,32 +4169,19 @@ FALLBACK:
                                     {/* Creation Guide tab */}
                                     {detailTab === 'guide' && (
                                       <>
-                                        {obj.type === 'config' && (
-                                          <div className="mb-2 p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-[10px] text-blue-300 leading-relaxed">
-                                            SPRO customizing cannot be automated — it must be done manually in DEV.<br />
-                                            Once saved, SAP creates a customizing transport request automatically.<br />
-                                            Use the <strong>Transports</strong> tab to apply it to QA/PRD.
-                                          </div>
-                                        )}
                                         <div className="flex items-center justify-between mb-2">
-                                          <span className="text-[10px] text-white/30">
-                                            {obj.type === 'config' ? 'IMG path · direct t-code · field values' : 'Step-by-step SAP creation instructions'}
-                                          </span>
+                                          <span className="text-[10px] text-white/30">Step-by-step SAP creation instructions</span>
                                           <button onClick={() => handleGenerateManualSpec(obj)} disabled={specState.generating}
                                             className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 disabled:opacity-50 transition-colors">
                                             <Sparkles size={11} />
-                                            {specState.generating ? 'Generating…' : specState.spec ? 'Regenerate' : obj.type === 'config' ? 'Generate SPRO Path' : 'Generate Steps'}
+                                            {specState.generating ? 'Generating…' : specState.spec ? 'Regenerate' : 'Generate Steps'}
                                           </button>
                                         </div>
                                         {specState.error && <p className="text-xs text-red-400 py-2">Error: {specState.error}</p>}
                                         {specState.spec ? (
                                           <pre className="text-xs text-white/70 font-mono leading-relaxed whitespace-pre-wrap bg-black/20 rounded-lg p-3 max-h-[32rem] overflow-y-auto">{specState.spec}</pre>
                                         ) : !specState.generating && (
-                                          <p className="text-xs text-white/30 py-2">
-                                            {obj.type === 'config'
-                                              ? 'Click "Generate SPRO Path" for the exact IMG route, direct t-code, and field values.'
-                                              : 'Click "Generate Steps" for AI-written creation instructions.'}
-                                          </p>
+                                          <p className="text-xs text-white/30 py-2">Click "Generate Steps" for AI-written creation instructions.</p>
                                         )}
                                       </>
                                     )}
@@ -4046,164 +4210,6 @@ FALLBACK:
                                           <pre className="text-xs text-green-300 font-mono leading-relaxed whitespace-pre-wrap bg-black/30 rounded-lg p-3 max-h-72 overflow-y-auto">{specState.adtCode}</pre>
                                         ) : !specState.generatingAdt && (
                                           <p className="text-xs text-white/30 py-2">Click "Generate Code" for ADT-ready source to paste in Eclipse.</p>
-                                        )}
-                                      </>
-                                    )}
-
-                                    {/* BCset tab — config objects only */}
-                                    {detailTab === 'bcset' && obj.type === 'config' && (
-                                      <>
-                                        {/* System type selector */}
-                                        <div className="flex gap-1 mb-2.5">
-                                          {[
-                                            ['ecc',        'ECC 6.0'],
-                                            ['s4_onprem',  'S/4HANA On-Prem'],
-                                            ['s4_cloud',   'S/4HANA Cloud'],
-                                          ].map(([val, lbl]) => (
-                                            <button key={val} onClick={() => setBcsetSysType(val)}
-                                              className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg border transition-all
-                                                ${bcsetSysType === val
-                                                  ? 'border-violet-500 bg-violet-500/20 text-violet-300'
-                                                  : 'border-white/15 text-white/30 hover:border-white/25 hover:text-white/50'}`}>
-                                              {lbl}
-                                            </button>
-                                          ))}
-                                        </div>
-
-                                        {/* Context banner */}
-                                        <div className="mb-2 p-2.5 rounded-lg bg-violet-500/10 border border-violet-500/20 text-[10px] text-violet-300 leading-relaxed">
-                                          {bcsetSysType === 's4_cloud' ? (
-                                            <>S/4HANA Cloud uses <strong>SAP Central Business Configuration (CBC)</strong> and the <strong>Configure Your Solution</strong> Fiori app — BCsets don't exist here. SAP manages activation; customers configure through scoped activities.</>
-                                          ) : (
-                                            <>BCsets are activated via <span className="font-mono">SCPR20</span> — they write directly to customizing tables, no IMG clicking required. Download missing content from <strong>rapid.sap.com</strong> → import via <span className="font-mono">/SMB/BBI</span>.</>
-                                          )}
-                                        </div>
-
-                                        <div className="flex items-center justify-between mb-2">
-                                          <span className="text-[10px] text-white/30">
-                                            {bcsetSysType === 's4_cloud'
-                                              ? 'Scope item · CBC path · Configure Your Solution steps'
-                                              : 'BCset name · SCPR20 steps · tables affected'}
-                                          </span>
-                                          <div className="flex gap-2">
-                                            {specState.bcsetInfo && (
-                                              <button onClick={() => navigator.clipboard?.writeText(specState.bcsetInfo)}
-                                                className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-white/10 text-white/60 border border-white/15 hover:bg-white/15 transition-colors">
-                                                <Copy size={10} />Copy
-                                              </button>
-                                            )}
-                                            <button onClick={() => handleGenerateBcsetInfo(obj)} disabled={specState.generatingBcset}
-                                              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-violet-500/20 text-violet-300 border border-violet-500/30 hover:bg-violet-500/30 disabled:opacity-50 transition-colors">
-                                              <Sparkles size={11} />
-                                              {specState.generatingBcset ? 'Generating…'
-                                                : specState.bcsetInfo   ? 'Regenerate'
-                                                : bcsetSysType === 's4_cloud' ? 'Find Scope Item'
-                                                : 'Find BCset'}
-                                            </button>
-                                          </div>
-                                        </div>
-                                        {specState.bcsetError && <p className="text-xs text-red-400 py-2">Error: {specState.bcsetError}</p>}
-                                        {specState.bcsetInfo ? (
-                                          <pre className="text-xs text-violet-200 font-mono leading-relaxed whitespace-pre-wrap bg-black/20 rounded-lg p-3 max-h-72 overflow-y-auto">{specState.bcsetInfo}</pre>
-                                        ) : !specState.generatingBcset && (
-                                          <p className="text-xs text-white/30 py-2">
-                                            {bcsetSysType === 's4_cloud'
-                                              ? 'Click "Find Scope Item" for the CBC activation path and Configure Your Solution steps.'
-                                              : 'Click "Find BCset" for the exact BCset name, SCPR20 activation steps, and affected customizing tables.'}
-                                          </p>
-                                        )}
-                                      </>
-                                    )}
-
-                                    {/* Auto Config tab — On-Prem: ABAP script + apply + run; Cloud: OData/CBC guide */}
-                                    {detailTab === 'autoconfig' && obj.type === 'config' && sapConfig?.host && (
-                                      <>
-                                        {/* Step indicators */}
-                                        <div className="flex items-center gap-1.5 mb-3">
-                                          {[
-                                            { n: 1, label: 'Generate', done: !!specState.configScript },
-                                            { n: 2, label: 'Write to SAP', done: !!specState.appliedScript },
-                                            { n: 3, label: 'Execute', done: !!specState.scriptExecuted },
-                                          ].map((s, i, arr) => (
-                                            <div key={s.n} className="flex items-center gap-1">
-                                              <span className={`w-5 h-5 rounded-full text-[9px] font-bold flex items-center justify-center ${s.done ? 'bg-green-500 text-white' : 'bg-white/10 text-white/40'}`}>{s.done ? '✓' : s.n}</span>
-                                              <span className={`text-[10px] ${s.done ? 'text-green-400' : 'text-white/30'}`}>{s.label}</span>
-                                              {i < arr.length - 1 && <span className="text-white/20 text-[10px]">→</span>}
-                                            </div>
-                                          ))}
-                                          {bcsetSysType === 's4_cloud' && <span className="ml-auto text-[9px] text-violet-300 bg-violet-500/20 px-2 py-0.5 rounded-full">Cloud Mode</span>}
-                                        </div>
-
-                                        {/* Step 1: Generate script */}
-                                        <div className="flex items-center justify-between mb-1.5">
-                                          <span className="text-[10px] text-white/30">
-                                            {bcsetSysType === 's4_cloud' ? 'OData API or CBC configuration guide' : 'ABAP report to implement the customizing change'}
-                                          </span>
-                                          <div className="flex gap-2">
-                                            {specState.configScript && (
-                                              <button onClick={() => navigator.clipboard?.writeText(specState.configScript)}
-                                                className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-lg bg-white/10 text-white/50 border border-white/15 hover:bg-white/15 transition-colors">
-                                                <Copy size={9} />Copy
-                                              </button>
-                                            )}
-                                            <button onClick={() => handleGenerateConfigScript(obj)} disabled={specState.generatingScript}
-                                              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-green-500/20 text-green-300 border border-green-500/30 hover:bg-green-500/30 disabled:opacity-50 transition-colors">
-                                              <Sparkles size={11} />
-                                              {specState.generatingScript ? 'Generating…' : specState.configScript ? 'Regenerate' : bcsetSysType === 's4_cloud' ? 'Generate Cloud Guide' : 'Generate ABAP Script'}
-                                            </button>
-                                          </div>
-                                        </div>
-                                        {specState.scriptError && <p className="text-xs text-red-400 mb-2">Error: {specState.scriptError}</p>}
-                                        {specState.configScript && (
-                                          <pre className="text-xs font-mono leading-relaxed whitespace-pre-wrap rounded-lg p-3 max-h-56 overflow-y-auto mb-3 bg-black/30 text-green-200">{specState.configScript}</pre>
-                                        )}
-
-                                        {/* Step 2 & 3: Write + Run (On-Prem only) */}
-                                        {specState.configScript && bcsetSysType !== 's4_cloud' && (
-                                          <div className="space-y-2">
-                                            <div className="flex items-center gap-2">
-                                              <button onClick={() => handleApplyConfigScript(obj)}
-                                                disabled={specState.applyingScript || specState.appliedScript}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 disabled:opacity-40 transition-colors">
-                                                <Upload size={11} />
-                                                {specState.applyingScript ? 'Writing to SAP…' : specState.appliedScript ? '✓ Written to SAP' : 'Write to SAP'}
-                                              </button>
-                                              {specState.appliedScript && (
-                                                <button onClick={() => handleRunConfigScript(obj)}
-                                                  disabled={specState.runningScript || specState.scriptExecuted}
-                                                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-green-500/20 text-green-300 border border-green-500/30 hover:bg-green-500/30 disabled:opacity-40 transition-colors">
-                                                  <Play size={11} />
-                                                  {specState.runningScript ? 'Running…' : specState.scriptExecuted ? '✓ Executed' : 'Run on SAP'}
-                                                </button>
-                                              )}
-                                            </div>
-                                            {specState.scriptLog?.length > 0 && (
-                                              <div className="bg-black/30 rounded-lg p-2.5 space-y-0.5">
-                                                {specState.scriptLog.map((line, i) => (
-                                                  <p key={i} className={`text-[10px] font-mono ${line.startsWith('✓') ? 'text-green-400' : line.startsWith('⚠') ? 'text-amber-400' : line.startsWith('→') ? 'text-blue-300' : 'text-white/50'}`}>{line}</p>
-                                                ))}
-                                              </div>
-                                            )}
-                                            {specState.scriptApplyError && <p className="text-xs text-red-400">Error: {specState.scriptApplyError}</p>}
-                                            {specState.runError && (
-                                              <div className="text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2">
-                                                ADT execution not available: {specState.runError}<br />
-                                                <span className="text-white/50">Run manually: SE38 → {specState.appliedProgramName} → Execute (F8)</span>
-                                              </div>
-                                            )}
-                                            {specState.scriptExecuted && (
-                                              <div className="text-[10px] text-green-300 bg-green-500/10 border border-green-500/20 rounded-lg p-2">
-                                                ✓ Customizing applied. Check transport {transportReq || 'in SE01'} to verify entries.
-                                              </div>
-                                            )}
-                                          </div>
-                                        )}
-                                        {!specState.configScript && !specState.generatingScript && (
-                                          <p className="text-xs text-white/30 py-1">
-                                            {bcsetSysType === 's4_cloud'
-                                              ? 'Generate a Cloud guide: checks SAP API Hub for an OData endpoint, or gives you the CBC path.'
-                                              : 'Generate an ABAP script, write it to SAP via ADT, then execute it automatically.'}
-                                          </p>
                                         )}
                                       </>
                                     )}
