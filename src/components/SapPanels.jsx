@@ -2921,12 +2921,12 @@ Output ONLY the ABAP source code, no explanations.`;
                 )}
               </div>
 
-              {selectedObj.generatedCode && !configOps && (
-                <details>
-                  <summary className="text-xs font-semibold text-gray-500 uppercase tracking-wide cursor-pointer select-none mb-1">
-                    Generated ABAP Code
+              {selectedObj.generatedCode && (
+                <details className="mt-3 pt-3 border-t border-white/10">
+                  <summary className="text-xs font-semibold text-white/40 uppercase tracking-wide cursor-pointer select-none mb-1">
+                    Auto-generated ABAP Code
                   </summary>
-                  <pre className="bg-gray-900 text-green-300 text-xs rounded-xl p-3 overflow-x-auto max-h-56 leading-relaxed mt-1">
+                  <pre className="bg-black/40 text-green-300 text-xs rounded-xl p-3 overflow-x-auto max-h-56 leading-relaxed mt-2">
                     {selectedObj.generatedCode}
                   </pre>
                 </details>
