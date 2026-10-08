@@ -2932,13 +2932,28 @@ Output ONLY the ABAP source code, no explanations.`;
                 </details>
               )}
 
-              {/* Non-config manual object tools — Creation Guide + ADT Code */}
+              {/* Non-config object tools — Creation Guide + ADT Code (manual only) or pending note (AI-capable) */}
               {selectedObj.type !== 'config' && configOps && (() => {
                 const { manualSpecs, setManualSpecs, onGenerateCreationGuide, onGenerateAdtCode } = configOps;
                 const specState = manualSpecs[selectedObj.id] ?? {};
                 const canAdt = ADT_CODE_TYPES.has(selectedObj.type);
+                const isAiCapable = selectedObj.aiCapable ?? BP_TYPES[selectedObj.type]?.ai ?? true;
                 const abapTab = specState._abapTab ?? 'guide';
                 const setTab = (v) => setManualSpecs(p => ({ ...p, [selectedObj.id]: { ...(p[selectedObj.id] ?? {}), _abapTab: v } }));
+
+                if (isAiCapable && !selectedObj.generatedCode) {
+                  return (
+                    <div className="mt-3 pt-3 border-t border-white/10">
+                      <div className="flex items-start gap-2 p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs text-blue-300">
+                        <Sparkles size={12} className="flex-shrink-0 mt-0.5" />
+                        <span>Code will be <strong>auto-generated</strong> when the implementation pipeline runs. Once generated it will appear here. Resolve any dependency objects first.</span>
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (isAiCapable) return null;
+
                 return (
                   <div className="mt-3 pt-3 border-t border-white/10">
                     <div className="flex gap-0 border-b border-white/10 mb-3">
@@ -3316,6 +3331,7 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   const [notifyOnComplete, setNotifyRaw]        = useState(_savedSetup.notifyOnComplete ?? false);
   const [logTab, setLogTab] = useState('platform');
   const [expandedManual, setExpandedManual] = useState(new Set());
+  const [expandedAuto,   setExpandedAuto]   = useState(new Set());
   const [manualSpecs, setManualSpecs] = useState(settings['sap_impl_specs']?.[caseData.id] ?? {});
   const [bcsetSysType, setBcsetSysType] = useState('s4_onprem'); // 'ecc' | 's4_onprem' | 's4_cloud'
 
@@ -4250,20 +4266,55 @@ FALLBACK:
                     <SectionLabel>Phase {seqManual.length > 0 ? '2' : '1'} — Auto (implemented via ADT)</SectionLabel>
                     <div className="space-y-2">
                       {seqAuto.map((obj, i) => {
-                        const bpType = BP_TYPES[obj.type] ?? {};
-                        const deps = (obj.dependsOn ?? []).map(id => nameById[id] ?? id).filter(Boolean);
-                        const seq  = seqManual.length + i + 1;
+                        const bpType    = BP_TYPES[obj.type] ?? {};
+                        const deps      = (obj.dependsOn ?? []).map(id => nameById[id] ?? id).filter(Boolean);
+                        const seq       = seqManual.length + i + 1;
+                        const isOpen    = expandedAuto.has(obj.id);
+                        const toggleOpen = () => setExpandedAuto(p => { const n = new Set(p); n.has(obj.id) ? n.delete(obj.id) : n.add(obj.id); return n; });
+                        const statusColor = obj.status === 'done'      ? 'text-green-400'
+                                          : obj.status === 'error'     ? 'text-red-400'
+                                          : obj.status === 'applying'  ? 'text-blue-300'
+                                          : obj.status === 'generating'? 'text-amber-300'
+                                          : 'text-white/30';
                         return (
-                          <div key={obj.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-blue-500/30 bg-blue-500/10">
-                            <span className="w-5 h-5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-300 flex items-center justify-center font-mono flex-shrink-0">{seq}</span>
-                            <div className="flex-1 min-w-0">
-                              <div className="font-mono text-sm font-semibold text-white truncate">{obj.name}</div>
-                              {obj.description && <div className="text-xs text-white/50 truncate">{obj.description}</div>}
-                              {deps.length > 0 && <div className="text-[10px] text-blue-400 mt-0.5">← requires: {deps.join(', ')}</div>}
+                          <div key={obj.id} className="rounded-xl border border-blue-500/30 bg-blue-500/10 overflow-hidden">
+                            <div className="flex items-center gap-3 px-3 py-2.5 cursor-pointer" onClick={toggleOpen}>
+                              <span className="w-5 h-5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-300 flex items-center justify-center font-mono flex-shrink-0">{seq}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-mono text-sm font-semibold text-white truncate">{obj.name}</div>
+                                {obj.description && <div className="text-xs text-white/50 truncate">{obj.description}</div>}
+                                {deps.length > 0 && <div className="text-[10px] text-blue-400 mt-0.5">← requires: {deps.join(', ')}</div>}
+                              </div>
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 flex-shrink-0">{bpType.label ?? obj.type}</span>
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-300 flex-shrink-0">Auto · {bpType.short ?? '—'}</span>
+                              {obj.status === 'done'
+                                ? <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />
+                                : obj.status && <span className={`text-[10px] font-semibold flex-shrink-0 ${statusColor}`}>{obj.status}</span>}
+                              <span className="text-white/30 flex-shrink-0">{isOpen ? '▲' : '▼'}</span>
                             </div>
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 flex-shrink-0">{bpType.label ?? obj.type}</span>
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-300 flex-shrink-0">Auto · {bpType.short ?? '—'}</span>
-                            {obj.status === 'done' && <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />}
+                            {isOpen && (
+                              <div className="border-t border-blue-500/20 px-3 py-3 space-y-2">
+                                {obj.generatedCode ? (
+                                  <>
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[10px] text-white/40">Auto-generated ABAP code</span>
+                                      <button onClick={() => navigator.clipboard?.writeText(obj.generatedCode)}
+                                        className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-lg bg-white/10 text-white/50 border border-white/15 hover:bg-white/15">
+                                        <Copy size={9}/>Copy
+                                      </button>
+                                    </div>
+                                    <pre className="text-xs text-green-300 font-mono leading-relaxed whitespace-pre-wrap bg-black/30 border border-green-500/20 rounded-lg p-3 max-h-64 overflow-y-auto">{obj.generatedCode}</pre>
+                                    {obj.error && <p className="text-[10px] text-red-400">Error: {obj.error}</p>}
+                                  </>
+                                ) : (
+                                  <p className="text-[10px] text-white/30 leading-relaxed">
+                                    {obj.status === 'error'
+                                      ? <span className="text-red-400">Error: {obj.error || 'Unknown error'}</span>
+                                      : 'Code will be generated automatically when the implementation pipeline runs. Check dependencies are resolved first.'}
+                                  </p>
+                                )}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
