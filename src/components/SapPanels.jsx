@@ -3108,7 +3108,7 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   const [notifyOnComplete, setNotifyOnComplete] = useState(false);
   const [logTab, setLogTab] = useState('platform');
   const [expandedManual, setExpandedManual] = useState(new Set());
-  const [manualSpecs, setManualSpecs] = useState({});
+  const [manualSpecs, setManualSpecs] = useState(settings['sap_impl_specs']?.[caseData.id] ?? {});
   const [bcsetSysType, setBcsetSysType] = useState('s4_onprem'); // 'ecc' | 's4_onprem' | 's4_cloud'
 
   // ── Existing handlers ───────────────────────────────────
@@ -3128,6 +3128,10 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
     const cur = settings['sap_impl_transport'] ?? {};
     await ssCtx.setSetting('sap_impl_transport', { ...cur, [caseData.id]: val });
     setSavingTransport(false);
+  }
+  async function saveSpecs(newSpecs) {
+    const cur = settings['sap_impl_specs'] ?? {};
+    await ssCtx.setSetting('sap_impl_specs', { ...cur, [caseData.id]: newSpecs });
   }
   async function handleCheckSap(actId) {
     if (!sapConfig?.host) return;
@@ -3290,7 +3294,9 @@ Be concise and use numbered steps. Format as plain text, no markdown headers.`;
         max_tokens: 1800,
       });
       const spec = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
-      setManualSpecs(p => ({ ...p, [obj.id]: { generating: false, spec } }));
+      const newSpecs = { ...manualSpecs, [obj.id]: { ...(manualSpecs[obj.id] ?? {}), generating: false, spec } };
+      setManualSpecs(newSpecs);
+      saveSpecs(newSpecs);
     } catch (e) {
       setManualSpecs(p => ({ ...p, [obj.id]: { generating: false, error: e.message } }));
     }
@@ -3331,7 +3337,9 @@ Output ONLY the ABAP source (CLASS DEFINITION ... CLASS IMPLEMENTATION ... ENDCL
         max_tokens: 3000,
       });
       const adtCode = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
-      setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), generatingAdt: false, adtCode } }));
+      const newSpecs = { ...manualSpecs, [obj.id]: { ...(manualSpecs[obj.id] ?? {}), generatingAdt: false, adtCode } };
+      setManualSpecs(newSpecs);
+      saveSpecs(newSpecs);
     } catch (e) {
       setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), generatingAdt: false, adtError: e.message } }));
     }
@@ -3422,7 +3430,9 @@ FALLBACK:
         max_tokens: 1800,
       });
       const bcsetInfo = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
-      setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), generatingBcset: false, bcsetInfo } }));
+      const newSpecs = { ...manualSpecs, [obj.id]: { ...(manualSpecs[obj.id] ?? {}), generatingBcset: false, bcsetInfo } };
+      setManualSpecs(newSpecs);
+      saveSpecs(newSpecs);
     } catch (e) {
       setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), generatingBcset: false, bcsetError: e.message } }));
     }
@@ -3874,7 +3884,7 @@ FALLBACK:
                                         </div>
                                         {specState.error && <p className="text-xs text-red-400 py-2">Error: {specState.error}</p>}
                                         {specState.spec ? (
-                                          <pre className="text-xs text-white/70 font-mono leading-relaxed whitespace-pre-wrap bg-black/20 rounded-lg p-3 max-h-64 overflow-y-auto">{specState.spec}</pre>
+                                          <pre className="text-xs text-white/70 font-mono leading-relaxed whitespace-pre-wrap bg-black/20 rounded-lg p-3 max-h-[32rem] overflow-y-auto">{specState.spec}</pre>
                                         ) : !specState.generating && (
                                           <p className="text-xs text-white/30 py-2">
                                             {obj.type === 'config'
