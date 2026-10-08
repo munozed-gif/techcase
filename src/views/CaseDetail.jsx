@@ -2095,9 +2095,9 @@ ${tableHtml(['Role','Name','Signature','Date'],[
     { id: "subcases",   label: t("case.tab_subcases"),   icon: Layers,        count: subCases.length },
     { id: "documents",  label: t("case.tab_docs"),       icon: Paperclip,     count: (documents.length + caseFilesForSpec.length) || null },
     { id: "time",       label: t("case.tab_time"),       icon: Clock,         count: `${totalTimeHours.toFixed(1)}h` },
-    ...((auth.isAdmin || auth.isManager || auth.isClient) && caseVisibility !== 'private' ? [{ id: "applications", label: t("case.tab_applicants"), icon: Users, count: applications.length }] : []),
+    ...((auth.isAdmin || auth.isManager || auth.isClient) && (auth.isAdmin || caseVisibility !== 'private') ? [{ id: "applications", label: t("case.tab_applicants"), icon: Users, count: applications.length }] : []),
     ...(caseData.is_head_hunter && (auth.isAdmin || auth.isManager || auth.isClient || auth.isHeadhunter) ? [{ id: "hh_proposals", label: "HH Proposals", icon: Crosshair, count: auth.isHeadhunter ? null : (hhProposals.filter(p => p.status === "pending").length || null) }] : []),
-    ...(perms.can("view_lifecycle") && caseOverrideAllowed ? [{ id: "lifecycle", label: t("case.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
+    ...(perms.can("view_lifecycle") && (auth.isAdmin || caseOverrideAllowed) ? [{ id: "lifecycle", label: t("case.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
     { id: "spec",           label: t("case.tab_spec"),         icon: FileText, count: null },
     ...((auth.isAdmin || auth.isManager || auth.isConsultant || auth.isKeyUser)
       ? [{ id: "implementation", label: t("sap.impl_tab_title"), icon: Code2, count: null }]
