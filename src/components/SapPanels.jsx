@@ -2921,7 +2921,7 @@ Output ONLY the ABAP source code, no explanations.`;
                 )}
               </div>
 
-              {selectedObj.generatedCode && (
+              {selectedObj.generatedCode && !configOps && (
                 <details>
                   <summary className="text-xs font-semibold text-gray-500 uppercase tracking-wide cursor-pointer select-none mb-1">
                     Generated ABAP Code
@@ -2931,6 +2931,71 @@ Output ONLY the ABAP source code, no explanations.`;
                   </pre>
                 </details>
               )}
+
+              {/* Non-config manual object tools — Creation Guide + ADT Code */}
+              {selectedObj.type !== 'config' && configOps && (() => {
+                const { manualSpecs, setManualSpecs, onGenerateCreationGuide, onGenerateAdtCode } = configOps;
+                const specState = manualSpecs[selectedObj.id] ?? {};
+                const canAdt = ADT_CODE_TYPES.has(selectedObj.type);
+                const abapTab = specState._abapTab ?? 'guide';
+                const setTab = (v) => setManualSpecs(p => ({ ...p, [selectedObj.id]: { ...(p[selectedObj.id] ?? {}), _abapTab: v } }));
+                return (
+                  <div className="mt-3 pt-3 border-t border-white/10">
+                    <div className="flex gap-0 border-b border-white/10 mb-3">
+                      {[
+                        ['guide', 'Creation Guide'],
+                        ...(canAdt ? [['adt', 'ADT Code']] : []),
+                      ].map(([k, lbl]) => (
+                        <button key={k} onClick={() => setTab(k)}
+                          className={`px-3 py-1.5 text-xs font-semibold border-b-2 -mb-px transition-colors
+                            ${abapTab === k ? 'border-amber-400 text-amber-300' : 'border-transparent text-white/30 hover:text-white/60'}`}>
+                          {lbl}
+                        </button>
+                      ))}
+                    </div>
+
+                    {abapTab === 'guide' && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-white/40">Step-by-step SAP creation instructions</span>
+                          <button onClick={() => onGenerateCreationGuide(selectedObj)} disabled={specState.generating}
+                            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 disabled:opacity-50 transition-colors">
+                            <Sparkles size={11} />{specState.generating ? 'Generating…' : specState.spec ? 'Regenerate' : 'Generate Steps'}
+                          </button>
+                        </div>
+                        {specState.error && <p className="text-xs text-red-400">Error: {specState.error}</p>}
+                        {specState.spec
+                          ? <pre className="text-xs text-white/80 font-mono leading-relaxed whitespace-pre-wrap bg-black/30 border border-white/10 rounded-lg p-3 max-h-[28rem] overflow-y-auto">{specState.spec}</pre>
+                          : !specState.generating && <p className="text-xs text-white/30">Click "Generate Steps" for AI-written creation instructions.</p>}
+                      </div>
+                    )}
+
+                    {abapTab === 'adt' && canAdt && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-white/40">Paste into Eclipse ADT to create this object</span>
+                          <div className="flex gap-2">
+                            {specState.adtCode && (
+                              <button onClick={() => navigator.clipboard?.writeText(specState.adtCode)}
+                                className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-lg bg-white/10 text-white/50 border border-white/15 hover:bg-white/15">
+                                <Copy size={9}/>Copy
+                              </button>
+                            )}
+                            <button onClick={() => onGenerateAdtCode(selectedObj)} disabled={specState.generatingAdt}
+                              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 disabled:opacity-50 transition-colors">
+                              <Sparkles size={11} />{specState.generatingAdt ? 'Generating…' : specState.adtCode ? 'Regenerate' : 'Generate Code'}
+                            </button>
+                          </div>
+                        </div>
+                        {specState.adtError && <p className="text-xs text-red-400">Error: {specState.adtError}</p>}
+                        {specState.adtCode
+                          ? <pre className="text-xs text-green-200 font-mono leading-relaxed whitespace-pre-wrap bg-black/30 border border-green-500/20 rounded-lg p-3 max-h-72 overflow-y-auto">{specState.adtCode}</pre>
+                          : !specState.generatingAdt && <p className="text-xs text-white/30">Click "Generate Code" for ADT-ready source to paste in Eclipse.</p>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Config object tools — SPRO Guide, BCset, Auto Config */}
               {selectedObj.type === 'config' && configOps && (() => {
@@ -3974,11 +4039,13 @@ FALLBACK:
         configOps={{
           manualSpecs, setManualSpecs, saveSpecs,
           bcsetSysType, setBcsetSysType,
-          onGenerateSpro:         handleGenerateManualSpec,
-          onGenerateBcset:        handleGenerateBcsetInfo,
-          onGenerateConfigScript: handleGenerateConfigScript,
-          onApplyConfigScript:    handleApplyConfigScript,
-          onRunConfigScript:      handleRunConfigScript,
+          onGenerateSpro:           handleGenerateManualSpec,
+          onGenerateBcset:          handleGenerateBcsetInfo,
+          onGenerateConfigScript:   handleGenerateConfigScript,
+          onApplyConfigScript:      handleApplyConfigScript,
+          onRunConfigScript:        handleRunConfigScript,
+          onGenerateCreationGuide:  handleGenerateManualSpec,
+          onGenerateAdtCode:        handleGenerateAdtCode,
         }}
       />
 
@@ -4148,72 +4215,26 @@ FALLBACK:
                                   </div>
                                 );
                               }
-                              const [detailTab, setDetailTab] = [specState._tab ?? 'guide', v => setManualSpecs(p => ({ ...p, [obj.id]: { ...(p[obj.id] ?? {}), _tab: v } }))];
+                              // Non-config manual objects: status badges — full detail lives in the Blueprint canvas panel
                               return (
-                                <div className="border-t border-amber-500/20">
-                                  {/* tab row */}
-                                  <div className="flex gap-0 px-3 pt-2">
+                                <div className="border-t border-amber-500/20 px-3 py-3">
+                                  <div className="flex items-center gap-1.5 flex-wrap mb-2.5">
                                     {[
-                                      ['guide', <><FileText size={10} /> Creation Guide</>],
-                                      ...(canAdt ? [['adt', <><Code2 size={10} /> ADT Code</>]] : []),
-                                    ].map(([key, lbl]) => (
-                                      <button key={key} onClick={() => setDetailTab(key)}
-                                        className={`flex items-center gap-1 px-3 py-1.5 text-[10px] font-bold rounded-t-lg border-b-2 transition-colors
-                                          ${detailTab === key ? 'border-amber-400 text-amber-300' : 'border-transparent text-white/30 hover:text-white/60'}`}>
-                                        {lbl}
-                                      </button>
+                                      { label: 'Creation Guide', ready: !!specState.spec },
+                                      ...(canAdt ? [{ label: 'ADT Code', ready: !!specState.adtCode }] : []),
+                                    ].map(({ label, ready }) => (
+                                      <span key={label} className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border
+                                        ${ready
+                                          ? 'bg-green-500/15 border-green-500/30 text-green-400'
+                                          : 'bg-white/5 border-white/10 text-white/25'}`}>
+                                        {ready ? <CheckCircle2 size={9} /> : <span className="w-2 h-2 rounded-full border border-current inline-block" />}
+                                        {label}
+                                      </span>
                                     ))}
                                   </div>
-
-                                  <div className="px-3 pb-3 pt-2">
-                                    {/* Creation Guide tab */}
-                                    {detailTab === 'guide' && (
-                                      <>
-                                        <div className="flex items-center justify-between mb-2">
-                                          <span className="text-[10px] text-white/30">Step-by-step SAP creation instructions</span>
-                                          <button onClick={() => handleGenerateManualSpec(obj)} disabled={specState.generating}
-                                            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 disabled:opacity-50 transition-colors">
-                                            <Sparkles size={11} />
-                                            {specState.generating ? 'Generating…' : specState.spec ? 'Regenerate' : 'Generate Steps'}
-                                          </button>
-                                        </div>
-                                        {specState.error && <p className="text-xs text-red-400 py-2">Error: {specState.error}</p>}
-                                        {specState.spec ? (
-                                          <pre className="text-xs text-white/70 font-mono leading-relaxed whitespace-pre-wrap bg-black/20 rounded-lg p-3 max-h-[32rem] overflow-y-auto">{specState.spec}</pre>
-                                        ) : !specState.generating && (
-                                          <p className="text-xs text-white/30 py-2">Click "Generate Steps" for AI-written creation instructions.</p>
-                                        )}
-                                      </>
-                                    )}
-
-                                    {/* ADT Code tab */}
-                                    {detailTab === 'adt' && canAdt && (
-                                      <>
-                                        <div className="flex items-center justify-between mb-2">
-                                          <span className="text-[10px] text-white/30">Paste into Eclipse ADT to create this object</span>
-                                          <div className="flex gap-2">
-                                            {specState.adtCode && (
-                                              <button onClick={() => navigator.clipboard?.writeText(specState.adtCode)}
-                                                className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-white/10 text-white/60 border border-white/15 hover:bg-white/15 transition-colors">
-                                                <Copy size={10} />Copy
-                                              </button>
-                                            )}
-                                            <button onClick={() => handleGenerateAdtCode(obj)} disabled={specState.generatingAdt}
-                                              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 disabled:opacity-50 transition-colors">
-                                              <Sparkles size={11} />
-                                              {specState.generatingAdt ? 'Generating…' : specState.adtCode ? 'Regenerate' : 'Generate Code'}
-                                            </button>
-                                          </div>
-                                        </div>
-                                        {specState.adtError && <p className="text-xs text-red-400 py-2">Error: {specState.adtError}</p>}
-                                        {specState.adtCode ? (
-                                          <pre className="text-xs text-green-300 font-mono leading-relaxed whitespace-pre-wrap bg-black/30 rounded-lg p-3 max-h-72 overflow-y-auto">{specState.adtCode}</pre>
-                                        ) : !specState.generatingAdt && (
-                                          <p className="text-xs text-white/30 py-2">Click "Generate Code" for ADT-ready source to paste in Eclipse.</p>
-                                        )}
-                                      </>
-                                    )}
-                                  </div>
+                                  <p className="text-[10px] text-white/30 leading-relaxed">
+                                    Click this object in the <strong className="text-white/50">Blueprint canvas</strong> to generate the Creation Guide{canAdt ? ' and ADT Code' : ''}.
+                                  </p>
                                 </div>
                               );
                             })()}
