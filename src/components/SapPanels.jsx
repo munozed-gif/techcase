@@ -1814,6 +1814,7 @@ function AbapTemplatesSection({ auth }) {
 // ============================================================
 
 const BP_PHASES = [
+  { id: 'config',      label: 'Customizing',     desc: 'SPRO / IMG configuration',   headerCls: 'bg-orange-50 dark:bg-orange-900/30 border-b-2 border-orange-200 dark:border-orange-800', bodyCls: 'bg-orange-50/40 dark:bg-orange-900/20', textCls: 'text-orange-700 dark:text-orange-300' },
   { id: 'dictionary',  label: 'Data Dictionary', desc: 'Tables, structures, domains', headerCls: 'bg-violet-50 dark:bg-violet-900/30 border-b-2 border-violet-200 dark:border-violet-800', bodyCls: 'bg-violet-50/40 dark:bg-violet-900/20', textCls: 'text-violet-700 dark:text-violet-300' },
   { id: 'development', label: 'Development',     desc: 'Programs, classes, FMs',      headerCls: 'bg-blue-50 dark:bg-blue-900/30 border-b-2 border-blue-200 dark:border-blue-800',       bodyCls: 'bg-blue-50/40 dark:bg-blue-900/20',     textCls: 'text-blue-700 dark:text-blue-300'     },
   { id: 'integration', label: 'Integration',     desc: 'RFCs, BAPIs, OData',         headerCls: 'bg-cyan-50 dark:bg-cyan-900/30 border-b-2 border-cyan-200 dark:border-cyan-800',       bodyCls: 'bg-cyan-50/40 dark:bg-cyan-900/20',     textCls: 'text-cyan-700 dark:text-cyan-300'     },
@@ -1822,21 +1823,22 @@ const BP_PHASES = [
 ];
 
 const BP_TYPES = {
-  table:          { label: 'Table',          short: 'TABL', ai: false, phase: 'dictionary'  },
-  structure:      { label: 'Structure',      short: 'STRU', ai: false, phase: 'dictionary'  },
-  domain:         { label: 'Domain',         short: 'DOMA', ai: false, phase: 'dictionary'  },
-  data_element:   { label: 'Data Element',   short: 'DTEL', ai: false, phase: 'dictionary'  },
-  message_class:  { label: 'Message Class',  short: 'MSG',  ai: false, phase: 'dictionary'  },
-  program:        { label: 'Program',        short: 'PROG', ai: true,  phase: 'development' },
-  include:        { label: 'Include',        short: 'INCL', ai: true,  phase: 'development' },
-  class:          { label: 'Class',          short: 'CLAS', ai: true,  phase: 'development' },
-  function_module:{ label: 'Function Module',short: 'FM',   ai: true,  phase: 'development' },
-  bapi:           { label: 'BAPI / RFC',     short: 'RFC',  ai: true,  phase: 'integration' },
-  odata:          { label: 'OData Service',  short: 'ODATA',ai: false, phase: 'integration' },
-  badi:           { label: 'BAdI Impl',      short: 'BADI', ai: true,  phase: 'enhancement' },
-  enhancement:    { label: 'Enhancement',    short: 'ENHO', ai: true,  phase: 'enhancement' },
-  report:         { label: 'Report (ALV)',   short: 'RPT',  ai: true,  phase: 'ui'          },
-  smartform:      { label: 'SmartForm',      short: 'SF',   ai: false, phase: 'ui'          },
+  config:         { label: 'Customizing (SPRO)', short: 'CFG',  ai: false, phase: 'config'      },
+  table:          { label: 'Table',              short: 'TABL', ai: false, phase: 'dictionary'  },
+  structure:      { label: 'Structure',          short: 'STRU', ai: false, phase: 'dictionary'  },
+  domain:         { label: 'Domain',             short: 'DOMA', ai: false, phase: 'dictionary'  },
+  data_element:   { label: 'Data Element',       short: 'DTEL', ai: false, phase: 'dictionary'  },
+  message_class:  { label: 'Message Class',      short: 'MSG',  ai: false, phase: 'dictionary'  },
+  program:        { label: 'Program',            short: 'PROG', ai: true,  phase: 'development' },
+  include:        { label: 'Include',            short: 'INCL', ai: true,  phase: 'development' },
+  class:          { label: 'Class',              short: 'CLAS', ai: true,  phase: 'development' },
+  function_module:{ label: 'Function Module',    short: 'FM',   ai: true,  phase: 'development' },
+  bapi:           { label: 'BAPI / RFC',         short: 'RFC',  ai: true,  phase: 'integration' },
+  odata:          { label: 'OData Service',      short: 'ODATA',ai: false, phase: 'integration' },
+  badi:           { label: 'BAdI Impl',          short: 'BADI', ai: true,  phase: 'enhancement' },
+  enhancement:    { label: 'Enhancement',        short: 'ENHO', ai: true,  phase: 'enhancement' },
+  report:         { label: 'Report (ALV)',        short: 'RPT',  ai: true,  phase: 'ui'          },
+  smartform:      { label: 'SmartForm',          short: 'SF',   ai: false, phase: 'ui'          },
 };
 
 const BP_STATUS_STYLE = {
@@ -1893,7 +1895,7 @@ function AddEditBlueprintObjectModal({ existing, allObjects, onSave, onClose }) 
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Name</label>
               <input value={form.name} onChange={e => f('name', e.target.value.toUpperCase())}
-                placeholder="ZPROG_ORDER"
+                placeholder={form.type === 'config' ? 'PAYMENT_TERMS_CONFIG' : 'ZPROG_ORDER'}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
             <div>
@@ -1929,11 +1931,17 @@ function AddEditBlueprintObjectModal({ existing, allObjects, onSave, onClose }) 
               placeholder="DEVK900123"
               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400" />
           </div>
-          <div className="flex items-center gap-2">
-            <input type="checkbox" id="bp-ai" checked={form.aiCapable} onChange={e => f('aiCapable', e.target.checked)}
-              className="rounded" />
-            <label htmlFor="bp-ai" className="text-sm text-gray-700">AI can generate ABAP code</label>
-          </div>
+          {form.type === 'config' ? (
+            <div className="rounded-xl border border-orange-200 bg-orange-50 px-3 py-2.5 text-xs text-orange-800 leading-relaxed">
+              <strong>Customizing (SPRO/IMG)</strong> — configured manually in DEV via transaction SPRO. No ABAP code is generated. SAP creates the customizing transport automatically. Use the <strong>Transports tab</strong> to move it to QA/PRD.
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <input type="checkbox" id="bp-ai" checked={form.aiCapable} onChange={e => f('aiCapable', e.target.checked)}
+                className="rounded" />
+              <label htmlFor="bp-ai" className="text-sm text-gray-700">AI can generate ABAP code</label>
+            </div>
+          )}
           {allObjects.filter(o => o.id !== existing?.id).length > 0 && (
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Depends On</label>
