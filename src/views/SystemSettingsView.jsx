@@ -4107,20 +4107,20 @@ function AutoApproveDomainsSection({ settings, setSetting }) {
   }
 
   return (
-    <div className="mt-6 border border-blue-100 rounded-xl p-4 bg-blue-50/40">
+    <div className="mt-6 border border-blue-500/20 rounded-xl p-4 bg-blue-500/10">
       <div className="flex items-center gap-2 mb-1">
-        <Shield size={14} className="text-blue-600" />
-        <span className="text-sm font-semibold text-gray-800">Auto-approve domains</span>
+        <Shield size={14} className="text-blue-400" />
+        <span className="text-sm font-semibold text-white">Auto-approve domains</span>
       </div>
-      <p className="text-xs text-gray-500 mb-3">
+      <p className="text-xs text-white/50 mb-3">
         Users who sign up with an email from these domains are approved instantly, skipping the manual queue — regardless of their role's flow setting.
       </p>
       <div className="flex flex-wrap gap-2 mb-3">
-        {domains.length === 0 && <span className="text-xs text-gray-400 italic">No domains configured</span>}
+        {domains.length === 0 && <span className="text-xs text-white/30 italic">No domains configured</span>}
         {domains.map(d => (
-          <span key={d} className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-blue-200 rounded-lg text-xs font-medium text-blue-700">
+          <span key={d} className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/20 border border-blue-500/30 rounded-lg text-xs font-medium text-blue-300">
             @{d}
-            <button onClick={() => removeDomain(d)} className="text-blue-400 hover:text-red-500 transition-colors">
+            <button onClick={() => removeDomain(d)} className="text-blue-400/70 hover:text-red-400 transition-colors">
               <X className="w-3 h-3" />
             </button>
           </span>
@@ -4132,7 +4132,7 @@ function AutoApproveDomainsSection({ settings, setSetting }) {
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === "Enter" && addDomain()}
           placeholder="company.com"
-          className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          className="border border-white/15 rounded-lg px-3 py-1.5 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-800 text-white placeholder-white/25"
         />
         <button onClick={addDomain} disabled={saving || !input.trim()}
           className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg disabled:opacity-40 transition-colors">
