@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
+import { PRIORITY_LABEL_KEYS, cap } from "../lib/uiUtils.jsx";
 
 const PRIORITY_COLORS = {
   critical: "bg-red-100 text-red-700",
@@ -216,7 +217,7 @@ export default function DispatchView({ auth }) {
                   <td className="px-4 py-3">
                     {c.priority && (
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${PRIORITY_COLORS[c.priority] ?? "bg-gray-100 text-gray-600"}`}>
-                        {c.priority}
+                        {PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}
                       </span>
                     )}
                   </td>

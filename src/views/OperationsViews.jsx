@@ -175,7 +175,7 @@ function UsersView() {
   const [addError, setAddError] = useState("");
 
   async function loadUsers() {
-    const { data } = await supabase.from("users").select("*").order("created_at", { ascending: false });
+    const { data } = await supabase.from("users").select("id, full_name, avatar_url, email, role, created_at, is_active, trust_level").order("created_at", { ascending: false });
     setUsers(data ?? []);
   }
 
