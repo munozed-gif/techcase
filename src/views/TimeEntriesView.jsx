@@ -117,9 +117,9 @@ function TimeEntriesView({ auth }) {
   const caseOptions       = [...new Map(entries.filter(e => e.case?.title).map(e => [e.case_id, e.case.title])).entries()];
 
   function exportCSV() {
-    const rows = [['Date', 'Consultant', 'Case', 'Hours', 'Billable', 'Approved', 'Description']];
+    const rows = [[t('time.csv_date'), t('time.csv_consultant'), t('time.csv_case'), t('time.csv_hours'), t('time.csv_billable'), t('time.csv_approved'), t('time.csv_description')]];
     filtered.forEach(e => rows.push([e.date, e.consultant?.full_name ?? '', e.case?.title ?? '', e.hours,
-      e.is_billable ? 'Yes' : 'No', e.is_approved ? 'Yes' : 'No', e.description ?? '']));
+      e.is_billable ? t('time.csv_yes') : t('time.csv_no'), e.is_approved ? t('time.csv_yes') : t('time.csv_no'), e.description ?? '']));
     const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
     const a = Object.assign(document.createElement('a'), {
       href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })),

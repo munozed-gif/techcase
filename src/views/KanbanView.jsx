@@ -238,7 +238,7 @@ function KanbanView({ auth }) {
                 kanbanProject === "" ? "bg-gray-800 text-white border-gray-800 shadow-sm" : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
               }`}>
               <FolderKanban size={14} />
-              All projects
+              {t("kanban.all_projects")}
               <span className="opacity-60 text-xs ml-0.5">{filteredCases.length}</span>
             </button>
             {kanbanProjects.map(p => (
