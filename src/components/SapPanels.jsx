@@ -377,6 +377,7 @@ function SapIntegrationPanel({ clientId, auth }) {
   const [expandedId, setExpandedId] = useState(null);
   const [testStates, setTestStates] = useState({});
   const [testErrors, setTestErrors] = useState({});
+  const [adtWarnings, setAdtWarnings] = useState({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -429,15 +430,19 @@ function SapIntegrationPanel({ clientId, auth }) {
   async function testConnection(env) {
     setTestStates(p => ({ ...p, [env.id]: 'testing' }));
     setTestErrors(p => ({ ...p, [env.id]: null }));
+    setAdtWarnings(p => ({ ...p, [env.id]: null }));
     const enriched = enrichEnvWithVpn(env);
     const effectiveProxy = enriched.proxyUrl?.trim() || enriched._vpnProxyUrl;
     try {
       const result = await sapLiveCheck(enriched);
       if (result && !result.error) {
         setTestStates(p => ({ ...p, [env.id]: 'ok' }));
+        if (env.type === 'ecc') setAdtWarnings(p => ({ ...p, [env.id]: 'active' }));
       } else {
         setTestStates(p => ({ ...p, [env.id]: 'fail' }));
         const status = result?.error;
+        if (env.type === 'ecc' && status === 404) setAdtWarnings(p => ({ ...p, [env.id]: 'inactive' }));
+        if (env.type === 'ecc' && status === 403) setAdtWarnings(p => ({ ...p, [env.id]: 'no_auth' }));
         const statusMsg = status === 401 ? 'HTTP 401 — Wrong username, password or client (MANDT).'
           : status === 403 ? 'HTTP 403 — User lacks ADT authorizations in SAP.'
           : status === 404 ? 'HTTP 404 — ADT service not active. Enable /sap/bc/adt in SICF.'
@@ -580,6 +585,25 @@ function SapIntegrationPanel({ clientId, auth }) {
                         </div>
                         {testStatus === 'fail' && testError && (
                           <p className="text-xs text-red-500 leading-snug max-w-sm">{testError}</p>
+                        )}
+                        {env.type === 'ecc' && adtWarnings[env.id] === 'active' && (
+                          <div className="flex items-start gap-2 p-2.5 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 text-xs text-green-700 dark:text-green-300">
+                            <CheckCircle2 size={12} className="flex-shrink-0 mt-0.5" />
+                            <span><strong>ADT is active</strong> on this ECC system — auto-implementation and Auto Config will work.</span>
+                          </div>
+                        )}
+                        {env.type === 'ecc' && adtWarnings[env.id] === 'inactive' && (
+                          <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 text-xs text-amber-700 dark:text-amber-300">
+                            <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" />
+                            <span><strong>ADT is not activated</strong> on this ECC system. Auto-implementation and Auto Config will fall back to manual SE38 steps.<br />
+                            To enable: open <strong>SICF</strong>, activate service path <strong>/sap/bc/adt</strong> and all sub-nodes, then assign auth object <strong>S_ADT_ALL</strong> to your SAP user.</span>
+                          </div>
+                        )}
+                        {env.type === 'ecc' && adtWarnings[env.id] === 'no_auth' && (
+                          <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 text-xs text-amber-700 dark:text-amber-300">
+                            <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" />
+                            <span><strong>ADT is active</strong> but this user lacks authorization. Assign auth object <strong>S_ADT_ALL</strong> (or role <strong>SAP_BC_DWB_ABAPDEVELOPER</strong>) in SU01/PFCG.</span>
+                          </div>
                         )}
                       </div>
                     )}
@@ -909,6 +933,7 @@ function ProjectOwnSapPanel({ projectId, auth }) {
   const [expandedId, setExpandedId] = useState(null);
   const [testStates, setTestStates] = useState({});
   const [testErrors, setTestErrors] = useState({});
+  const [adtWarnings, setAdtWarnings] = useState({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -968,15 +993,19 @@ function ProjectOwnSapPanel({ projectId, auth }) {
   async function testConnection(env) {
     setTestStates(p => ({ ...p, [env.id]: 'testing' }));
     setTestErrors(p => ({ ...p, [env.id]: null }));
+    setAdtWarnings(p => ({ ...p, [env.id]: null }));
     try {
       const enriched = enrichEnvWithVpn(env);
       const effectiveProxy = enriched.proxyUrl?.trim() || enriched._vpnProxyUrl;
       const result = await sapLiveCheck(enriched);
       if (result && !result.error) {
         setTestStates(p => ({ ...p, [env.id]: 'ok' }));
+        if (env.type === 'ecc') setAdtWarnings(p => ({ ...p, [env.id]: 'active' }));
       } else {
         setTestStates(p => ({ ...p, [env.id]: 'fail' }));
         const status = result?.error;
+        if (env.type === 'ecc' && status === 404) setAdtWarnings(p => ({ ...p, [env.id]: 'inactive' }));
+        if (env.type === 'ecc' && status === 403) setAdtWarnings(p => ({ ...p, [env.id]: 'no_auth' }));
         const statusMsg = status === 401 ? 'HTTP 401 — Wrong username, password or client (MANDT).'
           : status === 403 ? 'HTTP 403 — User lacks ADT authorizations in SAP.'
           : status === 404 ? 'HTTP 404 — ADT service not active. Enable /sap/bc/adt in SICF.'
@@ -1177,6 +1206,25 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                               : '';
                             return <p className="text-xs text-red-500 leading-snug max-w-sm">{testError}{vpnHint}</p>;
                           })()}
+                          {env.type === 'ecc' && adtWarnings[env.id] === 'active' && (
+                            <div className="flex items-start gap-2 p-2.5 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 text-xs text-green-700 dark:text-green-300">
+                              <CheckCircle2 size={12} className="flex-shrink-0 mt-0.5" />
+                              <span><strong>ADT is active</strong> on this ECC system — auto-implementation and Auto Config will work.</span>
+                            </div>
+                          )}
+                          {env.type === 'ecc' && adtWarnings[env.id] === 'inactive' && (
+                            <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 text-xs text-amber-700 dark:text-amber-300">
+                              <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" />
+                              <span><strong>ADT is not activated</strong> on this ECC system. Auto-implementation and Auto Config will fall back to manual SE38 steps.<br />
+                              To enable: open <strong>SICF</strong>, activate service path <strong>/sap/bc/adt</strong> and all sub-nodes, then assign auth object <strong>S_ADT_ALL</strong> to your SAP user.</span>
+                            </div>
+                          )}
+                          {env.type === 'ecc' && adtWarnings[env.id] === 'no_auth' && (
+                            <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 text-xs text-amber-700 dark:text-amber-300">
+                              <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" />
+                              <span><strong>ADT is active</strong> but this user lacks authorization. Assign auth object <strong>S_ADT_ALL</strong> (or role <strong>SAP_BC_DWB_ABAPDEVELOPER</strong>) in SU01/PFCG.</span>
+                            </div>
+                          )}
                         </div>
                       )}
 
