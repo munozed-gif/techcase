@@ -17,7 +17,7 @@ export default async function handler(req, res) {
   if (mcp_servers?.length) betaFeatures.push("mcp-client-2025-04-04");
 
   const body = {
-    model: model || "claude-haiku-4-5-20251001",
+    model: model || "claude-haiku-4-5",
     system,
     messages,
     max_tokens,
@@ -31,7 +31,7 @@ export default async function handler(req, res) {
   };
   if (betaFeatures.length) headers["anthropic-beta"] = betaFeatures.join(",");
 
-  const FALLBACK_MODEL = "claude-haiku-4-5-20251001";
+  const FALLBACK_MODEL = "claude-haiku-4-5";
 
   async function callAnthropicApi(requestBody) {
     const response = await fetch("https://api.anthropic.com/v1/messages", {

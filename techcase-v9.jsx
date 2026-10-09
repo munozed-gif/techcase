@@ -573,6 +573,7 @@ export default function App() {
   const [pendingProjectId, setPendingProjectId] = useState(null);
   const [pendingUserId, setPendingUserId] = useState(null);
   const [pendingClientId, setPendingClientId] = useState(null);
+  const [stripeBanner, setStripeBanner] = useState(null); // null | 'success' | 'cancel'
 
   // Sync authed state with auth session
   useEffect(() => {
@@ -583,6 +584,21 @@ export default function App() {
       }
     }
   }, [auth.loading, auth.user]);
+
+  // Handle Stripe return URL (?stripe=success|cancel)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const stripeParam = params.get('stripe');
+    if (stripeParam === 'success' || stripeParam === 'cancel') {
+      setStripeBanner(stripeParam);
+      params.delete('stripe');
+      params.delete('plan');
+      const newSearch = params.toString();
+      window.history.replaceState(null, '', newSearch ? `?${newSearch}` : window.location.pathname);
+      if (stripeParam === 'success') setTimeout(() => setStripeBanner(null), 8000);
+      else setTimeout(() => setStripeBanner(null), 5000);
+    }
+  }, []);
 
   // Global Cmd+K / Ctrl+K shortcut
   useEffect(() => {
@@ -811,6 +827,18 @@ export default function App() {
               onClose={() => setSearchOpen(false)}
             />
           )}
+          {/* Stripe return banner */}
+          {stripeBanner && (
+            <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-xl text-sm font-semibold transition-all ${
+              stripeBanner === 'success'
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-700 text-gray-200'
+            }`}>
+              {stripeBanner === 'success' ? '✓ Subscription activated — welcome to your new plan!' : 'Checkout cancelled. You have not been charged.'}
+              <button onClick={() => setStripeBanner(null)} className="ml-2 opacity-70 hover:opacity-100">✕</button>
+            </div>
+          )}
+
           <main className="md:ml-64 p-4 md:p-8 min-h-screen">
             {/* Mobile hamburger */}
             <button onClick={() => setSidebarOpen(true)}

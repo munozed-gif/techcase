@@ -4,6 +4,7 @@ import {
   Download, FileText, FolderOpen, Mail, Pencil, Phone, SlidersHorizontal,
   Target, Trash2, User, Users, X, XCircle,
 } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
