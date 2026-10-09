@@ -341,7 +341,13 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
   const scopeKey  = caseId ? `case_${caseId}` : `project_${projectId}`;
 
   // ── Top-level mode toggle ─────────────────────────────────
-  const [tabMode, setTabMode] = useState('tr'); // 'tr' | 'bcset'
+  const [tabMode, setTabMode] = useState('tr'); // 'tr' | 'bcset' | 'pipeline'
+
+  // ── Pipeline mode ─────────────────────────────────────────
+  const [pipelineRuns, setPipelineRuns] = useState({}); // stageIdx → { status, log, ts }
+  function setPipelineStage(idx, updates) {
+    setPipelineRuns(p => ({ ...p, [idx]: { ...(p[idx] ?? {}), ...updates } }));
+  }
 
   // ── SAP environments ──────────────────────────────────────
   const allSapConfigs = settings['sap_integration'] ?? {};
@@ -748,6 +754,11 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
           className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold rounded-lg transition-all
             ${tabMode === 'tr' ? 'bg-blue-600 text-white shadow-sm' : 'text-white/40 hover:text-white/70 hover:bg-white/5'}`}>
           <Package size={12} />Transport Requests
+        </button>
+        <button onClick={() => setTabMode('pipeline')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold rounded-lg transition-all
+            ${tabMode === 'pipeline' ? 'bg-emerald-600 text-white shadow-sm' : 'text-white/40 hover:text-white/70 hover:bg-white/5'}`}>
+          <Play size={12} />Dev→QA→Prod Pipeline
         </button>
         <button onClick={() => setTabMode('bcset')}
           className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold rounded-lg transition-all
@@ -1178,6 +1189,193 @@ export function TransportTab({ caseData, projectData, projectCases = [], auth })
           )}
         </>
       )}
+
+      {/* ══ Dev → QA → Prod Pipeline ══════════════════════════ */}
+      {tabMode === 'pipeline' && (() => {
+        const PIPELINE_STAGES = [
+          { label: 'Development', short: 'DEV', types: ['DEV', 'SBX', 'TRN'], color: 'blue',   ring: 'ring-blue-500',   bg: 'bg-blue-500/15',   border: 'border-blue-500/30',   text: 'text-blue-300',   btn: 'bg-blue-600 hover:bg-blue-700'   },
+          { label: 'Quality',     short: 'QAS', types: ['QAS', 'QA'],          color: 'amber',  ring: 'ring-amber-500',  bg: 'bg-amber-500/15',  border: 'border-amber-500/30',  text: 'text-amber-300',  btn: 'bg-amber-600 hover:bg-amber-700'  },
+          { label: 'Production',  short: 'PRD', types: ['PRD', 'PROD'],        color: 'green',  ring: 'ring-green-500',  bg: 'bg-green-500/15',  border: 'border-green-500/30',  text: 'text-green-300',  btn: 'bg-green-600 hover:bg-green-700'  },
+        ];
+
+        // Map each stage to matching SAP environments
+        const stageEnvs = PIPELINE_STAGES.map(stage =>
+          sapEnvironments.filter(e => stage.types.includes((e.type ?? '').toUpperCase()))
+        );
+
+        // All requests sorted by seq
+        const sorted = [...requests].sort((a, b) => (a.seq_order ?? 0) - (b.seq_order ?? 0));
+
+        // Map requests to stages by their from_env type
+        const stageRequests = PIPELINE_STAGES.map(stage =>
+          sorted.filter(r => {
+            const fromEnv = sapEnvironments.find(e => e.id === r.from_env_id);
+            return fromEnv && stage.types.includes((fromEnv.type ?? '').toUpperCase());
+          })
+        );
+
+        // If no requests have from_env set, bucket all into stage 0
+        const hasStaged = stageRequests.some(s => s.length > 0);
+        if (!hasStaged && sorted.length > 0) stageRequests[0] = sorted;
+
+        async function runStage(stageIdx) {
+          const envs = stageEnvs[stageIdx];
+          const reqs = stageRequests[stageIdx];
+          const targetEnv = envs[0] ?? null;
+          if (!targetEnv) {
+            setPipelineStage(stageIdx, { status: 'error', log: ['No SAP environment configured for this stage.'], ts: new Date().toLocaleTimeString() });
+            return;
+          }
+          if (!reqs.length) {
+            setPipelineStage(stageIdx, { status: 'done', log: ['No requests for this stage.'], ts: new Date().toLocaleTimeString() });
+            return;
+          }
+          setPipelineStage(stageIdx, { status: 'running', log: [`Importing ${reqs.length} request(s) to ${targetEnv.name ?? targetEnv.host}…`], ts: new Date().toLocaleTimeString() });
+          const log = [];
+          let allOk = true;
+          for (const req of reqs) {
+            log.push(`→ ${req.request_number}…`);
+            setPipelineStage(stageIdx, { status: 'running', log: [...log], ts: new Date().toLocaleTimeString() });
+            try {
+              const res = await sapImportTransport(targetEnv, req.request_number, targetEnv.client ?? '100');
+              if (res.ok) {
+                log.push(`✓ ${req.request_number} imported`);
+                await supabase.from('transport_requests').update({ status: 'done' }).eq('id', req.id);
+              } else {
+                log.push(`✗ ${req.request_number} failed (HTTP ${res.status})`);
+                allOk = false;
+              }
+            } catch (e) {
+              log.push(`✗ ${req.request_number}: ${e.message}`);
+              allOk = false;
+            }
+            setPipelineStage(stageIdx, { status: 'running', log: [...log], ts: new Date().toLocaleTimeString() });
+          }
+          await loadRequests();
+          setPipelineStage(stageIdx, { status: allOk ? 'done' : 'error', log, ts: new Date().toLocaleTimeString() });
+        }
+
+        const prevStageDone = (stageIdx) => {
+          if (stageIdx === 0) return true;
+          const prev = pipelineRuns[stageIdx - 1];
+          if (prev?.status === 'done') return true;
+          // Also allow if all prev stage requests are already done in DB
+          return stageRequests[stageIdx - 1].every(r => r.status === 'done');
+        };
+
+        return (
+          <div className="space-y-4">
+            <div className="bg-gray-900/60 rounded-2xl border border-white/10 p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Play size={14} className="text-emerald-400" />
+                <span className="font-bold text-white text-sm">Transport Pipeline</span>
+              </div>
+              <p className="text-xs text-white/40">Run transports through each environment stage in order. Each stage gates on the previous completing successfully.</p>
+            </div>
+
+            {/* Stage cards */}
+            <div className="grid grid-cols-1 gap-4">
+              {PIPELINE_STAGES.map((stage, idx) => {
+                const run = pipelineRuns[idx] ?? {};
+                const envs = stageEnvs[idx];
+                const reqs = stageRequests[idx];
+                const isPrev = !prevStageDone(idx);
+                const isRunning = run.status === 'running';
+                const isDone = run.status === 'done' || (!run.status && reqs.length > 0 && reqs.every(r => r.status === 'done'));
+                const hasError = run.status === 'error';
+
+                return (
+                  <div key={stage.short} className={`rounded-2xl border ${stage.border} ${stage.bg} overflow-hidden`}>
+                    {/* Stage header */}
+                    <div className="px-4 py-3 border-b border-white/10 flex items-center gap-3">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm ${stage.bg} border ${stage.border} ${stage.text}`}>
+                        {isDone ? <Check size={16} /> : idx + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-white text-sm">{stage.label}</span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${stage.bg} border ${stage.border} ${stage.text}`}>{stage.short}</span>
+                          {envs.length > 0
+                            ? <span className="text-xs text-white/40">{envs.map(e => e.name ?? e.host).join(', ')}</span>
+                            : <span className="text-xs text-amber-400/70">No {stage.short} environment configured</span>}
+                        </div>
+                        <div className="text-[10px] text-white/30 mt-0.5">
+                          {reqs.length === 0 ? 'No requests for this stage' : `${reqs.length} request${reqs.length > 1 ? 's' : ''}`}
+                          {reqs.length > 0 && <> · {reqs.filter(r => r.status === 'done').length} done</>}
+                        </div>
+                      </div>
+                      {/* Status badge */}
+                      <div className="flex-shrink-0">
+                        {isDone && <span className="flex items-center gap-1 text-xs font-semibold text-green-400"><CheckCircle2 size={13} />Done</span>}
+                        {isRunning && <span className="flex items-center gap-1 text-xs font-semibold text-blue-300"><Loader2 size={13} className="animate-spin" />Running</span>}
+                        {hasError && <span className="flex items-center gap-1 text-xs font-semibold text-red-400"><XCircle size={13} />Failed</span>}
+                        {isPrev && !isRunning && !isDone && !hasError && <span className="text-xs text-white/25">Waiting for {PIPELINE_STAGES[idx - 1].short}</span>}
+                      </div>
+                    </div>
+
+                    {/* Requests list */}
+                    {reqs.length > 0 && (
+                      <div className="px-4 py-2 space-y-1.5">
+                        {reqs.map(req => {
+                          const reqDone = req.status === 'done';
+                          return (
+                            <div key={req.id} className="flex items-center gap-2 py-1.5 border-b border-white/5 last:border-0">
+                              <span className={`w-3.5 h-3.5 rounded-full flex-shrink-0 ${reqDone ? 'bg-green-500' : 'bg-white/15'}`} />
+                              <span className="font-mono text-xs text-white/70 flex-1">{req.request_number}</span>
+                              {req.description && <span className="text-[10px] text-white/30 truncate max-w-[140px]">{req.description}</span>}
+                              <span className={`text-[10px] font-semibold flex-shrink-0 ${reqDone ? 'text-green-400' : 'text-white/30'}`}>
+                                {reqDone ? '✓' : req.status ?? 'pending'}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Run log */}
+                    {run.log?.length > 0 && (
+                      <div className="mx-4 mb-3 bg-black/30 rounded-xl p-3 font-mono text-[10px] space-y-0.5">
+                        {run.log.map((line, i) => (
+                          <div key={i} className={line.startsWith('✓') ? 'text-green-400' : line.startsWith('✗') ? 'text-red-400' : 'text-white/50'}>{line}</div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Run button */}
+                    <div className="px-4 pb-4">
+                      <button
+                        onClick={() => runStage(idx)}
+                        disabled={isPrev || isRunning || envs.length === 0}
+                        className={`w-full py-2 text-xs font-semibold rounded-xl text-white transition-colors disabled:opacity-30 flex items-center justify-center gap-1.5 ${stage.btn}`}>
+                        {isRunning
+                          ? <><Loader2 size={11} className="animate-spin" />Running…</>
+                          : isDone
+                          ? <><Play size={11} />Re-run {stage.short}</>
+                          : <><Play size={11} />Run {stage.short} Stage</>}
+                      </button>
+                      {isPrev && !isRunning && <p className="text-[10px] text-white/25 text-center mt-1.5">Complete {PIPELINE_STAGES[idx - 1].label} stage first</p>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* All done summary */}
+            {PIPELINE_STAGES.every((_, i) => {
+              const run = pipelineRuns[i] ?? {};
+              return run.status === 'done' || stageRequests[i].every(r => r.status === 'done');
+            }) && sorted.length > 0 && (
+              <div className="bg-green-500/10 border border-green-500/30 rounded-2xl p-4 flex items-center gap-3">
+                <CheckCircle2 size={20} className="text-green-400 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-bold text-green-300">Pipeline complete</p>
+                  <p className="text-xs text-green-400/70">All {sorted.length} transport request{sorted.length > 1 ? 's' : ''} have been imported across all stages.</p>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ══ BCset & Building Blocks ════════════════════════════ */}
       {tabMode === 'bcset' && (

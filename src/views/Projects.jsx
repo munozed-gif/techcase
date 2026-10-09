@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   Activity, AlertCircle, AlertTriangle, Archive, BarChart2, Building2,
   Calendar, Camera, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Code2, Copy,
-  Database, DollarSign, FileEdit, FileText, FolderOpen, Layers, Link2,
+  Database, DollarSign, Download, FileEdit, FileText, FolderOpen, Layers, Link2,
   LayoutTemplate, Loader2, Lock, Pause, PauseCircle, Play, Plus, Search,
   Shield, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, Truck, Upload,
   UserCheck, Users, X, XCircle, Zap,
@@ -1616,6 +1616,8 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
   // Share link
   const [shareCopied, setShareCopied] = useState(false);
   const [shareToken, setShareToken] = useState(project.share_token ?? null);
+  // Project report
+  const [generatingReport, setGeneratingReport] = useState(false);
 
   async function handleShareLink() {
     let token = shareToken;
@@ -1634,6 +1636,144 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
     try { await navigator.clipboard.writeText(url); } catch { prompt("Copy this link:", url); return; }
     setShareCopied(true);
     setTimeout(() => setShareCopied(false), 2500);
+  }
+
+  async function generateProjectReport() {
+    setGeneratingReport(true);
+    try {
+      const { jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const W = 210, L = 12, R = 198;
+      const sapBlue = [26, 75, 140];
+      const sapGray = [243, 246, 249];
+      const now = new Date();
+
+      // ── Cover header ──────────────────────────────────────
+      doc.setFillColor(...sapBlue);
+      doc.rect(0, 0, W, 38, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Project Completion Report', L, 16);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text(project.title ?? 'Untitled Project', L, 25);
+      doc.setFontSize(8);
+      doc.text(`Generated: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`, L, 33);
+      doc.setTextColor(0, 0, 0);
+
+      let y = 46;
+
+      // ── Project summary ───────────────────────────────────
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Project Summary', L, y); y += 6;
+      const TERMINAL = ['completed', 'cancelled', 'terminated', 'closed', 'approved'];
+      const totalCases = projCases.length;
+      const doneCases  = projCases.filter(c => TERMINAL.includes(c.status)).length;
+      const progress   = totalCases ? Math.round(doneCases / totalCases * 100) : 0;
+      autoTable(doc, {
+        startY: y,
+        margin: { left: L, right: L },
+        theme: 'grid',
+        headStyles: { fillColor: sapBlue, textColor: [255,255,255], fontStyle: 'bold', fontSize: 8 },
+        bodyStyles: { fontSize: 8 },
+        alternateRowStyles: { fillColor: sapGray },
+        head: [['Field','Value']],
+        body: [
+          ['Project Status',  project.status ?? '—'],
+          ['Total Cases',     String(totalCases)],
+          ['Completed Cases', `${doneCases} (${progress}%)`],
+          ['Client',          project.client_name ?? '—'],
+          ['Start Date',      project.created_at ? new Date(project.created_at).toLocaleDateString() : '—'],
+          ['Description',     project.description ?? '—'],
+        ],
+      });
+      y = doc.lastAutoTable.finalY + 10;
+
+      // ── Cases table ───────────────────────────────────────
+      if (projCases.length > 0) {
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Cases', L, y); y += 6;
+
+        // Fetch transport requests for all cases
+        const caseIds = projCases.map(c => c.id);
+        const { data: allTR } = await supabase
+          .from('transport_requests')
+          .select('case_id, request_number, status')
+          .eq('project_id', project.id);
+        const trByCaseId = {};
+        (allTR ?? []).forEach(r => { (trByCaseId[r.case_id] = trByCaseId[r.case_id] ?? []).push(r); });
+
+        autoTable(doc, {
+          startY: y,
+          margin: { left: L, right: L },
+          theme: 'grid',
+          headStyles: { fillColor: sapBlue, textColor: [255,255,255], fontStyle: 'bold', fontSize: 8 },
+          bodyStyles: { fontSize: 8 },
+          alternateRowStyles: { fillColor: sapGray },
+          columnStyles: { 0: { cellWidth: 60 }, 1: { cellWidth: 22 }, 2: { cellWidth: 20 }, 3: { cellWidth: 22 }, 4: { cellWidth: 30 }, 5: { cellWidth: 28 } },
+          head: [['Title','Status','Priority','SAP Area','Transport Requests','Assignee']],
+          body: projCases.map(c => {
+            const trs = (trByCaseId[c.id] ?? []).map(r => r.request_number).join(', ') || '—';
+            const assignee = (c.case_assignments ?? [])[0]?.users?.full_name ?? '—';
+            return [c.title ?? '—', c.status ?? '—', c.priority ?? '—', c.area_sap ?? '—', trs, assignee];
+          }),
+        });
+        y = doc.lastAutoTable.finalY + 10;
+      }
+
+      // Blueprint objects are stored in system_settings (client-side), so we skip them here
+      // and summarize case statuses instead.
+
+      // ── Approval summary ──────────────────────────────────
+      const { data: approvals } = await supabase
+        .from('approval_requests')
+        .select('case_id, status, created_at, cases(title)')
+        .in('case_id', projCases.map(c => c.id));
+      if (approvals?.length > 0) {
+        if (y > 240) { doc.addPage(); y = 16; }
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Approval Records', L, y); y += 6;
+        autoTable(doc, {
+          startY: y,
+          margin: { left: L, right: L },
+          theme: 'grid',
+          headStyles: { fillColor: sapBlue, textColor: [255,255,255], fontStyle: 'bold', fontSize: 8 },
+          bodyStyles: { fontSize: 8 },
+          alternateRowStyles: { fillColor: sapGray },
+          head: [['Case','Approval Status','Date']],
+          body: approvals.map(a => [
+            a.cases?.title ?? a.case_id,
+            a.status ?? '—',
+            a.created_at ? new Date(a.created_at).toLocaleDateString() : '—',
+          ]),
+        });
+        y = doc.lastAutoTable.finalY + 10;
+      }
+
+      // ── Footer ────────────────────────────────────────────
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(150, 150, 150);
+        doc.text(`TechCase SAP · ${project.title ?? ''}`, L, 290);
+        doc.text(`Page ${i} / ${pageCount}`, R - 10, 290, { align: 'right' });
+        doc.setTextColor(0, 0, 0);
+      }
+
+      const slug = (project.title ?? 'project').toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 30);
+      doc.save(`${slug}_report_${now.toISOString().slice(0,10)}.pdf`);
+    } catch (e) {
+      alert('Report generation failed: ' + e.message);
+    } finally {
+      setGeneratingReport(false);
+    }
   }
 
   async function handleImportExtract() {
@@ -1919,6 +2059,10 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
             <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${PROJECT_STATUS_COLORS[project.status] ?? "bg-gray-100 text-gray-600"}`}>
               {STATUS_LABEL_KEYS[project.status] ? t(STATUS_LABEL_KEYS[project.status]) : cap(fmt(project.status))}
             </span>
+            <button onClick={generateProjectReport} disabled={generatingReport}
+              className="flex items-center gap-1.5 text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-3 py-1.5 transition-colors disabled:opacity-50">
+              {generatingReport ? <><Loader2 size={13} className="animate-spin" />Generating…</> : <><Download size={13} />Report PDF</>}
+            </button>
             <button onClick={handleShareLink}
               className={`flex items-center gap-1.5 text-sm border rounded-xl px-3 py-1.5 transition-colors ${shareCopied ? 'border-green-300 bg-green-50 text-green-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
               {shareCopied ? <><Check size={13} />Copied!</> : <><Link2 size={13} />Share</>}

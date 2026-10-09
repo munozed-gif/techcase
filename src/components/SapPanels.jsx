@@ -2070,6 +2070,11 @@ function SapBlueprintCanvas({ caseData, auth, activities, sapConfig, autoImplEna
   const [syncingReviews, setSyncingReviews] = useState(false);
   const [syncedCount, setSyncedCount] = useState(null);
 
+  // NL → Blueprint
+  const [showNlModal, setShowNlModal] = useState(false);
+  const [nlText, setNlText] = useState('');
+  const [nlGenerating, setNlGenerating] = useState(false);
+
   // Load reviewer info on mount
   useEffect(() => {
     async function loadReviewer() {
@@ -2408,6 +2413,72 @@ Suggest 5-15 objects covering the full scope.`;
     }
   }
 
+  async function handleNlGenerate() {
+    if (!nlText.trim()) return;
+    setNlGenerating(true);
+    const prompt = `You are an SAP architect. Based on this description, generate a complete set of SAP implementation objects needed.
+
+Description: ${nlText}
+SAP Module context: ${caseData.area_sap ?? 'general'}
+
+Return ONLY a valid JSON array (no markdown, no explanation). Each object must have:
+- name: string (short uppercase identifier, e.g. ZMM_PROC_REPORT, MT_901, PAYMENT_TERMS_30D)
+- type: one of [${Object.keys(BP_TYPES).join(', ')}]
+- phase: one of [config, dictionary, development, integration, enhancement, ui]
+- description: string
+- aiCapable: boolean (always false for type "config")
+- dependsOn: array of names of other objects in this list this depends on
+
+Suggest 5-15 objects covering the full scope of the described solution.`;
+    try {
+      const resp = await callClaude({
+        model: genModel,
+        system: 'You are an expert SAP architect. Return only valid JSON arrays, no markdown.',
+        messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
+        max_tokens: 2000,
+      });
+      const raw = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
+      const parsed = JSON.parse(raw.replace(/```json?/g, '').replace(/```/g, '').trim());
+      const nameToId = {};
+      const newObjs = parsed.map((item, i) => {
+        const id = crypto.randomUUID();
+        nameToId[item.name] = id;
+        return {
+          id,
+          name: item.name,
+          type: BP_TYPES[item.type] ? item.type : 'program',
+          phase: (item.phase && BP_PHASES.some(p => p.id === item.phase)) ? item.phase : (BP_TYPES[item.type]?.phase ?? 'development'),
+          description: item.description ?? '',
+          aiCapable: item.aiCapable ?? (BP_TYPES[item.type]?.ai ?? true),
+          dependsOn: [],
+          order: i + 1,
+          status: 'planned',
+          error: null,
+          transport: transportReq ?? '',
+          generatedCode: null,
+          appliedAt: null,
+          aiSuggested: true,
+        };
+      });
+      parsed.forEach((item, i) => {
+        if (item.dependsOn?.length) {
+          newObjs[i].dependsOn = item.dependsOn.map(n => nameToId[n]).filter(Boolean);
+        }
+      });
+      const prevAiObjs = objects.filter(o => o.aiSuggested);
+      const kept = prevAiObjs.length > 0 ? objects.filter(o => !o.aiSuggested) : [];
+      const next = [...newObjs, ...kept];
+      setObjects(next);
+      await saveBlueprint(next);
+      setShowNlModal(false);
+      setNlText('');
+    } catch (e) {
+      alert('Generation failed: ' + e.message);
+    } finally {
+      setNlGenerating(false);
+    }
+  }
+
   async function handleRun(subset) {
     if (running) { stopRef.current = true; return; }
     stopRef.current = false;
@@ -2637,6 +2708,10 @@ Output ONLY the ABAP source code, no explanations.`;
           )}
           {canDevelop && (
             <>
+              <button onClick={() => setShowNlModal(true)}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors">
+                <Sparkles size={11} />From Description
+              </button>
               <button onClick={handleAiSuggest}
                 className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-200 rounded-lg hover:bg-violet-100 transition-colors">
                 <Sparkles size={11} />{objects.length > 0 ? 'AI Regenerate' : 'AI Suggest'}
@@ -3273,6 +3348,41 @@ Output ONLY the ABAP source code, no explanations.`;
               <button onClick={saveAsTemplate} disabled={!templateName.trim() || savingTemplate}
                 className="px-3 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
                 {savingTemplate ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NL → Blueprint modal */}
+      {showNlModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                <Sparkles size={15} className="text-emerald-600" />Generate Blueprint from Description
+              </h3>
+              <button onClick={() => { setShowNlModal(false); setNlText(''); }} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
+            </div>
+            <p className="text-xs text-gray-500">Describe in plain language what you need to implement in SAP. The AI will generate the full set of required objects.</p>
+            <textarea
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none h-36"
+              placeholder="e.g. We need a custom procurement report that reads open purchase orders by vendor, calculates overdue amounts, and sends automatic email reminders via workflow. The report must save to the database and be accessible via a Fiori tile."
+              value={nlText}
+              onChange={e => setNlText(e.target.value)}
+              disabled={nlGenerating}
+            />
+            {objects.length > 0 && (
+              <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                AI-suggested objects will be replaced. Manually added objects are kept.
+              </p>
+            )}
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => { setShowNlModal(false); setNlText(''); }} disabled={nlGenerating}
+                className="px-3 py-1.5 text-sm border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-50">Cancel</button>
+              <button onClick={handleNlGenerate} disabled={!nlText.trim() || nlGenerating}
+                className="px-4 py-1.5 text-sm font-semibold bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5">
+                {nlGenerating ? <><Loader2 size={12} className="animate-spin" />Generating…</> : <><Sparkles size={12} />Generate Blueprint</>}
               </button>
             </div>
           </div>
