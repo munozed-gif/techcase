@@ -577,7 +577,7 @@ function ReportsView() {
 // ============================================================
 // SLA CONFIG VIEW (Admin / Manager)
 // ============================================================
-function SlaView({ auth }) {
+function SlaClientView({ auth }) {
   const { t } = useT();
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
@@ -1539,4 +1539,4 @@ function ClientTeamList({ client, auth }) {
   );
 }
 
-export { NotificationsView, UsersView, ReportsView, SlaView, SlaClientDetail, DbConnectionsView, SapProfileFields, SapProfileBadges, VpnProfileFields, VpnProfileBadges, DbConnectionsList, ClientTeamView, ClientTeamList };
+export { NotificationsView, UsersView, ReportsView, SlaClientView, SlaClientDetail, DbConnectionsView, SapProfileFields, SapProfileBadges, VpnProfileFields, VpnProfileBadges, DbConnectionsList, ClientTeamView, ClientTeamList };

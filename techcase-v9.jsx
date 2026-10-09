@@ -249,10 +249,11 @@ import { ConsultantsView, ConsultantDetailModal } from "./src/views/ConsultantsV
 // ============================================================
 import {
   NotificationsView, UsersView, ReportsView,
-  SlaView, SlaClientDetail,
+  SlaClientView, SlaClientDetail,
   DbConnectionsView, SapProfileFields, SapProfileBadges, DbConnectionsList,
   ClientTeamView, ClientTeamList,
 } from "./src/views/OperationsViews.jsx";
+import { SlaView } from "./src/views/SlaView.jsx";
 
 
 // ============================================================

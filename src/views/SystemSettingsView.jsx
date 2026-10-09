@@ -32,7 +32,7 @@ import { GENERATION_CONTEXT_DEFAULTS, GENERATION_PROFILE_DEFAULTS, GEN_DOCS, ROL
 import { LifecycleSettingsView, CaseDefaultsPanel, AssignmentSettingsPanel, TransitionGatesPanel } from "./SettingsSubViews.jsx";
 import { PersonAvatar } from "./Projects.jsx";
 import { AbapTemplatesSection } from "../components/SapPanels.jsx";
-import { SlaView } from "./OperationsViews.jsx";
+import { SlaClientView } from "./OperationsViews.jsx";
 import { ConsultantProfilePanel } from "./ArenaView.jsx";
 
 // Nova Logo preview for settings branding section
@@ -3983,7 +3983,7 @@ function SettingsWorkflowTab({ auth, ssCtx }) {
       {wTab === "defaults"  && <SettingsDefaultLifecycleTab ssCtx={ssCtx} />}
       {wTab === "gates"     && <TransitionGatesPanel auth={auth} />}
       {wTab === "phases"    && <SettingsPhasesTab ssCtx={ssCtx} />}
-      {wTab === "sla"       && <SlaView auth={auth} />}
+      {wTab === "sla"       && <SlaClientView auth={auth} />}
     </div>
   );
 }

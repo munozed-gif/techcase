@@ -6,9 +6,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  AlertCircle, ArrowLeft, Calendar, Check, CheckCircle2,
-  ChevronDown, ChevronUp, Clock, Download, FileText,
-  Loader2, Milestone, Plus, RefreshCw, Rocket, Settings,
+  AlertCircle, AlertTriangle, ArrowLeft, BookOpen, Calendar,
+  Check, CheckCircle2, ChevronDown, ChevronUp, Clock,
+  Database, Download, FileText, Filter, Loader2, Milestone,
+  Plus, RefreshCw, Rocket, Settings, ShieldCheck,
   Trash2, Users, X,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
@@ -450,6 +451,8 @@ function MigrationProjectDetail({ migProject, auth, onBack }) {
     { id: 'phases',  label: t('mig.tab_phases') },
     { id: 'wricef',  label: t('mig.tab_wricef') },
     { id: 'cutover', label: t('mig.tab_cutover') },
+    { id: 'data',    label: t('mig.tab_data') },
+    { id: 'simplif', label: t('mig.tab_simplif') },
   ];
 
   const approachColors = {
@@ -505,6 +508,8 @@ function MigrationProjectDetail({ migProject, auth, onBack }) {
       {activeTab === 'phases'  && <PhasesTab  migProject={migProject} auth={auth} />}
       {activeTab === 'wricef'  && <WricefTab  migProject={migProject} auth={auth} />}
       {activeTab === 'cutover' && <CutoverTab migProject={migProject} auth={auth} />}
+      {activeTab === 'data'    && <DataTab    migProject={migProject} auth={auth} />}
+      {activeTab === 'simplif' && <SimplifTab migProject={migProject} auth={auth} />}
     </div>
   );
 }
@@ -1471,6 +1476,548 @@ function RunModal({ migProjectId, auth, run, t, onClose, onSaved }) {
 
 // ─── TaskModal ────────────────────────────────────────────────────────────────
 
+// ─── MODULE 4: Data Migration Tracker ────────────────────────────────────────
+
+const DATA_MAPPING_CLS = {
+  not_started: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+  in_progress:  'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
+  completed:    'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+};
+
+const DATA_SEV_CLS = {
+  critical: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+  high:     'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+  medium:   'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
+  low:      'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+};
+
+function DataTab({ migProject, auth }) {
+  const { t } = useT();
+  const users = useFetchUsers();
+  const [objects, setObjects]     = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing]     = useState(null);
+  const [expanded, setExpanded]   = useState(null);
+  const [issues, setIssues]       = useState({});
+
+  const load = useCallback(async () => {
+    setLoading(true); setError(null);
+    const { data, error: err } = await supabase
+      .from('data_migration_objects')
+      .select('*')
+      .eq('migration_project_id', migProject.id)
+      .order('created_at');
+    if (err) setError(err.message);
+    else setObjects(data ?? []);
+    setLoading(false);
+  }, [migProject.id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function loadIssues(objId) {
+    if (issues[objId]) return;
+    const { data } = await supabase
+      .from('data_quality_issues')
+      .select('*')
+      .eq('data_object_id', objId)
+      .order('created_at');
+    setIssues(prev => ({ ...prev, [objId]: data ?? [] }));
+  }
+
+  function toggleExpand(objId) {
+    if (expanded === objId) { setExpanded(null); }
+    else { setExpanded(objId); loadIssues(objId); }
+  }
+
+  async function toggleGoNoGo(obj) {
+    const nowVal = !obj.go_no_go;
+    await supabase.from('data_migration_objects').update({ go_no_go: nowVal }).eq('id', obj.id);
+    setObjects(prev => prev.map(o => o.id === obj.id ? { ...o, go_no_go: nowVal } : o));
+  }
+
+  const totalObjs  = objects.length;
+  const gngApproved = objects.filter(o => o.go_no_go).length;
+  const openIssues = objects.reduce((s, o) => s + (o.quality_issues ?? 0), 0);
+  const avgGoLive  = objects.length
+    ? (objects.reduce((s, o) => s + (o.go_live_pct ?? 0), 0) / objects.length).toFixed(1)
+    : '—';
+
+  const canEdit = auth.isAdmin || auth.isManager;
+
+  if (loading) return <Spinner />;
+  if (error) return <p className="text-red-500 text-sm">{error}</p>;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="font-semibold text-gray-800 dark:text-gray-100">{t('data.title')}</h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t('data.subtitle')}</p>
+        </div>
+        {canEdit && (
+          <button onClick={() => { setEditing(null); setShowModal(true); }}
+            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-3 py-2 rounded-lg">
+            <Plus className="w-4 h-4" />{t('data.add_object')}
+          </button>
+        )}
+      </div>
+
+      {/* Summary tiles */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        {[
+          { label: t('data.total_objects'), value: totalObjs,      cls: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
+          { label: t('data.gng_approved'),  value: gngApproved,    cls: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300' },
+          { label: t('data.open_issues'),   value: openIssues,     cls: 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' },
+          { label: t('data.avg_golive'),    value: `${avgGoLive}%`, cls: 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' },
+        ].map(s => (
+          <div key={s.label} className={`rounded-xl p-4 ${s.cls}`}>
+            <div className="text-2xl font-bold">{s.value}</div>
+            <div className="text-xs mt-1 opacity-80">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
+              {[t('data.col_name'), t('data.col_sap'), t('data.col_category'), t('data.col_records'),
+                t('data.col_mapping'), t('data.col_mock1'), t('data.col_mock2'), t('data.col_golive'),
+                t('data.col_issues'), t('data.col_gng')].map(col => (
+                <th key={col} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap">{col}</th>
+              ))}
+              {canEdit && <th className="px-4 py-3" />}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+            {objects.map(obj => (
+              <>
+                <tr key={obj.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer" onClick={() => toggleExpand(obj.id)}>
+                  <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{obj.name}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-gray-500 dark:text-gray-400">{obj.sap_object || '—'}</td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{obj.category || '—'}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-gray-700 dark:text-gray-200">{obj.record_count_source?.toLocaleString() ?? '—'}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${DATA_MAPPING_CLS[obj.mapping_status] ?? DATA_MAPPING_CLS.not_started}`}>
+                      {t(`data.mapping_${obj.mapping_status}`)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 tabular-nums text-gray-700 dark:text-gray-200">{obj.mock_run_1_pct != null ? `${obj.mock_run_1_pct}%` : '—'}</td>
+                  <td className="px-4 py-3 tabular-nums text-gray-700 dark:text-gray-200">{obj.mock_run_2_pct != null ? `${obj.mock_run_2_pct}%` : '—'}</td>
+                  <td className="px-4 py-3 tabular-nums text-gray-700 dark:text-gray-200">{obj.go_live_pct != null ? `${obj.go_live_pct}%` : '—'}</td>
+                  <td className="px-4 py-3 text-center">
+                    {(obj.quality_issues ?? 0) > 0
+                      ? <span className="inline-flex items-center gap-1 text-orange-600 font-semibold text-xs"><AlertTriangle className="w-3 h-3"/>{obj.quality_issues}</span>
+                      : <span className="text-gray-400 text-xs">0</span>}
+                  </td>
+                  <td className="px-4 py-3">
+                    {canEdit ? (
+                      <button onClick={e => { e.stopPropagation(); toggleGoNoGo(obj); }}
+                        className={`text-xs px-2 py-1 rounded border font-medium transition-colors ${obj.go_no_go
+                          ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700'
+                          : 'bg-gray-50 text-gray-500 border-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:border-gray-600'}`}>
+                        {obj.go_no_go ? '✓ Go' : '— No-Go'}
+                      </button>
+                    ) : (
+                      obj.go_no_go
+                        ? <span className="text-green-600 dark:text-green-400 text-xs font-medium">✓ Go</span>
+                        : <span className="text-gray-400 text-xs">No-Go</span>
+                    )}
+                  </td>
+                  {canEdit && (
+                    <td className="px-4 py-3">
+                      <button onClick={e => { e.stopPropagation(); setEditing(obj); setShowModal(true); }}
+                        className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400">{t('action.edit')}</button>
+                    </td>
+                  )}
+                </tr>
+                {expanded === obj.id && (
+                  <tr key={`${obj.id}-issues`}>
+                    <td colSpan={canEdit ? 11 : 10} className="px-4 pb-4 pt-0">
+                      <DataIssuesPanel objId={obj.id} issues={issues[obj.id] ?? []} users={users} canEdit={canEdit}
+                        t={t} onIssueChange={() => { loadIssues(obj.id); load(); }} />
+                    </td>
+                  </tr>
+                )}
+              </>
+            ))}
+            {objects.length === 0 && (
+              <tr><td colSpan={canEdit ? 11 : 10} className="px-4 py-10 text-center text-gray-400 text-sm">{t('data.no_objects')}</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {showModal && (
+        <DataObjectModal migProjectId={migProject.id} users={users} editing={editing}
+          t={t} onClose={() => { setShowModal(false); setEditing(null); }} onSaved={load} />
+      )}
+    </div>
+  );
+}
+
+function DataIssuesPanel({ objId, issues, users, canEdit, t, onIssueChange }) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm]       = useState({ title: '', description: '', severity: 'medium', status: 'open', owner_id: '' });
+  const [saving, setSaving]   = useState(false);
+  const [err, setErr]         = useState('');
+  const ownerOpts = [{ value: '', label: '—' }, ...users.map(u => ({ value: u.id, label: u.full_name }))];
+
+  async function handleAdd(e) {
+    e.preventDefault();
+    if (!form.title.trim()) { setErr(t('data.issue_title_required')); return; }
+    setSaving(true); setErr('');
+    await supabase.from('data_quality_issues').insert({ ...form, data_object_id: objId, owner_id: form.owner_id || null });
+    setSaving(false); setShowAdd(false); setForm({ title: '', description: '', severity: 'medium', status: 'open', owner_id: '' });
+    onIssueChange();
+  }
+
+  async function updateIssueStatus(issueId, status) {
+    await supabase.from('data_quality_issues').update({ status, resolved_at: status === 'resolved' ? new Date().toISOString() : null }).eq('id', issueId);
+    onIssueChange();
+  }
+
+  return (
+    <div className="bg-gray-50 dark:bg-gray-800/60 rounded-xl p-4 mt-1">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t('data.issues_title')}</span>
+        {canEdit && <button onClick={() => setShowAdd(v => !v)} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">{t('data.add_issue')}</button>}
+      </div>
+      {showAdd && (
+        <form onSubmit={handleAdd} className="bg-white dark:bg-gray-700 rounded-lg p-3 mb-3 space-y-2 border border-gray-100 dark:border-gray-600">
+          <Input label={t('data.issue_title')} value={form.title} onChange={e => setForm(p => ({...p, title: e.target.value}))} />
+          <div className="grid grid-cols-2 gap-2">
+            <Select label={t('data.issue_severity')} value={form.severity}
+              onChange={e => setForm(p => ({...p, severity: e.target.value}))}
+              options={['critical','high','medium','low'].map(s => ({ value: s, label: t(`data.sev_${s}`) }))} />
+            <Select label={t('data.issue_owner')} value={form.owner_id}
+              onChange={e => setForm(p => ({...p, owner_id: e.target.value}))}
+              options={ownerOpts} />
+          </div>
+          {err && <p className="text-red-600 text-xs">{err}</p>}
+          <div className="flex gap-2 justify-end">
+            <button type="button" onClick={() => setShowAdd(false)} className="text-xs text-gray-500 px-3 py-1">{t('action.cancel')}</button>
+            <button type="submit" disabled={saving} className="text-xs bg-blue-600 text-white px-3 py-1 rounded">{saving ? t('action.saving') : t('action.save')}</button>
+          </div>
+        </form>
+      )}
+      {issues.length === 0 && !showAdd && <p className="text-xs text-gray-400">{t('data.no_issues')}</p>}
+      <div className="space-y-2">
+        {issues.map(issue => (
+          <div key={issue.id} className="flex items-start gap-2">
+            <span className={`mt-0.5 px-1.5 py-0.5 rounded text-xs font-medium ${DATA_SEV_CLS[issue.severity] ?? DATA_SEV_CLS.medium}`}>{t(`data.sev_${issue.severity}`)}</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm text-gray-800 dark:text-gray-200 font-medium leading-snug">{issue.title}</div>
+              {issue.description && <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{issue.description}</div>}
+            </div>
+            {canEdit && issue.status !== 'resolved' && (
+              <button onClick={() => updateIssueStatus(issue.id, 'resolved')}
+                className="shrink-0 text-xs px-2 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded dark:bg-green-900/30 dark:text-green-300 dark:border-green-700">
+                {t('action.resolve')}
+              </button>
+            )}
+            {issue.status === 'resolved' && <span className="shrink-0 text-xs text-green-600 dark:text-green-400">{t('data.status_resolved')}</span>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DataObjectModal({ migProjectId, users, editing, t, onClose, onSaved }) {
+  const blankForm = { name: '', sap_object: '', category: 'Master Data', record_count_source: '', owner_id: '',
+    mapping_status: 'not_started', mock_run_1_pct: '', mock_run_1_errors: '', mock_run_2_pct: '', mock_run_2_errors: '',
+    go_live_pct: '', go_live_errors: '', notes: '' };
+  const [form, setForm] = useState(editing ? { ...blankForm, ...editing } : blankForm);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  const ownerOpts = [{ value: '', label: '—' }, ...users.map(u => ({ value: u.id, label: u.full_name }))];
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!form.name.trim()) { setErr(t('data.name_required')); return; }
+    setSaving(true); setErr('');
+    const payload = { ...form, migration_project_id: migProjectId,
+      record_count_source: form.record_count_source ? parseInt(form.record_count_source) : null,
+      mock_run_1_pct: form.mock_run_1_pct !== '' ? parseFloat(form.mock_run_1_pct) : null,
+      mock_run_1_errors: form.mock_run_1_errors !== '' ? parseInt(form.mock_run_1_errors) : null,
+      mock_run_2_pct: form.mock_run_2_pct !== '' ? parseFloat(form.mock_run_2_pct) : null,
+      mock_run_2_errors: form.mock_run_2_errors !== '' ? parseInt(form.mock_run_2_errors) : null,
+      go_live_pct: form.go_live_pct !== '' ? parseFloat(form.go_live_pct) : null,
+      go_live_errors: form.go_live_errors !== '' ? parseInt(form.go_live_errors) : null,
+      owner_id: form.owner_id || null };
+    const { error } = editing
+      ? await supabase.from('data_migration_objects').update(payload).eq('id', editing.id)
+      : await supabase.from('data_migration_objects').insert(payload);
+    if (error) { setErr(error.message); setSaving(false); return; }
+    setSaving(false); onSaved(); onClose();
+  }
+
+  const categoryOpts = ['Master Data','Transactional','Configuration','Basis'].map(c => ({ value: c, label: c }));
+  const mappingOpts = ['not_started','in_progress','completed'].map(s => ({ value: s, label: t(`data.mapping_${s}`) }));
+
+  return (
+    <Modal open onClose={onClose} title={editing ? t('data.col_name') : t('data.new_object')}>
+      <form onSubmit={handleSubmit}>
+        <div className="grid sm:grid-cols-2 gap-x-4">
+          <Input label={t('data.name')} value={form.name} onChange={e => set('name', e.target.value)} required />
+          <Input label={t('data.sap_object_code')} value={form.sap_object} onChange={e => set('sap_object', e.target.value)} placeholder="e.g. BP, BKPF" />
+          <Select label={t('data.category')} options={categoryOpts} value={form.category} onChange={e => set('category', e.target.value)} />
+          <Select label={t('mig.wricef_owner')} options={ownerOpts} value={form.owner_id} onChange={e => set('owner_id', e.target.value)} />
+          <Input label={t('data.record_count')} type="number" value={form.record_count_source} onChange={e => set('record_count_source', e.target.value)} />
+          <Select label={t('data.col_mapping')} options={mappingOpts} value={form.mapping_status} onChange={e => set('mapping_status', e.target.value)} />
+        </div>
+        <div className="grid grid-cols-3 gap-x-4">
+          <Input label={`${t('data.col_mock1')} %`} type="number" step="0.01" value={form.mock_run_1_pct} onChange={e => set('mock_run_1_pct', e.target.value)} />
+          <Input label={`${t('data.col_mock2')} %`} type="number" step="0.01" value={form.mock_run_2_pct} onChange={e => set('mock_run_2_pct', e.target.value)} />
+          <Input label={`${t('data.col_golive')} %`} type="number" step="0.01" value={form.go_live_pct} onChange={e => set('go_live_pct', e.target.value)} />
+        </div>
+        <Textarea label={t('data.notes')} value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} />
+        {err && <p className="text-red-600 text-xs mb-3">{err}</p>}
+        <div className="flex justify-end gap-2 mt-4">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300">{t('action.cancel')}</button>
+          <button type="submit" disabled={saving} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg">
+            {saving ? t('action.saving') : t('action.save')}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+// ─── MODULE 5: Simplification Item Tracker ───────────────────────────────────
+
+const SIMPLIF_IMPACT_CLS = {
+  mandatory_change: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+  optional:         'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
+  informational:    'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+};
+
+const SIMPLIF_STATUS_CLS = {
+  not_applicable: 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400',
+  open:           'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+  in_progress:    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
+  resolved:       'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+};
+
+function SimplifTab({ migProject, auth }) {
+  const { t } = useT();
+  const users = useFetchUsers();
+  const [items, setItems]         = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState(null);
+  const [filters, setFilters]     = useState({ area: '', impact: '', status: '' });
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing]     = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true); setError(null);
+    const { data, error: err } = await supabase
+      .from('simplification_items')
+      .select('*')
+      .eq('migration_project_id', migProject.id)
+      .order('created_at');
+    if (err) setError(err.message);
+    else setItems(data ?? []);
+    setLoading(false);
+  }, [migProject.id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const displayed = items.filter(i =>
+    (!filters.area   || i.area === filters.area) &&
+    (!filters.impact || i.impact === filters.impact) &&
+    (!filters.status || i.status === filters.status)
+  );
+
+  const totalItems = items.length;
+  const openItems  = items.filter(i => i.status === 'open').length;
+  const inProgress = items.filter(i => i.status === 'in_progress').length;
+  const resolved   = items.filter(i => i.status === 'resolved').length;
+  const mandatory  = items.filter(i => i.impact === 'mandatory_change').length;
+
+  const canEdit = auth.isAdmin || auth.isManager;
+
+  const areaOptions = ['FI','MM','SD','PP','HR','Basis','Technical','Other'];
+  const impactOptions = ['mandatory_change','optional','informational'];
+  const statusOptions = ['not_applicable','open','in_progress','resolved'];
+
+  const filterCls = "border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500";
+
+  if (loading) return <Spinner />;
+  if (error) return <p className="text-red-500 text-sm">{error}</p>;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="font-semibold text-gray-800 dark:text-gray-100">{t('simplif.title')}</h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t('simplif.subtitle')}</p>
+        </div>
+        {canEdit && (
+          <button onClick={() => { setEditing(null); setShowModal(true); }}
+            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-3 py-2 rounded-lg">
+            <Plus className="w-4 h-4" />{t('simplif.add_item')}
+          </button>
+        )}
+      </div>
+
+      {/* Summary tiles */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
+        {[
+          { label: t('simplif.total'),      value: totalItems, cls: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
+          { label: t('simplif.open'),       value: openItems,  cls: 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' },
+          { label: t('simplif.in_progress'),value: inProgress, cls: 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' },
+          { label: t('simplif.resolved'),   value: resolved,   cls: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300' },
+          { label: t('simplif.mandatory'),  value: mandatory,  cls: 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300' },
+        ].map(s => (
+          <div key={s.label} className={`rounded-xl p-3 ${s.cls}`}>
+            <div className="text-xl font-bold">{s.value}</div>
+            <div className="text-xs mt-1 opacity-80">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        <select value={filters.area} onChange={e => setFilters(p => ({...p, area: e.target.value}))} className={filterCls}>
+          <option value="">{t('simplif.filter_area')}</option>
+          {areaOptions.map(a => <option key={a} value={a}>{a}</option>)}
+        </select>
+        <select value={filters.impact} onChange={e => setFilters(p => ({...p, impact: e.target.value}))} className={filterCls}>
+          <option value="">{t('simplif.filter_impact')}</option>
+          {impactOptions.map(imp => <option key={imp} value={imp}>{t(`simplif.impact_${imp.replace('_change','').replace('mandatory_','mandatory')}`)}</option>)}
+        </select>
+        <select value={filters.status} onChange={e => setFilters(p => ({...p, status: e.target.value}))} className={filterCls}>
+          <option value="">{t('simplif.filter_status')}</option>
+          {statusOptions.map(s => <option key={s} value={s}>{t(`simplif.status_${s.replace('_','') === 'notapplicable' ? 'not_applicable' : s}`)}</option>)}
+        </select>
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
+                {[t('simplif.col_item_id'), t('simplif.col_title'), t('simplif.col_area'),
+                  t('simplif.col_impact'), t('simplif.col_status'), t('simplif.col_owner')].map(col => (
+                  <th key={col} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap">{col}</th>
+                ))}
+                {canEdit && <th className="px-4 py-3" />}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50 dark:divide-gray-700/50">
+              {displayed.map(item => (
+                <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                  <td className="px-4 py-3 font-mono text-xs text-gray-500 dark:text-gray-400">{item.item_id || '—'}</td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-gray-900 dark:text-gray-100">{item.title}</div>
+                    {item.description && <div className="text-xs text-gray-400 mt-0.5 line-clamp-1">{item.description}</div>}
+                  </td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{item.area}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${SIMPLIF_IMPACT_CLS[item.impact] ?? SIMPLIF_IMPACT_CLS.informational}`}>
+                      {item.impact === 'mandatory_change' ? t('simplif.impact_mandatory') : item.impact === 'optional' ? t('simplif.impact_optional') : t('simplif.impact_informational')}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${SIMPLIF_STATUS_CLS[item.status] ?? SIMPLIF_STATUS_CLS.open}`}>
+                      {t(`simplif.status_${item.status}`)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-sm">
+                    {users.find(u => u.id === item.owner_id)?.full_name ?? '—'}
+                  </td>
+                  {canEdit && (
+                    <td className="px-4 py-3">
+                      <button onClick={() => { setEditing(item); setShowModal(true); }}
+                        className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400">{t('action.edit')}</button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+              {displayed.length === 0 && (
+                <tr><td colSpan={canEdit ? 7 : 6} className="px-4 py-10 text-center text-gray-400 text-sm">{t('simplif.no_items')}</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {showModal && (
+        <SimplifModal migProjectId={migProject.id} users={users} editing={editing}
+          t={t} onClose={() => { setShowModal(false); setEditing(null); }} onSaved={load} />
+      )}
+    </div>
+  );
+}
+
+function SimplifModal({ migProjectId, users, editing, t, onClose, onSaved }) {
+  const blank = { item_id: '', title: '', area: 'Other', impact: 'informational', description: '',
+    affected_objects: '', remediation_notes: '', status: 'open', owner_id: '' };
+  const [form, setForm] = useState(editing ? { ...blank, ...editing } : blank);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  const ownerOpts = [{ value: '', label: '—' }, ...users.map(u => ({ value: u.id, label: u.full_name }))];
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!form.title.trim()) { setErr(t('simplif.title_required')); return; }
+    setSaving(true); setErr('');
+    const payload = { ...form, migration_project_id: migProjectId, owner_id: form.owner_id || null,
+      resolved_at: form.status === 'resolved' && !editing?.resolved_at ? new Date().toISOString() : (editing?.resolved_at ?? null) };
+    const { error } = editing
+      ? await supabase.from('simplification_items').update(payload).eq('id', editing.id)
+      : await supabase.from('simplification_items').insert(payload);
+    if (error) { setErr(error.message); setSaving(false); return; }
+    setSaving(false); onSaved(); onClose();
+  }
+
+  const areaOpts = ['FI','MM','SD','PP','HR','Basis','Technical','Other'].map(a => ({ value: a, label: a }));
+  const impactOpts = [
+    { value: 'mandatory_change', label: t('simplif.impact_mandatory') },
+    { value: 'optional',         label: t('simplif.impact_optional') },
+    { value: 'informational',    label: t('simplif.impact_informational') },
+  ];
+  const statusOpts = [
+    { value: 'not_applicable', label: t('simplif.status_not_applicable') },
+    { value: 'open',           label: t('simplif.status_open') },
+    { value: 'in_progress',    label: t('simplif.status_in_progress') },
+    { value: 'resolved',       label: t('simplif.status_resolved') },
+  ];
+
+  return (
+    <Modal open onClose={onClose} title={editing ? t('simplif.edit_item') : t('simplif.new_item')}>
+      <form onSubmit={handleSubmit}>
+        <div className="grid sm:grid-cols-2 gap-x-4">
+          <Input label={t('simplif.item_id')} value={form.item_id} onChange={e => set('item_id', e.target.value)} placeholder="e.g. S4TWL-123" />
+          <Select label={t('simplif.area')} options={areaOpts} value={form.area} onChange={e => set('area', e.target.value)} />
+          <Select label={t('simplif.impact')} options={impactOpts} value={form.impact} onChange={e => set('impact', e.target.value)} />
+          <Select label={t('simplif.status')} options={statusOpts} value={form.status} onChange={e => set('status', e.target.value)} />
+          <Select label={t('simplif.owner')} options={ownerOpts} value={form.owner_id} onChange={e => set('owner_id', e.target.value)} />
+        </div>
+        <Input label={t('simplif.title_field')} value={form.title} onChange={e => set('title', e.target.value)} required />
+        <Textarea label={t('simplif.description')} value={form.description} onChange={e => set('description', e.target.value)} rows={2} />
+        <Input label={t('simplif.affected_objects')} value={form.affected_objects} onChange={e => set('affected_objects', e.target.value)} placeholder="e.g. Z_FI_001, Z_CO_005" />
+        <Textarea label={t('simplif.remediation_notes')} value={form.remediation_notes} onChange={e => set('remediation_notes', e.target.value)} rows={2} />
+        {err && <p className="text-red-600 text-xs mb-3">{err}</p>}
+        <div className="flex justify-end gap-2 mt-4">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300">{t('action.cancel')}</button>
+          <button type="submit" disabled={saving} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg">
+            {saving ? t('action.saving') : t('action.save')}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function TaskModal({ migProjectId, auth, users, task, tasks, t, taskRunTypeOptions, onClose, onSaved }) {
   const isEdit = !!task;
   const nextSeq = tasks.length > 0 ? Math.max(...tasks.map(t => t.seq ?? 0)) + 1 : 1;
@@ -1549,5 +2096,41 @@ function TaskModal({ migProjectId, auth, users, task, tasks, t, taskRunTypeOptio
         </div>
       </form>
     </Modal>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+// MODULE 4 — Data Migration Tracker
+// ════════════════════════════════════════════════════════════════
+
+const MAPPING_STATUS_CLS = {
+  not_started: 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400',
+  in_progress: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  completed:   'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+};
+
+const SEV_CLS = {
+  critical: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+  high:     'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+  medium:   'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+  low:      'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+};
+
+const ISSUE_STATUS_CLS = {
+  open:        'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+  in_progress: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  resolved:    'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+};
+
+function PctPill({ value }) {
+  if (value == null) return <span className="text-gray-400 text-xs">—</span>;
+  const n = parseFloat(value);
+  const cls = n >= 90 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+            : n >= 70 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+            :           'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${cls}`}>
+      {n.toFixed(0)}%
+    </span>
   );
 }
