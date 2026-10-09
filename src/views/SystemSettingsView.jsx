@@ -2791,7 +2791,7 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
   const CAPS = Object.keys(ROLE_PERMISSIONS_DEFAULTS);
 
   const PERSONA_TABS = [
-    { id: "internal",    label: "Internal",    roles: ["admin", "manager"],                  Icon: Shield,    accent: "purple", border: "border-purple-500", activeBg: "bg-purple-600", accentTxt: "text-purple-600", lightBg: "bg-purple-50" },
+    { id: "internal",    label: "Internal",    roles: ["admin", "manager", "area_leader", "dispatch"], Icon: Shield,    accent: "purple", border: "border-purple-500", activeBg: "bg-purple-600", accentTxt: "text-purple-600", lightBg: "bg-purple-50" },
     { id: "consultants", label: "Consultants", roles: ["consultant"],                        Icon: Briefcase, accent: "blue",   border: "border-blue-500",   activeBg: "bg-blue-600",   accentTxt: "text-blue-600",   lightBg: "bg-blue-50"   },
     { id: "client_team", label: "Client Team", roles: ["client", "key_user", "final_user", "internal_consultant", "project_manager"], Icon: Building2, accent: "green",  border: "border-green-500",  activeBg: "bg-green-600",  accentTxt: "text-green-600",  lightBg: "bg-green-50"  },
     { id: "headhunters", label: "Headhunters", roles: ["headhunter"],                       Icon: Handshake, accent: "pink",   border: "border-pink-500",   activeBg: "bg-pink-600",   accentTxt: "text-pink-600",   lightBg: "bg-pink-50"   },
@@ -2807,6 +2807,8 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
     final_user:          { pill: "bg-teal-100 text-teal-700 border-teal-200",     active: "bg-teal-600 text-white border-teal-600"      },
     internal_consultant: { pill: "bg-indigo-100 text-indigo-700 border-indigo-200", active: "bg-indigo-600 text-white border-indigo-600" },
     project_manager:     { pill: "bg-rose-100 text-rose-700 border-rose-200",     active: "bg-rose-600 text-white border-rose-600"      },
+    area_leader:         { pill: "bg-orange-100 text-orange-700 border-orange-200", active: "bg-orange-600 text-white border-orange-600"  },
+    dispatch:            { pill: "bg-cyan-100 text-cyan-700 border-cyan-200",       active: "bg-cyan-600 text-white border-cyan-600"      },
   };
 
   const planCfg = usePlanConfig();
