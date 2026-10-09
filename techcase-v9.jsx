@@ -122,6 +122,9 @@ import DispatchView from "./src/views/DispatchView.jsx";
 import AreaLeaderView from "./src/views/AreaLeaderView.jsx";
 import SpecReviewView from "./src/views/SpecReviewView.jsx";
 import { MigrationHub } from "./src/views/MigrationViews.jsx";
+import { TransportView } from "./src/views/TransportView.jsx";
+import { FitGapView } from "./src/views/FitGapView.jsx";
+import { TestingView } from "./src/views/TestingView.jsx";
 
 
 import { NotificationBell } from "./src/components/NotificationBell.jsx";
@@ -770,6 +773,9 @@ export default function App() {
       case "leader-cases":   return <AreaLeaderView auth={auth} onNavigate={({ view, caseId }) => { setPendingCaseId(caseId ?? null); setActiveView(view); }} />;
       case "spec-review":    return <SpecReviewView auth={auth} onNavigate={({ view, caseId }) => { setPendingCaseId(caseId ?? null); setActiveView(view); }} />;
       case "migration":      return (auth.isAdmin || auth.isManager) ? <MigrationHub auth={auth} /> : <Dashboard auth={auth} />;
+      case "transport":      return (auth.isAdmin || auth.isManager) ? <TransportView auth={auth} /> : <Dashboard auth={auth} />;
+      case "fitgap":         return (auth.isAdmin || auth.isManager) ? <FitGapView auth={auth} /> : <Dashboard auth={auth} />;
+      case "testing":        return (auth.isAdmin || auth.isManager) ? <TestingView auth={auth} /> : <Dashboard auth={auth} />;
       default:               return <Dashboard auth={auth} />;
     }
   }

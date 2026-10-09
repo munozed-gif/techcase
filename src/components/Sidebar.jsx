@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import {
-  BarChart2, Bell, ClipboardCheck, ClipboardList, Clock, Database, FolderOpen, Handshake,
+  ArrowRightLeft, BarChart2, Bell, ClipboardCheck, ClipboardList, Clock, Database, FlaskConical,
+  FolderOpen, GitCompare, Handshake,
   Inbox, Layers, LayoutDashboard, LayoutGrid, LayoutTemplate, Milestone, Receipt, Search,
   ShieldCheck, SlidersHorizontal, Target, User, UserCheck, UsersRound,
 } from "lucide-react";
@@ -87,6 +88,9 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       { id: "approvals",       Icon: UserCheck,         labelKey: "nav.approvals" },
       { id: "sla",             Icon: ShieldCheck,       labelKey: "nav.sla" },
       { id: "migration",       Icon: Milestone,         labelKey: "nav.migration" },
+      { id: "transport",       Icon: ArrowRightLeft,    labelKey: "nav.transport" },
+      { id: "fitgap",          Icon: GitCompare,        labelKey: "nav.fitgap" },
+      { id: "testing",         Icon: FlaskConical,      labelKey: "nav.testing" },
       { id: "settings",        Icon: SlidersHorizontal, labelKey: "nav.settings" },
     ],
     manager: [
@@ -106,6 +110,9 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       { id: "approvals",       Icon: UserCheck,         labelKey: "nav.approvals" },
       { id: "sla",             Icon: ShieldCheck,       labelKey: "nav.sla" },
       { id: "migration",       Icon: Milestone,         labelKey: "nav.migration" },
+      { id: "transport",       Icon: ArrowRightLeft,    labelKey: "nav.transport" },
+      { id: "fitgap",          Icon: GitCompare,        labelKey: "nav.fitgap" },
+      { id: "testing",         Icon: FlaskConical,      labelKey: "nav.testing" },
       { id: "settings",        Icon: SlidersHorizontal, labelKey: "nav.settings" },
     ],
     consultant: [
