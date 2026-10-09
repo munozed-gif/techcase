@@ -660,6 +660,13 @@ function ManagerAdminWelcomeView({ auth, onComplete }) {
       highlights: [t("welcome.dispatch_h1"), t("welcome.dispatch_h2"), t("welcome.dispatch_h3"), t("welcome.dispatch_h4"), t("welcome.dispatch_h5")],
       btnLabel: t("welcome.go_dispatch"),
     },
+    headhunter: {
+      Icon: Users,
+      title: t("welcome.hh_title"),
+      desc: t("welcome.hh_desc"),
+      highlights: [t("welcome.hh_h1"), t("welcome.hh_h2"), t("welcome.hh_h3"), t("welcome.hh_h4"), t("welcome.hh_h5")],
+      btnLabel: t("welcome.go_pipeline"),
+    },
   };
   const info = roleInfo[auth.role] ?? roleInfo.manager;
 

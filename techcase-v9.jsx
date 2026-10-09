@@ -694,6 +694,10 @@ export default function App() {
       inner = <ManagerAdminWelcomeView auth={auth} onComplete={() => completeOnboarding("leader-cases")} />;
     } else if (onboardingRole === "dispatch") {
       inner = <ManagerAdminWelcomeView auth={auth} onComplete={() => completeOnboarding("dispatch-queue")} />;
+    } else if (onboardingRole === "headhunter") {
+      inner = <ManagerAdminWelcomeView auth={auth} onComplete={() => completeOnboarding("hh-pipeline")} />;
+    } else if (onboardingRole === "final_user") {
+      inner = <ClientOnboardingView auth={auth} onComplete={() => completeOnboarding("my-cases")} />;
     } else {
       inner = <ManagerAdminWelcomeView auth={auth} onComplete={() => completeOnboarding("dashboard")} />;
     }
@@ -760,7 +764,7 @@ export default function App() {
       case "invoices":       return <InvoicesView auth={auth} />;
       case "kanban":         return <KanbanView auth={auth} />;
       case "time":           return <TimeEntriesView auth={auth} />;
-      case "dispatch-queue": return <DispatchView auth={auth} />;
+      case "dispatch-queue": return (auth.role === 'dispatch' || auth.isAdmin || auth.isManager) ? <DispatchView auth={auth} /> : <Dashboard auth={auth} />;
       case "leader-cases":   return <AreaLeaderView auth={auth} onNavigate={({ view, caseId }) => { setPendingCaseId(caseId ?? null); setActiveView(view); }} />;
       case "spec-review":    return <SpecReviewView auth={auth} onNavigate={({ view, caseId }) => { setPendingCaseId(caseId ?? null); setActiveView(view); }} />;
       default:               return <Dashboard auth={auth} />;

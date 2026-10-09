@@ -1,7 +1,7 @@
 import {
   BarChart2, Bell, ClipboardCheck, ClipboardList, Clock, Database, FolderOpen, Handshake,
   Inbox, Layers, LayoutDashboard, LayoutGrid, LayoutTemplate, Receipt, Search,
-  SlidersHorizontal, Target, User, UserCheck, UsersRound,
+  ShieldCheck, SlidersHorizontal, Target, User, UserCheck, UsersRound,
 } from "lucide-react";
 import { useT } from "../i18n/index.jsx";
 import { usePlatformBranding, useVisibilitySettings, useSystemSettings, usePlanConfig } from "../hooks/useSystemSettings.jsx";
@@ -83,6 +83,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       { id: "audit_log",       Icon: ClipboardList,     labelKey: "log.nav" },
       { id: "templates",       Icon: LayoutTemplate,    labelKey: "nav.templates" },
       { id: "approvals",       Icon: UserCheck,         labelKey: "nav.approvals" },
+      { id: "sla",             Icon: ShieldCheck,       labelKey: "nav.sla" },
       { id: "settings",        Icon: SlidersHorizontal, labelKey: "nav.settings" },
     ],
     manager: [
@@ -100,6 +101,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       { id: "audit_log",       Icon: ClipboardList,     labelKey: "log.nav" },
       { id: "templates",       Icon: LayoutTemplate,    labelKey: "nav.templates" },
       { id: "approvals",       Icon: UserCheck,         labelKey: "nav.approvals" },
+      { id: "sla",             Icon: ShieldCheck,       labelKey: "nav.sla" },
       { id: "settings",        Icon: SlidersHorizontal, labelKey: "nav.settings" },
     ],
     consultant: [

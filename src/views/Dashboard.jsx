@@ -249,6 +249,24 @@ function Dashboard({ auth, onNavigate }) {
         { id: "completed", label: t("dashboard.completed"),   Icon: CheckCircle2, color: "green", type: "cases", items: kuCases.filter(c => c.status === "completed") },
       ];
     })(),
+    dispatch: (() => {
+      const active = cases.filter(c => !["completed","cancelled"].includes(c.status));
+      const unassigned = active.filter(c => !c.area_leader_id);
+      return [
+        { id: "unassigned", label: t("dashboard.unassigned_cases"), Icon: Inbox,      color: "yellow", type: "cases", items: unassigned },
+        { id: "total",      label: t("dashboard.total_cases"),      Icon: FolderOpen, color: "gray",   type: "cases", items: active },
+        { id: "progress",   label: t("dashboard.in_progress"),      Icon: Activity,   color: "blue",   type: "cases", items: active.filter(c => c.status === "in_progress") },
+      ];
+    })(),
+    area_leader: (() => {
+      const myCases = cases.filter(c => c.area_leader_id === auth.user?.id);
+      return [
+        { id: "my",       label: t("dashboard.my_area_cases"), Icon: FolderOpen,   color: "gray",   type: "cases", items: myCases },
+        { id: "review",   label: t("dashboard.in_review"),     Icon: Clock,        color: "yellow", type: "cases", items: myCases.filter(c => c.status === "review") },
+        { id: "active",   label: t("label.active"),             Icon: Activity,     color: "blue",   type: "cases", items: myCases.filter(c => c.status === "in_progress") },
+        { id: "done",     label: t("dashboard.completed"),      Icon: CheckCircle2, color: "green",  type: "cases", items: myCases.filter(c => c.status === "completed") },
+      ];
+    })(),
   };
 
   const myStats    = statDefs[auth.role]
