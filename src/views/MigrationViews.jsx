@@ -1,0 +1,1553 @@
+// ============================================================
+// MigrationViews.jsx — SAP Migration Hub
+// Modules: Migration Project Hub, SAP Activate Phase Gates,
+//          WRICEF Registry, Cutover Planner
+// ============================================================
+
+import { useState, useEffect, useCallback } from "react";
+import {
+  AlertCircle, ArrowLeft, Calendar, Check, CheckCircle2,
+  ChevronDown, ChevronUp, Clock, Download, FileText,
+  Loader2, Milestone, Plus, RefreshCw, Rocket, Settings,
+  Trash2, Users, X,
+} from "lucide-react";
+import { supabase } from "../lib/supabase.js";
+import { useT } from "../i18n/index.jsx";
+import { Badge, Spinner } from "../components/ProfileComponents.jsx";
+import { Input, Modal, Select, Textarea } from "../components/ui.jsx";
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const PHASES = ['discover', 'prepare', 'explore', 'realize', 'deploy', 'run'];
+
+const PHASE_LABEL_KEYS = {
+  discover: 'mig.phase_discover',
+  prepare:  'mig.phase_prepare',
+  explore:  'mig.phase_explore',
+  realize:  'mig.phase_realize',
+  deploy:   'mig.phase_deploy',
+  run:      'mig.phase_run',
+};
+
+const PHASE_COLORS = {
+  discover: { dot: 'bg-violet-500', badge: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300', border: 'border-l-violet-400' },
+  prepare:  { dot: 'bg-blue-500',   badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',     border: 'border-l-blue-400' },
+  explore:  { dot: 'bg-cyan-500',   badge: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300',     border: 'border-l-cyan-400' },
+  realize:  { dot: 'bg-amber-500',  badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300', border: 'border-l-amber-400' },
+  deploy:   { dot: 'bg-green-500',  badge: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300', border: 'border-l-green-400' },
+  run:      { dot: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300', border: 'border-l-emerald-400' },
+};
+
+const PHASE_DELIVERABLES = {
+  discover: [
+    'Business case & ROI analysis',
+    'High-level scope definition',
+    'Stakeholder identification',
+    'Executive sponsorship confirmed',
+    'Vendor selection completed',
+  ],
+  prepare: [
+    'Project charter signed',
+    'Project team onboarded',
+    'System landscape defined',
+    'SAP Activate roadmap confirmed',
+    'Project governance established',
+    'Development environment ready',
+  ],
+  explore: [
+    'Fit-to-standard workshops completed',
+    'Business process scope confirmed',
+    'Delta design decisions documented',
+    'WRICEF inventory completed',
+    'Data migration strategy approved',
+    'Configuration specs signed off',
+  ],
+  realize: [
+    'Baseline configuration completed',
+    'WRICEF objects developed & unit tested',
+    'Integration testing completed',
+    'UAT completed & signed off',
+    'Data migration trial runs completed',
+    'Cutover plan approved',
+    'Training materials ready',
+  ],
+  deploy: [
+    'Go-live readiness checklist approved',
+    'Dress rehearsal 1 completed',
+    'Dress rehearsal 2 completed',
+    'Go/no-go decision confirmed',
+    'Production cutover executed',
+    'Hypercare plan activated',
+  ],
+  run: [
+    'Hypercare period completed',
+    'Knowledge transfer done',
+    'Support contract activated',
+    'Project closure report signed',
+  ],
+};
+
+const WRICEF_META = {
+  W: { label: 'Workflow',    cls: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' },
+  R: { label: 'Report',      cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
+  I: { label: 'Interface',   cls: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300' },
+  C: { label: 'Conversion',  cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
+  E: { label: 'Enhancement', cls: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' },
+  F: { label: 'Form',        cls: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300' },
+};
+
+const WRICEF_STATUS_CLS = {
+  open:        'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+  in_progress: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  remediated:  'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+  tested:      'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300',
+  signed_off:  'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+};
+
+const RUN_TYPE_LABEL_KEYS = {
+  dr1:     'mig.dr1',
+  dr2:     'mig.dr2',
+  go_live: 'mig.go_live_run',
+};
+
+const RUN_TYPE_COLORS = {
+  dr1:     'border-t-4 border-t-blue-400',
+  dr2:     'border-t-4 border-t-indigo-400',
+  go_live: 'border-t-4 border-t-green-400',
+};
+
+const RUN_STATUS_CLS = {
+  planned:     'bg-gray-100 text-gray-600',
+  in_progress: 'bg-blue-100 text-blue-700',
+  completed:   'bg-green-100 text-green-700',
+};
+
+const TASK_STATUS_CLS = {
+  pending:     'bg-gray-100 text-gray-600',
+  in_progress: 'bg-blue-100 text-blue-700',
+  done:        'bg-green-100 text-green-700',
+  skipped:     'bg-gray-100 text-gray-400',
+};
+
+// ─── Utility ──────────────────────────────────────────────────────────────────
+
+const fmtDate = d => d ? new Date(d).toLocaleDateString() : '—';
+const fmtDt   = d => d ? new Date(d).toLocaleString()     : '—';
+
+function cap(s) {
+  if (!s) return '';
+  return s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' ');
+}
+
+function useFetchUsers() {
+  const [users, setUsers] = useState([]);
+  useEffect(() => {
+    supabase.from('users').select('id, full_name').then(({ data }) => {
+      if (data) setUsers(data);
+    });
+  }, []);
+  return users;
+}
+
+function userName(users, id) {
+  if (!id) return '—';
+  return users.find(u => u.id === id)?.full_name ?? '—';
+}
+
+// ─── MigrationHub ─────────────────────────────────────────────────────────────
+
+export function MigrationHub({ auth }) {
+  const { t } = useT();
+  const [migProjects, setMigProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [showCreate, setShowCreate] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error: err } = await supabase
+      .from('migration_projects')
+      .select('*, project:project_id(id, name, status)')
+      .order('created_at', { ascending: false });
+    if (err) setError(err.message);
+    else setMigProjects(data ?? []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (selected) {
+    return (
+      <MigrationProjectDetail
+        migProject={selected}
+        auth={auth}
+        onBack={() => { setSelected(null); load(); }}
+      />
+    );
+  }
+
+  return (
+    <div className="p-6 max-w-5xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <Milestone className="w-6 h-6 text-blue-500" />
+            {t('mig.title')}
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{t('mig.subtitle')}</p>
+        </div>
+        {(auth.isAdmin || auth.isManager) && (
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            {t('mig.new_project')}
+          </button>
+        )}
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg mb-4 text-sm">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
+
+      {/* Content */}
+      {loading ? (
+        <Spinner />
+      ) : migProjects.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <Milestone className="w-10 h-10 text-gray-300 mb-4" />
+          <p className="text-gray-500 dark:text-gray-400 text-sm">{t('mig.no_projects')}</p>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {migProjects.map(mp => (
+            <MigrationProjectCard
+              key={mp.id}
+              mp={mp}
+              t={t}
+              onClick={() => setSelected(mp)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Create modal */}
+      {showCreate && (
+        <CreateMigrationModal
+          auth={auth}
+          t={t}
+          onClose={() => setShowCreate(false)}
+          onCreated={() => { setShowCreate(false); load(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── MigrationProjectCard ─────────────────────────────────────────────────────
+
+function MigrationProjectCard({ mp, t, onClick }) {
+  const phase = mp.current_phase ?? 'discover';
+  const pc = PHASE_COLORS[phase] ?? PHASE_COLORS.discover;
+  const approachColors = {
+    greenfield: 'bg-green-100 text-green-700',
+    brownfield: 'bg-amber-100 text-amber-700',
+    bluefield:  'bg-blue-100 text-blue-700',
+  };
+  return (
+    <button
+      onClick={onClick}
+      className="text-left w-full bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-600 transition-all"
+    >
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <h3 className="font-semibold text-gray-900 dark:text-white text-sm leading-tight">
+          {mp.project?.name ?? '—'}
+        </h3>
+        <Badge className={approachColors[mp.approach] ?? 'bg-gray-100 text-gray-600'}>
+          {t(`mig.${mp.approach ?? 'brownfield'}`)}
+        </Badge>
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400 mb-3">
+        <span><span className="font-medium text-gray-700 dark:text-gray-300">{t('mig.source_version')}:</span> {mp.source_version ?? '—'}</span>
+        <span><span className="font-medium text-gray-700 dark:text-gray-300">{t('mig.target_version')}:</span> {mp.target_version ?? '—'}</span>
+        <span><span className="font-medium text-gray-700 dark:text-gray-300">{t('mig.go_live')}:</span> {fmtDate(mp.go_live_date)}</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className={`inline-block w-2.5 h-2.5 rounded-full flex-shrink-0 ${pc.dot}`} />
+        <span className={`text-xs font-medium px-2 py-0.5 rounded ${pc.badge}`}>
+          {t(`mig.phase_${phase}`)}
+        </span>
+        <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">{t('mig.current_phase')}</span>
+      </div>
+    </button>
+  );
+}
+
+// ─── CreateMigrationModal ─────────────────────────────────────────────────────
+
+function CreateMigrationModal({ auth, t, onClose, onCreated }) {
+  const [projects, setProjects] = useState([]);
+  const [loadingProj, setLoadingProj] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [errMsg, setErrMsg] = useState('');
+  const [form, setForm] = useState({
+    project_id: '',
+    approach: 'brownfield',
+    source_version: '',
+    target_version: 'SAP S/4HANA 2023',
+    go_live_date: '',
+  });
+
+  useEffect(() => {
+    supabase.from('projects').select('id, name').order('name').then(({ data }) => {
+      setProjects(data ?? []);
+      setLoadingProj(false);
+    });
+  }, []);
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!form.project_id) { setErrMsg(t('mig.select_project_required')); return; }
+    setSaving(true);
+    setErrMsg('');
+    try {
+      // Create migration project
+      const { data: mp, error: mpErr } = await supabase
+        .from('migration_projects')
+        .insert({
+          project_id: form.project_id,
+          approach: form.approach,
+          source_version: form.source_version || null,
+          target_version: form.target_version || 'SAP S/4HANA 2023',
+          go_live_date: form.go_live_date || null,
+          current_phase: 'discover',
+          created_by: auth.user?.id,
+        })
+        .select()
+        .single();
+      if (mpErr) throw new Error(mpErr.message);
+
+      // Seed phase deliverables
+      const deliverables = [];
+      for (const [phase, items] of Object.entries(PHASE_DELIVERABLES)) {
+        for (const title of items) {
+          deliverables.push({ migration_project_id: mp.id, phase, title });
+        }
+      }
+      await supabase.from('migration_phase_deliverables').insert(deliverables);
+
+      // Seed phase gates
+      const gates = PHASES.map(phase => ({
+        migration_project_id: mp.id,
+        phase,
+        status: 'not_started',
+      }));
+      await supabase.from('migration_phase_gates').insert(gates);
+
+      // Seed cutover runs
+      const runs = ['dr1', 'dr2', 'go_live'].map(run_type => ({
+        migration_project_id: mp.id,
+        run_type,
+      }));
+      await supabase.from('cutover_runs').insert(runs);
+
+      onCreated();
+    } catch (err) {
+      setErrMsg(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const projOptions = [
+    { value: '', label: `— ${t('mig.select_project')} —` },
+    ...projects.map(p => ({ value: p.id, label: p.name })),
+  ];
+  const approachOptions = [
+    { value: 'brownfield', label: t('mig.brownfield') },
+    { value: 'greenfield', label: t('mig.greenfield') },
+    { value: 'bluefield',  label: t('mig.bluefield') },
+  ];
+
+  return (
+    <Modal open onClose={onClose} title={t('mig.new_project')}>
+      <form onSubmit={handleSubmit}>
+        {loadingProj ? (
+          <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-blue-500" /></div>
+        ) : (
+          <>
+            <Select
+              label={t('mig.select_project')}
+              options={projOptions}
+              value={form.project_id}
+              onChange={e => set('project_id', e.target.value)}
+            />
+            <Select
+              label={t('mig.approach')}
+              options={approachOptions}
+              value={form.approach}
+              onChange={e => set('approach', e.target.value)}
+            />
+            <Input
+              label={t('mig.source_version')}
+              placeholder="e.g. SAP ECC 6.0 EHP8"
+              value={form.source_version}
+              onChange={e => set('source_version', e.target.value)}
+            />
+            <Input
+              label={t('mig.target_version')}
+              placeholder="e.g. SAP S/4HANA 2023"
+              value={form.target_version}
+              onChange={e => set('target_version', e.target.value)}
+            />
+            <Input
+              label={t('mig.go_live')}
+              type="date"
+              value={form.go_live_date}
+              onChange={e => set('go_live_date', e.target.value)}
+            />
+          </>
+        )}
+        {errMsg && (
+          <p className="text-red-600 text-xs mb-3 flex items-center gap-1">
+            <AlertCircle className="w-3.5 h-3.5" />{errMsg}
+          </p>
+        )}
+        <div className="flex justify-end gap-2 mt-4">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white">
+            {t('action.cancel')}
+          </button>
+          <button
+            type="submit"
+            disabled={saving || loadingProj}
+            className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            {saving ? t('mig.creating') : t('mig.create_btn')}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+// ─── MigrationProjectDetail ───────────────────────────────────────────────────
+
+function MigrationProjectDetail({ migProject, auth, onBack }) {
+  const { t } = useT();
+  const [activeTab, setActiveTab] = useState('phases');
+
+  const tabs = [
+    { id: 'phases',  label: t('mig.tab_phases') },
+    { id: 'wricef',  label: t('mig.tab_wricef') },
+    { id: 'cutover', label: t('mig.tab_cutover') },
+  ];
+
+  const approachColors = {
+    greenfield: 'bg-green-100 text-green-700',
+    brownfield: 'bg-amber-100 text-amber-700',
+    bluefield:  'bg-blue-100 text-blue-700',
+  };
+
+  return (
+    <div className="p-6 max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="mb-6">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:underline mb-3"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          {t('mig.back')}
+        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+            {migProject.project?.name ?? '—'}
+          </h1>
+          <Badge className={approachColors[migProject.approach] ?? 'bg-gray-100 text-gray-600'}>
+            {t(`mig.${migProject.approach ?? 'brownfield'}`)}
+          </Badge>
+        </div>
+        <div className="flex flex-wrap gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
+          <span>{t('mig.source_version')}: <strong className="text-gray-700 dark:text-gray-300">{migProject.source_version ?? '—'}</strong></span>
+          <span>{t('mig.target_version')}: <strong className="text-gray-700 dark:text-gray-300">{migProject.target_version ?? '—'}</strong></span>
+          <span>{t('mig.go_live')}: <strong className="text-gray-700 dark:text-gray-300">{fmtDate(migProject.go_live_date)}</strong></span>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200 dark:border-gray-700 mb-6 gap-0">
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === tab.id
+                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      {activeTab === 'phases'  && <PhasesTab  migProject={migProject} auth={auth} />}
+      {activeTab === 'wricef'  && <WricefTab  migProject={migProject} auth={auth} />}
+      {activeTab === 'cutover' && <CutoverTab migProject={migProject} auth={auth} />}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+// MODULE 1 — SAP Activate Phase Gates
+// ════════════════════════════════════════════════════════════════
+
+function PhasesTab({ migProject, auth }) {
+  const { t } = useT();
+  const users = useFetchUsers();
+  const [gates, setGates]           = useState({});
+  const [deliverables, setDeliverables] = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState(null);
+  const [expanded, setExpanded]     = useState({ discover: true });
+  const [marking, setMarking]       = useState(null);
+  const [toggling, setToggling]     = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const [{ data: gateData, error: gErr }, { data: delivData, error: dErr }] = await Promise.all([
+      supabase.from('migration_phase_gates').select('*').eq('migration_project_id', migProject.id),
+      supabase.from('migration_phase_deliverables').select('*').eq('migration_project_id', migProject.id),
+    ]);
+    if (gErr || dErr) { setError((gErr ?? dErr).message); }
+    else {
+      const gateMap = {};
+      (gateData ?? []).forEach(g => { gateMap[g.phase] = g; });
+      setGates(gateMap);
+      setDeliverables(delivData ?? []);
+    }
+    setLoading(false);
+  }, [migProject.id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function toggleDeliverable(deliverable) {
+    if (toggling) return;
+    const newVal = !deliverable.completed;
+    setToggling(deliverable.id);
+    const update = {
+      completed: newVal,
+      completed_by: newVal ? auth.user?.id : null,
+      completed_at: newVal ? new Date().toISOString() : null,
+    };
+    const { error: err } = await supabase
+      .from('migration_phase_deliverables')
+      .update(update)
+      .eq('id', deliverable.id);
+    if (!err) {
+      setDeliverables(prev =>
+        prev.map(d => d.id === deliverable.id ? { ...d, ...update } : d)
+      );
+      // Update phase gate status to in_progress if any deliverable is now checked
+      const phase = deliverable.phase;
+      const phaseDelivs = deliverables.map(d =>
+        d.id === deliverable.id ? { ...d, ...update } : d
+      ).filter(d => d.phase === phase);
+      const anyDone = phaseDelivs.some(d => d.completed);
+      const gate = gates[phase];
+      if (gate && gate.status === 'not_started' && anyDone) {
+        await supabase.from('migration_phase_gates')
+          .update({ status: 'in_progress' })
+          .eq('id', gate.id);
+        setGates(prev => ({ ...prev, [phase]: { ...gate, status: 'in_progress' } }));
+      }
+    }
+    setToggling(null);
+  }
+
+  async function markPhaseComplete(phase) {
+    const phaseDelivs = deliverables.filter(d => d.phase === phase);
+    if (!phaseDelivs.every(d => d.completed)) return;
+    const gate = gates[phase];
+    if (!gate) return;
+    setMarking(phase);
+    const update = {
+      status: 'completed',
+      approved_by: auth.user?.id,
+      approved_at: new Date().toISOString(),
+    };
+    const { error: err } = await supabase
+      .from('migration_phase_gates')
+      .update(update)
+      .eq('id', gate.id);
+    if (!err) {
+      setGates(prev => ({ ...prev, [phase]: { ...gate, ...update } }));
+      // Advance current_phase on migration_project if applicable
+      const idx = PHASES.indexOf(phase);
+      if (idx >= 0 && idx < PHASES.length - 1) {
+        const nextPhase = PHASES[idx + 1];
+        if (migProject.current_phase === phase) {
+          await supabase.from('migration_projects')
+            .update({ current_phase: nextPhase })
+            .eq('id', migProject.id);
+          migProject.current_phase = nextPhase;
+        }
+      }
+    }
+    setMarking(null);
+  }
+
+  if (loading) return <Spinner />;
+  if (error)   return <p className="text-red-600 text-sm">{error}</p>;
+
+  const activeIdx = PHASES.indexOf(migProject.current_phase ?? 'discover');
+
+  return (
+    <div>
+      {/* Horizontal Stepper */}
+      <div className="mb-8 overflow-x-auto">
+        <div className="flex items-center min-w-max gap-0">
+          {PHASES.map((phase, idx) => {
+            const gate = gates[phase];
+            const status = gate?.status ?? 'not_started';
+            const pc = PHASE_COLORS[phase];
+            const isActive = idx === activeIdx;
+            const isDone   = status === 'completed';
+            return (
+              <div key={phase} className="flex items-center">
+                <div className="flex flex-col items-center">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all ${
+                    isDone   ? `${pc.dot} text-white border-transparent` :
+                    isActive ? `border-blue-500 bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400` :
+                               'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-400'
+                  }`}>
+                    {isDone ? <Check className="w-4 h-4" /> : idx + 1}
+                  </div>
+                  <span className={`mt-1.5 text-xs font-medium whitespace-nowrap ${
+                    isActive ? 'text-blue-600 dark:text-blue-400' :
+                    isDone   ? 'text-gray-600 dark:text-gray-300' :
+                               'text-gray-400 dark:text-gray-500'
+                  }`}>
+                    {t(PHASE_LABEL_KEYS[phase])}
+                  </span>
+                </div>
+                {idx < PHASES.length - 1 && (
+                  <div className={`w-12 h-0.5 mx-1 mb-4 ${
+                    PHASES.slice(0, idx + 1).every(p => (gates[p]?.status ?? '') === 'completed')
+                      ? 'bg-blue-400' : 'bg-gray-200 dark:bg-gray-700'
+                  }`} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Phase Cards */}
+      <div className="space-y-3">
+        {PHASES.map(phase => {
+          const gate = gates[phase];
+          const status = gate?.status ?? 'not_started';
+          const pc = PHASE_COLORS[phase];
+          const phaseDelivs = deliverables.filter(d => d.phase === phase);
+          const doneCount = phaseDelivs.filter(d => d.completed).length;
+          const allDone   = phaseDelivs.length > 0 && doneCount === phaseDelivs.length;
+          const isExpanded = !!expanded[phase];
+          const canComplete = (auth.isAdmin || auth.isManager) && allDone && status !== 'completed';
+
+          const statusBadgeCls = {
+            not_started: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+            in_progress: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+            completed:   'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+          }[status] ?? 'bg-gray-100 text-gray-600';
+
+          const statusLabel = {
+            not_started: t('mig.phase_not_started'),
+            in_progress: t('mig.phase_in_progress'),
+            completed:   t('mig.phase_completed'),
+          }[status] ?? status;
+
+          return (
+            <div key={phase} className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 border-l-4 ${pc.border} overflow-hidden`}>
+              {/* Phase header */}
+              <div
+                className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                onClick={() => setExpanded(prev => ({ ...prev, [phase]: !prev[phase] }))}
+              >
+                <div className="flex items-center gap-3">
+                  <span className={`inline-block w-3 h-3 rounded-full flex-shrink-0 ${pc.dot}`} />
+                  <span className="font-semibold text-gray-900 dark:text-white text-sm">
+                    {t(PHASE_LABEL_KEYS[phase])}
+                  </span>
+                  <Badge className={statusBadgeCls}>{statusLabel}</Badge>
+                  {phaseDelivs.length > 0 && (
+                    <span className="text-xs text-gray-400 dark:text-gray-500">
+                      {doneCount}/{phaseDelivs.length}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {status === 'completed' && gate?.approved_by && (
+                    <span className="text-xs text-gray-400 dark:text-gray-500 hidden sm:block">
+                      {userName(users, gate.approved_by)} · {fmtDate(gate.approved_at)}
+                    </span>
+                  )}
+                  {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                </div>
+              </div>
+
+              {/* Deliverables */}
+              {isExpanded && (
+                <div className="px-5 pb-4 border-t border-gray-100 dark:border-gray-700">
+                  <div className="mt-3 space-y-2">
+                    {phaseDelivs.map(d => (
+                      <label
+                        key={d.id}
+                        className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${status === 'completed' ? 'opacity-60' : ''}`}
+                      >
+                        <div className="relative mt-0.5 flex-shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={d.completed}
+                            disabled={status === 'completed' || !!toggling}
+                            onChange={() => toggleDeliverable(d)}
+                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          {toggling === d.id && (
+                            <Loader2 className="absolute -top-0.5 -left-0.5 w-5 h-5 animate-spin text-blue-500" />
+                          )}
+                        </div>
+                        <span className={`text-sm ${d.completed ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
+                          {d.title}
+                        </span>
+                        {d.completed && d.completed_by && (
+                          <span className="text-xs text-gray-400 ml-auto flex-shrink-0 hidden sm:block">
+                            {userName(users, d.completed_by)}
+                          </span>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+
+                  {/* Mark complete button */}
+                  {canComplete && (
+                    <div className="mt-4 flex items-center gap-3">
+                      <button
+                        onClick={() => markPhaseComplete(phase)}
+                        disabled={!!marking}
+                        className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+                      >
+                        {marking === phase ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="w-4 h-4" />
+                        )}
+                        {marking === phase ? t('mig.marking') : t('mig.mark_complete')}
+                      </button>
+                    </div>
+                  )}
+                  {(auth.isAdmin || auth.isManager) && !allDone && status !== 'completed' && (
+                    <p className="mt-3 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      {t('mig.all_deliverables_required')}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+// MODULE 2 — WRICEF Registry
+// ════════════════════════════════════════════════════════════════
+
+function WricefTab({ migProject, auth }) {
+  const { t } = useT();
+  const users = useFetchUsers();
+  const [objects, setObjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
+  const [filters, setFilters] = useState({ type: '', status: '', complexity: '' });
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing]     = useState(null);
+  const [signing, setSigning]     = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data, error: err } = await supabase
+      .from('wricef_objects')
+      .select('*')
+      .eq('migration_project_id', migProject.id)
+      .order('created_at', { ascending: true });
+    if (err) setError(err.message);
+    else setObjects(data ?? []);
+    setLoading(false);
+  }, [migProject.id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function handleSignOff(obj) {
+    setSigning(obj.id);
+    const { error: err } = await supabase
+      .from('wricef_objects')
+      .update({ status: 'signed_off', signed_off_by: auth.user?.id, signed_off_at: new Date().toISOString() })
+      .eq('id', obj.id);
+    if (!err) load();
+    setSigning(null);
+  }
+
+  const setFilter = (k, v) => setFilters(f => ({ ...f, [k]: v }));
+
+  const filtered = objects.filter(o =>
+    (!filters.type || o.type === filters.type) &&
+    (!filters.status || o.status === filters.status) &&
+    (!filters.complexity || o.complexity === filters.complexity)
+  );
+
+  // Summary tiles
+  const total = objects.length;
+  const byType = 'WRICEF'.split('').reduce((acc, c) => {
+    acc[c] = objects.filter(o => o.type === c).length;
+    return acc;
+  }, {});
+  const signedOff = objects.filter(o => o.status === 'signed_off').length;
+  const completion = total ? Math.round((signedOff / total) * 100) : 0;
+
+  // Export by type
+  function exportByType() {
+    const rows = ['Type,Label,Count'];
+    Object.entries(WRICEF_META).forEach(([type, meta]) => {
+      rows.push(`${type},${meta.label},${byType[type] ?? 0}`);
+    });
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'wricef_summary.csv'; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  if (loading) return <Spinner />;
+  if (error)   return <p className="text-red-600 text-sm">{error}</p>;
+
+  const typeOptions = [
+    { value: '', label: t('mig.wricef_all_types') },
+    ...Object.entries(WRICEF_META).map(([v, m]) => ({ value: v, label: `${v} — ${m.label}` })),
+  ];
+  const statusOptions = [
+    { value: '', label: t('mig.wricef_all_statuses') },
+    { value: 'open',        label: t('mig.wricef_open') },
+    { value: 'in_progress', label: t('mig.wricef_in_progress') },
+    { value: 'remediated',  label: t('mig.wricef_remediated') },
+    { value: 'tested',      label: t('mig.wricef_tested') },
+    { value: 'signed_off',  label: t('mig.wricef_signed_off_label') },
+  ];
+  const complexityOptions = [
+    { value: '', label: t('mig.all_complexities') },
+    { value: 'low',    label: t('mig.complexity_low') },
+    { value: 'medium', label: t('mig.complexity_medium') },
+    { value: 'high',   label: t('mig.complexity_high') },
+  ];
+
+  return (
+    <div>
+      {/* Summary tiles */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 text-center">
+          <div className="text-2xl font-bold text-gray-900 dark:text-white">{total}</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t('mig.wricef_total')}</div>
+        </div>
+        {Object.entries(WRICEF_META).map(([type, meta]) => (
+          <div key={type} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 flex items-center gap-2">
+            <Badge className={meta.cls}>{type}</Badge>
+            <div>
+              <div className="text-lg font-bold text-gray-900 dark:text-white">{byType[type] ?? 0}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">{meta.label}</div>
+            </div>
+          </div>
+        ))}
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 text-center">
+          <div className="text-2xl font-bold text-green-600 dark:text-green-400">{completion}%</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t('mig.wricef_completion')}</div>
+          <div className="mt-1.5 w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${completion}%` }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <select
+          value={filters.type}
+          onChange={e => setFilter('type', e.target.value)}
+          className="border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+        >
+          {typeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        <select
+          value={filters.status}
+          onChange={e => setFilter('status', e.target.value)}
+          className="border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+        >
+          {statusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        <select
+          value={filters.complexity}
+          onChange={e => setFilter('complexity', e.target.value)}
+          className="border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+        >
+          {complexityOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={exportByType}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm rounded-lg transition-colors"
+          >
+            <Download className="w-3.5 h-3.5" />
+            {t('mig.wricef_export')}
+          </button>
+          {(auth.isAdmin || auth.isManager) && (
+            <button
+              onClick={() => { setEditing(null); setShowModal(true); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              {t('mig.wricef_new')}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Table */}
+      {filtered.length === 0 ? (
+        <div className="text-center py-12 text-gray-400 dark:text-gray-500 text-sm">{t('mig.wricef_no_objects')}</div>
+      ) : (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 dark:bg-gray-700/50 text-left">
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('mig.wricef_type')}</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('mig.wricef_name')}</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden sm:table-cell">{t('mig.wricef_complexity')}</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">{t('mig.wricef_effort')}</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">{t('mig.wricef_owner')}</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('mig.wricef_status')}</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('action.edit')}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                {filtered.map(obj => (
+                  <tr key={obj.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                    <td className="px-4 py-3">
+                      <Badge className={WRICEF_META[obj.type]?.cls ?? ''}>
+                        {obj.type} — {WRICEF_META[obj.type]?.label ?? obj.type}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-gray-900 dark:text-white">{obj.name}</div>
+                      {obj.object_id && <div className="text-xs text-gray-400 dark:text-gray-500">{obj.object_id}</div>}
+                    </td>
+                    <td className="px-4 py-3 hidden sm:table-cell">
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded ${
+                        obj.complexity === 'high'   ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
+                        obj.complexity === 'medium' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
+                                                      'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                      }`}>
+                        {t(`mig.complexity_${obj.complexity ?? 'medium'}`)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 dark:text-gray-300 hidden md:table-cell">
+                      {obj.effort_days != null ? `${obj.effort_days}d` : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 dark:text-gray-300 hidden md:table-cell">
+                      {userName(users, obj.owner_id)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <Badge className={WRICEF_STATUS_CLS[obj.status] ?? ''}>
+                          {cap(obj.status)}
+                        </Badge>
+                        {obj.status === 'tested' && !obj.signed_off_at && (
+                          <button
+                            onClick={() => handleSignOff(obj)}
+                            disabled={signing === obj.id}
+                            className="text-xs px-2 py-0.5 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 rounded border border-green-200 dark:border-green-800 transition-colors disabled:opacity-50"
+                          >
+                            {signing === obj.id ? <Loader2 className="w-3 h-3 animate-spin" /> : t('mig.wricef_sign_off')}
+                          </button>
+                        )}
+                        {obj.signed_off_at && (
+                          <span className="text-xs text-gray-400 dark:text-gray-500 hidden lg:block">
+                            {fmtDate(obj.signed_off_at)}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => { setEditing(obj); setShowModal(true); }}
+                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        {t('action.edit')}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* WRICEF Modal */}
+      {showModal && (
+        <WricefModal
+          migProjectId={migProject.id}
+          auth={auth}
+          users={users}
+          editing={editing}
+          t={t}
+          onClose={() => { setShowModal(false); setEditing(null); }}
+          onSaved={() => { setShowModal(false); setEditing(null); load(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── WricefModal ──────────────────────────────────────────────────────────────
+
+function WricefModal({ migProjectId, auth, users, editing, t, onClose, onSaved }) {
+  const isEdit = !!editing;
+  const [saving, setSaving] = useState(false);
+  const [errMsg, setErrMsg] = useState('');
+  const [form, setForm] = useState({
+    type: editing?.type ?? 'W',
+    name: editing?.name ?? '',
+    object_id: editing?.object_id ?? '',
+    description: editing?.description ?? '',
+    complexity: editing?.complexity ?? 'medium',
+    effort_days: editing?.effort_days ?? '',
+    owner_id: editing?.owner_id ?? '',
+    remediation_approach: editing?.remediation_approach ?? '',
+    status: editing?.status ?? 'open',
+  });
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!form.name.trim()) { setErrMsg(t('mig.wricef_name_required')); return; }
+    setSaving(true);
+    setErrMsg('');
+    const payload = {
+      ...form,
+      effort_days: form.effort_days !== '' ? parseFloat(form.effort_days) : null,
+      owner_id: form.owner_id || null,
+      migration_project_id: migProjectId,
+    };
+    let err;
+    if (isEdit) {
+      ({ error: err } = await supabase.from('wricef_objects').update(payload).eq('id', editing.id));
+    } else {
+      ({ error: err } = await supabase.from('wricef_objects').insert(payload));
+    }
+    if (err) setErrMsg(err.message);
+    else onSaved();
+    setSaving(false);
+  }
+
+  const typeOptions     = Object.entries(WRICEF_META).map(([v, m]) => ({ value: v, label: `${v} — ${m.label}` }));
+  const complexityOpts  = [{ value: 'low', label: t('mig.complexity_low') }, { value: 'medium', label: t('mig.complexity_medium') }, { value: 'high', label: t('mig.complexity_high') }];
+  const statusOpts      = [
+    { value: 'open',        label: t('mig.wricef_open') },
+    { value: 'in_progress', label: t('mig.wricef_in_progress') },
+    { value: 'remediated',  label: t('mig.wricef_remediated') },
+    { value: 'tested',      label: t('mig.wricef_tested') },
+    { value: 'signed_off',  label: t('mig.wricef_signed_off_label') },
+  ];
+  const ownerOpts = [
+    { value: '', label: `— ${t('mig.wricef_owner')} —` },
+    ...users.map(u => ({ value: u.id, label: u.full_name })),
+  ];
+
+  return (
+    <Modal open onClose={onClose} title={isEdit ? t('mig.wricef_edit') : t('mig.wricef_new')} wide>
+      <form onSubmit={handleSubmit}>
+        <div className="grid sm:grid-cols-2 gap-x-4">
+          <Select label={t('mig.wricef_type')} options={typeOptions} value={form.type} onChange={e => set('type', e.target.value)} />
+          <Input label={t('mig.wricef_name')} value={form.name} onChange={e => set('name', e.target.value)} placeholder={t('mig.wricef_name')} required />
+          <Input label={t('mig.wricef_object_id')} value={form.object_id} onChange={e => set('object_id', e.target.value)} placeholder="e.g. ZREPORT_001" />
+          <Select label={t('mig.wricef_complexity')} options={complexityOpts} value={form.complexity} onChange={e => set('complexity', e.target.value)} />
+          <Input label={t('mig.wricef_effort')} type="number" step="0.5" min="0" value={form.effort_days} onChange={e => set('effort_days', e.target.value)} placeholder="0" />
+          <Select label={t('mig.wricef_owner')} options={ownerOpts} value={form.owner_id} onChange={e => set('owner_id', e.target.value)} />
+          <Select label={t('mig.wricef_status')} options={statusOpts} value={form.status} onChange={e => set('status', e.target.value)} />
+        </div>
+        <Textarea label={t('mig.wricef_description')} value={form.description} onChange={e => set('description', e.target.value)} rows={2} />
+        <Textarea label={t('mig.wricef_approach')} value={form.remediation_approach} onChange={e => set('remediation_approach', e.target.value)} rows={2} />
+        {errMsg && <p className="text-red-600 text-xs mb-3 flex items-center gap-1"><AlertCircle className="w-3.5 h-3.5" />{errMsg}</p>}
+        <div className="flex justify-end gap-2 mt-4">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white">{t('action.cancel')}</button>
+          <button type="submit" disabled={saving} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
+            {saving ? t('action.saving') : t('action.save')}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+// MODULE 3 — Cutover Planner
+// ════════════════════════════════════════════════════════════════
+
+function CutoverTab({ migProject, auth }) {
+  const { t } = useT();
+  const users = useFetchUsers();
+  const [runs, setRuns]             = useState([]);
+  const [tasks, setTasks]           = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState(null);
+  const [taskFilter, setTaskFilter] = useState('');
+  const [showRunModal, setShowRunModal]   = useState(false);
+  const [editingRun, setEditingRun]       = useState(null);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [editingTask, setEditingTask]     = useState(null);
+  const [markingDone, setMarkingDone]     = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const [{ data: runData, error: rErr }, { data: taskData, error: tErr }] = await Promise.all([
+      supabase.from('cutover_runs').select('*').eq('migration_project_id', migProject.id).order('run_type'),
+      supabase.from('cutover_tasks').select('*').eq('migration_project_id', migProject.id).order('seq'),
+    ]);
+    if (rErr || tErr) setError((rErr ?? tErr).message);
+    else { setRuns(runData ?? []); setTasks(taskData ?? []); }
+    setLoading(false);
+  }, [migProject.id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function markTaskDone(task) {
+    setMarkingDone(task.id);
+    const { error: err } = await supabase
+      .from('cutover_tasks')
+      .update({ status: 'done', completed_at: new Date().toISOString() })
+      .eq('id', task.id);
+    if (!err) setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: 'done', completed_at: new Date().toISOString() } : t));
+    setMarkingDone(null);
+  }
+
+  const filteredTasks = taskFilter ? tasks.filter(t => t.run_type === taskFilter || t.run_type === 'all') : tasks;
+
+  // Progress for a run
+  function runProgress(runType) {
+    const rt = runType === 'all' ? tasks : tasks.filter(t => t.run_type === runType || t.run_type === 'all');
+    if (!rt.length) return 0;
+    return Math.round((rt.filter(t => t.status === 'done').length / rt.length) * 100);
+  }
+
+  if (loading) return <Spinner />;
+  if (error)   return <p className="text-red-600 text-sm">{error}</p>;
+
+  const runOrder = ['dr1', 'dr2', 'go_live'];
+  const runMap   = {};
+  runs.forEach(r => { runMap[r.run_type] = r; });
+
+  const runTypeFilterOptions = [
+    { value: '', label: t('mig.task_all_runs') },
+    { value: 'dr1',     label: t('mig.dr1') },
+    { value: 'dr2',     label: t('mig.dr2') },
+    { value: 'go_live', label: t('mig.go_live_run') },
+    { value: 'all',     label: `${t('mig.task_all_runs')} (All)` },
+  ];
+
+  const taskRunTypeOptions = [
+    { value: 'all',     label: t('mig.task_all_runs') },
+    { value: 'dr1',     label: t('mig.dr1') },
+    { value: 'dr2',     label: t('mig.dr2') },
+    { value: 'go_live', label: t('mig.go_live_run') },
+  ];
+
+  return (
+    <div>
+      {/* Runs section */}
+      <div className="mb-8">
+        <h2 className="text-base font-semibold text-gray-800 dark:text-gray-100 mb-3">{t('mig.runs_section')}</h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {runOrder.map(runType => {
+            const run = runMap[runType];
+            const progress = runProgress(runType);
+            return (
+              <div key={runType} className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 ${RUN_TYPE_COLORS[runType]}`}>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-gray-900 dark:text-white text-sm">{t(RUN_TYPE_LABEL_KEYS[runType])}</h3>
+                  {run && (
+                    <Badge className={RUN_STATUS_CLS[run.status] ?? 'bg-gray-100 text-gray-600'}>
+                      {t(`mig.run_${run.status ?? 'planned'}`)}
+                    </Badge>
+                  )}
+                </div>
+
+                {run ? (
+                  <>
+                    <div className="space-y-1 text-xs text-gray-600 dark:text-gray-300 mb-3">
+                      <div className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 text-gray-400" /><span>{t('mig.run_scheduled')}: {fmtDt(run.scheduled_date)}</span></div>
+                      <div className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-gray-400" /><span>{t('mig.run_freeze')}: {fmtDt(run.system_freeze_date)}</span></div>
+                      {run.downtime_start && <div className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-gray-400" /><span>↓ {fmtDt(run.downtime_start)} → {fmtDt(run.downtime_end)}</span></div>}
+                      {run.go_no_go && (
+                        <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium mt-1 ${run.go_no_go === 'go' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                          {run.go_no_go === 'go' ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                          {run.go_no_go === 'go' ? t('mig.run_go') : t('mig.run_no_go')}
+                        </div>
+                      )}
+                    </div>
+                    {run.status === 'in_progress' && (
+                      <div className="mb-3">
+                        <div className="flex justify-between text-xs text-gray-500 mb-1">
+                          <span>{t('mig.task_progress')}</span><span>{progress}%</span>
+                        </div>
+                        <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                          <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${progress}%` }} />
+                        </div>
+                      </div>
+                    )}
+                    {run.notes && <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 italic">{run.notes}</p>}
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">{t('mig.run_not_configured')}</p>
+                )}
+
+                {(auth.isAdmin || auth.isManager) && (
+                  <button
+                    onClick={() => { setEditingRun(run ?? { run_type: runType, migration_project_id: migProject.id }); setShowRunModal(true); }}
+                    className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                    {run ? t('action.edit') : t('action.add')}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Tasks section */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-semibold text-gray-800 dark:text-gray-100">{t('mig.tasks_section')}</h2>
+          <div className="flex items-center gap-2">
+            <select
+              value={taskFilter}
+              onChange={e => setTaskFilter(e.target.value)}
+              className="border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              {runTypeFilterOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            {(auth.isAdmin || auth.isManager) && (
+              <button
+                onClick={() => { setEditingTask(null); setShowTaskModal(true); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {t('mig.task_add')}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {filteredTasks.length === 0 ? (
+          <div className="text-center py-10 text-gray-400 dark:text-gray-500 text-sm">{t('mig.task_no_tasks')}</div>
+        ) : (
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 dark:bg-gray-700/50 text-left">
+                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider w-12">{t('mig.task_seq')}</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('mig.task_title')}</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden sm:table-cell">{t('mig.task_team')}</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">{t('mig.task_duration')}</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">{t('mig.task_depends_on')}</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden sm:table-cell">{t('mig.task_run_type')}</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('mig.task_status')}</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('action.edit')}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                  {filteredTasks.map(task => (
+                    <tr key={task.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors ${task.status === 'skipped' ? 'opacity-50' : ''}`}>
+                      <td className="px-4 py-3 font-mono text-gray-500 dark:text-gray-400 text-xs">{task.seq}</td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-gray-900 dark:text-white">{task.title}</div>
+                        {task.notes && <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate max-w-xs">{task.notes}</div>}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 dark:text-gray-300 hidden sm:table-cell">
+                        {task.team ?? userName(users, task.owner_id)}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 dark:text-gray-300 hidden md:table-cell">
+                        {task.duration_hours != null ? `${task.duration_hours}h` : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-gray-500 dark:text-gray-400 hidden md:table-cell font-mono text-xs">
+                        {task.depends_on ?? '—'}
+                      </td>
+                      <td className="px-4 py-3 hidden sm:table-cell">
+                        <Badge className={
+                          task.run_type === 'go_live' ? 'bg-green-100 text-green-700' :
+                          task.run_type === 'dr2'     ? 'bg-indigo-100 text-indigo-700' :
+                          task.run_type === 'dr1'     ? 'bg-blue-100 text-blue-700' :
+                                                        'bg-gray-100 text-gray-600'
+                        }>
+                          {task.run_type === 'all' ? t('mig.task_all_runs') : t(RUN_TYPE_LABEL_KEYS[task.run_type] ?? '')}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <Badge className={TASK_STATUS_CLS[task.status] ?? ''}>
+                            {task.status === 'done'        ? t('mig.task_done') :
+                             task.status === 'in_progress' ? t('mig.phase_in_progress') :
+                             task.status === 'skipped'     ? t('mig.task_skipped') :
+                                                             t('mig.task_pending')}
+                          </Badge>
+                          {task.status !== 'done' && task.status !== 'skipped' && (
+                            <button
+                              onClick={() => markTaskDone(task)}
+                              disabled={markingDone === task.id}
+                              className="text-xs px-2 py-0.5 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 rounded border border-green-200 dark:border-green-800 transition-colors disabled:opacity-50"
+                            >
+                              {markingDone === task.id ? <Loader2 className="w-3 h-3 animate-spin" /> : t('mig.task_mark_done')}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {(auth.isAdmin || auth.isManager) && (
+                          <button
+                            onClick={() => { setEditingTask(task); setShowTaskModal(true); }}
+                            className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                          >
+                            {t('action.edit')}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Run Modal */}
+      {showRunModal && (
+        <RunModal
+          migProjectId={migProject.id}
+          auth={auth}
+          run={editingRun}
+          t={t}
+          onClose={() => { setShowRunModal(false); setEditingRun(null); }}
+          onSaved={() => { setShowRunModal(false); setEditingRun(null); load(); }}
+        />
+      )}
+
+      {/* Task Modal */}
+      {showTaskModal && (
+        <TaskModal
+          migProjectId={migProject.id}
+          auth={auth}
+          users={users}
+          task={editingTask}
+          tasks={tasks}
+          t={t}
+          taskRunTypeOptions={taskRunTypeOptions}
+          onClose={() => { setShowTaskModal(false); setEditingTask(null); }}
+          onSaved={() => { setShowTaskModal(false); setEditingTask(null); load(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── RunModal ─────────────────────────────────────────────────────────────────
+
+function RunModal({ migProjectId, auth, run, t, onClose, onSaved }) {
+  const isNew = !run?.id;
+  const [saving, setSaving] = useState(false);
+  const [errMsg, setErrMsg] = useState('');
+  const [form, setForm] = useState({
+    scheduled_date:    run?.scheduled_date    ? run.scheduled_date.slice(0,16)    : '',
+    system_freeze_date:run?.system_freeze_date ? run.system_freeze_date.slice(0,16) : '',
+    downtime_start:    run?.downtime_start    ? run.downtime_start.slice(0,16)    : '',
+    downtime_end:      run?.downtime_end      ? run.downtime_end.slice(0,16)      : '',
+    status:            run?.status            ?? 'planned',
+    go_no_go:          run?.go_no_go          ?? '',
+    notes:             run?.notes             ?? '',
+  });
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setSaving(true);
+    setErrMsg('');
+    const payload = {
+      ...form,
+      scheduled_date:     form.scheduled_date     || null,
+      system_freeze_date: form.system_freeze_date || null,
+      downtime_start:     form.downtime_start     || null,
+      downtime_end:       form.downtime_end       || null,
+      go_no_go:           form.go_no_go           || null,
+      migration_project_id: migProjectId,
+    };
+    if (form.go_no_go && (auth.isAdmin || auth.isManager)) {
+      payload.go_no_go_by = auth.user?.id;
+      payload.go_no_go_at = new Date().toISOString();
+    }
+    let err;
+    if (isNew) {
+      payload.run_type = run.run_type;
+      ({ error: err } = await supabase.from('cutover_runs').insert(payload));
+    } else {
+      ({ error: err } = await supabase.from('cutover_runs').update(payload).eq('id', run.id));
+    }
+    if (err) setErrMsg(err.message);
+    else onSaved();
+    setSaving(false);
+  }
+
+  const statusOpts = [
+    { value: 'planned',    label: t('mig.run_planned') },
+    { value: 'in_progress',label: t('mig.run_in_progress') },
+    { value: 'completed',  label: t('mig.run_completed') },
+  ];
+  const goNoGoOpts = [
+    { value: '',      label: `— ${t('mig.run_go_no_go')} —` },
+    { value: 'go',    label: t('mig.run_go') },
+    { value: 'no_go', label: t('mig.run_no_go') },
+  ];
+
+  return (
+    <Modal open onClose={onClose} title={`${t(RUN_TYPE_LABEL_KEYS[run?.run_type] ?? 'mig.dr1')} — ${t('action.edit')}`}>
+      <form onSubmit={handleSubmit}>
+        <Input label={t('mig.run_scheduled')}    type="datetime-local" value={form.scheduled_date}     onChange={e => set('scheduled_date', e.target.value)} />
+        <Input label={t('mig.run_freeze')}        type="datetime-local" value={form.system_freeze_date} onChange={e => set('system_freeze_date', e.target.value)} />
+        <Input label={t('mig.run_downtime_start')} type="datetime-local" value={form.downtime_start}    onChange={e => set('downtime_start', e.target.value)} />
+        <Input label={t('mig.run_downtime_end')}   type="datetime-local" value={form.downtime_end}      onChange={e => set('downtime_end', e.target.value)} />
+        <Select label={t('mig.run_status')} options={statusOpts} value={form.status} onChange={e => set('status', e.target.value)} />
+        {(auth.isAdmin || auth.isManager) && (
+          <Select label={t('mig.run_go_no_go')} options={goNoGoOpts} value={form.go_no_go} onChange={e => set('go_no_go', e.target.value)} />
+        )}
+        <Textarea label={t('mig.run_notes')} value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} />
+        {errMsg && <p className="text-red-600 text-xs mb-3">{errMsg}</p>}
+        <div className="flex justify-end gap-2 mt-4">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300">{t('action.cancel')}</button>
+          <button type="submit" disabled={saving} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
+            {saving ? t('action.saving') : t('action.save')}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+// ─── TaskModal ────────────────────────────────────────────────────────────────
+
+function TaskModal({ migProjectId, auth, users, task, tasks, t, taskRunTypeOptions, onClose, onSaved }) {
+  const isEdit = !!task;
+  const nextSeq = tasks.length > 0 ? Math.max(...tasks.map(t => t.seq ?? 0)) + 1 : 1;
+  const [saving, setSaving] = useState(false);
+  const [errMsg, setErrMsg] = useState('');
+  const [form, setForm] = useState({
+    seq:            task?.seq            ?? nextSeq,
+    title:          task?.title          ?? '',
+    team:           task?.team           ?? '',
+    owner_id:       task?.owner_id       ?? '',
+    duration_hours: task?.duration_hours ?? '',
+    depends_on:     task?.depends_on     ?? '',
+    run_type:       task?.run_type       ?? 'all',
+    status:         task?.status         ?? 'pending',
+    notes:          task?.notes          ?? '',
+  });
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!form.title.trim()) { setErrMsg(t('mig.task_title_required')); return; }
+    setSaving(true);
+    setErrMsg('');
+    const payload = {
+      ...form,
+      seq:            parseInt(form.seq, 10)    || nextSeq,
+      duration_hours: form.duration_hours !== '' ? parseFloat(form.duration_hours) : null,
+      depends_on:     form.depends_on     !== '' ? parseInt(form.depends_on, 10)   : null,
+      owner_id:       form.owner_id       || null,
+      migration_project_id: migProjectId,
+    };
+    let err;
+    if (isEdit) {
+      ({ error: err } = await supabase.from('cutover_tasks').update(payload).eq('id', task.id));
+    } else {
+      ({ error: err } = await supabase.from('cutover_tasks').insert(payload));
+    }
+    if (err) setErrMsg(err.message);
+    else onSaved();
+    setSaving(false);
+  }
+
+  const ownerOpts = [
+    { value: '', label: `— ${t('mig.wricef_owner')} —` },
+    ...users.map(u => ({ value: u.id, label: u.full_name })),
+  ];
+  const statusOpts = [
+    { value: 'pending',     label: t('mig.task_pending') },
+    { value: 'in_progress', label: t('mig.phase_in_progress') },
+    { value: 'done',        label: t('mig.task_done') },
+    { value: 'skipped',     label: t('mig.task_skipped') },
+  ];
+
+  return (
+    <Modal open onClose={onClose} title={isEdit ? t('mig.task_edit') : t('mig.task_new')}>
+      <form onSubmit={handleSubmit}>
+        <div className="grid sm:grid-cols-2 gap-x-4">
+          <Input label={t('mig.task_seq')} type="number" min="1" value={form.seq} onChange={e => set('seq', e.target.value)} />
+          <Select label={t('mig.task_run_type')} options={taskRunTypeOptions} value={form.run_type} onChange={e => set('run_type', e.target.value)} />
+        </div>
+        <Input label={t('mig.task_title')} value={form.title} onChange={e => set('title', e.target.value)} placeholder={t('mig.task_title')} required />
+        <div className="grid sm:grid-cols-2 gap-x-4">
+          <Input label={t('mig.task_team')} value={form.team} onChange={e => set('team', e.target.value)} placeholder="e.g. Basis Team" />
+          <Select label={t('mig.wricef_owner')} options={ownerOpts} value={form.owner_id} onChange={e => set('owner_id', e.target.value)} />
+          <Input label={t('mig.task_duration')} type="number" step="0.5" min="0" value={form.duration_hours} onChange={e => set('duration_hours', e.target.value)} />
+          <Input label={t('mig.task_depends_on')} type="number" min="1" value={form.depends_on} onChange={e => set('depends_on', e.target.value)} placeholder="— seq # —" />
+          <Select label={t('mig.task_status')} options={statusOpts} value={form.status} onChange={e => set('status', e.target.value)} />
+        </div>
+        <Textarea label={t('label.notes')} value={form.notes} onChange={e => set('notes', e.target.value)} rows={2} />
+        {errMsg && <p className="text-red-600 text-xs mb-3">{errMsg}</p>}
+        <div className="flex justify-end gap-2 mt-4">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300">{t('action.cancel')}</button>
+          <button type="submit" disabled={saving} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
+            {saving ? t('action.saving') : t('action.save')}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}

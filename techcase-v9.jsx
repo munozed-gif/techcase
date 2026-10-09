@@ -121,6 +121,7 @@ import { HeadhunterDashboard, HeadhunterCandidates, HeadhunterPipeline, Headhunt
 import DispatchView from "./src/views/DispatchView.jsx";
 import AreaLeaderView from "./src/views/AreaLeaderView.jsx";
 import SpecReviewView from "./src/views/SpecReviewView.jsx";
+import { MigrationHub } from "./src/views/MigrationViews.jsx";
 
 
 import { NotificationBell } from "./src/components/NotificationBell.jsx";
@@ -767,6 +768,7 @@ export default function App() {
       case "dispatch-queue": return (auth.role === 'dispatch' || auth.isAdmin || auth.isManager) ? <DispatchView auth={auth} /> : <Dashboard auth={auth} />;
       case "leader-cases":   return <AreaLeaderView auth={auth} onNavigate={({ view, caseId }) => { setPendingCaseId(caseId ?? null); setActiveView(view); }} />;
       case "spec-review":    return <SpecReviewView auth={auth} onNavigate={({ view, caseId }) => { setPendingCaseId(caseId ?? null); setActiveView(view); }} />;
+      case "migration":      return (auth.isAdmin || auth.isManager) ? <MigrationHub auth={auth} /> : <Dashboard auth={auth} />;
       default:               return <Dashboard auth={auth} />;
     }
   }

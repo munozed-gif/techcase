@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import {
   BarChart2, Bell, ClipboardCheck, ClipboardList, Clock, Database, FolderOpen, Handshake,
-  Inbox, Layers, LayoutDashboard, LayoutGrid, LayoutTemplate, Receipt, Search,
+  Inbox, Layers, LayoutDashboard, LayoutGrid, LayoutTemplate, Milestone, Receipt, Search,
   ShieldCheck, SlidersHorizontal, Target, User, UserCheck, UsersRound,
 } from "lucide-react";
 import { useT } from "../i18n/index.jsx";
@@ -86,6 +86,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       { id: "templates",       Icon: LayoutTemplate,    labelKey: "nav.templates" },
       { id: "approvals",       Icon: UserCheck,         labelKey: "nav.approvals" },
       { id: "sla",             Icon: ShieldCheck,       labelKey: "nav.sla" },
+      { id: "migration",       Icon: Milestone,         labelKey: "nav.migration" },
       { id: "settings",        Icon: SlidersHorizontal, labelKey: "nav.settings" },
     ],
     manager: [
@@ -104,6 +105,7 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       { id: "templates",       Icon: LayoutTemplate,    labelKey: "nav.templates" },
       { id: "approvals",       Icon: UserCheck,         labelKey: "nav.approvals" },
       { id: "sla",             Icon: ShieldCheck,       labelKey: "nav.sla" },
+      { id: "migration",       Icon: Milestone,         labelKey: "nav.migration" },
       { id: "settings",        Icon: SlidersHorizontal, labelKey: "nav.settings" },
     ],
     consultant: [
