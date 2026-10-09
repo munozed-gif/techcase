@@ -17,6 +17,7 @@ function AssignModal({ caseRow, onClose, onAssigned }) {
   const [error, setError]       = useState(null);
   const [selected, setSelected] = useState(null);
   const [saving, setSaving]     = useState(false);
+  const [saveError, setSaveError] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -63,12 +64,14 @@ function AssignModal({ caseRow, onClose, onAssigned }) {
   async function handleConfirm() {
     if (!selected) return;
     setSaving(true);
-    const { error } = await supabase
+    setSaveError(null);
+    const { error: saveErr } = await supabase
       .from("cases")
       .update({ area_leader_id: selected })
       .eq("id", caseRow.id);
     setSaving(false);
-    if (!error) onAssigned();
+    if (saveErr) { setSaveError(saveErr.message); }
+    else onAssigned();
   }
 
   return (
@@ -111,6 +114,11 @@ function AssignModal({ caseRow, onClose, onAssigned }) {
           </div>
         )}
 
+        {saveError && (
+          <div className="mb-3 flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl text-sm text-red-600 dark:text-red-400">
+            <AlertTriangle size={14} />{saveError}
+          </div>
+        )}
         <div className="flex gap-2 justify-end">
           <button onClick={onClose}
             className="px-4 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">

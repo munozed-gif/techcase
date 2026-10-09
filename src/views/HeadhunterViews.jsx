@@ -622,33 +622,34 @@ export function HeadhunterPlacements({ auth }) {
   });
 
   const placed = applications.filter(a => a.status === "accepted");
+  const [commPaidOverrides, setCommPaidOverrides] = useState({});
 
   function calcComm(rate) {
     if (!rate) return null;
     return Math.round(rate * commHours * (commRate / 100));
   }
 
+  function isCommPaid(app) {
+    return commPaidOverrides[app.id] !== undefined ? commPaidOverrides[app.id] : !!app.headhunter_commission_paid;
+  }
+
   function getCommStatus(app) {
-    return app.headhunter_commission_paid ? "paid" : "pending";
+    return isCommPaid(app) ? "paid" : "pending";
   }
 
   async function toggleCommStatus(app, amount) {
-    const nowPaid = !app.headhunter_commission_paid;
-    // Optimistic local update via the applications array in the shared hook
-    // We write directly to the row; the hook will re-fetch on next mount.
+    const nowPaid = !isCommPaid(app);
+    setCommPaidOverrides(prev => ({ ...prev, [app.id]: nowPaid }));
     await supabase.from("applications").update({
       headhunter_commission_paid: nowPaid,
       headhunter_commission_paid_at: nowPaid ? new Date().toISOString() : null,
       headhunter_commission_amount: nowPaid ? amount : null,
     }).eq("id", app.id);
-    // Mirror in localStorage as a quick-read cache
     try {
       const cached = JSON.parse(localStorage.getItem(`${lsKey}_statuses`) ?? "{}");
       cached[app.id] = { status: nowPaid ? "paid" : "pending", amount, paidAt: nowPaid ? new Date().toISOString() : null };
       localStorage.setItem(`${lsKey}_statuses`, JSON.stringify(cached));
     } catch {}
-    // Force UI refresh by mutating app in-place (placed is derived from applications state in parent hook)
-    app.headhunter_commission_paid = nowPaid;
   }
 
   function saveCommRate(v) {
@@ -664,9 +665,9 @@ export function HeadhunterPlacements({ auth }) {
   }
 
   const totalComm   = placed.reduce((s, a) => s + (calcComm(a.proposed_rate) ?? 0), 0);
-  const paidComm    = placed.filter(a => a.headhunter_commission_paid).reduce((s, a) => s + (calcComm(a.proposed_rate) ?? 0), 0);
+  const paidComm    = placed.filter(a => isCommPaid(a)).reduce((s, a) => s + (calcComm(a.proposed_rate) ?? 0), 0);
   const pendingComm = totalComm - paidComm;
-  const paidCount   = placed.filter(a => a.headhunter_commission_paid).length;
+  const paidCount   = placed.filter(a => isCommPaid(a)).length;
 
   const tabs = [
     { id: "placed",      label: t("hh.tab_placed"),      count: placed.length },

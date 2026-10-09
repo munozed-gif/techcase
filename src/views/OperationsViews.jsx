@@ -52,8 +52,8 @@ function NotificationsView() {
     { key: "status_change",label: t("feed.pref_status") },
     { key: "assignment",   label: t("feed.pref_assignments") },
     { key: "alert",        label: t("feed.pref_alerts") },
-    { key: "time_log",     label: "Time Logs" },
-    { key: "milestone",    label: "Milestones" },
+    { key: "time_log",     label: t("feed.pref_time_logs") },
+    { key: "milestone",    label: t("feed.pref_milestones") },
   ];
 
   const filtered = notifications.filter(n => {

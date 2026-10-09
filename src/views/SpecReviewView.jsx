@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { AlertTriangle, CheckCircle2, Clock, RefreshCw } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
+import { STATUS_LABEL_KEYS, cap } from "../lib/uiUtils.jsx";
 
 const STATUS_COLORS = {
   open:        "bg-blue-100 text-blue-700",
@@ -128,7 +129,7 @@ function CaseTable({ cases, onNavigate, t }) {
               <td className="px-4 py-3">
                 {c.status && (
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
-                    {c.status.replace("_", " ")}
+                    {STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(c.status.replace(/_/g, " "))}
                   </span>
                 )}
               </td>

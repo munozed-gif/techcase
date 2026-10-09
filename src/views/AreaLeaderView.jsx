@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
+import { STATUS_LABEL_KEYS, PRIORITY_LABEL_KEYS, cap } from "../lib/uiUtils.jsx";
 
 const STATUS_COLORS = {
   open:        "bg-blue-100 text-blue-700",
@@ -120,14 +121,14 @@ export default function AreaLeaderView({ auth, onNavigate }) {
                   <td className="px-4 py-3">
                     {c.status && (
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
-                        {c.status.replace("_", " ")}
+                        {STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status]) : cap(c.status.replace(/_/g, " "))}
                       </span>
                     )}
                   </td>
                   <td className="px-4 py-3">
                     {c.priority && (
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${PRIORITY_COLORS[c.priority] ?? "bg-gray-100 text-gray-600"}`}>
-                        {c.priority}
+                        {PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}
                       </span>
                     )}
                   </td>

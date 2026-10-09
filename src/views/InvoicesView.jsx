@@ -100,6 +100,7 @@ function InvoicesView({ auth }) {
       </div>
 
       {/* Table */}
+      <div className="overflow-x-auto">
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <table className="w-full text-sm">
           <thead>
@@ -147,7 +148,7 @@ function InvoicesView({ auth }) {
                           {t("invoices.overdue")}
                         </button>
                       )}
-                      <button onClick={() => deleteInvoice(inv.id)}
+                      <button onClick={() => { if (window.confirm(t("action.confirm_delete"))) deleteInvoice(inv.id); }}
                         className="text-xs px-2 py-1 bg-gray-50 text-gray-500 rounded border border-gray-100 hover:bg-gray-100">
                         {t("action.delete")}
                       </button>
@@ -161,6 +162,7 @@ function InvoicesView({ auth }) {
             )}
           </tbody>
         </table>
+      </div>
       </div>
 
       {/* Load more */}
