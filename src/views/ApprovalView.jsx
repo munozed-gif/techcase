@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { CheckCircle2, XCircle, AlertCircle, Clock, Package, ChevronDown, ChevronUp, Check, X } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { NovaLandingMark } from "./LandingView.jsx";
+import { useT } from "../i18n/index.jsx";
 
 const OBJECT_TYPE_LABEL = {
   function_module: "Function Module",
@@ -34,6 +35,7 @@ function PlatformName({ name }) {
 }
 
 function ObjectCard({ obj, onDecide, saving }) {
+  const { t } = useT();
   const [expanded, setExpanded] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [showReject, setShowReject] = useState(false);
@@ -73,7 +75,7 @@ function ObjectCard({ obj, onDecide, saving }) {
             <p className="text-xs text-blue-300/60 mt-1 leading-relaxed">{obj.object_description}</p>
           )}
           {rejected && obj.rejection_reason && (
-            <p className="text-xs text-red-400/80 mt-1 italic">Reason: {obj.rejection_reason}</p>
+            <p className="text-xs text-red-400/80 mt-1 italic">{t("approval.reason_prefix")} {obj.rejection_reason}</p>
           )}
         </div>
         <button
@@ -92,13 +94,13 @@ function ObjectCard({ obj, onDecide, saving }) {
                 disabled={saving}
                 onClick={() => onDecide(obj.id, "approved", "")}
                 className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg bg-green-500/20 text-green-300 border border-green-500/30 hover:bg-green-500/30 transition-colors disabled:opacity-50">
-                <Check size={12} />Approve
+                <Check size={12} />{t("approval.approve")}
               </button>
               <button
                 disabled={saving}
                 onClick={() => setShowReject(true)}
                 className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg bg-red-500/15 text-red-300 border border-red-500/30 hover:bg-red-500/25 transition-colors disabled:opacity-50">
-                <X size={12} />Reject
+                <X size={12} />{t("approval.reject")}
               </button>
             </div>
           ) : (
@@ -106,7 +108,7 @@ function ObjectCard({ obj, onDecide, saving }) {
               <textarea
                 value={rejectReason}
                 onChange={e => setRejectReason(e.target.value)}
-                placeholder="Reason for rejection (optional)..."
+                placeholder={t("approval.reject_reason_ph")}
                 rows={2}
                 className="w-full rounded-lg border border-red-500/30 bg-red-500/10 text-white/80 text-xs px-3 py-2 placeholder-white/30 resize-none focus:outline-none focus:border-red-400/60"
               />
@@ -115,12 +117,12 @@ function ObjectCard({ obj, onDecide, saving }) {
                   disabled={saving}
                   onClick={() => onDecide(obj.id, "rejected", rejectReason)}
                   className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-red-500/20 text-red-300 border border-red-500/30 hover:bg-red-500/30 transition-colors disabled:opacity-50">
-                  Confirm Reject
+                  {t("approval.confirm_reject")}
                 </button>
                 <button
                   onClick={() => setShowReject(false)}
                   className="px-3 py-1.5 text-xs text-blue-400/60 hover:text-blue-400 transition-colors">
-                  Cancel
+                  {t("action.cancel")}
                 </button>
               </div>
             </div>
@@ -131,14 +133,14 @@ function ObjectCard({ obj, onDecide, saving }) {
       {/* Expand to reveal controls when already decided */}
       {expanded && decided && (
         <div className="px-5 pb-3 border-t border-white/5 pt-3 text-xs text-blue-400/40">
-          Decision recorded · {obj.decided_at ? new Date(obj.decided_at).toLocaleString() : ""}
+          {t("approval.decision_recorded")} · {obj.decided_at ? new Date(obj.decided_at).toLocaleString() : ""}
         </div>
       )}
 
       {/* Collapsed: prompt to expand if undecided */}
       {!expanded && !decided && (
         <div className="px-5 pb-3 text-xs text-amber-400/50">
-          Click ↑ to review and decide
+          {t("approval.click_to_review")}
         </div>
       )}
     </div>
@@ -146,6 +148,7 @@ function ObjectCard({ obj, onDecide, saving }) {
 }
 
 export default function ApprovalView({ token }) {
+  const { t } = useT();
   const [request, setRequest] = useState(null);
   const [reviewerProfile, setReviewerProfile] = useState(null);
   const [objects, setObjects] = useState([]);
@@ -170,7 +173,7 @@ export default function ApprovalView({ token }) {
         setBranding({ name: m.platform_name || "Arena", tagline: m.platform_tagline || "Solutions Platform" });
       }
       if (reqRes.error || !reqRes.data) {
-        setError("This review link is invalid or has expired.");
+        setError(t("approval.invalid_link"));
         setLoading(false);
         return;
       }
@@ -232,7 +235,7 @@ export default function ApprovalView({ token }) {
       <div style={BG} className="flex items-center justify-center px-4">
         <div className="text-center max-w-sm">
           <AlertCircle size={40} className="text-blue-900 mx-auto mb-3" />
-          <p className="text-blue-300">{error ?? "This review link is no longer valid."}</p>
+          <p className="text-blue-300">{error ?? t("approval.link_fallback")}</p>
         </div>
       </div>
     );
@@ -251,17 +254,17 @@ export default function ApprovalView({ token }) {
         <NovaLandingMark size={32} />
         <span className="text-sm font-bold"><PlatformName name={branding.name} /></span>
         <span className="text-white/20 mx-1">·</span>
-        <span className="text-sm text-blue-400/70">Blueprint Review</span>
+        <span className="text-sm text-blue-400/70">{t("approval.blueprint_review")}</span>
       </nav>
 
       {/* Hero */}
       <div className="text-center pt-10 pb-6 px-4">
         <p className="text-xs text-blue-400/50 uppercase tracking-widest mb-2 font-semibold">
-          {projName ?? "Review Request"}
+          {projName ?? t("approval.review_request_fallback")}
         </p>
         <h1 className="text-2xl font-bold text-white mb-1">{caseName}</h1>
         {request.cases?.area_sap && (
-          <p className="text-xs text-blue-400/50 mt-1">SAP Module: {request.cases.area_sap}</p>
+          <p className="text-xs text-blue-400/50 mt-1">{t("approval.sap_module_prefix")} {request.cases.area_sap}</p>
         )}
         <div className="flex items-center justify-center gap-2 mt-3">
           {reviewerProfile?.avatar_url
@@ -276,7 +279,7 @@ export default function ApprovalView({ token }) {
             )}
             <p className="text-[11px] text-blue-400/50">
               {request.reviewer_email}
-              {request.expires_at && <span className="ml-1">· Expires {new Date(request.expires_at).toLocaleDateString()}</span>}
+              {request.expires_at && <span className="ml-1">· {t("approval.expires_prefix")} {new Date(request.expires_at).toLocaleDateString()}</span>}
             </p>
           </div>
         </div>
@@ -286,9 +289,9 @@ export default function ApprovalView({ token }) {
         {/* Summary tiles */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: "Pending",  value: pending,  cls: "text-amber-300", icon: <Clock size={15} className="text-amber-400" /> },
-            { label: "Approved", value: approved, cls: "text-green-300", icon: <CheckCircle2 size={15} className="text-green-400" /> },
-            { label: "Rejected", value: rejected, cls: "text-red-300",   icon: <XCircle size={15} className="text-red-400" /> },
+            { label: t("approval.pending"),  value: pending,  cls: "text-amber-300", icon: <Clock size={15} className="text-amber-400" /> },
+            { label: t("approval.approved"), value: approved, cls: "text-green-300", icon: <CheckCircle2 size={15} className="text-green-400" /> },
+            { label: t("approval.rejected"), value: rejected, cls: "text-red-300",   icon: <XCircle size={15} className="text-red-400" /> },
           ].map(t => (
             <div key={t.label} className="rounded-xl border border-white/10 p-4 text-center" style={{ background: "rgba(255,255,255,0.04)" }}>
               <div className="flex justify-center mb-1">{t.icon}</div>
@@ -303,9 +306,9 @@ export default function ApprovalView({ token }) {
           <div className="rounded-xl border border-green-500/30 bg-green-500/10 px-5 py-4 flex items-center gap-3">
             <CheckCircle2 size={18} className="text-green-400 flex-shrink-0" />
             <div>
-              <p className="text-sm font-semibold text-green-300">All objects reviewed</p>
+              <p className="text-sm font-semibold text-green-300">{t("approval.all_done")}</p>
               <p className="text-xs text-green-400/60 mt-0.5">
-                The platform consultant will be notified of your decisions.
+                {t("approval.all_done_sub")}
               </p>
             </div>
           </div>
@@ -315,14 +318,14 @@ export default function ApprovalView({ token }) {
         {objects.length === 0 ? (
           <div className="rounded-xl border border-white/10 p-8 text-center" style={{ background: "rgba(255,255,255,0.04)" }}>
             <Package size={24} className="text-blue-400/30 mx-auto mb-2" />
-            <p className="text-sm text-blue-400/50">No objects to review at this time.</p>
+            <p className="text-sm text-blue-400/50">{t("approval.no_objects")}</p>
           </div>
         ) : (
           <div className="space-y-2">
             <div className="flex items-center gap-2 px-1 mb-1">
               <Package size={13} className="text-blue-400" />
-              <span className="text-sm font-semibold text-white">Objects to Review</span>
-              <span className="text-xs text-blue-400/50 ml-auto">{objects.length} total</span>
+              <span className="text-sm font-semibold text-white">{t("approval.objects_title")}</span>
+              <span className="text-xs text-blue-400/50 ml-auto">{objects.length} {t("approval.total_suffix")}</span>
             </div>
             {objects.map(obj => (
               <ObjectCard
@@ -336,7 +339,7 @@ export default function ApprovalView({ token }) {
         )}
 
         <p className="text-center text-xs text-blue-400/30 pt-2">
-          Powered by <PlatformName name={branding.name} /> · Read-only review link
+          {t("approval.powered_by")} <PlatformName name={branding.name} /> · {t("approval.readonly_link")}
         </p>
       </div>
     </div>

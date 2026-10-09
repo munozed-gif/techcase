@@ -4,6 +4,7 @@ import {
   Check, X, FolderOpen, Layers, RefreshCw, ClipboardCheck,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
+import { useT } from "../i18n/index.jsx";
 
 const OBJECT_TYPE_LABEL = {
   function_module: "Function Module", report: "Report", class: "Class",
@@ -13,6 +14,7 @@ const OBJECT_TYPE_LABEL = {
 };
 
 function ObjectCard({ obj, onDecide, saving }) {
+  const { t } = useT();
   const [expanded, setExpanded] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [showReject, setShowReject] = useState(false);
@@ -48,7 +50,7 @@ function ObjectCard({ obj, onDecide, saving }) {
             <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{obj.object_description}</p>
           )}
           {obj.decision === "rejected" && obj.rejection_reason && (
-            <p className="text-xs text-red-500 mt-0.5 italic">Reason: {obj.rejection_reason}</p>
+            <p className="text-xs text-red-500 mt-0.5 italic">{t("reviews.reason_prefix")} {obj.rejection_reason}</p>
           )}
         </div>
         {!decided && (
@@ -60,7 +62,7 @@ function ObjectCard({ obj, onDecide, saving }) {
           <span className={`flex-shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-lg ${
             obj.decision === "approved" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
           }`}>
-            {obj.decision === "approved" ? "Approved" : "Rejected"}
+            {obj.decision === "approved" ? t("reviews.approved") : t("reviews.rejected")}
           </span>
         )}
       </div>
@@ -73,13 +75,13 @@ function ObjectCard({ obj, onDecide, saving }) {
                 disabled={saving}
                 onClick={() => onDecide(obj.id, "approved", "")}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 transition-colors">
-                <Check size={11} />Approve
+                <Check size={11} />{t("reviews.approve")}
               </button>
               <button
                 disabled={saving}
                 onClick={() => setShowReject(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 disabled:opacity-50 transition-colors">
-                <X size={11} />Reject
+                <X size={11} />{t("reviews.reject")}
               </button>
             </div>
           ) : (
@@ -87,7 +89,7 @@ function ObjectCard({ obj, onDecide, saving }) {
               <textarea
                 value={rejectReason}
                 onChange={e => setRejectReason(e.target.value)}
-                placeholder="Reason for rejection (optional)..."
+                placeholder={t("reviews.reject_reason_ph")}
                 rows={2}
                 className="w-full rounded-lg border border-red-200 bg-red-50 text-sm px-3 py-2 text-red-900 placeholder-red-300 resize-none focus:outline-none focus:border-red-400"
               />
@@ -96,10 +98,10 @@ function ObjectCard({ obj, onDecide, saving }) {
                   disabled={saving}
                   onClick={() => onDecide(obj.id, "rejected", rejectReason)}
                   className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 transition-colors">
-                  Confirm Reject
+                  {t("reviews.confirm_reject")}
                 </button>
                 <button onClick={() => setShowReject(false)} className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors">
-                  Cancel
+                  {t("action.cancel")}
                 </button>
               </div>
             </div>
@@ -111,6 +113,7 @@ function ObjectCard({ obj, onDecide, saving }) {
 }
 
 function ReviewCard({ request, onDecide, saving }) {
+  const { t } = useT();
   const [open, setOpen] = useState(true);
   const objects = request.approval_request_objects ?? [];
   const pending  = objects.filter(o => !o.decision).length;
@@ -137,17 +140,17 @@ function ReviewCard({ request, onDecide, saving }) {
             {request.cases?.title ?? "—"}
           </p>
           {request.cases?.area_sap && (
-            <p className="text-xs text-gray-400 mt-0.5">SAP: {request.cases.area_sap}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{t("reviews.sap_prefix")} {request.cases.area_sap}</p>
           )}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {done ? (
             <span className="flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-lg bg-green-100 text-green-700">
-              <CheckCircle2 size={11} />All reviewed
+              <CheckCircle2 size={11} />{t("reviews.all_reviewed")}
             </span>
           ) : (
             <span className="flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-lg bg-amber-100 text-amber-700">
-              <Clock size={11} />{pending} pending
+              <Clock size={11} />{pending} {t("reviews.pending_suffix")}
             </span>
           )}
           {approved > 0 && (
@@ -166,7 +169,7 @@ function ReviewCard({ request, onDecide, saving }) {
       {open && (
         <div className="border-t border-gray-100 px-5 py-3 space-y-2">
           {objects.length === 0 ? (
-            <p className="text-xs text-gray-400 text-center py-4">No objects in this request yet.</p>
+            <p className="text-xs text-gray-400 text-center py-4">{t("reviews.no_objects")}</p>
           ) : (
             objects.map(obj => (
               <ObjectCard
@@ -178,7 +181,7 @@ function ReviewCard({ request, onDecide, saving }) {
             ))
           )}
           <p className="text-[10px] text-gray-300 text-right pt-1">
-            Expires {new Date(request.expires_at).toLocaleDateString()}
+            {t("reviews.expires_prefix")} {new Date(request.expires_at).toLocaleDateString()}
           </p>
         </div>
       )}
@@ -187,6 +190,7 @@ function ReviewCard({ request, onDecide, saving }) {
 }
 
 export default function MyReviewsView({ auth }) {
+  const { t } = useT();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState({});
@@ -239,9 +243,9 @@ export default function MyReviewsView({ auth }) {
         <div className="flex items-center gap-3">
           <ClipboardCheck size={20} className="text-indigo-500" />
           <div>
-            <h1 className="text-lg font-bold text-gray-900">My Reviews</h1>
+            <h1 className="text-lg font-bold text-gray-900">{t("reviews.title")}</h1>
             {lastRefresh && (
-              <p className="text-xs text-gray-400">Last updated {lastRefresh.toLocaleTimeString()}</p>
+              <p className="text-xs text-gray-400">{t("reviews.last_updated")} {lastRefresh.toLocaleTimeString()}</p>
             )}
           </div>
         </div>
@@ -250,7 +254,7 @@ export default function MyReviewsView({ auth }) {
           disabled={loading}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 text-gray-500 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40">
           <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
-          Refresh
+          {t("reviews.refresh")}
         </button>
       </div>
 
@@ -261,8 +265,8 @@ export default function MyReviewsView({ auth }) {
       ) : requests.length === 0 ? (
         <div className="rounded-2xl border border-gray-100 p-12 text-center bg-white shadow-sm">
           <ClipboardCheck size={32} className="text-gray-200 mx-auto mb-3" />
-          <p className="text-sm font-medium text-gray-400">No pending reviews</p>
-          <p className="text-xs text-gray-300 mt-1">You'll appear here when a consultant assigns you as a reviewer.</p>
+          <p className="text-sm font-medium text-gray-400">{t("reviews.no_pending")}</p>
+          <p className="text-xs text-gray-300 mt-1">{t("reviews.no_pending_sub")}</p>
         </div>
       ) : (
         <>
@@ -272,7 +276,7 @@ export default function MyReviewsView({ auth }) {
               <div className="flex items-center gap-2">
                 <Clock size={13} className="text-amber-500" />
                 <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                  Pending ({pending.length})
+                  {t("reviews.section_pending")} ({pending.length})
                 </h2>
               </div>
               {pending.map(req => (
@@ -287,7 +291,7 @@ export default function MyReviewsView({ auth }) {
               <div className="flex items-center gap-2">
                 <CheckCircle2 size={13} className="text-green-500" />
                 <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                  Completed ({complete.length})
+                  {t("reviews.section_completed")} ({complete.length})
                 </h2>
               </div>
               {complete.map(req => (
