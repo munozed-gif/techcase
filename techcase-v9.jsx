@@ -120,6 +120,7 @@ import { ConsultantProfileView } from "./src/components/ConsultantProfileView.js
 import { HeadhunterDashboard, HeadhunterCandidates, HeadhunterPipeline, HeadhunterPlacements } from "./src/views/HeadhunterViews.jsx";
 import DispatchView from "./src/views/DispatchView.jsx";
 import AreaLeaderView from "./src/views/AreaLeaderView.jsx";
+import SpecReviewView from "./src/views/SpecReviewView.jsx";
 
 
 import { NotificationBell } from "./src/components/NotificationBell.jsx";
@@ -671,6 +672,12 @@ export default function App() {
       inner = <ClientOnboardingView auth={auth} onComplete={() => completeOnboarding("client-profile")} />;
     } else if (onboardingRole === "invited_client") {
       inner = <InvitedClientOnboardingView auth={auth} onComplete={() => completeOnboarding("my-cases")} />;
+    } else if (onboardingRole === "key_user" || onboardingRole === "internal_consultant" || onboardingRole === "project_manager") {
+      inner = <ConsultantOnboardingView auth={auth} onComplete={() => completeOnboarding("cases")} />;
+    } else if (onboardingRole === "area_leader") {
+      inner = <ManagerAdminWelcomeView auth={auth} onComplete={() => completeOnboarding("leader-cases")} />;
+    } else if (onboardingRole === "dispatch") {
+      inner = <ManagerAdminWelcomeView auth={auth} onComplete={() => completeOnboarding("dispatch-queue")} />;
     } else {
       inner = <ManagerAdminWelcomeView auth={auth} onComplete={() => completeOnboarding("dashboard")} />;
     }
@@ -738,8 +745,8 @@ export default function App() {
       case "kanban":         return <KanbanView auth={auth} />;
       case "time":           return <TimeEntriesView auth={auth} />;
       case "dispatch-queue": return <DispatchView auth={auth} />;
-      case "leader-cases":   return <AreaLeaderView auth={auth} onNav={setActiveView} />;
-      case "spec-review":    return <div className="p-8 text-gray-500">Spec review coming soon.</div>;
+      case "leader-cases":   return <AreaLeaderView auth={auth} onNavigate={({ view, caseId }) => { setPendingCaseId(caseId ?? null); setActiveView(view); }} />;
+      case "spec-review":    return <SpecReviewView auth={auth} onNavigate={({ view, caseId }) => { setPendingCaseId(caseId ?? null); setActiveView(view); }} />;
       default:               return <Dashboard auth={auth} />;
     }
   }

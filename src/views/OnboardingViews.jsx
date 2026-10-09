@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
-  Briefcase, Building2, Check, FileText, Globe, Phone, Rocket, Settings,
-  SlidersHorizontal, User, Zap,
+  Briefcase, Building2, Check, ClipboardCheck, FileText, Globe,
+  Phone, Rocket, Settings, SlidersHorizontal, User, Users, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
@@ -637,12 +637,28 @@ function ManagerAdminWelcomeView({ auth, onComplete }) {
       title: t("welcome.mgr_title"),
       desc: t("welcome.mgr_desc"),
       highlights: [t("welcome.mgr_h1"), t("welcome.mgr_h2"), t("welcome.mgr_h3"), t("welcome.mgr_h4"), t("welcome.mgr_h5")],
+      btnLabel: t("welcome.go_dashboard"),
     },
     admin: {
       Icon: Settings,
       title: t("welcome.adm_title"),
       desc: t("welcome.adm_desc"),
       highlights: [t("welcome.adm_h1"), t("welcome.adm_h2"), t("welcome.adm_h3"), t("welcome.adm_h4"), t("welcome.adm_h5")],
+      btnLabel: t("welcome.go_dashboard"),
+    },
+    area_leader: {
+      Icon: ClipboardCheck,
+      title: t("welcome.leader_title"),
+      desc: t("welcome.leader_desc"),
+      highlights: [t("welcome.leader_h1"), t("welcome.leader_h2"), t("welcome.leader_h3"), t("welcome.leader_h4"), t("welcome.leader_h5")],
+      btnLabel: t("welcome.go_leader"),
+    },
+    dispatch: {
+      Icon: Users,
+      title: t("welcome.dispatch_title"),
+      desc: t("welcome.dispatch_desc"),
+      highlights: [t("welcome.dispatch_h1"), t("welcome.dispatch_h2"), t("welcome.dispatch_h3"), t("welcome.dispatch_h4"), t("welcome.dispatch_h5")],
+      btnLabel: t("welcome.go_dispatch"),
     },
   };
   const info = roleInfo[auth.role] ?? roleInfo.manager;
@@ -669,7 +685,7 @@ function ManagerAdminWelcomeView({ auth, onComplete }) {
 
       <button onClick={onComplete}
         className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors shadow">
-        {t("welcome.go_dashboard")}
+        {info.btnLabel ?? t("welcome.go_dashboard")}
       </button>
     </div>
   );
