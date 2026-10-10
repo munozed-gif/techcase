@@ -2524,7 +2524,7 @@ Output ONLY the ABAP source code, no explanations.`;
           model: genModel,
           system: 'You are an expert SAP ABAP developer. Output only clean ABAP source code.',
           messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
-          max_tokens: 3000,
+          max_tokens: 8000,
           mcp_servers: buildSapMcpConfig(sapConfig, ssCtx.settings['sap_mcp_server_url']),
         });
         const code = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
@@ -3590,7 +3590,7 @@ Return ONLY the ABAP code — no explanation, no markdown fences.`;
       const resp = await callClaude({
         model: genModel, system,
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
-        max_tokens: 3500,
+        max_tokens: 8000,
       });
       const configScript = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
       const newSpecs = { ...manualSpecs, [obj.id]: { ...(manualSpecs[obj.id] ?? {}), generatingScript: false, configScript, scriptType: isCloud ? 'cloud' : 'abap' } };
@@ -3859,7 +3859,7 @@ Output ONLY the ABAP source (CLASS DEFINITION ... CLASS IMPLEMENTATION ... ENDCL
         model: genModel,
         system: 'You are an expert SAP ABAP developer. Output only clean, compilable ABAP or CDS DDL source code. No markdown fences, no explanations.',
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
-        max_tokens: 3000,
+        max_tokens: 8000,
       });
       const adtCode = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
       const newSpecs = { ...manualSpecs, [obj.id]: { ...(manualSpecs[obj.id] ?? {}), generatingAdt: false, adtCode } };
