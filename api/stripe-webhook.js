@@ -35,6 +35,15 @@ async function updateUserPlan(userId, plan, roleType) {
     { key: "user_plans", value: updated },
     { onConflict: "key" }
   );
+
+  // AI Pro plan: also set is_pro flag on the user row
+  if (plan === "ai_pro") {
+    await supabase.from("users").update({ is_pro: true }).eq("id", userId);
+  }
+  // Downgrade: remove is_pro when plan becomes free
+  if (plan === "free") {
+    await supabase.from("users").update({ is_pro: false }).eq("id", userId);
+  }
 }
 
 export default async function handler(req, res) {

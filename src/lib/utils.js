@@ -34,11 +34,32 @@ async function notifyCaseParticipants(caseId, excludeUserId, title, body, opts =
 
 // ── Claude API helper ────────────────────────────────────────
 async function callClaude({ system, messages, max_tokens = 2048, model = 'claude-haiku-4-5', mcp_servers }) {
+  // Attach current user id so the server can track usage / apply the right key
+  let userId = null;
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    userId = session?.user?.id ?? null;
+  } catch (_) {}
+
   const res = await fetch('/api/claude', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ system, messages, max_tokens, model, ...(mcp_servers?.length ? { mcp_servers } : {}) }),
+    body: JSON.stringify({
+      system, messages, max_tokens, model,
+      user_id: userId,
+      ...(mcp_servers?.length ? { mcp_servers } : {}),
+    }),
   });
+
+  if (res.status === 402) {
+    const e = await res.json();
+    const err = new Error(e.error?.message ?? 'Monthly AI generation limit reached. Go to Profile → AI to add your API key or upgrade to Pro.');
+    err.code = 'ai_limit_reached';
+    err.used  = e.error?.used;
+    err.limit = e.error?.limit;
+    throw err;
+  }
+
   if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'Claude API error'); }
   const data = await res.json();
   // Sonnet 5 may return a thinking block before the text block — find by type

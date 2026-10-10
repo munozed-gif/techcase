@@ -221,6 +221,7 @@ function SettingsUsersTab() {
               <th className="px-4 py-3 text-left font-semibold text-gray-600">{t("label.email")}</th>
               <th className="px-4 py-3 text-left font-semibold text-gray-600">{t("label.role")}</th>
               <th className="px-4 py-3 text-center font-semibold text-gray-600">{t("label.status")}</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-600">{t("sys.col_ai_pro")}</th>
               <th className="px-4 py-3 text-center font-semibold text-gray-600">{t("sys.col_actions")}</th>
             </tr>
           </thead>
@@ -274,6 +275,23 @@ function SettingsUsersTab() {
                   </button>
                 </td>
                 <td className="px-4 py-3 text-center">
+                  <button
+                    onClick={async () => {
+                      await supabase.from("users").update({ is_pro: !u.is_pro }).eq("id", u.id);
+                      setUsers(p => p.map(x => x.id === u.id ? { ...x, is_pro: !x.is_pro } : x));
+                    }}
+                    className={`px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 mx-auto ${
+                      u.is_pro
+                        ? "bg-violet-100 text-violet-700 hover:bg-gray-100 hover:text-gray-600"
+                        : "bg-gray-100 text-gray-400 hover:bg-violet-100 hover:text-violet-700"
+                    }`}
+                    title={u.is_pro ? t("sys.ai_pro_revoke") : t("sys.ai_pro_grant")}
+                  >
+                    <Zap size={10} />
+                    {u.is_pro ? "Pro" : "Free"}
+                  </button>
+                </td>
+                <td className="px-4 py-3 text-center">
                   <button onClick={() => sendPasswordReset(u.email)}
                     title={t("auth.reset_email_tooltip")}
                     className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 mx-auto
@@ -286,7 +304,7 @@ function SettingsUsersTab() {
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">{t("sys.no_users")}</td></tr>
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-sm">{t("sys.no_users")}</td></tr>
             )}
           </tbody>
         </table>

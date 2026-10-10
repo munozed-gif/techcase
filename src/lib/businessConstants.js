@@ -326,6 +326,7 @@ const DEFAULT_PLAN_PRICES = {
   consultant_pro:        { label: 'Consultant Pro',         amount: 29,  currency: 'usd', roleType: 'consultant', planKey: 'pro'        },
   headhunter_pro:        { label: 'Headhunter Pro',         amount: 99,  currency: 'usd', roleType: 'headhunter', planKey: 'pro'        },
   headhunter_agency:     { label: 'Headhunter Agency',      amount: 249, currency: 'usd', roleType: 'headhunter', planKey: 'agency'     },
+  user_ai_pro:           { label: 'AI Pro',                 amount: 19,  currency: 'usd', roleType: 'user',       planKey: 'ai_pro'     },
 };
 
 export {
