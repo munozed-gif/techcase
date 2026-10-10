@@ -6,6 +6,9 @@ import {
   LayoutTemplate, Loader2, Lock, Pause, PauseCircle, Play, Plus, Search,
   Shield, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, Truck, Upload,
   UserCheck, Users, X, XCircle, Zap,
+  ArrowRightLeft, BarChart, BookOpen, Briefcase, Bug, ClipboardList,
+  Cpu, FlaskConical, GitBranch, Globe, GraduationCap, KeyRound,
+  MonitorCheck, Network, Settings, ShieldCheck, Wrench,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
@@ -29,6 +32,24 @@ import {
   PRIORITY_COLORS, STATUS_COLORS, GATE_CONDITIONS,
 } from "../lib/businessConstants.js";
 import { STATUS_LABEL_KEYS, PRIORITY_LABEL_KEYS, WORK_MODE_LABEL_KEYS, fmt, cap, fmtDate } from "../lib/uiUtils.jsx";
+
+const SKILL_ICON_MAP = {
+  "ABAP Development":          { Icon: Code2,         color: "text-blue-600 dark:text-blue-400",    bg: "bg-blue-50 dark:bg-blue-900/30",    border: "border-blue-100 dark:border-blue-800" },
+  "SAP Basis Administration":  { Icon: Cpu,           color: "text-slate-600 dark:text-slate-300",  bg: "bg-slate-50 dark:bg-slate-800/60",  border: "border-slate-200 dark:border-slate-700" },
+  "SAP FICO Configuration":    { Icon: DollarSign,    color: "text-green-600 dark:text-green-400",  bg: "bg-green-50 dark:bg-green-900/30",  border: "border-green-100 dark:border-green-800" },
+  "SAP MM Configuration":      { Icon: Truck,         color: "text-orange-600 dark:text-orange-400",bg: "bg-orange-50 dark:bg-orange-900/30",border: "border-orange-100 dark:border-orange-800" },
+  "SAP SD Configuration":      { Icon: Briefcase,     color: "text-violet-600 dark:text-violet-400",bg: "bg-violet-50 dark:bg-violet-900/30",border: "border-violet-100 dark:border-violet-800" },
+  "SAP HCM":                   { Icon: Users,         color: "text-pink-600 dark:text-pink-400",    bg: "bg-pink-50 dark:bg-pink-900/30",    border: "border-pink-100 dark:border-pink-800" },
+  "SAP Fiori / UI5":           { Icon: MonitorCheck,  color: "text-cyan-600 dark:text-cyan-400",    bg: "bg-cyan-50 dark:bg-cyan-900/30",    border: "border-cyan-100 dark:border-cyan-800" },
+  "SAP BW / Analytics":        { Icon: BarChart,      color: "text-amber-600 dark:text-amber-400",  bg: "bg-amber-50 dark:bg-amber-900/30",  border: "border-amber-100 dark:border-amber-800" },
+  "SAP Integration (CPI/PI)":  { Icon: Network,       color: "text-indigo-600 dark:text-indigo-400",bg: "bg-indigo-50 dark:bg-indigo-900/30",border: "border-indigo-100 dark:border-indigo-800" },
+  "S/4HANA Migration":         { Icon: ArrowRightLeft,color: "text-teal-600 dark:text-teal-400",    bg: "bg-teal-50 dark:bg-teal-900/30",    border: "border-teal-100 dark:border-teal-800" },
+  "SAP GRC":                   { Icon: ShieldCheck,   color: "text-red-600 dark:text-red-400",      bg: "bg-red-50 dark:bg-red-900/30",      border: "border-red-100 dark:border-red-800" },
+  "SAP PM / QM":               { Icon: Wrench,        color: "text-yellow-600 dark:text-yellow-400",bg: "bg-yellow-50 dark:bg-yellow-900/30",border: "border-yellow-100 dark:border-yellow-800" },
+  "HANA DB Administration":    { Icon: Database,      color: "text-blue-700 dark:text-blue-300",    bg: "bg-blue-50 dark:bg-blue-900/30",    border: "border-blue-100 dark:border-blue-800" },
+  "SAP Security / Roles":      { Icon: KeyRound,      color: "text-rose-600 dark:text-rose-400",    bg: "bg-rose-50 dark:bg-rose-900/30",    border: "border-rose-100 dark:border-rose-800" },
+  "SAP PS (Project Systems)":  { Icon: ClipboardList, color: "text-purple-600 dark:text-purple-400",bg: "bg-purple-50 dark:bg-purple-900/30",border: "border-purple-100 dark:border-purple-800" },
+};
 
 const PROJECT_STATUS_COLORS = {
   draft:     "bg-gray-100 text-gray-600",
@@ -2642,21 +2663,30 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
 
         {/* Requirements */}
         {tab.id === "requirements" && (
-          <div className="space-y-4">
+          <div className="space-y-6">
             {project.skills_required?.length > 0 && (
               <div>
-                <p className="text-xs text-gray-400 mb-2">{t("label.skills")}</p>
-                <div className="flex flex-wrap gap-2">
-                  {project.skills_required.map((s, i) => (
-                    <span key={i} className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded-lg">{s}</span>
-                  ))}
+                <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-4">{t("label.skills")}</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {project.skills_required.map((s, i) => {
+                    const meta = SKILL_ICON_MAP[s] ?? { Icon: Settings, color: "text-gray-500 dark:text-gray-400", bg: "bg-gray-50 dark:bg-gray-800", border: "border-gray-200 dark:border-gray-700" };
+                    const { Icon, color, bg, border } = meta;
+                    return (
+                      <div key={i} className={`flex items-center gap-3 p-4 rounded-xl border ${bg} ${border}`}>
+                        <div className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${bg}`}>
+                          <Icon className={`w-5 h-5 ${color}`} />
+                        </div>
+                        <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-snug">{s}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
             {project.compliance_notes && (
               <div>
-                <p className="text-xs text-gray-400 mb-1">{t("project.compliance")}</p>
-                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{project.compliance_notes}</p>
+                <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2">{t("project.compliance")}</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{project.compliance_notes}</p>
               </div>
             )}
             {!project.skills_required?.length && !project.compliance_notes && (
