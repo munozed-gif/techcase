@@ -239,6 +239,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [subCaseForm, setSubCaseForm] = useState({ title: "", description: "", priority: "medium", status: "open" });
   const [savingSubCase, setSavingSubCase] = useState(false);
   const [selectedSubCase, setSelectedSubCase] = useState(null);
+  const [drillDownCase, setDrillDownCase] = useState(null);
   // V9 Document state
   const docFileRef = useRef();
   const [docNotes, setDocNotes]         = useState("");
@@ -2179,6 +2180,22 @@ ${tableHtml(['Role','Name','Signature','Date'],[
     return () => clearTimeout(tid);
   }, [activeTab]);
 
+  // Sub-case drill-down: render sub-case as full CaseDetail with back button
+  if (drillDownCase) {
+    return (
+      <CaseDetail
+        caseData={drillDownCase}
+        auth={auth}
+        onBack={() => setDrillDownCase(null)}
+        onStatusChange={(id, status) => {
+          setDrillDownCase(prev => ({ ...prev, status }));
+        }}
+        onDelete={() => { setDrillDownCase(null); refetchSubCases(); }}
+        onUpdate={(id, updates) => { setDrillDownCase(prev => ({ ...prev, ...updates })); }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-4">
 
@@ -3507,7 +3524,7 @@ ${tableHtml(['Role','Name','Signature','Date'],[
                       {selectedSubIds.has(sc.id) && <Check size={8} className="text-white" />}
                     </button>
                   )}
-                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedSubCase(sc)}>
+                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setDrillDownCase(sc)}>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-gray-900 text-sm">{sc.title}</span>
                       <Badge className={STATUS_COLORS[sc.status]}>{STATUS_LABEL_KEYS[sc.status] ? t(STATUS_LABEL_KEYS[sc.status]) : cap(fmt(sc.status))}</Badge>
@@ -3533,33 +3550,6 @@ ${tableHtml(['Role','Name','Signature','Date'],[
             ))}
           </div>
 
-          {/* Inline sub-case detail */}
-          {selectedSubCase && (
-            <div className="border-2 border-blue-200 rounded-2xl p-5 mt-3">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="font-bold text-gray-900">{selectedSubCase.title}</h4>
-                <button onClick={() => setSelectedSubCase(null)}
-                  className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
-              </div>
-              <CaseDetail
-                caseData={selectedSubCase}
-                auth={auth}
-                onStatusChange={(id, status) => {
-                  if (status === "cancelled") { initCancelModal(id, true); return; }
-                  supabase.from("cases").update({ status }).eq("id", id)
-                    .then(() => setSelectedSubCase(prev => ({ ...prev, status })));
-                }}
-                onDelete={async () => {
-                  await supabase.from("cases").delete().eq("id", selectedSubCase.id);
-                  setSelectedSubCase(null);
-                }}
-                onUpdate={async (id, updates) => {
-                  await updateCase(id, updates);
-                  setSelectedSubCase(prev => ({ ...prev, ...updates }));
-                }}
-              />
-            </div>
-          )}
         </div>
       )}
 
