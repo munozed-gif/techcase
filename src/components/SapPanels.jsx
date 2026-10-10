@@ -3446,7 +3446,23 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   const clientSapData   = caseData.client_id
     ? (allSapConfigs[caseData.client_id] ?? {})
     : (allSapConfigs[`proj_${caseData.project_id}`] ?? {});
-  const sapEnvironments = clientSapData.environments ?? (clientSapData.host ? [clientSapData] : []);
+  const sapEnvironmentsFromSettings = clientSapData.environments ?? (clientSapData.host ? [clientSapData] : []);
+  // Fall back to db_connections records of SAP/HANA type when no sap_integration setting exists
+  const sapEnvsFromConns = sapEnvironmentsFromSettings.length === 0
+    ? [...projectConns, ...clientConns]
+        .filter(c => ['sap', 'hana', 'sap_hana', 'sap hana'].includes((c.db_type ?? '').toLowerCase().replace(/_/g, ' ')))
+        .map(c => ({
+          id:     c.id,
+          label:  c.meta?.label ?? (c.db_type ?? 'SAP').toUpperCase(),
+          host:   c.host,
+          port:   c.port ?? 443,
+          username: c.username ?? '',
+          system_id: c.db_name ?? '',
+          client: c.meta?.client ?? '100',
+          _fromDbConn: true,
+        }))
+    : [];
+  const sapEnvironments = sapEnvironmentsFromSettings.length > 0 ? sapEnvironmentsFromSettings : sapEnvsFromConns;
   const sapProjectEnvMap = settings['sap_project_env'] ?? {};
   const sapCaseEnvMap    = settings['sap_case_env']    ?? {};
   const selectedSapEnvId = sapCaseEnvMap[caseData.id] ?? sapProjectEnvMap[caseData.project_id] ?? null;
