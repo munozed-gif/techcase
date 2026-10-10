@@ -1,5 +1,6 @@
 import {
   Target, MessageSquare, Rocket, RefreshCw, Users, GraduationCap, Search, Code2,
+  ArrowRightLeft,
   Activity, CheckCircle2, ClipboardList, Inbox, ListChecks, PauseCircle,
   User, UserCheck, X, XCircle, Zap,
 } from "lucide-react";
@@ -60,6 +61,7 @@ const PROJECT_TYPES = [
   { value: "training",          Icon: GraduationCap, label: "Training",            desc: "Workshops, certifications, learning paths" },
   { value: "audit",             Icon: Search,        label: "Audit & Assessment",  desc: "Fixed-scope review with deliverable report" },
   { value: "development",       Icon: Code2,         label: "Development",         desc: "Custom dev work, sprint or milestone based" },
+  { value: "migration",         Icon: ArrowRightLeft, label: "Migration",           desc: "SAP ECC to S/4HANA migration with activate methodology" },
 ];
 
 const SAP_AREAS = [
