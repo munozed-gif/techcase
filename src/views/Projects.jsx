@@ -2467,50 +2467,62 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         })()}
 
         {/* Objectives */}
-        {tab.id === "objectives" && (
-          <div className="space-y-4">
-            {project.objectives && (
-              <div>
-                <p className="text-xs text-gray-400 mb-1">{t("project.goals")}</p>
-                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{project.objectives}</p>
-              </div>
-            )}
-            {project.deliverables?.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-4">{t("project.deliverables")}</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {project.deliverables.map((d, i) => {
-                    const meta = DELIVERABLE_ICON_MAP[d] ?? { Icon: FileText, color: "text-gray-500 dark:text-gray-400", bg: "bg-gray-50 dark:bg-gray-800", border: "border-gray-200 dark:border-gray-700" };
-                    const { Icon, color, bg, border } = meta;
-                    return (
-                      <div key={i} className={`flex items-center gap-3 p-4 rounded-xl border ${bg} ${border}`}>
-                        <div className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${bg}`}>
-                          <Icon className={`w-5 h-5 ${color}`} />
-                        </div>
-                        <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-snug">{d}</span>
-                      </div>
-                    );
-                  })}
+        {tab.id === "objectives" && (() => {
+          const oc = "rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4";
+          const ObjHdr = ({ icon, label, color }) => (
+            <div className="flex items-center gap-2 mb-3">
+              <span style={{ color }}>{icon}</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{label}</span>
+            </div>
+          );
+          const hasContent = project.objectives || project.deliverables?.length || project.success_criteria || project.out_of_scope;
+          return (
+            <div className="grid grid-cols-1 gap-3">
+              {!hasContent && <p className="text-sm text-gray-400">{t("project.no_objectives")}</p>}
+
+              {project.objectives && (
+                <div className={oc}>
+                  <ObjHdr icon={<Target size={13} />} label={t("project.goals")} color="#6366f1" />
+                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{project.objectives}</p>
                 </div>
-              </div>
-            )}
-            {project.success_criteria && (
-              <div>
-                <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">{t("project.success_criteria")}</p>
-                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{project.success_criteria}</p>
-              </div>
-            )}
-            {project.out_of_scope && (
-              <div>
-                <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">{t("project.out_of_scope")}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed whitespace-pre-wrap italic">{project.out_of_scope}</p>
-              </div>
-            )}
-            {!project.objectives && !project.deliverables?.length && !project.success_criteria && !project.out_of_scope && (
-              <p className="text-sm text-gray-400">{t("project.no_objectives")}</p>
-            )}
-          </div>
-        )}
+              )}
+
+              {project.deliverables?.length > 0 && (
+                <div className={oc}>
+                  <ObjHdr icon={<CheckCircle2 size={13} />} label={t("project.deliverables")} color="#8b5cf6" />
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {project.deliverables.map((d, i) => {
+                      const meta = DELIVERABLE_ICON_MAP[d] ?? { Icon: FileText, color: "text-gray-500 dark:text-gray-400", bg: "bg-gray-50 dark:bg-gray-800", border: "border-gray-200 dark:border-gray-700" };
+                      const { Icon, color, bg, border } = meta;
+                      return (
+                        <div key={i} className={`flex items-center gap-3 p-3 rounded-xl border ${bg} ${border}`}>
+                          <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${bg}`}>
+                            <Icon className={`w-4 h-4 ${color}`} />
+                          </div>
+                          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-snug">{d}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {project.success_criteria && (
+                <div className={oc}>
+                  <ObjHdr icon={<TrendingUp size={13} />} label={t("project.success_criteria")} color="#10b981" />
+                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{project.success_criteria}</p>
+                </div>
+              )}
+
+              {project.out_of_scope && (
+                <div className={oc}>
+                  <ObjHdr icon={<XCircle size={13} />} label={t("project.out_of_scope")} color="#ef4444" />
+                  <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed whitespace-pre-wrap italic">{project.out_of_scope}</p>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Team & Contacts */}
         {tab.id === "team" && (() => {
@@ -2694,38 +2706,48 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         })()}
 
         {/* Requirements */}
-        {tab.id === "requirements" && (
-          <div className="space-y-6">
-            {project.skills_required?.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-4">{t("label.skills")}</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {project.skills_required.map((s, i) => {
-                    const meta = SKILL_ICON_MAP[s] ?? { Icon: Settings, color: "text-gray-500 dark:text-gray-400", bg: "bg-gray-50 dark:bg-gray-800", border: "border-gray-200 dark:border-gray-700" };
-                    const { Icon, color, bg, border } = meta;
-                    return (
-                      <div key={i} className={`flex items-center gap-3 p-4 rounded-xl border ${bg} ${border}`}>
-                        <div className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${bg}`}>
-                          <Icon className={`w-5 h-5 ${color}`} />
+        {tab.id === "requirements" && (() => {
+          const oc = "rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4";
+          const ReqHdr = ({ icon, label, color }) => (
+            <div className="flex items-center gap-2 mb-3">
+              <span style={{ color }}>{icon}</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{label}</span>
+            </div>
+          );
+          const hasContent = project.skills_required?.length || project.compliance_notes;
+          return (
+            <div className="grid grid-cols-1 gap-3">
+              {!hasContent && <p className="text-sm text-gray-400">{t("project.no_requirements")}</p>}
+
+              {project.skills_required?.length > 0 && (
+                <div className={oc}>
+                  <ReqHdr icon={<Zap size={13} />} label={t("label.skills")} color="#3b82f6" />
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {project.skills_required.map((s, i) => {
+                      const meta = SKILL_ICON_MAP[s] ?? { Icon: Settings, color: "text-gray-500 dark:text-gray-400", bg: "bg-gray-50 dark:bg-gray-800", border: "border-gray-200 dark:border-gray-700" };
+                      const { Icon, color, bg, border } = meta;
+                      return (
+                        <div key={i} className={`flex items-center gap-3 p-3 rounded-xl border ${bg} ${border}`}>
+                          <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${bg}`}>
+                            <Icon className={`w-4 h-4 ${color}`} />
+                          </div>
+                          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-snug">{s}</span>
                         </div>
-                        <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-snug">{s}</span>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
-            {project.compliance_notes && (
-              <div>
-                <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-2">{t("project.compliance")}</p>
-                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{project.compliance_notes}</p>
-              </div>
-            )}
-            {!project.skills_required?.length && !project.compliance_notes && (
-              <p className="text-sm text-gray-400">{t("project.no_requirements")}</p>
-            )}
-          </div>
-        )}
+              )}
+
+              {project.compliance_notes && (
+                <div className={oc}>
+                  <ReqHdr icon={<Shield size={13} />} label={t("project.compliance")} color="#f59e0b" />
+                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{project.compliance_notes}</p>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Cases */}
         {tab.id === "cases" && (
