@@ -355,42 +355,60 @@ export function TestingView({ auth }) {
       ) : filtered.length === 0 ? (
         <div className="text-center py-12 text-gray-400">{t('testing.no_scripts')}</div>
       ) : (
-        <div className="space-y-0 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-          {filtered.map((script, idx) => {
+        <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                <th className="w-8 px-3 py-3" />
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide whitespace-nowrap">{t('testing.col_id')}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t('testing.col_title')}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide whitespace-nowrap">{t('testing.col_area')}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide whitespace-nowrap">{t('testing.col_type')}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide whitespace-nowrap">{t('testing.col_assigned')}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide whitespace-nowrap">{t('testing.col_priority')}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide whitespace-nowrap">{t('testing.col_status')}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide whitespace-nowrap">{t('testing.col_defects')}</th>
+                {canEdit && <th className="px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide whitespace-nowrap">{t('testing.col_actions')}</th>}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 bg-white dark:bg-gray-900">
+          {filtered.map((script) => {
             const assigneeName = users.find(u => u.id === script.assigned_to)?.full_name ?? '—';
             const isExpanded = expanded === script.id;
+            const priorityCls = { high: 'text-red-600 dark:text-red-400', medium: 'text-amber-600 dark:text-amber-400', low: 'text-gray-400' };
             return (
-              <div key={script.id} className={idx > 0 ? 'border-t border-gray-200 dark:border-gray-700' : ''}>
-                <div className={`flex items-center gap-3 px-4 py-3 bg-white dark:bg-gray-900 ${isExpanded ? 'bg-blue-50 dark:bg-blue-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-800'} transition-colors`}>
-                  {/* Toggle */}
-                  <button onClick={() => setExpanded(isExpanded ? null : script.id)} className="text-gray-400 hover:text-blue-500 flex-shrink-0">
-                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              <>
+              <tr key={script.id} className={`${isExpanded ? 'bg-blue-50 dark:bg-blue-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'} transition-colors`}>
+                <td className="px-3 py-3">
+                  <button onClick={() => setExpanded(isExpanded ? null : script.id)} className="text-gray-400 hover:text-blue-500">
+                    {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
                   </button>
-                  {/* Script ID */}
-                  <span className="font-mono text-xs text-gray-500 dark:text-gray-400 w-20 flex-shrink-0">{script.script_id || '—'}</span>
-                  {/* Title */}
-                  <span className="flex-1 text-sm font-medium text-gray-900 dark:text-white min-w-0 truncate">{script.title}</span>
-                  {/* Process area */}
-                  <span className="hidden md:block text-xs text-gray-500 dark:text-gray-400 w-20 flex-shrink-0 truncate">{script.process_area || '—'}</span>
-                  {/* Type badge */}
-                  <span className="hidden md:inline-flex text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 whitespace-nowrap">
+                </td>
+                <td className="px-4 py-3 font-mono text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{script.script_id || '—'}</td>
+                <td className="px-4 py-3 font-medium text-gray-900 dark:text-white max-w-[220px] truncate">{script.title}</td>
+                <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">{script.process_area || '—'}</td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
                     {t(`testing.type_${script.test_type}`)}
                   </span>
-                  {/* Assignee */}
-                  <span className="hidden lg:block text-xs text-gray-500 dark:text-gray-400 w-28 flex-shrink-0 truncate">{assigneeName}</span>
-                  {/* Status badge */}
-                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${SCRIPT_STATUS_COLORS[script.status] ?? ''}`}>
+                </td>
+                <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">{assigneeName}</td>
+                <td className="px-4 py-3 text-xs font-semibold whitespace-nowrap capitalize">
+                  <span className={priorityCls[script.priority] ?? 'text-gray-400'}>{script.priority}</span>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${SCRIPT_STATUS_COLORS[script.status] ?? ''}`}>
                     {t(`testing.status_${script.status}`)}
                   </span>
-                  {/* Defects */}
-                  {(script.defects ?? 0) > 0 && (
-                    <span className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400 font-medium">
-                      <Bug size={12} /> {script.defects}
-                    </span>
-                  )}
-                  {/* Execute actions */}
-                  {canEdit && (
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  {(script.defects ?? 0) > 0
+                    ? <span className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400 font-semibold"><Bug size={12} />{script.defects}</span>
+                    : <span className="text-xs text-gray-300 dark:text-gray-600">—</span>}
+                </td>
+                {canEdit && (
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center gap-1">
                       {script.status === 'not_started' && (
                         <button onClick={() => updateStatus(script, 'in_progress')} title={t('testing.start')} className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400">
                           <Play size={14} />
@@ -410,25 +428,22 @@ export function TestingView({ auth }) {
                         </>
                       )}
                     </div>
-                  )}
-                </div>
-                {isExpanded && (
-                  <div className="px-4 pb-4 bg-white dark:bg-gray-900">
-                    {script.notes && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{script.notes}</p>
-                    )}
-                    <DefectsPanel
-                      scriptId={script.id}
-                      users={users}
-                      canEdit={canEdit}
-                      t={t}
-                      onDefectChange={load}
-                    />
-                  </div>
+                  </td>
                 )}
-              </div>
+              </tr>
+              {isExpanded && (
+                <tr key={`${script.id}-def`}>
+                  <td colSpan={canEdit ? 10 : 9} className="px-6 pb-4 pt-0 bg-white dark:bg-gray-900">
+                    {script.notes && <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 pt-2">{script.notes}</p>}
+                    <DefectsPanel scriptId={script.id} users={users} canEdit={canEdit} t={t} onDefectChange={load} />
+                  </td>
+                </tr>
+              )}
+              </>
             );
           })}
+            </tbody>
+          </table>
         </div>
       )}
 
