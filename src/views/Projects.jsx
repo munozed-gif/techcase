@@ -33,6 +33,29 @@ import {
 } from "../lib/businessConstants.js";
 import { STATUS_LABEL_KEYS, PRIORITY_LABEL_KEYS, WORK_MODE_LABEL_KEYS, fmt, cap, fmtDate } from "../lib/uiUtils.jsx";
 
+const DELIVERABLE_ICON_MAP = {
+  "Business Blueprint":       { Icon: BookOpen,      color: "text-blue-600 dark:text-blue-400",    bg: "bg-blue-50 dark:bg-blue-900/30",    border: "border-blue-100 dark:border-blue-800" },
+  "Functional Specification": { Icon: FileText,      color: "text-violet-600 dark:text-violet-400",bg: "bg-violet-50 dark:bg-violet-900/30",border: "border-violet-100 dark:border-violet-800" },
+  "Technical Specification":  { Icon: Code2,         color: "text-indigo-600 dark:text-indigo-400",bg: "bg-indigo-50 dark:bg-indigo-900/30",border: "border-indigo-100 dark:border-indigo-800" },
+  "Configuration Document":   { Icon: Settings,      color: "text-slate-600 dark:text-slate-300",  bg: "bg-slate-50 dark:bg-slate-800/60",  border: "border-slate-200 dark:border-slate-700" },
+  "Data Migration Plan":      { Icon: ArrowRightLeft,color: "text-teal-600 dark:text-teal-400",    bg: "bg-teal-50 dark:bg-teal-900/30",    border: "border-teal-100 dark:border-teal-800" },
+  "Test Scripts":             { Icon: FlaskConical,  color: "text-cyan-600 dark:text-cyan-400",    bg: "bg-cyan-50 dark:bg-cyan-900/30",    border: "border-cyan-100 dark:border-cyan-800" },
+  "UAT Report":               { Icon: CheckCircle2,  color: "text-green-600 dark:text-green-400",  bg: "bg-green-50 dark:bg-green-900/30",  border: "border-green-100 dark:border-green-800" },
+  "Training Material":        { Icon: GraduationCap, color: "text-amber-600 dark:text-amber-400",  bg: "bg-amber-50 dark:bg-amber-900/30",  border: "border-amber-100 dark:border-amber-800" },
+  "Go-Live Checklist":        { Icon: Zap,           color: "text-orange-600 dark:text-orange-400",bg: "bg-orange-50 dark:bg-orange-900/30",border: "border-orange-100 dark:border-orange-800" },
+  "Cutover Plan":             { Icon: GitBranch,     color: "text-rose-600 dark:text-rose-400",    bg: "bg-rose-50 dark:bg-rose-900/30",    border: "border-rose-100 dark:border-rose-800" },
+  "Gap Analysis":             { Icon: Search,        color: "text-purple-600 dark:text-purple-400",bg: "bg-purple-50 dark:bg-purple-900/30",border: "border-purple-100 dark:border-purple-800" },
+  "Integration Test Report":  { Icon: Network,       color: "text-blue-700 dark:text-blue-300",    bg: "bg-blue-50 dark:bg-blue-900/30",    border: "border-blue-100 dark:border-blue-800" },
+  "Migration Report":         { Icon: BarChart,      color: "text-teal-700 dark:text-teal-300",    bg: "bg-teal-50 dark:bg-teal-900/30",    border: "border-teal-100 dark:border-teal-800" },
+  "Process Flow Diagram":     { Icon: GitBranch,     color: "text-pink-600 dark:text-pink-400",    bg: "bg-pink-50 dark:bg-pink-900/30",    border: "border-pink-100 dark:border-pink-800" },
+  "Project Charter":          { Icon: ClipboardList, color: "text-gray-700 dark:text-gray-300",    bg: "bg-gray-100 dark:bg-gray-800",      border: "border-gray-200 dark:border-gray-700" },
+  "System Documentation":     { Icon: BookOpen,      color: "text-slate-700 dark:text-slate-300",  bg: "bg-slate-50 dark:bg-slate-800/60",  border: "border-slate-200 dark:border-slate-700" },
+  "Change Management Plan":   { Icon: Layers,        color: "text-yellow-600 dark:text-yellow-400",bg: "bg-yellow-50 dark:bg-yellow-900/30",border: "border-yellow-100 dark:border-yellow-800" },
+  "Hypercare Plan":           { Icon: ShieldCheck,   color: "text-green-700 dark:text-green-300",  bg: "bg-green-50 dark:bg-green-900/30",  border: "border-green-100 dark:border-green-800" },
+  "Project Status Report":    { Icon: TrendingUp,    color: "text-blue-600 dark:text-blue-400",    bg: "bg-blue-50 dark:bg-blue-900/30",    border: "border-blue-100 dark:border-blue-800" },
+  "SLA Agreement":            { Icon: FileEdit,      color: "text-red-600 dark:text-red-400",      bg: "bg-red-50 dark:bg-red-900/30",      border: "border-red-100 dark:border-red-800" },
+};
+
 const SKILL_ICON_MAP = {
   "ABAP Development":          { Icon: Code2,         color: "text-blue-600 dark:text-blue-400",    bg: "bg-blue-50 dark:bg-blue-900/30",    border: "border-blue-100 dark:border-blue-800" },
   "SAP Basis Administration":  { Icon: Cpu,           color: "text-slate-600 dark:text-slate-300",  bg: "bg-slate-50 dark:bg-slate-800/60",  border: "border-slate-200 dark:border-slate-700" },
@@ -2454,24 +2477,33 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
             )}
             {project.deliverables?.length > 0 && (
               <div>
-                <p className="text-xs text-gray-400 mb-2">{t("project.deliverables")}</p>
-                <div className="flex flex-wrap gap-2">
-                  {project.deliverables.map((d, i) => (
-                    <span key={i} className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg">{d}</span>
-                  ))}
+                <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-4">{t("project.deliverables")}</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {project.deliverables.map((d, i) => {
+                    const meta = DELIVERABLE_ICON_MAP[d] ?? { Icon: FileText, color: "text-gray-500 dark:text-gray-400", bg: "bg-gray-50 dark:bg-gray-800", border: "border-gray-200 dark:border-gray-700" };
+                    const { Icon, color, bg, border } = meta;
+                    return (
+                      <div key={i} className={`flex items-center gap-3 p-4 rounded-xl border ${bg} ${border}`}>
+                        <div className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${bg}`}>
+                          <Icon className={`w-5 h-5 ${color}`} />
+                        </div>
+                        <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-snug">{d}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
             {project.success_criteria && (
               <div>
-                <p className="text-xs text-gray-400 mb-1">{t("project.success_criteria")}</p>
-                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{project.success_criteria}</p>
+                <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">{t("project.success_criteria")}</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{project.success_criteria}</p>
               </div>
             )}
             {project.out_of_scope && (
               <div>
-                <p className="text-xs text-gray-400 mb-1">{t("project.out_of_scope")}</p>
-                <p className="text-sm text-gray-500 leading-relaxed whitespace-pre-wrap italic">{project.out_of_scope}</p>
+                <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">{t("project.out_of_scope")}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed whitespace-pre-wrap italic">{project.out_of_scope}</p>
               </div>
             )}
             {!project.objectives && !project.deliverables?.length && !project.success_criteria && !project.out_of_scope && (
