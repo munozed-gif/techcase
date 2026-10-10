@@ -14,3 +14,11 @@ CREATE INDEX IF NOT EXISTS cases_migration_ref_idx ON cases USING gin(migration_
 
 -- Store AI-generated technical blueprint per WRICEF object
 ALTER TABLE wricef_objects ADD COLUMN IF NOT EXISTS blueprint jsonb;
+
+-- Expand case_type CHECK to include migration-generated types
+ALTER TABLE cases DROP CONSTRAINT IF EXISTS cases_case_type_check;
+ALTER TABLE cases ADD CONSTRAINT cases_case_type_check
+  CHECK (case_type IN (
+    'case', 'ticket', 'resource_need',
+    'migration_phase', 'wricef_registry', 'wricef_object', 'cutover_plan'
+  ));
