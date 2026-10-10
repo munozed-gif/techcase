@@ -4,15 +4,16 @@
 //          WRICEF Registry, Cutover Planner
 // ============================================================
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Fragment } from "react";
 import {
   AlertCircle, AlertTriangle, ArrowLeft, BookOpen, Calendar,
   Check, CheckCircle2, ChevronDown, ChevronUp, Clock,
-  Database, Download, FileText, Filter, Loader2, Milestone,
-  Plus, RefreshCw, Rocket, Settings, ShieldCheck,
-  Trash2, Users, X,
+  Code2, Database, Download, FileText, Filter, Layers, Link2,
+  Loader2, Milestone, Plus, RefreshCw, Rocket, Settings,
+  ShieldCheck, Trash2, Users, X, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
+import { callClaude } from "../lib/utils.js";
 import { useT } from "../i18n/index.jsx";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { Input, Modal, Select, Textarea } from "../components/ui.jsx";
@@ -446,6 +447,7 @@ function CreateMigrationModal({ auth, t, onClose, onCreated }) {
 function MigrationProjectDetail({ migProject, auth, onBack }) {
   const { t } = useT();
   const [activeTab, setActiveTab] = useState('phases');
+  const [showSync, setShowSync] = useState(false);
 
   const tabs = [
     { id: 'phases',  label: t('mig.tab_phases') },
@@ -453,6 +455,7 @@ function MigrationProjectDetail({ migProject, auth, onBack }) {
     { id: 'cutover', label: t('mig.tab_cutover') },
     { id: 'data',    label: t('mig.tab_data') },
     { id: 'simplif', label: t('mig.tab_simplif') },
+    { id: 'cases',   label: t('mig.tab_cases') },
   ];
 
   const approachColors = {
@@ -479,6 +482,13 @@ function MigrationProjectDetail({ migProject, auth, onBack }) {
           <Badge className={approachColors[migProject.approach] ?? 'bg-gray-100 text-gray-600'}>
             {t(`mig.${migProject.approach ?? 'brownfield'}`)}
           </Badge>
+          <button
+            onClick={() => setShowSync(true)}
+            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm transition-colors"
+          >
+            <Link2 size={13} />
+            {t('mig.sync_btn')}
+          </button>
         </div>
         <div className="flex flex-wrap gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
           <span>{t('mig.source_version')}: <strong className="text-gray-700 dark:text-gray-300">{migProject.source_version ?? '—'}</strong></span>
@@ -505,11 +515,20 @@ function MigrationProjectDetail({ migProject, auth, onBack }) {
       </div>
 
       {/* Tab content */}
-      {activeTab === 'phases'  && <PhasesTab  migProject={migProject} auth={auth} />}
-      {activeTab === 'wricef'  && <WricefTab  migProject={migProject} auth={auth} />}
-      {activeTab === 'cutover' && <CutoverTab migProject={migProject} auth={auth} />}
-      {activeTab === 'data'    && <DataTab    migProject={migProject} auth={auth} />}
-      {activeTab === 'simplif' && <SimplifTab migProject={migProject} auth={auth} />}
+      {activeTab === 'phases'  && <PhasesTab   migProject={migProject} auth={auth} />}
+      {activeTab === 'wricef'  && <WricefTab   migProject={migProject} auth={auth} />}
+      {activeTab === 'cutover' && <CutoverTab  migProject={migProject} auth={auth} />}
+      {activeTab === 'data'    && <DataTab     migProject={migProject} auth={auth} />}
+      {activeTab === 'simplif' && <SimplifTab  migProject={migProject} auth={auth} />}
+      {activeTab === 'cases'   && <MigCasesTab migProject={migProject} />}
+
+      {showSync && (
+        <SyncModal
+          migProject={migProject}
+          onClose={() => setShowSync(false)}
+          onDone={() => setActiveTab('cases')}
+        />
+      )}
     </div>
   );
 }
@@ -793,6 +812,7 @@ function WricefTab({ migProject, auth }) {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing]     = useState(null);
   const [signing, setSigning]     = useState(null);
+  const [expandedBp, setExpandedBp] = useState(new Set());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -959,63 +979,99 @@ function WricefTab({ migProject, auth }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                {filtered.map(obj => (
-                  <tr key={obj.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                    <td className="px-4 py-3">
-                      <Badge className={WRICEF_META[obj.type]?.cls ?? ''}>
-                        {obj.type} — {WRICEF_META[obj.type]?.label ?? obj.type}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900 dark:text-white">{obj.name}</div>
-                      {obj.object_id && <div className="text-xs text-gray-400 dark:text-gray-500">{obj.object_id}</div>}
-                    </td>
-                    <td className="px-4 py-3 hidden sm:table-cell">
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded ${
-                        obj.complexity === 'high'   ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
-                        obj.complexity === 'medium' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
-                                                      'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                      }`}>
-                        {t(`mig.complexity_${obj.complexity ?? 'medium'}`)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 dark:text-gray-300 hidden md:table-cell">
-                      {obj.effort_days != null ? `${obj.effort_days}d` : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 dark:text-gray-300 hidden md:table-cell">
-                      {userName(users, obj.owner_id)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <Badge className={WRICEF_STATUS_CLS[obj.status] ?? ''}>
-                          {cap(obj.status)}
-                        </Badge>
-                        {obj.status === 'tested' && !obj.signed_off_at && (
-                          <button
-                            onClick={() => handleSignOff(obj)}
-                            disabled={signing === obj.id}
-                            className="text-xs px-2 py-0.5 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 rounded border border-green-200 dark:border-green-800 transition-colors disabled:opacity-50"
-                          >
-                            {signing === obj.id ? <Loader2 className="w-3 h-3 animate-spin" /> : t('mig.wricef_sign_off')}
-                          </button>
-                        )}
-                        {obj.signed_off_at && (
-                          <span className="text-xs text-gray-400 dark:text-gray-500 hidden lg:block">
-                            {fmtDate(obj.signed_off_at)}
+                {filtered.map(obj => {
+                  const bpOpen = expandedBp.has(obj.id);
+                  const toggleBp = () => setExpandedBp(s => {
+                    const n = new Set(s);
+                    bpOpen ? n.delete(obj.id) : n.add(obj.id);
+                    return n;
+                  });
+                  return (
+                    <Fragment key={obj.id}>
+                      <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                        <td className="px-4 py-3">
+                          <Badge className={WRICEF_META[obj.type]?.cls ?? ''}>
+                            {obj.type} — {WRICEF_META[obj.type]?.label ?? obj.type}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-gray-900 dark:text-white">{obj.name}</div>
+                          {obj.object_id && <div className="text-xs text-gray-400 dark:text-gray-500">{obj.object_id}</div>}
+                        </td>
+                        <td className="px-4 py-3 hidden sm:table-cell">
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded ${
+                            obj.complexity === 'high'   ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
+                            obj.complexity === 'medium' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
+                                                          'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                          }`}>
+                            {t(`mig.complexity_${obj.complexity ?? 'medium'}`)}
                           </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => { setEditing(obj); setShowModal(true); }}
-                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
-                      >
-                        {t('action.edit')}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600 dark:text-gray-300 hidden md:table-cell">
+                          {obj.effort_days != null ? `${obj.effort_days}d` : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600 dark:text-gray-300 hidden md:table-cell">
+                          {userName(users, obj.owner_id)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <Badge className={WRICEF_STATUS_CLS[obj.status] ?? ''}>
+                              {cap(obj.status)}
+                            </Badge>
+                            {obj.status === 'tested' && !obj.signed_off_at && (
+                              <button
+                                onClick={() => handleSignOff(obj)}
+                                disabled={signing === obj.id}
+                                className="text-xs px-2 py-0.5 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 rounded border border-green-200 dark:border-green-800 transition-colors disabled:opacity-50"
+                              >
+                                {signing === obj.id ? <Loader2 className="w-3 h-3 animate-spin" /> : t('mig.wricef_sign_off')}
+                              </button>
+                            )}
+                            {obj.signed_off_at && (
+                              <span className="text-xs text-gray-400 dark:text-gray-500 hidden lg:block">
+                                {fmtDate(obj.signed_off_at)}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => { setEditing(obj); setShowModal(true); }}
+                              className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                            >
+                              {t('action.edit')}
+                            </button>
+                            <button
+                              onClick={toggleBp}
+                              className={`flex items-center gap-1 text-xs font-medium transition-colors ${
+                                bpOpen
+                                  ? 'text-purple-600 dark:text-purple-400'
+                                  : obj.blueprint
+                                    ? 'text-purple-500 dark:text-purple-400'
+                                    : 'text-gray-400 dark:text-gray-500 hover:text-purple-500'
+                              }`}
+                              title="Technical Blueprint"
+                            >
+                              <Code2 size={12} />
+                              {obj.blueprint ? 'Blueprint' : 'AI Blueprint'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {bpOpen && (
+                        <tr>
+                          <td colSpan={7} className="p-0">
+                            <WricefBlueprintPanel
+                              obj={obj}
+                              onSaved={bp => setObjects(prev => prev.map(o => o.id === obj.id ? { ...o, blueprint: bp } : o))}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -2132,5 +2188,550 @@ function PctPill({ value }) {
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${cls}`}>
       {n.toFixed(0)}%
     </span>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+// SYNC HUB → CASES
+// ════════════════════════════════════════════════════════════════
+
+async function syncHubToCases(migProject, onProgress) {
+  const projectId = migProject.project_id;
+
+  onProgress({ msg: 'Fetching hub data…' });
+
+  const [
+    { data: deliverables, error: dErr },
+    { data: wricefObjects, error: wErr },
+    { data: cutoverTasks, error: cErr },
+    { data: gates, error: gErr },
+  ] = await Promise.all([
+    supabase.from('migration_phase_deliverables').select('*').eq('migration_project_id', migProject.id).order('created_at'),
+    supabase.from('wricef_objects').select('*').eq('migration_project_id', migProject.id).order('created_at'),
+    supabase.from('cutover_tasks').select('*').eq('migration_project_id', migProject.id).order('seq'),
+    supabase.from('migration_phase_gates').select('*').eq('migration_project_id', migProject.id),
+  ]);
+
+  if (dErr || wErr || cErr || gErr) throw new Error((dErr ?? wErr ?? cErr ?? gErr).message);
+
+  const gateMap = {};
+  (gates ?? []).forEach(g => { gateMap[g.phase] = g; });
+
+  // Load existing migration-generated cases
+  const { data: existingCases } = await supabase
+    .from('cases')
+    .select('id, migration_ref, case_type')
+    .eq('project_id', projectId)
+    .not('migration_ref', 'is', null);
+
+  const phaseCase = {};
+  let wricefRegistryId = null;
+  let cutoverId = null;
+  const wricefSubById = {};
+
+  for (const c of (existingCases ?? [])) {
+    const ref = c.migration_ref;
+    if (!ref || ref.migration_project_id !== migProject.id) continue;
+    if (ref.type === 'phase')            phaseCase[ref.phase] = c.id;
+    if (ref.type === 'wricef_registry')  wricefRegistryId = c.id;
+    if (ref.type === 'wricef_object' && ref.wricef_object_id) wricefSubById[ref.wricef_object_id] = c.id;
+    if (ref.type === 'cutover')          cutoverId = c.id;
+  }
+
+  // ── Phase Cases ───────────────────────────────────────────────
+  for (const phase of PHASES) {
+    onProgress({ msg: `Syncing phase: ${cap(phase)}…` });
+    const gate = gateMap[phase];
+    const phaseDelivs = (deliverables ?? []).filter(d => d.phase === phase);
+    const doneCount = phaseDelivs.filter(d => d.completed).length;
+    const pct = phaseDelivs.length ? Math.round((doneCount / phaseDelivs.length) * 100) : 0;
+    const caseStatus = gate?.status === 'completed' ? 'closed' : gate?.status === 'in_progress' ? 'open' : 'draft';
+
+    let caseId = phaseCase[phase];
+    if (!caseId) {
+      const { data: nc, error: ncErr } = await supabase.from('cases').insert({
+        title: `[SAP Activate] ${cap(phase)} Phase`,
+        description: `Auto-generated from Migration Hub.\nApproach: ${migProject.approach} | ${migProject.source_version ?? '?'} → ${migProject.target_version ?? '?'}\nGo-Live: ${migProject.go_live_date ?? '—'}`,
+        project_id: projectId,
+        case_type: 'migration_phase',
+        status: caseStatus,
+        priority: ['realize', 'deploy'].includes(phase) ? 'high' : 'medium',
+        progress_pct: pct,
+        migration_ref: { type: 'phase', migration_project_id: migProject.id, phase },
+      }).select('id').single();
+      if (ncErr) throw new Error(`Phase case: ${ncErr.message}`);
+      caseId = nc.id;
+    } else {
+      await supabase.from('cases').update({ status: caseStatus, progress_pct: pct }).eq('id', caseId);
+    }
+
+    await supabase.from('case_activities').delete().eq('case_id', caseId);
+    if (phaseDelivs.length > 0) {
+      await supabase.from('case_activities').insert(
+        phaseDelivs.map((d, i) => ({
+          case_id: caseId,
+          task_no: i + 1, sort_order: i + 1,
+          title: d.title,
+          phase,
+          activity_type: 'task',
+          status: d.completed ? 'done' : 'pending',
+          progress_pct: d.completed ? 100 : 0,
+        }))
+      );
+    }
+  }
+
+  // ── WRICEF Registry ───────────────────────────────────────────
+  onProgress({ msg: 'Syncing WRICEF registry…' });
+
+  if (!wricefRegistryId) {
+    const { data: wc, error: wcErr } = await supabase.from('cases').insert({
+      title: '[SAP Migration] WRICEF Registry',
+      description: 'Parent case for all WRICEF objects requiring remediation. Sub-cases are auto-generated per object.',
+      project_id: projectId,
+      case_type: 'wricef_registry',
+      status: 'open',
+      priority: 'high',
+      migration_ref: { type: 'wricef_registry', migration_project_id: migProject.id },
+    }).select('id').single();
+    if (wcErr) throw new Error(`WRICEF registry: ${wcErr.message}`);
+    wricefRegistryId = wc.id;
+  }
+
+  for (const obj of (wricefObjects ?? [])) {
+    if (wricefSubById[obj.id]) {
+      await supabase.from('cases').update({
+        status: obj.status === 'signed_off' ? 'closed' : 'open',
+      }).eq('id', wricefSubById[obj.id]);
+      continue;
+    }
+    const { error: scErr } = await supabase.from('cases').insert({
+      title: `[${obj.type}] ${obj.name}`,
+      description: [obj.description ?? '', obj.remediation_approach ? `\nRemediation: ${obj.remediation_approach}` : ''].join(''),
+      project_id: projectId,
+      parent_case_id: wricefRegistryId,
+      case_type: 'wricef_object',
+      status: obj.status === 'signed_off' ? 'closed' : 'open',
+      priority: obj.complexity === 'high' ? 'high' : obj.complexity === 'low' ? 'low' : 'medium',
+      estimated_hours: obj.effort_days != null ? obj.effort_days * 8 : null,
+      migration_ref: { type: 'wricef_object', migration_project_id: migProject.id, wricef_object_id: obj.id, wricef_type: obj.type },
+    });
+    if (scErr) throw new Error(`WRICEF sub-case (${obj.name}): ${scErr.message}`);
+  }
+
+  // ── Cutover Case ──────────────────────────────────────────────
+  onProgress({ msg: 'Syncing cutover plan…' });
+
+  if (!cutoverId) {
+    const { data: co, error: coErr } = await supabase.from('cases').insert({
+      title: '[SAP Migration] Cutover Plan',
+      description: 'Auto-generated cutover plan. Each activity is a go-live cutover task.',
+      project_id: projectId,
+      case_type: 'cutover_plan',
+      status: 'open',
+      priority: 'critical',
+      migration_ref: { type: 'cutover', migration_project_id: migProject.id },
+    }).select('id').single();
+    if (coErr) throw new Error(`Cutover case: ${coErr.message}`);
+    cutoverId = co.id;
+  }
+
+  await supabase.from('case_activities').delete().eq('case_id', cutoverId);
+  const goLiveTasks = (cutoverTasks ?? []).filter(tk => tk.run_type === 'go_live' || tk.run_type === 'all');
+  if (goLiveTasks.length > 0) {
+    await supabase.from('case_activities').insert(
+      goLiveTasks.map(tk => ({
+        case_id: cutoverId,
+        task_no: tk.seq, sort_order: tk.seq,
+        title: tk.title,
+        description: `Team: ${tk.team ?? '—'} | ${tk.duration_hours ?? '?'}h`,
+        activity_type: 'task',
+        status: tk.status === 'done' ? 'done' : tk.status === 'in_progress' ? 'in_progress' : 'pending',
+        progress_pct: tk.status === 'done' ? 100 : tk.status === 'in_progress' ? 50 : 0,
+      }))
+    );
+  }
+
+  onProgress({ msg: 'Done!' });
+  return { phases: PHASES.length, wricef: wricefObjects?.length ?? 0, cutoverTasks: goLiveTasks.length };
+}
+
+// ── SyncModal ─────────────────────────────────────────────────────
+
+function SyncModal({ migProject, onClose, onDone }) {
+  const [log, setLog]       = useState([]);
+  const [running, setRunning] = useState(true);
+  const [error, setError]   = useState(null);
+  const [result, setResult] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function run() {
+      try {
+        const res = await syncHubToCases(migProject, p => {
+          if (!cancelled) setLog(l => [...l, p.msg]);
+        });
+        if (!cancelled) { setResult(res); setRunning(false); }
+      } catch (e) {
+        if (!cancelled) { setError(e.message); setRunning(false); }
+      }
+    }
+    run();
+    return () => { cancelled = true; };
+  }, [migProject]);
+
+  return (
+    <Modal open onClose={running ? undefined : onClose} title="Sync Hub → Cases">
+      <div className="space-y-4 min-w-[340px]">
+        <div className="rounded-lg bg-gray-50 dark:bg-gray-800 p-3 font-mono text-xs space-y-1.5 max-h-48 overflow-y-auto">
+          {log.map((msg, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <CheckCircle2 size={11} className="text-green-500 flex-shrink-0" />
+              <span className="text-gray-700 dark:text-gray-300">{msg}</span>
+            </div>
+          ))}
+          {running && (
+            <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+              <Loader2 size={11} className="animate-spin flex-shrink-0" />
+              <span>Processing…</span>
+            </div>
+          )}
+        </div>
+
+        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+
+        {result && !error && (
+          <div className="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 p-3 text-sm">
+            <p className="font-semibold text-green-700 dark:text-green-300 mb-1.5">Sync complete!</p>
+            <ul className="text-green-600 dark:text-green-400 space-y-0.5 text-xs">
+              <li>✓ {result.phases} phase cases synced</li>
+              <li>✓ {result.wricef} WRICEF sub-cases synced</li>
+              <li>✓ {result.cutoverTasks} cutover activities synced</li>
+            </ul>
+          </div>
+        )}
+
+        {!running && (
+          <div className="flex justify-end gap-2">
+            {!error && (
+              <button
+                onClick={() => { onDone(); onClose(); }}
+                className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium"
+              >
+                View Cases
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              Close
+            </button>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+// ── MigCasesTab ───────────────────────────────────────────────────
+
+function MigCasesTab({ migProject }) {
+  const { t } = useT();
+  const [cases, setCases]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]   = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data, error: err } = await supabase
+      .from('cases')
+      .select('id, title, case_type, status, priority, progress_pct, estimated_hours, migration_ref, parent_case_id, created_at')
+      .eq('project_id', migProject.project_id)
+      .not('migration_ref', 'is', null)
+      .order('created_at', { ascending: true });
+    if (err) { setError(err.message); setLoading(false); return; }
+    const filtered = (data ?? []).filter(c => c.migration_ref?.migration_project_id === migProject.id);
+    setCases(filtered);
+    setLoading(false);
+  }, [migProject.id, migProject.project_id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (loading) return <Spinner />;
+  if (error)   return <p className="text-red-600 text-sm">{error}</p>;
+
+  if (!cases.length) {
+    return (
+      <div className="rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 p-12 text-center">
+        <Layers className="w-10 h-10 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+        <p className="text-gray-500 dark:text-gray-400 font-medium mb-1">{t('mig.cases_empty')}</p>
+        <p className="text-gray-400 dark:text-gray-500 text-sm">{t('mig.cases_empty_hint')}</p>
+      </div>
+    );
+  }
+
+  const phaseCases     = cases.filter(c => c.migration_ref?.type === 'phase');
+  const wricefRegistry = cases.find(c => c.migration_ref?.type === 'wricef_registry');
+  const wricefSubs     = cases.filter(c => c.migration_ref?.type === 'wricef_object');
+  const cutoverCase    = cases.find(c => c.migration_ref?.type === 'cutover');
+
+  const statusCls = s => ({
+    draft:   'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400',
+    open:    'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+    closed:  'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+    on_hold: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+  }[s] ?? 'bg-gray-100 text-gray-600');
+
+  const CaseRow = ({ c, indent }) => (
+    <div className={`flex items-center gap-3 py-2.5 ${indent ? 'pl-8 border-l-2 border-indigo-100 dark:border-indigo-900/40 ml-4' : ''} border-b border-gray-100 dark:border-gray-700/50 last:border-0`}>
+      <span className="flex-1 text-sm text-gray-800 dark:text-gray-200 font-medium truncate">{c.title}</span>
+      {c.estimated_hours && (
+        <span className="text-xs text-gray-400 font-mono">{c.estimated_hours}h</span>
+      )}
+      {c.progress_pct > 0 && (
+        <div className="flex items-center gap-1.5">
+          <div className="w-16 h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+            <div className="h-full bg-blue-500 rounded-full" style={{ width: `${c.progress_pct}%` }} />
+          </div>
+          <span className="text-xs text-gray-400">{c.progress_pct}%</span>
+        </div>
+      )}
+      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusCls(c.status)}`}>
+        {c.status}
+      </span>
+    </div>
+  );
+
+  const SectionCard = ({ title, icon: Icon, color, children, count }) => (
+    <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 dark:bg-gray-800/80 border-b border-gray-100 dark:border-gray-700/60">
+        <Icon size={15} style={{ color }} />
+        <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{title}</span>
+        {count != null && (
+          <span className="ml-auto text-xs text-gray-400 font-medium">{count} {count === 1 ? 'case' : 'cases'}</span>
+        )}
+      </div>
+      <div className="px-4">{children}</div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-5">
+      {/* Tiles */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Phase Cases',      val: phaseCases.length,  color: 'text-blue-600 dark:text-blue-400' },
+          { label: 'WRICEF Sub-cases', val: wricefSubs.length,  color: 'text-purple-600 dark:text-purple-400' },
+          { label: 'Cutover Case',     val: cutoverCase ? '✓' : '—', color: 'text-green-600 dark:text-green-400' },
+          { label: 'Total Cases',      val: cases.length,       color: 'text-gray-700 dark:text-gray-200' },
+        ].map(({ label, val, color }) => (
+          <div key={label} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{label}</p>
+            <p className={`text-2xl font-bold ${color}`}>{val}</p>
+          </div>
+        ))}
+      </div>
+
+      {phaseCases.length > 0 && (
+        <SectionCard title="SAP Activate Phases" icon={Milestone} color="#3b82f6" count={phaseCases.length}>
+          {phaseCases.map(c => <CaseRow key={c.id} c={c} />)}
+        </SectionCard>
+      )}
+
+      {(wricefRegistry || wricefSubs.length > 0) && (
+        <SectionCard title="WRICEF Registry" icon={Code2} color="#9333ea" count={wricefSubs.length}>
+          {wricefRegistry && <CaseRow c={wricefRegistry} />}
+          {wricefSubs.map(c => <CaseRow key={c.id} c={c} indent />)}
+        </SectionCard>
+      )}
+
+      {cutoverCase && (
+        <SectionCard title="Cutover Plan" icon={Rocket} color="#22c55e" count={1}>
+          <CaseRow c={cutoverCase} />
+        </SectionCard>
+      )}
+    </div>
+  );
+}
+
+// ── WricefBlueprintPanel ──────────────────────────────────────────
+
+const WRICEF_TYPE_FULL = {
+  W: 'Workflow', R: 'Report', I: 'Interface',
+  C: 'Conversion', E: 'Enhancement', F: 'Form',
+};
+
+function WricefBlueprintPanel({ obj, onSaved }) {
+  const [generating, setGenerating] = useState(false);
+  const [error, setError]     = useState(null);
+  const [blueprint, setBlueprint] = useState(obj.blueprint ?? null);
+
+  async function generate() {
+    setGenerating(true);
+    setError(null);
+    try {
+      const raw = await callClaude({
+        system: 'You are an SAP S/4HANA migration expert. Always respond with valid JSON only — no markdown fences, no explanation text.',
+        messages: [{
+          role: 'user',
+          content: `Generate a technical implementation blueprint for this SAP WRICEF object:
+
+Type: ${obj.type} — ${WRICEF_TYPE_FULL[obj.type] ?? obj.type}
+Object ID: ${obj.object_id ?? 'N/A'}
+Name: ${obj.name}
+Description: ${obj.description ?? 'N/A'}
+Complexity: ${obj.complexity}
+Estimated Effort: ${obj.effort_days ?? '?'} days
+Remediation Approach: ${obj.remediation_approach ?? 'Not specified'}
+
+Return ONLY a JSON object with this exact structure:
+{
+  "technical_design": "3-4 sentence technical design summary",
+  "target_object": "Specific S/4HANA target: BAdI / CDS View / BAPI / Function Module name",
+  "approach_steps": ["step 1","step 2","step 3","step 4"],
+  "abap_skeleton": "10-15 line ABAP code skeleton showing structure",
+  "test_scenarios": [
+    {"id":"TS-01","title":"scenario title","expected":"expected result"},
+    {"id":"TS-02","title":"scenario title","expected":"expected result"},
+    {"id":"TS-03","title":"scenario title","expected":"expected result"}
+  ],
+  "sign_off_checklist": ["item 1","item 2","item 3","item 4","item 5"],
+  "risk_notes": "Key risks and mitigation in 2 sentences"
+}`,
+        }],
+        max_tokens: 2000,
+        model: 'claude-sonnet-4-6',
+      });
+
+      const parsed = JSON.parse(raw);
+      const withMeta = { ...parsed, generated_at: new Date().toISOString() };
+
+      const { error: saveErr } = await supabase
+        .from('wricef_objects')
+        .update({ blueprint: withMeta })
+        .eq('id', obj.id);
+      if (saveErr) throw new Error(saveErr.message);
+
+      setBlueprint(withMeta);
+      onSaved?.(withMeta);
+    } catch (e) {
+      setError(e.message);
+    }
+    setGenerating(false);
+  }
+
+  return (
+    <div className="bg-gray-50 dark:bg-gray-900/60 border-t border-gray-100 dark:border-gray-700/60 px-6 py-5 space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Code2 size={14} className="text-purple-500" />
+          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Technical Blueprint</span>
+          {blueprint?.generated_at && (
+            <span className="text-xs text-gray-400">· generated {fmtDate(blueprint.generated_at)}</span>
+          )}
+        </div>
+        <button
+          onClick={generate}
+          disabled={generating}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold disabled:opacity-50 transition-colors"
+        >
+          {generating ? <Loader2 size={11} className="animate-spin" /> : <Zap size={11} />}
+          {blueprint ? 'Regenerate with AI' : 'Generate with AI'}
+        </button>
+      </div>
+
+      {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
+
+      {!blueprint && !generating && (
+        <p className="text-sm text-gray-400 dark:text-gray-500 italic">
+          No blueprint yet. Click "Generate with AI" to create a technical design, ABAP skeleton, test scenarios and sign-off checklist.
+        </p>
+      )}
+
+      {generating && (
+        <div className="flex items-center gap-2 text-sm text-purple-600 dark:text-purple-400">
+          <Loader2 size={14} className="animate-spin" />
+          Generating blueprint with Claude AI…
+        </div>
+      )}
+
+      {blueprint && !generating && (
+        <div className="space-y-5 text-sm">
+          {/* Technical design */}
+          <div>
+            <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Technical Design</h4>
+            <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{blueprint.technical_design}</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Target object */}
+            <div>
+              <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">S/4HANA Target Object</h4>
+              <code className="block text-xs bg-gray-900 dark:bg-black text-purple-300 px-3 py-2 rounded-lg font-mono">
+                {blueprint.target_object}
+              </code>
+            </div>
+
+            {/* Approach steps */}
+            <div>
+              <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Approach Steps</h4>
+              <ol className="list-decimal list-inside space-y-1 text-gray-600 dark:text-gray-400 text-xs">
+                {(blueprint.approach_steps ?? []).map((s, i) => <li key={i}>{s}</li>)}
+              </ol>
+            </div>
+          </div>
+
+          {/* ABAP skeleton */}
+          {blueprint.abap_skeleton && (
+            <div>
+              <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">ABAP Skeleton</h4>
+              <pre className="bg-gray-900 dark:bg-black text-green-400 text-xs px-4 py-3 rounded-xl overflow-x-auto font-mono leading-relaxed">
+                {blueprint.abap_skeleton}
+              </pre>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Test scenarios */}
+            <div>
+              <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Test Scenarios</h4>
+              <div className="space-y-2">
+                {(blueprint.test_scenarios ?? []).map(ts => (
+                  <div key={ts.id} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-2.5">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="text-[10px] font-mono font-bold text-gray-400 flex-shrink-0">{ts.id}</span>
+                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{ts.title}</span>
+                    </div>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 ml-6">{ts.expected}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Sign-off checklist */}
+            <div>
+              <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Sign-Off Checklist</h4>
+              <div className="space-y-1.5">
+                {(blueprint.sign_off_checklist ?? []).map((item, i) => (
+                  <label key={i} className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400 cursor-pointer">
+                    <input type="checkbox" className="mt-0.5 rounded accent-purple-600" />
+                    <span>{item}</span>
+                  </label>
+                ))}
+              </div>
+              {blueprint.risk_notes && (
+                <div className="mt-4 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50">
+                  <p className="text-[11px] text-amber-700 dark:text-amber-300 leading-relaxed">
+                    <strong className="font-semibold">Risks: </strong>{blueprint.risk_notes}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

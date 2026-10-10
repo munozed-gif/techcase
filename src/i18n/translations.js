@@ -2902,6 +2902,10 @@ const TRANSLATIONS = {
     "mig.tab_cutover":                "Cutover",
     "mig.tab_data":                   "Data",
     "mig.tab_simplif":                "Simplification",
+    "mig.tab_cases":                  "Cases",
+    "mig.sync_btn":                   "Sync → Cases",
+    "mig.cases_empty":                "No cases synced yet",
+    "mig.cases_empty_hint":           "Click 'Sync → Cases' to auto-generate phase cases, WRICEF sub-cases and a cutover case from this migration project.",
     // Data Migration Tracker
     "data.title":                     "Data Migration Objects",
     "data.subtitle":                  "Track data objects, mapping progress and quality metrics",
@@ -6137,6 +6141,10 @@ const TRANSLATIONS = {
     "mig.tab_cutover":                "Cutover",
     "mig.tab_data":                   "Datos",
     "mig.tab_simplif":                "Simplificación",
+    "mig.tab_cases":                  "Casos",
+    "mig.sync_btn":                   "Sincronizar → Casos",
+    "mig.cases_empty":                "Aún no hay casos sincronizados",
+    "mig.cases_empty_hint":           "Haz clic en 'Sincronizar -> Casos' para generar casos de fase, sub-casos WRICEF y un caso de cutover desde este proyecto de migración.",
     // Rastreador de Migración de Datos
     "data.title":                     "Objetos de Migración de Datos",
     "data.subtitle":                  "Seguimiento de objetos de datos, progreso de mapeo y métricas de calidad",
