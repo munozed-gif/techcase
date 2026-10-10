@@ -3701,7 +3701,7 @@ function SettingsPlansTab({ ssCtx, auth }) {
 
 
 function SettingsPricingTab({ ssCtx, auth }) {
-  const savedPrices  = ssCtx.settings['plan_prices']     ?? DEFAULT_PLAN_PRICES;
+  const savedPrices  = { ...DEFAULT_PLAN_PRICES, ...(ssCtx.settings['plan_prices'] ?? {}) };
   const savedPriceIds = ssCtx.settings['stripe_price_ids'] ?? {};
   const [prices, setPrices]   = useState(() => JSON.parse(JSON.stringify(savedPrices)));
   const [saving, setSaving]   = useState(false);
