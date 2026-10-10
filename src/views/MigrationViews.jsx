@@ -2245,7 +2245,7 @@ async function syncHubToCases(migProject, onProgress) {
     const phaseDelivs = (deliverables ?? []).filter(d => d.phase === phase);
     const doneCount = phaseDelivs.filter(d => d.completed).length;
     const pct = phaseDelivs.length ? Math.round((doneCount / phaseDelivs.length) * 100) : 0;
-    const caseStatus = gate?.status === 'completed' ? 'closed' : gate?.status === 'in_progress' ? 'open' : 'draft';
+    const caseStatus = gate?.status === 'completed' ? 'closed' : gate?.status === 'in_progress' ? 'open' : 'planning';
 
     let caseId = phaseCase[phase];
     if (!caseId) {
