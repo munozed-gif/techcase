@@ -4002,17 +4002,19 @@ const SYNC_ROWS = [
 ];
 
 function SettingsMigrationTab({ ssCtx }) {
-  const raw = ssCtx.settings['migration_config'];
-  const merged = {
-    sync: { ...DEFAULT_MIGRATION_CONFIG.sync, ...(raw?.sync ?? {}) },
-    phases: raw?.phases ?? DEFAULT_MIGRATION_CONFIG.phases,
-  };
-
-  const [sync, setSync] = useState(merged.sync);
-  const [phases, setPhases] = useState(merged.phases.map((p, i) => ({ ...p, _id: i })));
+  const [sync, setSync] = useState({ ...DEFAULT_MIGRATION_CONFIG.sync });
+  const [phases, setPhases] = useState(DEFAULT_MIGRATION_CONFIG.phases.map((p, i) => ({ ...p, _id: i })));
   const [expanded, setExpanded] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (ssCtx.loading) return;
+    const raw = ssCtx.settings['migration_config'];
+    if (!raw) return;
+    if (raw.sync) setSync({ ...DEFAULT_MIGRATION_CONFIG.sync, ...raw.sync });
+    if (Array.isArray(raw.phases)) setPhases(raw.phases.map((p, i) => ({ ...p, _id: i })));
+  }, [ssCtx.loading, ssCtx.settings]);
 
   function toggleExpand(idx) {
     setExpanded(v => v === idx ? null : idx);
@@ -4071,6 +4073,8 @@ function SettingsMigrationTab({ ssCtx }) {
       setSaving(false);
     }
   }
+
+  if (ssCtx.loading) return <Spinner />;
 
   return (
     <div className="space-y-6">
