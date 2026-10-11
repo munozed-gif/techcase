@@ -329,6 +329,81 @@ const DEFAULT_PLAN_PRICES = {
   user_ai_pro:           { label: 'AI Pro',                 amount: 19,  currency: 'usd', roleType: 'user',       planKey: 'ai_pro'     },
 };
 
+// ── Migration methodology defaults ────────────────────────────
+const DEFAULT_MIGRATION_CONFIG = {
+  sync: {
+    phase_deliverables: 'activity',
+    wricef_items: 'case',
+    cutover_tasks: 'activity',
+  },
+  phases: [
+    {
+      key: 'discover', label: 'Discover', color: 'violet',
+      deliverables: [
+        'Business case & ROI analysis',
+        'High-level scope definition',
+        'Stakeholder identification',
+        'Executive sponsorship confirmed',
+        'Vendor selection completed',
+      ],
+    },
+    {
+      key: 'prepare', label: 'Prepare', color: 'blue',
+      deliverables: [
+        'Project charter signed',
+        'Project team onboarded',
+        'System landscape defined',
+        'SAP Activate roadmap confirmed',
+        'Project governance established',
+        'Development environment ready',
+      ],
+    },
+    {
+      key: 'explore', label: 'Explore', color: 'cyan',
+      deliverables: [
+        'Fit-to-standard workshops completed',
+        'Business process scope confirmed',
+        'Delta design decisions documented',
+        'WRICEF inventory completed',
+        'Data migration strategy approved',
+        'Configuration specs signed off',
+      ],
+    },
+    {
+      key: 'realize', label: 'Realize', color: 'amber',
+      deliverables: [
+        'Baseline configuration completed',
+        'WRICEF objects developed & unit tested',
+        'Integration testing completed',
+        'UAT completed & signed off',
+        'Data migration trial runs completed',
+        'Cutover plan approved',
+        'Training materials ready',
+      ],
+    },
+    {
+      key: 'deploy', label: 'Deploy', color: 'green',
+      deliverables: [
+        'Go-live readiness checklist approved',
+        'Dress rehearsal 1 completed',
+        'Dress rehearsal 2 completed',
+        'Go/no-go decision confirmed',
+        'Production cutover executed',
+        'Hypercare plan activated',
+      ],
+    },
+    {
+      key: 'run', label: 'Run', color: 'emerald',
+      deliverables: [
+        'Hypercare period completed',
+        'Knowledge transfer done',
+        'Support contract activated',
+        'Project closure report signed',
+      ],
+    },
+  ],
+};
+
 export {
   ROLE_COLORS,
   DEFAULT_PLAN_CONFIG,
@@ -348,4 +423,5 @@ export {
   getLifecycleStages,
   DEFAULT_PLAN_PRICES,
   GATE_CONDITIONS,
+  DEFAULT_MIGRATION_CONFIG,
 };

@@ -17,6 +17,7 @@ import { callClaude } from "../lib/utils.js";
 import { useT } from "../i18n/index.jsx";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { Input, Modal, Select, Textarea } from "../components/ui.jsx";
+import { DEFAULT_MIGRATION_CONFIG } from "../lib/businessConstants.js";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -339,19 +340,24 @@ function CreateMigrationModal({ auth, t, onClose, onCreated }) {
         .single();
       if (mpErr) throw new Error(mpErr.message);
 
+      // Fetch migration config for seeding
+      const { data: cfgRow } = await supabase.from('system_settings').select('value').eq('key', 'migration_config').maybeSingle();
+      const migConfig = cfgRow?.value ?? DEFAULT_MIGRATION_CONFIG;
+      const configPhases = (migConfig.phases ?? DEFAULT_MIGRATION_CONFIG.phases);
+
       // Seed phase deliverables
       const deliverables = [];
-      for (const [phase, items] of Object.entries(PHASE_DELIVERABLES)) {
-        for (const title of items) {
-          deliverables.push({ migration_project_id: mp.id, phase, title });
+      for (const phaseCfg of configPhases) {
+        for (const title of (phaseCfg.deliverables ?? [])) {
+          deliverables.push({ migration_project_id: mp.id, phase: phaseCfg.key, title });
         }
       }
       await supabase.from('migration_phase_deliverables').insert(deliverables);
 
       // Seed phase gates
-      const gates = PHASES.map(phase => ({
+      const gates = configPhases.map(p => ({
         migration_project_id: mp.id,
-        phase,
+        phase: p.key,
         status: 'not_started',
       }));
       await supabase.from('migration_phase_gates').insert(gates);
@@ -2198,6 +2204,16 @@ function PctPill({ value }) {
 async function syncHubToCases(migProject, onProgress) {
   const projectId = migProject.project_id;
 
+  // Fetch migration config
+  const { data: cfgRow } = await supabase.from('system_settings').select('value').eq('key', 'migration_config').maybeSingle();
+  const migConfig = cfgRow?.value ?? DEFAULT_MIGRATION_CONFIG;
+  const syncBehavior = {
+    phase_deliverables: migConfig.sync?.phase_deliverables ?? 'activity',
+    wricef_items:       migConfig.sync?.wricef_items       ?? 'case',
+    cutover_tasks:      migConfig.sync?.cutover_tasks      ?? 'activity',
+  };
+  const configPhases = migConfig.phases ?? DEFAULT_MIGRATION_CONFIG.phases;
+
   onProgress({ msg: 'Fetching hub data…' });
 
   const [
@@ -2239,7 +2255,15 @@ async function syncHubToCases(migProject, onProgress) {
   }
 
   // ── Phase Cases ───────────────────────────────────────────────
-  for (const phase of PHASES) {
+  // Use config phase order but only for phases that have gates in this project; include any extra DB phases after
+  const configPhaseKeys = configPhases.map(p => p.key);
+  const dbPhaseKeys = Object.keys(gateMap);
+  const syncPhaseKeys = [
+    ...configPhaseKeys.filter(k => dbPhaseKeys.includes(k)),
+    ...dbPhaseKeys.filter(k => !configPhaseKeys.includes(k)),
+  ];
+
+  for (const phase of syncPhaseKeys) {
     onProgress({ msg: `Syncing phase: ${cap(phase)}…` });
     const gate = gateMap[phase];
     const phaseDelivs = (deliverables ?? []).filter(d => d.phase === phase);
@@ -2265,19 +2289,40 @@ async function syncHubToCases(migProject, onProgress) {
       await supabase.from('cases').update({ status: caseStatus, progress_pct: pct }).eq('id', caseId);
     }
 
-    await supabase.from('case_activities').delete().eq('case_id', caseId);
-    if (phaseDelivs.length > 0) {
-      await supabase.from('case_activities').insert(
-        phaseDelivs.map((d, i) => ({
-          case_id: caseId,
-          task_no: i + 1, sort_order: i + 1,
-          title: d.title,
-          phase,
-          activity_type: 'task',
-          status: d.completed ? 'done' : 'pending',
-          progress_pct: d.completed ? 100 : 0,
-        }))
-      );
+    if (syncBehavior.phase_deliverables === 'subcase') {
+      // Delete auto-synced deliverable sub-cases and re-create
+      await supabase.from('cases').delete()
+        .eq('project_id', projectId)
+        .contains('migration_ref', { type: 'phase_deliverable', migration_project_id: migProject.id, phase });
+      if (phaseDelivs.length > 0) {
+        await supabase.from('cases').insert(
+          phaseDelivs.map((d, i) => ({
+            title: d.title,
+            project_id: projectId,
+            parent_case_id: caseId,
+            case_type: 'migration_phase',
+            status: d.completed ? 'closed' : 'open',
+            sort_order: i + 1,
+            migration_ref: { type: 'phase_deliverable', migration_project_id: migProject.id, phase, deliverable_id: d.id },
+          }))
+        );
+      }
+    } else {
+      // Default: activities (existing behavior)
+      await supabase.from('case_activities').delete().eq('case_id', caseId);
+      if (phaseDelivs.length > 0) {
+        await supabase.from('case_activities').insert(
+          phaseDelivs.map((d, i) => ({
+            case_id: caseId,
+            task_no: i + 1, sort_order: i + 1,
+            title: d.title,
+            phase,
+            activity_type: 'task',
+            status: d.completed ? 'done' : 'pending',
+            progress_pct: d.completed ? 100 : 0,
+          }))
+        );
+      }
     }
   }
 
@@ -2298,25 +2343,44 @@ async function syncHubToCases(migProject, onProgress) {
     wricefRegistryId = wc.id;
   }
 
-  for (const obj of (wricefObjects ?? [])) {
-    if (wricefSubById[obj.id]) {
-      await supabase.from('cases').update({
-        status: obj.status === 'signed_off' ? 'closed' : 'open',
-      }).eq('id', wricefSubById[obj.id]);
-      continue;
+  if (syncBehavior.wricef_items === 'activity') {
+    // Create/replace as activities inside the registry case
+    await supabase.from('case_activities').delete().eq('case_id', wricefRegistryId);
+    if (wricefObjects?.length > 0) {
+      await supabase.from('case_activities').insert(
+        (wricefObjects ?? []).map((obj, i) => ({
+          case_id: wricefRegistryId,
+          task_no: i + 1, sort_order: i + 1,
+          title: `[${obj.type}] ${obj.name}`,
+          description: obj.description ?? '',
+          activity_type: 'task',
+          status: obj.status === 'signed_off' ? 'done' : obj.status === 'in_progress' ? 'in_progress' : 'pending',
+          progress_pct: obj.status === 'signed_off' ? 100 : obj.status === 'in_progress' ? 50 : 0,
+        }))
+      );
     }
-    const { error: scErr } = await supabase.from('cases').insert({
-      title: `[${obj.type}] ${obj.name}`,
-      description: [obj.description ?? '', obj.remediation_approach ? `\nRemediation: ${obj.remediation_approach}` : ''].join(''),
-      project_id: projectId,
-      parent_case_id: wricefRegistryId,
-      case_type: 'wricef_object',
-      status: obj.status === 'signed_off' ? 'closed' : 'open',
-      priority: obj.complexity === 'high' ? 'high' : obj.complexity === 'low' ? 'low' : 'medium',
-      estimated_hours: obj.effort_days != null ? obj.effort_days * 8 : null,
-      migration_ref: { type: 'wricef_object', migration_project_id: migProject.id, wricef_object_id: obj.id, wricef_type: obj.type },
-    });
-    if (scErr) throw new Error(`WRICEF sub-case (${obj.name}): ${scErr.message}`);
+  } else {
+    // Default: sub-cases (existing behavior)
+    for (const obj of (wricefObjects ?? [])) {
+      if (wricefSubById[obj.id]) {
+        await supabase.from('cases').update({
+          status: obj.status === 'signed_off' ? 'closed' : 'open',
+        }).eq('id', wricefSubById[obj.id]);
+        continue;
+      }
+      const { error: scErr } = await supabase.from('cases').insert({
+        title: `[${obj.type}] ${obj.name}`,
+        description: [obj.description ?? '', obj.remediation_approach ? `\nRemediation: ${obj.remediation_approach}` : ''].join(''),
+        project_id: projectId,
+        parent_case_id: wricefRegistryId,
+        case_type: 'wricef_object',
+        status: obj.status === 'signed_off' ? 'closed' : 'open',
+        priority: obj.complexity === 'high' ? 'high' : obj.complexity === 'low' ? 'low' : 'medium',
+        estimated_hours: obj.effort_days != null ? obj.effort_days * 8 : null,
+        migration_ref: { type: 'wricef_object', migration_project_id: migProject.id, wricef_object_id: obj.id, wricef_type: obj.type },
+      });
+      if (scErr) throw new Error(`WRICEF sub-case (${obj.name}): ${scErr.message}`);
+    }
   }
 
   // ── Cutover Case ──────────────────────────────────────────────
@@ -2336,24 +2400,47 @@ async function syncHubToCases(migProject, onProgress) {
     cutoverId = co.id;
   }
 
-  await supabase.from('case_activities').delete().eq('case_id', cutoverId);
   const goLiveTasks = (cutoverTasks ?? []).filter(tk => tk.run_type === 'go_live' || tk.run_type === 'all');
-  if (goLiveTasks.length > 0) {
-    await supabase.from('case_activities').insert(
-      goLiveTasks.map(tk => ({
-        case_id: cutoverId,
-        task_no: tk.seq, sort_order: tk.seq,
-        title: tk.title,
-        description: `Team: ${tk.team ?? '—'} | ${tk.duration_hours ?? '?'}h`,
-        activity_type: 'task',
-        status: tk.status === 'done' ? 'done' : tk.status === 'in_progress' ? 'in_progress' : 'pending',
-        progress_pct: tk.status === 'done' ? 100 : tk.status === 'in_progress' ? 50 : 0,
-      }))
-    );
+
+  if (syncBehavior.cutover_tasks === 'case') {
+    // Delete auto-synced cutover sub-cases and re-create
+    await supabase.from('cases').delete()
+      .eq('project_id', projectId)
+      .contains('migration_ref', { type: 'cutover_task', migration_project_id: migProject.id });
+    if (goLiveTasks.length > 0) {
+      await supabase.from('cases').insert(
+        goLiveTasks.map(tk => ({
+          title: tk.title,
+          description: `Team: ${tk.team ?? '—'} | ${tk.duration_hours ?? '?'}h`,
+          project_id: projectId,
+          parent_case_id: cutoverId,
+          case_type: 'cutover_plan',
+          status: tk.status === 'done' ? 'closed' : tk.status === 'in_progress' ? 'open' : 'planning',
+          priority: 'high',
+          migration_ref: { type: 'cutover_task', migration_project_id: migProject.id, task_id: tk.id },
+        }))
+      );
+    }
+  } else {
+    // Default: activities (existing behavior)
+    await supabase.from('case_activities').delete().eq('case_id', cutoverId);
+    if (goLiveTasks.length > 0) {
+      await supabase.from('case_activities').insert(
+        goLiveTasks.map(tk => ({
+          case_id: cutoverId,
+          task_no: tk.seq, sort_order: tk.seq,
+          title: tk.title,
+          description: `Team: ${tk.team ?? '—'} | ${tk.duration_hours ?? '?'}h`,
+          activity_type: 'task',
+          status: tk.status === 'done' ? 'done' : tk.status === 'in_progress' ? 'in_progress' : 'pending',
+          progress_pct: tk.status === 'done' ? 100 : tk.status === 'in_progress' ? 50 : 0,
+        }))
+      );
+    }
   }
 
   onProgress({ msg: 'Done!' });
-  return { phases: PHASES.length, wricef: wricefObjects?.length ?? 0, cutoverTasks: goLiveTasks.length };
+  return { phases: syncPhaseKeys.length, wricef: wricefObjects?.length ?? 0, cutoverTasks: goLiveTasks.length };
 }
 
 // ── SyncModal ─────────────────────────────────────────────────────
