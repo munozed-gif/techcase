@@ -97,6 +97,9 @@ const LANDING_STRINGS = {
     f4t:"Time Logging & Approval", f4d:"Consultants log hours per case. Managers approve or query. Billing reports export instantly, reconciled with SLA thresholds.",
     f5t:"AI-Powered Specifications", f5d:"Claude generates functional specs from case context. Clients approve, consultants build to them. Full traceability from requirement to resolution.",
     f6t:"Transition Gates & SLA", f6d:"Block or warn on stage transitions until conditions are met. SLA timers run per lifecycle phase. Never miss a commitment again.",
+    f7t:"Migration Hub", f7d:"SAP Activate-aligned migration management. Track phases from Discover to Run, assign deliverables, log fit-gap decisions, and gate transitions by readiness criteria.",
+    f8t:"AI Document Generation", f8d:"Claude drafts functional specs, dev plans, and fit-gap reports directly from case context. Teams review, comment, and approve in-platform — no copy-paste.",
+    f9t:"SAP Tooling Suite", f9d:"Manage transport requests, track fit-gap resolution, and schedule testing waves inside the governed lifecycle of each migration case.",
     arena_tag:"Arena · Principal Feature",
     arena_h2:"Your orbital talent marketplace.",
     arena_sub:"Arena is the command center for connecting clients with the right SAP consultants — through an immersive, visual orbital interface that brings the entire talent network to life.",
@@ -133,7 +136,7 @@ const LANDING_STRINGS = {
     cl_free_f:["3 active cases","2 team seats","Invite clients via link","Basic lifecycle tracking","Community support"],
     cl_growth_name:"Growth", cl_growth_period:"per month · cancel any time", cl_growth_badge:"Most popular",
     cl_growth_f:["5 active cases","10 team seats","AI-powered specifications","Full reporting & analytics","SLA management","Priority support"],
-    cl_ent_name:"Enterprise", cl_ent_period:"Unlimited · dedicated support", cl_ent_custom:"Custom",
+    cl_ent_name:"Enterprise", cl_ent_period:"Unlimited · dedicated support", cl_ent_custom:"$349",
     cl_ent_f:["Unlimited cases & team","Everything in Growth","SAP BTP / S/4HANA integration","Custom lifecycle builder","SSO & advanced security","Dedicated customer success"],
     // Headhunter plans
     hh_pro_name:"Pro", hh_pro_period:"per month · cancel any time",
@@ -155,21 +158,20 @@ const LANDING_STRINGS = {
     // Demo carousel
     dc_s0_tag:"Command center", dc_s0_h:"Your full pipeline, live",
     dc_s0_p:"From open cases to assigned specialists — every SAP engagement tracked in one place, with real-time status.",
-    dc_s1_tag:"Consultant rankings", dc_s1_h:"Ranked consultants, at a glance",
-    dc_s1_p:"Sort by skill match, hourly rate, and active case load. Assign the right specialist in under a minute.",
+    dc_s1_tag:"Migration Hub", dc_s1_h:"SAP Activate phase control",
+    dc_s1_p:"Track every migration phase from Discover to Run. Assign deliverables, gate transitions by readiness criteria, and surface Go-Live status at a glance.",
     dc_s2_tag:"Lifecycle governance", dc_s2_h:"Stage-gated case progression",
     dc_s2_p:"Transition gates enforce document upload and hour thresholds before any case moves forward. Full audit trail.",
     dc_s3_tag:"Arena marketplace", dc_s3_h:"The orbital talent marketplace",
     dc_s3_p:"Browse open cases, apply as a consultant or team. Real-time matching surfaces the best fits instantly.",
-    dc_labels:["Dashboard","Ranking","Lifecycle","Arena"],
+    dc_labels:["Dashboard","Migration","Lifecycle","Arena"],
     dc_f1:"Active cases", dc_f1v:"24 open", dc_f2:"Avg. SLA", dc_f2v:"98.4 %", dc_f3:"Hours logged", dc_f3v:"1,240 h",
     dc_s0_b1:"Real-time case status across all SAP modules",
     dc_s0_b2:"Team capacity and workload at a glance",
     dc_s0_b3:"Instant alerts when consultants apply",
-    dc_s1_b1:"Weighted scoring: skills, rating, experience, hourly rate",
-    dc_s1_b2:"Familiarity bonus for consultants who know your stack",
-    dc_s1_b3:"One-click auto-assign when the window closes",
-    dc_s1_applicants:"applicants scored", dc_s1_autoassign:"Auto-assign ✦",
+    dc_s1_b1:"Pre-built SAP Activate phase templates with deliverable checklists",
+    dc_s1_b2:"Fit-gap log with owner assignment and resolution status tracking",
+    dc_s1_b3:"Transport request tracking linked to cases and phases",
     dc_s2_b1:"Custom stage flows per project type",
     dc_s2_b2:"Gate conditions: documents, approvals, key user sign-off",
     dc_s2_b3:"AI functional spec generation at key milestones",
@@ -217,6 +219,14 @@ const LANDING_STRINGS = {
     ap_ac_r2name:"Sofia K.",  ap_ac_r2role:"SAP FICO Senior · 6 yrs",
     ap_ac_r3name:"James L.",  ap_ac_r3role:"SAP Finance Lead · 10 yrs",
     ap_pause:"Pause", ap_play:"Play", ap_scene_of:"of",
+    // Migration Hub showcase
+    mig_tag:"Migration Hub · New Feature",
+    mig_h2:"SAP migrations, fully governed.",
+    mig_sub:"A dedicated workspace for SAP migration projects — aligned to SAP Activate, with phase-level tracking, fit-gap management, and transport coordination built in.",
+    mb1t:"SAP Activate Phases", mb1d:"Pre-built phase templates: Discover, Prepare, Explore, Realize, Deploy, Run. Each phase gates deliverables before the next opens.",
+    mb2t:"Fit-Gap Management", mb2d:"Log every gap decision, assign owners, track resolution status, and link directly to the functional spec generated by AI.",
+    mb3t:"Transport Requests", mb3d:"Track transports across system landscape — dev, QA, production. Link each transport to its case and phase for complete traceability.",
+    mb4t:"Go-Live Readiness", mb4d:"A structured readiness checklist covers cutover tasks, open gaps, pending transports, and sign-off status — in real time.",
   },
   es: {
     nav_arena:"Arena", nav_features:"Características", nav_lifecycle:"Ciclo de Vida",
@@ -238,6 +248,9 @@ const LANDING_STRINGS = {
     f4t:"Registro de Tiempo y Aprobación", f4d:"Los consultores registran horas por caso. Los gerentes aprueban. Los reportes se exportan al instante, conciliados con los umbrales SLA.",
     f5t:"Especificaciones con IA", f5d:"Claude genera especificaciones funcionales del contexto del caso. Los clientes aprueban, los consultores construyen. Trazabilidad completa.",
     f6t:"Puertas de Transición y SLA", f6d:"Bloquea o advierte en transiciones hasta que se cumplan las condiciones. Los temporizadores SLA corren por fase. Nunca pierdas un compromiso.",
+    f7t:"Hub de Migración", f7d:"Gestión de migración alineada a SAP Activate. Rastrea fases de Discover a Run, asigna entregables, registra decisiones fit-gap y controla transiciones de fase.",
+    f8t:"Generación de Documentos con IA", f8d:"Claude redacta especificaciones, planes de desarrollo y reportes fit-gap del contexto del caso. Los equipos revisan, comentan y aprueban en plataforma.",
+    f9t:"Suite de Herramientas SAP", f9d:"Gestiona órdenes de transporte, rastrea resolución de fit-gap y programa olas de prueba dentro del ciclo de vida gobernado de cada caso de migración.",
     arena_tag:"Arena · Característica Principal",
     arena_h2:"Tu mercado de talento orbital.",
     arena_sub:"Arena es el centro de comando para conectar clientes con los consultores SAP adecuados — a través de una interfaz orbital visual e inmersiva que da vida a toda la red de talento.",
@@ -272,7 +285,7 @@ const LANDING_STRINGS = {
     cl_free_f:["3 casos activos","2 asientos de equipo","Invita clientes por enlace","Seguimiento de ciclo de vida","Soporte comunitario"],
     cl_growth_name:"Crecimiento", cl_growth_period:"por mes · cancela cuando quieras", cl_growth_badge:"Más popular",
     cl_growth_f:["5 casos activos","10 asientos de equipo","Especificaciones con IA","Reportes y analítica","Gestión de SLA","Soporte prioritario"],
-    cl_ent_name:"Empresa", cl_ent_period:"Ilimitado · soporte dedicado", cl_ent_custom:"Personalizado",
+    cl_ent_name:"Empresa", cl_ent_period:"Ilimitado · soporte dedicado", cl_ent_custom:"$349",
     cl_ent_f:["Casos y equipo ilimitados","Todo en Crecimiento","Integración SAP BTP / S/4HANA","Constructor de ciclo personalizado","SSO y seguridad avanzada","Éxito del cliente dedicado"],
     hh_pro_name:"Pro", hh_pro_period:"por mes · cancela cuando quieras",
     hh_pro_f:["Perfiles de candidatos ilimitados","Pipeline completo de talento","Seguimiento de colocaciones","Coincidencia con IA","Visibilidad prioritaria en casos","Soporte por correo y chat"],
@@ -293,21 +306,20 @@ const LANDING_STRINGS = {
     // Demo carousel
     dc_s0_tag:"Centro de mando", dc_s0_h:"Todo tu pipeline, en vivo",
     dc_s0_p:"Desde casos abiertos hasta especialistas asignados — cada compromiso SAP rastreado en un solo lugar, con estado en tiempo real.",
-    dc_s1_tag:"Ranking de consultores", dc_s1_h:"Consultores clasificados, de un vistazo",
-    dc_s1_p:"Ordena por afinidad de habilidades, tarifa por hora y carga de casos activos. Asigna al especialista adecuado en menos de un minuto.",
+    dc_s1_tag:"Hub de Migración", dc_s1_h:"Control de fases SAP Activate",
+    dc_s1_p:"Rastrea cada fase de migración de Discover a Run. Asigna entregables, cierra transiciones por criterios de preparación y monitorea el estado Go-Live de un vistazo.",
     dc_s2_tag:"Gobernanza de ciclo de vida", dc_s2_h:"Progresión de casos por etapas",
     dc_s2_p:"Las puertas de transición exigen carga de documentos y umbrales de horas antes de avanzar. Registro de auditoría completo.",
     dc_s3_tag:"Mercado Arena", dc_s3_h:"El mercado orbital de talento",
     dc_s3_p:"Explora casos abiertos, aplica como consultor o equipo. La asignación en tiempo real muestra las mejores opciones al instante.",
-    dc_labels:["Dashboard","Ranking","Ciclo de Vida","Arena"],
+    dc_labels:["Dashboard","Migración","Ciclo de Vida","Arena"],
     dc_f1:"Casos activos", dc_f1v:"24 abiertos", dc_f2:"SLA prom.", dc_f2v:"98.4 %", dc_f3:"Horas registradas", dc_f3v:"1.240 h",
     dc_s0_b1:"Estado en tiempo real de casos en todos los módulos SAP",
     dc_s0_b2:"Capacidad del equipo y carga de trabajo de un vistazo",
     dc_s0_b3:"Alertas instantáneas cuando los consultores aplican",
-    dc_s1_b1:"Puntuación ponderada: habilidades, calificación, experiencia, tarifa",
-    dc_s1_b2:"Bono de familiaridad para consultores que conocen tu stack",
-    dc_s1_b3:"Autoasignación en un clic cuando el período cierra",
-    dc_s1_applicants:"aplicantes puntuados", dc_s1_autoassign:"Autoasignar ✦",
+    dc_s1_b1:"Plantillas de fase SAP Activate con listas de entregables",
+    dc_s1_b2:"Registro fit-gap con asignación de responsables y seguimiento de resolución",
+    dc_s1_b3:"Seguimiento de órdenes de transporte vinculado a casos y fases",
     dc_s2_b1:"Flujos de etapa personalizados por tipo de proyecto",
     dc_s2_b2:"Condiciones de puerta: documentos, aprobaciones, firma del usuario clave",
     dc_s2_b3:"Generación de especificaciones funcionales con IA en hitos clave",
@@ -355,6 +367,14 @@ const LANDING_STRINGS = {
     ap_ac_r2name:"Sofía K.",  ap_ac_r2role:"SAP FICO Senior · 6 años",
     ap_ac_r3name:"Jaime L.",  ap_ac_r3role:"Líder SAP Finance · 10 años",
     ap_pause:"Pausar", ap_play:"Reproducir", ap_scene_of:"de",
+    // Migration Hub showcase
+    mig_tag:"Hub de Migración · Nueva Función",
+    mig_h2:"Migraciones SAP, completamente gobernadas.",
+    mig_sub:"Un espacio de trabajo dedicado a proyectos de migración SAP — alineado a SAP Activate, con seguimiento de fases, gestión fit-gap y coordinación de transportes integrados.",
+    mb1t:"Fases SAP Activate", mb1d:"Plantillas de fase prediseñadas: Discover, Prepare, Explore, Realize, Deploy, Run. Cada fase cierra entregables antes de abrir la siguiente.",
+    mb2t:"Gestión Fit-Gap", mb2d:"Registra cada decisión fit-gap, asigna responsables, rastrea el estado de resolución y vincula con la especificación generada por IA.",
+    mb3t:"Órdenes de Transporte", mb3d:"Rastrea transportes en todo el landscape — dev, QA, producción. Vincula cada transporte a su caso y fase para trazabilidad completa.",
+    mb4t:"Preparación Go-Live", mb4d:"Un checklist estructurado cubre tareas de corte, gaps pendientes, transportes en espera y estado de firmas — en tiempo real.",
   },
 };
 
@@ -566,6 +586,19 @@ const CSS = `
 #arena-landing .arena-dot-inner{position:absolute;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.5rem;font-weight:700;color:#fff;}
 #arena-landing .arena-label{position:absolute;font-size:.58rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;}
 @media(max-width:900px){#arena-landing .arena-inner{grid-template-columns:1fr;}#arena-landing .arena-visual{display:none;}}
+
+#arena-landing .mig-showcase{background:#04091a;padding:96px 24px;position:relative;overflow:hidden;}
+#arena-landing .mig-showcase::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 30% 50%,rgba(16,185,129,.1) 0%,transparent 65%),linear-gradient(rgba(16,185,129,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(16,185,129,.03) 1px,transparent 1px);background-size:100% 100%,48px 48px,48px 48px;}
+#arena-landing .mig-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;position:relative;z-index:1;}
+#arena-landing .mig-tag{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#6EE7B7;margin-bottom:16px;}
+#arena-landing .mig-visual{display:flex;flex-direction:column;gap:8px;}
+#arena-landing .mig-phase{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px;transition:border-color .2s;}
+#arena-landing .mig-phase:hover{border-color:rgba(16,185,129,.3);}
+#arena-landing .mig-phase-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+#arena-landing .mig-phase-name{font-size:.82rem;font-weight:700;color:#fff;flex:1;}
+#arena-landing .mig-phase-status{font-size:.65rem;font-weight:700;padding:3px 8px;border-radius:20px;}
+#arena-landing .mig-phase-pct{font-size:.72rem;font-weight:600;color:rgba(255,255,255,.35);min-width:34px;text-align:right;}
+@media(max-width:900px){#arena-landing .mig-inner{grid-template-columns:1fr;}#arena-landing .mig-visual{display:none;}}
 
 #arena-landing .cta-section{background:linear-gradient(135deg,#0B0F1A,#111829);padding:100px 24px;text-align:center;position:relative;overflow:hidden;}
 #arena-landing .cta-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:600px;height:300px;background:radial-gradient(ellipse,rgba(79,110,247,.15) 0%,transparent 70%);pointer-events:none;}
@@ -1165,7 +1198,7 @@ function DemoCarousel({ tl }) {
           </div>
         </div>
 
-        {/* Slide 1 — Ranking */}
+        {/* Slide 1 — Migration Hub */}
         <div className={`dc-slide${cur===1?" on":""}`}>
           <div>
             <div className="dc-tag">{tl('dc_s1_tag')}</div>
@@ -1180,27 +1213,28 @@ function DemoCarousel({ tl }) {
           <div className="dc-mockup">
             <div className="dc-chrome">
               <div className="dc-chrdot" style={{background:"#FF5F57"}} /><div className="dc-chrdot" style={{background:"#FFBD2E"}} /><div className="dc-chrdot" style={{background:"#28C940"}} />
-              <div className="dc-urlbar"><span className="dc-urlstr">techcase.app/cases/fico-q4/ranking</span></div>
+              <div className="dc-urlbar"><span className="dc-urlstr">techcase.app/migration/s4hana-q4</span></div>
             </div>
             <div className="dc-body">
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-                <span style={{fontSize:10,color:"#7090B0"}}>3 {tl('dc_s1_applicants')}</span>
-                <button style={{fontSize:9,padding:"4px 12px",background:"#2563EB",color:"#fff",border:"none",borderRadius:6,fontFamily:"inherit",fontWeight:600,cursor:"pointer"}}>{tl('dc_s1_autoassign')}</button>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                <span style={{fontSize:9,fontWeight:700,color:"#6EE7B7",letterSpacing:".05em",textTransform:"uppercase"}}>S/4HANA Q4 Migration</span>
+                <span style={{fontSize:9,padding:"2px 8px",background:"rgba(16,185,129,.15)",border:"1px solid rgba(16,185,129,.3)",borderRadius:4,color:"#6EE7B7",fontWeight:600}}>Explore · Active</span>
               </div>
               {[
-                {n:"#1",av:"MR",avBg:"rgba(37,99,235,0.18)",avC:"#60A5FA",name:"María Rodríguez",skills:["SAP FICO","S/4HANA","IFRS"],w:94,pts:94,top:true},
-                {n:"#2",av:"JL",avBg:"rgba(167,139,250,0.12)",avC:"#A78BFA",name:"James Liu",skills:["SAP FICO","BW Analytics"],w:87,pts:87,top:false},
-                {n:"#3",av:"AT",avBg:"rgba(16,185,129,0.1)",avC:"#10B981",name:"Ana Torres",skills:["SAP FICO","CPI Integration"],w:82,pts:82,top:false},
-              ].map(r => (
-                <div key={r.n} className={`dc-rank-item${r.top?" top":""}`}>
-                  <div className="dc-rank-n">{r.n}</div>
-                  <div className="dc-rank-av" style={{background:r.avBg,color:r.avC}}>{r.av}</div>
-                  <div className="dc-rank-info">
-                    <div className="dc-rank-name">{r.name}</div>
-                    <div className="dc-skill-tags">{r.skills.map(s => <span key={s} className="dc-stag">{s}</span>)}</div>
-                    <div className="dc-bar-wrap"><div className="dc-bar" style={{width: barsOn ? r.w+"%" : "0%"}} /></div>
+                {ph:"Discover",c:"#60A5FA",bg:"rgba(96,165,250,.12)",s:"✓ Done",w:100,top:false},
+                {ph:"Prepare",c:"#60A5FA",bg:"rgba(96,165,250,.12)",s:"✓ Done",w:100,top:false},
+                {ph:"Explore",c:"#6EE7B7",bg:"rgba(16,185,129,.15)",s:"Active",w: barsOn?68:0,top:true},
+                {ph:"Realize",c:"rgba(255,255,255,.25)",bg:"rgba(255,255,255,.05)",s:"Locked",w:0,top:false},
+                {ph:"Deploy",c:"rgba(255,255,255,.25)",bg:"rgba(255,255,255,.05)",s:"Locked",w:0,top:false},
+                {ph:"Run",c:"rgba(255,255,255,.25)",bg:"rgba(255,255,255,.05)",s:"Locked",w:0,top:false},
+              ].map(p => (
+                <div key={p.ph} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 8px",background:p.bg,border:`1px solid ${p.c}30`,borderRadius:6,marginBottom:4}}>
+                  <div style={{width:5,height:5,borderRadius:"50%",background:p.c,flexShrink:0}} />
+                  <div style={{fontSize:".62rem",fontWeight:700,color:p.c,flex:1}}>{p.ph}</div>
+                  <div style={{flex:2,background:"rgba(255,255,255,.06)",borderRadius:3,height:4,overflow:"hidden"}}>
+                    <div style={{width:p.w+"%",height:"100%",background:p.c,transition:"width .6s ease",borderRadius:3}} />
                   </div>
-                  <div className="dc-rank-pts">{r.pts}</div>
+                  <div style={{fontSize:".55rem",color:p.c,minWidth:36,textAlign:"right",fontWeight:600}}>{p.s}</div>
                 </div>
               ))}
             </div>
@@ -1600,6 +1634,59 @@ export function LandingView({ onSignIn }) {
             </div>
             <div className="feat-card fade-in">
               <div className="feat-mockup">
+                <div style={{display:"flex",flexDirection:"column",gap:"4px"}}>
+                  {[{ph:"Discover",c:"#6EE7B7",bg:"rgba(16,185,129,.2)",s:"Done"},{ph:"Prepare",c:"#6EE7B7",bg:"rgba(16,185,129,.2)",s:"Done"},{ph:"Explore",c:"#60A5FA",bg:"rgba(79,110,247,.2)",s:"Active"},{ph:"Realize",c:"rgba(255,255,255,.25)",bg:"rgba(255,255,255,.04)",s:"Locked"},{ph:"Deploy",c:"rgba(255,255,255,.25)",bg:"rgba(255,255,255,.04)",s:"Locked"},{ph:"Run",c:"rgba(255,255,255,.25)",bg:"rgba(255,255,255,.04)",s:"Locked"}].map(p => (
+                    <div key={p.ph} style={{display:"flex",alignItems:"center",gap:"6px",padding:"5px 8px",background:p.bg,border:`1px solid ${p.c}30`,borderRadius:"6px"}}>
+                      <div style={{width:"5px",height:"5px",borderRadius:"50%",background:p.c,flexShrink:0}} />
+                      <div style={{fontSize:".62rem",fontWeight:700,color:p.c,flex:1}}>{p.ph}</div>
+                      <div style={{fontSize:".55rem",color:p.c,opacity:.7}}>{p.s}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="feat-body">
+                <div className="feat-icon">🗺</div>
+                <div className="feat-title">{tl("f7t")}</div>
+                <div className="feat-desc">{tl("f7d")}</div>
+              </div>
+            </div>
+            <div className="feat-card fade-in">
+              <div className="feat-mockup">
+                <div style={{background:"#1a2237",borderRadius:"8px",padding:"10px",border:"1px solid rgba(255,255,255,.07)"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:"6px",marginBottom:"8px"}}><div style={{width:"6px",height:"6px",borderRadius:"50%",background:"#A78BFA"}} /><div style={{fontSize:".6rem",fontWeight:700,color:"#A78BFA"}}>AI · Generating fit-gap report…</div></div>
+                  <div style={{display:"flex",flexDirection:"column",gap:"5px"}}>
+                    {["· Gap: Invoice posting field missing in S/4HANA target","· Owner: Carlos R. · Status: In Progress","· Linked spec: FI-001 · AI-drafted · ✓ Approved"].map((l,i) => (
+                      <div key={i} style={{fontSize:".58rem",color:"rgba(255,255,255,.55)",fontFamily:"'JetBrains Mono',monospace",lineHeight:1.5}}>{l}</div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="feat-body">
+                <div className="feat-icon">🤖</div>
+                <div className="feat-title">{tl("f8t")}</div>
+                <div className="feat-desc">{tl("f8d")}</div>
+              </div>
+            </div>
+            <div className="feat-card fade-in">
+              <div className="feat-mockup">
+                <div style={{display:"flex",flexDirection:"column",gap:"5px"}}>
+                  {[{tr:"DEVK9A0123",mod:"FICO",st:"Released",c:"#6EE7B7",b:"rgba(16,185,129,.2)"},{tr:"DEVK9A0124",mod:"MM/SD",st:"Imported",c:"#FCD34D",b:"rgba(245,158,11,.2)"},{tr:"DEVK9A0125",mod:"Basis",st:"Pending QA",c:"#A5B4FC",b:"rgba(79,110,247,.2)"}].map(t => (
+                    <div key={t.tr} style={{display:"flex",alignItems:"center",gap:"6px",padding:"6px 8px",background:t.b,border:`1px solid ${t.c}40`,borderRadius:"6px"}}>
+                      <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:".58rem",color:t.c,flex:1}}>{t.tr}</div>
+                      <div style={{fontSize:".58rem",color:"rgba(255,255,255,.4)"}}>{t.mod}</div>
+                      <div style={{fontSize:".58rem",fontWeight:700,color:t.c}}>{t.st}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="feat-body">
+                <div className="feat-icon">📦</div>
+                <div className="feat-title">{tl("f9t")}</div>
+                <div className="feat-desc">{tl("f9d")}</div>
+              </div>
+            </div>
+            <div className="feat-card fade-in">
+              <div className="feat-mockup">
                 <div style={{display:"flex",flexDirection:"column",gap:"5px"}}>
                   {[{g:"→ In Analysis",s:"✓ Consultant assigned",c:"#6EE7B7",b:"rgba(16,185,129,.2)"},{g:"→ Testing",s:"⚠ Time not logged",c:"#FCD34D",b:"rgba(245,158,11,.2)"},{g:"Response time",label:"SLA status",s:"2h 14m left",c:"#A5B4FC",b:"rgba(79,110,247,.2)"}].map((r,i) => (
                     <div key={i} style={{background:"#1a2237",borderRadius:"7px",padding:"8px 10px",border:`1px solid ${r.b}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -1672,6 +1759,47 @@ export function LandingView({ onSignIn }) {
               <div className="arena-label" style={{bottom:"12%",left:"50%",transform:"translateX(-50%)",color:"rgba(16,185,129,.7)"}}>Clients</div>
               <div className="arena-label" style={{top:"50%",right:"2%",transform:"translateY(-50%)",color:"rgba(245,158,11,.6)"}}>Cases</div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* MIGRATION HUB */}
+      <section className="mig-showcase">
+        <div className="mig-inner">
+          <div>
+            <div className="mig-tag">{tl("mig_tag")}</div>
+            <h2 style={{color:"#fff"}}>{tl("mig_h2")}</h2>
+            <p className="section-sub" style={{color:"rgba(255,255,255,.5)",marginBottom:32}}>{tl("mig_sub")}</p>
+            <div className="arena-bullets">
+              {[
+                {icon:"🗺",bg:"rgba(79,110,247,.15)",tk:"mb1t",dk:"mb1d"},
+                {icon:"🔬",bg:"rgba(16,185,129,.12)",tk:"mb2t",dk:"mb2d"},
+                {icon:"📦",bg:"rgba(245,158,11,.12)",tk:"mb3t",dk:"mb3d"},
+                {icon:"🚀",bg:"rgba(139,92,246,.12)",tk:"mb4t",dk:"mb4d"},
+              ].map(b => (
+                <div key={b.tk} className="arena-bullet">
+                  <div className="arena-bullet-icon" style={{background:b.bg}}>{b.icon}</div>
+                  <div className="arena-bullet-text"><strong>{tl(b.tk)}</strong><span>{tl(b.dk)}</span></div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="mig-visual">
+            {[
+              {ph:"Discover",dot:"#60A5FA",status:"✓ Done",pct:"100%",sc:"rgba(96,165,250,.2)",bc:"rgba(96,165,250,.3)"},
+              {ph:"Prepare",dot:"#60A5FA",status:"✓ Done",pct:"100%",sc:"rgba(96,165,250,.2)",bc:"rgba(96,165,250,.3)"},
+              {ph:"Explore",dot:"#6EE7B7",status:"Active",pct:"68%",sc:"rgba(16,185,129,.18)",bc:"rgba(16,185,129,.35)"},
+              {ph:"Realize",dot:"rgba(255,255,255,.3)",status:"Locked",pct:"0%",sc:"rgba(255,255,255,.04)",bc:"rgba(255,255,255,.1)"},
+              {ph:"Deploy",dot:"rgba(255,255,255,.3)",status:"Locked",pct:"0%",sc:"rgba(255,255,255,.04)",bc:"rgba(255,255,255,.1)"},
+              {ph:"Run",dot:"rgba(255,255,255,.3)",status:"Locked",pct:"0%",sc:"rgba(255,255,255,.04)",bc:"rgba(255,255,255,.1)"},
+            ].map(p => (
+              <div key={p.ph} className="mig-phase" style={{background:p.sc,borderColor:p.bc}}>
+                <div className="mig-phase-dot" style={{background:p.dot}} />
+                <div className="mig-phase-name">{p.ph}</div>
+                <div className="mig-phase-status" style={{background:p.sc,color:p.dot,border:`1px solid ${p.bc}`}}>{p.status}</div>
+                <div className="mig-phase-pct">{p.pct}</div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -1834,7 +1962,7 @@ export function LandingView({ onSignIn }) {
               </div>
               <div className="price-card">
                 <div className="price-name">{tl("cl_ent_name")}</div>
-                <div className="price-amount" style={{fontSize:"2rem"}}>{tl("cl_ent_custom")}</div>
+                <div className="price-amount">{tl("cl_ent_custom")}<small>/mo</small></div>
                 <div className="price-period">{tl("cl_ent_period")}</div>
                 <ul className="price-features">{tl("cl_ent_f").map(f=><li key={f}>{f}</li>)}</ul>
                 <button className="price-cta price-cta-outline" onClick={onSignIn}>{tl("btn_contact")}</button>
