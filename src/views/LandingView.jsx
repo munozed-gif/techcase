@@ -107,8 +107,12 @@ const LANDING_STRINGS = {
     ab2t:"Team Applications", ab2d:"Form consulting teams, assign roles with skill validation, and apply to open cases as a unit — not just solo.",
     ab3t:"Smart Matching", ab3d:"Skill-to-role enforcement ensures only qualified consultants are assigned. AI auto-suggests the best fit from your team.",
     ab4t:"Live Discovery", ab4d:"Radar pulse animations signal active opportunity scanning. New cases surface in real time across your orbital network.",
-    lc_tag:"Lifecycle Engine", lc_h2:"One platform, every kind of support.",
-    lc_sub:"Pre-built lifecycle templates for SAP support and IT help desk — or build your own with custom stages, gates, and role rules.",
+    lc_tag:"Lifecycle Engine", lc_h2:"Every stage governed. Every move gated.",
+    lc_sub:"Pre-built SAP and IT help desk lifecycles — each stage defines its own gate conditions, available actions, and role permissions. Click any stage below to explore.",
+    lc_detail_gates:"Gate conditions to advance",
+    lc_detail_tabs:"Available tabs",
+    lc_click_hint:"Click any stage to see its gates and available actions",
+    lc_gate_noop:"Final stage — no outbound gates.",
     roles_tag:"Role-Based Platform", roles_h2:"Built for every stakeholder.",
     roles_sub:"Each role gets exactly the right view, permissions, and tools.",
     r1n:"Manager",    r1d:"Full oversight of cases, projects, consultants, and billing. Approves time, transitions, and specs.",    r1p:["All cases","Approve time","Reports","Invoicing"],
@@ -258,8 +262,12 @@ const LANDING_STRINGS = {
     ab2t:"Aplicaciones en Equipo", ab2d:"Forma equipos de consultoría, asigna roles con validación de habilidades y aplica a casos abiertos como unidad.",
     ab3t:"Asignación Inteligente", ab3d:"La aplicación de habilidades por rol garantiza que solo se asignen consultores calificados. La IA sugiere automáticamente el mejor candidato.",
     ab4t:"Descubrimiento en Vivo", ab4d:"Las animaciones de pulso radar señalan el escaneo activo de oportunidades. Nuevos casos emergen en tiempo real en tu red orbital.",
-    lc_tag:"Motor de Ciclo de Vida", lc_h2:"Una plataforma, todo tipo de soporte.",
-    lc_sub:"Plantillas de ciclo de vida preconfiguradas para soporte SAP y mesa de ayuda de TI — o crea las tuyas con etapas, puertas y reglas de rol personalizadas.",
+    lc_tag:"Motor de Ciclo de Vida", lc_h2:"Cada etapa gobernada. Cada movimiento con reglas.",
+    lc_sub:"Ciclos de vida predefinidos para SAP y mesa de ayuda — cada etapa define sus condiciones de avance, acciones disponibles y permisos por rol. Haz clic en cualquier etapa para explorar.",
+    lc_detail_gates:"Condiciones de avance",
+    lc_detail_tabs:"Pestañas disponibles",
+    lc_click_hint:"Haz clic en cualquier etapa para ver sus reglas y acciones disponibles",
+    lc_gate_noop:"Etapa final — sin puertas de salida.",
     roles_tag:"Plataforma Basada en Roles", roles_h2:"Construida para cada parte interesada.",
     roles_sub:"Cada rol obtiene exactamente la vista, los permisos y las herramientas correctas.",
     r1n:"Gerente",    r1d:"Supervisión completa de casos, proyectos, consultores y facturación. Aprueba tiempo, transiciones y especificaciones.", r1p:["Todos los casos","Aprobar tiempo","Reportes","Facturación"],
@@ -500,10 +508,36 @@ const CSS = `
 #arena-landing .lifecycle-inner .section-sub{color:rgba(255,255,255,.5);}
 #arena-landing .pipeline-scroll{overflow-x:auto;scrollbar-width:none;padding-bottom:8px;}
 #arena-landing .pipeline-track{display:flex;gap:0;min-width:max-content;}
-#arena-landing .pipe-stage{display:flex;flex-direction:column;align-items:center;position:relative;}
+#arena-landing .pipe-stage{display:flex;flex-direction:column;align-items:center;position:relative;cursor:pointer;transition:opacity .15s;}
+#arena-landing .pipe-stage:hover{opacity:.85;}
 #arena-landing .pipe-stage::after{content:'→';position:absolute;right:-18px;top:28px;color:rgba(255,255,255,.2);font-size:1rem;z-index:1;}
 #arena-landing .pipe-stage:last-child::after{display:none;}
-#arena-landing .pipe-dot{width:56px;height:56px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.75rem;margin-bottom:10px;margin-right:36px;position:relative;z-index:2;transition:transform .2s;}
+#arena-landing .pipe-dot{width:56px;height:56px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.75rem;margin-bottom:10px;margin-right:36px;position:relative;z-index:2;transition:transform .2s,box-shadow .2s;}
+#arena-landing .pipe-stage.active .pipe-dot{transform:scale(1.18);box-shadow:0 0 0 5px rgba(255,255,255,.07);}
+#arena-landing .pipe-stage.active .pipe-label{color:rgba(255,255,255,.9);}
+#arena-landing .lc-click-hint{font-size:.72rem;color:rgba(255,255,255,.25);text-align:center;margin-top:10px;letter-spacing:.03em;}
+#arena-landing .lc-detail{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:24px;margin-top:28px;animation:lc-fade .25s ease;}
+@keyframes lc-fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+#arena-landing .lc-detail-header{display:flex;align-items:center;gap:12px;margin-bottom:20px;}
+#arena-landing .lc-detail-stage-chip{font-size:.75rem;font-weight:700;padding:5px 14px;border-radius:20px;letter-spacing:.02em;}
+#arena-landing .lc-detail-body{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+#arena-landing .lc-detail-col-title{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.35);margin-bottom:12px;}
+#arena-landing .lc-gate{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:8px;margin-bottom:6px;border:1px solid transparent;}
+#arena-landing .lc-gate-pass{background:rgba(16,185,129,.08);border-color:rgba(16,185,129,.2);}
+#arena-landing .lc-gate-warn{background:rgba(245,158,11,.08);border-color:rgba(245,158,11,.2);}
+#arena-landing .lc-gate-fail{background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.2);}
+#arena-landing .lc-gate-icon{font-size:.72rem;font-weight:800;flex-shrink:0;padding-top:1px;min-width:14px;}
+#arena-landing .lc-gate-pass .lc-gate-icon{color:#6EE7B7;}
+#arena-landing .lc-gate-warn .lc-gate-icon{color:#FCD34D;}
+#arena-landing .lc-gate-fail .lc-gate-icon{color:#FCA5A5;}
+#arena-landing .lc-gate-label{font-size:.78rem;color:rgba(255,255,255,.7);line-height:1.5;}
+#arena-landing .lc-gate-noop{font-size:.78rem;color:rgba(255,255,255,.3);padding:10px 0;font-style:italic;}
+#arena-landing .lc-tab-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+#arena-landing .lc-tab-chip{font-size:.72rem;font-weight:600;padding:5px 11px;border-radius:7px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:rgba(255,255,255,.5);cursor:pointer;transition:all .15s;}
+#arena-landing .lc-tab-chip:hover{background:rgba(255,255,255,.08);color:rgba(255,255,255,.8);}
+#arena-landing .lc-tab-chip.on{color:#fff;font-weight:700;}
+#arena-landing .lc-tab-desc{font-size:.82rem;color:rgba(255,255,255,.55);line-height:1.65;min-height:52px;padding:10px 12px;background:rgba(255,255,255,.03);border-radius:8px;border:1px solid rgba(255,255,255,.06);}
+@media(max-width:700px){#arena-landing .lc-detail-body{grid-template-columns:1fr;}}
 #arena-landing .pipe-dot:hover{transform:scale(1.1);}
 #arena-landing .pipe-label{font-size:.65rem;font-weight:600;color:rgba(255,255,255,.5);text-align:center;margin-right:36px;}
 #arena-landing .lc-cards{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:48px;}
@@ -1124,6 +1158,59 @@ const DONE_SVG = (
   </svg>
 );
 
+const LC_STAGES = [
+  { n:1, l:"New\nRequest",      c:"#6366F1", t:"#A5B4FC", bg:"rgba(99,102,241,.1)",
+    gates:[
+      {l:"Case description completed",s:"pass"},
+      {l:"SAP module assigned",s:"pass"},
+    ],
+    tabs:{"Details":"Case title, description, module, priority, and client — the full context in one view.","Comments":"Internal thread for the team before assignment."}
+  },
+  { n:2, l:"Triage",            c:"#F59E0B", t:"#FCD34D", bg:"rgba(245,158,11,.1)",
+    gates:[
+      {l:"Priority level set",s:"pass"},
+      {l:"Consultant shortlisted",s:"pass"},
+      {l:"Initial estimate logged",s:"warn"},
+    ],
+    tabs:{"Details":"Priority, SLA timer start, category, and assignment status.","Documents":"Attach initial scope documents or RFI files.","Comments":"Triage notes and internal discussion."}
+  },
+  { n:3, l:"In\nAnalysis",      c:"#3B82F6", t:"#93C5FD", bg:"rgba(59,130,246,.1)",
+    gates:[
+      {l:"AI spec generated or manual spec attached",s:"pass"},
+      {l:"Estimated hours entered",s:"pass"},
+      {l:"Client notified of analysis start",s:"warn"},
+    ],
+    tabs:{"Details":"Analysis summary, effort estimate, risk flags.","AI Spec":"Claude-generated functional specification — review, edit, and send for client approval.","Time Log":"Log analysis hours against the case.","Documents":"Attach specs, diagrams, or discovery outputs.","Comments":"Analysis notes and client updates."}
+  },
+  { n:4, l:"In\nProgress",      c:"#8B5CF6", t:"#C4B5FD", bg:"rgba(139,92,246,.1)",
+    gates:[
+      {l:"Logged hours ≥ minimum threshold",s:"pass"},
+      {l:"Functional spec approved by client",s:"warn"},
+      {l:"Key user sign-off obtained",s:"fail"},
+    ],
+    tabs:{"Details":"Progress status, consultant, SLA countdown.","Activities":"Log work activities, sub-tasks, and delivery updates.","AI Spec":"View, regenerate, or request client approval on spec.","Time Log":"Track all billable hours — manager approval required.","Documents":"Dev artifacts, evidence files, and change logs.","Comments":"Team discussion and client-facing updates."}
+  },
+  { n:5, l:"Testing /\nValidation", c:"#06B6D4", t:"#67E8F9", bg:"rgba(6,182,212,.1)",
+    gates:[
+      {l:"Test results document uploaded",s:"pass"},
+      {l:"Zero open critical fit-gaps",s:"warn"},
+      {l:"Key user signed off on testing",s:"fail"},
+    ],
+    tabs:{"Details":"Test scope, assigned validator, sign-off status.","Activities":"Log test sessions, findings, and retest cycles.","AI Spec":"Testing spec and validation checklist.","Time Log":"Log testing hours separately from delivery.","Documents":"Test scripts, results, UAT evidence.","Comments":"QA notes and client sign-off thread."}
+  },
+  { n:6, l:"Resolved",          c:"#10B981", t:"#6EE7B7", bg:"rgba(16,185,129,.1)",
+    gates:[
+      {l:"Client confirmation received",s:"pass"},
+      {l:"Invoice generated",s:"warn"},
+    ],
+    tabs:{"Details":"Resolution summary, total hours, and SLA outcome.","Documents":"Final deliverables, invoice, and closure report.","Comments":"Closure notes and client feedback."}
+  },
+  { n:7, l:"Closed",            c:"#6B7280", t:"#D1D5DB", bg:"rgba(107,114,128,.1)",
+    gates:[],
+    tabs:{"Details":"Archived case record — read-only after closure.","Documents":"All attached files — read-only, downloadable."}
+  },
+];
+
 function DemoCarousel({ tl }) {
   const TOTAL = 4;
   const DURATION = 5200;
@@ -1356,6 +1443,8 @@ export function LandingView({ onSignIn }) {
     try { const s = localStorage.getItem("tc_lang"); return s === "es" ? "es" : "en"; } catch { return "en"; }
   });
   const [pricingTab, setPricingTab] = useState("consultant");
+  const [activeLcStage, setActiveLcStage] = useState(3);
+  const [activeLcTab, setActiveLcTab] = useState("Details");
   const { settings: landingSettings } = useSystemSettings();
   const showPricing = landingSettings["show_pricing_section"] ?? true;
   function tl(k) { return LANDING_STRINGS[lang]?.[k] ?? LANDING_STRINGS.en[k] ?? k; }
@@ -1810,16 +1899,66 @@ export function LandingView({ onSignIn }) {
           <div className="section-tag" style={{color:"#818CF8"}}>{tl("lc_tag")}</div>
           <h2>{tl("lc_h2")}</h2>
           <p className="section-sub">{tl("lc_sub")}</p>
+
+          {/* Clickable pipeline */}
           <div className="pipeline-scroll">
             <div className="pipeline-track">
-              {[{n:1,l:"New\nRequest",c:"#6366F1",t:"#A5B4FC",bg:"rgba(99,102,241,.1)"},{n:2,l:"Triage",c:"#F59E0B",t:"#FCD34D",bg:"rgba(245,158,11,.1)"},{n:3,l:"In\nAnalysis",c:"#3B82F6",t:"#93C5FD",bg:"rgba(59,130,246,.1)"},{n:4,l:"In\nProgress",c:"#8B5CF6",t:"#C4B5FD",bg:"rgba(139,92,246,.1)"},{n:5,l:"Testing /\nValidation",c:"#06B6D4",t:"#67E8F9",bg:"rgba(6,182,212,.1)"},{n:6,l:"Resolved",c:"#10B981",t:"#6EE7B7",bg:"rgba(16,185,129,.1)"},{n:7,l:"Closed",c:"#6B7280",t:"#D1D5DB",bg:"rgba(107,114,128,.1)"}].map(s => (
-                <div key={s.n} className="pipe-stage">
-                  <div className="pipe-dot" style={{borderColor:s.c,color:s.t,background:s.bg}}>{s.n}</div>
-                  <div className="pipe-label">{s.l.split("\n").map((ln,i)=><span key={i}>{ln}{i===0&&s.l.includes("\n")?<br/>:null}</span>)}</div>
+              {LC_STAGES.map((s, i) => (
+                <div key={s.n} className={`pipe-stage${activeLcStage===i?" active":""}`}
+                  onClick={() => { setActiveLcStage(i); setActiveLcTab(Object.keys(s.tabs)[0]); }}>
+                  <div className="pipe-dot" style={{borderColor:s.c, color:s.t, background: activeLcStage===i ? s.bg : "transparent"}}>{s.n}</div>
+                  <div className="pipe-label">{s.l.split("\n").map((ln,j)=><span key={j}>{ln}{j===0&&s.l.includes("\n")?<br/>:null}</span>)}</div>
                 </div>
               ))}
             </div>
           </div>
+          <div className="lc-click-hint">{tl("lc_click_hint")}</div>
+
+          {/* Stage detail panel */}
+          {(() => {
+            const stage = LC_STAGES[activeLcStage];
+            const tabKeys = Object.keys(stage.tabs);
+            const safeTab = tabKeys.includes(activeLcTab) ? activeLcTab : tabKeys[0];
+            return (
+              <div className="lc-detail" key={activeLcStage}>
+                <div className="lc-detail-header">
+                  <div className="lc-detail-stage-chip" style={{background:stage.bg, border:`1px solid ${stage.c}50`, color:stage.t}}>
+                    {stage.n}. {stage.l.replace("\n"," ")}
+                  </div>
+                </div>
+                <div className="lc-detail-body">
+                  <div>
+                    <div className="lc-detail-col-title">{tl("lc_detail_gates")}</div>
+                    {stage.gates.length === 0
+                      ? <div className="lc-gate-noop">{tl("lc_gate_noop")}</div>
+                      : stage.gates.map((g, gi) => (
+                          <div key={gi} className={`lc-gate lc-gate-${g.s}`}>
+                            <div className="lc-gate-icon">{g.s==="pass"?"✓":g.s==="warn"?"⚠":"✗"}</div>
+                            <div className="lc-gate-label">{g.l}</div>
+                          </div>
+                        ))
+                    }
+                  </div>
+                  <div>
+                    <div className="lc-detail-col-title">{tl("lc_detail_tabs")}</div>
+                    <div className="lc-tab-chips">
+                      {tabKeys.map(tab => (
+                        <button key={tab}
+                          className={`lc-tab-chip${safeTab===tab?" on":""}`}
+                          style={safeTab===tab?{borderColor:stage.c,color:stage.t,background:stage.bg}:{}}
+                          onClick={() => setActiveLcTab(tab)}>
+                          {tab}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="lc-tab-desc">{stage.tabs[safeTab]}</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Template cards */}
           <div className="lc-cards">
             <div className="lc-card fade-in">
               <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"4px"}}><div style={{width:"8px",height:"8px",borderRadius:"50%",background:"#4F6EF7"}} /><div className="lc-card-name">SAP Support Center</div></div>
