@@ -509,10 +509,9 @@ const CSS = `
 #arena-landing .pipeline-scroll{overflow-x:auto;scrollbar-width:none;padding-bottom:8px;}
 #arena-landing .pipeline-track{display:flex;gap:0;min-width:max-content;}
 #arena-landing .pipe-stage{display:flex;flex-direction:column;align-items:center;position:relative;cursor:pointer;}
-#arena-landing .pipe-dot{width:72px;height:72px;border-radius:50%;border:3px solid;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.88rem;margin-bottom:12px;margin-right:32px;position:relative;z-index:2;transition:border-color .15s,border-width .15s;}
-#arena-landing .pipe-stage:hover .pipe-dot{border-width:4px;}
+#arena-landing .pipe-dot-svg{display:block;margin-bottom:12px;margin-right:32px;overflow:visible;}
+#arena-landing .pipe-dot-svg circle{transition:stroke .2s,stroke-width .2s;}
 #arena-landing .pipe-stage:hover .pipe-label{color:rgba(255,255,255,.85);}
-#arena-landing .pipe-stage.active .pipe-dot{border-width:4px;}
 #arena-landing .pipe-stage.active .pipe-label{color:#fff;font-weight:700;}
 #arena-landing .lc-click-hint{font-size:.72rem;color:rgba(255,255,255,.25);text-align:center;margin-top:10px;letter-spacing:.03em;}
 #arena-landing .lc-detail{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:24px;margin-top:28px;animation:lc-fade .25s ease;}
@@ -1905,7 +1904,16 @@ export function LandingView({ onSignIn }) {
               {LC_STAGES.map((s, i) => (
                 <div key={s.n} className={`pipe-stage${activeLcStage===i?" active":""}`}
                   onClick={() => { setActiveLcStage(i); setActiveLcTab(Object.keys(s.tabs)[0]); }}>
-                  <div className="pipe-dot" style={{borderColor: activeLcStage===i ? s.t : s.c, color:s.t}}>{s.n}</div>
+                  <svg className="pipe-dot-svg" width="72" height="72" viewBox="0 0 72 72">
+                    <circle cx="36" cy="36" r="32"
+                      fill="transparent"
+                      stroke={activeLcStage===i ? s.t : s.c}
+                      strokeWidth={activeLcStage===i ? 4 : 2.5}
+                    />
+                    <text x="36" y="41" textAnchor="middle"
+                      fill={s.t} fontSize="14" fontWeight="800"
+                      fontFamily="'Plus Jakarta Sans',sans-serif">{s.n}</text>
+                  </svg>
                   <div className="pipe-label">{s.l.split("\n").map((ln,j)=><span key={j}>{ln}{j===0&&s.l.includes("\n")?<br/>:null}</span>)}</div>
                 </div>
               ))}
