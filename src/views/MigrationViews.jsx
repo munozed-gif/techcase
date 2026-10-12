@@ -514,47 +514,32 @@ function MigrationProjectDetail({ migProject, auth, onBack }) {
       {/* Phase carousel — always visible */}
       <PhasesTab migProject={migProject} auth={auth} />
 
-      {/* Workstream carousel */}
+      {/* Workstream section — pill tabs + content card */}
       <div style={{ marginTop: 28 }}>
-        <div style={{ fontSize:13, fontWeight:700, color:"var(--t-text)", marginBottom:10 }}>Workstreams</div>
-        <div style={{ position:"relative" }}>
-          <div style={{ display:"flex", overflowX:"scroll", scrollSnapType:"x mandatory", scrollbarWidth:"none", WebkitOverflowScrolling:"touch", gap:10, padding:"4px 2px 8px" }}>
-            {workstreams.map((ws) => {
-              const isActiveWs = ws.id === activeWorkstream;
-              const { Icon } = ws;
-              return (
-                <div key={ws.id}
-                  onClick={() => setActiveWorkstream(ws.id)}
-                  style={{ flex:"0 0 calc(20% - 8px)", width:"calc(20% - 8px)", minWidth:140, scrollSnapAlign:"center", scrollSnapStop:"always",
-                    borderRadius:12, border:`1px solid ${isActiveWs ? ws.color : "rgba(100,160,220,.12)"}`,
-                    background: isActiveWs ? `${ws.color}12` : "var(--t-card-bg)",
-                    display:"flex", flexDirection:"column", overflow:"hidden",
-                    cursor:"pointer", opacity: isActiveWs ? 1 : 0.55,
-                    transform: isActiveWs ? "scale(1)" : "scale(0.97)",
-                    transition:"opacity .2s, transform .2s, box-shadow .2s",
-                    boxShadow: isActiveWs ? `0 0 0 1px ${ws.color}44, 0 4px 16px rgba(0,0,0,.1)` : "none" }}>
-                  <div style={{ padding:"14px 14px 12px", display:"flex", flexDirection:"column", gap:6 }}>
-                    <Icon size={18} style={{ color: isActiveWs ? ws.colorLight : "var(--t-text2)", flexShrink:0 }} />
-                    <div style={{ fontSize:13, fontWeight:700, color: isActiveWs ? ws.colorLight : "var(--t-text)", lineHeight:1.2 }}>{ws.label}</div>
-                    <div style={{ fontSize:11, color:"var(--t-text2)" }}>{ws.sub}</div>
-                  </div>
-                  {isActiveWs && <div style={{ height:3, background:ws.color, marginTop:"auto" }} />}
-                </div>
-              );
-            })}
-          </div>
-          {/* Dot indicators */}
-          <div style={{ display:"flex", justifyContent:"center", gap:6, marginTop:6 }}>
-            {workstreams.map((ws) => (
-              <div key={ws.id}
+        {/* Pill tab row — same style as cases detail tab bar */}
+        <div style={{ display:"flex", overflowX:"auto", scrollbarWidth:"none", WebkitOverflowScrolling:"touch", gap:8, paddingBottom:2 }}>
+          {workstreams.map((ws) => {
+            const isActiveWs = ws.id === activeWorkstream;
+            const { Icon } = ws;
+            return (
+              <button key={ws.id}
                 onClick={() => setActiveWorkstream(ws.id)}
-                style={{ width: ws.id === activeWorkstream ? 20 : 6, height:6, borderRadius:99, background: ws.id === activeWorkstream ? ws.color : "rgba(100,160,220,.2)", cursor:"pointer", transition:"all .2s" }} />
-            ))}
-          </div>
+                style={{ display:"flex", alignItems:"center", gap:7, padding:"8px 16px", borderRadius:99,
+                  border:`1.5px solid ${isActiveWs ? ws.color : "rgba(100,160,220,.18)"}`,
+                  background: isActiveWs ? ws.color : "rgba(100,160,220,.06)",
+                  color: isActiveWs ? "#fff" : "var(--t-text2)",
+                  fontSize:13, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0,
+                  boxShadow: isActiveWs ? `0 0 0 3px ${ws.color}30` : "none",
+                  transition:"all .2s" }}>
+                <Icon size={14} />
+                {ws.label}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Selected workstream content */}
-        <div style={{ marginTop:20 }}>
+        {/* Content card */}
+        <div style={{ marginTop:16, background:"var(--t-card-bg)", borderRadius:12, border:"1px solid rgba(100,160,220,.12)", padding:20 }}>
           {activeWorkstream === 'wricef'  && <WricefTab   migProject={migProject} auth={auth} />}
           {activeWorkstream === 'cutover' && <CutoverTab  migProject={migProject} auth={auth} />}
           {activeWorkstream === 'data'    && <DataTab     migProject={migProject} auth={auth} />}
