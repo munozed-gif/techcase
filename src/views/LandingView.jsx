@@ -510,8 +510,8 @@ const CSS = `
 #arena-landing .pipeline-track{display:flex;gap:0;min-width:max-content;}
 #arena-landing .pipe-stage{display:flex;flex-direction:column;align-items:center;position:relative;cursor:pointer;transition:opacity .15s;}
 #arena-landing .pipe-stage:hover{opacity:.85;}
-#arena-landing .pipe-dot{width:56px;height:56px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.75rem;margin-bottom:10px;margin-right:28px;position:relative;z-index:2;transition:transform .2s,box-shadow .2s;}
-#arena-landing .pipe-stage.active .pipe-dot{border-width:3px;filter:brightness(1.5) drop-shadow(0 0 6px currentColor);}
+#arena-landing .pipe-dot{width:72px;height:72px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.88rem;margin-bottom:12px;margin-right:32px;position:relative;z-index:2;transition:border-width .15s,background .15s;}
+#arena-landing .pipe-stage.active .pipe-dot{border-width:3px;}
 #arena-landing .pipe-stage.active .pipe-label{color:#fff;font-weight:700;}
 #arena-landing .lc-click-hint{font-size:.72rem;color:rgba(255,255,255,.25);text-align:center;margin-top:10px;letter-spacing:.03em;}
 #arena-landing .lc-detail{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:24px;margin-top:28px;animation:lc-fade .25s ease;}
@@ -1157,14 +1157,14 @@ const DONE_SVG = (
 );
 
 const LC_STAGES = [
-  { n:1, l:"New\nRequest",      c:"#6366F1", t:"#A5B4FC", bg:"rgba(99,102,241,.1)",
+  { n:1, l:"New\nRequest",      c:"#6366F1", t:"#A5B4FC", bg:"rgba(99,102,241,.1)", abg:"rgba(99,102,241,.28)",
     gates:[
       {l:"Case description completed",s:"pass"},
       {l:"SAP module assigned",s:"pass"},
     ],
     tabs:{"Details":"Case title, description, module, priority, and client — the full context in one view.","Comments":"Internal thread for the team before assignment."}
   },
-  { n:2, l:"Triage",            c:"#F59E0B", t:"#FCD34D", bg:"rgba(245,158,11,.1)",
+  { n:2, l:"Triage",            c:"#F59E0B", t:"#FCD34D", bg:"rgba(245,158,11,.1)", abg:"rgba(245,158,11,.28)",
     gates:[
       {l:"Priority level set",s:"pass"},
       {l:"Consultant shortlisted",s:"pass"},
@@ -1172,7 +1172,7 @@ const LC_STAGES = [
     ],
     tabs:{"Details":"Priority, SLA timer start, category, and assignment status.","Documents":"Attach initial scope documents or RFI files.","Comments":"Triage notes and internal discussion."}
   },
-  { n:3, l:"In\nAnalysis",      c:"#3B82F6", t:"#93C5FD", bg:"rgba(59,130,246,.1)",
+  { n:3, l:"In\nAnalysis",      c:"#3B82F6", t:"#93C5FD", bg:"rgba(59,130,246,.1)", abg:"rgba(59,130,246,.28)",
     gates:[
       {l:"AI spec generated or manual spec attached",s:"pass"},
       {l:"Estimated hours entered",s:"pass"},
@@ -1180,7 +1180,7 @@ const LC_STAGES = [
     ],
     tabs:{"Details":"Analysis summary, effort estimate, risk flags.","AI Spec":"Claude-generated functional specification — review, edit, and send for client approval.","Time Log":"Log analysis hours against the case.","Documents":"Attach specs, diagrams, or discovery outputs.","Comments":"Analysis notes and client updates."}
   },
-  { n:4, l:"In\nProgress",      c:"#8B5CF6", t:"#C4B5FD", bg:"rgba(139,92,246,.1)",
+  { n:4, l:"In\nProgress",      c:"#8B5CF6", t:"#C4B5FD", bg:"rgba(139,92,246,.1)", abg:"rgba(139,92,246,.28)",
     gates:[
       {l:"Logged hours ≥ minimum threshold",s:"pass"},
       {l:"Functional spec approved by client",s:"warn"},
@@ -1188,7 +1188,7 @@ const LC_STAGES = [
     ],
     tabs:{"Details":"Progress status, consultant, SLA countdown.","Activities":"Log work activities, sub-tasks, and delivery updates.","AI Spec":"View, regenerate, or request client approval on spec.","Time Log":"Track all billable hours — manager approval required.","Documents":"Dev artifacts, evidence files, and change logs.","Comments":"Team discussion and client-facing updates."}
   },
-  { n:5, l:"Testing /\nValidation", c:"#06B6D4", t:"#67E8F9", bg:"rgba(6,182,212,.1)",
+  { n:5, l:"Testing /\nValidation", c:"#06B6D4", t:"#67E8F9", bg:"rgba(6,182,212,.1)", abg:"rgba(6,182,212,.28)",
     gates:[
       {l:"Test results document uploaded",s:"pass"},
       {l:"Zero open critical fit-gaps",s:"warn"},
@@ -1196,14 +1196,14 @@ const LC_STAGES = [
     ],
     tabs:{"Details":"Test scope, assigned validator, sign-off status.","Activities":"Log test sessions, findings, and retest cycles.","AI Spec":"Testing spec and validation checklist.","Time Log":"Log testing hours separately from delivery.","Documents":"Test scripts, results, UAT evidence.","Comments":"QA notes and client sign-off thread."}
   },
-  { n:6, l:"Resolved",          c:"#10B981", t:"#6EE7B7", bg:"rgba(16,185,129,.1)",
+  { n:6, l:"Resolved",          c:"#10B981", t:"#6EE7B7", bg:"rgba(16,185,129,.1)", abg:"rgba(16,185,129,.28)",
     gates:[
       {l:"Client confirmation received",s:"pass"},
       {l:"Invoice generated",s:"warn"},
     ],
     tabs:{"Details":"Resolution summary, total hours, and SLA outcome.","Documents":"Final deliverables, invoice, and closure report.","Comments":"Closure notes and client feedback."}
   },
-  { n:7, l:"Closed",            c:"#6B7280", t:"#D1D5DB", bg:"rgba(107,114,128,.1)",
+  { n:7, l:"Closed",            c:"#6B7280", t:"#D1D5DB", bg:"rgba(107,114,128,.1)", abg:"rgba(107,114,128,.28)",
     gates:[],
     tabs:{"Details":"Archived case record — read-only after closure.","Documents":"All attached files — read-only, downloadable."}
   },
@@ -1904,7 +1904,7 @@ export function LandingView({ onSignIn }) {
               {LC_STAGES.map((s, i) => (
                 <div key={s.n} className={`pipe-stage${activeLcStage===i?" active":""}`}
                   onClick={() => { setActiveLcStage(i); setActiveLcTab(Object.keys(s.tabs)[0]); }}>
-                  <div className="pipe-dot" style={{borderColor:s.c, color:s.t, background: activeLcStage===i ? s.bg : "transparent"}}>{s.n}</div>
+                  <div className="pipe-dot" style={{borderColor:s.c, color:s.t, background: activeLcStage===i ? s.abg : "transparent"}}>{s.n}</div>
                   <div className="pipe-label">{s.l.split("\n").map((ln,j)=><span key={j}>{ln}{j===0&&s.l.includes("\n")?<br/>:null}</span>)}</div>
                 </div>
               ))}
