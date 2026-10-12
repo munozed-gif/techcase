@@ -873,7 +873,7 @@ function PhasesTab({ migProject, auth }) {
                           ? <Loader2 size={12} className="animate-spin" style={{ color:iconColor, flexShrink:0 }} />
                           : <span style={{ fontSize:11, fontWeight:700, color:iconColor, flexShrink:0, width:14, textAlign:"center" }}>{icon}</span>
                         }
-                        <span style={{ fontSize:11, lineHeight:1.35, color:textColor, flex:1, textDecoration: d.completed && status !== 'completed' ? 'line-through' : 'none' }}>
+                        <span style={{ fontSize:11, lineHeight:1.35, color:textColor, flex:1 }}>
                           {d.title}
                         </span>
                       </div>
