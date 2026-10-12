@@ -4,10 +4,10 @@
 //          WRICEF Registry, Cutover Planner
 // ============================================================
 
-import { useState, useEffect, useCallback, Fragment } from "react";
+import { useState, useEffect, useCallback, Fragment, useRef } from "react";
 import {
   AlertCircle, AlertTriangle, ArrowLeft, BookOpen, Calendar,
-  Check, CheckCircle2, ChevronDown, ChevronUp, Clock,
+  Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock,
   Code2, Database, Download, FileText, Filter, Layers, Link2,
   Loader2, Milestone, Plus, RefreshCw, Rocket, Settings,
   ShieldCheck, Trash2, Users, X, Zap,
@@ -30,6 +30,15 @@ const PHASE_LABEL_KEYS = {
   realize:  'mig.phase_realize',
   deploy:   'mig.phase_deploy',
   run:      'mig.phase_run',
+};
+
+const PHASE_HEX = {
+  discover: '#7C3AED', prepare: '#2563EB', explore: '#0891B2',
+  realize:  '#D97706', deploy:  '#16A34A', run:     '#059669',
+};
+const PHASE_LIGHT = {
+  discover: '#A78BFA', prepare: '#60A5FA', explore: '#22D3EE',
+  realize:  '#FCD34D', deploy:  '#4ADE80', run:     '#34D399',
 };
 
 const PHASE_COLORS = {
@@ -452,16 +461,15 @@ function CreateMigrationModal({ auth, t, onClose, onCreated }) {
 
 function MigrationProjectDetail({ migProject, auth, onBack }) {
   const { t } = useT();
-  const [activeTab, setActiveTab] = useState('phases');
+  const [activeWorkstream, setActiveWorkstream] = useState('wricef');
   const [showSync, setShowSync] = useState(false);
 
-  const tabs = [
-    { id: 'phases',  label: t('mig.tab_phases') },
-    { id: 'wricef',  label: t('mig.tab_wricef') },
-    { id: 'cutover', label: t('mig.tab_cutover') },
-    { id: 'data',    label: t('mig.tab_data') },
-    { id: 'simplif', label: t('mig.tab_simplif') },
-    { id: 'cases',   label: t('mig.tab_cases') },
+  const workstreams = [
+    { id: 'wricef',  label: t('mig.tab_wricef'),  Icon: Code2,     color: '#7C3AED', colorLight: '#A78BFA', sub: 'Objects & sign-off' },
+    { id: 'cutover', label: t('mig.tab_cutover'),  Icon: RefreshCw, color: '#2563EB', colorLight: '#60A5FA', sub: 'Runs & task plan' },
+    { id: 'data',    label: t('mig.tab_data'),     Icon: Database,  color: '#0891B2', colorLight: '#22D3EE', sub: 'Extraction & loads' },
+    { id: 'simplif', label: t('mig.tab_simplif'),  Icon: Layers,    color: '#D97706', colorLight: '#FCD34D', sub: 'Scope simplification' },
+    { id: 'cases',   label: t('mig.tab_cases'),    Icon: FileText,  color: '#16A34A', colorLight: '#4ADE80', sub: 'Linked support cases' },
   ];
 
   const approachColors = {
@@ -503,36 +511,63 @@ function MigrationProjectDetail({ migProject, auth, onBack }) {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-gray-200 dark:border-gray-700 mb-6 gap-0">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === tab.id
-                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      {/* Phase carousel — always visible */}
+      <PhasesTab migProject={migProject} auth={auth} />
 
-      {/* Tab content */}
-      {activeTab === 'phases'  && <PhasesTab   migProject={migProject} auth={auth} />}
-      {activeTab === 'wricef'  && <WricefTab   migProject={migProject} auth={auth} />}
-      {activeTab === 'cutover' && <CutoverTab  migProject={migProject} auth={auth} />}
-      {activeTab === 'data'    && <DataTab     migProject={migProject} auth={auth} />}
-      {activeTab === 'simplif' && <SimplifTab  migProject={migProject} auth={auth} />}
-      {activeTab === 'cases'   && <MigCasesTab migProject={migProject} />}
+      {/* Workstream carousel */}
+      <div style={{ marginTop: 28 }}>
+        <div style={{ fontSize:13, fontWeight:700, color:"var(--t-text)", marginBottom:10 }}>Workstreams</div>
+        <div style={{ position:"relative" }}>
+          <div style={{ display:"flex", overflowX:"scroll", scrollSnapType:"x mandatory", scrollbarWidth:"none", WebkitOverflowScrolling:"touch", gap:10, padding:"4px 2px 8px" }}>
+            {workstreams.map((ws) => {
+              const isActiveWs = ws.id === activeWorkstream;
+              const { Icon } = ws;
+              return (
+                <div key={ws.id}
+                  onClick={() => setActiveWorkstream(ws.id)}
+                  style={{ flex:"0 0 calc(20% - 8px)", width:"calc(20% - 8px)", minWidth:140, scrollSnapAlign:"center", scrollSnapStop:"always",
+                    borderRadius:12, border:`1px solid ${isActiveWs ? ws.color : "rgba(100,160,220,.12)"}`,
+                    background: isActiveWs ? `${ws.color}12` : "var(--t-card-bg)",
+                    display:"flex", flexDirection:"column", overflow:"hidden",
+                    cursor:"pointer", opacity: isActiveWs ? 1 : 0.55,
+                    transform: isActiveWs ? "scale(1)" : "scale(0.97)",
+                    transition:"opacity .2s, transform .2s, box-shadow .2s",
+                    boxShadow: isActiveWs ? `0 0 0 1px ${ws.color}44, 0 4px 16px rgba(0,0,0,.1)` : "none" }}>
+                  <div style={{ padding:"14px 14px 12px", display:"flex", flexDirection:"column", gap:6 }}>
+                    <Icon size={18} style={{ color: isActiveWs ? ws.colorLight : "var(--t-text2)", flexShrink:0 }} />
+                    <div style={{ fontSize:13, fontWeight:700, color: isActiveWs ? ws.colorLight : "var(--t-text)", lineHeight:1.2 }}>{ws.label}</div>
+                    <div style={{ fontSize:11, color:"var(--t-text2)" }}>{ws.sub}</div>
+                  </div>
+                  {isActiveWs && <div style={{ height:3, background:ws.color, marginTop:"auto" }} />}
+                </div>
+              );
+            })}
+          </div>
+          {/* Dot indicators */}
+          <div style={{ display:"flex", justifyContent:"center", gap:6, marginTop:6 }}>
+            {workstreams.map((ws) => (
+              <div key={ws.id}
+                onClick={() => setActiveWorkstream(ws.id)}
+                style={{ width: ws.id === activeWorkstream ? 20 : 6, height:6, borderRadius:99, background: ws.id === activeWorkstream ? ws.color : "rgba(100,160,220,.2)", cursor:"pointer", transition:"all .2s" }} />
+            ))}
+          </div>
+        </div>
+
+        {/* Selected workstream content */}
+        <div style={{ marginTop:20 }}>
+          {activeWorkstream === 'wricef'  && <WricefTab   migProject={migProject} auth={auth} />}
+          {activeWorkstream === 'cutover' && <CutoverTab  migProject={migProject} auth={auth} />}
+          {activeWorkstream === 'data'    && <DataTab     migProject={migProject} auth={auth} />}
+          {activeWorkstream === 'simplif' && <SimplifTab  migProject={migProject} auth={auth} />}
+          {activeWorkstream === 'cases'   && <MigCasesTab migProject={migProject} />}
+        </div>
+      </div>
 
       {showSync && (
         <SyncModal
           migProject={migProject}
           onClose={() => setShowSync(false)}
-          onDone={() => setActiveTab('cases')}
+          onDone={() => setActiveWorkstream('cases')}
         />
       )}
     </div>
@@ -550,7 +585,8 @@ function PhasesTab({ migProject, auth }) {
   const [deliverables, setDeliverables] = useState([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState(null);
-  const [expanded, setExpanded]     = useState({ discover: true });
+  const [activeCIdx, setActiveCIdx] = useState(() => Math.max(0, PHASES.indexOf(migProject.current_phase ?? 'discover')));
+  const phaseTrackRef = useRef(null);
   const [marking, setMarking]       = useState(null);
   const [toggling, setToggling]     = useState(null);
 
@@ -572,6 +608,12 @@ function PhasesTab({ migProject, auth }) {
   }, [migProject.id]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (loading || !phaseTrackRef.current) return;
+    const card = phaseTrackRef.current.children[activeCIdx];
+    if (card) card.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }, [activeCIdx, loading]);
 
   async function toggleDeliverable(deliverable) {
     if (toggling) return;
@@ -642,18 +684,18 @@ function PhasesTab({ migProject, auth }) {
   if (loading) return <Spinner />;
   if (error)   return <p className="text-red-600 text-sm">{error}</p>;
 
-  const activeIdx = PHASES.indexOf(migProject.current_phase ?? 'discover');
+  const stepperActiveIdx = PHASES.indexOf(migProject.current_phase ?? 'discover');
 
   return (
     <div>
-      {/* Horizontal Stepper */}
-      <div className="mb-8 overflow-x-auto">
+      {/* Horizontal Stepper — kept */}
+      <div className="mb-6 overflow-x-auto">
         <div className="flex items-center min-w-max gap-0">
           {PHASES.map((phase, idx) => {
             const gate = gates[phase];
             const status = gate?.status ?? 'not_started';
             const pc = PHASE_COLORS[phase];
-            const isActive = idx === activeIdx;
+            const isActive = idx === stepperActiveIdx;
             const isDone   = status === 'completed';
             return (
               <div key={phase} className="flex items-center">
@@ -685,120 +727,123 @@ function PhasesTab({ migProject, auth }) {
         </div>
       </div>
 
-      {/* Phase Cards */}
-      <div className="space-y-3">
-        {PHASES.map(phase => {
-          const gate = gates[phase];
-          const status = gate?.status ?? 'not_started';
-          const pc = PHASE_COLORS[phase];
-          const phaseDelivs = deliverables.filter(d => d.phase === phase);
-          const doneCount = phaseDelivs.filter(d => d.completed).length;
-          const allDone   = phaseDelivs.length > 0 && doneCount === phaseDelivs.length;
-          const isExpanded = !!expanded[phase];
-          const canComplete = (auth.isAdmin || auth.isManager) && allDone && status !== 'completed';
+      {/* Phase carousel */}
+      <div style={{ position: "relative" }}>
+        {activeCIdx > 0 && (
+          <button onClick={() => setActiveCIdx(i => Math.max(0, i - 1))}
+            style={{ position:"absolute", left:8, top:"50%", transform:"translateY(-60%)", zIndex:10, width:30, height:30, borderRadius:"50%", border:"1.5px solid var(--t-arrow-border)", background:"var(--t-arrow-bg)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,.15)" }}>
+            <ChevronLeft size={15} style={{ color:"var(--t-text2)" }} />
+          </button>
+        )}
+        {activeCIdx < PHASES.length - 1 && (
+          <button onClick={() => setActiveCIdx(i => Math.min(PHASES.length - 1, i + 1))}
+            style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-60%)", zIndex:10, width:30, height:30, borderRadius:"50%", border:"1.5px solid var(--t-arrow-border)", background:"var(--t-arrow-bg)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,.15)" }}>
+            <ChevronRight size={15} style={{ color:"var(--t-text2)" }} />
+          </button>
+        )}
 
-          const statusBadgeCls = {
-            not_started: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
-            in_progress: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-            completed:   'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
-          }[status] ?? 'bg-gray-100 text-gray-600';
+        <div ref={phaseTrackRef}
+          style={{ display:"flex", overflowX:"scroll", scrollSnapType:"x mandatory", scrollbarWidth:"none", WebkitOverflowScrolling:"touch", gap:10, padding:"4px 20px 8px" }}>
+          {PHASES.map((phase, idx) => {
+            const gate = gates[phase];
+            const status = gate?.status ?? 'not_started';
+            const phaseDelivs = deliverables.filter(d => d.phase === phase);
+            const doneCount   = phaseDelivs.filter(d => d.completed).length;
+            const allDone     = phaseDelivs.length > 0 && doneCount === phaseDelivs.length;
+            const isActive    = idx === activeCIdx;
+            const canComplete = (auth.isAdmin || auth.isManager) && allDone && status !== 'completed';
 
-          const statusLabel = {
-            not_started: t('mig.phase_not_started'),
-            in_progress: t('mig.phase_in_progress'),
-            completed:   t('mig.phase_completed'),
-          }[status] ?? status;
+            const color      = PHASE_HEX[phase];
+            const colorLight = PHASE_LIGHT[phase];
+            const statusLabel = { not_started: t('mig.phase_not_started'), in_progress: t('mig.phase_in_progress'), completed: t('mig.phase_completed') }[status] ?? status;
+            const statusBg    = status === 'completed' ? 'rgba(34,197,94,.15)' : status === 'in_progress' ? `${color}33` : 'rgba(100,116,139,.12)';
+            const statusColor = status === 'completed' ? '#22C55E' : status === 'in_progress' ? colorLight : 'var(--t-text2)';
+            const borderColor = isActive ? (status === 'completed' ? 'rgba(34,197,94,.5)' : status === 'in_progress' ? color : 'rgba(100,116,139,.3)') : 'rgba(100,160,220,.1)';
+            const cardBg      = isActive && status === 'in_progress' ? `${color}0d` : 'var(--t-card-bg)';
+            const headerBg    = isActive ? (status === 'in_progress' ? `${color}22` : status === 'completed' ? 'rgba(34,197,94,.12)' : 'var(--t-tab-active)') : 'transparent';
 
-          return (
-            <div key={phase} className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 border-l-4 ${pc.border} overflow-hidden`}>
-              {/* Phase header */}
-              <div
-                className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                onClick={() => setExpanded(prev => ({ ...prev, [phase]: !prev[phase] }))}
-              >
-                <div className="flex items-center gap-3">
-                  <span className={`inline-block w-3 h-3 rounded-full flex-shrink-0 ${pc.dot}`} />
-                  <span className="font-semibold text-gray-900 dark:text-white text-sm">
+            return (
+              <div key={phase}
+                style={{ flex:"0 0 calc(33.333% - 8px)", width:"calc(33.333% - 8px)", minWidth:0, scrollSnapAlign:"center", scrollSnapStop:"always",
+                  height:340, borderRadius:12, border:`1px solid ${borderColor}`, background:cardBg,
+                  display:"flex", flexDirection:"column", overflow:"hidden",
+                  cursor: isActive ? "default" : "pointer",
+                  opacity: isActive ? 1 : 0.5, transform: isActive ? "scale(1)" : "scale(0.97)",
+                  transition:"opacity .25s, transform .25s, box-shadow .25s",
+                  boxShadow: isActive ? "0 4px 20px rgba(0,0,0,.12)" : "none" }}
+                onClick={() => !isActive && setActiveCIdx(idx)}>
+
+                {/* Card header */}
+                <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", borderBottom:"1px solid rgba(100,160,220,.1)", background:headerBg, flexShrink:0 }}>
+                  {status === 'completed'
+                    ? <div style={{ width:16, height:16, borderRadius:"50%", background:"#22C55E", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                        <Check size={9} color="white" strokeWidth={3} />
+                      </div>
+                    : <div style={{ width:8, height:8, borderRadius:"50%", background: isActive ? color : "rgba(100,116,139,.3)", flexShrink:0, marginRight:2 }} />
+                  }
+                  <span style={{ flex:1, fontSize:13, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color: isActive ? (status === 'completed' ? '#22C55E' : status === 'in_progress' ? colorLight : 'var(--t-text2)') : 'var(--t-text2)' }}>
                     {t(PHASE_LABEL_KEYS[phase])}
                   </span>
-                  <Badge className={statusBadgeCls}>{statusLabel}</Badge>
-                  {phaseDelivs.length > 0 && (
-                    <span className="text-xs text-gray-400 dark:text-gray-500">
-                      {doneCount}/{phaseDelivs.length}
-                    </span>
-                  )}
+                  <span style={{ fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:99, background:statusBg, color:statusColor, flexShrink:0 }}>
+                    {statusLabel}
+                  </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  {status === 'completed' && gate?.approved_by && (
-                    <span className="text-xs text-gray-400 dark:text-gray-500 hidden sm:block">
-                      {userName(users, gate.approved_by)} · {fmtDate(gate.approved_at)}
-                    </span>
-                  )}
-                  {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
-                </div>
-              </div>
 
-              {/* Deliverables */}
-              {isExpanded && (
-                <div className="px-5 pb-4 border-t border-gray-100 dark:border-gray-700">
-                  <div className="mt-3 space-y-2">
-                    {phaseDelivs.map(d => (
-                      <label
-                        key={d.id}
-                        className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${status === 'completed' ? 'opacity-60' : ''}`}
-                      >
-                        <div className="relative mt-0.5 flex-shrink-0">
-                          <input
-                            type="checkbox"
-                            checked={d.completed}
-                            disabled={status === 'completed' || !!toggling}
-                            onChange={() => toggleDeliverable(d)}
-                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          {toggling === d.id && (
-                            <Loader2 className="absolute -top-0.5 -left-0.5 w-5 h-5 animate-spin text-blue-500" />
-                          )}
-                        </div>
-                        <span className={`text-sm ${d.completed ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
+                {/* Card body — deliverables as gate rows */}
+                <div style={{ padding:"12px 14px", display:"flex", flexDirection:"column", gap:6, flex:1, overflowY:"auto", position:"relative" }}>
+                  {phaseDelivs.length > 0 ? phaseDelivs.map(d => {
+                    const isPass    = status === 'completed' || d.completed;
+                    const isPending = !isPass && status === 'in_progress';
+                    const bg        = isPass ? "rgba(16,185,129,.08)" : isPending ? "rgba(245,158,11,.08)" : "rgba(100,116,139,.06)";
+                    const border    = isPass ? "rgba(16,185,129,.3)"  : isPending ? "rgba(245,158,11,.3)"  : "rgba(100,116,139,.15)";
+                    const iconColor = isPass ? "#10B981"               : isPending ? "#F59E0B"               : "var(--t-text2)";
+                    const textColor = isPass ? "var(--t-text2)"        : isPending ? "#FCD34D"               : "var(--t-text2)";
+                    const icon      = isPass ? "✓"                     : isPending ? "⚠"                    : "○";
+                    return (
+                      <div key={d.id}
+                        style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 10px", borderRadius:8, border:`1px solid ${border}`, background:bg, flexShrink:0, cursor: isActive && status === 'in_progress' ? "pointer" : "default" }}
+                        onClick={e => { e.stopPropagation(); if (isActive && status !== 'completed') toggleDeliverable(d); }}>
+                        {toggling === d.id
+                          ? <Loader2 size={12} className="animate-spin" style={{ color:iconColor, flexShrink:0 }} />
+                          : <span style={{ fontSize:11, fontWeight:700, color:iconColor, flexShrink:0, width:14, textAlign:"center" }}>{icon}</span>
+                        }
+                        <span style={{ fontSize:11, lineHeight:1.35, color:textColor, flex:1, textDecoration: d.completed && status !== 'completed' ? 'line-through' : 'none' }}>
                           {d.title}
                         </span>
-                        {d.completed && d.completed_by && (
-                          <span className="text-xs text-gray-400 ml-auto flex-shrink-0 hidden sm:block">
-                            {userName(users, d.completed_by)}
-                          </span>
-                        )}
-                      </label>
-                    ))}
-                  </div>
-
-                  {/* Mark complete button */}
-                  {canComplete && (
-                    <div className="mt-4 flex items-center gap-3">
-                      <button
-                        onClick={() => markPhaseComplete(phase)}
-                        disabled={!!marking}
-                        className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
-                      >
-                        {marking === phase ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <CheckCircle2 className="w-4 h-4" />
-                        )}
-                        {marking === phase ? t('mig.marking') : t('mig.mark_complete')}
-                      </button>
-                    </div>
+                      </div>
+                    );
+                  }) : (
+                    <p style={{ fontSize:12, color:"var(--t-text2)", margin:0 }}>No deliverables configured</p>
                   )}
-                  {(auth.isAdmin || auth.isManager) && !allDone && status !== 'completed' && (
-                    <p className="mt-3 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5" />
-                      {t('mig.all_deliverables_required')}
+
+                  {isActive && canComplete && (
+                    <button
+                      onClick={e => { e.stopPropagation(); markPhaseComplete(phase); }}
+                      disabled={!!marking}
+                      style={{ marginTop:8, display:"flex", alignItems:"center", gap:6, padding:"7px 14px", background:"#16A34A", borderRadius:8, border:"none", color:"white", fontSize:12, fontWeight:600, cursor:"pointer", opacity: marking ? 0.6 : 1, flexShrink:0 }}>
+                      {marking === phase ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                      {marking === phase ? t('mig.marking') : t('mig.mark_complete')}
+                    </button>
+                  )}
+                  {isActive && (auth.isAdmin || auth.isManager) && !allDone && status === 'in_progress' && (
+                    <p style={{ fontSize:11, color:"#F59E0B", display:"flex", alignItems:"center", gap:4, margin:"4px 0 0", flexShrink:0 }}>
+                      <AlertCircle size={11} />{t('mig.all_deliverables_required')}
                     </p>
                   )}
                 </div>
-              )}
-            </div>
-          );
-        })}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Dot indicators */}
+        <div style={{ display:"flex", justifyContent:"center", gap:6, marginTop:8 }}>
+          {PHASES.map((phase, idx) => (
+            <div key={phase}
+              onClick={() => setActiveCIdx(idx)}
+              style={{ width: idx === activeCIdx ? 20 : 6, height:6, borderRadius:99, background: idx === activeCIdx ? PHASE_HEX[phase] : "rgba(100,160,220,.2)", cursor:"pointer", transition:"all .2s" }} />
+          ))}
+        </div>
       </div>
     </div>
   );
