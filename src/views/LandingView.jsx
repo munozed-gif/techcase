@@ -508,10 +508,11 @@ const CSS = `
 #arena-landing .lifecycle-inner .section-sub{color:rgba(255,255,255,.5);}
 #arena-landing .pipeline-scroll{overflow-x:auto;scrollbar-width:none;padding-bottom:8px;}
 #arena-landing .pipeline-track{display:flex;gap:0;min-width:max-content;}
-#arena-landing .pipe-stage{display:flex;flex-direction:column;align-items:center;position:relative;cursor:pointer;transition:opacity .15s;}
-#arena-landing .pipe-stage:hover{opacity:.85;}
-#arena-landing .pipe-dot{width:72px;height:72px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.88rem;margin-bottom:12px;margin-right:32px;position:relative;z-index:2;transition:border-width .15s,background .15s;}
-#arena-landing .pipe-stage.active .pipe-dot{border-width:3px;}
+#arena-landing .pipe-stage{display:flex;flex-direction:column;align-items:center;position:relative;cursor:pointer;}
+#arena-landing .pipe-dot{width:72px;height:72px;border-radius:50%;border:3px solid;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.88rem;margin-bottom:12px;margin-right:32px;position:relative;z-index:2;transition:border-color .15s,background .15s;}
+#arena-landing .pipe-stage:hover .pipe-dot{border-width:4px;}
+#arena-landing .pipe-stage:hover .pipe-label{color:rgba(255,255,255,.85);}
+#arena-landing .pipe-stage.active .pipe-dot{border-width:4px;}
 #arena-landing .pipe-stage.active .pipe-label{color:#fff;font-weight:700;}
 #arena-landing .lc-click-hint{font-size:.72rem;color:rgba(255,255,255,.25);text-align:center;margin-top:10px;letter-spacing:.03em;}
 #arena-landing .lc-detail{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:24px;margin-top:28px;animation:lc-fade .25s ease;}
