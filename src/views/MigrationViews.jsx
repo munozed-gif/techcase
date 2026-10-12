@@ -463,8 +463,17 @@ function MigrationProjectDetail({ migProject, auth, onBack }) {
   const { t } = useT();
   const [activeWorkstream, setActiveWorkstream] = useState('wricef');
   const [showSync, setShowSync] = useState(false);
+  const wsTrackRef = useRef(null);
 
-  const workstreams = [
+  useEffect(() => {
+    if (!wsTrackRef.current) return;
+    const wsIdx = workstreamsData.findIndex(w => w.id === activeWorkstream);
+    const card = wsTrackRef.current.children[wsIdx];
+    if (card) card.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeWorkstream]);
+
+  const workstreamsData = [
     { id: 'wricef',  label: t('mig.tab_wricef'),  Icon: Code2,     color: '#7C3AED', colorLight: '#A78BFA', sub: 'Objects & sign-off' },
     { id: 'cutover', label: t('mig.tab_cutover'),  Icon: RefreshCw, color: '#2563EB', colorLight: '#60A5FA', sub: 'Runs & task plan' },
     { id: 'data',    label: t('mig.tab_data'),     Icon: Database,  color: '#0891B2', colorLight: '#22D3EE', sub: 'Extraction & loads' },
@@ -514,37 +523,106 @@ function MigrationProjectDetail({ migProject, auth, onBack }) {
       {/* Phase carousel — always visible */}
       <PhasesTab migProject={migProject} auth={auth} />
 
-      {/* Workstream section — pill tabs + content card */}
+      {/* Workstream carousel */}
       <div style={{ marginTop: 28 }}>
-        {/* Pill tab row — same style as cases detail tab bar */}
-        <div style={{ display:"flex", overflowX:"auto", scrollbarWidth:"none", WebkitOverflowScrolling:"touch", gap:8, paddingBottom:2 }}>
-          {workstreams.map((ws) => {
-            const isActiveWs = ws.id === activeWorkstream;
+        {/* Carousel track */}
+        <div style={{ position:"relative" }}>
+          {workstreamsData.findIndex(w => w.id === activeWorkstream) > 0 && (
+            <button
+              onClick={() => {
+                const idx = workstreamsData.findIndex(w => w.id === activeWorkstream);
+                setActiveWorkstream(workstreamsData[Math.max(0, idx - 1)].id);
+              }}
+              style={{ position:"absolute", left:8, top:"50%", transform:"translateY(-60%)", zIndex:10, width:30, height:30, borderRadius:"50%", border:"1.5px solid var(--t-arrow-border)", background:"var(--t-arrow-bg)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,.15)" }}>
+              <ChevronLeft size={15} style={{ color:"var(--t-text2)" }} />
+            </button>
+          )}
+          {workstreamsData.findIndex(w => w.id === activeWorkstream) < workstreamsData.length - 1 && (
+            <button
+              onClick={() => {
+                const idx = workstreamsData.findIndex(w => w.id === activeWorkstream);
+                setActiveWorkstream(workstreamsData[Math.min(workstreamsData.length - 1, idx + 1)].id);
+              }}
+              style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-60%)", zIndex:10, width:30, height:30, borderRadius:"50%", border:"1.5px solid var(--t-arrow-border)", background:"var(--t-arrow-bg)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,.15)" }}>
+              <ChevronRight size={15} style={{ color:"var(--t-text2)" }} />
+            </button>
+          )}
+
+          <div ref={wsTrackRef}
+            style={{ display:"flex", overflowX:"scroll", scrollSnapType:"x mandatory", scrollbarWidth:"none", WebkitOverflowScrolling:"touch", gap:10, padding:"4px 20px 8px" }}>
+            {workstreamsData.map((ws) => {
+              const isActiveWs = ws.id === activeWorkstream;
+              const { Icon } = ws;
+              const borderColor = isActiveWs ? ws.color : "rgba(100,160,220,.1)";
+              return (
+                <div key={ws.id}
+                  style={{ flex:"0 0 calc(33.333% - 8px)", width:"calc(33.333% - 8px)", minWidth:0, scrollSnapAlign:"center", scrollSnapStop:"always",
+                    height:480, borderRadius:12, border:`1px solid ${borderColor}`,
+                    background: isActiveWs ? `${ws.color}0a` : "var(--t-card-bg)",
+                    display:"flex", flexDirection:"column", overflow:"hidden",
+                    cursor: isActiveWs ? "default" : "pointer",
+                    opacity: isActiveWs ? 1 : 0.45,
+                    transform: isActiveWs ? "scale(1)" : "scale(0.97)",
+                    transition:"opacity .25s, transform .25s, box-shadow .25s",
+                    boxShadow: isActiveWs ? `0 0 0 1px ${ws.color}44, 0 4px 20px rgba(0,0,0,.12)` : "none" }}
+                  onClick={() => !isActiveWs && setActiveWorkstream(ws.id)}>
+
+                  {/* Card header — pill button */}
+                  <div style={{ padding:"12px 14px", borderBottom:`1px solid ${isActiveWs ? ws.color + "28" : "rgba(100,160,220,.08)"}`, background: isActiveWs ? `${ws.color}14` : "transparent", flexShrink:0 }}>
+                    <div style={{ display:"inline-flex", alignItems:"center", gap:7, padding:"6px 14px", borderRadius:99,
+                      background: isActiveWs ? ws.color : "rgba(100,160,220,.08)",
+                      border:`1.5px solid ${isActiveWs ? ws.color : "rgba(100,160,220,.2)"}`,
+                      color: isActiveWs ? "#fff" : "var(--t-text2)",
+                      fontSize:13, fontWeight:700,
+                      boxShadow: isActiveWs ? `0 0 0 3px ${ws.color}28` : "none" }}>
+                      <Icon size={13} />
+                      {ws.label}
+                    </div>
+                  </div>
+
+                  {/* Card body — content for active, placeholder for others */}
+                  <div style={{ flex:1, overflowY:"auto", position:"relative" }}>
+                    {isActiveWs ? (
+                      <div style={{ padding:"16px 14px" }}>
+                        {ws.id === 'wricef'  && <WricefTab   migProject={migProject} auth={auth} />}
+                        {ws.id === 'cutover' && <CutoverTab  migProject={migProject} auth={auth} />}
+                        {ws.id === 'data'    && <DataTab     migProject={migProject} auth={auth} />}
+                        {ws.id === 'simplif' && <SimplifTab  migProject={migProject} auth={auth} />}
+                        {ws.id === 'cases'   && <MigCasesTab migProject={migProject} />}
+                      </div>
+                    ) : (
+                      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100%", gap:10, color:"var(--t-text2)", padding:24 }}>
+                        <Icon size={32} style={{ opacity:0.25 }} />
+                        <span style={{ fontSize:12, textAlign:"center", opacity:0.6 }}>{ws.sub}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Footer — pill buttons navigation */}
+        <div style={{ display:"flex", justifyContent:"center", flexWrap:"wrap", gap:8, marginTop:10, padding:"4px 8px" }}>
+          {workstreamsData.map((ws) => {
+            const isActive = ws.id === activeWorkstream;
             const { Icon } = ws;
             return (
               <button key={ws.id}
                 onClick={() => setActiveWorkstream(ws.id)}
-                style={{ display:"flex", alignItems:"center", gap:7, padding:"8px 16px", borderRadius:99,
-                  border:`1.5px solid ${isActiveWs ? ws.color : "rgba(100,160,220,.18)"}`,
-                  background: isActiveWs ? ws.color : "rgba(100,160,220,.06)",
-                  color: isActiveWs ? "#fff" : "var(--t-text2)",
-                  fontSize:13, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0,
-                  boxShadow: isActiveWs ? `0 0 0 3px ${ws.color}30` : "none",
+                style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 14px", borderRadius:99,
+                  border:`1.5px solid ${isActive ? ws.color : "rgba(100,160,220,.18)"}`,
+                  background: isActive ? ws.color : "rgba(100,160,220,.06)",
+                  color: isActive ? "#fff" : "var(--t-text2)",
+                  fontSize:12, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0,
+                  boxShadow: isActive ? `0 0 0 3px ${ws.color}28` : "none",
                   transition:"all .2s" }}>
-                <Icon size={14} />
+                <Icon size={12} />
                 {ws.label}
               </button>
             );
           })}
-        </div>
-
-        {/* Content card */}
-        <div style={{ marginTop:16, background:"var(--t-card-bg)", borderRadius:12, border:"1px solid rgba(100,160,220,.12)", padding:20 }}>
-          {activeWorkstream === 'wricef'  && <WricefTab   migProject={migProject} auth={auth} />}
-          {activeWorkstream === 'cutover' && <CutoverTab  migProject={migProject} auth={auth} />}
-          {activeWorkstream === 'data'    && <DataTab     migProject={migProject} auth={auth} />}
-          {activeWorkstream === 'simplif' && <SimplifTab  migProject={migProject} auth={auth} />}
-          {activeWorkstream === 'cases'   && <MigCasesTab migProject={migProject} />}
         </div>
       </div>
 
