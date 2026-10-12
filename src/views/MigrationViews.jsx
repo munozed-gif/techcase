@@ -553,37 +553,37 @@ function MigrationProjectDetail({ migProject, auth, onBack }) {
             {workstreamsData.map((ws) => {
               const isActiveWs = ws.id === activeWorkstream;
               const { Icon } = ws;
-              const borderColor = isActiveWs ? ws.color : "rgba(100,160,220,.1)";
+              const borderColor = isActiveWs ? ws.color : "rgba(100,160,220,.12)";
+              const headerBg    = isActiveWs ? `${ws.color}20` : "var(--t-tab-inactive)";
               return (
                 <div key={ws.id}
                   style={{ flex:"0 0 calc(33.333% - 8px)", width:"calc(33.333% - 8px)", minWidth:0, scrollSnapAlign:"center", scrollSnapStop:"always",
-                    height:480, borderRadius:12, border:`1px solid ${borderColor}`,
+                    height:320, borderRadius:12, border:`1px solid ${borderColor}`,
                     background: isActiveWs ? `${ws.color}0a` : "var(--t-card-bg)",
                     display:"flex", flexDirection:"column", overflow:"hidden",
                     cursor: isActiveWs ? "default" : "pointer",
                     opacity: isActiveWs ? 1 : 0.45,
                     transform: isActiveWs ? "scale(1)" : "scale(0.97)",
                     transition:"opacity .25s, transform .25s, box-shadow .25s",
-                    boxShadow: isActiveWs ? `0 0 0 1px ${ws.color}44, 0 4px 20px rgba(0,0,0,.12)` : "none" }}
+                    boxShadow: isActiveWs ? `0 4px 20px rgba(0,0,0,.12)` : "none" }}
                   onClick={() => !isActiveWs && setActiveWorkstream(ws.id)}>
 
-                  {/* Card header — pill button */}
-                  <div style={{ padding:"12px 14px", borderBottom:`1px solid ${isActiveWs ? ws.color + "28" : "rgba(100,160,220,.08)"}`, background: isActiveWs ? `${ws.color}14` : "transparent", flexShrink:0 }}>
-                    <div style={{ display:"inline-flex", alignItems:"center", gap:7, padding:"6px 14px", borderRadius:99,
-                      background: isActiveWs ? ws.color : "rgba(100,160,220,.08)",
-                      border:`1.5px solid ${isActiveWs ? ws.color : "rgba(100,160,220,.2)"}`,
-                      color: isActiveWs ? "#fff" : "var(--t-text2)",
-                      fontSize:13, fontWeight:700,
-                      boxShadow: isActiveWs ? `0 0 0 3px ${ws.color}28` : "none" }}>
-                      <Icon size={13} />
+                  {/* Card header — same style as cases detail cards */}
+                  <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 16px", borderBottom:`1px solid var(--t-tab-border)`, background:headerBg, flexShrink:0, position:"relative", zIndex:1 }}>
+                    <div style={{ width:8, height:8, borderRadius:"50%", background: isActiveWs ? ws.color : "rgba(100,116,139,.3)", flexShrink:0, marginRight:2 }} />
+                    <Icon size={14} style={{ color: isActiveWs ? ws.colorLight : "var(--t-text2)", flexShrink:0 }} />
+                    <span style={{ flex:1, fontSize:13, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color: isActiveWs ? ws.colorLight : "var(--t-text2)" }}>
                       {ws.label}
-                    </div>
+                    </span>
+                    <span style={{ fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:99, background: isActiveWs ? `${ws.color}33` : "rgba(100,116,139,.12)", color: isActiveWs ? ws.colorLight : "var(--t-text2)", flexShrink:0 }}>
+                      {ws.sub}
+                    </span>
                   </div>
 
                   {/* Card body — content for active, placeholder for others */}
-                  <div style={{ flex:1, overflowY:"auto", position:"relative" }}>
+                  <div style={{ flex:1, overflowY:"auto", position:"relative", zIndex:1 }}>
                     {isActiveWs ? (
-                      <div style={{ padding:"16px 14px" }}>
+                      <div style={{ padding:"14px 16px" }}>
                         {ws.id === 'wricef'  && <WricefTab   migProject={migProject} auth={auth} />}
                         {ws.id === 'cutover' && <CutoverTab  migProject={migProject} auth={auth} />}
                         {ws.id === 'data'    && <DataTab     migProject={migProject} auth={auth} />}
@@ -592,11 +592,14 @@ function MigrationProjectDetail({ migProject, auth, onBack }) {
                       </div>
                     ) : (
                       <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100%", gap:10, color:"var(--t-text2)", padding:24 }}>
-                        <Icon size={32} style={{ opacity:0.25 }} />
-                        <span style={{ fontSize:12, textAlign:"center", opacity:0.6 }}>{ws.sub}</span>
+                        <Icon size={32} style={{ opacity:0.2 }} />
+                        <span style={{ fontSize:12, textAlign:"center", opacity:0.5 }}>{ws.sub}</span>
                       </div>
                     )}
                   </div>
+
+                  {/* Watermark icon */}
+                  <Icon size={100} style={{ position:"absolute", bottom:10, right:10, opacity:0.06, color: isActiveWs ? ws.color : "#94A3B8", pointerEvents:"none", zIndex:0 }} />
                 </div>
               );
             })}
