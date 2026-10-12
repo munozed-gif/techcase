@@ -511,8 +511,8 @@ const CSS = `
 #arena-landing .pipe-stage{display:flex;flex-direction:column;align-items:center;position:relative;cursor:pointer;transition:opacity .15s;}
 #arena-landing .pipe-stage:hover{opacity:.85;}
 #arena-landing .pipe-dot{width:56px;height:56px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.75rem;margin-bottom:10px;margin-right:28px;position:relative;z-index:2;transition:transform .2s,box-shadow .2s;}
-#arena-landing .pipe-stage.active .pipe-dot{transform:scale(1.18);box-shadow:0 0 0 5px rgba(255,255,255,.07);}
-#arena-landing .pipe-stage.active .pipe-label{color:rgba(255,255,255,.9);}
+#arena-landing .pipe-stage.active .pipe-dot{border-width:3px;filter:brightness(1.5) drop-shadow(0 0 6px currentColor);}
+#arena-landing .pipe-stage.active .pipe-label{color:#fff;font-weight:700;}
 #arena-landing .lc-click-hint{font-size:.72rem;color:rgba(255,255,255,.25);text-align:center;margin-top:10px;letter-spacing:.03em;}
 #arena-landing .lc-detail{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:24px;margin-top:28px;animation:lc-fade .25s ease;}
 @keyframes lc-fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
