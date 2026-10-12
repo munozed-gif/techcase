@@ -510,9 +510,7 @@ const CSS = `
 #arena-landing .pipeline-track{display:flex;gap:0;min-width:max-content;}
 #arena-landing .pipe-stage{display:flex;flex-direction:column;align-items:center;position:relative;cursor:pointer;transition:opacity .15s;}
 #arena-landing .pipe-stage:hover{opacity:.85;}
-#arena-landing .pipe-stage::after{content:'→';position:absolute;right:-18px;top:28px;color:rgba(255,255,255,.2);font-size:1rem;z-index:1;}
-#arena-landing .pipe-stage:last-child::after{display:none;}
-#arena-landing .pipe-dot{width:56px;height:56px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.75rem;margin-bottom:10px;margin-right:36px;position:relative;z-index:2;transition:transform .2s,box-shadow .2s;}
+#arena-landing .pipe-dot{width:56px;height:56px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.75rem;margin-bottom:10px;margin-right:28px;position:relative;z-index:2;transition:transform .2s,box-shadow .2s;}
 #arena-landing .pipe-stage.active .pipe-dot{transform:scale(1.18);box-shadow:0 0 0 5px rgba(255,255,255,.07);}
 #arena-landing .pipe-stage.active .pipe-label{color:rgba(255,255,255,.9);}
 #arena-landing .lc-click-hint{font-size:.72rem;color:rgba(255,255,255,.25);text-align:center;margin-top:10px;letter-spacing:.03em;}
@@ -539,7 +537,7 @@ const CSS = `
 #arena-landing .lc-tab-desc{font-size:.82rem;color:rgba(255,255,255,.55);line-height:1.65;min-height:52px;padding:10px 12px;background:rgba(255,255,255,.03);border-radius:8px;border:1px solid rgba(255,255,255,.06);}
 @media(max-width:700px){#arena-landing .lc-detail-body{grid-template-columns:1fr;}}
 #arena-landing .pipe-dot:hover{transform:scale(1.1);}
-#arena-landing .pipe-label{font-size:.65rem;font-weight:600;color:rgba(255,255,255,.5);text-align:center;margin-right:36px;}
+#arena-landing .pipe-label{font-size:.65rem;font-weight:600;color:rgba(255,255,255,.5);text-align:center;margin-right:28px;}
 #arena-landing .lc-cards{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:48px;}
 #arena-landing .lc-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:20px;}
 #arena-landing .lc-card-name{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:.95rem;color:#fff;margin-bottom:4px;}
