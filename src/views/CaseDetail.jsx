@@ -2489,20 +2489,25 @@ ${tableHtml(['Role','Name','Signature','Date'],[
                       <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12, flex: 1, overflowY: "auto", position: "relative", zIndex: 1 }}>
                         {/* Gate checklist */}
                         {gateItems.length > 0 ? (
-                          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                            {gateItems.map(cond => (
-                              <div key={cond.key} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                                {cond.passed
-                                  ? <CheckCircle2 size={13} style={{ color: "#22C55E", flexShrink: 0, marginTop: 1 }} />
-                                  : cond.mode === "block"
-                                    ? <XCircle size={13} style={{ color: "#F87171", flexShrink: 0, marginTop: 1 }} />
-                                    : <AlertTriangle size={13} style={{ color: "#FB923C", flexShrink: 0, marginTop: 1 }} />
-                                }
-                                <span style={{ fontSize: 12, lineHeight: 1.4, color: cond.passed ? "var(--t-text2)" : cond.mode === "block" ? "#F87171" : "#FB923C", opacity: !isActive ? 0.6 : 1 }}>
-                                  {cond.label}
-                                </span>
-                              </div>
-                            ))}
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            {gateItems.map(cond => {
+                              const isPassed = cond.passed;
+                              const isBlock = !isPassed && cond.mode === "block";
+                              const isWarn = !isPassed && cond.mode !== "block";
+                              const bg = isPassed ? "rgba(16,185,129,.08)" : isBlock ? "rgba(239,68,68,.08)" : "rgba(245,158,11,.08)";
+                              const border = isPassed ? "rgba(16,185,129,.3)" : isBlock ? "rgba(239,68,68,.3)" : "rgba(245,158,11,.3)";
+                              const iconColor = isPassed ? "#10B981" : isBlock ? "#F87171" : "#FB923C";
+                              const textColor = isPassed ? "var(--t-text2)" : isBlock ? "#F87171" : "#FB923C";
+                              const IconEl = isPassed ? CheckCircle2 : isBlock ? XCircle : AlertTriangle;
+                              return (
+                                <div key={cond.key} style={{ display: "flex", alignItems: "center", gap: 8, background: bg, border: `1px solid ${border}`, borderRadius: 8, padding: "6px 10px", opacity: !isActive ? 0.6 : 1 }}>
+                                  <IconEl size={13} style={{ color: iconColor, flexShrink: 0 }} />
+                                  <span style={{ fontSize: 11.5, lineHeight: 1.4, color: textColor, fontWeight: isPassed ? 400 : 500 }}>
+                                    {cond.label}
+                                  </span>
+                                </div>
+                              );
+                            })}
                           </div>
                         ) : (
                           <p style={{ fontSize: 12, color: "var(--t-text2)", margin: 0 }}>
