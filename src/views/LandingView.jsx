@@ -509,7 +509,7 @@ const CSS = `
 #arena-landing .pipeline-scroll{overflow-x:auto;scrollbar-width:none;padding-bottom:8px;}
 #arena-landing .pipeline-track{display:flex;gap:0;min-width:max-content;}
 #arena-landing .pipe-stage{display:flex;flex-direction:column;align-items:center;position:relative;cursor:pointer;}
-#arena-landing .pipe-dot{width:72px;height:72px;border-radius:50%;border:3px solid;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.88rem;margin-bottom:12px;margin-right:32px;position:relative;z-index:2;transition:border-color .15s,background .15s;}
+#arena-landing .pipe-dot{width:72px;height:72px;border-radius:50%;border:3px solid;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.88rem;margin-bottom:12px;margin-right:32px;position:relative;z-index:2;transition:border-color .15s,border-width .15s;}
 #arena-landing .pipe-stage:hover .pipe-dot{border-width:4px;}
 #arena-landing .pipe-stage:hover .pipe-label{color:rgba(255,255,255,.85);}
 #arena-landing .pipe-stage.active .pipe-dot{border-width:4px;}
@@ -1905,7 +1905,7 @@ export function LandingView({ onSignIn }) {
               {LC_STAGES.map((s, i) => (
                 <div key={s.n} className={`pipe-stage${activeLcStage===i?" active":""}`}
                   onClick={() => { setActiveLcStage(i); setActiveLcTab(Object.keys(s.tabs)[0]); }}>
-                  <div className="pipe-dot" style={{borderColor:s.c, color:s.t, background: activeLcStage===i ? s.abg : "transparent"}}>{s.n}</div>
+                  <div className="pipe-dot" style={{borderColor: activeLcStage===i ? s.t : s.c, color:s.t}}>{s.n}</div>
                   <div className="pipe-label">{s.l.split("\n").map((ln,j)=><span key={j}>{ln}{j===0&&s.l.includes("\n")?<br/>:null}</span>)}</div>
                 </div>
               ))}
