@@ -2,10 +2,13 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   Activity, AlertCircle, AlertTriangle, Archive, BarChart2, Building2,
   Calendar, Camera, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Code2, Copy,
-  Database, DollarSign, FileEdit, FileText, FolderOpen, Layers, Link2,
+  Database, DollarSign, Download, FileEdit, FileText, FolderOpen, Layers, Link2,
   LayoutTemplate, Loader2, Lock, Pause, PauseCircle, Play, Plus, Search,
   Shield, SlidersHorizontal, Sparkles, Target, Trash2, TrendingUp, Truck, Upload,
   UserCheck, Users, X, XCircle, Zap,
+  ArrowRightLeft, BarChart, BookOpen, Briefcase, Bug, ClipboardList,
+  Cpu, FlaskConical, GitBranch, Globe, GraduationCap, KeyRound,
+  MonitorCheck, Network, Settings, ShieldCheck, Wrench,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
@@ -29,6 +32,47 @@ import {
   PRIORITY_COLORS, STATUS_COLORS, GATE_CONDITIONS,
 } from "../lib/businessConstants.js";
 import { STATUS_LABEL_KEYS, PRIORITY_LABEL_KEYS, WORK_MODE_LABEL_KEYS, fmt, cap, fmtDate } from "../lib/uiUtils.jsx";
+
+const DELIVERABLE_ICON_MAP = {
+  "Business Blueprint":       { Icon: BookOpen,      color: "text-blue-600 dark:text-blue-400",    bg: "bg-blue-50 dark:bg-blue-900/30",    border: "border-blue-100 dark:border-blue-800" },
+  "Functional Specification": { Icon: FileText,      color: "text-violet-600 dark:text-violet-400",bg: "bg-violet-50 dark:bg-violet-900/30",border: "border-violet-100 dark:border-violet-800" },
+  "Technical Specification":  { Icon: Code2,         color: "text-indigo-600 dark:text-indigo-400",bg: "bg-indigo-50 dark:bg-indigo-900/30",border: "border-indigo-100 dark:border-indigo-800" },
+  "Configuration Document":   { Icon: Settings,      color: "text-slate-600 dark:text-slate-300",  bg: "bg-slate-50 dark:bg-slate-800/60",  border: "border-slate-200 dark:border-slate-700" },
+  "Data Migration Plan":      { Icon: ArrowRightLeft,color: "text-teal-600 dark:text-teal-400",    bg: "bg-teal-50 dark:bg-teal-900/30",    border: "border-teal-100 dark:border-teal-800" },
+  "Test Scripts":             { Icon: FlaskConical,  color: "text-cyan-600 dark:text-cyan-400",    bg: "bg-cyan-50 dark:bg-cyan-900/30",    border: "border-cyan-100 dark:border-cyan-800" },
+  "UAT Report":               { Icon: CheckCircle2,  color: "text-green-600 dark:text-green-400",  bg: "bg-green-50 dark:bg-green-900/30",  border: "border-green-100 dark:border-green-800" },
+  "Training Material":        { Icon: GraduationCap, color: "text-amber-600 dark:text-amber-400",  bg: "bg-amber-50 dark:bg-amber-900/30",  border: "border-amber-100 dark:border-amber-800" },
+  "Go-Live Checklist":        { Icon: Zap,           color: "text-orange-600 dark:text-orange-400",bg: "bg-orange-50 dark:bg-orange-900/30",border: "border-orange-100 dark:border-orange-800" },
+  "Cutover Plan":             { Icon: GitBranch,     color: "text-rose-600 dark:text-rose-400",    bg: "bg-rose-50 dark:bg-rose-900/30",    border: "border-rose-100 dark:border-rose-800" },
+  "Gap Analysis":             { Icon: Search,        color: "text-purple-600 dark:text-purple-400",bg: "bg-purple-50 dark:bg-purple-900/30",border: "border-purple-100 dark:border-purple-800" },
+  "Integration Test Report":  { Icon: Network,       color: "text-blue-700 dark:text-blue-300",    bg: "bg-blue-50 dark:bg-blue-900/30",    border: "border-blue-100 dark:border-blue-800" },
+  "Migration Report":         { Icon: BarChart,      color: "text-teal-700 dark:text-teal-300",    bg: "bg-teal-50 dark:bg-teal-900/30",    border: "border-teal-100 dark:border-teal-800" },
+  "Process Flow Diagram":     { Icon: GitBranch,     color: "text-pink-600 dark:text-pink-400",    bg: "bg-pink-50 dark:bg-pink-900/30",    border: "border-pink-100 dark:border-pink-800" },
+  "Project Charter":          { Icon: ClipboardList, color: "text-gray-700 dark:text-gray-300",    bg: "bg-gray-100 dark:bg-gray-800",      border: "border-gray-200 dark:border-gray-700" },
+  "System Documentation":     { Icon: BookOpen,      color: "text-slate-700 dark:text-slate-300",  bg: "bg-slate-50 dark:bg-slate-800/60",  border: "border-slate-200 dark:border-slate-700" },
+  "Change Management Plan":   { Icon: Layers,        color: "text-yellow-600 dark:text-yellow-400",bg: "bg-yellow-50 dark:bg-yellow-900/30",border: "border-yellow-100 dark:border-yellow-800" },
+  "Hypercare Plan":           { Icon: ShieldCheck,   color: "text-green-700 dark:text-green-300",  bg: "bg-green-50 dark:bg-green-900/30",  border: "border-green-100 dark:border-green-800" },
+  "Project Status Report":    { Icon: TrendingUp,    color: "text-blue-600 dark:text-blue-400",    bg: "bg-blue-50 dark:bg-blue-900/30",    border: "border-blue-100 dark:border-blue-800" },
+  "SLA Agreement":            { Icon: FileEdit,      color: "text-red-600 dark:text-red-400",      bg: "bg-red-50 dark:bg-red-900/30",      border: "border-red-100 dark:border-red-800" },
+};
+
+const SKILL_ICON_MAP = {
+  "ABAP Development":          { Icon: Code2,         color: "text-blue-600 dark:text-blue-400",    bg: "bg-blue-50 dark:bg-blue-900/30",    border: "border-blue-100 dark:border-blue-800" },
+  "SAP Basis Administration":  { Icon: Cpu,           color: "text-slate-600 dark:text-slate-300",  bg: "bg-slate-50 dark:bg-slate-800/60",  border: "border-slate-200 dark:border-slate-700" },
+  "SAP FICO Configuration":    { Icon: DollarSign,    color: "text-green-600 dark:text-green-400",  bg: "bg-green-50 dark:bg-green-900/30",  border: "border-green-100 dark:border-green-800" },
+  "SAP MM Configuration":      { Icon: Truck,         color: "text-orange-600 dark:text-orange-400",bg: "bg-orange-50 dark:bg-orange-900/30",border: "border-orange-100 dark:border-orange-800" },
+  "SAP SD Configuration":      { Icon: Briefcase,     color: "text-violet-600 dark:text-violet-400",bg: "bg-violet-50 dark:bg-violet-900/30",border: "border-violet-100 dark:border-violet-800" },
+  "SAP HCM":                   { Icon: Users,         color: "text-pink-600 dark:text-pink-400",    bg: "bg-pink-50 dark:bg-pink-900/30",    border: "border-pink-100 dark:border-pink-800" },
+  "SAP Fiori / UI5":           { Icon: MonitorCheck,  color: "text-cyan-600 dark:text-cyan-400",    bg: "bg-cyan-50 dark:bg-cyan-900/30",    border: "border-cyan-100 dark:border-cyan-800" },
+  "SAP BW / Analytics":        { Icon: BarChart,      color: "text-amber-600 dark:text-amber-400",  bg: "bg-amber-50 dark:bg-amber-900/30",  border: "border-amber-100 dark:border-amber-800" },
+  "SAP Integration (CPI/PI)":  { Icon: Network,       color: "text-indigo-600 dark:text-indigo-400",bg: "bg-indigo-50 dark:bg-indigo-900/30",border: "border-indigo-100 dark:border-indigo-800" },
+  "S/4HANA Migration":         { Icon: ArrowRightLeft,color: "text-teal-600 dark:text-teal-400",    bg: "bg-teal-50 dark:bg-teal-900/30",    border: "border-teal-100 dark:border-teal-800" },
+  "SAP GRC":                   { Icon: ShieldCheck,   color: "text-red-600 dark:text-red-400",      bg: "bg-red-50 dark:bg-red-900/30",      border: "border-red-100 dark:border-red-800" },
+  "SAP PM / QM":               { Icon: Wrench,        color: "text-yellow-600 dark:text-yellow-400",bg: "bg-yellow-50 dark:bg-yellow-900/30",border: "border-yellow-100 dark:border-yellow-800" },
+  "HANA DB Administration":    { Icon: Database,      color: "text-blue-700 dark:text-blue-300",    bg: "bg-blue-50 dark:bg-blue-900/30",    border: "border-blue-100 dark:border-blue-800" },
+  "SAP Security / Roles":      { Icon: KeyRound,      color: "text-rose-600 dark:text-rose-400",    bg: "bg-rose-50 dark:bg-rose-900/30",    border: "border-rose-100 dark:border-rose-800" },
+  "SAP PS (Project Systems)":  { Icon: ClipboardList, color: "text-purple-600 dark:text-purple-400",bg: "bg-purple-50 dark:bg-purple-900/30",border: "border-purple-100 dark:border-purple-800" },
+};
 
 const PROJECT_STATUS_COLORS = {
   draft:     "bg-gray-100 text-gray-600",
@@ -1616,6 +1660,8 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
   // Share link
   const [shareCopied, setShareCopied] = useState(false);
   const [shareToken, setShareToken] = useState(project.share_token ?? null);
+  // Project report
+  const [generatingReport, setGeneratingReport] = useState(false);
 
   async function handleShareLink() {
     let token = shareToken;
@@ -1634,6 +1680,144 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
     try { await navigator.clipboard.writeText(url); } catch { prompt("Copy this link:", url); return; }
     setShareCopied(true);
     setTimeout(() => setShareCopied(false), 2500);
+  }
+
+  async function generateProjectReport() {
+    setGeneratingReport(true);
+    try {
+      const { jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const W = 210, L = 12, R = 198;
+      const sapBlue = [26, 75, 140];
+      const sapGray = [243, 246, 249];
+      const now = new Date();
+
+      // ── Cover header ──────────────────────────────────────
+      doc.setFillColor(...sapBlue);
+      doc.rect(0, 0, W, 38, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Project Completion Report', L, 16);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text(project.title ?? 'Untitled Project', L, 25);
+      doc.setFontSize(8);
+      doc.text(`Generated: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`, L, 33);
+      doc.setTextColor(0, 0, 0);
+
+      let y = 46;
+
+      // ── Project summary ───────────────────────────────────
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Project Summary', L, y); y += 6;
+      const TERMINAL = ['completed', 'cancelled', 'terminated', 'closed', 'approved'];
+      const totalCases = projCases.length;
+      const doneCases  = projCases.filter(c => TERMINAL.includes(c.status)).length;
+      const progress   = totalCases ? Math.round(doneCases / totalCases * 100) : 0;
+      autoTable(doc, {
+        startY: y,
+        margin: { left: L, right: L },
+        theme: 'grid',
+        headStyles: { fillColor: sapBlue, textColor: [255,255,255], fontStyle: 'bold', fontSize: 8 },
+        bodyStyles: { fontSize: 8 },
+        alternateRowStyles: { fillColor: sapGray },
+        head: [['Field','Value']],
+        body: [
+          ['Project Status',  project.status ?? '—'],
+          ['Total Cases',     String(totalCases)],
+          ['Completed Cases', `${doneCases} (${progress}%)`],
+          ['Client',          project.client_name ?? '—'],
+          ['Start Date',      project.created_at ? new Date(project.created_at).toLocaleDateString() : '—'],
+          ['Description',     project.description ?? '—'],
+        ],
+      });
+      y = doc.lastAutoTable.finalY + 10;
+
+      // ── Cases table ───────────────────────────────────────
+      if (projCases.length > 0) {
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Cases', L, y); y += 6;
+
+        // Fetch transport requests for all cases
+        const caseIds = projCases.map(c => c.id);
+        const { data: allTR } = await supabase
+          .from('transport_requests')
+          .select('case_id, request_number, status')
+          .eq('project_id', project.id);
+        const trByCaseId = {};
+        (allTR ?? []).forEach(r => { (trByCaseId[r.case_id] = trByCaseId[r.case_id] ?? []).push(r); });
+
+        autoTable(doc, {
+          startY: y,
+          margin: { left: L, right: L },
+          theme: 'grid',
+          headStyles: { fillColor: sapBlue, textColor: [255,255,255], fontStyle: 'bold', fontSize: 8 },
+          bodyStyles: { fontSize: 8 },
+          alternateRowStyles: { fillColor: sapGray },
+          columnStyles: { 0: { cellWidth: 60 }, 1: { cellWidth: 22 }, 2: { cellWidth: 20 }, 3: { cellWidth: 22 }, 4: { cellWidth: 30 }, 5: { cellWidth: 28 } },
+          head: [['Title','Status','Priority','SAP Area','Transport Requests','Assignee']],
+          body: projCases.map(c => {
+            const trs = (trByCaseId[c.id] ?? []).map(r => r.request_number).join(', ') || '—';
+            const assignee = (c.case_assignments ?? [])[0]?.users?.full_name ?? '—';
+            return [c.title ?? '—', c.status ?? '—', c.priority ?? '—', c.area_sap ?? '—', trs, assignee];
+          }),
+        });
+        y = doc.lastAutoTable.finalY + 10;
+      }
+
+      // Blueprint objects are stored in system_settings (client-side), so we skip them here
+      // and summarize case statuses instead.
+
+      // ── Approval summary ──────────────────────────────────
+      const { data: approvals } = await supabase
+        .from('approval_requests')
+        .select('case_id, status, created_at, cases(title)')
+        .in('case_id', projCases.map(c => c.id));
+      if (approvals?.length > 0) {
+        if (y > 240) { doc.addPage(); y = 16; }
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Approval Records', L, y); y += 6;
+        autoTable(doc, {
+          startY: y,
+          margin: { left: L, right: L },
+          theme: 'grid',
+          headStyles: { fillColor: sapBlue, textColor: [255,255,255], fontStyle: 'bold', fontSize: 8 },
+          bodyStyles: { fontSize: 8 },
+          alternateRowStyles: { fillColor: sapGray },
+          head: [['Case','Approval Status','Date']],
+          body: approvals.map(a => [
+            a.cases?.title ?? a.case_id,
+            a.status ?? '—',
+            a.created_at ? new Date(a.created_at).toLocaleDateString() : '—',
+          ]),
+        });
+        y = doc.lastAutoTable.finalY + 10;
+      }
+
+      // ── Footer ────────────────────────────────────────────
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(150, 150, 150);
+        doc.text(`TechCase SAP · ${project.title ?? ''}`, L, 290);
+        doc.text(`Page ${i} / ${pageCount}`, R - 10, 290, { align: 'right' });
+        doc.setTextColor(0, 0, 0);
+      }
+
+      const slug = (project.title ?? 'project').toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 30);
+      doc.save(`${slug}_report_${now.toISOString().slice(0,10)}.pdf`);
+    } catch (e) {
+      alert('Report generation failed: ' + e.message);
+    } finally {
+      setGeneratingReport(false);
+    }
   }
 
   async function handleImportExtract() {
@@ -1919,6 +2103,10 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
             <span className={`px-2 py-0.5 text-xs font-semibold rounded-lg ${PROJECT_STATUS_COLORS[project.status] ?? "bg-gray-100 text-gray-600"}`}>
               {STATUS_LABEL_KEYS[project.status] ? t(STATUS_LABEL_KEYS[project.status]) : cap(fmt(project.status))}
             </span>
+            <button onClick={generateProjectReport} disabled={generatingReport}
+              className="flex items-center gap-1.5 text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl px-3 py-1.5 transition-colors disabled:opacity-50">
+              {generatingReport ? <><Loader2 size={13} className="animate-spin" />Generating…</> : <><Download size={13} />Report PDF</>}
+            </button>
             <button onClick={handleShareLink}
               className={`flex items-center gap-1.5 text-sm border rounded-xl px-3 py-1.5 transition-colors ${shareCopied ? 'border-green-300 bg-green-50 text-green-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
               {shareCopied ? <><Check size={13} />Copied!</> : <><Link2 size={13} />Share</>}
@@ -2279,41 +2467,62 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         })()}
 
         {/* Objectives */}
-        {tab.id === "objectives" && (
-          <div className="space-y-4">
-            {project.objectives && (
-              <div>
-                <p className="text-xs text-gray-400 mb-1">{t("project.goals")}</p>
-                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{project.objectives}</p>
-              </div>
-            )}
-            {project.deliverables?.length > 0 && (
-              <div>
-                <p className="text-xs text-gray-400 mb-2">{t("project.deliverables")}</p>
-                <div className="flex flex-wrap gap-2">
-                  {project.deliverables.map((d, i) => (
-                    <span key={i} className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg">{d}</span>
-                  ))}
+        {tab.id === "objectives" && (() => {
+          const oc = "rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4";
+          const ObjHdr = ({ icon, label, color }) => (
+            <div className="flex items-center gap-2 mb-3">
+              <span style={{ color }}>{icon}</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{label}</span>
+            </div>
+          );
+          const hasContent = project.objectives || project.deliverables?.length || project.success_criteria || project.out_of_scope;
+          return (
+            <div className="grid grid-cols-1 gap-3">
+              {!hasContent && <p className="text-sm text-gray-400">{t("project.no_objectives")}</p>}
+
+              {project.objectives && (
+                <div className={oc}>
+                  <ObjHdr icon={<Target size={13} />} label={t("project.goals")} color="#6366f1" />
+                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{project.objectives}</p>
                 </div>
-              </div>
-            )}
-            {project.success_criteria && (
-              <div>
-                <p className="text-xs text-gray-400 mb-1">{t("project.success_criteria")}</p>
-                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{project.success_criteria}</p>
-              </div>
-            )}
-            {project.out_of_scope && (
-              <div>
-                <p className="text-xs text-gray-400 mb-1">{t("project.out_of_scope")}</p>
-                <p className="text-sm text-gray-500 leading-relaxed whitespace-pre-wrap italic">{project.out_of_scope}</p>
-              </div>
-            )}
-            {!project.objectives && !project.deliverables?.length && !project.success_criteria && !project.out_of_scope && (
-              <p className="text-sm text-gray-400">{t("project.no_objectives")}</p>
-            )}
-          </div>
-        )}
+              )}
+
+              {project.deliverables?.length > 0 && (
+                <div className={oc}>
+                  <ObjHdr icon={<CheckCircle2 size={13} />} label={t("project.deliverables")} color="#8b5cf6" />
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {project.deliverables.map((d, i) => {
+                      const meta = DELIVERABLE_ICON_MAP[d] ?? { Icon: FileText, color: "text-gray-500 dark:text-gray-400", bg: "bg-gray-50 dark:bg-gray-800", border: "border-gray-200 dark:border-gray-700" };
+                      const { Icon, color, bg, border } = meta;
+                      return (
+                        <div key={i} className={`flex items-center gap-3 p-3 rounded-xl border ${bg} ${border}`}>
+                          <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${bg}`}>
+                            <Icon className={`w-4 h-4 ${color}`} />
+                          </div>
+                          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-snug">{d}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {project.success_criteria && (
+                <div className={oc}>
+                  <ObjHdr icon={<TrendingUp size={13} />} label={t("project.success_criteria")} color="#10b981" />
+                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{project.success_criteria}</p>
+                </div>
+              )}
+
+              {project.out_of_scope && (
+                <div className={oc}>
+                  <ObjHdr icon={<XCircle size={13} />} label={t("project.out_of_scope")} color="#ef4444" />
+                  <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed whitespace-pre-wrap italic">{project.out_of_scope}</p>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Team & Contacts */}
         {tab.id === "team" && (() => {
@@ -2497,29 +2706,48 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         })()}
 
         {/* Requirements */}
-        {tab.id === "requirements" && (
-          <div className="space-y-4">
-            {project.skills_required?.length > 0 && (
-              <div>
-                <p className="text-xs text-gray-400 mb-2">{t("label.skills")}</p>
-                <div className="flex flex-wrap gap-2">
-                  {project.skills_required.map((s, i) => (
-                    <span key={i} className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded-lg">{s}</span>
-                  ))}
+        {tab.id === "requirements" && (() => {
+          const oc = "rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4";
+          const ReqHdr = ({ icon, label, color }) => (
+            <div className="flex items-center gap-2 mb-3">
+              <span style={{ color }}>{icon}</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{label}</span>
+            </div>
+          );
+          const hasContent = project.skills_required?.length || project.compliance_notes;
+          return (
+            <div className="grid grid-cols-1 gap-3">
+              {!hasContent && <p className="text-sm text-gray-400">{t("project.no_requirements")}</p>}
+
+              {project.skills_required?.length > 0 && (
+                <div className={oc}>
+                  <ReqHdr icon={<Zap size={13} />} label={t("label.skills")} color="#3b82f6" />
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {project.skills_required.map((s, i) => {
+                      const meta = SKILL_ICON_MAP[s] ?? { Icon: Settings, color: "text-gray-500 dark:text-gray-400", bg: "bg-gray-50 dark:bg-gray-800", border: "border-gray-200 dark:border-gray-700" };
+                      const { Icon, color, bg, border } = meta;
+                      return (
+                        <div key={i} className={`flex items-center gap-3 p-3 rounded-xl border ${bg} ${border}`}>
+                          <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${bg}`}>
+                            <Icon className={`w-4 h-4 ${color}`} />
+                          </div>
+                          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-snug">{s}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
-            {project.compliance_notes && (
-              <div>
-                <p className="text-xs text-gray-400 mb-1">{t("project.compliance")}</p>
-                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{project.compliance_notes}</p>
-              </div>
-            )}
-            {!project.skills_required?.length && !project.compliance_notes && (
-              <p className="text-sm text-gray-400">{t("project.no_requirements")}</p>
-            )}
-          </div>
-        )}
+              )}
+
+              {project.compliance_notes && (
+                <div className={oc}>
+                  <ReqHdr icon={<Shield size={13} />} label={t("project.compliance")} color="#f59e0b" />
+                  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{project.compliance_notes}</p>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Cases */}
         {tab.id === "cases" && (

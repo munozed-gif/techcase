@@ -244,6 +244,7 @@ function useClientTeamMembers(clientId) {
 function useInvoices(filters = {}) {
   const [invoices, setInvoices]     = useState([]);
   const [loading, setLoading]       = useState(true);
+  const [fetchError, setFetchError] = useState(null);
   const [totalCount, setTotalCount] = useState(0);
   const [limit, setLimit]           = useState(20);
   const filterKey = JSON.stringify(filters);
@@ -262,7 +263,9 @@ function useInvoices(filters = {}) {
     if (filters.client_id) query = query.eq("client_id", filters.client_id);
     if (filters.status)    query = query.eq("status", filters.status);
     if (filters.case_id)   query = query.eq("case_id", filters.case_id);
-    const { data, count } = await query;
+    const { data, count, error } = await query;
+    if (error) { setFetchError(error.message); setLoading(false); return; }
+    setFetchError(null);
     setInvoices(data ?? []);
     setTotalCount(count ?? 0);
     setLoading(false);
@@ -294,12 +297,13 @@ function useInvoices(filters = {}) {
   const hasMoreInvoices = invoices.length < totalCount;
   function loadMoreInvoices() { setLimit(l => l + 20); }
 
-  return { invoices, loading, totalCount, hasMore: hasMoreInvoices, loadMore: loadMoreInvoices, createInvoice, updateInvoice, deleteInvoice, refetch: fetchInvoices };
+  return { invoices, loading, fetchError, totalCount, hasMore: hasMoreInvoices, loadMore: loadMoreInvoices, createInvoice, updateInvoice, deleteInvoice, refetch: fetchInvoices };
 }
 
 function useProjects(filters = {}) {
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading]   = useState(true);
+  const [projects, setProjects]   = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [fetchError, setFetchError] = useState(null);
   const filterKey = JSON.stringify(filters);
 
   const fetchProjects = useCallback(async (background = false) => {
@@ -310,7 +314,9 @@ function useProjects(filters = {}) {
       .order("created_at", { ascending: false });
     if (filters.client_id) q = q.eq("client_id", filters.client_id);
     if (filters.status)    q = q.eq("status", filters.status);
-    const { data } = await q;
+    const { data, error } = await q;
+    if (error) { setFetchError(error.message); setLoading(false); return; }
+    setFetchError(null);
     setProjects(data ?? []);
     setLoading(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -352,12 +358,13 @@ function useProjects(filters = {}) {
     await fetchProjects(true);
   }
 
-  return { projects, loading, createProject, updateProject, closeProject, deleteProject, refetch: fetchProjects };
+  return { projects, loading, fetchError, createProject, updateProject, closeProject, deleteProject, refetch: fetchProjects };
 }
 
 function useTimeEntries(caseId = null) {
-  const [entries, setEntries] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [entries, setEntries]     = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [fetchError, setFetchError] = useState(null);
 
   const fetchEntries = useCallback(async () => {
     setLoading(true);
@@ -368,7 +375,9 @@ function useTimeEntries(caseId = null) {
                approver:approved_by(full_name)`)
       .order("date", { ascending: false });
     if (caseId) query = query.eq("case_id", caseId);
-    const { data } = await query;
+    const { data, error } = await query;
+    if (error) { setFetchError(error.message); setLoading(false); return; }
+    setFetchError(null);
     setEntries(data ?? []);
     setLoading(false);
   }, [caseId]);
@@ -403,7 +412,7 @@ function useTimeEntries(caseId = null) {
     await fetchEntries();
   }
 
-  return { entries, loading, addTimeEntry, approveEntry, deleteEntry, refetch: fetchEntries };
+  return { entries, loading, fetchError, addTimeEntry, approveEntry, deleteEntry, refetch: fetchEntries };
 }
 
 // ── Case Activities ──────────────────────────────────────────

@@ -4,6 +4,7 @@ import {
   Download, FileText, FolderOpen, Mail, Pencil, Phone, SlidersHorizontal,
   Target, Trash2, User, Users, X, XCircle,
 } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
@@ -51,8 +52,8 @@ function NotificationsView() {
     { key: "status_change",label: t("feed.pref_status") },
     { key: "assignment",   label: t("feed.pref_assignments") },
     { key: "alert",        label: t("feed.pref_alerts") },
-    { key: "time_log",     label: "Time Logs" },
-    { key: "milestone",    label: "Milestones" },
+    { key: "time_log",     label: t("feed.pref_time_logs") },
+    { key: "milestone",    label: t("feed.pref_milestones") },
   ];
 
   const filtered = notifications.filter(n => {
@@ -174,7 +175,7 @@ function UsersView() {
   const [addError, setAddError] = useState("");
 
   async function loadUsers() {
-    const { data } = await supabase.from("users").select("*").order("created_at", { ascending: false });
+    const { data } = await supabase.from("users").select("id, full_name, avatar_url, email, role, created_at, is_active, trust_level").order("created_at", { ascending: false });
     setUsers(data ?? []);
   }
 
@@ -576,7 +577,7 @@ function ReportsView() {
 // ============================================================
 // SLA CONFIG VIEW (Admin / Manager)
 // ============================================================
-function SlaView({ auth }) {
+function SlaClientView({ auth }) {
   const { t } = useT();
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
@@ -1538,4 +1539,4 @@ function ClientTeamList({ client, auth }) {
   );
 }
 
-export { NotificationsView, UsersView, ReportsView, SlaView, SlaClientDetail, DbConnectionsView, SapProfileFields, SapProfileBadges, VpnProfileFields, VpnProfileBadges, DbConnectionsList, ClientTeamView, ClientTeamList };
+export { NotificationsView, UsersView, ReportsView, SlaClientView, SlaClientDetail, DbConnectionsView, SapProfileFields, SapProfileBadges, VpnProfileFields, VpnProfileBadges, DbConnectionsList, ClientTeamView, ClientTeamList };

@@ -4,10 +4,10 @@ import { useT } from "../i18n/index.jsx";
 // Pure UI utility constants, formatters, and SLA editor used across components
 
 const SLA_PRIORITIES = [
-  { key: "critical", label: "Critical", dot: "bg-red-500",    badge: "bg-red-50 text-red-700 border border-red-200"         },
-  { key: "high",     label: "High",     dot: "bg-orange-500", badge: "bg-orange-50 text-orange-700 border border-orange-200" },
-  { key: "medium",   label: "Medium",   dot: "bg-yellow-500", badge: "bg-yellow-50 text-yellow-700 border border-yellow-200" },
-  { key: "low",      label: "Low",      dot: "bg-slate-400",  badge: "bg-slate-50 text-slate-600 border border-slate-200"    },
+  { key: "critical", label: "Critical", dot: "bg-red-500",    badge: "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-700"             },
+  { key: "high",     label: "High",     dot: "bg-orange-500", badge: "bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-700" },
+  { key: "medium",   label: "Medium",   dot: "bg-yellow-500", badge: "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-700" },
+  { key: "low",      label: "Low",      dot: "bg-slate-400",  badge: "bg-slate-50 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600"    },
 ];
 
 const SLA_DEFAULT_TYPES = [
@@ -54,15 +54,15 @@ function SlaMatrixEditor({ caseTypes, matrix, editing, onChangeCaseTypes, onChan
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-100">
+    <div className="overflow-x-auto rounded-xl border border-gray-100 dark:border-gray-700">
       <table className="w-full text-sm border-collapse min-w-[500px]">
         <thead>
           <tr>
-            <th className="text-left px-4 py-3 font-semibold text-gray-500 bg-gray-50 w-28 border-b border-gray-100">
+            <th className="text-left px-4 py-3 font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/60 w-28 border-b border-gray-100 dark:border-gray-700">
               {t("sla.col_priority")}
             </th>
             {caseTypes.map(ct => (
-              <th key={ct.key} className="px-4 py-3 bg-gray-50 border-b border-l border-gray-100 text-center">
+              <th key={ct.key} className="px-4 py-3 bg-gray-50 dark:bg-gray-800/60 border-b border-l border-gray-100 dark:border-gray-700 text-center">
                 {editing ? (
                   <div className="flex items-center gap-1 min-w-[120px]">
                     <input
@@ -77,12 +77,12 @@ function SlaMatrixEditor({ caseTypes, matrix, editing, onChangeCaseTypes, onChan
                     )}
                   </div>
                 ) : (
-                  <span className="text-xs font-semibold text-gray-700">{ct.labelKey ? t(ct.labelKey) : ct.label}</span>
+                  <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{ct.labelKey ? t(ct.labelKey) : ct.label}</span>
                 )}
               </th>
             ))}
             {editing && (
-              <th className="px-4 py-3 bg-gray-50 border-b border-l border-gray-100">
+              <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800/60 border-b border-l border-gray-100 dark:border-gray-700">
                 <button onClick={addCaseType} className="text-xs text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap">{t("sla.add_type")}</button>
               </th>
             )}
@@ -90,8 +90,8 @@ function SlaMatrixEditor({ caseTypes, matrix, editing, onChangeCaseTypes, onChan
         </thead>
         <tbody>
           {SLA_PRIORITIES.map((p, pi) => (
-            <tr key={p.key} className={pi % 2 === 0 ? "bg-white" : "bg-gray-50/40"}>
-              <td className="px-4 py-3 border-b border-gray-100">
+            <tr key={p.key} className={pi % 2 === 0 ? "bg-white dark:bg-gray-800/30" : "bg-gray-50/60 dark:bg-gray-700/20"}>
+              <td className="px-4 py-3 border-b border-gray-100 dark:border-gray-700/50">
                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${p.badge}`}>
                   <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${p.dot}`} />
                   {t(`priority.${p.key}`)}
@@ -100,7 +100,7 @@ function SlaMatrixEditor({ caseTypes, matrix, editing, onChangeCaseTypes, onChan
               {caseTypes.map(ct => {
                 const cell = matrix?.[ct.key]?.[p.key] ?? { response:4, response_unit:"hours", resolution:1, resolution_unit:"days" };
                 return (
-                  <td key={ct.key} className="px-4 py-3 border-b border-l border-gray-100">
+                  <td key={ct.key} className="px-4 py-3 border-b border-l border-gray-100 dark:border-gray-700/50">
                     {editing ? (
                       <div className="space-y-2">
                         {[["response", t("sla.col_response")],["resolution", t("sla.col_resolution")]].map(([field, lbl]) => (
@@ -123,20 +123,20 @@ function SlaMatrixEditor({ caseTypes, matrix, editing, onChangeCaseTypes, onChan
                       <div className="space-y-1 text-center">
                         <div className="text-xs flex items-center justify-center gap-1">
                           <RotateCcw size={10} className="text-blue-400" />
-                          <span className="font-medium text-gray-800">{cell.response}</span>
-                          <span className="text-gray-400">{SLA_UNIT_LABELS[cell.response_unit]}</span>
+                          <span className="font-medium text-gray-800 dark:text-gray-100">{cell.response}</span>
+                          <span className="text-gray-400 dark:text-gray-400">{SLA_UNIT_LABELS[cell.response_unit]}</span>
                         </div>
                         <div className="text-xs flex items-center justify-center gap-1">
                           <Check size={10} className="text-green-500" />
-                          <span className="font-medium text-gray-800">{cell.resolution}</span>
-                          <span className="text-gray-400">{SLA_UNIT_LABELS[cell.resolution_unit]}</span>
+                          <span className="font-medium text-gray-800 dark:text-gray-100">{cell.resolution}</span>
+                          <span className="text-gray-400 dark:text-gray-400">{SLA_UNIT_LABELS[cell.resolution_unit]}</span>
                         </div>
                       </div>
                     )}
                   </td>
                 );
               })}
-              {editing && <td className="border-b border-l border-gray-100" />}
+              {editing && <td className="border-b border-l border-gray-100 dark:border-gray-700/50" />}
             </tr>
           ))}
         </tbody>

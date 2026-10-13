@@ -5,7 +5,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // Supabase admin client (service role) to write system_settings
 const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
+  process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
@@ -35,6 +35,15 @@ async function updateUserPlan(userId, plan, roleType) {
     { key: "user_plans", value: updated },
     { onConflict: "key" }
   );
+
+  // AI Pro plan: also set is_pro flag on the user row
+  if (plan === "ai_pro") {
+    await supabase.from("users").update({ is_pro: true }).eq("id", userId);
+  }
+  // Downgrade: remove is_pro when plan becomes free
+  if (plan === "free") {
+    await supabase.from("users").update({ is_pro: false }).eq("id", userId);
+  }
 }
 
 export default async function handler(req, res) {

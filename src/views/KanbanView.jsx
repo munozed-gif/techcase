@@ -122,6 +122,7 @@ function KanbanView({ auth }) {
   const { templates: lcTemplates } = useLifecycleTemplates();
   const [selectedCase, setSelectedCase]       = useState(null);
   const [movingId, setMovingId]               = useState(null);
+  const [moveError, setMoveError]             = useState(null);
   const [cardSize, setCardSize]               = useState("m"); // "s" | "m" | "l"
   const [kanbanProject, setKanbanProject]     = useState(""); // "" = all
 
@@ -165,8 +166,9 @@ function KanbanView({ auth }) {
   async function handleMove(caseId, newStatus) {
     if (newStatus === cases.find(c => c.id === caseId)?.status) return;
     setMovingId(caseId);
+    setMoveError(null);
     try { await updateCase(caseId, { status: newStatus }); }
-    catch (e) { alert(e.message); }
+    catch (e) { setMoveError(e.message); }
     setMovingId(null);
   }
 
@@ -203,6 +205,12 @@ function KanbanView({ auth }) {
 
   return (
     <div>
+      {moveError && (
+        <div className="mb-3 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center justify-between">
+          <span>{moveError}</span>
+          <button onClick={() => setMoveError(null)} className="ml-3 text-red-400 hover:text-red-600 font-bold leading-none">×</button>
+        </div>
+      )}
       <div className="mb-4 flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t("kanban.title")}</h1>
@@ -230,7 +238,7 @@ function KanbanView({ auth }) {
                 kanbanProject === "" ? "bg-gray-800 text-white border-gray-800 shadow-sm" : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
               }`}>
               <FolderKanban size={14} />
-              All projects
+              {t("kanban.all_projects")}
               <span className="opacity-60 text-xs ml-0.5">{filteredCases.length}</span>
             </button>
             {kanbanProjects.map(p => (

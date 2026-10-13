@@ -1,7 +1,9 @@
+import { useEffect } from "react";
 import {
-  BarChart2, Bell, ClipboardCheck, ClipboardList, Clock, Database, FolderOpen, Handshake,
-  Inbox, Layers, LayoutDashboard, LayoutGrid, LayoutTemplate, Receipt, Search,
-  SlidersHorizontal, Target, User, UserCheck, UsersRound,
+  ArrowRightLeft, BarChart2, Bell, ClipboardCheck, ClipboardList, Clock, Database, FlaskConical,
+  FolderOpen, GitCompare, Handshake,
+  Inbox, Layers, LayoutDashboard, LayoutGrid, LayoutTemplate, Milestone, Receipt, Search,
+  ShieldCheck, SlidersHorizontal, Target, User, UserCheck, UsersRound,
 } from "lucide-react";
 import { useT } from "../i18n/index.jsx";
 import { usePlatformBranding, useVisibilitySettings, useSystemSettings, usePlanConfig } from "../hooks/useSystemSettings.jsx";
@@ -9,22 +11,10 @@ import { ROLE_TO_PLAN_TYPE } from "../lib/businessConstants.js";
 import { NotificationBell } from "./NotificationBell.jsx";
 import { PersonAvatar } from "../views/Projects.jsx";
 
-// Nova logo — module-level keyframe + font injection
-if (typeof document !== 'undefined') {
-  if (!document.getElementById('nova-logo-font')) {
-    const lnk = document.createElement('link');
-    lnk.id = 'nova-logo-font';
-    lnk.rel = 'stylesheet';
-    lnk.href = 'https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@800&display=swap';
-    document.head.appendChild(lnk);
-  }
-  let _kf = document.getElementById('nova-logo-kf');
-  if (!_kf) { _kf = document.createElement('style'); _kf.id = 'nova-logo-kf'; document.head.appendChild(_kf); }
-  _kf.textContent = `@keyframes nova-orbit {
+const NOVA_KEYFRAMES = `@keyframes nova-orbit {
   from { transform: rotate(var(--ns,0deg)) translateX(var(--nr,36px)) rotate(calc(-1*var(--ns,0deg))); }
   to   { transform: rotate(calc(var(--ns,0deg)+360deg)) translateX(var(--nr,36px)) rotate(calc(-1*(var(--ns,0deg)+360deg))); }
 }`;
-}
 
 const NOVA_ORBITERS = [
   { s:   0, r: 54, d:  9, z: 13, c: '#2563EB', gr: 7, gc: 'rgba(37,99,235,0.48)' },
@@ -34,6 +24,19 @@ const NOVA_ORBITERS = [
 ];
 
 function NovaLogo({ size = 80 }) {
+  useEffect(() => {
+    if (!document.getElementById('nova-logo-font')) {
+      const lnk = Object.assign(document.createElement('link'), {
+        id: 'nova-logo-font', rel: 'stylesheet',
+        href: 'https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@800&display=swap',
+      });
+      document.head.appendChild(lnk);
+    }
+    let kf = document.getElementById('nova-logo-kf');
+    if (!kf) { kf = document.createElement('style'); kf.id = 'nova-logo-kf'; document.head.appendChild(kf); }
+    kf.textContent = NOVA_KEYFRAMES;
+  }, []);
+
   const sc = size / 152;
   const orb = Math.round(52 * sc);
   const d1  = Math.round(108 * sc);
@@ -83,6 +86,11 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       { id: "audit_log",       Icon: ClipboardList,     labelKey: "log.nav" },
       { id: "templates",       Icon: LayoutTemplate,    labelKey: "nav.templates" },
       { id: "approvals",       Icon: UserCheck,         labelKey: "nav.approvals" },
+      { id: "sla",             Icon: ShieldCheck,       labelKey: "nav.sla" },
+      { id: "migration",       Icon: Milestone,         labelKey: "nav.migration" },
+      { id: "transport",       Icon: ArrowRightLeft,    labelKey: "nav.transport" },
+      { id: "fitgap",          Icon: GitCompare,        labelKey: "nav.fitgap" },
+      { id: "testing",         Icon: FlaskConical,      labelKey: "nav.testing" },
       { id: "settings",        Icon: SlidersHorizontal, labelKey: "nav.settings" },
     ],
     manager: [
@@ -100,6 +108,11 @@ function Sidebar({ role, activeView, onNav, onSignOut, profile, unreadCount, aut
       { id: "audit_log",       Icon: ClipboardList,     labelKey: "log.nav" },
       { id: "templates",       Icon: LayoutTemplate,    labelKey: "nav.templates" },
       { id: "approvals",       Icon: UserCheck,         labelKey: "nav.approvals" },
+      { id: "sla",             Icon: ShieldCheck,       labelKey: "nav.sla" },
+      { id: "migration",       Icon: Milestone,         labelKey: "nav.migration" },
+      { id: "transport",       Icon: ArrowRightLeft,    labelKey: "nav.transport" },
+      { id: "fitgap",          Icon: GitCompare,        labelKey: "nav.fitgap" },
+      { id: "testing",         Icon: FlaskConical,      labelKey: "nav.testing" },
       { id: "settings",        Icon: SlidersHorizontal, labelKey: "nav.settings" },
     ],
     consultant: [

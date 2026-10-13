@@ -2,11 +2,11 @@ import { useState, useEffect, Component } from "react";
 import {
   Activity, AlertCircle, AlertTriangle, BadgeCheck, BarChart2, Briefcase,
   Building2, Calendar, CalendarDays, CalendarRange, Check, CheckCircle2,
-  ChevronDown, ClipboardList, CreditCard, Crosshair, Database, DollarSign, Download,
+  ChevronDown, ChevronUp, ClipboardList, CreditCard, Crosshair, Database, DollarSign, Download,
   ExternalLink, FileCode2, FileText, FolderKanban, FolderOpen, Globe,
   Handshake, ListChecks, Lock, Mail, Palette, Pencil, Phone, Plus, Receipt,
   RefreshCw, RotateCcw, Search, Send, Settings, Shield, SlidersHorizontal,
-  Monitor, Sparkles, Tag, Trash2, TrendingUp, User, UserCheck, UserCog,
+  Monitor, Rocket, Sparkles, Tag, Trash2, TrendingUp, User, UserCheck, UserCog,
   Users, X, XCircle, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
@@ -27,12 +27,13 @@ import {
   ROLE_COLORS, PLAN_BADGE, DEFAULT_PLAN_CONFIG, DEFAULT_PLAN_PRICES,
   LIFECYCLE_PRESETS, DEFAULT_ACTIVITY_PHASES,
   SAP_AREAS, INDUSTRY_AREAS, PROJECT_TYPES, ROLE_TO_PLAN_TYPE, PRIORITY_COLORS,
+  DEFAULT_MIGRATION_CONFIG,
 } from "../lib/businessConstants.js";
 import { GENERATION_CONTEXT_DEFAULTS, GENERATION_PROFILE_DEFAULTS, GEN_DOCS, ROLE_PERMISSIONS_DEFAULTS, WIZARD_MODE_DEFAULTS } from "../lib/constants.js";
 import { LifecycleSettingsView, CaseDefaultsPanel, AssignmentSettingsPanel, TransitionGatesPanel } from "./SettingsSubViews.jsx";
 import { PersonAvatar } from "./Projects.jsx";
 import { AbapTemplatesSection } from "../components/SapPanels.jsx";
-import { SlaView } from "./OperationsViews.jsx";
+import { SlaClientView } from "./OperationsViews.jsx";
 import { ConsultantProfilePanel } from "./ArenaView.jsx";
 
 // Nova Logo preview for settings branding section
@@ -221,6 +222,7 @@ function SettingsUsersTab() {
               <th className="px-4 py-3 text-left font-semibold text-gray-600">{t("label.email")}</th>
               <th className="px-4 py-3 text-left font-semibold text-gray-600">{t("label.role")}</th>
               <th className="px-4 py-3 text-center font-semibold text-gray-600">{t("label.status")}</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-600">{t("sys.col_ai_pro")}</th>
               <th className="px-4 py-3 text-center font-semibold text-gray-600">{t("sys.col_actions")}</th>
             </tr>
           </thead>
@@ -274,6 +276,23 @@ function SettingsUsersTab() {
                   </button>
                 </td>
                 <td className="px-4 py-3 text-center">
+                  <button
+                    onClick={async () => {
+                      await supabase.from("users").update({ is_pro: !u.is_pro }).eq("id", u.id);
+                      setUsers(p => p.map(x => x.id === u.id ? { ...x, is_pro: !x.is_pro } : x));
+                    }}
+                    className={`px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 mx-auto ${
+                      u.is_pro
+                        ? "bg-violet-100 text-violet-700 hover:bg-gray-100 hover:text-gray-600"
+                        : "bg-gray-100 text-gray-400 hover:bg-violet-100 hover:text-violet-700"
+                    }`}
+                    title={u.is_pro ? t("sys.ai_pro_revoke") : t("sys.ai_pro_grant")}
+                  >
+                    <Zap size={10} />
+                    {u.is_pro ? "Pro" : "Free"}
+                  </button>
+                </td>
+                <td className="px-4 py-3 text-center">
                   <button onClick={() => sendPasswordReset(u.email)}
                     title={t("auth.reset_email_tooltip")}
                     className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 mx-auto
@@ -286,7 +305,7 @@ function SettingsUsersTab() {
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">{t("sys.no_users")}</td></tr>
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-sm">{t("sys.no_users")}</td></tr>
             )}
           </tbody>
         </table>
@@ -1210,9 +1229,10 @@ function SettingsGenerationTab({ ssCtx }) {
   const [form, setForm] = useState(null);
 
   const AI_MODELS = [
-    { value: "claude-haiku-4-5-20251001", labelKey: "model.haiku_label" },
-    { value: "claude-sonnet-5-5",         labelKey: "model.sonnet_label" },
-    { value: "claude-opus-5-5",           labelKey: "model.opus_label" },
+    { value: "claude-haiku-4-5-20251001", labelKey: "model.haiku45_label" },
+    { value: "claude-haiku-5-5",          labelKey: "model.haiku55_label" },
+    { value: "claude-sonnet-4-6",         labelKey: "model.sonnet46_label" },
+    { value: "claude-sonnet-5-5",         labelKey: "model.sonnet55_label" },
   ];
 
   useEffect(() => {
@@ -1227,7 +1247,7 @@ function SettingsGenerationTab({ ssCtx }) {
       const merged = {
         ai_model:         resolveModel("ai_model",        "claude-haiku-4-5-20251001"),
         analysis_model:   resolveModel("analysis_model",  "claude-haiku-4-5-20251001"),
-        prototype_model:  resolveModel("prototype_model", "claude-sonnet-5-5"),
+        prototype_model:  resolveModel("prototype_model", "claude-haiku-4-5-20251001"),
         sap_mcp_server_url: ssCtx.settings["sap_mcp_server_url"] ?? "",
         default_profile: stored.default_profile ?? GENERATION_PROFILE_DEFAULTS.default_profile,
         context: { ...GENERATION_CONTEXT_DEFAULTS, ...storedCtx },
@@ -2791,7 +2811,7 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
   const CAPS = Object.keys(ROLE_PERMISSIONS_DEFAULTS);
 
   const PERSONA_TABS = [
-    { id: "internal",    label: "Internal",    roles: ["admin", "manager"],                  Icon: Shield,    accent: "purple", border: "border-purple-500", activeBg: "bg-purple-600", accentTxt: "text-purple-600", lightBg: "bg-purple-50" },
+    { id: "internal",    label: "Internal",    roles: ["admin", "manager", "area_leader", "dispatch"], Icon: Shield,    accent: "purple", border: "border-purple-500", activeBg: "bg-purple-600", accentTxt: "text-purple-600", lightBg: "bg-purple-50" },
     { id: "consultants", label: "Consultants", roles: ["consultant"],                        Icon: Briefcase, accent: "blue",   border: "border-blue-500",   activeBg: "bg-blue-600",   accentTxt: "text-blue-600",   lightBg: "bg-blue-50"   },
     { id: "client_team", label: "Client Team", roles: ["client", "key_user", "final_user", "internal_consultant", "project_manager"], Icon: Building2, accent: "green",  border: "border-green-500",  activeBg: "bg-green-600",  accentTxt: "text-green-600",  lightBg: "bg-green-50"  },
     { id: "headhunters", label: "Headhunters", roles: ["headhunter"],                       Icon: Handshake, accent: "pink",   border: "border-pink-500",   activeBg: "bg-pink-600",   accentTxt: "text-pink-600",   lightBg: "bg-pink-50"   },
@@ -2807,6 +2827,8 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
     final_user:          { pill: "bg-teal-100 text-teal-700 border-teal-200",     active: "bg-teal-600 text-white border-teal-600"      },
     internal_consultant: { pill: "bg-indigo-100 text-indigo-700 border-indigo-200", active: "bg-indigo-600 text-white border-indigo-600" },
     project_manager:     { pill: "bg-rose-100 text-rose-700 border-rose-200",     active: "bg-rose-600 text-white border-rose-600"      },
+    area_leader:         { pill: "bg-orange-100 text-orange-700 border-orange-200", active: "bg-orange-600 text-white border-orange-600"  },
+    dispatch:            { pill: "bg-cyan-100 text-cyan-700 border-cyan-200",       active: "bg-cyan-600 text-white border-cyan-600"      },
   };
 
   const planCfg = usePlanConfig();
@@ -3681,7 +3703,7 @@ function SettingsPlansTab({ ssCtx, auth }) {
 
 
 function SettingsPricingTab({ ssCtx, auth }) {
-  const savedPrices  = ssCtx.settings['plan_prices']     ?? DEFAULT_PLAN_PRICES;
+  const savedPrices  = { ...DEFAULT_PLAN_PRICES, ...(ssCtx.settings['plan_prices'] ?? {}) };
   const savedPriceIds = ssCtx.settings['stripe_price_ids'] ?? {};
   const [prices, setPrices]   = useState(() => JSON.parse(JSON.stringify(savedPrices)));
   const [saving, setSaving]   = useState(false);
@@ -3958,6 +3980,240 @@ function SettingsDefaultLifecycleTab({ ssCtx }) {
   );
 }
 
+// ─── SettingsMigrationTab ────────────────────────────────────────────────────
+
+const COLOR_DOT = {
+  violet:  'bg-violet-500',
+  blue:    'bg-blue-500',
+  cyan:    'bg-cyan-500',
+  teal:    'bg-teal-500',
+  amber:   'bg-amber-500',
+  orange:  'bg-orange-500',
+  green:   'bg-green-500',
+  emerald: 'bg-emerald-500',
+  red:     'bg-red-500',
+  pink:    'bg-pink-500',
+  slate:   'bg-slate-400',
+};
+
+const SYNC_ROWS = [
+  { key: 'phase_deliverables', label: 'Phase deliverables', hint: 'What each deliverable creates when syncing phases', options: [{ v: 'activity', l: 'Activities' }, { v: 'subcase', l: 'Sub-cases' }] },
+  { key: 'wricef_items',       label: 'WRICEF items',        hint: 'How WRICEF objects are tracked in the registry case', options: [{ v: 'case', l: 'Cases' }, { v: 'activity', l: 'Activities' }] },
+  { key: 'cutover_tasks',      label: 'Cutover tasks',        hint: 'How cutover tasks appear in the cutover plan case', options: [{ v: 'activity', l: 'Activities' }, { v: 'case', l: 'Sub-cases' }] },
+];
+
+function SettingsMigrationTab({ ssCtx }) {
+  const [sync, setSync] = useState({ ...DEFAULT_MIGRATION_CONFIG.sync });
+  const [phases, setPhases] = useState(DEFAULT_MIGRATION_CONFIG.phases.map((p, i) => ({ ...p, _id: i })));
+  const [expanded, setExpanded] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (ssCtx.loading) return;
+    const raw = ssCtx.settings['migration_config'];
+    if (!raw) return;
+    if (raw.sync) setSync({ ...DEFAULT_MIGRATION_CONFIG.sync, ...raw.sync });
+    if (Array.isArray(raw.phases)) setPhases(raw.phases.map((p, i) => ({ ...p, _id: i })));
+  }, [ssCtx.loading, ssCtx.settings]);
+
+  function toggleExpand(idx) {
+    setExpanded(v => v === idx ? null : idx);
+  }
+
+  function updatePhase(idx, key, val) {
+    setPhases(ps => ps.map((p, i) => i === idx ? { ...p, [key]: val } : p));
+  }
+
+  function movePhase(idx, dir) {
+    setPhases(ps => {
+      const next = [...ps];
+      const swap = idx + dir;
+      if (swap < 0 || swap >= next.length) return ps;
+      [next[idx], next[swap]] = [next[swap], next[idx]];
+      if (expanded === idx) setExpanded(swap);
+      else if (expanded === swap) setExpanded(idx);
+      return next;
+    });
+  }
+
+  function deletePhase(idx) {
+    setPhases(ps => ps.filter((_, i) => i !== idx));
+    if (expanded === idx) setExpanded(null);
+  }
+
+  function addPhase() {
+    const newPhase = { key: `phase_${Date.now()}`, label: 'New Phase', color: 'slate', deliverables: [], _id: Date.now() };
+    setPhases(ps => [...ps, newPhase]);
+    setExpanded(phases.length);
+  }
+
+  function resetToDefaults() {
+    setSync({ ...DEFAULT_MIGRATION_CONFIG.sync });
+    setPhases(DEFAULT_MIGRATION_CONFIG.phases.map((p, i) => ({ ...p, _id: i })));
+    setExpanded(null);
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    setSaved(false);
+    try {
+      const value = {
+        sync,
+        phases: phases.map(({ _id, ...p }) => ({
+          ...p,
+          deliverables: typeof p.deliverables === 'string'
+            ? p.deliverables.split('\n').map(s => s.trim()).filter(Boolean)
+            : (p.deliverables ?? []),
+        })),
+      };
+      await ssCtx.setSetting('migration_config', value);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (ssCtx.loading) return <Spinner />;
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100">Migration Configuration</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Configure SAP Activate phases and sync behavior for new migration projects.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={resetToDefaults}
+            className="px-3 py-1.5 text-sm rounded-xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            Reset to defaults
+          </button>
+          <button onClick={handleSave} disabled={saving}
+            className="flex items-center gap-1.5 px-4 py-1.5 text-sm rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors disabled:opacity-60">
+            {saved ? <><Check size={14} /> Saved</> : saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
+
+      {/* Sync Behavior */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
+        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">Sync Behavior</h4>
+        <div className="space-y-4">
+          {SYNC_ROWS.map(row => (
+            <div key={row.key} className="flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-gray-700 dark:text-gray-200">{row.label}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">{row.hint}</div>
+              </div>
+              <div className="flex rounded-xl border border-gray-200 dark:border-gray-600 overflow-hidden shrink-0">
+                {row.options.map(opt => (
+                  <button key={opt.v}
+                    onClick={() => setSync(s => ({ ...s, [row.key]: opt.v }))}
+                    className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                      sync[row.key] === opt.v
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }`}>
+                    {opt.l}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Phases */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5">
+        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">Phases</h4>
+        <div className="space-y-2">
+          {phases.map((phase, idx) => {
+            const delivCount = Array.isArray(phase.deliverables)
+              ? phase.deliverables.length
+              : (phase.deliverables ?? '').split('\n').filter(s => s.trim()).length;
+            const isOpen = expanded === idx;
+            return (
+              <div key={phase._id ?? idx} className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+                <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 dark:bg-gray-750">
+                  <span className={`w-3 h-3 rounded-full shrink-0 ${COLOR_DOT[phase.color] ?? 'bg-slate-400'}`} />
+                  <span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-200">{phase.label || phase.key}</span>
+                  <span className="text-xs text-gray-400">{delivCount} deliverable{delivCount !== 1 ? 's' : ''}</span>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => movePhase(idx, -1)} disabled={idx === 0}
+                      className="p-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 disabled:opacity-30">
+                      <ChevronUp size={14} />
+                    </button>
+                    <button onClick={() => movePhase(idx, 1)} disabled={idx === phases.length - 1}
+                      className="p-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 disabled:opacity-30">
+                      <ChevronDown size={14} />
+                    </button>
+                    <button onClick={() => toggleExpand(idx)}
+                      className="p-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                      {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </button>
+                    <button onClick={() => deletePhase(idx)}
+                      className="p-1 rounded text-red-400 hover:text-red-600">
+                      <X size={14} />
+                    </button>
+                  </div>
+                </div>
+                {isOpen && (
+                  <div className="px-4 py-4 space-y-3 border-t border-gray-200 dark:border-gray-700">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Label</label>
+                        <input
+                          value={phase.label}
+                          onChange={e => updatePhase(idx, 'label', e.target.value)}
+                          className="w-full px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Key</label>
+                        <input
+                          value={phase.key}
+                          onChange={e => updatePhase(idx, 'key', e.target.value)}
+                          className="w-full px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Color</label>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(COLOR_DOT).map(([name, cls]) => (
+                          <button key={name} onClick={() => updatePhase(idx, 'color', name)}
+                            className={`w-6 h-6 rounded-full ${cls} transition-transform ${phase.color === name ? 'ring-2 ring-offset-1 ring-blue-500 scale-110' : 'hover:scale-105'}`}
+                            title={name}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Deliverables (one per line)</label>
+                      <textarea
+                        rows={5}
+                        value={Array.isArray(phase.deliverables) ? phase.deliverables.join('\n') : (phase.deliverables ?? '')}
+                        onChange={e => updatePhase(idx, 'deliverables', e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <button onClick={addPhase}
+          className="mt-3 flex items-center gap-1.5 px-3 py-2 text-sm rounded-xl border border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors w-full justify-center">
+          <Plus size={14} /> Add Phase
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function SettingsWorkflowTab({ auth, ssCtx }) {
   const [wTab, setWTab] = useState("lifecycle");
   const WTABS = [
@@ -3966,6 +4222,7 @@ function SettingsWorkflowTab({ auth, ssCtx }) {
     { id: "gates",     label: "Transition Gates",    Icon: Lock },
     { id: "phases",    label: "Activity Phases",     Icon: ListChecks },
     { id: "sla",       label: "SLA",                 Icon: Shield },
+    { id: "migration", label: "Migration",            Icon: Rocket },
   ];
   return (
     <div>
@@ -3979,11 +4236,12 @@ function SettingsWorkflowTab({ auth, ssCtx }) {
           </button>
         ))}
       </div>
-      {wTab === "lifecycle" && <LifecycleSettingsView auth={auth} />}
-      {wTab === "defaults"  && <SettingsDefaultLifecycleTab ssCtx={ssCtx} />}
-      {wTab === "gates"     && <TransitionGatesPanel auth={auth} />}
-      {wTab === "phases"    && <SettingsPhasesTab ssCtx={ssCtx} />}
-      {wTab === "sla"       && <SlaView auth={auth} />}
+      {wTab === "lifecycle"  && <LifecycleSettingsView auth={auth} />}
+      {wTab === "defaults"   && <SettingsDefaultLifecycleTab ssCtx={ssCtx} />}
+      {wTab === "gates"      && <TransitionGatesPanel auth={auth} />}
+      {wTab === "phases"     && <SettingsPhasesTab ssCtx={ssCtx} />}
+      {wTab === "sla"        && <SlaClientView auth={auth} />}
+      {wTab === "migration"  && <SettingsMigrationTab ssCtx={ssCtx} />}
     </div>
   );
 }

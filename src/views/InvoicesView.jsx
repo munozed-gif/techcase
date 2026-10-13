@@ -6,11 +6,21 @@ import { useInvoices } from "../hooks/useCoreHooks.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { InvoiceModal } from "../components/InvoiceModal.jsx";
 import { INVOICE_STATUS_COLORS, INV_STATUS_LABEL_KEYS, cap, fmtDate } from "../lib/uiUtils.jsx";
+import { useSystemSettings } from "../hooks/useSystemSettings.jsx";
 import { STATUS_COLORS } from "../lib/businessConstants.js";
 import { Input, Modal, Select, Textarea } from "../components/ui.jsx";
 
+function currencySymbol(code) {
+  try {
+    return (0).toLocaleString('en', { style: 'currency', currency: code || 'USD', minimumFractionDigits: 0 })
+      .replace(/[\d\s,. ]/g, '').trim() || '$';
+  } catch { return '$'; }
+}
+
 function InvoicesView({ auth }) {
   const { t } = useT();
+  const ssCtx = useSystemSettings();
+  const curr  = currencySymbol(ssCtx.settings["default_currency"]);
   const clientFilter = auth.isClient ? { client_id: auth.user?.id } : {};
   const { invoices, loading, hasMore, loadMore, createInvoice, updateInvoice, deleteInvoice } = useInvoices(clientFilter);
   const [statusFilter, setStatusFilter] = useState("");
@@ -79,9 +89,9 @@ function InvoicesView({ auth }) {
       {/* Summary */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         {[
-          { label: t("invoices.total_billed"), value: `$${totalBilled.toLocaleString()}`,      color: "bg-blue-50 text-blue-700" },
-          { label: t("invoices.paid"),          value: `$${totalPaid.toLocaleString()}`,        color: "bg-green-50 text-green-700" },
-          { label: t("invoices.outstanding"),   value: `$${totalOutstanding.toLocaleString()}`, color: "bg-orange-50 text-orange-700" },
+          { label: t("invoices.total_billed"), value: `${curr}${totalBilled.toLocaleString()}`,      color: "bg-blue-50 text-blue-700" },
+          { label: t("invoices.paid"),          value: `${curr}${totalPaid.toLocaleString()}`,        color: "bg-green-50 text-green-700" },
+          { label: t("invoices.outstanding"),   value: `${curr}${totalOutstanding.toLocaleString()}`, color: "bg-orange-50 text-orange-700" },
         ].map(s => (
           <div key={s.label} className={`rounded-2xl p-5 ${s.color}`}>
             <div className="text-xl font-bold">{s.value}</div>
@@ -100,6 +110,7 @@ function InvoicesView({ auth }) {
       </div>
 
       {/* Table */}
+      <div className="overflow-x-auto">
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <table className="w-full text-sm">
           <thead>
@@ -121,7 +132,7 @@ function InvoicesView({ auth }) {
                   <div className="font-medium text-gray-900">{inv.client?.client_profiles?.company_name ?? inv.client?.full_name ?? "—"}</div>
                 </td>
                 <td className="px-5 py-4 text-gray-500">{inv.case?.title ?? "—"}</td>
-                <td className="px-5 py-4 font-semibold text-gray-900">${(inv.amount ?? 0).toLocaleString()}</td>
+                <td className="px-5 py-4 font-semibold text-gray-900">{curr}{(inv.amount ?? 0).toLocaleString()}</td>
                 <td className="px-5 py-4">
                   <Badge className={INVOICE_STATUS_COLORS[inv.status] ?? INVOICE_STATUS_COLORS.draft}>{INV_STATUS_LABEL_KEYS[inv.status] ? t(INV_STATUS_LABEL_KEYS[inv.status]) : cap(inv.status)}</Badge>
                 </td>
@@ -147,7 +158,7 @@ function InvoicesView({ auth }) {
                           {t("invoices.overdue")}
                         </button>
                       )}
-                      <button onClick={() => deleteInvoice(inv.id)}
+                      <button onClick={() => { if (window.confirm(t("action.confirm_delete"))) deleteInvoice(inv.id); }}
                         className="text-xs px-2 py-1 bg-gray-50 text-gray-500 rounded border border-gray-100 hover:bg-gray-100">
                         {t("action.delete")}
                       </button>
@@ -161,6 +172,7 @@ function InvoicesView({ auth }) {
             )}
           </tbody>
         </table>
+      </div>
       </div>
 
       {/* Load more */}

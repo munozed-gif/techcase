@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useTheme } from "../context/ThemeContext.jsx";
 import {
   Briefcase, Camera, Check, ChevronLeft, ChevronRight, DollarSign, Globe,
-  GraduationCap, Mail, Pencil, Plane, Plus, Star, Trash2, UserMinus, Users, X,
+  GraduationCap, Key, Mail, Pencil, Plane, Plus, Star, Trash2, UserMinus, Users, X, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
@@ -31,9 +31,30 @@ function ProfileView({ auth, compact = false }) {
     useConsultantProfile(auth.user?.id, realProfileId);
   const { ratings, avgRating } = useRatings(auth.user?.id);
   const { teams, pendingInvites, createTeam, inviteMember, respondToInvite, removeMember, leaveTeam, deleteTeam } = useConsultantTeams(auth.user?.id);
+  const { startCheckout, priceIds } = usePlanConfig();
   const [teamForm, setTeamForm] = useState({ name: "", desc: "" });
   const [showCreateTeam, setShowCreateTeam] = useState(false);
   const [creatingTeam, setCreatingTeam] = useState(false);
+
+  // ── AI usage / BYOK state ─────────────────────────────────
+  const [aiUsage, setAiUsage]     = useState(null);   // { generations_used, month }
+  const [aiIsPro, setAiIsPro]     = useState(false);
+  const [aiHasKey, setAiHasKey]   = useState(false);
+  const [aiKeyInput, setAiKeyInput] = useState('');
+  const [aiKeySaving, setAiKeySaving] = useState(false);
+  const [aiKeyError, setAiKeyError]   = useState('');
+  const [aiKeyOk, setAiKeyOk]     = useState(false);
+
+  useEffect(() => {
+    if (!auth.user?.id) return;
+    (async () => {
+      const { data: u } = await supabase.from('users').select('is_pro, anthropic_api_key_enc').eq('id', auth.user.id).single();
+      if (u) { setAiIsPro(!!u.is_pro); setAiHasKey(!!u.anthropic_api_key_enc); }
+      const month = new Date().toISOString().slice(0, 7);
+      const { data: row } = await supabase.from('ai_usage').select('generations_used').eq('user_id', auth.user.id).eq('month', month).maybeSingle();
+      setAiUsage({ generations_used: row?.generations_used ?? 0, month });
+    })();
+  }, [auth.user?.id]);
   const [expandedTeam, setExpandedTeam] = useState(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteError, setInviteError] = useState("");
@@ -136,6 +157,7 @@ function ProfileView({ auth, compact = false }) {
     { id: "experience", label: t("profile.tab_experience"), icon: Briefcase,     count: null },
     { id: "skills",     label: t("profile.tab_skills"),     icon: GraduationCap, count: profile?.skills?.length > 0 ? profile.skills.length : null },
     { id: "teams",      label: "Teams",                     icon: Users,          count: teams.length > 0 ? teams.length : null },
+    { id: "ai",         label: t("profile.tab_ai"),         icon: Zap,            count: null },
   ];
 
   const pvTabStatus = (() => {
@@ -938,6 +960,127 @@ function ProfileView({ auth, compact = false }) {
                   })}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* AI Settings */}
+          {tab.id === "ai" && (
+            <div className="space-y-6">
+
+              {/* Usage meter */}
+              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Zap size={16} className={aiIsPro ? "text-violet-500" : "text-blue-500"} />
+                    <span className="font-semibold text-sm text-gray-900 dark:text-white">{t("profile.ai_usage_title")}</span>
+                    {aiIsPro && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-700">PRO</span>
+                    )}
+                    {aiHasKey && !aiIsPro && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-700">BYOK</span>
+                    )}
+                  </div>
+                  <span className="text-xs text-gray-400">{aiUsage?.month ?? '—'}</span>
+                </div>
+                {(aiIsPro || aiHasKey) ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{t("profile.ai_unlimited")}</p>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">{t("profile.ai_used_of").replace('{used}', aiUsage?.generations_used ?? 0).replace('{limit}', 10)}</span>
+                      <span className={`text-xs font-semibold ${(aiUsage?.generations_used ?? 0) >= 10 ? 'text-red-500' : 'text-gray-600 dark:text-gray-300'}`}>
+                        {Math.max(0, 10 - (aiUsage?.generations_used ?? 0))} {t("profile.ai_remaining")}
+                      </span>
+                    </div>
+                    <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${(aiUsage?.generations_used ?? 0) >= 10 ? 'bg-red-500' : 'bg-blue-500'}`}
+                        style={{ width: `${Math.min(100, ((aiUsage?.generations_used ?? 0) / 10) * 100)}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">{t("profile.ai_resets_monthly")}</p>
+                  </>
+                )}
+              </div>
+
+              {/* BYOK */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Key size={14} className="text-gray-400" />
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white">{t("profile.ai_byok_title")}</h4>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">{t("profile.ai_byok_hint")}</p>
+                {aiHasKey ? (
+                  <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-700">
+                    <span className="text-xs text-green-700 dark:text-green-300 flex-1">✓ {t("profile.ai_key_saved")}</span>
+                    <button
+                      onClick={async () => {
+                        await fetch('/api/save-api-key', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: auth.user.id }) });
+                        setAiHasKey(false);
+                      }}
+                      className="text-xs text-red-500 hover:text-red-700"
+                    >{t("action.remove")}</button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <input
+                      type="password"
+                      value={aiKeyInput}
+                      onChange={e => { setAiKeyInput(e.target.value); setAiKeyError(''); setAiKeyOk(false); }}
+                      placeholder="sk-ant-api03-..."
+                      className="w-full text-sm border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono"
+                    />
+                    {aiKeyError && <p className="text-xs text-red-500">{aiKeyError}</p>}
+                    {aiKeyOk && <p className="text-xs text-green-600">{t("profile.ai_key_saved")}</p>}
+                    <button
+                      onClick={async () => {
+                        if (!aiKeyInput.trim()) return;
+                        setAiKeySaving(true); setAiKeyError(''); setAiKeyOk(false);
+                        try {
+                          const res = await fetch('/api/save-api-key', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ user_id: auth.user.id, api_key: aiKeyInput.trim() }),
+                          });
+                          const d = await res.json();
+                          if (!res.ok) throw new Error(d.error ?? 'Failed to save');
+                          setAiHasKey(true); setAiKeyInput(''); setAiKeyOk(true);
+                        } catch (e) {
+                          setAiKeyError(e.message);
+                        } finally {
+                          setAiKeySaving(false);
+                        }
+                      }}
+                      disabled={aiKeySaving || !aiKeyInput.trim()}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium rounded-xl transition-colors"
+                    >
+                      {aiKeySaving ? t("action.saving") : t("profile.ai_save_key")}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Upgrade to Pro */}
+              {!aiIsPro && (
+                <div className="border border-violet-200 dark:border-violet-700 bg-violet-50 dark:bg-violet-900/20 rounded-2xl p-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Zap size={15} className="text-violet-500" />
+                    <span className="font-semibold text-sm text-violet-900 dark:text-violet-200">{t("profile.ai_pro_title")}</span>
+                    <span className="ml-auto text-sm font-bold text-violet-700 dark:text-violet-300">$19/mo</span>
+                  </div>
+                  <p className="text-xs text-violet-700 dark:text-violet-300 mb-4">{t("profile.ai_pro_desc")}</p>
+                  <button
+                    onClick={() => {
+                      if (!priceIds['user_ai_pro']) { alert('AI Pro is not yet configured. Contact your admin.'); return; }
+                      startCheckout(auth.user.id, auth.user.email, 'user', 'ai_pro');
+                    }}
+                    className="w-full py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl transition-colors"
+                  >
+                    {t("profile.ai_upgrade_btn")}
+                  </button>
+                </div>
+              )}
+
             </div>
           )}
 

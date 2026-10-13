@@ -2,7 +2,7 @@ import { useState, useEffect, Fragment } from "react";
 import DOMPurify from "dompurify";
 import {
   AlertTriangle, Archive, Award, BarChart2, Check, CheckCircle2, ChevronDown, Clock, Code2,
-  Download, FileText, Flag, FolderOpen, Inbox, ListChecks, Paperclip, Pause, Play,
+  Copy, Download, ExternalLink, FileText, Flag, FolderOpen, Inbox, Link2, ListChecks, Paperclip, Pause, Play,
   RotateCcw, Search, SlidersHorizontal, Sparkles, Star, Target, User,
   UserCheck, Users, Wand2, X, Zap,
 } from "lucide-react";
@@ -853,8 +853,10 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const ssCtx = useSystemSettings();
   const genModel       = ssCtx.settings["ai_model"]        ?? 'claude-haiku-4-5-20251001';
   const analysisModel  = ssCtx.settings["analysis_model"]  ?? 'claude-haiku-4-5-20251001';
-  const _protoModelRaw = ssCtx.settings["prototype_model"] ?? 'claude-sonnet-5-5';
-  const protoModel     = _protoModelRaw === 'claude-sonnet-5' ? 'claude-sonnet-5-5' : _protoModelRaw;
+  const _protoRaw  = ssCtx.settings["prototype_model"];
+  const _SAFE      = 'claude-haiku-4-5-20251001';
+  const _ALIASES   = { 'claude-haiku-4-5': _SAFE, 'claude-haiku-5-5': _SAFE, 'claude-sonnet-4-5': _SAFE, 'claude-sonnet-4-6': _SAFE, 'claude-sonnet-5': _SAFE, 'claude-sonnet-5-5': _SAFE, 'claude-opus-5-5': _SAFE, 'claude-fable-5-1': _SAFE };
+  const protoModel = (_protoRaw ? (_ALIASES[_protoRaw] ?? _protoRaw) : null) ?? genModel;
   const liveCheckEnabled = (ssCtx.settings["generation_context"] ?? {}).sap_live_check === true;
   const { spec, loading: specLoading, saveSpec, refetch } = useCaseSpecification(caseData.id, auth.user?.id);
 
@@ -914,6 +916,11 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [protoErrorMsg, setProtoErrorMsg]   = useState('');
   const [protoGenerating, setProtoGenerating] = useState(false);
   const [generatingSpecD, setGeneratingSpecD] = useState(false);
+
+  // Share-with-customer link state
+  const [shareToken, setShareToken]         = useState(null); // loaded spec_review_tokens row
+  const [shareCreating, setShareCreating]   = useState(false);
+  const [shareCopied, setShareCopied]       = useState(false);
 
   // SAP live connection info node
   const [sapConnInfo, setSapConnInfo]     = useState(null);
@@ -1751,6 +1758,15 @@ ${mdToHtml(markdownContent)}
   const canDownloadPdf = auth.isAdmin || auth.isManager || userPlan !== 'free';
   const specApproved = spec?.status === 'approved';
 
+  // Load latest spec review token for this case
+  useEffect(() => {
+    if (!caseData?.id) return;
+    supabase.from('spec_review_tokens')
+      .select('*').eq('case_id', caseData.id)
+      .order('created_at', { ascending: false }).limit(1).maybeSingle()
+      .then(({ data }) => { if (data) setShareToken(data); });
+  }, [caseData?.id]);
+
   // Pre-fill from existing spec when mode is selected
   useEffect(() => {
     if (!spec) return;
@@ -2056,40 +2072,43 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
 
     await Promise.all(fetches);
 
-    // Live SAP system check
+    // Live SAP system check (hard gate — blocks generation if SAP is unreachable)
     if (genCtx.sap_live_check && caseData.client_id) {
-      try {
-        const [{ data: sapCfgRow }, { data: sapProjEnvRow }, { data: sapCaseEnvRow }] = await Promise.all([
-          supabase.from('system_settings').select('value').eq('key', 'sap_integration').maybeSingle(),
-          supabase.from('system_settings').select('value').eq('key', 'sap_project_env').maybeSingle(),
-          supabase.from('system_settings').select('value').eq('key', 'sap_case_env').maybeSingle(),
-        ]);
-        const clientSapData = (sapCfgRow?.value ?? {})[caseData.client_id] ?? {};
-        const sapEnvs = clientSapData.environments ?? (clientSapData.host ? [clientSapData] : []);
-        const selectedEnvId = (sapCaseEnvRow?.value ?? {})[caseData.id]
-          ?? (sapProjEnvRow?.value ?? {})[caseData.project_id]
-          ?? null;
-        const sapCfg = selectedEnvId
-          ? (sapEnvs.find(e => e.id === selectedEnvId) ?? sapEnvs[0] ?? null)
-          : (sapEnvs[0] ?? null);
-        if (sapCfg?.host && sapCfg?.username) {
-          const liveData = await sapLiveCheck(sapCfg);
-          if (liveData) extra.sapLiveData = liveData;
-          // For modification/update cases, try to find existing object in spec/description
-          const isModification = /modif|updat|enhanc|extend|fix|correct|adjust/i.test(caseData.title + ' ' + (caseData.description ?? ''));
-          if (isModification) {
-            const objMatch = (caseData.description ?? '').match(/\b(Z[A-Z0-9_]{1,30}|Y[A-Z0-9_]{1,30})/);
-            if (objMatch) {
-              const src = await sapFetchSource(sapCfg, 'program', objMatch[0]).catch(() => null);
-              if (src) {
-                extra.sapLiveData = { ...extra.sapLiveData, existingSource: src, existingObjectName: objMatch[0] };
-              } else {
-                extra.sapLiveData = { ...extra.sapLiveData, existingObjectMissing: true, existingObjectName: objMatch[0] };
-              }
-            }
+      const [{ data: sapCfgRow }, { data: sapProjEnvRow }, { data: sapCaseEnvRow }] = await Promise.all([
+        supabase.from('system_settings').select('value').eq('key', 'sap_integration').maybeSingle(),
+        supabase.from('system_settings').select('value').eq('key', 'sap_project_env').maybeSingle(),
+        supabase.from('system_settings').select('value').eq('key', 'sap_case_env').maybeSingle(),
+      ]);
+      const clientSapData = (sapCfgRow?.value ?? {})[caseData.client_id] ?? {};
+      const sapEnvs = clientSapData.environments ?? (clientSapData.host ? [clientSapData] : []);
+      const selectedEnvId = (sapCaseEnvRow?.value ?? {})[caseData.id]
+        ?? (sapProjEnvRow?.value ?? {})[caseData.project_id]
+        ?? null;
+      const sapCfg = selectedEnvId
+        ? (sapEnvs.find(e => e.id === selectedEnvId) ?? sapEnvs[0] ?? null)
+        : (sapEnvs[0] ?? null);
+      if (!sapCfg?.host || !sapCfg?.username) {
+        throw new Error('SAP live check is enabled but no SAP environment is configured for this case. Configure credentials in SAP Integration settings or disable SAP live check.');
+      }
+      const liveData = await sapLiveCheck(sapCfg);
+      if (liveData?.error !== undefined) {
+        const detail = liveData.message ? ` (${liveData.message})` : liveData.error ? ` (HTTP ${liveData.error})` : '';
+        throw new Error(`SAP live check failed — cannot generate documents without a live connection.${detail}`);
+      }
+      extra.sapLiveData = liveData;
+      // For modification/update cases, try to fetch existing ABAP object source
+      const isModification = /modif|updat|enhanc|extend|fix|correct|adjust/i.test(caseData.title + ' ' + (caseData.description ?? ''));
+      if (isModification) {
+        const objMatch = (caseData.description ?? '').match(/\b(Z[A-Z0-9_]{1,30}|Y[A-Z0-9_]{1,30})/);
+        if (objMatch) {
+          const src = await sapFetchSource(sapCfg, 'program', objMatch[0]).catch(() => null);
+          if (src) {
+            extra.sapLiveData = { ...extra.sapLiveData, existingSource: src, existingObjectName: objMatch[0] };
+          } else {
+            extra.sapLiveData = { ...extra.sapLiveData, existingObjectMissing: true, existingObjectName: objMatch[0] };
           }
         }
-      } catch (_) { /* SAP unreachable — continue without live data */ }
+      }
     }
 
     return buildContextString(caseData, genCtx, extra);
@@ -2479,23 +2498,31 @@ Generate with EXACTLY these sections:
 ${buildSectionConstraint('spec_d', genProfile)}${buildGenSuffix(genProfile, lang)}`;
   }
 
-  // iOS Safari throws "The string did not match the expected pattern" from JSON.stringify
-  // when a string contains lone surrogate characters (unpaired UTF-16 surrogates).
-  // Strip them before building the prompt.
+  // charCodeAt never throws on lone surrogates; regex .replace() CAN on WebKit/Safari.
   function sanitizeForJson(s) {
-    return (s ?? '').replace(/[\uD800-\uDFFF]/g, '');
+    const str = s ?? '';
+    let out = '';
+    for (let i = 0; i < str.length; i++) {
+      const c = str.charCodeAt(i);
+      if (c < 0xD800 || c > 0xDFFF) out += str[i];
+    }
+    return out;
   }
 
   function buildPrototypePrompt(specA, specB, style) {
-    const safeA = sanitizeForJson(specA);
-    const safeB = sanitizeForJson(specB);
+    const safeA     = sanitizeForJson(specA);
+    const safeB     = sanitizeForJson(specB);
+    const safeTitle = sanitizeForJson(caseData.title);
+    const safeSap   = sanitizeForJson(caseData.area_sap);
+    const safeInd   = sanitizeForJson(caseData.area_industry);
+    const safeDesc  = sanitizeForJson(caseData.description);
     if (style === 'auto') {
       return `You are a SAP prototype generator. Before generating the prototype, you must analyze the case and decide which visual style to use. Read the signals below carefully.
 
-Case: ${caseData.title}
-SAP Module: ${caseData.area_sap ?? ''}
-Industry: ${caseData.area_industry ?? ''}
-Description: ${caseData.description ?? ''}
+Case: ${safeTitle}
+SAP Module: ${safeSap}
+Industry: ${safeInd}
+Description: ${safeDesc}
 
 Spec A (Custom ABAP approach):
 ${safeA.slice(0, 6000)}
@@ -2545,10 +2572,10 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     if (style === 'sapgui') {
       return `You are a SAP GUI prototype generator. Generate a SINGLE complete self-contained HTML file that simulates a classic SAP GUI screen for this SAP case. The prototype must look and behave like real SAP GUI — not Fiori, not a wizard.
 
-Case: ${caseData.title}
-SAP Module: ${caseData.area_sap ?? ''}
-Industry: ${caseData.area_industry ?? ''}
-Description: ${caseData.description ?? ''}
+Case: ${safeTitle}
+SAP Module: ${safeSap}
+Industry: ${safeInd}
+Description: ${safeDesc}
 
 Spec A (Custom ABAP approach):
 ${safeA.slice(0, 6000)}
@@ -2606,10 +2633,10 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
 
     return `You are a UI/UX prototype generator. Generate a SINGLE complete self-contained HTML file that is an interactive multi-screen prototype for this SAP case.
 
-Case: ${caseData.title}
-SAP Module: ${caseData.area_sap ?? ''}
-Industry: ${caseData.area_industry ?? ''}
-Description: ${caseData.description ?? ''}
+Case: ${safeTitle}
+SAP Module: ${safeSap}
+Industry: ${safeInd}
+Description: ${safeDesc}
 
 Spec A (Custom ABAP approach):
 ${safeA.slice(0, 6000)}
@@ -2956,6 +2983,41 @@ Respond with ONLY a valid JSON object, no markdown fences:
       await refetch();
     } catch (e) { alert(e.message); }
     setApproving(false);
+  }
+
+  async function createShareLink() {
+    const PREFIXES = { a: 'SpecA_', b: 'SpecB_', c: 'SpecC_', d: 'SpecD_', proto: 'Prototype_' };
+    const docIds = {};
+    for (const [key, prefix] of Object.entries(PREFIXES)) {
+      const doc = (documents ?? []).find(d => d.file_name?.startsWith(prefix));
+      if (doc) docIds[key] = doc.id;
+    }
+    if (Object.keys(docIds).length === 0) {
+      alert(t('spec.share_no_docs'));
+      return;
+    }
+    setShareCreating(true);
+    try {
+      const { data, error } = await supabase
+        .from('spec_review_tokens')
+        .insert({ case_id: caseData.id, doc_ids: docIds, case_title: caseData.title ?? '' })
+        .select().single();
+      if (error) throw error;
+      setShareToken(data);
+      const url = `${window.location.origin}/review/${data.token}`;
+      await navigator.clipboard.writeText(url);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 3000);
+    } catch (e) { alert(e.message); }
+    setShareCreating(false);
+  }
+
+  async function copyShareLink() {
+    if (!shareToken?.token) return;
+    const url = `${window.location.origin}/review/${shareToken.token}`;
+    await navigator.clipboard.writeText(url);
+    setShareCopied(true);
+    setTimeout(() => setShareCopied(false), 3000);
   }
 
   // ── Loading state ────────────────────────────────────────────
@@ -3787,6 +3849,58 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     </div>
                   </div>
                 )}
+                {/* ── Share with Customer ── */}
+                {(() => {
+                  const hasSpecDocs = (documents ?? []).some(d =>
+                    d.file_name && ['SpecA_','SpecB_','SpecC_','SpecD_','Prototype_'].some(p => d.file_name.startsWith(p))
+                  );
+                  const shareUrl = shareToken ? `${window.location.origin}/review/${shareToken.token}` : null;
+                  const shareStatus = shareToken?.status;
+                  return (
+                    <div className="border border-dashed border-blue-200 dark:border-blue-800 rounded-xl p-3 bg-blue-50/50 dark:bg-blue-900/10">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <Link2 className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs font-semibold text-gray-800 dark:text-gray-200">{t("spec.share_btn")}</p>
+                            {shareToken && (
+                              <p className={`text-xs mt-0.5 ${shareStatus === 'approved' ? 'text-green-600' : shareStatus === 'changes_requested' ? 'text-amber-600' : 'text-blue-600'}`}>
+                                {shareStatus === 'approved' ? ('✓ ' + t("spec.share_status_approved"))
+                                  : shareStatus === 'changes_requested' ? ('⚠ ' + t("spec.share_status_changes"))
+                                  : t("spec.share_link_label")}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {!hasSpecDocs && !shareToken && (
+                            <p className="text-xs text-gray-400">{t("spec.share_no_docs")}</p>
+                          )}
+                          {shareUrl && (
+                            <input readOnly value={shareUrl}
+                              className="text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-gray-600 dark:text-gray-300 w-52 truncate cursor-pointer"
+                              onClick={copyShareLink} title={shareUrl} />
+                          )}
+                          {shareUrl && (
+                            <button onClick={copyShareLink}
+                              className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${shareCopied ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}>
+                              {shareCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                              {shareCopied ? t("spec.share_link_copied") : t("spec.share_copy_link")}
+                            </button>
+                          )}
+                          {(hasSpecDocs || shareToken) && (
+                            <button onClick={createShareLink} disabled={shareCreating}
+                              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 transition-colors">
+                              {shareCreating ? <span className="animate-spin inline-block">↻</span> : <ExternalLink className="w-3 h-3" />}
+                              {shareToken ? t("spec.share_new_link") : (shareCreating ? t("spec.share_creating") : t("spec.share_btn"))}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {spec?.content && (
                   <div className="overflow-y-auto max-h-[520px]">
                     <MarkdownAccordion text={spec.content} />
@@ -4255,16 +4369,21 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       try {
                         const _protoSys = 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.';
                         const _protoMsgs = [{ role: 'user', content: buildPrototypePrompt(aiSpecA, aiSpecB, protoStyle) }];
-                        let html = await callClaude({ model: resolvedModel, system: _protoSys, messages: _protoMsgs, max_tokens: 12000 })
+                        let html = await callClaude({ model: resolvedModel, system: _protoSys, messages: _protoMsgs, max_tokens: 8000 })
                           .catch(e => {
                             if (e.message?.includes('did not match the expected pattern')) {
-                              return callClaude({ model: 'claude-haiku-4-5-20251001', system: _protoSys, messages: _protoMsgs, max_tokens: 12000 });
+                              return callClaude({ model: 'claude-haiku-4-5-20251001', system: _protoSys, messages: _protoMsgs, max_tokens: 8000 });
                             }
                             throw e;
                           });
                         if (!html) throw new Error('Model returned empty response');
-                        html = html.trim();
-                        if (html.startsWith('```')) html = html.replace(/^```(?:html)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+                        html = sanitizeForJson(html).trim();
+                        if (html.startsWith('```')) {
+                          const firstNl = html.indexOf('\n');
+                          if (firstNl !== -1) html = html.slice(firstNl + 1);
+                          const lastFence = html.lastIndexOf('```');
+                          if (lastFence !== -1) html = html.slice(0, lastFence).trimEnd();
+                        }
                         setProtoHtmlState(html);
                         try {
                           if (deleteDocument && documents?.length) {

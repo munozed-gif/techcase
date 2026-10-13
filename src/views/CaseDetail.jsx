@@ -239,6 +239,7 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const [subCaseForm, setSubCaseForm] = useState({ title: "", description: "", priority: "medium", status: "open" });
   const [savingSubCase, setSavingSubCase] = useState(false);
   const [selectedSubCase, setSelectedSubCase] = useState(null);
+  const [drillDownCase, setDrillDownCase] = useState(null);
   // V9 Document state
   const docFileRef = useRef();
   const [docNotes, setDocNotes]         = useState("");
@@ -1569,25 +1570,28 @@ canvas{display:block;width:100%}
     await Promise.all(fetches);
 
     if (genCtx.sap_live_check && caseData.client_id) {
-      try {
-        const [{ data: sapCfgRow }, { data: sapProjEnvRow }, { data: sapCaseEnvRow }] = await Promise.all([
-          supabase.from('system_settings').select('value').eq('key', 'sap_integration').maybeSingle(),
-          supabase.from('system_settings').select('value').eq('key', 'sap_project_env').maybeSingle(),
-          supabase.from('system_settings').select('value').eq('key', 'sap_case_env').maybeSingle(),
-        ]);
-        const clientSapData = (sapCfgRow?.value ?? {})[caseData.client_id] ?? {};
-        const sapEnvs = clientSapData.environments ?? (clientSapData.host ? [clientSapData] : []);
-        const selectedEnvId = (sapCaseEnvRow?.value ?? {})[caseData.id]
-          ?? (sapProjEnvRow?.value ?? {})[caseData.project_id]
-          ?? null;
-        const sapCfg = selectedEnvId
-          ? (sapEnvs.find(e => e.id === selectedEnvId) ?? sapEnvs[0] ?? null)
-          : (sapEnvs[0] ?? null);
-        if (sapCfg?.host && sapCfg?.username) {
-          const liveData = await sapLiveCheck(sapCfg);
-          if (liveData) extra.sapLiveData = liveData;
-        }
-      } catch (_) {}
+      const [{ data: sapCfgRow }, { data: sapProjEnvRow }, { data: sapCaseEnvRow }] = await Promise.all([
+        supabase.from('system_settings').select('value').eq('key', 'sap_integration').maybeSingle(),
+        supabase.from('system_settings').select('value').eq('key', 'sap_project_env').maybeSingle(),
+        supabase.from('system_settings').select('value').eq('key', 'sap_case_env').maybeSingle(),
+      ]);
+      const clientSapData = (sapCfgRow?.value ?? {})[caseData.client_id] ?? {};
+      const sapEnvs = clientSapData.environments ?? (clientSapData.host ? [clientSapData] : []);
+      const selectedEnvId = (sapCaseEnvRow?.value ?? {})[caseData.id]
+        ?? (sapProjEnvRow?.value ?? {})[caseData.project_id]
+        ?? null;
+      const sapCfg = selectedEnvId
+        ? (sapEnvs.find(e => e.id === selectedEnvId) ?? sapEnvs[0] ?? null)
+        : (sapEnvs[0] ?? null);
+      if (!sapCfg?.host || !sapCfg?.username) {
+        throw new Error('SAP live check is enabled but no SAP environment is configured for this case. Configure credentials in SAP Integration settings or disable SAP live check.');
+      }
+      const liveData = await sapLiveCheck(sapCfg);
+      if (liveData?.error !== undefined) {
+        const detail = liveData.message ? ` (${liveData.message})` : liveData.error ? ` (HTTP ${liveData.error})` : '';
+        throw new Error(`SAP live check failed — cannot generate documents without a live connection.${detail}`);
+      }
+      extra.sapLiveData = liveData;
     }
 
     return buildContextString(caseData, genCtx, extra);
@@ -2096,14 +2100,14 @@ ${tableHtml(['Role','Name','Signature','Date'],[
     { id: "documents",  label: t("case.tab_docs"),       icon: Paperclip,     count: (documents.length + caseFilesForSpec.length) || null },
     { id: "time",       label: t("case.tab_time"),       icon: Clock,         count: `${totalTimeHours.toFixed(1)}h` },
     ...((auth.isAdmin || auth.isManager || auth.isClient) && (auth.isAdmin || caseVisibility !== 'private') ? [{ id: "applications", label: t("case.tab_applicants"), icon: Users, count: applications.length }] : []),
-    ...(caseData.is_head_hunter && (auth.isAdmin || auth.isManager || auth.isClient || auth.isHeadhunter) ? [{ id: "hh_proposals", label: "HH Proposals", icon: Crosshair, count: auth.isHeadhunter ? null : (hhProposals.filter(p => p.status === "pending").length || null) }] : []),
+    ...(caseData.is_head_hunter && (auth.isAdmin || auth.isManager || auth.isClient || auth.isHeadhunter) ? [{ id: "hh_proposals", label: t("case.tab_hh_proposals"), icon: Crosshair, count: auth.isHeadhunter ? null : (hhProposals.filter(p => p.status === "pending").length || null) }] : []),
     ...(perms.can("view_lifecycle") && (auth.isAdmin || caseOverrideAllowed) ? [{ id: "lifecycle", label: t("case.tab_lifecycle"), icon: TrendingUp, count: null }] : []),
     { id: "spec",           label: t("case.tab_spec"),         icon: FileText, count: null },
     ...((auth.isAdmin || auth.isManager || auth.isConsultant || auth.isKeyUser)
       ? [{ id: "implementation", label: t("sap.impl_tab_title"), icon: Code2, count: null }]
       : []),
     ...((auth.isAdmin || auth.isManager || auth.isConsultant || auth.isKeyUser)
-      ? [{ id: "transport", label: "Transports", icon: Truck, count: null }]
+      ? [{ id: "transport", label: t("sap.tab_transport"), icon: Truck, count: null }]
       : []),
     ...(perms.can("view_audit_log") ? [{ id: "audit_log", label: t("case.tab_audit_log"), icon: ClipboardList, count: null }] : []),
   ];
@@ -2178,6 +2182,22 @@ ${tableHtml(['Role','Name','Signature','Date'],[
     const tid = setTimeout(() => { carouselScrolling.current = false; }, 600);
     return () => clearTimeout(tid);
   }, [activeTab]);
+
+  // Sub-case drill-down: render sub-case as full CaseDetail with back button
+  if (drillDownCase) {
+    return (
+      <CaseDetail
+        caseData={drillDownCase}
+        auth={auth}
+        onBack={() => setDrillDownCase(null)}
+        onStatusChange={(id, status) => {
+          setDrillDownCase(prev => ({ ...prev, status }));
+        }}
+        onDelete={() => { setDrillDownCase(null); refetchSubCases(); }}
+        onUpdate={(id, updates) => { setDrillDownCase(prev => ({ ...prev, ...updates })); }}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -2472,20 +2492,25 @@ ${tableHtml(['Role','Name','Signature','Date'],[
                       <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12, flex: 1, overflowY: "auto", position: "relative", zIndex: 1 }}>
                         {/* Gate checklist */}
                         {gateItems.length > 0 ? (
-                          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                            {gateItems.map(cond => (
-                              <div key={cond.key} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                                {cond.passed
-                                  ? <CheckCircle2 size={13} style={{ color: "#22C55E", flexShrink: 0, marginTop: 1 }} />
-                                  : cond.mode === "block"
-                                    ? <XCircle size={13} style={{ color: "#F87171", flexShrink: 0, marginTop: 1 }} />
-                                    : <AlertTriangle size={13} style={{ color: "#FB923C", flexShrink: 0, marginTop: 1 }} />
-                                }
-                                <span style={{ fontSize: 12, lineHeight: 1.4, color: cond.passed ? "var(--t-text2)" : cond.mode === "block" ? "#F87171" : "#FB923C", opacity: !isActive ? 0.6 : 1 }}>
-                                  {cond.label}
-                                </span>
-                              </div>
-                            ))}
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            {gateItems.map(cond => {
+                              const isPassed = cond.passed;
+                              const isBlock = !isPassed && cond.mode === "block";
+                              const isWarn = !isPassed && cond.mode !== "block";
+                              const bg = isPassed ? "rgba(16,185,129,.08)" : isBlock ? "rgba(239,68,68,.08)" : "rgba(245,158,11,.08)";
+                              const border = isPassed ? "rgba(16,185,129,.3)" : isBlock ? "rgba(239,68,68,.3)" : "rgba(245,158,11,.3)";
+                              const iconColor = isPassed ? "#10B981" : isBlock ? "#F87171" : "#FB923C";
+                              const textColor = isPassed ? "var(--t-text2)" : isBlock ? "#F87171" : "#FB923C";
+                              const IconEl = isPassed ? CheckCircle2 : isBlock ? XCircle : AlertTriangle;
+                              return (
+                                <div key={cond.key} style={{ display: "flex", alignItems: "center", gap: 8, background: bg, border: `1px solid ${border}`, borderRadius: 8, padding: "6px 10px", opacity: !isActive ? 0.6 : 1 }}>
+                                  <IconEl size={13} style={{ color: iconColor, flexShrink: 0 }} />
+                                  <span style={{ fontSize: 11.5, lineHeight: 1.4, color: textColor, fontWeight: isPassed ? 400 : 500 }}>
+                                    {cond.label}
+                                  </span>
+                                </div>
+                              );
+                            })}
                           </div>
                         ) : (
                           <p style={{ fontSize: 12, color: "var(--t-text2)", margin: 0 }}>
@@ -3507,7 +3532,7 @@ ${tableHtml(['Role','Name','Signature','Date'],[
                       {selectedSubIds.has(sc.id) && <Check size={8} className="text-white" />}
                     </button>
                   )}
-                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedSubCase(sc)}>
+                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setDrillDownCase(sc)}>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-gray-900 text-sm">{sc.title}</span>
                       <Badge className={STATUS_COLORS[sc.status]}>{STATUS_LABEL_KEYS[sc.status] ? t(STATUS_LABEL_KEYS[sc.status]) : cap(fmt(sc.status))}</Badge>
@@ -3533,33 +3558,6 @@ ${tableHtml(['Role','Name','Signature','Date'],[
             ))}
           </div>
 
-          {/* Inline sub-case detail */}
-          {selectedSubCase && (
-            <div className="border-2 border-blue-200 rounded-2xl p-5 mt-3">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="font-bold text-gray-900">{selectedSubCase.title}</h4>
-                <button onClick={() => setSelectedSubCase(null)}
-                  className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
-              </div>
-              <CaseDetail
-                caseData={selectedSubCase}
-                auth={auth}
-                onStatusChange={(id, status) => {
-                  if (status === "cancelled") { initCancelModal(id, true); return; }
-                  supabase.from("cases").update({ status }).eq("id", id)
-                    .then(() => setSelectedSubCase(prev => ({ ...prev, status })));
-                }}
-                onDelete={async () => {
-                  await supabase.from("cases").delete().eq("id", selectedSubCase.id);
-                  setSelectedSubCase(null);
-                }}
-                onUpdate={async (id, updates) => {
-                  await updateCase(id, updates);
-                  setSelectedSubCase(prev => ({ ...prev, ...updates }));
-                }}
-              />
-            </div>
-          )}
         </div>
       )}
 

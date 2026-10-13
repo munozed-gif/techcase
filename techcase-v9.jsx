@@ -120,6 +120,11 @@ import { ConsultantProfileView } from "./src/components/ConsultantProfileView.js
 import { HeadhunterDashboard, HeadhunterCandidates, HeadhunterPipeline, HeadhunterPlacements } from "./src/views/HeadhunterViews.jsx";
 import DispatchView from "./src/views/DispatchView.jsx";
 import AreaLeaderView from "./src/views/AreaLeaderView.jsx";
+import SpecReviewView from "./src/views/SpecReviewView.jsx";
+import { MigrationHub } from "./src/views/MigrationViews.jsx";
+import { TransportView } from "./src/views/TransportView.jsx";
+import { FitGapView } from "./src/views/FitGapView.jsx";
+import { TestingView } from "./src/views/TestingView.jsx";
 
 
 import { NotificationBell } from "./src/components/NotificationBell.jsx";
@@ -135,6 +140,7 @@ import { AuthScreen } from "./src/views/AuthScreen.jsx";
 import { LandingView } from "./src/views/LandingView.jsx";
 import ProjectShareView from "./src/views/ProjectShareView.jsx";
 import ApprovalView from "./src/views/ApprovalView.jsx";
+import CustomerSpecReviewView from "./src/views/CustomerSpecReviewView.jsx";
 import MyReviewsView from "./src/views/MyReviewsView.jsx";
 
 
@@ -247,10 +253,11 @@ import { ConsultantsView, ConsultantDetailModal } from "./src/views/ConsultantsV
 // ============================================================
 import {
   NotificationsView, UsersView, ReportsView,
-  SlaView, SlaClientDetail,
+  SlaClientView, SlaClientDetail,
   DbConnectionsView, SapProfileFields, SapProfileBadges, DbConnectionsList,
   ClientTeamView, ClientTeamList,
 } from "./src/views/OperationsViews.jsx";
+import { SlaView } from "./src/views/SlaView.jsx";
 
 
 // ============================================================
@@ -556,6 +563,8 @@ const _joinMatch = typeof window !== 'undefined' && window.location.pathname.mat
 const _shareMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/share\/([^/?#]+)/);
 // Intercept /approve/:token — tokenized blueprint review view, no auth required
 const _approveMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/approve\/([^/?#]+)/);
+// Intercept /review/:token — customer-facing spec review link, no auth required
+const _reviewMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/review\/([^/?#]+)/);
 
 export default function App() {
   const auth = useAuth();
@@ -572,6 +581,7 @@ export default function App() {
   const [pendingProjectId, setPendingProjectId] = useState(null);
   const [pendingUserId, setPendingUserId] = useState(null);
   const [pendingClientId, setPendingClientId] = useState(null);
+  const [stripeBanner, setStripeBanner] = useState(null); // null | 'success' | 'cancel'
 
   // Sync authed state with auth session
   useEffect(() => {
@@ -582,6 +592,21 @@ export default function App() {
       }
     }
   }, [auth.loading, auth.user]);
+
+  // Handle Stripe return URL (?stripe=success|cancel)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const stripeParam = params.get('stripe');
+    if (stripeParam === 'success' || stripeParam === 'cancel') {
+      setStripeBanner(stripeParam);
+      params.delete('stripe');
+      params.delete('plan');
+      const newSearch = params.toString();
+      window.history.replaceState(null, '', newSearch ? `?${newSearch}` : window.location.pathname);
+      if (stripeParam === 'success') setTimeout(() => setStripeBanner(null), 8000);
+      else setTimeout(() => setStripeBanner(null), 5000);
+    }
+  }, []);
 
   // Global Cmd+K / Ctrl+K shortcut
   useEffect(() => {
@@ -607,6 +632,11 @@ export default function App() {
   // /approve/:token — tokenized blueprint review, no login needed
   if (_approveMatch) {
     return <ApprovalView token={_approveMatch[1]} />;
+  }
+
+  // /review/:token — customer-facing spec review link, no login needed
+  if (_reviewMatch) {
+    return <CustomerSpecReviewView token={_reviewMatch[1]} />;
   }
 
   // /join/:token — show branded join screen before any auth check
@@ -671,6 +701,16 @@ export default function App() {
       inner = <ClientOnboardingView auth={auth} onComplete={() => completeOnboarding("client-profile")} />;
     } else if (onboardingRole === "invited_client") {
       inner = <InvitedClientOnboardingView auth={auth} onComplete={() => completeOnboarding("my-cases")} />;
+    } else if (onboardingRole === "key_user" || onboardingRole === "internal_consultant" || onboardingRole === "project_manager") {
+      inner = <ConsultantOnboardingView auth={auth} onComplete={() => completeOnboarding("cases")} />;
+    } else if (onboardingRole === "area_leader") {
+      inner = <ManagerAdminWelcomeView auth={auth} onComplete={() => completeOnboarding("leader-cases")} />;
+    } else if (onboardingRole === "dispatch") {
+      inner = <ManagerAdminWelcomeView auth={auth} onComplete={() => completeOnboarding("dispatch-queue")} />;
+    } else if (onboardingRole === "headhunter") {
+      inner = <ManagerAdminWelcomeView auth={auth} onComplete={() => completeOnboarding("hh-pipeline")} />;
+    } else if (onboardingRole === "final_user") {
+      inner = <ClientOnboardingView auth={auth} onComplete={() => completeOnboarding("my-cases")} />;
     } else {
       inner = <ManagerAdminWelcomeView auth={auth} onComplete={() => completeOnboarding("dashboard")} />;
     }
@@ -737,9 +777,13 @@ export default function App() {
       case "invoices":       return <InvoicesView auth={auth} />;
       case "kanban":         return <KanbanView auth={auth} />;
       case "time":           return <TimeEntriesView auth={auth} />;
-      case "dispatch-queue": return <DispatchView auth={auth} />;
-      case "leader-cases":   return <AreaLeaderView auth={auth} onNav={setActiveView} />;
-      case "spec-review":    return <div className="p-8 text-gray-500">Spec review coming soon.</div>;
+      case "dispatch-queue": return (auth.role === 'dispatch' || auth.isAdmin || auth.isManager) ? <DispatchView auth={auth} /> : <Dashboard auth={auth} />;
+      case "leader-cases":   return <AreaLeaderView auth={auth} onNavigate={({ view, caseId }) => { setPendingCaseId(caseId ?? null); setActiveView(view); }} />;
+      case "spec-review":    return <SpecReviewView auth={auth} onNavigate={({ view, caseId }) => { setPendingCaseId(caseId ?? null); setActiveView(view); }} />;
+      case "migration":      return (auth.isAdmin || auth.isManager) ? <MigrationHub auth={auth} /> : <Dashboard auth={auth} />;
+      case "transport":      return (auth.isAdmin || auth.isManager) ? <TransportView auth={auth} /> : <Dashboard auth={auth} />;
+      case "fitgap":         return (auth.isAdmin || auth.isManager) ? <FitGapView auth={auth} /> : <Dashboard auth={auth} />;
+      case "testing":        return (auth.isAdmin || auth.isManager) ? <TestingView auth={auth} /> : <Dashboard auth={auth} />;
       default:               return <Dashboard auth={auth} />;
     }
   }
@@ -804,6 +848,18 @@ export default function App() {
               onClose={() => setSearchOpen(false)}
             />
           )}
+          {/* Stripe return banner */}
+          {stripeBanner && (
+            <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-xl text-sm font-semibold transition-all ${
+              stripeBanner === 'success'
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-700 text-gray-200'
+            }`}>
+              {stripeBanner === 'success' ? '✓ Subscription activated — welcome to your new plan!' : 'Checkout cancelled. You have not been charged.'}
+              <button onClick={() => setStripeBanner(null)} className="ml-2 opacity-70 hover:opacity-100">✕</button>
+            </div>
+          )}
+
           <main className="md:ml-64 p-4 md:p-8 min-h-screen">
             {/* Mobile hamburger */}
             <button onClick={() => setSidebarOpen(true)}

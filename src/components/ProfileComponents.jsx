@@ -5,7 +5,7 @@ import {
   User, Users, X, XCircle, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
-import { useT } from "../i18n/index.jsx";
+import { useT, LanguageContext } from "../i18n/index.jsx";
 import { callClaude, logEvent } from "../lib/utils.js";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { usePlanConfig, usePlatformBranding } from "../hooks/useSystemSettings.jsx";
@@ -965,18 +965,24 @@ class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex items-center justify-center h-64 p-8">
-          <div className="text-center space-y-3 max-w-sm">
-            <div className="text-3xl">⚠️</div>
-            <p className="font-semibold text-gray-800">Something went wrong</p>
-            <p className="text-xs text-gray-400 font-mono">{this.state.error?.message}</p>
-            <button
-              onClick={() => this.setState({ hasError: false, error: null })}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700">
-              Try again
-            </button>
-          </div>
-        </div>
+        <LanguageContext.Consumer>
+          {({ t }) => (
+            <div className="flex items-center justify-center h-64 p-8">
+              <div className="text-center space-y-3 max-w-sm">
+                <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mx-auto">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-red-500"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </div>
+                <p className="font-semibold text-gray-800 dark:text-gray-100">{t("error.boundary_title")}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{t("error.boundary_desc")}</p>
+                <button
+                  onClick={() => this.setState({ hasError: false, error: null })}
+                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700">
+                  {t("error.boundary_retry")}
+                </button>
+              </div>
+            </div>
+          )}
+        </LanguageContext.Consumer>
       );
     }
     return this.props.children;

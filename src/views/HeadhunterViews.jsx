@@ -109,12 +109,13 @@ function KpiTile({ label, value, sub, icon: Icon, color }) {
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 function AppBadge({ status }) {
+  const { t } = useT();
   const map = {
-    pending:      { cls: "bg-amber-100 text-amber-800",  label: "Applied" },
-    under_review: { cls: "bg-blue-100 text-blue-800",    label: "In Review" },
-    accepted:     { cls: "bg-green-100 text-green-800",  label: "Placed" },
-    rejected:     { cls: "bg-red-100 text-red-800",      label: "Declined" },
-    withdrawn:    { cls: "bg-gray-100 text-gray-600",    label: "Withdrawn" },
+    pending:      { cls: "bg-amber-100 text-amber-800",  label: t("hh.badge_applied") },
+    under_review: { cls: "bg-blue-100 text-blue-800",    label: t("hh.badge_in_review") },
+    accepted:     { cls: "bg-green-100 text-green-800",  label: t("hh.badge_placed") },
+    rejected:     { cls: "bg-red-100 text-red-800",      label: t("hh.badge_declined") },
+    withdrawn:    { cls: "bg-gray-100 text-gray-600",    label: t("hh.badge_withdrawn") },
   };
   const s = map[status] ?? { cls: "bg-gray-100 text-gray-600", label: cap(status ?? "") };
   return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${s.cls}`}>{s.label}</span>;
@@ -124,6 +125,7 @@ function AppBadge({ status }) {
 // 1.  HEADHUNTER DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
 export function HeadhunterDashboard({ auth, onNavigate }) {
+  const { t } = useT();
   const { candidates, applications, sourcedCases, proposals, loading, refetch } = useHeadhunterData(auth.user?.id);
   const planConf   = usePlanConfig(auth);
   const planKey    = auth.profile?.plan_tier ?? "free";
@@ -145,26 +147,26 @@ export function HeadhunterDashboard({ auth, onNavigate }) {
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-black text-gray-900">
-            Welcome, {auth.profile?.full_name?.split(" ")[0] ?? "Headhunter"}
+            {t("hh.welcome")} {auth.profile?.full_name?.split(" ")[0] ?? t("hh.headhunter_fallback")}
           </h1>
-          <p className="text-gray-500 text-sm mt-0.5">Your talent placement overview</p>
+          <p className="text-gray-500 text-sm mt-0.5">{t("hh.dashboard_sub")}</p>
         </div>
         <div className="flex items-center gap-2">
           <span className={`text-xs font-bold px-3 py-1 rounded-full ${PLAN_BADGE[planKey] ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-600"}`}>
-            {planLabel} Plan
+            {planLabel} {t("hh.plan")}
           </span>
           <span className="text-xs text-gray-400 font-medium">
-            {candidates.length} / {planConf?.maxCandidates ?? (planKey === "free" ? 5 : "∞")} candidates
+            {candidates.length} / {planConf?.maxCandidates ?? (planKey === "free" ? 5 : "∞")} {t("hh.candidates_quota_suffix")}
           </span>
         </div>
       </div>
 
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiTile label="Candidates" value={candidates.length} sub="in your roster" icon={Users} color="blue" />
-        <KpiTile label="Active Applications" value={active.length} sub={`+ ${pendingProposals.length} pending proposals`} icon={Clock} color="amber" />
-        <KpiTile label="Placements" value={placed.length + acceptedProposals.length} sub={`${placed.length} placements · ${acceptedProposals.length} cases assigned`} icon={UserCheck} color="green" />
-        <KpiTile label="Success Rate" value={`${successPct}%`} sub={`${applications.length + proposals.length} total`} icon={TrendingUp} color="purple" />
+        <KpiTile label={t("hh.kpi_candidates")} value={candidates.length} sub={t("hh.sub_in_roster")} icon={Users} color="blue" />
+        <KpiTile label={t("hh.kpi_active_apps")} value={active.length} sub={`+ ${pendingProposals.length} ${t("hh.pending_proposals")}`} icon={Clock} color="amber" />
+        <KpiTile label={t("hh.kpi_placements")} value={placed.length + acceptedProposals.length} sub={`${placed.length} ${t("hh.placements_suffix")} · ${acceptedProposals.length} ${t("hh.cases_assigned")}`} icon={UserCheck} color="green" />
+        <KpiTile label={t("hh.kpi_success_rate")} value={`${successPct}%`} sub={`${applications.length + proposals.length} ${t("hh.total_suffix")}`} icon={TrendingUp} color="purple" />
       </div>
 
       {/* Main content grid */}
@@ -175,17 +177,17 @@ export function HeadhunterDashboard({ auth, onNavigate }) {
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
               <div className="font-bold text-gray-900 flex items-center gap-2">
-                <Activity size={16} className="text-blue-500" /> Recent Applications
+                <Activity size={16} className="text-blue-500" /> {t("hh.recent_apps")}
               </div>
               <button onClick={() => onNavigate?.("hh-pipeline")}
                 className="text-xs text-blue-600 font-semibold hover:underline flex items-center gap-1">
-                Full pipeline <ChevronRight size={13} />
+                {t("hh.full_pipeline")} <ChevronRight size={13} />
               </button>
             </div>
             {applications.length === 0 ? (
               <div className="text-center py-10 text-gray-400 text-sm">
                 <Briefcase size={28} className="mx-auto mb-2 opacity-20" />
-                No applications yet. Apply your candidates to open cases in Arena.
+                {t("hh.no_apps")}
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
@@ -195,7 +197,7 @@ export function HeadhunterDashboard({ auth, onNavigate }) {
                     <div key={app.id} className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors">
                       <PersonAvatar name={app.consultant?.full_name ?? "?"} avatarUrl={app.consultant?.avatar_url} size={36} />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold text-gray-800 truncate">{app.consultant?.full_name ?? "Consultant"}</div>
+                        <div className="text-sm font-semibold text-gray-800 truncate">{app.consultant?.full_name ?? t("hh.consultant_fallback")}</div>
                         <div className="text-xs text-gray-400 truncate">{app.case?.title}{company ? ` · ${company}` : ""}</div>
                       </div>
                       <div className="flex flex-col items-end gap-1">
@@ -213,24 +215,24 @@ export function HeadhunterDashboard({ auth, onNavigate }) {
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
               <div className="font-bold text-gray-900 flex items-center gap-2">
-                <Target size={16} className="text-purple-500" /> My Case Proposals
+                <Target size={16} className="text-purple-500" /> {t("hh.my_proposals")}
               </div>
-              <span className="text-xs text-gray-400">{proposals.length} total</span>
+              <span className="text-xs text-gray-400">{proposals.length} {t("hh.total_suffix")}</span>
             </div>
             {proposals.length === 0 ? (
               <div className="text-center py-10 text-gray-400 text-sm">
                 <Target size={28} className="mx-auto mb-2 opacity-20" />
-                No proposals yet. Apply to manage cases from Arena.
+                {t("hh.no_proposals")}
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
                 {proposals.slice(0, 5).map(p => {
                   const company = p.case?.client?.client_profiles?.[0]?.company_name ?? p.case?.client?.client_profiles?.company_name;
                   const badge = {
-                    pending:   { cls: "bg-amber-100 text-amber-700",  label: "Pending" },
-                    accepted:  { cls: "bg-green-100 text-green-700",  label: "Accepted" },
-                    rejected:  { cls: "bg-red-100 text-red-600",      label: "Rejected" },
-                    withdrawn: { cls: "bg-gray-100 text-gray-500",    label: "Withdrawn" },
+                    pending:   { cls: "bg-amber-100 text-amber-700",  label: t("hh.status_pending_badge") },
+                    accepted:  { cls: "bg-green-100 text-green-700",  label: t("hh.badge_placed") },
+                    rejected:  { cls: "bg-red-100 text-red-600",      label: t("hh.badge_declined") },
+                    withdrawn: { cls: "bg-gray-100 text-gray-500",    label: t("hh.badge_withdrawn") },
                   }[p.status] ?? { cls: "bg-gray-100 text-gray-500", label: cap(p.status) };
                   return (
                     <div key={p.id} className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors">
@@ -238,8 +240,8 @@ export function HeadhunterDashboard({ auth, onNavigate }) {
                         <Briefcase size={15} className="text-purple-500" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold text-gray-800 truncate">{p.case?.title ?? "Untitled"}</div>
-                        <div className="text-xs text-gray-400 truncate">{company ?? ""}{p.proposed_commission_pct ? ` · ${p.proposed_commission_pct}% commission` : ""}</div>
+                        <div className="text-sm font-semibold text-gray-800 truncate">{p.case?.title ?? t("hh.untitled")}</div>
+                        <div className="text-xs text-gray-400 truncate">{company ?? ""}{p.proposed_commission_pct ? ` · ${p.proposed_commission_pct}% ${t("hh.commission_word")}` : ""}</div>
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.cls}`}>{badge.label}</span>
@@ -258,10 +260,10 @@ export function HeadhunterDashboard({ auth, onNavigate }) {
           {/* Assigned cases */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
             <div className="font-bold text-gray-900 text-sm mb-3 flex items-center gap-2">
-              <Target size={14} className="text-purple-500" /> My Assigned Cases
+              <Target size={14} className="text-purple-500" /> {t("hh.assigned_cases")}
             </div>
             {sourcedCases.length === 0 ? (
-              <p className="text-xs text-gray-400">No cases assigned to you yet.</p>
+              <p className="text-xs text-gray-400">{t("hh.no_assigned_cases")}</p>
             ) : (
               <div className="space-y-2">
                 {sourcedCases.slice(0, 4).map(c => {
@@ -277,7 +279,7 @@ export function HeadhunterDashboard({ auth, onNavigate }) {
                 {sourcedCases.length > 4 && (
                   <button onClick={() => onNavigate?.("hh-placements")}
                     className="text-xs text-blue-600 hover:underline mt-1">
-                    +{sourcedCases.length - 4} more
+                    +{sourcedCases.length - 4} {t("hh.more_suffix")}
                   </button>
                 )}
               </div>
@@ -286,18 +288,18 @@ export function HeadhunterDashboard({ auth, onNavigate }) {
 
           {/* Quick actions */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2">
-            <div className="font-bold text-gray-900 text-sm mb-3">Quick Actions</div>
+            <div className="font-bold text-gray-900 text-sm mb-3">{t("hh.quick_actions")}</div>
             {[
-              { label: "Browse Open Cases",    icon: Target,     view: "arena",         color: "blue" },
-              { label: "Resource Needs",        icon: Briefcase,  view: "cases",         color: "violet" },
-              { label: "My Talent Roster",     icon: Users,      view: "hh-candidates", color: "purple" },
-              { label: "Placement Pipeline",   icon: LayoutGrid, view: "hh-pipeline",   color: "amber" },
-              { label: "Placement History",    icon: UserCheck,  view: "hh-placements", color: "green" },
+              { labelKey: "hh.qa_browse_cases",  icon: Target,     view: "arena",         color: "blue" },
+              { labelKey: "hh.qa_resource_needs", icon: Briefcase,  view: "cases",         color: "violet" },
+              { labelKey: "hh.qa_talent_roster", icon: Users,      view: "hh-candidates", color: "purple" },
+              { labelKey: "hh.qa_pipeline",      icon: LayoutGrid, view: "hh-pipeline",   color: "amber" },
+              { labelKey: "hh.qa_history",       icon: UserCheck,  view: "hh-placements", color: "green" },
             ].map(a => (
               <button key={a.view} onClick={() => onNavigate?.(a.view)}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gray-50 hover:bg-gray-100 text-left transition-colors">
                 <a.icon size={15} className={`text-${a.color}-500 flex-shrink-0`} />
-                <span className="text-sm font-medium text-gray-700">{a.label}</span>
+                <span className="text-sm font-medium text-gray-700">{t(a.labelKey)}</span>
                 <ChevronRight size={13} className="text-gray-400 ml-auto" />
               </button>
             ))}
@@ -312,6 +314,7 @@ export function HeadhunterDashboard({ auth, onNavigate }) {
 // 2.  MY CANDIDATES (Talent Roster)
 // ═══════════════════════════════════════════════════════════════════════════════
 export function HeadhunterCandidates({ auth }) {
+  const { t } = useT();
   const { candidates, applications, loading, refetch } = useHeadhunterData(auth.user?.id);
   const [search, setSearch]       = useState("");
   const [profileView, setProfile] = useState(null);
@@ -346,7 +349,7 @@ export function HeadhunterCandidates({ auth }) {
       <div>
         <button onClick={() => setProfile(null)}
           className="mb-4 flex items-center gap-2 text-sm text-blue-600 hover:underline font-medium">
-          ← Back to My Roster
+          {t("hh.back_to_roster")}
         </button>
         <ConsultantProfileView userId={profileView} onBack={() => setProfile(null)} />
       </div>
@@ -358,13 +361,13 @@ export function HeadhunterCandidates({ auth }) {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-black text-gray-900">My Talent Roster</h1>
-          <p className="text-gray-500 text-sm mt-0.5">{candidates.length} managed candidates</p>
+          <h1 className="text-2xl font-black text-gray-900">{t("hh.talent_roster_title")}</h1>
+          <p className="text-gray-500 text-sm mt-0.5">{candidates.length} {t("hh.managed_candidates")}</p>
         </div>
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search by name or skill…"
+            placeholder={t("consultant.search_ph")}
             className="pl-8 pr-4 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-200 w-56" />
         </div>
       </div>
@@ -375,10 +378,10 @@ export function HeadhunterCandidates({ auth }) {
         <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
           <Users size={40} className="mx-auto mb-3 text-gray-200" />
           <p className="text-gray-500 font-medium">
-            {search ? "No candidates match your search." : "No managed candidates yet."}
+            {search ? t("hh.no_search_match") : t("hh.no_candidates")}
           </p>
           <p className="text-gray-400 text-sm mt-1">
-            Candidates are linked to you when they register or are assigned by an admin.
+            {t("hh.no_candidates_sub")}
           </p>
         </div>
       ) : (
@@ -407,7 +410,7 @@ export function HeadhunterCandidates({ auth }) {
                       </div>
                     </div>
                     <button onClick={() => setRemoving(removing === c.id ? null : c.id)}
-                      className="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0" title="Remove from roster">
+                      className="text-gray-300 hover:text-red-400 transition-colors flex-shrink-0" title={t("hh.remove_from_roster_title")}>
                       <X size={14} />
                     </button>
                   </div>
@@ -428,15 +431,15 @@ export function HeadhunterCandidates({ auth }) {
                   <div className="grid grid-cols-3 gap-2 text-center border-t border-gray-50 pt-3">
                     <div>
                       <div className="text-xs font-black text-gray-800">{apps.length}</div>
-                      <div className="text-[9px] text-gray-400 uppercase tracking-wide">Apps</div>
+                      <div className="text-[9px] text-gray-400 uppercase tracking-wide">{t("hh.stat_apps")}</div>
                     </div>
                     <div>
                       <div className="text-xs font-black text-green-600">{placed}</div>
-                      <div className="text-[9px] text-gray-400 uppercase tracking-wide">Placed</div>
+                      <div className="text-[9px] text-gray-400 uppercase tracking-wide">{t("hh.stat_placed")}</div>
                     </div>
                     <div>
                       <div className="text-xs font-black text-gray-800">{prof?.years_experience ?? "—"}</div>
-                      <div className="text-[9px] text-gray-400 uppercase tracking-wide">Yrs exp</div>
+                      <div className="text-[9px] text-gray-400 uppercase tracking-wide">{t("hh.stat_yrs_exp")}</div>
                     </div>
                   </div>
                 </div>
@@ -444,12 +447,12 @@ export function HeadhunterCandidates({ auth }) {
                 {/* Actions */}
                 {removing === c.id ? (
                   <div className="px-4 py-3 bg-red-50 border-t border-red-100 flex items-center justify-between">
-                    <span className="text-xs text-red-600 font-medium">Remove from your roster?</span>
+                    <span className="text-xs text-red-600 font-medium">{t("hh.remove_confirm")}</span>
                     <div className="flex gap-2">
-                      <button onClick={() => setRemoving(null)} className="text-xs text-gray-500 hover:text-gray-700 font-medium">Cancel</button>
+                      <button onClick={() => setRemoving(null)} className="text-xs text-gray-500 hover:text-gray-700 font-medium">{t("action.cancel")}</button>
                       <button onClick={() => removeCandidate(c.id)}
                         className="text-xs text-red-600 hover:text-red-700 font-bold flex items-center gap-1">
-                        {removing === c.id ? <Loader2 size={11} className="animate-spin" /> : null} Remove
+                        {removing === c.id ? <Loader2 size={11} className="animate-spin" /> : null} {t("action.remove")}
                       </button>
                     </div>
                   </div>
@@ -457,11 +460,11 @@ export function HeadhunterCandidates({ auth }) {
                   <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 flex gap-2">
                     <button onClick={() => setProfile(c.id)}
                       className="flex-1 text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center justify-center gap-1 py-1">
-                      <User size={12} /> View Profile
+                      <User size={12} /> {t("hh.view_profile")}
                     </button>
                     {apps.length > 0 && (
                       <span className="text-[10px] text-gray-400 flex items-center gap-1">
-                        <Clock size={10} /> {apps.filter(a => a.status === "pending" || a.status === "under_review").length} active
+                        <Clock size={10} /> {apps.filter(a => a.status === "pending" || a.status === "under_review").length} {t("hh.active_suffix")}
                       </span>
                     )}
                   </div>
@@ -486,6 +489,7 @@ const PIPELINE_COLS = [
 ];
 
 export function HeadhunterPipeline({ auth }) {
+  const { t } = useT();
   const { candidates, applications, loading } = useHeadhunterData(auth.user?.id);
 
   // Build pipeline items
@@ -522,13 +526,20 @@ export function HeadhunterPipeline({ auth }) {
     return items.filter(i => i.status === colId);
   }
 
+  const PIPELINE_LABEL = {
+    sourced:      t("hh.pipeline_sourced"),
+    pending:      t("hh.pipeline_applied"),
+    under_review: t("hh.pipeline_in_review"),
+    accepted:     t("hh.pipeline_placed"),
+  };
+
   if (loading) return <div className="flex justify-center py-24"><Spinner /></div>;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black text-gray-900">Talent Pipeline</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Track your candidates through the placement funnel</p>
+        <h1 className="text-2xl font-black text-gray-900">{t("hh.pipeline_title")}</h1>
+        <p className="text-gray-500 text-sm mt-0.5">{t("hh.pipeline_sub")}</p>
       </div>
 
       {/* Stats bar */}
@@ -536,7 +547,7 @@ export function HeadhunterPipeline({ auth }) {
         {PIPELINE_COLS.map(col => (
           <div key={col.id} className="bg-white rounded-xl border border-gray-100 p-3 text-center shadow-sm">
             <div className="text-xl font-black text-gray-900">{colItems(col.id).length}</div>
-            <div className={`text-[10px] font-bold uppercase tracking-widest mt-0.5 ${col.color.split(" ")[1]}`}>{col.label}</div>
+            <div className={`text-[10px] font-bold uppercase tracking-widest mt-0.5 ${col.color.split(" ")[1]}`}>{PIPELINE_LABEL[col.id]}</div>
           </div>
         ))}
       </div>
@@ -550,14 +561,14 @@ export function HeadhunterPipeline({ auth }) {
               {/* Column header */}
               <div className={`flex items-center gap-2 px-3 py-2 rounded-xl ${col.color} font-bold text-xs uppercase tracking-wider`}>
                 <span className={`w-2 h-2 rounded-full ${col.dot}`} />
-                {col.label}
+                {PIPELINE_LABEL[col.id]}
                 <span className="ml-auto font-black text-sm">{colList.length}</span>
               </div>
 
               {/* Cards */}
               {colList.length === 0 ? (
                 <div className="flex-1 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center text-gray-300 text-xs py-8">
-                  Empty
+                  {t("hh.empty")}
                 </div>
               ) : (
                 colList.map((item, idx) => (
@@ -566,7 +577,7 @@ export function HeadhunterPipeline({ auth }) {
                     {/* Candidate */}
                     <div className="flex items-center gap-2">
                       <PersonAvatar name={item.candidateName ?? "?"} avatarUrl={item.avatarUrl} size={28} />
-                      <span className="text-xs font-bold text-gray-800 leading-tight truncate">{item.candidateName ?? "Consultant"}</span>
+                      <span className="text-xs font-bold text-gray-800 leading-tight truncate">{item.candidateName ?? t("hh.consultant_fallback")}</span>
                     </div>
                     {/* Case */}
                     {item.caseTitle && (
@@ -597,6 +608,7 @@ export function HeadhunterPipeline({ auth }) {
 // 4.  MY PLACEMENTS + COMMISSION TRACKING
 // ═══════════════════════════════════════════════════════════════════════════════
 export function HeadhunterPlacements({ auth }) {
+  const { t } = useT();
   const { applications, sourcedCases, loading } = useHeadhunterData(auth.user?.id);
   const [tab, setTab] = useState("placed");
 
@@ -610,33 +622,34 @@ export function HeadhunterPlacements({ auth }) {
   });
 
   const placed = applications.filter(a => a.status === "accepted");
+  const [commPaidOverrides, setCommPaidOverrides] = useState({});
 
   function calcComm(rate) {
     if (!rate) return null;
     return Math.round(rate * commHours * (commRate / 100));
   }
 
+  function isCommPaid(app) {
+    return commPaidOverrides[app.id] !== undefined ? commPaidOverrides[app.id] : !!app.headhunter_commission_paid;
+  }
+
   function getCommStatus(app) {
-    return app.headhunter_commission_paid ? "paid" : "pending";
+    return isCommPaid(app) ? "paid" : "pending";
   }
 
   async function toggleCommStatus(app, amount) {
-    const nowPaid = !app.headhunter_commission_paid;
-    // Optimistic local update via the applications array in the shared hook
-    // We write directly to the row; the hook will re-fetch on next mount.
+    const nowPaid = !isCommPaid(app);
+    setCommPaidOverrides(prev => ({ ...prev, [app.id]: nowPaid }));
     await supabase.from("applications").update({
       headhunter_commission_paid: nowPaid,
       headhunter_commission_paid_at: nowPaid ? new Date().toISOString() : null,
       headhunter_commission_amount: nowPaid ? amount : null,
     }).eq("id", app.id);
-    // Mirror in localStorage as a quick-read cache
     try {
       const cached = JSON.parse(localStorage.getItem(`${lsKey}_statuses`) ?? "{}");
       cached[app.id] = { status: nowPaid ? "paid" : "pending", amount, paidAt: nowPaid ? new Date().toISOString() : null };
       localStorage.setItem(`${lsKey}_statuses`, JSON.stringify(cached));
     } catch {}
-    // Force UI refresh by mutating app in-place (placed is derived from applications state in parent hook)
-    app.headhunter_commission_paid = nowPaid;
   }
 
   function saveCommRate(v) {
@@ -652,14 +665,14 @@ export function HeadhunterPlacements({ auth }) {
   }
 
   const totalComm   = placed.reduce((s, a) => s + (calcComm(a.proposed_rate) ?? 0), 0);
-  const paidComm    = placed.filter(a => a.headhunter_commission_paid).reduce((s, a) => s + (calcComm(a.proposed_rate) ?? 0), 0);
+  const paidComm    = placed.filter(a => isCommPaid(a)).reduce((s, a) => s + (calcComm(a.proposed_rate) ?? 0), 0);
   const pendingComm = totalComm - paidComm;
-  const paidCount   = placed.filter(a => a.headhunter_commission_paid).length;
+  const paidCount   = placed.filter(a => isCommPaid(a)).length;
 
   const tabs = [
-    { id: "placed",      label: "Placed Candidates", count: placed.length },
-    { id: "commissions", label: "Commissions",        count: null },
-    { id: "attributed",  label: "Attributed Cases",   count: sourcedCases.length },
+    { id: "placed",      label: t("hh.tab_placed"),      count: placed.length },
+    { id: "commissions", label: t("hh.tab_commissions"), count: null },
+    { id: "attributed",  label: t("hh.tab_attributed"),  count: sourcedCases.length },
   ];
 
   if (loading) return <div className="flex justify-center py-24"><Spinner /></div>;
@@ -667,15 +680,15 @@ export function HeadhunterPlacements({ auth }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black text-gray-900">My Placements</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Track placement outcomes, commissions, and attributed cases</p>
+        <h1 className="text-2xl font-black text-gray-900">{t("hh.placements_title")}</h1>
+        <p className="text-gray-500 text-sm mt-0.5">{t("hh.placements_sub")}</p>
       </div>
 
       {/* Commission KPI tiles — always visible */}
       <div className="grid grid-cols-3 gap-4">
-        <KpiTile label="Total Commissions" value={`$${totalComm.toLocaleString()}`} sub={`at ${commRate}% · ${commHours}h`} icon={DollarSign} color="purple" />
-        <KpiTile label="Paid Out" value={`$${paidComm.toLocaleString()}`} sub={`${paidCount} placement${paidCount !== 1 ? "s" : ""}`} icon={CheckCircle2} color="green" />
-        <KpiTile label="Pending" value={`$${pendingComm.toLocaleString()}`} sub={`${placed.length - paidCount} placement${placed.length - paidCount !== 1 ? "s" : ""}`} icon={Clock} color="amber" />
+        <KpiTile label={t("hh.kpi_total_comm")} value={`$${totalComm.toLocaleString()}`} sub={`${t("hh.comm_at")} ${commRate}% · ${commHours}h`} icon={DollarSign} color="purple" />
+        <KpiTile label={t("hh.kpi_paid_out")} value={`$${paidComm.toLocaleString()}`} sub={`${paidCount} ${t(paidCount !== 1 ? "hh.placements_plural" : "hh.placement_singular")}`} icon={CheckCircle2} color="green" />
+        <KpiTile label={t("hh.kpi_pending")} value={`$${pendingComm.toLocaleString()}`} sub={`${placed.length - paidCount} ${t(placed.length - paidCount !== 1 ? "hh.placements_plural" : "hh.placement_singular")}`} icon={Clock} color="amber" />
       </div>
 
       {/* Tabs */}
@@ -698,20 +711,20 @@ export function HeadhunterPlacements({ auth }) {
         placed.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
             <UserCheck size={40} className="mx-auto mb-3 text-gray-200" />
-            <p className="text-gray-500 font-medium">No placements yet.</p>
-            <p className="text-gray-400 text-sm mt-1">Accepted applications will appear here.</p>
+            <p className="text-gray-500 font-medium">{t("hh.no_placements")}</p>
+            <p className="text-gray-400 text-sm mt-1">{t("hh.no_placements_sub")}</p>
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="text-left px-5 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Candidate</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Case</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Client</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Rate</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Commission</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Comm. Status</th>
+                  <th className="text-left px-5 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">{t("hh.col_candidate")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">{t("hh.col_case")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">{t("hh.col_client")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">{t("hh.col_rate")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">{t("hh.col_commission")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">{t("hh.col_comm_status")}</th>
                   <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider"></th>
                 </tr>
               </thead>
@@ -740,7 +753,7 @@ export function HeadhunterPlacements({ auth }) {
                       </td>
                       <td className="px-4 py-3">
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isPaid ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
-                          {isPaid ? "Paid" : "Pending"}
+                          {isPaid ? t("hh.status_paid") : t("hh.status_pending_badge")}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -751,7 +764,7 @@ export function HeadhunterPlacements({ auth }) {
                                 ? "bg-gray-100 text-gray-600 hover:bg-gray-200"
                                 : "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
                             }`}>
-                            {isPaid ? "Mark Pending" : "Mark Paid"}
+                            {isPaid ? t("hh.mark_pending") : t("hh.mark_paid")}
                           </button>
                         )}
                       </td>
@@ -774,23 +787,23 @@ export function HeadhunterPlacements({ auth }) {
                 <Settings2 size={16} className="text-purple-500" />
               </div>
               <div>
-                <div className="font-bold text-gray-900">Commission Settings</div>
-                <div className="text-xs text-gray-400">Saved locally in your browser</div>
+                <div className="font-bold text-gray-900">{t("hh.comm_settings")}</div>
+                <div className="text-xs text-gray-400">{t("hh.comm_settings_sub")}</div>
               </div>
             </div>
             <div className="grid sm:grid-cols-2 gap-8">
               <div>
-                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Commission Rate</label>
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">{t("hh.comm_rate_label")}</label>
                 <div className="flex items-center gap-4">
                   <input type="range" min="1" max="50" step="0.5" value={commRate}
                     onChange={e => saveCommRate(e.target.value)}
                     className="flex-1 accent-purple-600" />
                   <span className="text-xl font-black text-purple-600 w-14 text-right">{commRate}%</span>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">Typical headhunter fees: 10–25%</p>
+                <p className="text-xs text-gray-400 mt-1">{t("hh.comm_rate_hint")}</p>
               </div>
               <div>
-                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Billable Hours</label>
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">{t("hh.billable_hours_label")}</label>
                 <div className="flex items-center gap-4">
                   <input type="range" min="40" max="720" step="40" value={commHours}
                     onChange={e => saveCommHours(e.target.value)}
@@ -798,13 +811,13 @@ export function HeadhunterPlacements({ auth }) {
                   <span className="text-xl font-black text-purple-600 w-16 text-right">{commHours}h</span>
                 </div>
                 <p className="text-xs text-gray-400 mt-1">
-                  {commHours === 40 ? "1 week" : commHours === 160 ? "1 month (standard)" : `≈ ${(commHours / 160).toFixed(1)} months`}
+                  {commHours === 40 ? t("hh.one_week") : commHours === 160 ? t("hh.one_month") : `≈ ${(commHours / 160).toFixed(1)} ${t("hh.months_suffix")}`}
                 </p>
               </div>
             </div>
             <div className="mt-5 p-3 bg-purple-50 rounded-xl border border-purple-100 text-xs text-purple-700">
-              <strong>Formula:</strong> Proposed Rate × {commHours}h × {commRate}% &nbsp;·&nbsp;
-              Example: $80/h → <strong>${Math.round(80 * commHours * commRate / 100).toLocaleString()}</strong> commission
+              <strong>{t("hh.formula_label")}</strong> {t("hh.proposed_rate")} × {commHours}h × {commRate}% &nbsp;·&nbsp;
+              {t("hh.example_label")} $80/h → <strong>${Math.round(80 * commHours * commRate / 100).toLocaleString()}</strong> {t("hh.commission_word")}
             </div>
           </div>
 
@@ -812,25 +825,25 @@ export function HeadhunterPlacements({ auth }) {
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
               <div className="font-bold text-gray-900 flex items-center gap-2">
-                <DollarSign size={16} className="text-purple-500" /> Earnings Breakdown
+                <DollarSign size={16} className="text-purple-500" /> {t("hh.earnings_breakdown")}
               </div>
-              <span className="text-xs text-gray-400">Rate × {commHours}h × {commRate}%</span>
+              <span className="text-xs text-gray-400">{t("hh.col_rate")} × {commHours}h × {commRate}%</span>
             </div>
             {placed.length === 0 ? (
               <div className="text-center py-12 text-gray-400 text-sm">
                 <DollarSign size={28} className="mx-auto mb-2 opacity-20" />
-                No placements to show commissions for.
+                {t("hh.no_comm_placements")}
               </div>
             ) : (
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="text-left px-5 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider">Candidate</th>
-                    <th className="text-left px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider">Case</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider">Rate</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider">Commission</th>
-                    <th className="text-left px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="text-left px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider">Paid Date</th>
+                    <th className="text-left px-5 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider">{t("hh.col_candidate")}</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider">{t("hh.col_case")}</th>
+                    <th className="text-right px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider">{t("hh.col_rate")}</th>
+                    <th className="text-right px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider">{t("hh.col_commission")}</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider">{t("hh.col_status")}</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider">{t("hh.col_paid_date")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -858,7 +871,7 @@ export function HeadhunterPlacements({ auth }) {
                         <td className="px-4 py-3">
                           <button onClick={() => toggleCommStatus(app, comm)}
                             className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-all cursor-pointer ${isPaid ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-amber-100 text-amber-700 hover:bg-amber-200"}`}>
-                            {isPaid ? "Paid" : "Pending"}
+                            {isPaid ? t("hh.status_paid") : t("hh.status_pending_badge")}
                           </button>
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-400">
@@ -870,12 +883,12 @@ export function HeadhunterPlacements({ auth }) {
                 </tbody>
                 <tfoot>
                   <tr className="bg-purple-50 border-t border-purple-100">
-                    <td colSpan={3} className="px-5 py-3 text-sm font-bold text-purple-700">Total</td>
+                    <td colSpan={3} className="px-5 py-3 text-sm font-bold text-purple-700">{t("hh.total_label")}</td>
                     <td className="px-4 py-3 text-right text-sm font-black text-purple-700">${totalComm.toLocaleString()}</td>
                     <td className="px-4 py-3">
-                      <span className="text-[10px] font-bold text-green-700">${paidComm.toLocaleString()} paid</span>
+                      <span className="text-[10px] font-bold text-green-700">${paidComm.toLocaleString()} {t("hh.paid_word")}</span>
                     </td>
-                    <td className="px-4 py-3 text-xs text-purple-500">${pendingComm.toLocaleString()} pending</td>
+                    <td className="px-4 py-3 text-xs text-purple-500">${pendingComm.toLocaleString()} {t("hh.pending_word")}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -889,8 +902,8 @@ export function HeadhunterPlacements({ auth }) {
         sourcedCases.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
             <Target size={40} className="mx-auto mb-3 text-gray-200" />
-            <p className="text-gray-500 font-medium">No attributed cases found.</p>
-            <p className="text-gray-400 text-sm mt-1">Cases sourced through you will appear here when flagged by a manager.</p>
+            <p className="text-gray-500 font-medium">{t("hh.no_attributed")}</p>
+            <p className="text-gray-400 text-sm mt-1">{t("hh.no_attributed_sub")}</p>
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -905,10 +918,10 @@ export function HeadhunterPlacements({ auth }) {
                     </span>
                   </div>
                   {company && <div className="text-xs text-gray-500">🏢 {company}</div>}
-                  <div className="text-[10px] text-gray-400">Created {fmtDate(c.created_at)}</div>
+                  <div className="text-[10px] text-gray-400">{t("hh.created_prefix")} {fmtDate(c.created_at)}</div>
                   <div className="flex items-center gap-1">
                     <span className="text-[10px] font-semibold text-purple-600 bg-purple-50 border border-purple-100 px-2 py-0.5 rounded-full">
-                      Headhunter sourced
+                      {t("hh.hh_sourced")}
                     </span>
                   </div>
                 </div>
