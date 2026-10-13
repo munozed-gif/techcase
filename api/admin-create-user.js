@@ -12,11 +12,6 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "email, password, full_name and role are required" });
   }
 
-  // Only allow creating manager/admin accounts via this endpoint
-  if (!["manager", "admin"].includes(role)) {
-    return res.status(403).json({ error: "Only manager and admin accounts can be created here" });
-  }
-
   if (!process.env.SUPABASE_URL && !process.env.VITE_SUPABASE_URL) {
     return res.status(500).json({ error: "Supabase URL not configured" });
   }
