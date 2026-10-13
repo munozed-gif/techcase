@@ -3643,6 +3643,12 @@ Respond with ONLY a valid JSON object, no markdown fences:
       { key: 'c', label: t("spec.tab_c"), dot: 'bg-purple-500', content: aiSpecC },
       { key: 'd', label: t("spec.tab_d"), dot: 'bg-teal-500',   content: aiSpecD },
     ];
+    // A spec is "failed" if: generation was attempted (some specs exist OR specStatuses has error)
+    // but this specific spec is empty. Derived from data so it survives page reloads.
+    const anySpecExists = !!(aiSpecA || aiSpecB || aiSpecC || aiSpecD);
+    const specHasFailed = (key) =>
+      specStatuses[key] === 'error' ||
+      (!SUB.find(s => s.key === key)?.content && anySpecExists && !generatingSpecs);
     const NodeBtn = ({ id, icon: Icon, title, sub, status, isActive, canClick, onClick, children }) => {
       const sc = {
         complete: { ring: 'border-green-400',  bg: 'bg-green-50',   circ: 'bg-green-500',  txt: 'text-green-700',  sub: 'text-green-600' },
@@ -3760,7 +3766,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 {(aiSpecA || aiSpecB || aiSpecC || activeNode===3 || specApproved) && (
                   <div className="ml-8 mt-1 space-y-1 relative z-10">
                     {SUB.map(s => {
-                      const hasError = specStatuses[s.key] === 'error';
+                      const hasError = specHasFailed(s.key);
                       return (
                         <button key={s.key} onClick={() => { setActiveNode(3); setSelectedSpec(s.key); setViewingProto(false); setAiContent(s.content); }}
                           className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs border transition-all ${
@@ -4382,12 +4388,12 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   </div>
                 )}
 
-                {/* Retry Failed banner — shown after generation when some specs errored */}
-                {!generatingSpecs && !viewingProto && Object.values(specStatuses).some(v => v === 'error') && (
+                {/* Retry Failed banner — shown after generation when some specs are missing */}
+                {!generatingSpecs && !viewingProto && anySpecExists && SUB.some(s => specHasFailed(s.key)) && (
                   <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-semibold text-red-700">
-                        {Object.entries(specStatuses).filter(([,v]) => v === 'error').map(([k]) => k.toUpperCase()).join(', ')} failed to generate
+                        {SUB.filter(s => specHasFailed(s.key)).map(s => s.key.toUpperCase()).join(', ')} failed to generate
                       </p>
                       {Object.entries(specErrors).filter(([,v]) => v).map(([k, msg]) => (
                         <p key={k} className="text-xs text-red-500 mt-0.5"><strong>{k.toUpperCase()}:</strong> {msg}</p>
@@ -4405,10 +4411,14 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   <div className="space-y-0">
                     <div className="flex border-b border-gray-200">
                       {SUB.map(s => {
-                        const hasError = specStatuses[s.key] === 'error';
+                        const hasError = specHasFailed(s.key);
                         return (
                         <button key={s.key} onClick={() => { setSelectedSpec(s.key); setAiContent(s.content); }}
-                          className={`flex-1 py-3 px-2 text-sm font-semibold border-b-2 transition-colors text-left flex items-center gap-2 ${selectedSpec === s.key ? 'border-[#1A4B8C] text-blue-600 bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
+                          className={`flex-1 py-3 px-2 text-sm font-semibold border-b-2 transition-colors text-left flex items-center gap-2 ${
+                            selectedSpec === s.key
+                              ? hasError ? 'border-red-400 text-red-600 bg-red-50' : 'border-[#1A4B8C] text-blue-600 bg-blue-50'
+                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                          }`}>
                           <span className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold ${hasError ? 'bg-red-500' : s.dot}`}>{hasError ? '!' : s.key.toUpperCase()}</span>
                           <span className="truncate">{s.label}</span>
                           <span className="ml-auto flex-shrink-0">
@@ -4460,7 +4470,21 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       </div>
 
                       <div className="p-5 max-h-[600px] overflow-y-auto">
-                        {selectedSpec === 'd' && !aiSpecD && !generatingSpecD ? (
+                        {selectedSpec && specHasFailed(selectedSpec) ? (
+                          <div className="flex flex-col items-center py-10 gap-4">
+                            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                              <span className="text-red-500 text-2xl font-bold">!</span>
+                            </div>
+                            <p className="text-sm font-semibold text-red-600">Spec {selectedSpec.toUpperCase()} failed to generate</p>
+                            {specErrors[selectedSpec] && (
+                              <p className="text-xs text-red-400 text-center max-w-xs">{specErrors[selectedSpec]}</p>
+                            )}
+                            <button onClick={handleRetryFailed}
+                              className="px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700">
+                              Retry Failed Specs
+                            </button>
+                          </div>
+                        ) : selectedSpec === 'd' && !aiSpecD && !generatingSpecD ? (
                           <div className="flex flex-col items-center py-10 gap-3">
                             <p className="text-sm text-gray-500">{t("spec.d_empty_hint")}</p>
                             <button onClick={handleGenerateSpecD}
