@@ -115,7 +115,18 @@ export default async function handler(req, res) {
   const betaFeatures = [];
   if (mcp_servers?.length) betaFeatures.push("mcp-client-2025-04-04");
 
-  const body = { model: model || "claude-haiku-4-5", system, messages, max_tokens };
+  // Normalize model aliases — some stored settings use IDs the API rejects
+  const MODEL_ALIASES = {
+    'claude-haiku-4-5':  'claude-haiku-4-5-20251001',
+    'claude-sonnet-5':   'claude-sonnet-4-6',
+    'claude-sonnet-5-5': 'claude-sonnet-4-6',
+    'claude-opus-5-5':   'claude-sonnet-4-6',
+    'claude-haiku-5-5':  'claude-haiku-4-5-20251001',
+    'claude-fable-5-1':  'claude-sonnet-4-6',
+  };
+  const resolvedModel = MODEL_ALIASES[model] ?? model ?? "claude-haiku-4-5-20251001";
+
+  const body = { model: resolvedModel, system, messages, max_tokens };
   if (mcp_servers?.length) body.mcp_servers = mcp_servers;
 
   const anthropicKey = usage.apiKey ?? process.env.ANTHROPIC_API_KEY;
@@ -126,7 +137,7 @@ export default async function handler(req, res) {
   };
   if (betaFeatures.length) headers["anthropic-beta"] = betaFeatures.join(",");
 
-  const FALLBACK_MODEL = "claude-haiku-4-5";
+  const FALLBACK_MODEL = "claude-haiku-4-5-20251001";
 
   async function callAnthropicApi(requestBody) {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
