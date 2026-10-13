@@ -4263,7 +4263,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                           <span className="font-semibold text-xs uppercase tracking-wide w-4 flex-shrink-0">{key.toUpperCase()}</span>
                           <span className="text-gray-600 flex-1 truncate">{label}</span>
                           <span className="flex-shrink-0 flex items-center gap-1.5">
-                            {st === 'generating' && <><Spinner className="w-3.5 h-3.5" /><span className="text-xs text-blue-600">Generating…</span></>}
+                            {st === 'generating' && <><div className="w-3.5 h-3.5 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin flex-shrink-0" /><span className="text-xs text-blue-600">Generating…</span></>}
                             {st === 'done'       && <span className="text-xs text-green-600 font-semibold flex items-center gap-1"><Check size={13}/>Done</span>}
                             {st === 'error'      && <span className="text-xs text-red-600 font-semibold" title={err}>Failed</span>}
                             {st === 'idle'       && <span className="text-xs text-gray-400">Waiting…</span>}
