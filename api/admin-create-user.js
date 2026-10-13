@@ -47,10 +47,39 @@ export default async function handler(req, res) {
     user_metadata: { full_name, role },
   });
 
-  if (error) return res.status(400).json({ error: error.message });
+  let userId;
+
+  if (error) {
+    // If the auth user already exists (e.g. from a failed previous attempt), recover by
+    // upserting the profile rather than hard-failing.
+    const msg = error.message ?? "";
+    const isAlreadyExists =
+      msg.toLowerCase().includes("already") ||
+      msg.toLowerCase().includes("registered") ||
+      msg.toLowerCase().includes("exists");
+
+    if (isAlreadyExists) {
+      const { data: existing } = await admin
+        .from("users")
+        .select("id")
+        .eq("email", email)
+        .maybeSingle();
+
+      if (existing?.id) {
+        userId = existing.id;
+        await admin
+          .from("users")
+          .update({ full_name, role, is_active: true })
+          .eq("id", userId);
+        return res.status(200).json({ id: userId, email, full_name, role, updated: true });
+      }
+    }
+
+    return res.status(400).json({ error: error.message });
+  }
 
   // Upsert into users table
-  const userId = data.user.id;
+  userId = data.user.id;
   await admin.from("users").upsert(
     { id: userId, email, full_name, role, is_active: true },
     { onConflict: "id" }
