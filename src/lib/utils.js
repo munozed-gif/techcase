@@ -33,6 +33,17 @@ async function notifyCaseParticipants(caseId, excludeUserId, title, body, opts =
 // ─────────────────────────────────────────────────────────────
 
 // ── Claude API helper ────────────────────────────────────────
+function sanitizeDeep(v) {
+  if (typeof v === 'string') return v.replace(/[\uD800-\uDFFF]/g, '');
+  if (Array.isArray(v)) return v.map(sanitizeDeep);
+  if (v && typeof v === 'object') {
+    const out = {};
+    for (const k of Object.keys(v)) out[k] = sanitizeDeep(v[k]);
+    return out;
+  }
+  return v;
+}
+
 async function callClaude({ system, messages, max_tokens = 2048, model = 'claude-haiku-4-5', mcp_servers }) {
   // Attach current user id so the server can track usage / apply the right key
   let userId = null;
@@ -44,11 +55,11 @@ async function callClaude({ system, messages, max_tokens = 2048, model = 'claude
   const res = await fetch('/api/claude', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+    body: JSON.stringify(sanitizeDeep({
       system, messages, max_tokens, model,
       user_id: userId,
       ...(mcp_servers?.length ? { mcp_servers } : {}),
-    }),
+    })),
   });
 
   if (res.status === 402) {
