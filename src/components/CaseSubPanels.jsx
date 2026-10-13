@@ -2716,9 +2716,9 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 8000 });
         }
       };
-      const customerContent = analysisCustomerContent || caseData.description || '';
-      const contextStr = await buildGenContext();
-      const abapCtx = abap.contextText;
+      const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
+      const contextStr = sanitizeForJson(await buildGenContext());
+      const abapCtx = sanitizeForJson(abap.contextText);
 
       // Run all 4 specs independently so each gets its own status/error
       const setSpecStatus = (key, status) => setSpecStatuses(p => ({ ...p, [key]: status }));
@@ -2839,8 +2839,8 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 8000 });
         }
       };
-      const customerContent = analysisCustomerContent || caseData.description || '';
-      const contextStr = await buildGenContext();
+      const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
+      const contextStr = sanitizeForJson(await buildGenContext());
       const specD = await callSpec(buildSpecDPrompt(customerContent, activeProfile ?? {}, contextStr));
       setAiSpecD(specD);
       setSelectedSpec('d');
