@@ -2706,7 +2706,8 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       const needsAbap = genProfile?.spec_a?.technical_objects || genProfile?.spec_c?.technical_objects;
       const abap = needsAbap ? await buildAbapStandardsForSpec() : { blocks: [], contextText: '' };
 
-      const callSpec = async (prompt, extraBlocks = []) => {
+      const callSpec = async (rawPrompt, extraBlocks = []) => {
+        const prompt = sanitizeForJson(rawPrompt);
         const sys = 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.';
         const allBlocks = [...abap.blocks, ...extraBlocks, ...docBlocks];
         try {
@@ -2831,7 +2832,8 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       const pdfNames = (documents ?? []).filter(d => (d.file_name ?? '').toLowerCase().endsWith('.pdf') || (d.file_type ?? '').includes('pdf')).map(d => d.file_name);
       const pdfNote = pdfNames.length > 0 ? `\n\n[Reference PDFs attached: ${pdfNames.join(', ')}]` : '';
       const sys = 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.';
-      const callSpec = async (prompt) => {
+      const callSpec = async (rawPrompt) => {
+        const prompt = sanitizeForJson(rawPrompt);
         try {
           const content = docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt;
           return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 8000 });
@@ -2899,7 +2901,8 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     const pdfNote = pdfNames.length > 0 ? `\n\n[Reference PDFs attached: ${pdfNames.join(', ')}]` : '';
     const needsAbap = profile?.spec_a?.technical_objects || profile?.spec_c?.technical_objects;
     const abap = needsAbap ? await buildAbapStandardsForSpec() : { blocks: [], contextText: '' };
-    const callSpec = async (prompt, extraBlocks = []) => {
+    const callSpec = async (rawPrompt, extraBlocks = []) => {
+      const prompt = sanitizeForJson(rawPrompt);
       const sys = 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.';
       const allBlocks = [...abap.blocks, ...extraBlocks, ...docBlocks];
       try {
@@ -4375,7 +4378,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                           : 'border-gray-200 bg-gray-50'
                         }`}>
                           <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${dot}`} />
-                          <span className="font-semibold text-xs uppercase tracking-wide w-4 flex-shrink-0">{key.toUpperCase()}</span>
+                          <span className="font-semibold text-xs uppercase tracking-wide min-w-[2rem] flex-shrink-0">{key.toUpperCase()}</span>
                           <span className="text-gray-600 flex-1 truncate">{label}</span>
                           <span className="flex-shrink-0 flex items-center gap-1.5">
                             {st === 'generating' && <><div className="w-3.5 h-3.5 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin flex-shrink-0" /><span className="text-xs text-blue-600">Generating…</span></>}
