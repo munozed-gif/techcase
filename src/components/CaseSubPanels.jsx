@@ -851,11 +851,11 @@ function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, protoError,
 function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocument, refetchDocuments, onUpdate }) {
   const { t, lang } = useT();
   const ssCtx = useSystemSettings();
-  const genModel       = ssCtx.settings["ai_model"]        ?? 'claude-haiku-4-5';
-  const analysisModel  = ssCtx.settings["analysis_model"]  ?? 'claude-haiku-4-5';
+  const genModel       = ssCtx.settings["ai_model"]        ?? 'claude-haiku-4-5-20251001';
+  const analysisModel  = ssCtx.settings["analysis_model"]  ?? 'claude-haiku-4-5-20251001';
   const _protoRaw  = ssCtx.settings["prototype_model"];
-  const _SAFE      = 'claude-haiku-4-5';
-  const _ALIASES   = { 'claude-haiku-4-5-20251001': _SAFE, 'claude-sonnet-4-5': _SAFE, 'claude-sonnet-5': _SAFE, 'claude-fable-5-1': _SAFE };
+  const _SAFE      = 'claude-haiku-4-5-20251001';
+  const _ALIASES   = { 'claude-haiku-4-5': _SAFE, 'claude-haiku-5-5': _SAFE, 'claude-sonnet-4-5': _SAFE, 'claude-sonnet-4-6': _SAFE, 'claude-sonnet-5': _SAFE, 'claude-sonnet-5-5': _SAFE, 'claude-opus-5-5': _SAFE, 'claude-fable-5-1': _SAFE };
   const protoModel = (_protoRaw ? (_ALIASES[_protoRaw] ?? _protoRaw) : null) ?? genModel;
   const liveCheckEnabled = (ssCtx.settings["generation_context"] ?? {}).sap_live_check === true;
   const { spec, loading: specLoading, saveSpec, refetch } = useCaseSpecification(caseData.id, auth.user?.id);
@@ -2733,7 +2733,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           let protoHtml = await callClaude({ model: protoModel, system: protoSys, messages: protoMsgs, max_tokens: 12000 })
             .catch(e => {
               if (e.message?.includes('did not match the expected pattern')) {
-                return callClaude({ model: 'claude-haiku-4-5', system: protoSys, messages: protoMsgs, max_tokens: 12000 });
+                return callClaude({ model: 'claude-haiku-4-5-20251001', system: protoSys, messages: protoMsgs, max_tokens: 12000 });
               }
               throw e;
             });
@@ -4267,7 +4267,7 @@ Respond with ONLY a valid JSON object, no markdown fences:
                         let html = await callClaude({ model: resolvedModel, system: _protoSys, messages: _protoMsgs, max_tokens: 12000 })
                           .catch(e => {
                             if (e.message?.includes('did not match the expected pattern')) {
-                              return callClaude({ model: 'claude-haiku-4-5', system: _protoSys, messages: _protoMsgs, max_tokens: 12000 });
+                              return callClaude({ model: 'claude-haiku-4-5-20251001', system: _protoSys, messages: _protoMsgs, max_tokens: 12000 });
                             }
                             throw e;
                           });
