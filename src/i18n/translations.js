@@ -2437,6 +2437,10 @@ const TRANSLATIONS = {
     "cd.test_plan_hint":            "The PDF has been saved to Docs. Review the generated test activities below, deselect any you don't need, then confirm to add them with sequential dependencies.",
     // AI model dropdown labels
     "model.haiku_label":            "Claude Haiku 4.5  — Fast & cost-effective",
+    "model.haiku45_label":          "Claude Haiku 4.5  — Fast & cost-effective",
+    "model.haiku55_label":          "Claude Haiku 5.5  — Fastest & cheapest",
+    "model.sonnet46_label":         "Claude Sonnet 4.6 — Balanced",
+    "model.sonnet55_label":         "Claude Sonnet 5.5 — Balanced (latest)",
     "model.sonnet_label":           "Claude Sonnet 5   — Balanced",
     "model.opus_label":             "Claude Opus 5     — Most capable",
     // Default new stage / case-type labels
@@ -5693,6 +5697,10 @@ const TRANSLATIONS = {
     "cd.test_plan_hint":            "El PDF ha sido guardado en Docs. Revisa las actividades de prueba generadas, deselecciona las que no necesites y confirma para agregarlas con dependencias secuenciales.",
     // AI model dropdown labels
     "model.haiku_label":            "Claude Haiku 4.5  — Rápido y económico",
+    "model.haiku45_label":          "Claude Haiku 4.5  — Rápido y económico",
+    "model.haiku55_label":          "Claude Haiku 5.5  — El más rápido y barato",
+    "model.sonnet46_label":         "Claude Sonnet 4.6 — Equilibrado",
+    "model.sonnet55_label":         "Claude Sonnet 5.5 — Equilibrado (último)",
     "model.sonnet_label":           "Claude Sonnet 5   — Equilibrado",
     "model.opus_label":             "Claude Opus 5     — El más potente",
     // Default new stage / case-type labels

@@ -1229,7 +1229,10 @@ function SettingsGenerationTab({ ssCtx }) {
   const [form, setForm] = useState(null);
 
   const AI_MODELS = [
-    { value: "claude-haiku-4-5-20251001", labelKey: "model.haiku_label" },
+    { value: "claude-haiku-5-5",  labelKey: "model.haiku55_label" },
+    { value: "claude-haiku-4-5",  labelKey: "model.haiku45_label" },
+    { value: "claude-sonnet-4-6", labelKey: "model.sonnet46_label" },
+    { value: "claude-sonnet-5-5", labelKey: "model.sonnet55_label" },
   ];
 
   useEffect(() => {
@@ -1242,9 +1245,9 @@ function SettingsGenerationTab({ ssCtx }) {
         return validModelVals.includes(v) ? v : fallback;
       };
       const merged = {
-        ai_model:         resolveModel("ai_model",        "claude-haiku-4-5-20251001"),
-        analysis_model:   resolveModel("analysis_model",  "claude-haiku-4-5-20251001"),
-        prototype_model:  resolveModel("prototype_model", "claude-haiku-4-5-20251001"),
+        ai_model:         resolveModel("ai_model",        "claude-haiku-5-5"),
+        analysis_model:   resolveModel("analysis_model",  "claude-haiku-5-5"),
+        prototype_model:  resolveModel("prototype_model", "claude-haiku-5-5"),
         sap_mcp_server_url: ssCtx.settings["sap_mcp_server_url"] ?? "",
         default_profile: stored.default_profile ?? GENERATION_PROFILE_DEFAULTS.default_profile,
         context: { ...GENERATION_CONTEXT_DEFAULTS, ...storedCtx },

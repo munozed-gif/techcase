@@ -115,18 +115,14 @@ export default async function handler(req, res) {
   const betaFeatures = [];
   if (mcp_servers?.length) betaFeatures.push("mcp-client-2025-04-04");
 
-  // Normalize model aliases — only claude-haiku-4-5-20251001 is confirmed available
-  // via user API keys; all other IDs fail the API pattern check
-  const SAFE_MODEL = 'claude-haiku-4-5-20251001';
+  // Current model IDs have no date suffixes (claude-haiku-4-5, not claude-haiku-4-5-20251001).
+  // Any dated-suffix variant or unknown alias falls back to claude-haiku-4-5.
+  const SAFE_MODEL = 'claude-haiku-4-5';
   const MODEL_ALIASES = {
-    'claude-haiku-4-5':   SAFE_MODEL,
-    'claude-sonnet-4-5':  SAFE_MODEL,
-    'claude-sonnet-4-6':  SAFE_MODEL,
-    'claude-sonnet-5':    SAFE_MODEL,
-    'claude-sonnet-5-5':  SAFE_MODEL,
-    'claude-opus-5-5':    SAFE_MODEL,
-    'claude-haiku-5-5':   SAFE_MODEL,
-    'claude-fable-5-1':   SAFE_MODEL,
+    'claude-haiku-4-5-20251001': SAFE_MODEL,
+    'claude-sonnet-4-5':         SAFE_MODEL,
+    'claude-sonnet-5':           SAFE_MODEL,
+    'claude-fable-5-1':          SAFE_MODEL,
   };
   const resolvedModel = MODEL_ALIASES[model] ?? (model?.startsWith('claude-') ? model : SAFE_MODEL);
 
@@ -141,7 +137,7 @@ export default async function handler(req, res) {
   };
   if (betaFeatures.length) headers["anthropic-beta"] = betaFeatures.join(",");
 
-  const FALLBACK_MODEL = "claude-haiku-4-5-20251001";
+  const FALLBACK_MODEL = "claude-haiku-4-5";
 
   async function callAnthropicApi(requestBody) {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
