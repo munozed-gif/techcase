@@ -2881,13 +2881,23 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
 
   // ── Retry only the failed specs ──────────────────────────────
   async function handleRetryFailed() {
-    const failedKeys = Object.entries(specStatuses).filter(([, v]) => v === 'error').map(([k]) => k);
-    if (!failedKeys.length || !activeProfile) return;
+    const anyExists = !!(aiSpecA || aiSpecB || aiSpecC || aiSpecD);
+    const specContent = { a: aiSpecA, b: aiSpecB, c: aiSpecC, d: aiSpecD };
+    const failedKeys = ['a', 'b', 'c', 'd', 'proto'].filter(key =>
+      specStatuses[key] === 'error' ||
+      (key !== 'proto' && !specContent[key] && anyExists)
+    );
+    if (!failedKeys.length) return;
+    // If activeProfile was lost (page reload), try to restore from saved spec notes
+    const profile = activeProfile ?? (() => {
+      try { return JSON.parse(spec?.notes ?? '{}').activeProfile ?? null; } catch { return null; }
+    })();
+    if (!profile) return;
     setGeneratingSpecs(true);
     const docBlocks = await buildDocumentBlocks();
     const pdfNames = (documents ?? []).filter(d => (d.file_name ?? '').toLowerCase().endsWith('.pdf') || (d.file_type ?? '').includes('pdf')).map(d => d.file_name);
     const pdfNote = pdfNames.length > 0 ? `\n\n[Reference PDFs attached: ${pdfNames.join(', ')}]` : '';
-    const needsAbap = activeProfile?.spec_a?.technical_objects || activeProfile?.spec_c?.technical_objects;
+    const needsAbap = profile?.spec_a?.technical_objects || profile?.spec_c?.technical_objects;
     const abap = needsAbap ? await buildAbapStandardsForSpec() : { blocks: [], contextText: '' };
     const callSpec = async (prompt, extraBlocks = []) => {
       const sys = 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.';
@@ -2906,10 +2916,10 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     const setSpecError  = (key, msg)    => setSpecErrors(p => ({ ...p, [key]: msg }));
 
     const specMap = {
-      a: () => callSpec(buildSpecPrompt(true,  activeProfile, activeProfile?.spec_a?.technical_objects ? contextStr + abapCtx : contextStr)),
-      b: () => callSpec(buildSpecPrompt(false, activeProfile, contextStr)),
-      c: () => callSpec(buildSpecCPrompt(customerContent, activeProfile, activeProfile?.spec_c?.technical_objects ? contextStr + abapCtx : contextStr)),
-      d: () => callSpec(buildSpecDPrompt(customerContent, activeProfile, contextStr)),
+      a: () => callSpec(buildSpecPrompt(true,  profile, profile?.spec_a?.technical_objects ? contextStr + abapCtx : contextStr)),
+      b: () => callSpec(buildSpecPrompt(false, profile, contextStr)),
+      c: () => callSpec(buildSpecCPrompt(customerContent, profile, profile?.spec_c?.technical_objects ? contextStr + abapCtx : contextStr)),
+      d: () => callSpec(buildSpecDPrompt(customerContent, profile, contextStr)),
     };
     const setters = { a: setAiSpecA, b: setAiSpecB, c: setAiSpecC, d: setAiSpecD };
 
@@ -2921,7 +2931,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           const result = await specMap[key]();
           if (result) {
             setters[key](result);
-            if (!selectedSpec) { setSelectedSpec(key); setAiContent(result); }
+            if (!selectedSpec || selectedSpec === key) { setSelectedSpec(key); setAiContent(result); }
             setSpecStatus(key, 'done');
           }
         } catch (e) {
@@ -2932,12 +2942,12 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     );
 
     // Retry proto if it was also failed
-    if (failedKeys.includes('proto') && activeProfile?.prototype_enabled) {
+    if (failedKeys.includes('proto') && profile?.prototype_enabled) {
       setSpecStatus('proto', 'generating');
       try {
         const specA = aiSpecA; const specB = aiSpecB;
         const protoSys = 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.';
-        const protoMsgs = [{ role: 'user', content: buildPrototypePrompt(specA || aiSpecC, specB || aiSpecD, activeProfile.prototype_style ?? 'auto') }];
+        const protoMsgs = [{ role: 'user', content: buildPrototypePrompt(specA || aiSpecC, specB || aiSpecD, profile.prototype_style ?? 'auto') }];
         let protoHtml = await callClaude({ model: protoModel, system: protoSys, messages: protoMsgs, max_tokens: 8000 })
           .catch(e => {
             if (e.message?.includes('did not match the expected pattern')) {
