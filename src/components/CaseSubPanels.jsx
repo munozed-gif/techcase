@@ -4369,16 +4369,21 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       try {
                         const _protoSys = 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.';
                         const _protoMsgs = [{ role: 'user', content: buildPrototypePrompt(aiSpecA, aiSpecB, protoStyle) }];
-                        let html = await callClaude({ model: resolvedModel, system: _protoSys, messages: _protoMsgs, max_tokens: 12000 })
+                        let html = await callClaude({ model: resolvedModel, system: _protoSys, messages: _protoMsgs, max_tokens: 8000 })
                           .catch(e => {
                             if (e.message?.includes('did not match the expected pattern')) {
-                              return callClaude({ model: 'claude-haiku-4-5-20251001', system: _protoSys, messages: _protoMsgs, max_tokens: 12000 });
+                              return callClaude({ model: 'claude-haiku-4-5-20251001', system: _protoSys, messages: _protoMsgs, max_tokens: 8000 });
                             }
                             throw e;
                           });
                         if (!html) throw new Error('Model returned empty response');
-                        html = html.trim();
-                        if (html.startsWith('```')) html = html.replace(/^```(?:html)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+                        html = sanitizeForJson(html).trim();
+                        if (html.startsWith('```')) {
+                          const firstNl = html.indexOf('\n');
+                          if (firstNl !== -1) html = html.slice(firstNl + 1);
+                          const lastFence = html.lastIndexOf('```');
+                          if (lastFence !== -1) html = html.slice(0, lastFence).trimEnd();
+                        }
                         setProtoHtmlState(html);
                         try {
                           if (deleteDocument && documents?.length) {
