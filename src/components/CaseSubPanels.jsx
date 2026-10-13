@@ -2490,15 +2490,19 @@ ${buildSectionConstraint('spec_d', genProfile)}${buildGenSuffix(genProfile, lang
   }
 
   function buildPrototypePrompt(specA, specB, style) {
-    const safeA = sanitizeForJson(specA);
-    const safeB = sanitizeForJson(specB);
+    const safeA     = sanitizeForJson(specA);
+    const safeB     = sanitizeForJson(specB);
+    const safeTitle = sanitizeForJson(caseData.title);
+    const safeSap   = sanitizeForJson(caseData.area_sap);
+    const safeInd   = sanitizeForJson(caseData.area_industry);
+    const safeDesc  = sanitizeForJson(caseData.description);
     if (style === 'auto') {
       return `You are a SAP prototype generator. Before generating the prototype, you must analyze the case and decide which visual style to use. Read the signals below carefully.
 
-Case: ${caseData.title}
-SAP Module: ${caseData.area_sap ?? ''}
-Industry: ${caseData.area_industry ?? ''}
-Description: ${caseData.description ?? ''}
+Case: ${safeTitle}
+SAP Module: ${safeSap}
+Industry: ${safeInd}
+Description: ${safeDesc}
 
 Spec A (Custom ABAP approach):
 ${safeA.slice(0, 6000)}
@@ -2548,10 +2552,10 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     if (style === 'sapgui') {
       return `You are a SAP GUI prototype generator. Generate a SINGLE complete self-contained HTML file that simulates a classic SAP GUI screen for this SAP case. The prototype must look and behave like real SAP GUI — not Fiori, not a wizard.
 
-Case: ${caseData.title}
-SAP Module: ${caseData.area_sap ?? ''}
-Industry: ${caseData.area_industry ?? ''}
-Description: ${caseData.description ?? ''}
+Case: ${safeTitle}
+SAP Module: ${safeSap}
+Industry: ${safeInd}
+Description: ${safeDesc}
 
 Spec A (Custom ABAP approach):
 ${safeA.slice(0, 6000)}
@@ -2609,10 +2613,10 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
 
     return `You are a UI/UX prototype generator. Generate a SINGLE complete self-contained HTML file that is an interactive multi-screen prototype for this SAP case.
 
-Case: ${caseData.title}
-SAP Module: ${caseData.area_sap ?? ''}
-Industry: ${caseData.area_industry ?? ''}
-Description: ${caseData.description ?? ''}
+Case: ${safeTitle}
+SAP Module: ${safeSap}
+Industry: ${safeInd}
+Description: ${safeDesc}
 
 Spec A (Custom ABAP approach):
 ${safeA.slice(0, 6000)}
