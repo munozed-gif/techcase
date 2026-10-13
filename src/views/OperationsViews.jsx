@@ -4,7 +4,6 @@ import {
   Download, FileText, FolderOpen, Mail, Pencil, Phone, SlidersHorizontal,
   Target, Trash2, User, Users, X, XCircle,
 } from "lucide-react";
-import { createClient } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase.js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
@@ -195,19 +194,14 @@ function UsersView() {
     }
     setAdding(true);
     try {
-      // Use a separate client with no session persistence so the admin stays logged in
-      const tmpClient = createClient(
-        import.meta.env.VITE_SUPABASE_URL || "",
-        import.meta.env.VITE_SUPABASE_ANON_KEY || "",
-        { auth: { persistSession: false } }
-      );
-      const { error } = await tmpClient.auth.signUp({
-        email: addForm.email,
-        password: addForm.password,
-        options: { data: { full_name: addForm.full_name, role: addForm.role } },
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/admin-create-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
+        body: JSON.stringify({ email: addForm.email, password: addForm.password, full_name: addForm.full_name, role: addForm.role }),
       });
-      await tmpClient.auth.signOut();
-      if (error) throw error;
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to create user');
       await loadUsers();
       setShowAdd(false);
       setAddForm({ full_name: "", email: "", role: "manager", password: "" });
