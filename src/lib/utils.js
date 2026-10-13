@@ -33,8 +33,18 @@ async function notifyCaseParticipants(caseId, excludeUserId, title, body, opts =
 // ─────────────────────────────────────────────────────────────
 
 // ── Claude API helper ────────────────────────────────────────
+function stripSurrogates(s) {
+  // charCodeAt never throws on lone surrogates (regex-based .replace CAN on WebKit/Safari)
+  let out = '';
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c < 0xD800 || c > 0xDFFF) out += s[i];
+  }
+  return out;
+}
+
 function sanitizeDeep(v) {
-  if (typeof v === 'string') return v.replace(/[\uD800-\uDFFF]/g, '');
+  if (typeof v === 'string') return stripSurrogates(v);
   if (Array.isArray(v)) return v.map(sanitizeDeep);
   if (v && typeof v === 'object') {
     const out = {};

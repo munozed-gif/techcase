@@ -2498,11 +2498,15 @@ Generate with EXACTLY these sections:
 ${buildSectionConstraint('spec_d', genProfile)}${buildGenSuffix(genProfile, lang)}`;
   }
 
-  // iOS Safari throws "The string did not match the expected pattern" from JSON.stringify
-  // when a string contains lone surrogate characters (unpaired UTF-16 surrogates).
-  // Strip them before building the prompt.
+  // charCodeAt never throws on lone surrogates; regex .replace() CAN on WebKit/Safari.
   function sanitizeForJson(s) {
-    return (s ?? '').replace(/[\uD800-\uDFFF]/g, '');
+    const str = s ?? '';
+    let out = '';
+    for (let i = 0; i < str.length; i++) {
+      const c = str.charCodeAt(i);
+      if (c < 0xD800 || c > 0xDFFF) out += str[i];
+    }
+    return out;
   }
 
   function buildPrototypePrompt(specA, specB, style) {
