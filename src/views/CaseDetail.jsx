@@ -1570,25 +1570,28 @@ canvas{display:block;width:100%}
     await Promise.all(fetches);
 
     if (genCtx.sap_live_check && caseData.client_id) {
-      try {
-        const [{ data: sapCfgRow }, { data: sapProjEnvRow }, { data: sapCaseEnvRow }] = await Promise.all([
-          supabase.from('system_settings').select('value').eq('key', 'sap_integration').maybeSingle(),
-          supabase.from('system_settings').select('value').eq('key', 'sap_project_env').maybeSingle(),
-          supabase.from('system_settings').select('value').eq('key', 'sap_case_env').maybeSingle(),
-        ]);
-        const clientSapData = (sapCfgRow?.value ?? {})[caseData.client_id] ?? {};
-        const sapEnvs = clientSapData.environments ?? (clientSapData.host ? [clientSapData] : []);
-        const selectedEnvId = (sapCaseEnvRow?.value ?? {})[caseData.id]
-          ?? (sapProjEnvRow?.value ?? {})[caseData.project_id]
-          ?? null;
-        const sapCfg = selectedEnvId
-          ? (sapEnvs.find(e => e.id === selectedEnvId) ?? sapEnvs[0] ?? null)
-          : (sapEnvs[0] ?? null);
-        if (sapCfg?.host && sapCfg?.username) {
-          const liveData = await sapLiveCheck(sapCfg);
-          if (liveData) extra.sapLiveData = liveData;
-        }
-      } catch (_) {}
+      const [{ data: sapCfgRow }, { data: sapProjEnvRow }, { data: sapCaseEnvRow }] = await Promise.all([
+        supabase.from('system_settings').select('value').eq('key', 'sap_integration').maybeSingle(),
+        supabase.from('system_settings').select('value').eq('key', 'sap_project_env').maybeSingle(),
+        supabase.from('system_settings').select('value').eq('key', 'sap_case_env').maybeSingle(),
+      ]);
+      const clientSapData = (sapCfgRow?.value ?? {})[caseData.client_id] ?? {};
+      const sapEnvs = clientSapData.environments ?? (clientSapData.host ? [clientSapData] : []);
+      const selectedEnvId = (sapCaseEnvRow?.value ?? {})[caseData.id]
+        ?? (sapProjEnvRow?.value ?? {})[caseData.project_id]
+        ?? null;
+      const sapCfg = selectedEnvId
+        ? (sapEnvs.find(e => e.id === selectedEnvId) ?? sapEnvs[0] ?? null)
+        : (sapEnvs[0] ?? null);
+      if (!sapCfg?.host || !sapCfg?.username) {
+        throw new Error('SAP live check is enabled but no SAP environment is configured for this case. Configure credentials in SAP Integration settings or disable SAP live check.');
+      }
+      const liveData = await sapLiveCheck(sapCfg);
+      if (liveData?.error !== undefined) {
+        const detail = liveData.message ? ` (${liveData.message})` : liveData.error ? ` (HTTP ${liveData.error})` : '';
+        throw new Error(`SAP live check failed — cannot generate documents without a live connection.${detail}`);
+      }
+      extra.sapLiveData = liveData;
     }
 
     return buildContextString(caseData, genCtx, extra);
