@@ -14,10 +14,9 @@
 -- SECTION 1: ENUM TYPES
 -- ============================================================
 
--- NOTE: Prod has `audit_events` table; Phoenix has `audit_logs`.
--- These appear to be the same concept renamed. audit_logs will be
--- created as a new table — review if you want to rename audit_events
--- instead.
+-- NOTE: `audit_events` (Prod) is renamed to `audit_logs` (Phoenix name).
+-- Existing rows are preserved. Missing column `user_name` is added.
+-- `entity_id` is cast from uuid → text to match Phoenix.
 
 -- application_status (entirely missing in Prod)
 DO $$ BEGIN
@@ -74,22 +73,21 @@ CREATE POLICY "Users manage own ai_usage" ON ai_usage
 CREATE POLICY "Service role full access ai_usage" ON ai_usage
   FOR ALL USING (auth.role() = 'service_role');
 
--- audit_logs: application event log
-CREATE TABLE IF NOT EXISTS audit_logs (
-  id          bigint NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  created_at  timestamp with time zone NOT NULL DEFAULT now(),
-  event_type  text NOT NULL,
-  user_id     uuid,
-  user_name   text,
-  user_email  text,
-  entity_type text,
-  entity_id   text,
-  entity_name text,
-  old_value   jsonb,
-  new_value   jsonb,
-  metadata    jsonb
-);
+-- audit_logs: rename audit_events → audit_logs, patch schema to match Phoenix
+ALTER TABLE IF EXISTS audit_events RENAME TO audit_logs;
+
+-- Add missing column
+ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS user_name text;
+
+-- Cast entity_id from uuid → text to match Phoenix (preserves existing data)
+ALTER TABLE audit_logs ALTER COLUMN entity_id TYPE text USING entity_id::text;
+
+-- Ensure RLS policies exist (drop old ones by name first to avoid conflicts)
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admins read audit_events" ON audit_logs;
+DROP POLICY IF EXISTS "Service role full access audit_events" ON audit_logs;
+DROP POLICY IF EXISTS "Admins read audit_logs" ON audit_logs;
+DROP POLICY IF EXISTS "Service role full access audit_logs" ON audit_logs;
 CREATE POLICY "Admins read audit_logs" ON audit_logs
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin','manager'))
