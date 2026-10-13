@@ -115,16 +115,20 @@ export default async function handler(req, res) {
   const betaFeatures = [];
   if (mcp_servers?.length) betaFeatures.push("mcp-client-2025-04-04");
 
-  // Normalize model aliases — some stored settings use IDs the API rejects
+  // Normalize model aliases — only claude-haiku-4-5-20251001 is confirmed available
+  // via user API keys; all other IDs fail the API pattern check
+  const SAFE_MODEL = 'claude-haiku-4-5-20251001';
   const MODEL_ALIASES = {
-    'claude-haiku-4-5':  'claude-haiku-4-5-20251001',
-    'claude-sonnet-5':   'claude-sonnet-4-6',
-    'claude-sonnet-5-5': 'claude-sonnet-4-6',
-    'claude-opus-5-5':   'claude-sonnet-4-6',
-    'claude-haiku-5-5':  'claude-haiku-4-5-20251001',
-    'claude-fable-5-1':  'claude-sonnet-4-6',
+    'claude-haiku-4-5':   SAFE_MODEL,
+    'claude-sonnet-4-5':  SAFE_MODEL,
+    'claude-sonnet-4-6':  SAFE_MODEL,
+    'claude-sonnet-5':    SAFE_MODEL,
+    'claude-sonnet-5-5':  SAFE_MODEL,
+    'claude-opus-5-5':    SAFE_MODEL,
+    'claude-haiku-5-5':   SAFE_MODEL,
+    'claude-fable-5-1':   SAFE_MODEL,
   };
-  const resolvedModel = MODEL_ALIASES[model] ?? model ?? "claude-haiku-4-5-20251001";
+  const resolvedModel = MODEL_ALIASES[model] ?? (model?.startsWith('claude-') ? model : SAFE_MODEL);
 
   const body = { model: resolvedModel, system, messages, max_tokens };
   if (mcp_servers?.length) body.mcp_servers = mcp_servers;
