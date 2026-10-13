@@ -1026,6 +1026,16 @@ const TRANSLATIONS = {
     "spec_review.section_review": "Pending Review",
     "spec_review.section_in_progress": "In Progress",
     "spec_review.col_updated":    "Last Updated",
+    // Share with customer link
+    "spec.share_btn":             "Share with Customer",
+    "spec.share_creating":        "Creating link…",
+    "spec.share_link_copied":     "Copied!",
+    "spec.share_link_label":      "Review link:",
+    "spec.share_copy_link":       "Copy Link",
+    "spec.share_new_link":        "New Link",
+    "spec.share_status_approved": "Customer approved",
+    "spec.share_status_changes":  "Changes requested",
+    "spec.share_no_docs":         "Generate specs first",
     // DB connections (legacy stub)
     "db.title":               "DB Connections",
     "db.add":                 "Add Connection",
@@ -5039,6 +5049,16 @@ const TRANSLATIONS = {
     "spec_review.section_review": "Pendiente de Revisión",
     "spec_review.section_in_progress": "En Progreso",
     "spec_review.col_updated":    "Última Actualización",
+    // Share with customer link
+    "spec.share_btn":             "Compartir con Cliente",
+    "spec.share_creating":        "Creando enlace…",
+    "spec.share_link_copied":     "¡Copiado!",
+    "spec.share_link_label":      "Enlace de revisión:",
+    "spec.share_copy_link":       "Copiar Enlace",
+    "spec.share_new_link":        "Nuevo Enlace",
+    "spec.share_status_approved": "Cliente aprobó",
+    "spec.share_status_changes":  "Cambios solicitados",
+    "spec.share_no_docs":         "Genera specs primero",
     // DB connections (legacy stub)
     "db.title":               "Conexiones BD",
     "db.add":                 "Agregar Conexión",

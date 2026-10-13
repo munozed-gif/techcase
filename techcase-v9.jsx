@@ -140,6 +140,7 @@ import { AuthScreen } from "./src/views/AuthScreen.jsx";
 import { LandingView } from "./src/views/LandingView.jsx";
 import ProjectShareView from "./src/views/ProjectShareView.jsx";
 import ApprovalView from "./src/views/ApprovalView.jsx";
+import CustomerSpecReviewView from "./src/views/CustomerSpecReviewView.jsx";
 import MyReviewsView from "./src/views/MyReviewsView.jsx";
 
 
@@ -562,6 +563,8 @@ const _joinMatch = typeof window !== 'undefined' && window.location.pathname.mat
 const _shareMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/share\/([^/?#]+)/);
 // Intercept /approve/:token — tokenized blueprint review view, no auth required
 const _approveMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/approve\/([^/?#]+)/);
+// Intercept /review/:token — customer-facing spec review link, no auth required
+const _reviewMatch = typeof window !== 'undefined' && window.location.pathname.match(/^\/review\/([^/?#]+)/);
 
 export default function App() {
   const auth = useAuth();
@@ -629,6 +632,11 @@ export default function App() {
   // /approve/:token — tokenized blueprint review, no login needed
   if (_approveMatch) {
     return <ApprovalView token={_approveMatch[1]} />;
+  }
+
+  // /review/:token — customer-facing spec review link, no login needed
+  if (_reviewMatch) {
+    return <CustomerSpecReviewView token={_reviewMatch[1]} />;
   }
 
   // /join/:token — show branded join screen before any auth check

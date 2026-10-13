@@ -2,7 +2,7 @@ import { useState, useEffect, Fragment } from "react";
 import DOMPurify from "dompurify";
 import {
   AlertTriangle, Archive, Award, BarChart2, Check, CheckCircle2, ChevronDown, Clock, Code2,
-  Download, FileText, Flag, FolderOpen, Inbox, ListChecks, Paperclip, Pause, Play,
+  Copy, Download, ExternalLink, FileText, Flag, FolderOpen, Inbox, Link2, ListChecks, Paperclip, Pause, Play,
   RotateCcw, Search, SlidersHorizontal, Sparkles, Star, Target, User,
   UserCheck, Users, Wand2, X, Zap,
 } from "lucide-react";
@@ -917,6 +917,11 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [protoGenerating, setProtoGenerating] = useState(false);
   const [generatingSpecD, setGeneratingSpecD] = useState(false);
 
+  // Share-with-customer link state
+  const [shareToken, setShareToken]         = useState(null); // loaded spec_review_tokens row
+  const [shareCreating, setShareCreating]   = useState(false);
+  const [shareCopied, setShareCopied]       = useState(false);
+
   // SAP live connection info node
   const [sapConnInfo, setSapConnInfo]     = useState(null);
   const [sapConnLoading, setSapConnLoading] = useState(false);
@@ -1752,6 +1757,15 @@ ${mdToHtml(markdownContent)}
   const userPlan   = planCfg.getUserPlan(auth.user?.id ?? '');
   const canDownloadPdf = auth.isAdmin || auth.isManager || userPlan !== 'free';
   const specApproved = spec?.status === 'approved';
+
+  // Load latest spec review token for this case
+  useEffect(() => {
+    if (!caseData?.id) return;
+    supabase.from('spec_review_tokens')
+      .select('*').eq('case_id', caseData.id)
+      .order('created_at', { ascending: false }).limit(1).maybeSingle()
+      .then(({ data }) => { if (data) setShareToken(data); });
+  }, [caseData?.id]);
 
   // Pre-fill from existing spec when mode is selected
   useEffect(() => {
@@ -2967,6 +2981,41 @@ Respond with ONLY a valid JSON object, no markdown fences:
     setApproving(false);
   }
 
+  async function createShareLink() {
+    const PREFIXES = { a: 'SpecA_', b: 'SpecB_', c: 'SpecC_', d: 'SpecD_', proto: 'Prototype_' };
+    const docIds = {};
+    for (const [key, prefix] of Object.entries(PREFIXES)) {
+      const doc = (documents ?? []).find(d => d.file_name?.startsWith(prefix));
+      if (doc) docIds[key] = doc.id;
+    }
+    if (Object.keys(docIds).length === 0) {
+      alert(t('spec.share_no_docs'));
+      return;
+    }
+    setShareCreating(true);
+    try {
+      const { data, error } = await supabase
+        .from('spec_review_tokens')
+        .insert({ case_id: caseData.id, doc_ids: docIds, case_title: caseData.title ?? '' })
+        .select().single();
+      if (error) throw error;
+      setShareToken(data);
+      const url = `${window.location.origin}/review/${data.token}`;
+      await navigator.clipboard.writeText(url);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 3000);
+    } catch (e) { alert(e.message); }
+    setShareCreating(false);
+  }
+
+  async function copyShareLink() {
+    if (!shareToken?.token) return;
+    const url = `${window.location.origin}/review/${shareToken.token}`;
+    await navigator.clipboard.writeText(url);
+    setShareCopied(true);
+    setTimeout(() => setShareCopied(false), 3000);
+  }
+
   // ── Loading state ────────────────────────────────────────────
   if (specLoading) {
     return (
@@ -3796,6 +3845,58 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     </div>
                   </div>
                 )}
+                {/* ── Share with Customer ── */}
+                {(() => {
+                  const hasSpecDocs = (documents ?? []).some(d =>
+                    d.file_name && ['SpecA_','SpecB_','SpecC_','SpecD_','Prototype_'].some(p => d.file_name.startsWith(p))
+                  );
+                  const shareUrl = shareToken ? `${window.location.origin}/review/${shareToken.token}` : null;
+                  const shareStatus = shareToken?.status;
+                  return (
+                    <div className="border border-dashed border-blue-200 dark:border-blue-800 rounded-xl p-3 bg-blue-50/50 dark:bg-blue-900/10">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <Link2 className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs font-semibold text-gray-800 dark:text-gray-200">{t("spec.share_btn")}</p>
+                            {shareToken && (
+                              <p className={`text-xs mt-0.5 ${shareStatus === 'approved' ? 'text-green-600' : shareStatus === 'changes_requested' ? 'text-amber-600' : 'text-blue-600'}`}>
+                                {shareStatus === 'approved' ? ('✓ ' + t("spec.share_status_approved"))
+                                  : shareStatus === 'changes_requested' ? ('⚠ ' + t("spec.share_status_changes"))
+                                  : t("spec.share_link_label")}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {!hasSpecDocs && !shareToken && (
+                            <p className="text-xs text-gray-400">{t("spec.share_no_docs")}</p>
+                          )}
+                          {shareUrl && (
+                            <input readOnly value={shareUrl}
+                              className="text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-gray-600 dark:text-gray-300 w-52 truncate cursor-pointer"
+                              onClick={copyShareLink} title={shareUrl} />
+                          )}
+                          {shareUrl && (
+                            <button onClick={copyShareLink}
+                              className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${shareCopied ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}>
+                              {shareCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                              {shareCopied ? t("spec.share_link_copied") : t("spec.share_copy_link")}
+                            </button>
+                          )}
+                          {(hasSpecDocs || shareToken) && (
+                            <button onClick={createShareLink} disabled={shareCreating}
+                              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 transition-colors">
+                              {shareCreating ? <span className="animate-spin inline-block">↻</span> : <ExternalLink className="w-3 h-3" />}
+                              {shareToken ? t("spec.share_new_link") : (shareCreating ? t("spec.share_creating") : t("spec.share_btn"))}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {spec?.content && (
                   <div className="overflow-y-auto max-h-[520px]">
                     <MarkdownAccordion text={spec.content} />
