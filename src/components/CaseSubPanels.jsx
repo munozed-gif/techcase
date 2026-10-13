@@ -2896,6 +2896,14 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     })();
     if (!profile) return;
     setGeneratingSpecs(true);
+    // Pre-seed statuses so already-completed specs show 'done' during the retry run
+    setSpecStatuses({
+      a: aiSpecA ? 'done' : 'idle',
+      b: aiSpecB ? 'done' : 'idle',
+      c: aiSpecC ? 'done' : 'idle',
+      d: aiSpecD ? 'done' : 'idle',
+      proto: protoSaved ? 'done' : 'idle',
+    });
     const docBlocks = await buildDocumentBlocks();
     const pdfNames = (documents ?? []).filter(d => (d.file_name ?? '').toLowerCase().endsWith('.pdf') || (d.file_type ?? '').includes('pdf')).map(d => d.file_name);
     const pdfNote = pdfNames.length > 0 ? `\n\n[Reference PDFs attached: ${pdfNames.join(', ')}]` : '';
