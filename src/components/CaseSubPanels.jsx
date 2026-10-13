@@ -889,6 +889,8 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [aiSpecD, setAiSpecD]           = useState(''); // customer specification (non-technical)
   const [selectedSpec, setSelectedSpec] = useState(null); // 'a' | 'b' | 'c' | 'd'
   const [generatingSpecs, setGeneratingSpecs] = useState(false);
+  const [specStatuses, setSpecStatuses] = useState({ a: 'idle', b: 'idle', c: 'idle', d: 'idle', proto: 'idle' });
+  const [specErrors,   setSpecErrors]   = useState({ a: null,  b: null,  c: null,  d: null,  proto: null });
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [analysisCustomerContent, setAnalysisCustomerContent] = useState('');
   const [prevMode, setPrevMode]         = useState(null); // 'manual' | 'wizard' | null
@@ -2694,16 +2696,16 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     setAiSpecC('');
     setAiSpecD('');
     setSelectedSpec(null);
+    setSpecStatuses({ a: 'generating', b: 'generating', c: 'generating', d: 'generating', proto: 'idle' });
+    setSpecErrors({ a: null, b: null, c: null, d: null, proto: null });
     try {
       const docBlocks = await buildDocumentBlocks();
       const pdfNames = (documents ?? []).filter(d => (d.file_name ?? '').toLowerCase().endsWith('.pdf') || (d.file_type ?? '').includes('pdf')).map(d => d.file_name);
       const pdfNote = pdfNames.length > 0 ? `\n\n[Reference PDFs attached: ${pdfNames.join(', ')}]` : '';
 
-      // Fetch ABAP standards if any spec with technical_objects is being generated
       const needsAbap = genProfile?.spec_a?.technical_objects || genProfile?.spec_c?.technical_objects;
       const abap = needsAbap ? await buildAbapStandardsForSpec() : { blocks: [], contextText: '' };
 
-      // callSpec: try with full document blocks + optional extra blocks; retry text-only on PDF rejection
       const callSpec = async (prompt, extraBlocks = []) => {
         const sys = 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.';
         const allBlocks = [...abap.blocks, ...extraBlocks, ...docBlocks];
@@ -2717,18 +2719,45 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       const customerContent = analysisCustomerContent || caseData.description || '';
       const contextStr = await buildGenContext();
       const abapCtx = abap.contextText;
+
+      // Run all 4 specs independently so each gets its own status/error
+      const setSpecStatus = (key, status) => setSpecStatuses(p => ({ ...p, [key]: status }));
+      const setSpecError  = (key, msg)    => setSpecErrors(p => ({ ...p, [key]: msg }));
+
+      const runSpec = async (key, promiseFn) => {
+        try {
+          const result = await promiseFn();
+          setSpecStatus(key, 'done');
+          return result;
+        } catch (e) {
+          setSpecStatus(key, 'error');
+          setSpecError(key, e.message);
+          return null;
+        }
+      };
+
       const [specA, specB, specC, specD] = await Promise.all([
-        callSpec(buildSpecPrompt(true,  genProfile, genProfile?.spec_a?.technical_objects  ? contextStr + abapCtx : contextStr)),
-        callSpec(buildSpecPrompt(false, genProfile, contextStr)),
-        callSpec(buildSpecCPrompt(customerContent, genProfile, genProfile?.spec_c?.technical_objects ? contextStr + abapCtx : contextStr)),
-        callSpec(buildSpecDPrompt(customerContent, genProfile, contextStr)),
+        runSpec('a', () => callSpec(buildSpecPrompt(true,  genProfile, genProfile?.spec_a?.technical_objects ? contextStr + abapCtx : contextStr))),
+        runSpec('b', () => callSpec(buildSpecPrompt(false, genProfile, contextStr))),
+        runSpec('c', () => callSpec(buildSpecCPrompt(customerContent, genProfile, genProfile?.spec_c?.technical_objects ? contextStr + abapCtx : contextStr))),
+        runSpec('d', () => callSpec(buildSpecDPrompt(customerContent, genProfile, contextStr))),
       ]);
-      setAiSpecA(specA);
-      setAiSpecB(specB);
-      setAiSpecC(specC);
-      setAiSpecD(specD);
-      setSelectedSpec('a');
-      setAiContent(specA);
+
+      if (specA) { setAiSpecA(specA); }
+      if (specB) { setAiSpecB(specB); }
+      if (specC) { setAiSpecC(specC); }
+      if (specD) { setAiSpecD(specD); }
+
+      const firstSuccess = specA || specB || specC || specD;
+      if (!firstSuccess) {
+        setAiError('All specifications failed to generate. Check errors above.');
+        setGeneratingSpecs(false);
+        return;
+      }
+
+      const firstKey = specA ? 'a' : specB ? 'b' : specC ? 'c' : 'd';
+      setSelectedSpec(firstKey);
+      setAiContent(specA || specB || specC || specD);
       setSavedSpecUrls({ a: null, b: null, c: null, d: null });
       setActiveProfile(genProfile);
       setProtoSaved(false);
@@ -2737,31 +2766,35 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       setViewingProto(false);
       const saveStatus = autoSubmit ? 'submitted' : 'draft';
       try {
-        await saveSpec({ mode: 'ai', status: saveStatus, content: specA, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, specD, selectedSpec: 'a', prevMode, analysisCustomerContent: customerContent, activeProfile: genProfile }), title: caseData.title + t("spec.doc_title_suffix") });
+        await saveSpec({ mode: 'ai', status: saveStatus, content: specA || firstSuccess, objects: [], notes: JSON.stringify({ sapCheck, proposalCheck, specA, specB, specC, specD, selectedSpec: firstKey, prevMode, analysisCustomerContent: customerContent, activeProfile: genProfile }), title: caseData.title + t("spec.doc_title_suffix") });
         logEvent('spec.generated', { entityType: 'case', entityId: caseData.id, entityName: caseData.title, metadata: { model: genModel } });
       } catch (_) {}
       await saveAllSpecsAsDocuments(specA, specB, specC, specD, sapCheck, proposalCheck);
 
       // Generate interactive prototype if enabled for this profile
       if (genProfile?.prototype_enabled) {
+        setSpecStatus('proto', 'generating');
         try {
           const protoStyle = genProfile.prototype_style ?? 'auto';
           const protoSys = 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.';
-          const protoMsgs = [{ role: 'user', content: buildPrototypePrompt(specA, specB, protoStyle) }];
-          let protoHtml = await callClaude({ model: protoModel, system: protoSys, messages: protoMsgs, max_tokens: 12000 })
+          const protoMsgs = [{ role: 'user', content: buildPrototypePrompt(specA || firstSuccess, specB || firstSuccess, protoStyle) }];
+          let protoHtml = await callClaude({ model: protoModel, system: protoSys, messages: protoMsgs, max_tokens: 8000 })
             .catch(e => {
               if (e.message?.includes('did not match the expected pattern')) {
-                return callClaude({ model: 'claude-haiku-4-5-20251001', system: protoSys, messages: protoMsgs, max_tokens: 12000 });
+                return callClaude({ model: 'claude-haiku-4-5-20251001', system: protoSys, messages: protoMsgs, max_tokens: 8000 });
               }
               throw e;
             });
           if (!protoHtml) throw new Error('Empty prototype response');
-          // Strip markdown code fences the model may add despite instructions
-          protoHtml = protoHtml.trim();
+          protoHtml = sanitizeForJson(protoHtml).trim();
           if (protoHtml.startsWith('```')) {
-            protoHtml = protoHtml.replace(/^```(?:html)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+            const firstNl = protoHtml.indexOf('\n');
+            if (firstNl !== -1) protoHtml = protoHtml.slice(firstNl + 1);
+            const lastFence = protoHtml.lastIndexOf('```');
+            if (lastFence !== -1) protoHtml = protoHtml.slice(0, lastFence).trimEnd();
           }
           setProtoHtmlState(protoHtml);
+          setSpecStatus('proto', 'done');
           try {
             const safeName = (caseData.title ?? 'Case').replace(/[^a-z0-9]/gi, '_');
             const dateStr = new Date().toISOString().slice(0, 10);
@@ -2774,6 +2807,8 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
             setProtoError(true);
           }
         } catch (e) {
+          setSpecStatus('proto', 'error');
+          setSpecError('proto', e.message);
           setProtoError(true);
           console.error('Prototype generation failed:', e?.message);
         }
@@ -4206,8 +4241,45 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 )}
 
                 {generatingSpecs && !viewingProto && (
-                  <div className="flex items-center justify-center py-16 gap-3 text-gray-400">
-                    <Spinner /><span className="text-sm">{t("spec.gen_all_loading")}</span>
+                  <div className="py-8 px-4 space-y-3">
+                    <p className="text-xs text-gray-500 text-center mb-4">{t("spec.gen_all_loading")}</p>
+                    {[
+                      { key: 'a', label: t("spec.opt_a"), dot: 'bg-amber-400' },
+                      { key: 'b', label: t("spec.opt_b"), dot: 'bg-green-400' },
+                      { key: 'c', label: t("spec.opt_c"), dot: 'bg-purple-400' },
+                      { key: 'd', label: t("spec.opt_d"), dot: 'bg-teal-500' },
+                      ...(activeProfile?.prototype_enabled ? [{ key: 'proto', label: t("spec.opt_proto"), dot: 'bg-blue-500' }] : []),
+                    ].map(({ key, label, dot }) => {
+                      const st = specStatuses[key];
+                      const err = specErrors[key];
+                      return (
+                        <div key={key} className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm ${
+                          st === 'done'      ? 'border-green-200 bg-green-50'
+                          : st === 'error'   ? 'border-red-200 bg-red-50'
+                          : st === 'generating' ? 'border-blue-200 bg-blue-50'
+                          : 'border-gray-200 bg-gray-50'
+                        }`}>
+                          <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${dot}`} />
+                          <span className="font-semibold text-xs uppercase tracking-wide w-4 flex-shrink-0">{key.toUpperCase()}</span>
+                          <span className="text-gray-600 flex-1 truncate">{label}</span>
+                          <span className="flex-shrink-0 flex items-center gap-1.5">
+                            {st === 'generating' && <><Spinner className="w-3.5 h-3.5" /><span className="text-xs text-blue-600">Generating…</span></>}
+                            {st === 'done'       && <span className="text-xs text-green-600 font-semibold flex items-center gap-1"><Check size={13}/>Done</span>}
+                            {st === 'error'      && <span className="text-xs text-red-600 font-semibold" title={err}>Failed</span>}
+                            {st === 'idle'       && <span className="text-xs text-gray-400">Waiting…</span>}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {Object.values(specErrors).some(Boolean) && (
+                      <div className="mt-2 space-y-1">
+                        {Object.entries(specErrors).filter(([,v]) => v).map(([k, msg]) => (
+                          <p key={k} className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5">
+                            <strong>{k.toUpperCase()}:</strong> {msg}
+                          </p>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
