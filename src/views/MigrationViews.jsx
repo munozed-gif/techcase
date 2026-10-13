@@ -557,8 +557,8 @@ function MigrationProjectDetail({ migProject, auth, onBack }) {
               const headerBg    = isActiveWs ? `${ws.color}20` : "var(--t-tab-inactive)";
               return (
                 <div key={ws.id}
-                  style={{ flex:"0 0 calc(33.333% - 8px)", width:"calc(33.333% - 8px)", minWidth:0, scrollSnapAlign:"center", scrollSnapStop:"always",
-                    height:320, borderRadius:12, border:`1px solid ${borderColor}`,
+                  style={{ flex:"0 0 calc(88% - 8px)", width:"calc(88% - 8px)", minWidth:0, scrollSnapAlign:"center", scrollSnapStop:"always",
+                    height:640, borderRadius:12, border:`1px solid ${borderColor}`,
                     background: isActiveWs ? `${ws.color}0a` : "var(--t-card-bg)",
                     display:"flex", flexDirection:"column", overflow:"hidden",
                     cursor: isActiveWs ? "default" : "pointer",
@@ -599,7 +599,7 @@ function MigrationProjectDetail({ migProject, auth, onBack }) {
                   </div>
 
                   {/* Watermark icon */}
-                  <Icon size={100} style={{ position:"absolute", bottom:10, right:10, opacity:0.06, color: isActiveWs ? ws.color : "#94A3B8", pointerEvents:"none", zIndex:0 }} />
+                  <Icon size={160} style={{ position:"absolute", bottom:16, right:16, opacity:0.05, color: isActiveWs ? ws.color : "#94A3B8", pointerEvents:"none", zIndex:0 }} />
                 </div>
               );
             })}
