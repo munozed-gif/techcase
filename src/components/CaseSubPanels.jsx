@@ -853,7 +853,8 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const ssCtx = useSystemSettings();
   const genModel       = ssCtx.settings["ai_model"]        ?? 'claude-haiku-4-5-20251001';
   const analysisModel  = ssCtx.settings["analysis_model"]  ?? 'claude-haiku-4-5-20251001';
-  const protoModel     = ssCtx.settings["prototype_model"] ?? 'claude-sonnet-4-6';
+  const _protoRaw  = ssCtx.settings["prototype_model"] ?? 'claude-sonnet-4-6';
+  const protoModel = { 'claude-sonnet-5': 'claude-sonnet-4-6', 'claude-sonnet-5-5': 'claude-sonnet-4-6', 'claude-opus-5-5': 'claude-sonnet-4-6', 'claude-haiku-5-5': 'claude-haiku-4-5-20251001', 'claude-haiku-4-5': 'claude-haiku-4-5-20251001' }[_protoRaw] ?? _protoRaw;
   const liveCheckEnabled = (ssCtx.settings["generation_context"] ?? {}).sap_live_check === true;
   const { spec, loading: specLoading, saveSpec, refetch } = useCaseSpecification(caseData.id, auth.user?.id);
 
