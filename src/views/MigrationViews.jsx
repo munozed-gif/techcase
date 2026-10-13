@@ -578,28 +578,26 @@ function MigrationProjectDetail({ migProject, auth, onBack }) {
             {workstreamsData.map((ws) => {
               const isActiveWs = ws.id === activeWorkstream;
               const { Icon } = ws;
-              const borderColor = isActiveWs ? ws.color : "rgba(100,160,220,.12)";
-              const headerBg    = isActiveWs ? `${ws.color}20` : "var(--t-tab-inactive)";
               return (
                 <div key={ws.id}
                   style={{ flex:"0 0 calc(88% - 8px)", width:"calc(88% - 8px)", minWidth:0, scrollSnapAlign:"center", scrollSnapStop:"always",
-                    height:640, borderRadius:12, border:`1px solid ${borderColor}`,
-                    background: isActiveWs ? `${ws.color}0a` : "var(--t-card-bg)",
+                    height:640, borderRadius:12, border:`1px solid ${isActiveWs ? "var(--t-border-active)" : "var(--t-border)"}`,
+                    background:"var(--t-card-bg)",
                     display:"flex", flexDirection:"column", overflow:"hidden",
                     cursor:"default",
-                    opacity: isActiveWs ? 1 : 0.45,
+                    opacity: isActiveWs ? 1 : 0.5,
                     transform: isActiveWs ? "scale(1)" : "scale(0.97)",
                     transition:"opacity .25s, transform .25s, box-shadow .25s",
-                    boxShadow: isActiveWs ? `0 4px 20px rgba(0,0,0,.12)` : "none" }}>
+                    boxShadow: isActiveWs ? "0 4px 20px rgba(0,0,0,.12)" : "none" }}>
 
                   {/* Card header — same style as cases detail cards */}
-                  <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 16px", borderBottom:`1px solid var(--t-tab-border)`, background:headerBg, flexShrink:0, position:"relative", zIndex:1 }}>
-                    <div style={{ width:8, height:8, borderRadius:"50%", background: isActiveWs ? ws.color : "rgba(100,116,139,.3)", flexShrink:0, marginRight:2 }} />
-                    <Icon size={14} style={{ color: isActiveWs ? ws.colorLight : "var(--t-text2)", flexShrink:0 }} />
-                    <span style={{ flex:1, fontSize:13, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color: isActiveWs ? ws.colorLight : "var(--t-text2)" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 16px", borderBottom:"1px solid var(--t-tab-border)", background: isActiveWs ? "var(--t-tab-active)" : "var(--t-tab-inactive)", flexShrink:0, position:"relative", zIndex:1 }}>
+                    <div style={{ width:8, height:8, borderRadius:"50%", background: isActiveWs ? "#3B82F6" : "rgba(100,116,139,.3)", flexShrink:0, marginRight:2 }} />
+                    <Icon size={14} style={{ color: isActiveWs ? "var(--t-text-accent)" : "var(--t-text2)", flexShrink:0 }} />
+                    <span style={{ flex:1, fontSize:13, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color: isActiveWs ? "var(--t-text)" : "var(--t-text2)" }}>
                       {ws.label}
                     </span>
-                    <span style={{ fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:99, background: isActiveWs ? `${ws.color}33` : "rgba(100,116,139,.12)", color: isActiveWs ? ws.colorLight : "var(--t-text2)", flexShrink:0 }}>
+                    <span style={{ fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:99, background: isActiveWs ? "var(--t-badge-act-bg)" : "var(--t-badge-inact-bg)", color: isActiveWs ? "var(--t-badge-act-color)" : "var(--t-badge-inact-color)", flexShrink:0 }}>
                       {ws.sub}
                     </span>
                   </div>
@@ -623,7 +621,7 @@ function MigrationProjectDetail({ migProject, auth, onBack }) {
                   </div>
 
                   {/* Watermark icon */}
-                  <Icon size={160} style={{ position:"absolute", bottom:16, right:16, opacity:0.05, color: isActiveWs ? ws.color : "#94A3B8", pointerEvents:"none", zIndex:0 }} />
+                  <Icon size={160} style={{ position:"absolute", bottom:16, right:16, opacity:0.05, color:"#94A3B8", pointerEvents:"none", zIndex:0 }} />
                 </div>
               );
             })}
