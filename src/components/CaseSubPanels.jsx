@@ -2879,6 +2879,100 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     }
   }
 
+  // ── Retry only the failed specs ──────────────────────────────
+  async function handleRetryFailed() {
+    const failedKeys = Object.entries(specStatuses).filter(([, v]) => v === 'error').map(([k]) => k);
+    if (!failedKeys.length || !activeProfile) return;
+    setGeneratingSpecs(true);
+    const docBlocks = await buildDocumentBlocks();
+    const pdfNames = (documents ?? []).filter(d => (d.file_name ?? '').toLowerCase().endsWith('.pdf') || (d.file_type ?? '').includes('pdf')).map(d => d.file_name);
+    const pdfNote = pdfNames.length > 0 ? `\n\n[Reference PDFs attached: ${pdfNames.join(', ')}]` : '';
+    const needsAbap = activeProfile?.spec_a?.technical_objects || activeProfile?.spec_c?.technical_objects;
+    const abap = needsAbap ? await buildAbapStandardsForSpec() : { blocks: [], contextText: '' };
+    const callSpec = async (prompt, extraBlocks = []) => {
+      const sys = 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.';
+      const allBlocks = [...abap.blocks, ...extraBlocks, ...docBlocks];
+      try {
+        const content = allBlocks.length > 0 ? [...allBlocks, { type: 'text', text: prompt }] : prompt;
+        return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 8000 });
+      } catch (_) {
+        return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 8000 });
+      }
+    };
+    const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
+    const contextStr = sanitizeForJson(await buildGenContext());
+    const abapCtx = sanitizeForJson(abap.contextText);
+    const setSpecStatus = (key, status) => setSpecStatuses(p => ({ ...p, [key]: status }));
+    const setSpecError  = (key, msg)    => setSpecErrors(p => ({ ...p, [key]: msg }));
+
+    const specMap = {
+      a: () => callSpec(buildSpecPrompt(true,  activeProfile, activeProfile?.spec_a?.technical_objects ? contextStr + abapCtx : contextStr)),
+      b: () => callSpec(buildSpecPrompt(false, activeProfile, contextStr)),
+      c: () => callSpec(buildSpecCPrompt(customerContent, activeProfile, activeProfile?.spec_c?.technical_objects ? contextStr + abapCtx : contextStr)),
+      d: () => callSpec(buildSpecDPrompt(customerContent, activeProfile, contextStr)),
+    };
+    const setters = { a: setAiSpecA, b: setAiSpecB, c: setAiSpecC, d: setAiSpecD };
+
+    await Promise.all(
+      failedKeys.filter(k => k !== 'proto').map(async key => {
+        setSpecStatus(key, 'generating');
+        setSpecError(key, null);
+        try {
+          const result = await specMap[key]();
+          if (result) {
+            setters[key](result);
+            if (!selectedSpec) { setSelectedSpec(key); setAiContent(result); }
+            setSpecStatus(key, 'done');
+          }
+        } catch (e) {
+          setSpecStatus(key, 'error');
+          setSpecError(key, e.message);
+        }
+      })
+    );
+
+    // Retry proto if it was also failed
+    if (failedKeys.includes('proto') && activeProfile?.prototype_enabled) {
+      setSpecStatus('proto', 'generating');
+      try {
+        const specA = aiSpecA; const specB = aiSpecB;
+        const protoSys = 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.';
+        const protoMsgs = [{ role: 'user', content: buildPrototypePrompt(specA || aiSpecC, specB || aiSpecD, activeProfile.prototype_style ?? 'auto') }];
+        let protoHtml = await callClaude({ model: protoModel, system: protoSys, messages: protoMsgs, max_tokens: 8000 })
+          .catch(e => {
+            if (e.message?.includes('did not match the expected pattern')) {
+              return callClaude({ model: 'claude-haiku-4-5-20251001', system: protoSys, messages: protoMsgs, max_tokens: 8000 });
+            }
+            throw e;
+          });
+        if (!protoHtml) throw new Error('Empty prototype response');
+        protoHtml = sanitizeForJson(protoHtml).trim();
+        if (protoHtml.startsWith('```')) {
+          const firstNl = protoHtml.indexOf('\n');
+          if (firstNl !== -1) protoHtml = protoHtml.slice(firstNl + 1);
+          const lastFence = protoHtml.lastIndexOf('```');
+          if (lastFence !== -1) protoHtml = protoHtml.slice(0, lastFence).trimEnd();
+        }
+        setProtoHtmlState(protoHtml);
+        setProtoError(false);
+        setSpecStatus('proto', 'done');
+        try {
+          const safeName = (caseData.title ?? 'Case').replace(/[^a-z0-9]/gi, '_');
+          const dateStr = new Date().toISOString().slice(0, 10);
+          const protoFile = new File([protoHtml], `Prototype_${safeName}_${dateStr}.html`, { type: 'text/html' });
+          await addDocument(protoFile, '[Prototype] Interactive Prototype');
+          if (refetchDocuments) await refetchDocuments();
+          setProtoSaved(true);
+        } catch (_) { setProtoError(true); }
+      } catch (e) {
+        setSpecStatus('proto', 'error');
+        setSpecError('proto', e.message);
+        setProtoError(true);
+      }
+    }
+    setGeneratingSpecs(false);
+  }
+
   // ── Approval helpers ─────────────────────────────────────────
   async function handleSubmit(specContent, specMode, specObjects) {
     try {
@@ -3665,17 +3759,22 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 {/* Sub-nodes for Spec A / B / C + Prototype */}
                 {(aiSpecA || aiSpecB || aiSpecC || activeNode===3 || specApproved) && (
                   <div className="ml-8 mt-1 space-y-1 relative z-10">
-                    {SUB.map(s => (
-                      <button key={s.key} onClick={() => { setActiveNode(3); setSelectedSpec(s.key); setViewingProto(false); setAiContent(s.content); }}
-                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs border transition-all ${
-                          s.content ? 'bg-green-50 border-green-200 text-green-700' :
-                          'bg-gray-50 border-gray-100 text-gray-400'
-                        } ${selectedSpec === s.key && activeNode===3 && !viewingProto ? 'ring-2 ring-blue-300' : ''}`}>
-                        <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${s.dot}`} />
-                        <span className="truncate font-medium">{s.label}</span>
-                        {s.content && <Check size={10} className="text-green-600 ml-auto flex-shrink-0" />}
-                      </button>
-                    ))}
+                    {SUB.map(s => {
+                      const hasError = specStatuses[s.key] === 'error';
+                      return (
+                        <button key={s.key} onClick={() => { setActiveNode(3); setSelectedSpec(s.key); setViewingProto(false); setAiContent(s.content); }}
+                          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs border transition-all ${
+                            hasError    ? 'bg-red-50 border-red-300 text-red-600'
+                            : s.content ? 'bg-green-50 border-green-200 text-green-700'
+                            :             'bg-gray-50 border-gray-100 text-gray-400'
+                          } ${selectedSpec === s.key && activeNode===3 && !viewingProto ? 'ring-2 ring-blue-300' : ''}`}>
+                          <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${hasError ? 'bg-red-500' : s.dot}`} />
+                          <span className="truncate font-medium">{s.label}</span>
+                          {s.content  && <Check size={10} className="text-green-600 ml-auto flex-shrink-0" />}
+                          {hasError    && <span className="ml-auto text-red-500 font-bold text-xs">!</span>}
+                        </button>
+                      );
+                    })}
                     {/* Prototype sub-node — only when enabled in profile */}
                     {activeProfile?.prototype_enabled && (
                       <button onClick={() => { setActiveNode(3); setViewingProto(true); }}
@@ -4283,22 +4382,45 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   </div>
                 )}
 
+                {/* Retry Failed banner — shown after generation when some specs errored */}
+                {!generatingSpecs && !viewingProto && Object.values(specStatuses).some(v => v === 'error') && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-red-700">
+                        {Object.entries(specStatuses).filter(([,v]) => v === 'error').map(([k]) => k.toUpperCase()).join(', ')} failed to generate
+                      </p>
+                      {Object.entries(specErrors).filter(([,v]) => v).map(([k, msg]) => (
+                        <p key={k} className="text-xs text-red-500 mt-0.5"><strong>{k.toUpperCase()}:</strong> {msg}</p>
+                      ))}
+                    </div>
+                    <button onClick={handleRetryFailed}
+                      className="flex-shrink-0 px-3 py-1.5 text-xs font-semibold bg-red-600 text-white rounded-lg hover:bg-red-700">
+                      Retry Failed
+                    </button>
+                  </div>
+                )}
+
                 {/* Spec tabs + content */}
                 {(aiSpecA || aiSpecB || aiSpecC || aiSpecD || (specApproved && spec?.content)) && !generatingSpecs && !viewingProto && (
                   <div className="space-y-0">
                     <div className="flex border-b border-gray-200">
-                      {SUB.map(s => (
+                      {SUB.map(s => {
+                        const hasError = specStatuses[s.key] === 'error';
+                        return (
                         <button key={s.key} onClick={() => { setSelectedSpec(s.key); setAiContent(s.content); }}
                           className={`flex-1 py-3 px-2 text-sm font-semibold border-b-2 transition-colors text-left flex items-center gap-2 ${selectedSpec === s.key ? 'border-[#1A4B8C] text-blue-600 bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
-                          <span className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold ${s.dot}`}>{s.key.toUpperCase()}</span>
+                          <span className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold ${hasError ? 'bg-red-500' : s.dot}`}>{hasError ? '!' : s.key.toUpperCase()}</span>
                           <span className="truncate">{s.label}</span>
                           <span className="ml-auto flex-shrink-0">
-                            {savedSpecUrls[s.key]
+                            {hasError
+                              ? <span className="text-xs text-red-500 font-semibold">Failed</span>
+                              : savedSpecUrls[s.key]
                               ? <Check size={13} className="text-green-500" />
                               : <span className="w-2 h-2 rounded-full bg-gray-300 inline-block" />}
                           </span>
                         </button>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     <div className="border border-t-0 border-gray-200 rounded-b-xl overflow-hidden">
