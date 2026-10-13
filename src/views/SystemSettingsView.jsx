@@ -10,7 +10,6 @@ import {
   Users, X, XCircle, Zap,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
-import { createClient } from "@supabase/supabase-js";
 import { useT } from "../i18n/index.jsx";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { useSystemSettings, useVisibilitySettings, usePlanConfig, usePlatformBranding } from "../hooks/useSystemSettings.jsx";
@@ -171,17 +170,14 @@ function SettingsUsersTab() {
     }
     setAdding(true);
     try {
-      const tmpClient = createClient(
-        import.meta.env.VITE_SUPABASE_URL || "",
-        import.meta.env.VITE_SUPABASE_ANON_KEY || "",
-        { auth: { persistSession: false } }
-      );
-      const { error } = await tmpClient.auth.signUp({
-        email: addForm.email, password: addForm.password,
-        options: { data: { full_name: addForm.full_name, role: addForm.role } },
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/admin-create-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
+        body: JSON.stringify({ email: addForm.email, password: addForm.password, full_name: addForm.full_name, role: addForm.role }),
       });
-      await tmpClient.auth.signOut();
-      if (error) throw error;
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to create user');
       await loadUsers();
       setShowAdd(false);
       setAddForm({ full_name: "", email: "", role: "manager", password: "" });
@@ -2934,10 +2930,14 @@ function SettingsPeopleTab({ ssCtx, auth, onNavigate }) {
     if (!addForm.full_name || !addForm.email || !addForm.password) { setAddError(t("sys.create_user_required")); return; }
     setAdding(true);
     try {
-      const tmp = createClient(import.meta.env.VITE_SUPABASE_URL || "", import.meta.env.VITE_SUPABASE_ANON_KEY || "", { auth: { persistSession: false } });
-      const { error } = await tmp.auth.signUp({ email: addForm.email, password: addForm.password, options: { data: { full_name: addForm.full_name, role: addForm.role } } });
-      await tmp.auth.signOut();
-      if (error) throw error;
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/admin-create-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
+        body: JSON.stringify({ email: addForm.email, password: addForm.password, full_name: addForm.full_name, role: addForm.role }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to create user');
       await loadUsers();
       setShowAdd(false);
       setAddForm({ full_name: "", email: "", role: selectedRole, password: "" });
