@@ -464,12 +464,20 @@ function MigrationProjectDetail({ migProject, auth, onBack }) {
   const [activeWorkstream, setActiveWorkstream] = useState('wricef');
   const [showSync, setShowSync] = useState(false);
   const wsTrackRef = useRef(null);
+  const wsProgrammaticRef = useRef(false);
+  const wsScrollTimer = useRef(null);
 
   useEffect(() => {
-    if (!wsTrackRef.current) return;
+    const el = wsTrackRef.current;
+    if (!el) return;
     const wsIdx = workstreamsData.findIndex(w => w.id === activeWorkstream);
-    const card = wsTrackRef.current.children[wsIdx];
-    if (card) card.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    const card = el.children[wsIdx];
+    if (!card) return;
+    wsProgrammaticRef.current = true;
+    const targetLeft = card.offsetLeft - (el.offsetWidth - card.offsetWidth) / 2;
+    el.scrollTo({ left: targetLeft, behavior: 'smooth' });
+    const tid = setTimeout(() => { wsProgrammaticRef.current = false; }, 600);
+    return () => clearTimeout(tid);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeWorkstream]);
 
@@ -480,6 +488,23 @@ function MigrationProjectDetail({ migProject, auth, onBack }) {
     { id: 'simplif', label: t('mig.tab_simplif'),  Icon: Layers,    color: '#D97706', colorLight: '#FCD34D', sub: 'Scope simplification' },
     { id: 'cases',   label: t('mig.tab_cases'),    Icon: FileText,  color: '#16A34A', colorLight: '#4ADE80', sub: 'Linked support cases' },
   ];
+
+  function onWsScroll() {
+    if (wsProgrammaticRef.current) return;
+    const el = wsTrackRef.current;
+    if (!el) return;
+    clearTimeout(wsScrollTimer.current);
+    wsScrollTimer.current = setTimeout(() => {
+      const center = el.scrollLeft + el.offsetWidth / 2;
+      let closest = 0, minDist = Infinity;
+      Array.from(el.children).forEach((child, i) => {
+        const dist = Math.abs((child.offsetLeft + child.offsetWidth / 2) - center);
+        if (dist < minDist) { minDist = dist; closest = i; }
+      });
+      const ws = workstreamsData[closest];
+      if (ws && ws.id !== activeWorkstream) setActiveWorkstream(ws.id);
+    }, 80);
+  }
 
   const approachColors = {
     greenfield: 'bg-green-100 text-green-700',
@@ -548,7 +573,7 @@ function MigrationProjectDetail({ migProject, auth, onBack }) {
             </button>
           )}
 
-          <div ref={wsTrackRef}
+          <div ref={wsTrackRef} onScroll={onWsScroll}
             style={{ display:"flex", overflowX:"scroll", scrollSnapType:"x mandatory", scrollbarWidth:"none", WebkitOverflowScrolling:"touch", gap:10, padding:"4px 20px 8px" }}>
             {workstreamsData.map((ws) => {
               const isActiveWs = ws.id === activeWorkstream;
@@ -561,12 +586,11 @@ function MigrationProjectDetail({ migProject, auth, onBack }) {
                     height:640, borderRadius:12, border:`1px solid ${borderColor}`,
                     background: isActiveWs ? `${ws.color}0a` : "var(--t-card-bg)",
                     display:"flex", flexDirection:"column", overflow:"hidden",
-                    cursor: isActiveWs ? "default" : "pointer",
+                    cursor:"default",
                     opacity: isActiveWs ? 1 : 0.45,
                     transform: isActiveWs ? "scale(1)" : "scale(0.97)",
                     transition:"opacity .25s, transform .25s, box-shadow .25s",
-                    boxShadow: isActiveWs ? `0 4px 20px rgba(0,0,0,.12)` : "none" }}
-                  onClick={() => !isActiveWs && setActiveWorkstream(ws.id)}>
+                    boxShadow: isActiveWs ? `0 4px 20px rgba(0,0,0,.12)` : "none" }}>
 
                   {/* Card header — same style as cases detail cards */}
                   <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 16px", borderBottom:`1px solid var(--t-tab-border)`, background:headerBg, flexShrink:0, position:"relative", zIndex:1 }}>
@@ -606,23 +630,21 @@ function MigrationProjectDetail({ migProject, auth, onBack }) {
           </div>
         </div>
 
-        {/* Footer — pill buttons navigation */}
-        <div style={{ display:"flex", justifyContent:"center", flexWrap:"wrap", gap:8, marginTop:10, padding:"4px 8px" }}>
-          {workstreamsData.map((ws) => {
+        {/* Footer — pill bar, cases-detail style */}
+        <div style={{ marginTop:10, background:"var(--t-pill-bar)", borderRadius:12, border:"1px solid var(--t-border)", padding:"10px 14px", display:"flex", gap:6, overflowX:"auto", scrollbarWidth:"none" }}>
+          {workstreamsData.map((ws, i) => {
             const isActive = ws.id === activeWorkstream;
             const { Icon } = ws;
             return (
               <button key={ws.id}
                 onClick={() => setActiveWorkstream(ws.id)}
-                style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 14px", borderRadius:99,
-                  border:`1.5px solid ${isActive ? ws.color : "rgba(100,160,220,.18)"}`,
-                  background: isActive ? ws.color : "rgba(100,160,220,.06)",
-                  color: isActive ? "#fff" : "var(--t-text2)",
-                  fontSize:12, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0,
-                  boxShadow: isActive ? `0 0 0 3px ${ws.color}28` : "none",
-                  transition:"all .2s" }}>
-                <Icon size={12} />
-                {ws.label}
+                style={{ flexShrink:0, display:"flex", alignItems:"center", gap:4, padding:"5px 10px", borderRadius:99,
+                  border:`1.5px solid ${isActive ? "var(--t-pill-act-border)" : "var(--t-pill-inactive-bdr)"}`,
+                  background: isActive ? "var(--t-pill-act-bg)" : "var(--t-pill-inactive-bg)",
+                  color: isActive ? "var(--t-pill-act-color)" : "var(--t-text2)",
+                  fontSize:12, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap", transition:"all .15s" }}>
+                <Icon size={11} />
+                <span>{ws.label}</span>
               </button>
             );
           })}
