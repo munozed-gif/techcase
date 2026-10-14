@@ -413,8 +413,12 @@ function AuthScreen({ onAuth, onBack }) {
       <nav className="auth-nav">
         <button className="auth-nav-logo" onClick={onBack} style={{background:"none",border:"none",padding:0}}>
           <NovaLandingMark size={32} />
-          <span className="auth-nav-arena">Arena</span>
-          <span className="auth-nav-rest">Solutions Platform</span>
+          {(() => {
+            const parts = branding.platformName.split(' ');
+            return parts.length > 1
+              ? <><span className="auth-nav-arena">{parts[0]}</span><span className="auth-nav-rest">{parts.slice(1).join(' ')}</span></>
+              : <span className="auth-nav-arena">{branding.platformName}</span>;
+          })()}
         </button>
         <div className="auth-nav-links">
           <a href="#" onClick={onBack}>Features</a>
