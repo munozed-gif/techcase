@@ -14,7 +14,7 @@ function usePlatformBranding() {
   try { cached = JSON.parse(localStorage.getItem('arena_branding') || '{}'); } catch {}
   return {
     platformName: settings['platform_name'] || cached['platform_name'] || 'Arena Solutions Platform',
-    tagline:      settings['platform_tagline'] || cached['platform_tagline'] || 'Solutions Platform',
+    tagline:      settings['platform_tagline'] || cached['platform_tagline'] || 'Consultant Case Management',
     logoUrl:      settings['brand_logo_url']  || cached['brand_logo_url']  || TECHCASE_LOGO_URI,
     loading,
   };
