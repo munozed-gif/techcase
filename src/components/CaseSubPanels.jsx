@@ -2242,7 +2242,13 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
     try {
       const result = await sapLiveCheck(sapConnCfg);
       if (result && !result.error) {
-        const next = { ok: true, info: result.systemInfo ?? result.description ?? 'Connected' };
+        const next = {
+          ok: true,
+          info: result.systemInfo ?? result.description ?? 'Connected',
+          capabilities: result.capabilities ?? [],
+          components: result.components ?? [],
+          sid: result.sid ?? null,
+        };
         setSapConnTest(next);
         try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
       } else {
@@ -3987,6 +3993,38 @@ Respond with ONLY a valid JSON object, no markdown fences:
                           {sapConnTest.info && <p className="text-xs text-gray-400 mt-0.5 break-all">{sapConnTest.info}</p>}
                           {sapConnTest.message && <p className="text-xs text-gray-400 mt-0.5 break-all">{sapConnTest.message}</p>}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Live data extracted from SAP — shown after a successful test */}
+                    {sapConnTest && sapConnTest !== 'testing' && sapConnTest.ok && (sapConnTest.capabilities?.length > 0 || sapConnTest.components?.length > 0) && (
+                      <div className="rounded-xl overflow-hidden border border-gray-700 divide-y divide-gray-700">
+                        {sapConnTest.info && !sapConnTest.seeded && (
+                          <div className="px-3 py-2">
+                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide leading-none mb-1">SAP System</p>
+                            <p className="text-xs font-mono text-green-300 break-all leading-snug">{sapConnTest.info}</p>
+                          </div>
+                        )}
+                        {sapConnTest.capabilities?.length > 0 && (
+                          <div className="px-3 py-2">
+                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide leading-none mb-2">ADT Capabilities</p>
+                            <div className="flex flex-wrap gap-1">
+                              {sapConnTest.capabilities.map((cap, i) => (
+                                <span key={i} className="text-xs bg-blue-900/50 text-blue-300 border border-blue-700/50 rounded-md px-2 py-0.5">{cap}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {sapConnTest.components?.length > 0 && (
+                          <div className="px-3 py-2">
+                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide leading-none mb-2">Software Components</p>
+                            <div className="flex flex-wrap gap-1">
+                              {sapConnTest.components.map((comp, i) => (
+                                <span key={i} className="text-xs bg-slate-800 text-slate-300 border border-slate-600 rounded-md px-2 py-0.5 font-mono">{comp}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                     {/* Action row */}
