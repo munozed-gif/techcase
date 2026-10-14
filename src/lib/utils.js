@@ -34,11 +34,15 @@ async function notifyCaseParticipants(caseId, excludeUserId, title, body, opts =
 
 // ── Claude API helper ────────────────────────────────────────
 function stripSurrogates(s) {
-  // charCodeAt never throws on lone surrogates (regex-based .replace CAN on WebKit/Safari)
+  // charCodeAt never throws on lone surrogates (regex-based .replace CAN on WebKit/Safari).
+  // Also strips null bytes and ASCII control chars — Anthropic rejects them in JSON strings.
+  // TAB (0x09), LF (0x0A), CR (0x0D) are kept.
   let out = '';
   for (let i = 0; i < s.length; i++) {
     const c = s.charCodeAt(i);
-    if (c < 0xD800 || c > 0xDFFF) out += s[i];
+    if (c >= 0xD800 && c <= 0xDFFF) continue;
+    if (c < 0x20 && c !== 0x09 && c !== 0x0A && c !== 0x0D) continue;
+    out += s[i];
   }
   return out;
 }

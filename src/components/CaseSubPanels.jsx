@@ -2500,13 +2500,19 @@ Generate with EXACTLY these sections:
 ${buildSectionConstraint('spec_d', genProfile)}${buildGenSuffix(genProfile, lang)}`;
   }
 
-  // charCodeAt never throws on lone surrogates; regex .replace() CAN on WebKit/Safari.
+  // Strip lone surrogates (WebKit regex-replace throws on them) AND null bytes / ASCII
+  // control chars (Anthropic API rejects strings containing them).
+  // TAB (0x09), LF (0x0A), CR (0x0D) are kept — they're valid in JSON strings.
   function sanitizeForJson(s) {
     const str = s ?? '';
     let out = '';
     for (let i = 0; i < str.length; i++) {
       const c = str.charCodeAt(i);
-      if (c < 0xD800 || c > 0xDFFF) out += str[i];
+      // Drop lone surrogates
+      if (c >= 0xD800 && c <= 0xDFFF) continue;
+      // Drop null byte and non-printable control chars (except TAB/LF/CR)
+      if (c < 0x20 && c !== 0x09 && c !== 0x0A && c !== 0x0D) continue;
+      out += str[i];
     }
     return out;
   }
