@@ -9,15 +9,14 @@ import { DEFAULT_PLAN_CONFIG, DEFAULT_PLAN_PRICES, TECHCASE_LOGO_URI } from "../
 const SystemSettingsContext = createContext(null);
 
 function usePlatformBranding() {
-  const { settings } = useSystemSettings();
+  const { settings, loading } = useSystemSettings();
   let cached = {};
-  if (!settings['platform_name'] && !settings['platform_tagline']) {
-    try { cached = JSON.parse(localStorage.getItem('arena_branding') || '{}'); } catch {}
-  }
+  try { cached = JSON.parse(localStorage.getItem('arena_branding') || '{}'); } catch {}
   return {
-    platformName: settings['platform_name'] || cached['platform_name'] || 'Arena',
+    platformName: settings['platform_name'] || cached['platform_name'] || 'Arena Solutions Platform',
     tagline:      settings['platform_tagline'] || cached['platform_tagline'] || 'Solutions Platform',
     logoUrl:      settings['brand_logo_url']  || cached['brand_logo_url']  || TECHCASE_LOGO_URI,
+    loading,
   };
 }
 
