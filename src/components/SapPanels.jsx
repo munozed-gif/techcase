@@ -242,7 +242,10 @@ async function sapApiRequest(config, path, opts = {}) {
     ...(opts.headers ?? {}),
   };
   const url = `${base}${path}`;
-  const res = await fetch(url, { ...opts, headers, credentials: 'omit' });
+  // Send cookies for same-origin proxy requests (Vercel deployment protection needs them).
+  // Omit credentials for direct cross-origin calls to SAP to avoid CORS preflight issues.
+  const credentials = proxyUrl ? 'same-origin' : 'omit';
+  const res = await fetch(url, { ...opts, headers, credentials });
   return res;
 }
 
