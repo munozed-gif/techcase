@@ -943,6 +943,20 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [sapConnCfg, setSapConnCfg]       = useState(null); // full config incl. password, for test
   const [sapConnTest, setSapConnTest]     = useState(null); // null | 'testing' | { ok, info?, error?, message? }
 
+  // Project docs — fetched for display in Node 0
+  const [projDocsForDisplay, setProjDocsForDisplay] = useState(null); // null = not loaded yet
+
+  useEffect(() => {
+    if (!caseData.project_id) { setProjDocsForDisplay([]); return; }
+    supabase.from('system_settings').select('value').eq('key', 'project_docs').maybeSingle()
+      .then(({ data }) => {
+        const docs = (data?.value ?? {})[caseData.project_id] ?? [];
+        setProjDocsForDisplay(docs);
+      })
+      .catch(() => setProjDocsForDisplay([]));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caseData.project_id]);
+
   // ── Document helpers ─────────────────────────────────────────
   function blobToBase64(blob) {
     return new Promise((resolve, reject) => {
@@ -4225,35 +4239,95 @@ Respond with ONLY a valid JSON object, no markdown fences:
             )}
 
             {/* ── Node 0: Documents ── */}
-            {activeNode === 0 && (
-              <div className="space-y-3">
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                  <h3 className="text-sm font-semibold text-blue-800 mb-1">{t("spec.wiz_docs_lbl")}</h3>
-                  <p className="text-xs text-blue-600 mb-3">{t("spec.docs_node_desc")}</p>
-                  {inputDocs.length === 0 ? (
-                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">{t("spec.no_docs_ai")}</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {inputDocs.map(doc => (
-                        <div key={doc.id} className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-blue-100">
-                          <Paperclip className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
-                          <span className="text-xs text-gray-700 font-medium flex-1 truncate">{doc.file_name}</span>
-                          <span className="text-xs text-blue-400 flex-shrink-0">({doc.file_size_kb} KB)</span>
+            {activeNode === 0 && (() => {
+              function docReadStatus(fileName, fileType) {
+                const ext = (fileName ?? '').toLowerCase().split('.').pop() ?? '';
+                if (ext === 'pdf' || (fileType ?? '').includes('pdf'))
+                  return { label: 'PDF — native read', color: 'bg-blue-100 text-blue-700' };
+                if (['txt','md','csv','json'].includes(ext))
+                  return { label: 'Plain text', color: 'bg-green-100 text-green-700' };
+                if (ext === 'html' || ext === 'htm')
+                  return { label: 'HTML → text', color: 'bg-green-100 text-green-700' };
+                if (ext === 'docx')
+                  return { label: 'Word → text', color: 'bg-green-100 text-green-700' };
+                if (ext === 'xlsx' || ext === 'xls')
+                  return { label: 'Excel → text', color: 'bg-green-100 text-green-700' };
+                return { label: 'Not extractable', color: 'bg-amber-100 text-amber-700' };
+              }
+              const totalDocs = inputDocs.length + (projDocsForDisplay?.length ?? 0);
+              return (
+                <div className="space-y-3">
+                  {/* Case documents */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                    <h3 className="text-sm font-semibold text-blue-800 mb-1">Case Documents</h3>
+                    <p className="text-xs text-blue-500 mb-3">Files attached directly to this case</p>
+                    {inputDocs.length === 0 ? (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">{t("spec.no_docs_ai")}</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {inputDocs.map(doc => {
+                          const st = docReadStatus(doc.file_name, doc.file_type);
+                          return (
+                            <div key={doc.id} className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-blue-100">
+                              <Paperclip className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+                              <span className="text-xs text-gray-700 font-medium flex-1 min-w-0 truncate">{doc.file_name}</span>
+                              <span className="text-xs text-gray-400 flex-shrink-0 whitespace-nowrap">{doc.file_size_kb} KB</span>
+                              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${st.color}`}>{st.label}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Project documents */}
+                  {caseData.project_id && (
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+                      <h3 className="text-sm font-semibold text-indigo-800 mb-1">Project Documents</h3>
+                      <p className="text-xs text-indigo-500 mb-3">Reference docs configured for this project</p>
+                      {projDocsForDisplay === null ? (
+                        <div className="flex items-center gap-2 text-xs text-indigo-400 py-1"><Spinner /><span>Loading…</span></div>
+                      ) : projDocsForDisplay.length === 0 ? (
+                        <p className="text-xs text-gray-400 italic">No project documents configured</p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {projDocsForDisplay.map((doc, i) => {
+                            const st = docReadStatus(doc.name ?? doc.file_name, doc.type);
+                            return (
+                              <div key={i} className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-indigo-100">
+                                <Paperclip className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
+                                <span className="text-xs text-gray-700 font-medium flex-1 min-w-0 truncate">{doc.name ?? doc.file_name}</span>
+                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${st.color}`}>{st.label}</span>
+                              </div>
+                            );
+                          })}
                         </div>
-                      ))}
+                      )}
+                    </div>
+                  )}
+
+                  {/* Summary */}
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    <span className="text-xs text-gray-600">
+                      <span className="font-semibold">{totalDocs} document{totalDocs !== 1 ? 's' : ''}</span> will be read by Claude during generation.
+                      {inputDocs.some(d => docReadStatus(d.file_name, d.file_type).label === 'Not extractable') && (
+                        <span className="text-amber-600 ml-1">Some files cannot be extracted — only supported formats are sent.</span>
+                      )}
+                    </span>
+                  </div>
+
+                  {!specApproved && (
+                    <div className="flex justify-end">
+                      <button onClick={() => setActiveNode(1)}
+                        className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
+                        {t("spec.ai_check_btn")} →
+                      </button>
                     </div>
                   )}
                 </div>
-                {!specApproved && (
-                  <div className="flex justify-end">
-                    <button onClick={() => setActiveNode(1)}
-                      className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
-                      {t("spec.ai_check_btn")} →
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+              );
+            })()}
 
             {/* ── Node 1: SAP Verification ── */}
             {activeNode === 1 && (
