@@ -225,7 +225,13 @@ function buildSapMcpConfig(sapConfig, mcpServerUrl) {
 
 async function sapApiRequest(config, path, opts = {}) {
   // Prefer manual proxyUrl or VPN-linked proxy; otherwise call SAP directly.
-  const proxyUrl = config.proxyUrl?.trim() || config._vpnProxyUrl?.trim();
+  let proxyUrl = config.proxyUrl?.trim() || config._vpnProxyUrl?.trim();
+  // If the stored proxy URL points to our own /api/sap-proxy but on a different
+  // deployment URL (e.g. a stale Vercel preview link), rewrite it to the current
+  // origin so the request stays same-origin and avoids Vercel SSO redirects.
+  if (proxyUrl && /\/api\/sap-proxy\b/.test(proxyUrl)) {
+    proxyUrl = `${window.location.origin}/api/sap-proxy`;
+  }
   const base = (proxyUrl || config.host.trim()).replace(/\/$/, '');
   const auth = btoa(`${config.username}:${config.password}`);
   const headers = {
