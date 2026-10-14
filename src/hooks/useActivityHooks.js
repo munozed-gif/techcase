@@ -23,7 +23,7 @@ function useActivityFeed(visibleCaseIds, userId) {
         : { data: [] },
       ids.length > 0
         ? supabase.from('case_assignments')
-            .select('id, case_id, created_at, time_commitment, consultant:consultant_id(id, full_name)')
+            .select('id, case_id, created_at, time_commitment, consultant_id')
             .in('case_id', ids).order('created_at', { ascending: false }).limit(30)
         : { data: [] },
       supabase.from('notifications')
@@ -37,7 +37,7 @@ function useActivityFeed(visibleCaseIds, userId) {
       })),
       ...(assignRes.data ?? []).map(a => ({
         ...a, _type: 'assignment',
-        actor_name: a.consultant?.full_name ?? t("feed.actor_consultant"), _key: `assign-${a.id}`, is_unread: false,
+        actor_name: t("feed.actor_consultant"), _key: `assign-${a.id}`, is_unread: false,
       })),
       ...(notifRes.data ?? []).map(n => ({
         ...n,
@@ -95,7 +95,7 @@ function useGlobalActivity(visibleCaseIds) {
           .order('created_at', { ascending: false })
           .limit(40),
         supabase.from('case_assignments')
-          .select('id, case_id, created_at, time_commitment, consultant:consultant_id(full_name)')
+          .select('id, case_id, created_at, time_commitment, consultant_id')
           .in('case_id', ids)
           .order('created_at', { ascending: false })
           .limit(20),

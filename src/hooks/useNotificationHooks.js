@@ -78,23 +78,27 @@ function useNotifications() {
   const [loading, setLoading]             = useState(true);
 
   useEffect(() => {
-    let ch;
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLoading(false); return; }
-      const { data } = await supabase.from("notifications")
+    const chRef = { current: null };
+    let cancelled = false;
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (cancelled || !user) { setLoading(false); return; }
+      supabase.from("notifications")
         .select("*").eq("user_id", user.id)
-        .order("created_at", { ascending: false }).limit(50);
-      setNotifications(data ?? []);
-      setUnreadCount((data ?? []).filter(n => !n.is_read).length);
-      setLoading(false);
-      ch = supabase.channel(`notif-view-${user.id}`)
-        .on("postgres_changes",
-          { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
-          payload => { setNotifications(p => [payload.new, ...p]); setUnreadCount(p => p + 1); })
-        .subscribe();
-    })();
-    return () => { if (ch) supabase.removeChannel(ch); };
+        .order("created_at", { ascending: false }).limit(50)
+        .then(({ data }) => {
+          if (cancelled) return;
+          setNotifications(data ?? []);
+          setUnreadCount((data ?? []).filter(n => !n.is_read).length);
+          setLoading(false);
+          const ch = supabase.channel(`notif-view-${user.id}`)
+            .on("postgres_changes",
+              { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+              payload => { setNotifications(p => [payload.new, ...p]); setUnreadCount(p => p + 1); })
+            .subscribe();
+          chRef.current = ch;
+        });
+    });
+    return () => { cancelled = true; if (chRef.current) supabase.removeChannel(chRef.current); };
   }, []);
 
   async function markRead(id) {
