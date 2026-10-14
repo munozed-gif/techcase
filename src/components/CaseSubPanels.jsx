@@ -3154,9 +3154,11 @@ Respond with ONLY a valid JSON object, no markdown fences:
     }
     setShareCreating(true);
     try {
+      let createdBy = null;
+      try { const { data: { user } } = await supabase.auth.getUser(); createdBy = user?.id ?? null; } catch (_) {}
       const { data, error } = await supabase
         .from('spec_review_tokens')
-        .insert({ case_id: caseData.id, doc_ids: docIds, case_title: caseData.title ?? '' })
+        .insert({ case_id: caseData.id, doc_ids: docIds, case_title: caseData.title ?? '', created_by: createdBy })
         .select().single();
       if (error) throw error;
       setShareToken(data);
