@@ -1019,7 +1019,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
     return blocks;
   }
 
-  // Builds ALL doc blocks: case docs + project docs + ABAP standards PDFs
+  // Builds ALL doc blocks: case docs + project docs + ABAP standards (all as text, capped at 60k chars total)
   async function buildAllDocBlocks() {
     const [caseBlocks, abap] = await Promise.all([
       buildDocumentBlocks(),
@@ -1033,21 +1033,40 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
         const docs = (data?.value ?? {})[caseData.project_id] ?? [];
         for (const doc of docs) {
           try {
+            const ctrl = new AbortController();
+            const tid = setTimeout(() => ctrl.abort(), 8000);
             const r = await fetch('/api/extract-text', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ url: doc.url, fileName: doc.name }),
+              signal: ctrl.signal,
             });
-            const { text } = await r.json();
+            clearTimeout(tid);
+            const { text } = r.ok ? await r.json() : {};
             if (text) projBlocks.push({ type: 'text', text: `[Project Document: ${doc.name}]\n${text}` });
           } catch (_) {}
         }
       } catch (_) {}
     }
-    return [...abap.blocks, ...projBlocks, ...caseBlocks];
+    // Cap total text across all blocks at 60k chars to avoid Vercel payload/timeout limits
+    const all = [...abap.blocks, ...projBlocks, ...caseBlocks];
+    let totalChars = 0;
+    const capped = [];
+    for (const block of all) {
+      if (block.type === 'text') {
+        const remaining = 60000 - totalChars;
+        if (remaining <= 0) break;
+        const text = block.text.slice(0, remaining);
+        capped.push({ ...block, text });
+        totalChars += text.length;
+      } else {
+        capped.push(block); // PDF blocks pass through (only case PDFs remain as blocks)
+      }
+    }
+    return capped;
   }
 
-  // Returns { blocks, contextText } with ABAP standards PDFs and naming rules
+  // Returns { blocks, contextText } with ABAP standards as extracted text + naming rules
   async function buildAbapStandardsForSpec() {
     const projId   = caseData.project_id;
     const clientId = caseData.client_id;
@@ -1057,15 +1076,20 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
       ? (sapIntCfg[`proj_${projId}`]?.abap_templates ?? (sapIntCfg[`proj_${projId}`]?.abap_template ? [sapIntCfg[`proj_${projId}`].abap_template] : []))
       : [];
 
+    // Extract ABAP standards as text (avoids large base64 PDF blocks that cause Vercel timeouts)
     const blocks = [];
     for (const tmpl of rawTemplates) {
       const url = typeof tmpl === 'string' ? tmpl : (tmpl.url ?? tmpl.file_url);
+      const name = typeof tmpl === 'string' ? url.split('/').pop().split('?')[0] : (tmpl.name ?? tmpl.file_name ?? 'ABAP Standards');
       if (!url) continue;
       try {
-        const resp = await fetch(url);
-        const blob = await resp.blob();
-        const b64  = await blobToBase64(blob);
-        blocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } });
+        const r = await fetch('/api/extract-text', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, fileName: name.endsWith('.pdf') ? name : name + '.pdf' }),
+        });
+        const { text } = r.ok ? await r.json() : {};
+        if (text) blocks.push({ type: 'text', text: `[ABAP Standards Document: ${name}]\n${text}` });
       } catch (_) {}
     }
 
