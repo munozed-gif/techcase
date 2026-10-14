@@ -943,17 +943,27 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [sapConnCfg, setSapConnCfg]       = useState(null); // full config incl. password, for test
   const [sapConnTest, setSapConnTest]     = useState(null); // null | 'testing' | { ok, info?, error?, message? }
 
-  // Project docs — fetched for display in Node 0
-  const [projDocsForDisplay, setProjDocsForDisplay] = useState(null); // null = not loaded yet
+  // Project docs + ABAP standards — fetched for display in Node 0
+  const [projDocsForDisplay, setProjDocsForDisplay]   = useState(null); // null = not loaded yet
+  const [abapDocsForDisplay, setAbapDocsForDisplay]   = useState(null);
 
   useEffect(() => {
-    if (!caseData.project_id) { setProjDocsForDisplay([]); return; }
-    supabase.from('system_settings').select('value').eq('key', 'project_docs').maybeSingle()
-      .then(({ data }) => {
-        const docs = (data?.value ?? {})[caseData.project_id] ?? [];
-        setProjDocsForDisplay(docs);
-      })
-      .catch(() => setProjDocsForDisplay([]));
+    const pid = caseData.project_id;
+    if (!pid) { setProjDocsForDisplay([]); setAbapDocsForDisplay([]); return; }
+    Promise.all([
+      supabase.from('system_settings').select('value').eq('key', 'project_docs').maybeSingle(),
+      supabase.from('system_settings').select('value').eq('key', 'sap_integration').maybeSingle(),
+    ]).then(([{ data: pd }, { data: si }]) => {
+      setProjDocsForDisplay((pd?.value ?? {})[pid] ?? []);
+      const projEntry = (si?.value ?? {})[`proj_${pid}`] ?? {};
+      const templates = projEntry.abap_templates
+        ?? (projEntry.abap_template ? [projEntry.abap_template] : []);
+      setAbapDocsForDisplay(
+        templates.map(t => typeof t === 'string'
+          ? { name: t.split('/').pop().split('?')[0] || 'ABAP Standards', url: t }
+          : { name: t.name || t.file_name || t.url?.split('/').pop()?.split('?')[0] || 'ABAP Standards', url: t.url ?? t.file_url })
+      );
+    }).catch(() => { setProjDocsForDisplay([]); setAbapDocsForDisplay([]); });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseData.project_id]);
 
@@ -4254,7 +4264,6 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   return { label: 'Excel → text', color: 'bg-green-100 text-green-700' };
                 return { label: 'Not extractable', color: 'bg-amber-100 text-amber-700' };
               }
-              const totalDocs = inputDocs.length + (projDocsForDisplay?.length ?? 0);
               return (
                 <div className="space-y-3">
                   {/* Case documents */}
@@ -4306,16 +4315,46 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     </div>
                   )}
 
-                  {/* Summary */}
-                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-                    <span className="text-xs text-gray-600">
-                      <span className="font-semibold">{totalDocs} document{totalDocs !== 1 ? 's' : ''}</span> will be read by Claude during generation.
-                      {inputDocs.some(d => docReadStatus(d.file_name, d.file_type).label === 'Not extractable') && (
-                        <span className="text-amber-600 ml-1">Some files cannot be extracted — only supported formats are sent.</span>
+                  {/* ABAP Standards */}
+                  {caseData.project_id && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                      <h3 className="text-sm font-semibold text-amber-800 mb-1">ABAP Standards Documents</h3>
+                      <p className="text-xs text-amber-600 mb-3">Naming conventions &amp; coding standards — sent as context when generating technical specs</p>
+                      {abapDocsForDisplay === null ? (
+                        <div className="flex items-center gap-2 text-xs text-amber-400 py-1"><Spinner /><span>Loading…</span></div>
+                      ) : abapDocsForDisplay.length === 0 ? (
+                        <p className="text-xs text-gray-400 italic">No ABAP standards documents configured for this project</p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {abapDocsForDisplay.map((doc, i) => (
+                            <div key={i} className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-amber-100">
+                              <Paperclip className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                              <span className="text-xs text-gray-700 font-medium flex-1 min-w-0 truncate">{doc.name}</span>
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 flex-shrink-0">PDF — native read</span>
+                            </div>
+                          ))}
+                        </div>
                       )}
-                    </span>
-                  </div>
+                    </div>
+                  )}
+
+                  {/* Summary */}
+                  {(() => {
+                    const abapCount = abapDocsForDisplay?.length ?? 0;
+                    const total = inputDocs.length + (projDocsForDisplay?.length ?? 0) + abapCount;
+                    const hasUnreadable = inputDocs.some(d => docReadStatus(d.file_name, d.file_type).label === 'Not extractable');
+                    return (
+                      <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+                        <span className="text-xs text-gray-600">
+                          <span className="font-semibold">{total} document{total !== 1 ? 's' : ''}</span> will be read by Claude during generation.
+                          {hasUnreadable && (
+                            <span className="text-amber-600 ml-1">Some files cannot be extracted — only supported formats are sent.</span>
+                          )}
+                        </span>
+                      </div>
+                    );
+                  })()}
 
                   {!specApproved && (
                     <div className="flex justify-end">
