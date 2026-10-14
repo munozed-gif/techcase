@@ -40,7 +40,7 @@ import {
   EXPERTISE_LABEL_KEYS, AVAIL_LABEL_KEYS, SLA_TIER_LABEL_KEYS,
   INVOICE_STATUS_COLORS, INV_STATUS_LABEL_KEYS, timeAgo,
 } from "../lib/uiUtils.jsx";
-import { SAP_ENV_TYPE_META, SapImplementationTab } from "../components/SapPanels.jsx";
+import { SAP_ENV_TYPE_META, SapImplementationTab, sapLiveCheck, sapFetchSource, detectSapObjectType } from "../components/SapPanels.jsx";
 import { TransportTab } from "../components/TransportTab.jsx";
 import { useCaseSpecification } from "../hooks/useNotificationHooks.js";
 import { GENERATION_CONTEXT_DEFAULTS } from "../lib/constants.js";
@@ -1620,6 +1620,36 @@ canvas{display:block;width:100%}
         throw new Error(`SAP live check failed — cannot generate documents without a live connection.${detail}`);
       }
       extra.sapLiveData = liveData;
+      // For modification/update cases, try to fetch existing ABAP object source
+      const combinedText = caseData.title + ' ' + (caseData.description ?? '');
+      const isModification = /modif|updat|enhanc|extend|fix|correct|adjust/i.test(combinedText);
+      if (isModification) {
+        const objMatches = [...combinedText.matchAll(/\b([ZY][A-Z0-9_]{1,30})\b/g)]
+          .map(m => m[1])
+          .filter((v, i, a) => a.indexOf(v) === i)
+          .slice(0, 3);
+        if (objMatches.length) {
+          const typeHint = detectSapObjectType(combinedText);
+          const typesToTry = typeHint
+            ? [typeHint, 'program', 'class', 'function_module', 'table'].filter((v, i, a) => a.indexOf(v) === i)
+            : ['program', 'class', 'function_module', 'table'];
+          let found = false;
+          for (const objName of objMatches) {
+            for (const objType of typesToTry) {
+              const src = await sapFetchSource(sapCfg, objType, objName).catch(() => null);
+              if (src) {
+                extra.sapLiveData = { ...extra.sapLiveData, existingSource: src, existingObjectName: objName, existingObjectType: objType };
+                found = true;
+                break;
+              }
+            }
+            if (found) break;
+          }
+          if (!found) {
+            extra.sapLiveData = { ...extra.sapLiveData, existingObjectMissing: true, existingObjectName: objMatches[0] };
+          }
+        }
+      }
     }
 
     return buildContextString(caseData, genCtx, extra);

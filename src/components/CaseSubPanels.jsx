@@ -23,7 +23,7 @@ import {
   LIFECYCLE_PRESETS, SAP_AREAS, INDUSTRY_AREAS, PROJECT_TYPES,
   DEFAULT_ACTIVITY_PHASES, ROLE_COLORS,
 } from "../lib/businessConstants.js";
-import { sapLiveCheck, sapFetchSource } from "../components/SapPanels.jsx";
+import { sapLiveCheck, sapFetchSource, detectSapObjectType } from "../components/SapPanels.jsx";
 
 function ProjectFieldEditor({ caseData, auth }) {
   const { t } = useT();
@@ -497,9 +497,11 @@ function buildContextString(caseData, genCtx = {}, extra = {}) {
   if (extra.sapLiveData) {
     const ld = extra.sapLiveData;
     if (ld.systemInfo) lines.push(`SAP Live System: ${ld.systemInfo}`);
-    if (ld.components?.length) lines.push(`SAP Live Active Components: ${ld.components.join(', ')}`);
+    if (ld.capabilities?.length) lines.push(`SAP Available Capabilities: ${ld.capabilities.join(', ')}`);
+    if (ld.components?.length) lines.push(`SAP Software Components: ${ld.components.join(', ')}`);
     if (ld.existingSource) {
-      lines.push(`Existing ABAP Object Source (${ld.existingObjectName ?? 'current'}):\n\`\`\`abap\n${ld.existingSource.slice(0, 2000)}\n\`\`\``);
+      const typeLabel = ld.existingObjectType ? ` [${ld.existingObjectType}]` : '';
+      lines.push(`Existing ABAP Object Source (${ld.existingObjectName ?? 'current'}${typeLabel}):\n\`\`\`abap\n${ld.existingSource.slice(0, 3000)}\n\`\`\``);
     }
     if (ld.existingObjectMissing) lines.push(`Note: Object "${ld.existingObjectName}" was NOT found in SAP — this is a new creation.`);
   }
@@ -2138,15 +2140,33 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
       }
       extra.sapLiveData = liveData;
       // For modification/update cases, try to fetch existing ABAP object source
-      const isModification = /modif|updat|enhanc|extend|fix|correct|adjust/i.test(caseData.title + ' ' + (caseData.description ?? ''));
+      const combinedText = caseData.title + ' ' + (caseData.description ?? '');
+      const isModification = /modif|updat|enhanc|extend|fix|correct|adjust/i.test(combinedText);
       if (isModification) {
-        const objMatch = (caseData.description ?? '').match(/\b(Z[A-Z0-9_]{1,30}|Y[A-Z0-9_]{1,30})/);
-        if (objMatch) {
-          const src = await sapFetchSource(sapCfg, 'program', objMatch[0]).catch(() => null);
-          if (src) {
-            extra.sapLiveData = { ...extra.sapLiveData, existingSource: src, existingObjectName: objMatch[0] };
-          } else {
-            extra.sapLiveData = { ...extra.sapLiveData, existingObjectMissing: true, existingObjectName: objMatch[0] };
+        // Collect all Z/Y object names from both title and description (up to 3)
+        const objMatches = [...combinedText.matchAll(/\b([ZY][A-Z0-9_]{1,30})\b/g)]
+          .map(m => m[1])
+          .filter((v, i, a) => a.indexOf(v) === i)
+          .slice(0, 3);
+        if (objMatches.length) {
+          const typeHint = detectSapObjectType(combinedText);
+          const typesToTry = typeHint
+            ? [typeHint, 'program', 'class', 'function_module', 'table'].filter((v, i, a) => a.indexOf(v) === i)
+            : ['program', 'class', 'function_module', 'table'];
+          let found = false;
+          for (const objName of objMatches) {
+            for (const objType of typesToTry) {
+              const src = await sapFetchSource(sapCfg, objType, objName).catch(() => null);
+              if (src) {
+                extra.sapLiveData = { ...extra.sapLiveData, existingSource: src, existingObjectName: objName, existingObjectType: objType };
+                found = true;
+                break;
+              }
+            }
+            if (found) break;
+          }
+          if (!found) {
+            extra.sapLiveData = { ...extra.sapLiveData, existingObjectMissing: true, existingObjectName: objMatches[0] };
           }
         }
       }

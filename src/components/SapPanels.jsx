@@ -297,6 +297,36 @@ async function sapWriteSourceDetail(config, objectType, objectName, source, tran
   return { ok: res.ok, status: res.status, body: body.slice(0, 200), phase: 'write' };
 }
 
+// Map ADT service href patterns → human-readable capability labels
+function _inferCapabilities(xml) {
+  const caps = [];
+  const check = (pattern, label) => { if (pattern.test(xml)) caps.push(label); };
+  check(/\/adt\/oo\/classes/,         'OO ABAP (Classes)');
+  check(/\/adt\/functions/,           'Function Modules');
+  check(/\/adt\/programs/,            'Programs & Reports');
+  check(/\/adt\/ddic/,                'DDIC (Tables, Structures, Types)');
+  check(/\/adt\/businessservices|\/adt\/odata/i, 'OData / Business Services');
+  check(/\/adt\/rap|\/adt\/businessobjects/i,    'RAP (Business Objects)');
+  check(/\/adt\/enhancements|\/adt\/badi/i,      'BADIs & Enhancement Spots');
+  check(/\/adt\/fiori|\/adt\/ui5/i,              'Fiori / UI5');
+  check(/\/adt\/bsp/,                            'BSP Applications');
+  check(/\/adt\/atc/,                            'ATC (Code Inspector)');
+  check(/\/adt\/abapunit/,                       'ABAP Unit Tests');
+  check(/\/adt\/repository\/informationsystem/i, 'Repository Information System');
+  return caps;
+}
+
+// Detect the most likely ABAP object type from free text (title + description)
+export function detectSapObjectType(text) {
+  const t = (text ?? '').toUpperCase();
+  if (/\bclass\b|\/class\b|CL_/.test(t))          return 'class';
+  if (/\bfm\b|function.?module|function.?group/.test(t)) return 'function_module';
+  if (/\btable\b|dbtable|ddic|structure|data.?element/.test(t)) return 'table';
+  if (/\benhancement\b|badi\b|impl(ementation)?\b/.test(t)) return 'enhancement';
+  if (/\breport\b|program\b/.test(t))              return 'program';
+  return null; // unknown — callers should try multiple types
+}
+
 async function sapLiveCheck(config) {
   try {
     const res = await sapApiRequest(config, '/sap/bc/adt/discovery', {
@@ -304,11 +334,37 @@ async function sapLiveCheck(config) {
     });
     if (!res.ok) return { error: res.status };
     const xml = await res.text();
-    const title = xml.match(/<title[^>]*>([^<]+)/)?.[1]?.trim() ?? '';
-    const ver   = xml.match(/release="([^"]+)"/)?.[1] ?? xml.match(/version="([^"]+)"/)?.[1] ?? '';
-    const spVer = xml.match(/sp="([^"]+)"/)?.[1] ?? '';
-    const systemInfo = [title, ver && `Release ${ver}`, spVer && `SP ${spVer}`].filter(Boolean).join(' | ') || 'Connected';
-    return { systemInfo, components: [], raw: xml.slice(0, 300) };
+
+    const title  = xml.match(/<title[^>]*>([^<]+)/)?.[1]?.trim() ?? '';
+    const ver    = xml.match(/release="([^"]+)"/)?.[1] ?? xml.match(/version="([^"]+)"/)?.[1] ?? '';
+    const spVer  = xml.match(/sp="([^"]+)"/)?.[1] ?? '';
+    const sid    = xml.match(/systemId="([^"]+)"/i)?.[1] ?? xml.match(/sap-client[^"]*"(\d{3})"/)?.[1] ?? '';
+    const client = xml.match(/sap-client[^=]*=\s*"?(\d{3})/)?.[1] ?? '';
+
+    const parts = [title || (sid ? `SID: ${sid}` : ''), ver && `Release ${ver}`, spVer && `SP ${spVer}`, client && `Client ${client}`].filter(Boolean);
+    const systemInfo = parts.join(' | ') || 'Connected';
+    const capabilities = _inferCapabilities(xml);
+
+    // Second call: software component list from system settings
+    let components = [];
+    try {
+      const settRes = await sapApiRequest(config, '/sap/bc/adt/system/settings', {
+        headers: { Accept: 'application/xml, application/vnd.sap.adt.system.settings.v2+xml, */*' },
+      });
+      if (settRes.ok) {
+        const settXml = await settRes.text();
+        const compMatches = [...settXml.matchAll(/name="([^"]+)"[^>]*category="[^"]*software.?component[^"]*"/gi)];
+        if (compMatches.length) {
+          components = compMatches.map(m => m[1]).filter(Boolean);
+        } else {
+          // Fallback: extract <softwareComponent> or <component name=...>
+          const alt = [...settXml.matchAll(/<(?:softwareComponent|component)[^>]+name="([^"]+)"/gi)];
+          components = alt.map(m => m[1]).filter(Boolean);
+        }
+      }
+    } catch { /* system/settings is optional — ignore failures */ }
+
+    return { systemInfo, capabilities, components, sid, client };
   } catch (e) { return { error: 0, message: e?.message ?? String(e) }; }
 }
 
@@ -4707,4 +4763,4 @@ FALLBACK:
   );
 }
 
-export { useClientProfile, ABAP_STANDARDS_DEFAULTS, resolveAbapStandards, buildAbapStandardsPrompt, sapObjectPath, SAP_ENV_TYPE_META, SapIntegrationPanel, ProjectSapEnvPanel, ProjectOwnSapPanel, AbapStandardsPanel, AbapTemplatesSection, SAP_OBJECT_TYPES, SapImplementationTab, SapBlueprintCanvas, BP_PHASES, BP_TYPES, BP_STATUS_STYLE, sapLiveCheck, sapFetchSource };
+export { useClientProfile, ABAP_STANDARDS_DEFAULTS, resolveAbapStandards, buildAbapStandardsPrompt, sapObjectPath, SAP_ENV_TYPE_META, SapIntegrationPanel, ProjectSapEnvPanel, ProjectOwnSapPanel, AbapStandardsPanel, AbapTemplatesSection, SAP_OBJECT_TYPES, SapImplementationTab, SapBlueprintCanvas, BP_PHASES, BP_TYPES, BP_STATUS_STYLE, sapLiveCheck, sapFetchSource, detectSapObjectType };
