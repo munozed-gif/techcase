@@ -1553,6 +1553,34 @@ canvas{display:block;width:100%}
       );
     }
 
+    if (genCtx.include_project_docs && caseData.project_id) {
+      fetches.push(
+        supabase.from("system_settings")
+          .select("value")
+          .eq("key", "project_docs")
+          .maybeSingle()
+          .then(async ({ data }) => {
+            const allDocs = data?.value ?? {};
+            const docs = allDocs[caseData.project_id] ?? [];
+            if (!docs.length) return;
+            const extracted = await Promise.all(docs.map(async doc => {
+              try {
+                const r = await fetch("/api/extract-text", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ url: doc.url, fileName: doc.name }),
+                });
+                const { text } = await r.json();
+                return { name: doc.name, type: doc.type, text: text || "" };
+              } catch {
+                return { name: doc.name, type: doc.type, text: "" };
+              }
+            }));
+            extra.projectDocs = extracted.filter(d => d.text);
+          })
+      );
+    }
+
     if (genCtx.include_related_cases && caseData.client_id && caseData.area_sap) {
       const n = genCtx.related_cases_count ?? 3;
       fetches.push(

@@ -477,6 +477,16 @@ function buildContextString(caseData, genCtx = {}, extra = {}) {
     if (extra.project.deliverables?.length) lines.push(`Project Deliverables: ${extra.project.deliverables.join('; ')}`);
   }
 
+  if (cfg.include_project_docs && extra.projectDocs?.length) {
+    lines.push(`\nProject Reference Documents:`);
+    extra.projectDocs.forEach(doc => {
+      lines.push(`\n[Document: ${doc.name}${doc.type ? ` — ${doc.type}` : ''}]`);
+      if (doc.text) lines.push(doc.text);
+      else lines.push(`(binary file — content not extractable as text)`);
+    });
+    lines.push(`[End of Project Documents]`);
+  }
+
   if (cfg.include_related_cases && extra.relatedCases?.length) {
     lines.push(`Related Cases (same client & SAP module):`);
     extra.relatedCases.forEach((c, i) => {
@@ -2056,6 +2066,34 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
           .eq("id", caseData.project_id)
           .maybeSingle()
           .then(({ data }) => { if (data) extra.project = data; })
+      );
+    }
+
+    if (genCtx.include_project_docs && caseData.project_id) {
+      fetches.push(
+        supabase.from("system_settings")
+          .select("value")
+          .eq("key", "project_docs")
+          .maybeSingle()
+          .then(async ({ data }) => {
+            const allDocs = data?.value ?? {};
+            const docs = allDocs[caseData.project_id] ?? [];
+            if (!docs.length) return;
+            const extracted = await Promise.all(docs.map(async doc => {
+              try {
+                const r = await fetch("/api/extract-text", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ url: doc.url, fileName: doc.name }),
+                });
+                const { text } = await r.json();
+                return { name: doc.name, type: doc.type, text: text || "" };
+              } catch {
+                return { name: doc.name, type: doc.type, text: "" };
+              }
+            }));
+            extra.projectDocs = extracted.filter(d => d.text);
+          })
       );
     }
 

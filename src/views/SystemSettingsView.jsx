@@ -1390,6 +1390,7 @@ function SettingsGenerationTab({ ssCtx }) {
             { key: "include_sap_profile",   labelKey: "gen.ctx_sap_profile",      descKey: "gen.ctx_sap_profile_desc" },
             { key: "include_case_metadata", labelKey: "gen.ctx_case_metadata",    descKey: "gen.ctx_case_metadata_desc" },
             { key: "include_project_ctx",   labelKey: "gen.ctx_project_ctx",      descKey: "gen.ctx_project_ctx_desc" },
+            { key: "include_project_docs",  labelKey: "gen.ctx_project_docs",     descKey: "gen.ctx_project_docs_desc" },
             { key: "include_related_cases", labelKey: "gen.ctx_related_cases",    descKey: "gen.ctx_related_cases_desc" },
             { key: "sap_live_check",        labelKey: "gen.ctx_sap_live_check",   descKey: "gen.ctx_sap_live_check_desc" },
           ].map(({ key, labelKey, descKey }) => (

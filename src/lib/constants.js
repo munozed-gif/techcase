@@ -38,6 +38,7 @@ const GENERATION_CONTEXT_DEFAULTS = {
   include_sap_profile:   true,
   include_case_metadata: true,
   include_project_ctx:   false,
+  include_project_docs:  false,
   include_related_cases: false,
   related_cases_count:   3,
   sap_live_check:        false,
