@@ -34,7 +34,7 @@ export default function ProjectShareView({ token }) {
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [branding, setBranding] = useState({ name: 'Arena', tagline: 'Solutions Platform' });
+  const [branding, setBranding] = useState({ name: 'Arena', tagline: 'Consultant Case Management' });
 
   useEffect(() => {
     async function load() {
@@ -45,7 +45,7 @@ export default function ProjectShareView({ token }) {
       ]);
       if (brandRes.data) {
         const map = Object.fromEntries(brandRes.data.map(r => [r.key, r.value]));
-        setBranding({ name: map['platform_name'] || 'Arena', tagline: map['platform_tagline'] || 'Solutions Platform' });
+        setBranding({ name: map['platform_name'] || 'Arena', tagline: map['platform_tagline'] || 'Consultant Case Management' });
       }
       const proj = projRes.data;
       if (projRes.error || !proj) { setError("Project not found or link is invalid."); setLoading(false); return; }

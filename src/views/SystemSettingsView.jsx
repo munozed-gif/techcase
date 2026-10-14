@@ -801,7 +801,7 @@ function SettingsPlatformTab({ ssCtx }) {
               <NovaSettingsLogo size={80} />
               <div>
                 <div className="text-white font-bold text-sm mb-0.5">{form.platform_name || "Arena"}</div>
-                <div className="text-blue-300 text-xs">Solutions Platform</div>
+                <div className="text-blue-300 text-xs">{form.platform_tagline || "Consultant Case Management"}</div>
                 <div className="text-[11px] text-blue-400/60 mt-2">Used in sidebar &amp; navigation</div>
               </div>
               <div className="ml-auto">

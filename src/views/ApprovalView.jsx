@@ -156,7 +156,7 @@ export default function ApprovalView({ token }) {
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState({});
   const [allDone, setAllDone] = useState(false);
-  const [branding, setBranding] = useState({ name: "Arena", tagline: "Solutions Platform" });
+  const [branding, setBranding] = useState({ name: "Arena", tagline: "Consultant Case Management" });
 
   useEffect(() => {
     async function load() {
@@ -170,7 +170,7 @@ export default function ApprovalView({ token }) {
       ]);
       if (brandRes.data) {
         const m = Object.fromEntries(brandRes.data.map(r => [r.key, r.value]));
-        setBranding({ name: m.platform_name || "Arena", tagline: m.platform_tagline || "Solutions Platform" });
+        setBranding({ name: m.platform_name || "Arena", tagline: m.platform_tagline || "Consultant Case Management" });
       }
       if (reqRes.error || !reqRes.data) {
         setError(t("approval.invalid_link"));
