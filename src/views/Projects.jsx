@@ -1134,7 +1134,7 @@ const DEFAULT_DOC_TYPES = [
   "Training Material", "Other",
 ];
 
-function ProjectDocsTab({ projectId, auth }) {
+function ProjectDocsTab({ projectId, auth, createdBy }) {
   const ssCtx = useSystemSettings();
   const perms = usePermissions(auth);
   const docTypes = ssCtx.settings["catalog_doc_types"] ?? DEFAULT_DOC_TYPES;
@@ -1142,7 +1142,8 @@ function ProjectDocsTab({ projectId, auth }) {
   const allDocs   = ssCtx.settings["project_docs"] ?? {};
   const docs      = allDocs[projectId] ?? [];
 
-  const canEdit = perms.can('upload_project_docs');
+  const isCreator = auth.user?.id === createdBy;
+  const canEdit = perms.can('upload_project_docs') && (auth.isAdmin || auth.isManager || isCreator);
 
   const [showUpload,   setShowUpload]   = useState(false);
   const [uploadType,   setUploadType]   = useState("");
@@ -3090,7 +3091,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
 
         {/* Documents */}
         {tab.id === "documents" && (
-          <ProjectDocsTab projectId={project.id} auth={auth} />
+          <ProjectDocsTab projectId={project.id} auth={auth} createdBy={project.created_by} />
         )}
 
         {/* Connections */}
