@@ -335,13 +335,20 @@ async function sapLiveCheck(config) {
     if (!res.ok) return { error: res.status };
     const xml = await res.text();
 
-    const title  = xml.match(/<title[^>]*>([^<]+)/)?.[1]?.trim() ?? '';
-    const ver    = xml.match(/release="([^"]+)"/)?.[1] ?? xml.match(/version="([^"]+)"/)?.[1] ?? '';
-    const spVer  = xml.match(/sp="([^"]+)"/)?.[1] ?? '';
-    const sid    = xml.match(/systemId="([^"]+)"/i)?.[1] ?? xml.match(/sap-client[^"]*"(\d{3})"/)?.[1] ?? '';
-    const client = xml.match(/sap-client[^=]*=\s*"?(\d{3})/)?.[1] ?? '';
+    // ADT uses namespace-prefixed elements/attrs: <atom:title>, adtcore:release="...", etc.
+    // All regexes match the attribute value regardless of prefix (e.g. adtcore:release="757")
+    const title  = xml.match(/<(?:\w+:)?title[^>]*>([^<]+)/)?.[1]?.trim() ?? '';
+    const ver    = xml.match(/(?::)?release="([^"]+)"/)?.[1] ?? xml.match(/version="([^"]+)"/)?.[1] ?? '';
+    const spVer  = xml.match(/(?::)?sp="([^"]+)"/)?.[1] ?? '';
+    const sid    = xml.match(/systemId="([^"]+)"/i)?.[1] ?? '';
+    const client = xml.match(/(?::)?client="(\d+)"/i)?.[1] ?? xml.match(/sap-client[^=]*=\s*"?(\d{3})/)?.[1] ?? '';
 
-    const parts = [title || (sid ? `SID: ${sid}` : ''), ver && `Release ${ver}`, spVer && `SP ${spVer}`, client && `Client ${client}`].filter(Boolean);
+    const parts = [
+      sid ? `SID: ${sid}` : title,
+      ver && `Release ${ver}`,
+      spVer && `SP ${spVer}`,
+      client && `Client ${client}`,
+    ].filter(Boolean);
     const systemInfo = parts.join(' | ') || 'Connected';
     const capabilities = _inferCapabilities(xml);
 
@@ -353,12 +360,13 @@ async function sapLiveCheck(config) {
       });
       if (settRes.ok) {
         const settXml = await settRes.text();
-        const compMatches = [...settXml.matchAll(/name="([^"]+)"[^>]*category="[^"]*software.?component[^"]*"/gi)];
+        // Match <adtbase:softwareComponent name="..."> or <softwareComponent name="...">
+        const compMatches = [...settXml.matchAll(/softwareComponent[^>]+name="([^"]+)"/gi)];
         if (compMatches.length) {
           components = compMatches.map(m => m[1]).filter(Boolean);
         } else {
-          // Fallback: extract <softwareComponent> or <component name=...>
-          const alt = [...settXml.matchAll(/<(?:softwareComponent|component)[^>]+name="([^"]+)"/gi)];
+          // Fallback: category-based match
+          const alt = [...settXml.matchAll(/name="([^"]+)"[^>]*category="[^"]*software[^"]*"/gi)];
           components = alt.map(m => m[1]).filter(Boolean);
         }
       }
