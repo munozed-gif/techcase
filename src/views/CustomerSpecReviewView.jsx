@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from "react";
-import { AlertCircle, CheckCircle2, Clock, MessageSquare, ChevronLeft, ChevronRight, Loader2, ThumbsUp, FileText, Code2, Users, LayoutTemplate, Cpu, ArrowRight, User, Briefcase, Tag, Calendar } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, MessageSquare, ChevronLeft, ChevronRight, Loader2, ThumbsUp, FileText, Code2, Users, LayoutTemplate, Cpu, ArrowRight, User, Briefcase, Tag, Calendar, FolderOpen } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 
 const SPEC_TABS = [
-  { key: 'a',     label: 'Spec A',    desc: 'Custom ABAP',        Icon: Code2,         color: '#6366F1' },
-  { key: 'b',     label: 'Spec B',    desc: 'Standard SAP',       Icon: Cpu,           color: '#0EA5E9' },
-  { key: 'c',     label: 'Spec C',    desc: 'Customer Proposal',  Icon: Users,         color: '#10B981' },
-  { key: 'd',     label: 'Spec D',    desc: 'Client Spec',        Icon: FileText,      color: '#F59E0B' },
-  { key: 'proto', label: 'Prototype', desc: 'Interactive',        Icon: LayoutTemplate, color: '#EC4899' },
+  { key: 'a',     label: 'Spec A',    desc: 'Custom ABAP',        detail: 'Custom ABAP development approach — RICEFW objects, technical design, and implementation plan.',          Icon: Code2,          color: '#6366F1' },
+  { key: 'b',     label: 'Spec B',    desc: 'Standard SAP',       detail: 'Standard SAP configuration path — recommended transactions, Customizing settings, and best practices.', Icon: Cpu,            color: '#0EA5E9' },
+  { key: 'c',     label: 'Spec C',    desc: 'Customer Proposal',  detail: 'Customer-facing proposal with executive summary, scope, effort estimates, and investment breakdown.',     Icon: Users,          color: '#10B981' },
+  { key: 'd',     label: 'Spec D',    desc: 'Client Spec',        detail: 'Client-ready specification with use cases, acceptance criteria, and delivery timeline.',                 Icon: FileText,       color: '#F59E0B' },
+  { key: 'proto', label: 'Prototype', desc: 'Interactive',        detail: 'Interactive HTML prototype simulating the proposed SAP screen or Fiori app for stakeholder review.',    Icon: LayoutTemplate, color: '#EC4899' },
 ];
 
 export default function CustomerSpecReviewView({ token }) {
@@ -53,7 +53,7 @@ export default function CustomerSpecReviewView({ token }) {
         if (tkn.case_id) {
           const { data: cd } = await supabase
             .from('cases')
-            .select('description, area_sap, area_industry, priority, due_date')
+            .select('description, area_sap, area_industry, priority, due_date, projects(name)')
             .eq('id', tkn.case_id)
             .maybeSingle();
           if (cd) setCaseDetails(cd);
@@ -273,11 +273,12 @@ export default function CustomerSpecReviewView({ token }) {
   // ── Overview landing screen ──────────────────────────────────
   if (!activeTab) {
     const meta = [
-      caseDetails?.area_sap      && { icon: Cpu,      label: 'SAP Module',  value: caseDetails.area_sap },
-      caseDetails?.area_industry && { icon: Briefcase, label: 'Industry',   value: caseDetails.area_industry },
-      caseDetails?.priority      && { icon: Tag,       label: 'Priority',   value: caseDetails.priority.toUpperCase() },
-      caseDetails?.due_date      && { icon: Calendar,  label: 'Due Date',   value: new Date(caseDetails.due_date + 'T00:00:00').toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) },
-      creatorName                && { icon: User,      label: 'Prepared by', value: creatorName },
+      caseDetails?.projects?.name && { icon: FolderOpen, label: 'Project',    value: caseDetails.projects.name },
+      caseDetails?.area_sap       && { icon: Cpu,        label: 'SAP Module', value: caseDetails.area_sap },
+      caseDetails?.area_industry  && { icon: Briefcase,  label: 'Industry',   value: caseDetails.area_industry },
+      caseDetails?.priority       && { icon: Tag,        label: 'Priority',   value: caseDetails.priority.toUpperCase() },
+      caseDetails?.due_date       && { icon: Calendar,   label: 'Due Date',   value: new Date(caseDetails.due_date + 'T00:00:00').toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) },
+      creatorName                 && { icon: User,       label: 'Prepared by', value: creatorName },
     ].filter(Boolean);
 
     return (
@@ -332,8 +333,11 @@ export default function CustomerSpecReviewView({ token }) {
                       <tab.Icon size={18} style={{ color: tab.color }} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white">{tab.label}</p>
-                      <p className="text-xs text-gray-500">{tab.desc}</p>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <p className="text-sm font-semibold text-white">{tab.label}</p>
+                        <span className="text-xs px-1.5 py-0.5 rounded font-medium" style={{ background: tab.color + '20', color: tab.color }}>{tab.desc}</span>
+                      </div>
+                      <p className="text-xs leading-relaxed" style={{ color: 'rgba(156,163,175,.75)' }}>{tab.detail}</p>
                     </div>
                     <ArrowRight size={15} className="text-gray-600 group-hover:text-gray-400 flex-shrink-0 transition-colors" />
                   </button>
