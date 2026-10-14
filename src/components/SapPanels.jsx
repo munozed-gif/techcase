@@ -317,7 +317,7 @@ function _inferCapabilities(xml) {
 }
 
 // Detect the most likely ABAP object type from free text (title + description)
-export function detectSapObjectType(text) {
+function detectSapObjectType(text) {
   const t = (text ?? '').toUpperCase();
   if (/\bclass\b|\/class\b|CL_/.test(t))          return 'class';
   if (/\bfm\b|function.?module|function.?group/.test(t)) return 'function_module';
