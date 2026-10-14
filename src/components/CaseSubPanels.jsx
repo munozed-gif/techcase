@@ -2283,12 +2283,13 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
 
   // ── AI Generate — two specs ─────────────────────────────────
 
-  function buildSpecPrompt(isCustomDev, genProfile, contextStr = '') {
+  function buildSpecPrompt(isCustomDev, genProfile, contextStr = '', isModCase = false) {
     const sapCtx = sapCheck ? `\nSAP Standard Coverage Analysis: ${sapCheck.coverage} — ${sapCheck.summary}\nGaps: ${(sapCheck.gaps??[]).join('; ')||'none'}\nStandard transactions: ${(sapCheck.standard_transactions??[]).join(', ')||'none'}` : '';
     const propCtx = proposalCheck ? `\nProposal Validation: score ${proposalCheck.score}/10, risk ${proposalCheck.risk_level}\nStrengths: ${(proposalCheck.strengths??[]).join('; ')||'none'}\nConcerns: ${(proposalCheck.concerns??[]).join('; ')||'none'}` : '';
+    const modNote = isModCase ? '\nIMPORTANT: This is a MODIFICATION of an existing ABAP object. The existing source code is provided in context. In the Technical Objects table, reference the existing object name and describe what will be CHANGED, not created from scratch. Do not invent a new Z name — use the one from context.' : '';
 
     if (isCustomDev) {
-      return `Write Option A: Custom ABAP Development Functional Specification for this case.${sapCtx}${propCtx}
+      return `Write Option A: Custom ABAP Development Functional Specification for this case.${sapCtx}${propCtx}${modNote}
 
 Case: ${caseData.title}
 Description: ${caseData.description ?? '(none)'}
@@ -2367,7 +2368,7 @@ Description: ${caseData.description ?? '(none)'}
 SAP Module: ${caseData.area_sap ?? ''}
 Industry: ${caseData.area_industry ?? ''}${contextStr}
 
-IMPORTANT: This spec covers the approach WITHOUT custom ABAP development. It uses only standard SAP transactions, configuration, and possibly SAPscript/Smartform-based standard tools. Reference the standard transactions found in the coverage analysis.
+IMPORTANT: This spec covers the approach WITHOUT custom ABAP development. It uses only standard SAP transactions, configuration, and possibly SAPscript/Smartform-based standard tools. Reference the standard transactions found in the coverage analysis.${isModCase ? ' If existing objects are shown in context, describe how to adjust them via standard config rather than redevelopment.' : ''}
 
 ## 1. Executive Summary
 [2-3 sentence overview of the standard SAP approach]
@@ -2431,8 +2432,9 @@ Use real standard SAP transaction codes and configuration objects for ${caseData
     }
   }
 
-  function buildSpecCPrompt(customerContent, genProfile, contextStr = '') {
-    return `Write Option C: Customer Proposal As-Is Functional Specification for this case.
+  function buildSpecCPrompt(customerContent, genProfile, contextStr = '', isModCase = false) {
+    const modNote = isModCase ? '\nIMPORTANT: This is a MODIFICATION of an existing ABAP object. The existing source code is in context. Reference the existing object name exactly and describe what lines/logic will be changed, not a new development.' : '';
+    return `Write Option C: Customer Proposal As-Is Functional Specification for this case.${modNote}
 
 This option formalizes EXACTLY what the customer proposed, without any AI alternatives or suggestions. Do NOT add any SAP standard alternatives or custom dev recommendations — this is a direct formalization of the customer's own technical proposal.
 
@@ -2501,8 +2503,9 @@ TOTAL:||Total|[amount]|
 Use realistic Z object names matching the customer's described solution for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM/COL values.${buildSectionConstraint('spec_c', genProfile)}${buildGenSuffix(genProfile, lang)}`;
   }
 
-  function buildSpecDPrompt(customerContent, genProfile, contextStr = '') {
-    return `Write a Customer Functional Specification — a clear, non-technical business document for the customer's functional team to review and approve.
+  function buildSpecDPrompt(customerContent, genProfile, contextStr = '', isModCase = false) {
+    const modNote = isModCase ? ' This case involves modifying an existing solution, so frame the document around what will change in the business process, not a new implementation.' : '';
+    return `Write a Customer Functional Specification — a clear, non-technical business document for the customer's functional team to review and approve.${modNote}
 
 Do NOT include ABAP objects, Z-program names, function modules, table names, configuration keys, or any SAP technical implementation detail. Write entirely in business language.
 
@@ -2777,9 +2780,16 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       const needsAbap = genProfile?.spec_a?.technical_objects || genProfile?.spec_c?.technical_objects;
       const abap = needsAbap ? await buildAbapStandardsForSpec() : { blocks: [], contextText: '' };
 
+      const genCtxResult = await buildGenContext();
+      const contextStr = sanitizeForJson(genCtxResult);
+      const hasLiveSap = contextStr.includes('SAP Live System:');
+      const isModCase  = contextStr.includes('Existing ABAP Object Source');
+      const sysLiveNote = hasLiveSap
+        ? ' Use the live SAP system data (release, software components, capabilities) provided in context to write accurate technical details.'
+        : '';
       const callSpec = async (rawPrompt, extraBlocks = []) => {
         const prompt = sanitizeForJson(rawPrompt);
-        const sys = 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.';
+        const sys = `You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.${sysLiveNote}`;
         const allBlocks = [...abap.blocks, ...extraBlocks, ...docBlocks];
         try {
           const content = allBlocks.length > 0 ? [...allBlocks, { type: 'text', text: prompt }] : prompt;
@@ -2789,7 +2799,6 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         }
       };
       const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
-      const contextStr = sanitizeForJson(await buildGenContext());
       const abapCtx = sanitizeForJson(abap.contextText);
 
       // Run all 4 specs independently so each gets its own status/error
@@ -2809,10 +2818,10 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       };
 
       const [specA, specB, specC, specD] = await Promise.all([
-        runSpec('a', () => callSpec(buildSpecPrompt(true,  genProfile, genProfile?.spec_a?.technical_objects ? contextStr + abapCtx : contextStr))),
-        runSpec('b', () => callSpec(buildSpecPrompt(false, genProfile, contextStr))),
-        runSpec('c', () => callSpec(buildSpecCPrompt(customerContent, genProfile, genProfile?.spec_c?.technical_objects ? contextStr + abapCtx : contextStr))),
-        runSpec('d', () => callSpec(buildSpecDPrompt(customerContent, genProfile, contextStr))),
+        runSpec('a', () => callSpec(buildSpecPrompt(true,  genProfile, genProfile?.spec_a?.technical_objects ? contextStr + abapCtx : contextStr, isModCase))),
+        runSpec('b', () => callSpec(buildSpecPrompt(false, genProfile, contextStr, isModCase))),
+        runSpec('c', () => callSpec(buildSpecCPrompt(customerContent, genProfile, genProfile?.spec_c?.technical_objects ? contextStr + abapCtx : contextStr, isModCase))),
+        runSpec('d', () => callSpec(buildSpecDPrompt(customerContent, genProfile, contextStr, isModCase))),
       ]);
 
       if (specA) { setAiSpecA(specA); }
@@ -2914,7 +2923,8 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       };
       const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
       const contextStr = sanitizeForJson(await buildGenContext());
-      const specD = await callSpec(buildSpecDPrompt(customerContent, activeProfile ?? {}, contextStr));
+      const isModCase  = contextStr.includes('Existing ABAP Object Source');
+      const specD = await callSpec(buildSpecDPrompt(customerContent, activeProfile ?? {}, contextStr, isModCase));
       setAiSpecD(specD);
       setSelectedSpec('d');
       setAiContent(specD);
