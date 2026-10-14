@@ -171,8 +171,8 @@ function CaseDetail({ caseData, auth, onStatusChange, onDelete, onApply, onUpdat
   const { t } = useT();
   const { settings: cdSettings } = useSystemSettings();
   const visCfg        = useVisibilitySettings();
-  const genModel      = cdSettings["ai_model"]       ?? 'claude-haiku-4-5-20251001';
-  const analysisModel = cdSettings["analysis_model"] ?? 'claude-haiku-4-5-20251001';
+  const genModel      = cdSettings["ai_model"]       ?? 'claude-haiku-5-5';
+  const analysisModel = cdSettings["analysis_model"] ?? 'claude-haiku-5-5';
   const { applications, apply, reviewApplication } = useApplications(caseData.id);
   const { milestones, toggleMilestone, addMilestone, updateMilestone, deleteMilestone } = useMilestones(caseData.id);
   const { comments, addComment } = useCaseComments(caseData.id);

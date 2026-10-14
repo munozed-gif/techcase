@@ -1651,7 +1651,7 @@ function ProjectDetail({ project, auth, onBack, onUpdate, onClose, clients = [],
   const avatarInputRef = useRef(null);
   // Import cases from document
   const { settings: _importSS } = useSystemSettings();
-  const importGenModel = _importSS["ai_model"] ?? 'claude-haiku-4-5-20251001';
+  const importGenModel = _importSS["ai_model"] ?? 'claude-haiku-5-5';
   const [showImportPanel, setShowImportPanel] = useState(false);
   const [importFile, setImportFile] = useState(null);
   const [extractingImport, setExtractingImport] = useState(false);

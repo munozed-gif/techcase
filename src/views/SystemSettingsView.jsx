@@ -1241,9 +1241,9 @@ function SettingsGenerationTab({ ssCtx }) {
         return validModelVals.includes(v) ? v : fallback;
       };
       const merged = {
-        ai_model:         resolveModel("ai_model",        "claude-haiku-4-5-20251001"),
-        analysis_model:   resolveModel("analysis_model",  "claude-haiku-4-5-20251001"),
-        prototype_model:  resolveModel("prototype_model", "claude-haiku-4-5-20251001"),
+        ai_model:         resolveModel("ai_model",        "claude-haiku-5-5"),
+        analysis_model:   resolveModel("analysis_model",  "claude-haiku-5-5"),
+        prototype_model:  resolveModel("prototype_model", "claude-haiku-5-5"),
         sap_mcp_server_url: ssCtx.settings["sap_mcp_server_url"] ?? "",
         default_profile: stored.default_profile ?? GENERATION_PROFILE_DEFAULTS.default_profile,
         context: { ...GENERATION_CONTEXT_DEFAULTS, ...storedCtx },

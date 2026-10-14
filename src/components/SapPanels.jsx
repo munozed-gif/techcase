@@ -3562,7 +3562,7 @@ function SapImplementationTab({ caseData, auth, activities, updateActivity }) {
   const [checkedActIds, setCheckedActIds] = useState(new Set());
   const [transportReq, setTransportReq] = useState(settings['sap_impl_transport']?.[caseData.id] ?? '');
   const [savingTransport, setSavingTransport] = useState(false);
-  const genModel = settings["ai_model"] ?? 'claude-haiku-4-5-20251001';
+  const genModel = settings["ai_model"] ?? 'claude-haiku-5-5';
 
   const implActivities = activities.filter(a =>
     !['completed'].includes(a.phase) &&

@@ -329,7 +329,7 @@ function ResumeImporter({ onExtracted }) {
     setLoading(true); setError(""); setDone(false); setPending(null);
     try {
       const system = buildSystem();
-      const raw = await callClaude({ system, messages, max_tokens: 8192, model: "claude-haiku-4-5-20251001" });
+      const raw = await callClaude({ system, messages, max_tokens: 8192, model: "claude-haiku-5-5" });
       const start = raw.indexOf("{");
       const end   = raw.lastIndexOf("}");
       if (start === -1 || end === -1) throw new Error("No JSON object in response");
