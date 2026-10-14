@@ -1136,12 +1136,13 @@ const DEFAULT_DOC_TYPES = [
 
 function ProjectDocsTab({ projectId, auth }) {
   const ssCtx = useSystemSettings();
+  const perms = usePermissions(auth);
   const docTypes = ssCtx.settings["catalog_doc_types"] ?? DEFAULT_DOC_TYPES;
 
   const allDocs   = ssCtx.settings["project_docs"] ?? {};
   const docs      = allDocs[projectId] ?? [];
 
-  const canEdit = auth.isAdmin || auth.isManager;
+  const canEdit = perms.can('upload_project_docs');
 
   const [showUpload,   setShowUpload]   = useState(false);
   const [uploadType,   setUploadType]   = useState("");

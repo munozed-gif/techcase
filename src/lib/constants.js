@@ -27,6 +27,7 @@ const ROLE_PERMISSIONS_DEFAULTS = {
   reopen_cases:               { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
   edit_lifecycle:             { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
   export_pdf_docs:            { admin:true,  manager:true,  consultant:true,  client:true,  key_user:true,  headhunter:false, final_user:false, internal_consultant:true,  project_manager:true  },
+  upload_project_docs:        { admin:true,  manager:true,  consultant:false, client:false, key_user:false, headhunter:false, final_user:false, internal_consultant:false, project_manager:true  },
 };
 
 // ============================================================

@@ -1092,6 +1092,7 @@ const TRANSLATIONS = {
     "roles.cap.bulk_delete_activities":     "Bulk-delete activities",
     "roles.cap.bulk_delete_subcases":       "Bulk-delete sub-cases",
     "roles.cap.create_projects":            "Create projects",
+    "roles.cap.upload_project_docs":        "Upload project documents",
     // Wizard mode defaults
     "roles.wizard_modes_title":   "Wizard Mode Defaults",
     "roles.wizard_modes_desc":    "Set whether each role is taken directly to Express or Advanced mode when creating a case or project, or asked to choose.",
@@ -5115,6 +5116,7 @@ const TRANSLATIONS = {
     "roles.cap.bulk_delete_activities":     "Eliminación masiva de actividades",
     "roles.cap.bulk_delete_subcases":       "Eliminación masiva de sub-casos",
     "roles.cap.create_projects":            "Crear proyectos",
+    "roles.cap.upload_project_docs":        "Subir documentos de proyecto",
     // Wizard mode defaults
     "roles.wizard_modes_title":   "Modos por Defecto del Asistente",
     "roles.wizard_modes_desc":    "Define si cada rol va directamente al modo Express o Avanzado al crear un caso o proyecto, o si se le pregunta.",
