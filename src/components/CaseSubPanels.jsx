@@ -957,21 +957,36 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
     const blocks = [];
     for (const doc of (documents ?? [])) {
       const lower = (doc.file_name ?? '').toLowerCase();
-      const isPdf = lower.endsWith('.pdf') || (doc.file_type ?? '').includes('pdf');
-      const isText = lower.endsWith('.txt') || lower.endsWith('.md') || lower.endsWith('.csv');
-      if (!isPdf && !isText) {
-        blocks.push({ type: 'text', text: `[Attached file: ${doc.file_name} — binary format, cannot extract text]` });
+      const ext = lower.split('.').pop() ?? '';
+      const isPdf  = ext === 'pdf' || (doc.file_type ?? '').includes('pdf');
+      const isText = ['txt', 'md', 'csv', 'json'].includes(ext);
+      const isHtml = ext === 'html' || ext === 'htm';
+      // Types the extract-text API can convert to readable text
+      const isExtractable = isText || isHtml || ['docx', 'xlsx', 'xls'].includes(ext);
+
+      if (!isPdf && !isExtractable) {
+        blocks.push({ type: 'text', text: `[Attached file: ${doc.file_name} — format not extractable as text]` });
         continue;
       }
       try {
-        const resp = await fetch(doc.file_url);
         if (isPdf) {
+          const resp = await fetch(doc.file_url);
           const blob = await resp.blob();
           const b64 = await blobToBase64(blob);
           blocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } });
-        } else {
-          const text = await resp.text();
-          blocks.push({ type: 'text', text: `[Document: ${doc.file_name}]\n${text.slice(0, 8000)}` });
+        } else if (isExtractable) {
+          // Use server-side extraction so binary formats (docx) are converted to clean text
+          const r = await fetch('/api/extract-text', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: doc.file_url, fileName: doc.file_name }),
+          });
+          const { text, warning } = await r.json();
+          if (text) {
+            blocks.push({ type: 'text', text: `[Document: ${doc.file_name}]\n${text}` });
+          } else {
+            blocks.push({ type: 'text', text: `[Attached file: ${doc.file_name} — ${warning ?? 'content empty'}]` });
+          }
         }
       } catch (_) {
         blocks.push({ type: 'text', text: `[Attached file: ${doc.file_name} — could not be loaded]` });

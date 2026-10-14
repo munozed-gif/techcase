@@ -43,6 +43,18 @@ export default async function handler(req, res) {
       return res.json({ text: result.value.slice(0, 15000) });
     }
 
+    // XLSX / XLS — convert each sheet to CSV-like text
+    if (ext === "xlsx" || ext === "xls") {
+      const XLSX = (await import("xlsx")).default;
+      const wb = XLSX.read(buffer, { type: "buffer" });
+      const parts = wb.SheetNames.map(name => {
+        const ws = wb.Sheets[name];
+        const csv = XLSX.utils.sheet_to_csv(ws, { blankrows: false });
+        return `[Sheet: ${name}]\n${csv}`;
+      });
+      return res.json({ text: parts.join("\n\n").slice(0, 15000) });
+    }
+
     return res.json({ text: "", warning: `Unsupported file type: ${ext}` });
   } catch (err) {
     return res.status(500).json({ error: err.message });
