@@ -1379,7 +1379,10 @@ function ProjectConnectionsTab({ projectId, clientId, auth }) {
     if (!form.host || (!isVpnType(form.db_type) && !form.db_name)) return;
     setSaving(true);
     try {
-      await addConnection(form);
+      const name = isVpnType(form.db_type)
+        ? (form.meta?.conn_name || form.host || 'VPN')
+        : (form.db_name || form.host || 'Connection');
+      await addConnection({ ...form, name });
       setForm(defaultForm);
       setShowAdd(false);
     } catch (e) { alert(e.message); }
