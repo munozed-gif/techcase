@@ -1019,6 +1019,34 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
     return blocks;
   }
 
+  // Builds ALL doc blocks: case docs + project docs + ABAP standards PDFs
+  async function buildAllDocBlocks() {
+    const [caseBlocks, abap] = await Promise.all([
+      buildDocumentBlocks(),
+      buildAbapStandardsForSpec(),
+    ]);
+    // Project docs as text blocks
+    const projBlocks = [];
+    if (caseData.project_id) {
+      try {
+        const { data } = await supabase.from('system_settings').select('value').eq('key', 'project_docs').maybeSingle();
+        const docs = (data?.value ?? {})[caseData.project_id] ?? [];
+        for (const doc of docs) {
+          try {
+            const r = await fetch('/api/extract-text', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: doc.url, fileName: doc.name }),
+            });
+            const { text } = await r.json();
+            if (text) projBlocks.push({ type: 'text', text: `[Project Document: ${doc.name}]\n${text}` });
+          } catch (_) {}
+        }
+      } catch (_) {}
+    }
+    return [...abap.blocks, ...projBlocks, ...caseBlocks];
+  }
+
   // Returns { blocks, contextText } with ABAP standards PDFs and naming rules
   async function buildAbapStandardsForSpec() {
     const projId   = caseData.project_id;
@@ -3135,9 +3163,9 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     setAiError(null);
     setSapCheck(null);
     try {
-      const docBlocks = await buildDocumentBlocks();
+      const docBlocks = await buildAllDocBlocks();
       const customerCtx = analysisCustomerContent ? `\nCustomer Proposal / Notes:\n${analysisCustomerContent}` : '';
-      const prompt = `Analyze this SAP case and determine whether STANDARD SAP functionality covers the requirement — without any custom ABAP development.${docBlocks.length > 0 ? '\n\nThe attached documents contain the detailed requirements.' : ''}
+      const prompt = `Analyze this SAP case and determine whether STANDARD SAP functionality covers the requirement — without any custom ABAP development.${docBlocks.length > 0 ? '\n\nThe attached documents (case files, project reference docs, and ABAP standards) contain the detailed requirements.' : ''}
 
 Case: ${caseData.title}
 Description: ${caseData.description ?? ''}
@@ -3184,7 +3212,7 @@ coverage meanings:
     setAiError(null);
     setProposalCheck(null);
     try {
-      const docBlocks = await buildDocumentBlocks();
+      const docBlocks = await buildAllDocBlocks();
       const customerCtx2 = analysisCustomerContent ? `\nCustomer Proposal / Notes:\n${analysisCustomerContent}` : '';
       const prompt = `Validate the proposed custom SAP development for this case.${docBlocks.length > 0 ? '\n\nThe attached documents contain the requirements.' : ''}
 
