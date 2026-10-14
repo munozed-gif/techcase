@@ -372,7 +372,7 @@ async function sapLiveCheck(config) {
       }
     } catch { /* system/settings is optional — ignore failures */ }
 
-    return { systemInfo, capabilities, components, sid, client };
+    return { systemInfo, capabilities, components, sid, client, _raw: xml.slice(0, 800) };
   } catch (e) { return { error: 0, message: e?.message ?? String(e) }; }
 }
 

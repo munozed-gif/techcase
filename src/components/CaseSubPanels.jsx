@@ -2248,6 +2248,7 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
           capabilities: result.capabilities ?? [],
           components: result.components ?? [],
           sid: result.sid ?? null,
+          _raw: result._raw ?? null,
         };
         setSapConnTest(next);
         try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
@@ -4031,8 +4032,14 @@ Respond with ONLY a valid JSON object, no markdown fences:
                           </div>
                         )}
                         {!sapConnTest.capabilities?.length && !sapConnTest.components?.length && (
-                          <div className="px-3 py-2">
-                            <p className="text-xs text-gray-500">No ADT capabilities or software components returned by this SAP system.</p>
+                          <div className="px-3 py-2 space-y-2">
+                            <p className="text-xs text-gray-500">No ADT capabilities or software components detected.</p>
+                            {sapConnTest._raw && (
+                              <>
+                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Raw Discovery XML (first 800 chars)</p>
+                                <pre className="text-xs text-gray-400 font-mono whitespace-pre-wrap break-all leading-snug overflow-x-auto max-h-48 overflow-y-auto bg-black/30 rounded p-2">{sapConnTest._raw}</pre>
+                              </>
+                            )}
                           </div>
                         )}
                       </div>
