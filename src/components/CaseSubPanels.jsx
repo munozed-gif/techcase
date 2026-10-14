@@ -880,6 +880,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [aiError, setAiError]           = useState(null);
   const [aiStep, setAiStep]             = useState(1);   // 1 | 2 | 3
   const [activeNode, setActiveNode]     = useState(0);   // 0=docs 1=sap 2=proposal 3=generate
+  const [nodesCollapsed, setNodesCollapsed] = useState(false);
   const [sapCheck, setSapCheck]         = useState(null);
   const [proposalCheck, setProposalCheck] = useState(null);
   const [stepLoading, setStepLoading]   = useState(false);
@@ -3716,16 +3717,24 @@ Respond with ONLY a valid JSON object, no markdown fences:
               if (!dest) { setPrevMode(null); setAnalysisCustomerContent(''); }
             }} className="text-xs text-gray-400 hover:text-gray-600">← {t("action.back")}</button>
           )}
-          <span className="text-sm font-semibold text-gray-700">
+          <span className="text-sm font-semibold text-gray-700 flex-1">
             {prevMode === 'manual' ? t("spec.ai_mode_manual") : prevMode === 'wizard' ? t("spec.ai_mode_wizard") : t("spec.ai_mode_gen")}
           </span>
+          {/* Mobile: toggle steps panel */}
+          <button
+            className="sm:hidden flex items-center gap-1 px-2 py-1 rounded-lg border text-xs"
+            style={{borderColor:'var(--t-border)',color:'var(--t-text2)',background:'var(--t-card-bg)'}}
+            onClick={() => setNodesCollapsed(v => !v)}
+          >
+            {nodesCollapsed ? '☰ Steps' : '✕ Steps'}
+          </button>
         </div>
 
         {/* 2-column pipeline layout */}
         <div className="flex gap-4 items-start">
 
           {/* LEFT: Pipeline flow diagram */}
-          <div className="w-56 flex-shrink-0">
+          <div className={`w-56 flex-shrink-0 ${nodesCollapsed ? 'hidden sm:block' : ''}`}>
             <div className="relative space-y-1">
               {/* vertical connector line behind nodes */}
               <div className="absolute left-[23px] top-10 bottom-10 w-0.5 bg-gray-200 z-0 pointer-events-none" />
