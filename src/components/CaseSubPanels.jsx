@@ -3996,10 +3996,15 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       </div>
                     )}
 
-                    {/* Live data extracted from SAP — shown after a successful test */}
-                    {sapConnTest && sapConnTest !== 'testing' && sapConnTest.ok && (sapConnTest.capabilities?.length > 0 || sapConnTest.components?.length > 0) && (
+                    {/* Prompt to test if only seeded (no real test run yet) */}
+                    {sapConnTest?.seeded && (
+                      <p className="text-xs text-gray-500 text-center py-1">Click <strong className="text-gray-300">Test Connection</strong> to retrieve live SAP system data.</p>
+                    )}
+
+                    {/* Live data extracted from SAP — shown after a real test */}
+                    {sapConnTest && sapConnTest !== 'testing' && sapConnTest.ok && !sapConnTest.seeded && (
                       <div className="rounded-xl overflow-hidden border border-gray-700 divide-y divide-gray-700">
-                        {sapConnTest.info && !sapConnTest.seeded && (
+                        {sapConnTest.info && (
                           <div className="px-3 py-2">
                             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide leading-none mb-1">SAP System</p>
                             <p className="text-xs font-mono text-green-300 break-all leading-snug">{sapConnTest.info}</p>
@@ -4023,6 +4028,11 @@ Respond with ONLY a valid JSON object, no markdown fences:
                                 <span key={i} className="text-xs bg-slate-800 text-slate-300 border border-slate-600 rounded-md px-2 py-0.5 font-mono">{comp}</span>
                               ))}
                             </div>
+                          </div>
+                        )}
+                        {!sapConnTest.capabilities?.length && !sapConnTest.components?.length && (
+                          <div className="px-3 py-2">
+                            <p className="text-xs text-gray-500">No ADT capabilities or software components returned by this SAP system.</p>
                           </div>
                         )}
                       </div>
