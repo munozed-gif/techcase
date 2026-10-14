@@ -372,10 +372,7 @@ async function sapLiveCheck(config) {
       }
     } catch { /* system/settings is optional — ignore failures */ }
 
-    const _raw = xml.slice(0, 1000);
-    console.log('[SAP Discovery XML]', _raw);
-    console.log('[SAP parsed]', { systemInfo, capabilities, components, sid, client });
-    return { systemInfo, capabilities, components, sid, client, _raw };
+    return { systemInfo, capabilities, components, sid, client };
   } catch (e) { return { error: 0, message: e?.message ?? String(e) }; }
 }
 
