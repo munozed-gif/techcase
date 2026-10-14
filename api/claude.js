@@ -28,11 +28,14 @@ function decryptApiKey(enc) {
 async function checkUsage(userId) {
   const { data: user } = await db()
     .from("users")
-    .select("is_pro, anthropic_api_key_enc")
+    .select("is_pro, anthropic_api_key_enc, role")
     .eq("id", userId)
     .single();
 
   if (!user) return { allowed: true, apiKey: null, isPro: false, isByok: false, used: 0, usageId: null };
+
+  // Admin — unlimited, no usage tracking
+  if (user.role === 'admin') return { allowed: true, apiKey: null, isPro: true, isByok: false, used: 0, usageId: null };
 
   // BYOK — use their own key, no limit
   if (user.anthropic_api_key_enc) {
