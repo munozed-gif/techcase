@@ -3070,7 +3070,9 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       const abap = needsAbap ? await buildAbapStandardsForSpec() : { blocks: [], contextText: '' };
 
       const genCtxResult = await buildGenContext();
-      const contextStr = sanitizeForJson(genCtxResult);
+      const _baseCtx = sanitizeForJson(genCtxResult);
+      const summaryCtx = requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '';
+      const contextStr = _baseCtx + summaryCtx;
       const hasLiveSap = contextStr.includes('SAP Live System:');
       const isModCase  = contextStr.includes('Existing ABAP Object Source');
       const sysLiveNote = hasLiveSap
@@ -3232,7 +3234,8 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         }
       };
       const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
-      const contextStr = sanitizeForJson(await buildGenContext());
+      const _baseCtxD = sanitizeForJson(await buildGenContext());
+      const contextStr = _baseCtxD + (requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '');
       const isModCase  = contextStr.includes('Existing ABAP Object Source');
       const specD = await callSpec(
         aiSpecC
@@ -3317,7 +3320,8 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       }
     };
     const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
-    const contextStr = sanitizeForJson(await buildGenContext());
+    const _baseCtxR = sanitizeForJson(await buildGenContext());
+    const contextStr = _baseCtxR + (requestSummary ? `\n\nPRE-ANALYSIS (request summary derived from attached documents):\n${sanitizeForJson(requestSummary)}` : '');
     const abapCtx = sanitizeForJson(abap.contextText);
     const setSpecStatus = (key, status) => setSpecStatuses(p => ({ ...p, [key]: status }));
     const setSpecError  = (key, msg)    => setSpecErrors(p => ({ ...p, [key]: msg }));
@@ -3446,12 +3450,13 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     try {
       const docBlocks = await buildAllDocBlocks();
       const customerCtx = analysisCustomerContent ? `\nCustomer Proposal / Notes:\n${analysisCustomerContent}` : '';
+      const summaryCtxSap = requestSummary ? `\nRequest Summary (pre-analysis):\n${requestSummary}` : '';
       const prompt = `Analyze this SAP case and determine whether STANDARD SAP functionality covers the requirement — without any custom ABAP development.${docBlocks.length > 0 ? '\n\nThe attached documents (case files, project reference docs, and ABAP standards) contain the detailed requirements.' : ''}
 
 Case: ${caseData.title}
 Description: ${caseData.description ?? ''}
 SAP Module: ${caseData.area_sap ?? ''}
-Industry: ${caseData.area_industry ?? ''}${customerCtx}
+Industry: ${caseData.area_industry ?? ''}${customerCtx}${summaryCtxSap}
 
 Respond with ONLY a valid JSON object, no markdown fences:
 {
@@ -3495,12 +3500,13 @@ coverage meanings:
     try {
       const docBlocks = await buildAllDocBlocks();
       const customerCtx2 = analysisCustomerContent ? `\nCustomer Proposal / Notes:\n${analysisCustomerContent}` : '';
+      const summaryCtxProp = requestSummary ? `\nRequest Summary (pre-analysis):\n${requestSummary}` : '';
       const prompt = `Validate the proposed custom SAP development for this case.${docBlocks.length > 0 ? '\n\nThe attached documents contain the requirements.' : ''}
 
 Case: ${caseData.title}
 Description: ${caseData.description ?? ''}
 SAP Module: ${caseData.area_sap ?? ''}
-Industry: ${caseData.area_industry ?? ''}${customerCtx2}
+Industry: ${caseData.area_industry ?? ''}${customerCtx2}${summaryCtxProp}
 
 Standard SAP coverage analysis already completed:
 - Coverage: ${sapCheck.coverage}
