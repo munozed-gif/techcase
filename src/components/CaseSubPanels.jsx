@@ -2773,6 +2773,82 @@ Generate with EXACTLY these sections:
 ${buildSectionConstraint('spec_d', genProfile)}${buildGenSuffix(genProfile, lang)}`;
   }
 
+  // Doc D sourced from Doc C: non-technical business language translation of the customer proposal
+  function buildSpecDFromCPrompt(specCContent, customerContent, genProfile, contextStr = '', isModCase = false) {
+    const modNote = isModCase ? ' This case involves modifying an existing solution, so frame the document around what will change in the business process, not a new implementation.' : '';
+    return `Write a Customer Functional Specification — a clear, non-technical business document for the customer's functional team to review and approve.${modNote}
+
+This document is a business-language version of the following Customer Proposal (Option C) that was already written for this case:
+
+--- CUSTOMER PROPOSAL (OPTION C) ---
+${specCContent}
+--- END CUSTOMER PROPOSAL ---
+
+Original customer notes for reference:
+${customerContent || '(see case description above)'}
+
+Your task:
+- Keep EXACTLY the same scope and requirements as Option C above — do NOT add or remove any requirement, object, or functionality
+- The time estimates must match the totals from Option C
+- Remove ALL technical implementation details: no ABAP program names, no Z-object names, no function modules, no table names, no configuration keys, no SAP internal identifiers
+- Rewrite entirely in plain business language that a non-technical functional user or manager can read, understand, and approve without SAP technical knowledge
+- Section 5 (Screen Behavior) should describe what the user SEES and DOES, not how it is implemented
+
+Case: ${caseData.title}
+SAP Module: ${caseData.area_sap ?? ''}${contextStr ? '\n' + contextStr : ''}
+
+Generate with EXACTLY these sections:
+
+## 1. Executive Summary
+[2-3 sentences summarizing the business need and solution in plain language, consistent with Option C]
+
+## 2. Context
+
+| Field | Value |
+|-------|-------|
+| Module | [SAP module name] |
+| Affected Screens | [screen/transaction names the user touches] |
+| Area | [business area] |
+| Usage Frequency | [how often the feature will be used] |
+
+## 3. Actors & Permissions
+
+| Actor | Can |
+|-------|-----|
+| [business role] | [what this role can do with the feature] |
+
+## 4. Scope
+**Includes:**
+- [business capability included — must match Option C scope]
+
+**Excludes:**
+- [what is explicitly out of scope]
+
+## 5. Screen Behavior
+
+| Screen | What the user sees / does |
+|--------|--------------------------|
+| [screen name] | [description of user interaction in business terms] |
+
+## 6. Business Rules
+- [business rule in functional terms, no code]
+
+## 7. Acceptance Criteria
+1. [testable acceptance criterion a business user can verify]
+
+## 8. Time Estimation
+
+| Phase | Hours |
+|-------|-------|
+| Requirements Analysis | [h] |
+| Design | [h] |
+| Development | [h] |
+| Unit Testing | [h] |
+| Functional Testing | [h] |
+| **Total** | **[total — must match Option C total]** |
+${buildSectionConstraint('spec_d', genProfile)}${buildGenSuffix(genProfile, lang)}`;
+  }
+
   // Strip lone surrogates (WebKit regex-replace throws on them) AND null bytes / ASCII
   // control chars (Anthropic API rejects strings containing them).
   // TAB (0x09), LF (0x0A), CR (0x0D) are kept — they're valid in JSON strings.
@@ -3022,11 +3098,18 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         }
       };
 
+      // C must finish before D so D can use C's output as its source
+      const specCPromise = runSpec('c', () => callSpec(buildSpecCPrompt(customerContent, genProfile, genProfile?.spec_c?.technical_objects ? contextStr + abapCtx : contextStr, isModCase)));
       const [specA, specB, specC, specD] = await Promise.all([
         runSpec('a', () => callSpec(buildSpecPrompt(true,  genProfile, genProfile?.spec_a?.technical_objects ? contextStr + abapCtx : contextStr, isModCase))),
         runSpec('b', () => callSpec(buildSpecPrompt(false, genProfile, contextStr, isModCase))),
-        runSpec('c', () => callSpec(buildSpecCPrompt(customerContent, genProfile, genProfile?.spec_c?.technical_objects ? contextStr + abapCtx : contextStr, isModCase))),
-        runSpec('d', () => callSpec(buildSpecDPrompt(customerContent, genProfile, contextStr, isModCase))),
+        specCPromise,
+        specCPromise.then(cContent =>
+          runSpec('d', () => callSpec(cContent
+            ? buildSpecDFromCPrompt(cContent, customerContent, genProfile, contextStr, isModCase)
+            : buildSpecDPrompt(customerContent, genProfile, contextStr, isModCase)
+          ))
+        ),
       ]);
 
       if (specA) { setAiSpecA(specA); }
@@ -3143,7 +3226,11 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
       const contextStr = sanitizeForJson(await buildGenContext());
       const isModCase  = contextStr.includes('Existing ABAP Object Source');
-      const specD = await callSpec(buildSpecDPrompt(customerContent, activeProfile ?? {}, contextStr, isModCase));
+      const specD = await callSpec(
+        aiSpecC
+          ? buildSpecDFromCPrompt(aiSpecC, customerContent, activeProfile ?? {}, contextStr, isModCase)
+          : buildSpecDPrompt(customerContent, activeProfile ?? {}, contextStr, isModCase)
+      );
       setAiSpecD(specD);
       setSelectedSpec('d');
       setAiContent(specD);
@@ -3231,7 +3318,9 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       a: () => callSpec(buildSpecPrompt(true,  profile, profile?.spec_a?.technical_objects ? contextStr + abapCtx : contextStr)),
       b: () => callSpec(buildSpecPrompt(false, profile, contextStr)),
       c: () => callSpec(buildSpecCPrompt(customerContent, profile, profile?.spec_c?.technical_objects ? contextStr + abapCtx : contextStr)),
-      d: () => callSpec(buildSpecDPrompt(customerContent, profile, contextStr)),
+      d: () => callSpec(aiSpecC
+        ? buildSpecDFromCPrompt(aiSpecC, customerContent, profile, contextStr)
+        : buildSpecDPrompt(customerContent, profile, contextStr)),
     };
     const setters = { a: setAiSpecA, b: setAiSpecB, c: setAiSpecC, d: setAiSpecD };
     // Track newly generated values locally so we can persist them after state updates
