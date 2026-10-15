@@ -318,19 +318,39 @@ function renderMarkdown(md) {
 
   function renderSapScreen(content) {
     const lines = content.split('\n').map(l=>l.trim()).filter(Boolean);
-    const isSelection = (lines[0]||'').toUpperCase().includes('SELECTION');
+    const typeL = (lines[0]||'').toUpperCase();
+    const isSelection = typeL.includes('SELECTION');
+    const isFiori     = typeL.includes('FIORI');
+    const isTxn       = typeL.includes('TRANSACTION');
+    const isConfig    = typeL.includes('CONFIG');
     let title = '';
-    const params=[], cols=[], rows=[];
+    const params=[], fields=[], steps=[], cols=[], rows=[];
     let totalRow=null;
     lines.forEach(l => {
       if (/^SCREEN:/i.test(l)) return;
       if (/^TITLE:/i.test(l)) { title=l.replace(/^TITLE:\s*/i,''); return; }
       if (/^PARAM:/i.test(l)) { const p=l.replace(/^PARAM:\s*/i,'').split('|'); params.push({label:(p[0]||'').trim(),value:(p[2]||'').trim(),req:(p[3]||'').trim().toUpperCase()==='R'}); return; }
+      if (/^FIELD:/i.test(l)) { const p=l.replace(/^FIELD:\s*/i,'').split('|'); fields.push({label:(p[0]||'').trim(),tech:(p[1]||'').trim(),value:(p[2]||'').trim(),req:(p[3]||'O').trim().toUpperCase()==='R',disp:(p[3]||'O').trim().toUpperCase()==='D'}); return; }
+      if (/^STEP:/i.test(l))  { steps.push(l.replace(/^STEP:\s*/i,'').trim()); return; }
       if (/^COL:/i.test(l))   { const p=l.replace(/^COL:\s*/i,'').split('|'); cols.push({label:(p[0]||'').trim(),width:parseInt(p[1])||15,align:((p[2]||'L').trim().toUpperCase())}); return; }
       if (/^ROW:/i.test(l))   { rows.push(l.replace(/^ROW:\s*/i,'').split('|').map(v=>v.trim())); return; }
       if (/^TOTAL:/i.test(l)) { totalRow=l.replace(/^TOTAL:\s*/i,'').split('|').map(v=>v.trim()); return; }
     });
-    if (!title) title = isSelection ? 'Selection Screen' : 'Report Output';
+    if (!title) title = isSelection ? 'Selection Screen' : isFiori || isTxn ? 'SAP Fiori' : isConfig ? 'Customizing' : 'Report Output';
+
+    // ── Fiori / Transaction renderer ──────────────────────────────
+    if (isFiori || isTxn) {
+      const flds = fields.length ? fields : params.map(p=>({...p,tech:'',disp:false}));
+      const typeLabel = isFiori ? 'Fiori App' : 'SAP Transaction';
+      const rows2 = flds.map(f=>`<div style="display:flex;align-items:center;gap:0;margin-bottom:10px"><div style="width:38%;padding-right:12px;text-align:right"><label style="font-size:11.5px;color:#32363a;font-weight:${f.req?'600':'400'}">${esc(f.label)}${f.req?'<span style="color:#bb0000"> *</span>':''}</label></div><div style="width:62%">${f.disp?`<span style="font-size:11.5px;color:#32363a;padding:6px 8px;display:inline-block;border-bottom:1px solid #89919a">${esc(f.value||'—')}</span>`:`<input readonly value="${esc(f.value)}" style="width:90%;max-width:260px;height:30px;border:1px solid #89919a;border-bottom:2px solid #0a6ed1;padding:0 8px;font-size:11.5px;color:#32363a;background:white;border-radius:4px 4px 0 0"/>`}</div></div>`).join('');
+      return `<div style="border:1px solid #c8d4e8;border-radius:6px;overflow:hidden;font-family:'72','Noto Sans',Arial,sans-serif;margin:14px 0;box-shadow:0 1px 6px rgba(0,0,0,0.1)"><div style="background:#0a6ed1;color:white;padding:8px 14px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;font-weight:600">${esc(title)}</span><span style="font-size:10px;background:rgba(255,255,255,0.2);border-radius:10px;padding:2px 8px">${typeLabel}</span></div><div style="background:white;padding:16px 20px"><div style="font-size:10.5px;color:#6a6d70;letter-spacing:0.05em;text-transform:uppercase;font-weight:600;margin-bottom:12px;border-bottom:1px solid #d9d9d9;padding-bottom:6px">Datos</div>${rows2}</div><div style="background:#f5f5f5;border-top:1px solid #d9d9d9;padding:8px 14px;display:flex;gap:8px"><button style="background:#0a6ed1;color:white;border:none;padding:6px 16px;border-radius:4px;font-size:11.5px;font-weight:600;cursor:pointer">Grabar</button><button style="background:white;color:#0a6ed1;border:1px solid #0a6ed1;padding:6px 16px;border-radius:4px;font-size:11.5px;cursor:pointer">Cancelar</button></div></div>`;
+    }
+
+    // ── Config / Customizing renderer ─────────────────────────────
+    if (isConfig) {
+      const stps = (steps.length ? steps : ['Acceder a la ruta de customizing','Ejecutar la actividad de configuración']).map((s,i)=>`<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid #edf0f7"><div style="background:#1a3764;color:white;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0">${i+1}</div><div style="font-size:12px;color:#1a2a4a;line-height:1.5">${esc(s)}</div></div>`).join('');
+      return `<div style="border:1px solid #c8d4e8;border-radius:6px;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif;margin:14px 0"><div style="background:#1a3764;color:white;padding:7px 14px;font-size:11.5px;font-weight:600;display:flex;align-items:center;gap:8px"><span style="background:rgba(255,255,255,0.2);border-radius:3px;padding:1px 6px;font-size:9.5px;font-family:monospace">SPRO</span>${esc(title||'Customizing')}</div><div style="background:#f5f7fc;padding:12px 16px">${stps}</div></div>`;
+    }
 
     const chrome = body => `<div style="border:1px solid #8fa8cc;border-radius:3px;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif;font-size:12px;margin:14px 0;box-shadow:0 2px 8px rgba(0,0,0,0.13)">
       <div style="background:#1a3764;color:white;padding:5px 8px;display:flex;justify-content:space-between;align-items:center">
@@ -1136,7 +1156,56 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
       let inUl = false, inOl = false, inTable = false, inThead = false, inCode = false, codeLines = [];
       const closeList  = () => { if (inUl) { out.push('</ul>'); inUl = false; } if (inOl) { out.push('</ol>'); inOl = false; } };
       const closeTable = () => { if (inTable) { out.push('</tbody></table></div>'); inTable = false; inThead = false; } };
-      const closeCode  = () => { if (inCode) { out.push('<pre><code>' + codeLines.map(l => esc(l)).join('\n') + '</code></pre>'); inCode = false; codeLines = []; } };
+      const renderDocScreen = cc => {
+        const ls = cc.split('\n').map(l=>l.trim()).filter(Boolean);
+        const typeL = (ls[0]||'').toUpperCase();
+        const isSelection = typeL.includes('SELECTION');
+        const isOutput    = typeL.includes('OUTPUT');
+        const isFiori     = typeL.includes('FIORI');
+        const isTxn       = typeL.includes('TRANSACTION');
+        const isConfig    = typeL.includes('CONFIG');
+        let title=''; const params=[],fields=[],steps=[],cols=[],rows=[];
+        ls.forEach(l=>{
+          if(/^SCREEN:/i.test(l)) return;
+          if(/^TITLE:/i.test(l))  { title=l.replace(/^TITLE:\s*/i,''); return; }
+          if(/^PARAM:/i.test(l))  { const p=l.replace(/^PARAM:\s*/i,'').split('|'); params.push({label:(p[0]||'').trim(),value:(p[2]||'').trim(),req:(p[3]||'O').trim().toUpperCase()==='R'}); return; }
+          if(/^FIELD:/i.test(l))  { const p=l.replace(/^FIELD:\s*/i,'').split('|'); fields.push({label:(p[0]||'').trim(),tech:(p[1]||'').trim(),value:(p[2]||'').trim(),req:(p[3]||'O').trim().toUpperCase()==='R',disp:(p[3]||'O').trim().toUpperCase()==='D'}); return; }
+          if(/^STEP:/i.test(l))   { steps.push(l.replace(/^STEP:\s*/i,'').trim()); return; }
+          if(/^COL:/i.test(l))    { const p=l.replace(/^COL:\s*/i,'').split('|'); cols.push({label:(p[0]||'').trim()}); return; }
+          if(/^ROW:/i.test(l))    { rows.push(l.replace(/^ROW:\s*/i,'').split('|').map(v=>v.trim())); return; }
+        });
+        const sapChr = body=>`<div style="border:1px solid #8fa8cc;border-radius:3px;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif;font-size:12px;margin:14px 0;box-shadow:0 2px 8px rgba(0,0,0,0.13)"><div style="background:#1a3764;color:white;padding:5px 10px;font-size:11.5px;font-weight:600">${esc(title||'SAP')}</div><div style="background:#dde4f0;border-bottom:1px solid #b0bbcc;padding:2px 8px;font-size:10px;display:flex;gap:12px">${['Sistema','Editar','Pasar a','Extras','Ayuda'].map(m=>`<span>${m}</span>`).join('')}</div>${body}<div style="background:#dde4f0;border-top:1px solid #b0bbcc;padding:2px 8px;font-size:10px;display:flex;justify-content:space-between"><span>TechCase-DEV | 100</span><span style="color:#006600;font-weight:700">● Listo</span></div></div>`;
+        if (isConfig || isConfig) {
+          const stps = (steps.length ? steps : ['Acceder a la ruta de customizing indicada','Ejecutar la actividad de configuración']).map((s,i)=>`<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid #edf0f7"><div style="background:#1a3764;color:white;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0">${i+1}</div><div style="font-size:12px;color:#1a2a4a;line-height:1.5">${esc(s)}</div></div>`).join('');
+          return `<div style="border:1px solid #c8d4e8;border-radius:6px;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif;margin:14px 0"><div style="background:#1a3764;color:white;padding:7px 14px;font-size:11.5px;font-weight:600;display:flex;align-items:center;gap:8px"><span style="background:rgba(255,255,255,0.2);border-radius:3px;padding:1px 6px;font-size:9.5px;font-family:monospace">SPRO</span>${esc(title||'Customizing')}</div><div style="background:#f5f7fc;padding:12px 16px">${stps}</div></div>`;
+        }
+        if (isFiori || isTxn) {
+          const flds = (fields.length ? fields : params.length ? params.map(p=>({...p,tech:'',disp:false})) : [{label:'Campo nuevo',value:'',req:true,tech:'ZFIELD',disp:false}]);
+          const rows2 = flds.map(f=>`<div style="display:flex;align-items:center;gap:0;margin-bottom:10px"><div style="width:38%;padding-right:12px;text-align:right"><label style="font-size:11.5px;color:#32363a;font-weight:${f.req?'600':'400'}">${esc(f.label)}${f.req?'<span style="color:#bb0000"> *</span>':''}</label></div><div style="width:62%">${f.disp?`<span style="font-size:11.5px;color:#32363a;padding:6px 8px;display:inline-block;border-bottom:1px solid #89919a">${esc(f.value||'—')}</span>`:`<input readonly value="${esc(f.value)}" style="width:90%;max-width:260px;height:30px;border:1px solid #89919a;border-bottom:2px solid #0a6ed1;padding:0 8px;font-size:11.5px;color:#32363a;background:white;border-radius:4px 4px 0 0"/>`}</div></div>`).join('');
+          const typeLabel = isFiori ? 'Fiori App' : 'SAP Transaction';
+          return `<div style="border:1px solid #c8d4e8;border-radius:6px;overflow:hidden;font-family:'72','Noto Sans',Arial,sans-serif;margin:14px 0;box-shadow:0 1px 6px rgba(0,0,0,0.1)"><div style="background:#0a6ed1;color:white;padding:8px 14px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;font-weight:600">${esc(title||typeLabel)}</span><span style="font-size:10px;background:rgba(255,255,255,0.2);border-radius:10px;padding:2px 8px">${typeLabel}</span></div><div style="background:white;padding:16px 20px"><div style="font-size:10.5px;color:#6a6d70;letter-spacing:0.05em;text-transform:uppercase;font-weight:600;margin-bottom:12px;border-bottom:1px solid #d9d9d9;padding-bottom:6px">Datos</div>${rows2}</div><div style="background:#f5f5f5;border-top:1px solid #d9d9d9;padding:8px 14px;display:flex;gap:8px"><button style="background:#0a6ed1;color:white;border:none;padding:6px 16px;border-radius:4px;font-size:11.5px;font-weight:600;cursor:pointer">Grabar</button><button style="background:white;color:#0a6ed1;border:1px solid #0a6ed1;padding:6px 16px;border-radius:4px;font-size:11.5px;cursor:pointer">Cancelar</button></div></div>`;
+        }
+        if (isSelection || isOutput) {
+          if (isSelection) {
+            const dp = params.length ? params : [{label:'Sociedad',value:'1000',req:true},{label:'Período',value:'2024',req:false}];
+            const flds2 = dp.map(p=>`<div style="display:flex;align-items:center;margin-bottom:7px"><span style="color:#cc0000;width:10px;font-weight:bold">${p.req?'*':''}</span><label style="width:185px;color:#2a3a5a;font-size:11.5px">${esc(p.label)}</label><input value="${esc(p.value)}" readonly style="width:155px;height:21px;border:1px solid #99aabb;border-bottom:2px solid #2855a8;padding:0 6px;font-size:11.5px;color:#001280;background:white"/></div>`).join('');
+            return sapChr(`<div style="background:#f5f7fc;padding:14px 18px"><div style="border:1px solid #8899bb;border-radius:2px;padding:16px 18px;background:white;margin-bottom:12px">${flds2}</div><div style="display:flex;gap:8px"><button style="background:#1a3764;color:white;border:1px solid #0a2244;padding:5px 18px;font-size:11.5px;font-weight:600;cursor:pointer">Ejecutar (F8)</button><button style="background:#c8d4e8;color:#222;border:1px solid #8899bb;padding:5px 14px;font-size:11.5px;cursor:pointer">Cancelar</button></div></div>`);
+          } else {
+            const uc = cols.length ? cols : [{label:'Objeto'},{label:'Descripción'},{label:'Importe'},{label:'Moneda'}];
+            const ur = rows.length ? rows : [['Z_OBJ','Ejemplo de objeto','1,000.00','EUR']];
+            const hdr2 = uc.map(c=>`<th style="background:#3a628a;color:white;padding:6px 8px;font-size:11px;font-weight:600;text-align:left;border:1px solid #2a4a70">${esc(c.label)}</th>`).join('');
+            const drows2 = ur.map((row,ri)=>`<tr>${uc.map((c,ci)=>`<td style="padding:4px 8px;font-size:11px;border:1px solid #c8d4e8;background:${ri%2===0?'white':'#f0f5fc'}">${esc(row[ci]||'')}</td>`).join('')}</tr>`).join('');
+            return sapChr(`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr>${hdr2}</tr></thead><tbody>${drows2}</tbody></table></div>`);
+          }
+        }
+        return `<pre><code>${codeLines.map(l=>esc(l)).join('\n')}</code></pre>`;
+      };
+      const closeCode = () => {
+        if (!inCode) return;
+        const cc = codeLines.join('\n');
+        out.push(/SCREEN:/i.test(cc) ? renderDocScreen(cc) : '<pre><code>' + codeLines.map(l=>esc(l)).join('\n') + '</code></pre>');
+        inCode = false; codeLines = [];
+      };
       for (const raw of lines) {
         const line = raw.trimEnd();
         if (line.startsWith('```')) {
