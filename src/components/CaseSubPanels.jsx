@@ -754,9 +754,16 @@ function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, protoError,
     setLoading(true);
     setFetchErr(null);
     fetch(protoDoc.file_url)
-      .then(r => r.text())
-      .then(html => { setProtoHtmlState(html); })
-      .catch(() => setFetchErr('Could not load prototype'))
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.text();
+      })
+      .then(html => {
+        // Reject obviously empty or error-page responses
+        if (!html || html.trim().length < 100) throw new Error('Empty prototype');
+        setProtoHtmlState(html);
+      })
+      .catch(() => setFetchErr('Could not load prototype — the file URL may have expired. Try regenerating.'))
       .finally(() => setLoading(false));
   }, [protoSaved, protoHtmlState, documents]);
 
@@ -824,7 +831,7 @@ function ProtoPanel({ protoHtmlState, setProtoHtmlState, protoSaved, protoError,
               srcDoc={protoHtmlState}
               title="Interactive Prototype"
               style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
-              sandbox="allow-scripts"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-modals"
             />
           </div>
         </div>
@@ -3105,6 +3112,8 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       d: () => callSpec(buildSpecDPrompt(customerContent, profile, contextStr)),
     };
     const setters = { a: setAiSpecA, b: setAiSpecB, c: setAiSpecC, d: setAiSpecD };
+    // Track newly generated values locally so we can persist them after state updates
+    const newSpecs = { a: aiSpecA, b: aiSpecB, c: aiSpecC, d: aiSpecD };
 
     await Promise.all(
       failedKeys.filter(k => k !== 'proto').map(async key => {
@@ -3113,6 +3122,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         try {
           const result = await specMap[key]();
           if (result) {
+            newSpecs[key] = result;
             setters[key](result);
             if (!selectedSpec || selectedSpec === key) { setSelectedSpec(key); setAiContent(result); }
             setSpecStatus(key, 'done');
@@ -3123,6 +3133,21 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         }
       })
     );
+
+    // Persist the updated specs so they survive a logout/reload
+    const anyNew = failedKeys.filter(k => k !== 'proto').some(k => newSpecs[k]);
+    if (anyNew) {
+      try {
+        const firstKey = newSpecs.a ? 'a' : newSpecs.b ? 'b' : newSpecs.c ? 'c' : newSpecs.d ? 'd' : (selectedSpec || 'b');
+        await saveSpec({
+          mode: 'ai', status: spec?.status ?? 'draft',
+          content: newSpecs.a || newSpecs.b || newSpecs.c || newSpecs.d,
+          objects: [],
+          notes: JSON.stringify({ sapCheck, proposalCheck, specA: newSpecs.a, specB: newSpecs.b, specC: newSpecs.c, specD: newSpecs.d, selectedSpec: firstKey, prevMode, analysisCustomerContent, activeProfile: profile }),
+          title: caseData.title + t("spec.doc_title_suffix"),
+        });
+      } catch (_) {}
+    }
 
     // Retry proto if it was also failed
     if (failedKeys.includes('proto') && profile?.prototype_enabled) {
