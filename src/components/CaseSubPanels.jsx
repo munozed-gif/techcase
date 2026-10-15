@@ -2536,6 +2536,12 @@ Use real standard SAP transaction codes and configuration objects for ${caseData
 
 This option formalizes EXACTLY what the customer proposed, without any AI alternatives or suggestions. Do NOT add any SAP standard alternatives or custom dev recommendations — this is a direct formalization of the customer's own technical proposal.
 
+CRITICAL CONSTRAINTS:
+- Do NOT propose reports, audit tables, or output lists unless the customer EXPLICITLY requested them.
+- Do NOT invent functionality not described in the customer proposal.
+- The screen prototype must reflect the ACTUAL screen/transaction the customer described (e.g. a header field change shows the header screen with that field, NOT a report).
+- If the proposal is about adding/modifying a field in an existing transaction, the prototype shows that transaction screen — not a selection screen feeding a report.
+
 Case: ${caseData.title}
 Description: ${caseData.description ?? '(none)'}
 SAP Module: ${caseData.area_sap ?? ''}
@@ -2573,24 +2579,38 @@ Generate with EXACTLY these sections:
 
 ## 6. SAP Screen Prototype
 
-### 6.1 Selection Screen
+Choose the prototype format that matches what the customer proposed:
 
+IF the proposal involves modifying or enhancing an EXISTING transaction screen (adding fields, changing layout, user-exit, etc.):
+\`\`\`
+SCREEN:TRANSACTION
+TITLE:[Existing TCode] - [Brief description of change]
+FIELD:[Field label]|[TECH_NAME]|[current value or NEW]|[R=required/O=optional/D=display]
+FIELD:[Field label]|[TECH_NAME]||D
+\`\`\`
+
+IF the proposal requires a NEW report or list program (customer explicitly asked for a report/list):
 \`\`\`
 SCREEN:SELECTION
-TITLE:Z[TXN] - [Description from customer proposal]
+TITLE:Z[TXN] - [Report description]
 PARAM:[Field label]|[TECH_NAME]|[default]|R
 PARAM:[Field label]|[TECH_NAME]||O
-\`\`\`
 
-### 6.2 Output / Result
-
-\`\`\`
 SCREEN:OUTPUT
-TITLE:[Report title per customer proposal] | [filters]
+TITLE:[Report title] | [filters]
 COL:[Column]|[width]|[L or R]
-ROW:[val1]|[val2]|[val3]|[val4]|[val5]
-TOTAL:||Total|[amount]|
+ROW:[val1]|[val2]|[val3]
 \`\`\`
+
+IF the proposal is a configuration or Customizing change (no screen needed):
+\`\`\`
+SCREEN:CONFIG
+TITLE:[IMG path or TCode]
+STEP:[Step description]
+STEP:[Step description]
+\`\`\`
+
+Use ONLY the format that matches the customer's actual proposal. Never add a report screen if the customer did not ask for one.
 
 ## 7. Assumptions
 1. [assumption based strictly on the customer proposal]
@@ -2598,7 +2618,7 @@ TOTAL:||Total|[amount]|
 ## 8. Next Steps
 1. [action item derived from the customer's proposed approach]
 
-Use realistic Z object names matching the customer's described solution for ${caseData.area_sap ?? 'the module'}. Fill in real PARAM/COL values.${buildSectionConstraint('spec_c', genProfile)}${buildGenSuffix(genProfile, lang)}`;
+Use realistic Z object names matching the customer's described solution for ${caseData.area_sap ?? 'the module'}. Fill in real field/column values based on the proposal.${buildSectionConstraint('spec_c', genProfile)}${buildGenSuffix(genProfile, lang)}`;
   }
 
   function buildSpecDPrompt(customerContent, genProfile, contextStr = '', isModCase = false) {
