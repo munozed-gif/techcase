@@ -98,7 +98,7 @@ export default function CustomerSpecReviewView({ token }) {
     if (!doc?.file_url) return;
     setDocLoading(prev => ({ ...prev, [docId]: true }));
     fetch(doc.file_url)
-      .then(r => r.text())
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); })
       .then(html => setDocContents(prev => ({ ...prev, [docId]: html })))
       .catch(() => setDocContents(prev => ({ ...prev, [docId]: null })))
       .finally(() => setDocLoading(prev => ({ ...prev, [docId]: false })));
@@ -404,7 +404,7 @@ export default function CustomerSpecReviewView({ token }) {
           <iframe key={activeDocId} srcDoc={activeDocContent}
             style={{ width: '100%', height: '100%', border: 'none', display: 'block', minHeight: 'calc(100dvh - 200px)' }}
             title={`Spec ${activeTab}`}
-            sandbox="allow-scripts allow-forms allow-popups allow-modals" />
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals" />
         )}
       </div>
 

@@ -2981,6 +2981,20 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
             await addDocument(protoFile, '[Prototype] Interactive Prototype');
             if (refetchDocuments) await refetchDocuments();
             setProtoSaved(true);
+            // Update any existing share token to include the prototype
+            if (shareToken?.id) {
+              try {
+                const { data: protoDoc } = await supabase
+                  .from('case_documents').select('id')
+                  .eq('case_id', caseData.id).like('file_name', 'Prototype_%')
+                  .order('created_at', { ascending: false }).limit(1).maybeSingle();
+                if (protoDoc?.id) {
+                  const updatedDocIds = { ...(shareToken.doc_ids ?? {}), proto: protoDoc.id };
+                  await supabase.from('spec_review_tokens').update({ doc_ids: updatedDocIds }).eq('id', shareToken.id);
+                  setShareToken(p => p ? { ...p, doc_ids: updatedDocIds } : p);
+                }
+              } catch (_) {}
+            }
           } catch (saveErr) {
             console.warn('Prototype save failed:', saveErr?.message);
             setProtoError(true);
@@ -3181,6 +3195,19 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
           await addDocument(protoFile, '[Prototype] Interactive Prototype');
           if (refetchDocuments) await refetchDocuments();
           setProtoSaved(true);
+          if (shareToken?.id) {
+            try {
+              const { data: protoDoc } = await supabase
+                .from('case_documents').select('id')
+                .eq('case_id', caseData.id).like('file_name', 'Prototype_%')
+                .order('created_at', { ascending: false }).limit(1).maybeSingle();
+              if (protoDoc?.id) {
+                const updatedDocIds = { ...(shareToken.doc_ids ?? {}), proto: protoDoc.id };
+                await supabase.from('spec_review_tokens').update({ doc_ids: updatedDocIds }).eq('id', shareToken.id);
+                setShareToken(p => p ? { ...p, doc_ids: updatedDocIds } : p);
+              }
+            } catch (_) {}
+          }
         } catch (_) { setProtoError(true); }
       } catch (e) {
         setSpecStatus('proto', 'error');
@@ -4973,6 +5000,19 @@ Respond with ONLY a valid JSON object, no markdown fences:
                           await addDocument(protoFile, '[Prototype] Interactive Prototype');
                           if (refetchDocuments) await refetchDocuments();
                           setProtoSaved(true);
+                          if (shareToken?.id) {
+                            try {
+                              const { data: protoDoc } = await supabase
+                                .from('case_documents').select('id')
+                                .eq('case_id', caseData.id).like('file_name', 'Prototype_%')
+                                .order('created_at', { ascending: false }).limit(1).maybeSingle();
+                              if (protoDoc?.id) {
+                                const updatedDocIds = { ...(shareToken.doc_ids ?? {}), proto: protoDoc.id };
+                                await supabase.from('spec_review_tokens').update({ doc_ids: updatedDocIds }).eq('id', shareToken.id);
+                                setShareToken(p => p ? { ...p, doc_ids: updatedDocIds } : p);
+                              }
+                            } catch (_) {}
+                          }
                         } catch (saveErr) { console.warn('Prototype save failed:', saveErr?.message); setProtoError(true); setProtoErrorMsg(`Save failed: ${saveErr?.message}`); }
                       } catch (e) { setProtoError(true); setProtoErrorMsg(`[model: ${resolvedModel}] ${e?.message || 'Unknown error'}`); console.error('Prototype generation error:', resolvedModel, e?.message); }
                       finally { setProtoGenerating(false); }
