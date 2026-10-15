@@ -959,6 +959,10 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const [protoGenerating, setProtoGenerating] = useState(false);
   const [generatingSpecD, setGeneratingSpecD] = useState(false);
 
+  // Compiled context preview (Node 6)
+  const [compiledCtxPreview, setCompiledCtxPreview] = useState(null);
+  const [compiledCtxLoading, setCompiledCtxLoading] = useState(false);
+
   // Share-with-customer link state
   const [shareToken, setShareToken]         = useState(null); // loaded spec_review_tokens row
   const [shareCreating, setShareCreating]   = useState(false);
@@ -4071,8 +4075,8 @@ Respond with ONLY a valid JSON object, no markdown fences:
     const inputDocs = (documents ?? []).filter(doc => {
       const name = doc.file_name ?? '';
       const desc = doc.description ?? '';
-      return !/^(SpecA_|SpecB_|SpecC_|SpecD_|Prototype_)/i.test(name) &&
-             !/^\[(Prototype|Spec)/i.test(desc);
+      return !/^(SpecA_|SpecB_|SpecC_|SpecD_|Prototype_|DevPlan_|FuncSpec_)/i.test(name) &&
+             !/^\[(Prototype|Spec|DevPlan|FuncSpec)/i.test(desc);
     });
 
     // Node statuses
@@ -4161,6 +4165,16 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 isActive={activeNode===0}
                 canClick={true}
                 onClick={() => setActiveNode(0)}
+              />
+
+              {/* Node 6: Compiled Context Preview */}
+              <NodeBtn id={6} icon={Code2}
+                title={t("spec.compiled_ctx_lbl") || "Compiled Context"}
+                sub={compiledCtxPreview ? (t("spec.compiled_ctx_ready") || "Context ready") : (t("spec.compiled_ctx_sub") || "Assembled prompt context")}
+                status={compiledCtxPreview ? 'complete' : 'pending'}
+                isActive={activeNode===6}
+                canClick={true}
+                onClick={() => setActiveNode(6)}
               />
 
               {/* Node 5: Live SAP Connection (only when live check is enabled in settings) */}
@@ -4656,6 +4670,120 @@ Respond with ONLY a valid JSON object, no markdown fences:
                       </div>
                     );
                   })()}
+
+                  {!specApproved && (
+                    <div className="flex justify-end">
+                      <button onClick={() => setActiveNode(1)}
+                        className="px-4 py-2 bg-[#1A4B8C] text-white text-sm font-semibold rounded-xl hover:bg-blue-900">
+                        {t("spec.ai_check_btn")} →
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* ── Node 6: Compiled Context Preview ── */}
+            {activeNode === 6 && (() => {
+              const staticFields = [
+                { label: 'Case', value: caseData.title },
+                { label: 'SAP Module', value: caseData.area_sap },
+                { label: 'Industry', value: caseData.area_industry },
+                { label: 'Priority', value: caseData.priority },
+                { label: 'Due Date', value: caseData.due_date },
+              ].filter(f => f.value);
+
+              const customerContent = analysisCustomerContent || caseData.description || '';
+
+              const sourceDocs = [
+                ...inputDocs.map(d => ({ name: d.file_name, size: `${d.file_size_kb} KB`, source: 'Case Document' })),
+                ...(projDocsForDisplay ?? []).map(d => ({ name: d.name ?? d.file_name, source: 'Project Document' })),
+                ...(abapDocsForDisplay ?? []).map(d => ({ name: d.name, source: 'ABAP Standards' })),
+              ];
+
+              async function handleBuildCtx() {
+                setCompiledCtxLoading(true);
+                try {
+                  const ctx = await buildGenContext();
+                  setCompiledCtxPreview(ctx || '(no additional context)');
+                } catch (e) {
+                  setCompiledCtxPreview(`Error: ${e.message}`);
+                } finally {
+                  setCompiledCtxLoading(false);
+                }
+              }
+
+              return (
+                <div className="space-y-3">
+                  {/* Header */}
+                  <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
+                    <h3 className="text-sm font-semibold text-violet-800 mb-1">{t("spec.compiled_ctx_lbl") || "Compiled Context"}</h3>
+                    <p className="text-xs text-violet-500">Organised and assembled information that will be sent to the AI before generating specifications</p>
+                  </div>
+
+                  {/* Case metadata */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Case Metadata</h4>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                      {staticFields.map(f => (
+                        <div key={f.label} className="flex gap-2">
+                          <span className="text-xs text-gray-400 w-20 flex-shrink-0">{f.label}</span>
+                          <span className="text-xs text-gray-700 font-medium">{f.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Case description / customer notes */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-4">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Case Description / Customer Notes</h4>
+                    <pre className="text-xs text-gray-700 whitespace-pre-wrap font-sans leading-relaxed max-h-48 overflow-y-auto">{customerContent || '(no description)'}</pre>
+                  </div>
+
+                  {/* Source documents */}
+                  {sourceDocs.length > 0 && (
+                    <div className="bg-white border border-gray-200 rounded-xl p-4">
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Source Documents ({sourceDocs.length})</h4>
+                      <div className="space-y-1">
+                        {sourceDocs.map((d, i) => (
+                          <div key={i} className="flex items-center gap-2 text-xs">
+                            <Paperclip className="w-3 h-3 text-gray-300 flex-shrink-0" />
+                            <span className="text-gray-700 font-medium flex-1 truncate">{d.name}</span>
+                            <span className="text-[10px] text-gray-400 flex-shrink-0">{d.source}</span>
+                            {d.size && <span className="text-[10px] text-gray-400 flex-shrink-0">{d.size}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Dynamic extra context */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Extra Context</h4>
+                      {!compiledCtxPreview && !compiledCtxLoading && (
+                        <button onClick={handleBuildCtx}
+                          className="px-3 py-1 text-xs font-semibold bg-violet-600 text-white rounded-lg hover:bg-violet-700">
+                          Fetch Context
+                        </button>
+                      )}
+                      {compiledCtxLoading && (
+                        <div className="flex items-center gap-1 text-xs text-violet-500"><Spinner /><span>Building…</span></div>
+                      )}
+                      {compiledCtxPreview && !compiledCtxLoading && (
+                        <button onClick={handleBuildCtx}
+                          className="px-2 py-0.5 text-[10px] font-semibold text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50">
+                          Refresh
+                        </button>
+                      )}
+                    </div>
+                    {!compiledCtxPreview && !compiledCtxLoading && (
+                      <p className="text-xs text-gray-400 italic">Project metadata, SAP system info, related cases, and other dynamic context — click Fetch to load.</p>
+                    )}
+                    {compiledCtxPreview && (
+                      <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono leading-relaxed max-h-64 overflow-y-auto bg-gray-50 rounded-lg p-3 border border-gray-100">{compiledCtxPreview}</pre>
+                    )}
+                  </div>
 
                   {!specApproved && (
                     <div className="flex justify-end">
