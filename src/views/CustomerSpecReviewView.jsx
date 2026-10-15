@@ -342,7 +342,7 @@ export default function CustomerSpecReviewView({ token }) {
           className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-semibold text-gray-400 hover:text-white transition-colors"
           style={{ background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.12)' }}>
           <Globe size={11} />
-          {reviewLang.toUpperCase()}
+          {SUPPORTED_REVIEW_LANGS[(SUPPORTED_REVIEW_LANGS.indexOf(reviewLang) + 1) % SUPPORTED_REVIEW_LANGS.length].toUpperCase()}
         </button>
       </div>
     </header>
