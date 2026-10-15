@@ -4758,8 +4758,8 @@ Keep each bullet point to 1–2 lines. Base every point on actual content from t
                   const result = await callClaude({
                     model: analysisModel, system,
                     messages: [{ role: 'user', content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt }],
-                    max_tokens: 1500,
-                  }).catch(_ => callClaude({ model: analysisModel, system, messages: [{ role: 'user', content: prompt }], max_tokens: 1500 }));
+                    max_tokens: 3000,
+                  }).catch(_ => callClaude({ model: analysisModel, system, messages: [{ role: 'user', content: prompt }], max_tokens: 3000 }));
                   setRequestSummary(result);
                 } catch (e) {
                   setRequestSummaryError(e.message);
