@@ -2536,11 +2536,11 @@ Use real standard SAP transaction codes and configuration objects for ${caseData
 
 This option formalizes EXACTLY what the customer proposed, without any AI alternatives or suggestions. Do NOT add any SAP standard alternatives or custom dev recommendations — this is a direct formalization of the customer's own technical proposal.
 
-CRITICAL CONSTRAINTS:
-- Do NOT propose reports, audit tables, or output lists unless the customer EXPLICITLY requested them.
-- Do NOT invent functionality not described in the customer proposal.
-- The screen prototype must reflect the ACTUAL screen/transaction the customer described (e.g. a header field change shows the header screen with that field, NOT a report).
-- If the proposal is about adding/modifying a field in an existing transaction, the prototype shows that transaction screen — not a selection screen feeding a report.
+CRITICAL CONSTRAINTS — STRICT AS-IS RULE:
+- Include ONLY what the customer explicitly described. If the customer did not ask for it, do NOT include it — no exceptions.
+- Do NOT add objects, screens, transactions, reports, tables, enhancements, user-exits, workflows, notifications, logs, audit trails, or any other element that is not directly stated in the customer's proposal.
+- Do NOT suggest improvements, alternatives, or best practices — this document records what was asked, not what could be better.
+- The screen prototype must show ONLY the screen/interaction the customer described. If they described a field change on a header screen, show that screen. If they described a configuration step, show that. Never default to a report or selection screen unless a report was explicitly requested.
 
 Case: ${caseData.title}
 Description: ${caseData.description ?? '(none)'}
