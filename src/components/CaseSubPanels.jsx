@@ -962,6 +962,10 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   // Compiled context preview (Node 6)
   const [compiledCtxPreview, setCompiledCtxPreview] = useState(null);
   const [compiledCtxLoading, setCompiledCtxLoading] = useState(false);
+  const [requestSummary, setRequestSummary]         = useState(null);
+  const [requestSummaryLoading, setRequestSummaryLoading] = useState(false);
+  const [requestSummaryError, setRequestSummaryError]     = useState(null);
+  const [ctxCollapsed, setCtxCollapsed]             = useState(true);
 
   // Share-with-customer link state
   const [shareToken, setShareToken]         = useState(null); // loaded spec_review_tokens row
@@ -4713,6 +4717,50 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 }
               }
 
+              async function handleAnalyzeRequest() {
+                setRequestSummaryLoading(true);
+                setRequestSummaryError(null);
+                try {
+                  const docBlocks = await buildDocumentBlocks();
+                  const langName = lang === 'es' ? 'Spanish' : lang === 'fr' ? 'French' : lang === 'pt' ? 'Portuguese' : lang === 'de' ? 'German' : 'English';
+                  const prompt = `You are an SAP functional consultant analyzing a customer development request.
+
+Case: ${caseData.title}
+SAP Module: ${caseData.area_sap ?? ''}
+Industry: ${caseData.area_industry ?? ''}
+
+Customer Notes / Description:
+${customerContent || '(see attached documents)'}
+
+Based on the information above and any attached documents, provide a structured analysis in ${langName}.
+
+## Customer Request Summary
+List 3–6 bullet points summarizing exactly what the customer is asking to be built or configured. Be specific — use module names, transaction codes, field names, and business process terms from the source material.
+
+## Key Considerations
+List each important technical or business consideration that the development team must be aware of, including:
+- Existing custom solutions, tools, or systems already in place (e.g. custom Z-programs, third-party add-ons, previous enhancements)
+- Integration points with other SAP modules or external systems
+- Important constraints (volume, users, performance, timeline)
+- Out-of-scope items explicitly mentioned
+- Special requirements (language, currency, company codes, organizational units)
+
+Keep each bullet point to 1–2 lines. Use actual names and terminology from the documents.`;
+
+                  const system = 'You are an SAP functional consultant. Produce a clear, structured analysis in markdown. No code blocks. No preamble.';
+                  const result = await callClaude({
+                    model: analysisModel, system,
+                    messages: [{ role: 'user', content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt }],
+                    max_tokens: 1400,
+                  }).catch(_ => callClaude({ model: analysisModel, system, messages: [{ role: 'user', content: prompt }], max_tokens: 1400 }));
+                  setRequestSummary(result);
+                } catch (e) {
+                  setRequestSummaryError(e.message);
+                } finally {
+                  setRequestSummaryLoading(false);
+                }
+              }
+
               return (
                 <div className="space-y-3">
                   {/* Header */}
@@ -4734,12 +4782,6 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     </div>
                   </div>
 
-                  {/* Case description / customer notes */}
-                  <div className="bg-white border border-gray-200 rounded-xl p-4">
-                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Case Description / Customer Notes</h4>
-                    <pre className="text-xs text-gray-700 whitespace-pre-wrap font-sans leading-relaxed max-h-48 overflow-y-auto">{customerContent || '(no description)'}</pre>
-                  </div>
-
                   {/* Source documents */}
                   {sourceDocs.length > 0 && (
                     <div className="bg-white border border-gray-200 rounded-xl p-4">
@@ -4757,31 +4799,70 @@ Respond with ONLY a valid JSON object, no markdown fences:
                     </div>
                   )}
 
-                  {/* Dynamic extra context */}
+                  {/* AI Request Summary */}
                   <div className="bg-white border border-gray-200 rounded-xl p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Extra Context</h4>
-                      {!compiledCtxPreview && !compiledCtxLoading && (
-                        <button onClick={handleBuildCtx}
-                          className="px-3 py-1 text-xs font-semibold bg-violet-600 text-white rounded-lg hover:bg-violet-700">
-                          Fetch Context
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Request Summary</h4>
+                      {!requestSummaryLoading && (
+                        <button onClick={handleAnalyzeRequest}
+                          className="px-3 py-1 text-xs font-semibold bg-violet-600 text-white rounded-lg hover:bg-violet-700 flex items-center gap-1">
+                          <Sparkles className="w-3 h-3" />
+                          {requestSummary ? 'Re-analyze' : 'Analyze'}
                         </button>
                       )}
-                      {compiledCtxLoading && (
-                        <div className="flex items-center gap-1 text-xs text-violet-500"><Spinner /><span>Building…</span></div>
-                      )}
-                      {compiledCtxPreview && !compiledCtxLoading && (
-                        <button onClick={handleBuildCtx}
-                          className="px-2 py-0.5 text-[10px] font-semibold text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50">
-                          Refresh
-                        </button>
+                      {requestSummaryLoading && (
+                        <div className="flex items-center gap-1 text-xs text-violet-500"><Spinner /><span>Analyzing…</span></div>
                       )}
                     </div>
-                    {!compiledCtxPreview && !compiledCtxLoading && (
-                      <p className="text-xs text-gray-400 italic">Project metadata, SAP system info, related cases, and other dynamic context — click Fetch to load.</p>
+                    {!requestSummary && !requestSummaryLoading && !requestSummaryError && (
+                      <p className="text-xs text-gray-400 italic">
+                        Click <span className="font-semibold text-violet-600">Analyze</span> to extract a summary of what the customer is requesting and key considerations (reads attached documents).
+                      </p>
                     )}
-                    {compiledCtxPreview && (
-                      <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono leading-relaxed max-h-64 overflow-y-auto bg-gray-50 rounded-lg p-3 border border-gray-100">{compiledCtxPreview}</pre>
+                    {requestSummaryError && (
+                      <p className="text-xs text-red-500">{requestSummaryError}</p>
+                    )}
+                    {requestSummary && !requestSummaryLoading && (
+                      <div className="overflow-y-auto max-h-[420px]">
+                        <MarkdownAccordion text={requestSummary} />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Compiled context — collapsible */}
+                  <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                    <button
+                      onClick={() => setCtxCollapsed(v => !v)}
+                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Extra Context (project / SAP / related cases)</h4>
+                      <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${ctxCollapsed ? '' : 'rotate-180'}`} />
+                    </button>
+                    {!ctxCollapsed && (
+                      <div className="px-4 pb-4 space-y-2 border-t border-gray-100">
+                        <div className="flex justify-end pt-2">
+                          {!compiledCtxPreview && !compiledCtxLoading && (
+                            <button onClick={handleBuildCtx}
+                              className="px-3 py-1 text-xs font-semibold bg-gray-700 text-white rounded-lg hover:bg-gray-800">
+                              Fetch Context
+                            </button>
+                          )}
+                          {compiledCtxLoading && (
+                            <div className="flex items-center gap-1 text-xs text-gray-500"><Spinner /><span>Building…</span></div>
+                          )}
+                          {compiledCtxPreview && !compiledCtxLoading && (
+                            <button onClick={handleBuildCtx}
+                              className="px-2 py-0.5 text-[10px] font-semibold text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50">
+                              Refresh
+                            </button>
+                          )}
+                        </div>
+                        {!compiledCtxPreview && !compiledCtxLoading && (
+                          <p className="text-xs text-gray-400 italic">Project metadata, SAP system info, related cases, and other dynamic context — click Fetch to load.</p>
+                        )}
+                        {compiledCtxPreview && (
+                          <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono leading-relaxed max-h-64 overflow-y-auto bg-gray-50 rounded-lg p-3 border border-gray-100">{compiledCtxPreview}</pre>
+                        )}
+                      </div>
                     )}
                   </div>
 
