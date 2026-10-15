@@ -1257,7 +1257,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
     };
     const metaHtml = (metaItems ?? []).map(m => `<div class="meta-item"><span class="lbl">${esc(m.label)}</span><span class="val">${esc(m.value)}</span></div>`).join('');
     return `<!DOCTYPE html>
-<html lang="es">
+<html lang="${lang || 'es'}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -1796,27 +1796,26 @@ ${mdToHtml(markdownContent)}
       if (typeof v === 'string') return v.trimStart().startsWith('{') ? '' : v;
       return '';
     };
-    const lines = ['## Analysis Summary\n'];
+    const lines = [`## ${t('spec.doc_analysis_summary')}\n`];
     if (safeSap) {
-      const coverageLabel = safeSap.coverage === 'full' ? 'Full — standard SAP covers the requirement' : safeSap.coverage === 'partial' ? 'Partial — gaps require additional work' : 'None — custom development required';
-      lines.push('### SAP Standard Coverage Check');
-      lines.push(`**Coverage:** ${coverageLabel}`);
+      const coverageLabel = safeSap.coverage === 'full' ? t('spec.doc_coverage_full') : safeSap.coverage === 'partial' ? t('spec.doc_coverage_partial') : t('spec.doc_coverage_none');
+      lines.push(`### ${t('spec.doc_sap_coverage_check')}`);
+      lines.push(`**${t('spec.coverage_lbl').replace(/\s*—\s*$/, '')}:** ${coverageLabel}`);
       const sumStr = safeStr(safeSap.summary);
-      if (sumStr) lines.push(`**Summary:** ${sumStr}`);
-      if ((safeSap.standard_transactions ?? []).length > 0) lines.push(`**Standard Transactions:** ${safeSap.standard_transactions.join(', ')}`);
-      if ((safeSap.gaps ?? []).length > 0) lines.push('**Gaps identified:**\n' + safeSap.gaps.map(g => `- ${g}`).join('\n'));
+      if (sumStr) lines.push(`**${t('spec.doc_summary_lbl')}:** ${sumStr}`);
+      if ((safeSap.standard_transactions ?? []).length > 0) lines.push(`**${t('spec.doc_std_transactions')}:** ${safeSap.standard_transactions.join(', ')}`);
+      if ((safeSap.gaps ?? []).length > 0) lines.push(`**${t('spec.doc_gaps_identified')}:**\n` + safeSap.gaps.map(g => `- ${g}`).join('\n'));
       const recStr = safeStr(safeSap.recommendation);
-      if (recStr) lines.push(`**Recommendation:** ${recStr}`);
+      if (recStr) lines.push(`**${t('spec.doc_recommendation_lbl')}:** ${recStr}`);
       lines.push('');
     }
     if (safeProposal) {
-      const riskMap = { low: 'Low', medium: 'Medium', high: 'High' };
-      lines.push('### Proposal Validation');
-      lines.push(`**Result:** ${safeProposal.valid ? 'Valid' : 'Has concerns'}  |  **Risk:** ${riskMap[safeProposal.risk_level] ?? safeProposal.risk_level}  |  **Score:** ${safeProposal.score}/10`);
-      if ((safeProposal.strengths ?? []).length > 0) lines.push('**Strengths:**\n' + safeProposal.strengths.map(s => `- ${s}`).join('\n'));
-      if ((safeProposal.concerns ?? []).length > 0) lines.push('**Concerns:**\n' + safeProposal.concerns.map(c => `- ${c}`).join('\n'));
+      lines.push(`### ${t('spec.doc_proposal_validation')}`);
+      lines.push(`**${t('spec.doc_result_lbl')}:** ${safeProposal.valid ? t('spec.doc_valid') : t('spec.doc_has_concerns')}  |  **${t('spec.risk_lbl').replace(/:$/, '')}:** ${safeProposal.risk_level}  |  **${t('spec.score_lbl').replace(/:$/, '')}:** ${safeProposal.score}/10`);
+      if ((safeProposal.strengths ?? []).length > 0) lines.push(`**${t('spec.strengths').replace(/:$/, '')}:**\n` + safeProposal.strengths.map(s => `- ${s}`).join('\n'));
+      if ((safeProposal.concerns ?? []).length > 0) lines.push(`**${t('spec.concerns').replace(/:$/, '')}:**\n` + safeProposal.concerns.map(c => `- ${c}`).join('\n'));
       const propRec = safeStr(safeProposal.recommendation);
-      if (propRec) lines.push(`**Recommendation:** ${propRec}`);
+      if (propRec) lines.push(`**${t('spec.doc_recommendation_lbl')}:** ${propRec}`);
       lines.push('');
     }
     lines.push('---\n');

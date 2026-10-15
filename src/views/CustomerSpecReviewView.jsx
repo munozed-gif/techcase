@@ -1,14 +1,88 @@
 import { useState, useEffect, useRef } from "react";
-import { AlertCircle, CheckCircle2, Clock, MessageSquare, ChevronLeft, ChevronRight, Loader2, ThumbsUp, FileText, Code2, Users, LayoutTemplate, Cpu, ArrowRight, User, Briefcase, Tag, Calendar, FolderOpen } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, MessageSquare, ChevronLeft, ChevronRight, Loader2, ThumbsUp, FileText, Code2, Users, LayoutTemplate, Cpu, ArrowRight, User, Briefcase, Tag, Calendar, FolderOpen, Globe } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
 
-const SPEC_TABS = [
-  { key: 'a',     label: 'Spec A',    desc: 'Custom ABAP',        detail: 'Custom ABAP development approach — RICEFW objects, technical design, and implementation plan.',          Icon: Code2,          color: '#6366F1' },
-  { key: 'b',     label: 'Spec B',    desc: 'Standard SAP',       detail: 'Standard SAP configuration path — recommended transactions, Customizing settings, and best practices.', Icon: Cpu,            color: '#0EA5E9' },
-  { key: 'c',     label: 'Spec C',    desc: 'Customer Proposal',  detail: 'Customer-facing proposal with executive summary, scope, effort estimates, and investment breakdown.',     Icon: Users,          color: '#10B981' },
-  { key: 'd',     label: 'Spec D',    desc: 'Client Spec',        detail: 'Client-ready specification with use cases, acceptance criteria, and delivery timeline.',                 Icon: FileText,       color: '#F59E0B' },
-  { key: 'proto', label: 'Prototype', desc: 'Interactive',        detail: 'Interactive HTML prototype simulating the proposed SAP screen or Fiori app for stakeholder review.',    Icon: LayoutTemplate, color: '#EC4899' },
-];
+const REVIEW_LANGS = {
+  en: {
+    specReview:         'Spec Review',
+    funcSpecReview:     'Functional Specification Review',
+    docsGenerated:      'Documents Generated',
+    reviewAll:          n => `Review all ${n} spec${n !== 1 ? 's' : ''} before submitting your decision.`,
+    approveSpecs:       'Approve Specs',
+    requestChanges:     'Request Changes',
+    addFeedback:        'Add feedback…',
+    submitChanges:      'Submit Changes',
+    feedbackPh:         'Describe the changes needed…',
+    sending:            'Sending…',
+    approvedTitle:      'Specs Approved',
+    approvedMsg:        'Thank you for your review. The team has been notified of your approval and will proceed with implementation.',
+    feedbackTitle:      'Feedback Received',
+    feedbackMsg:        'Your change request has been sent to the team. They will review your feedback and reach out shortly.',
+    linkNotFound:       'Link not found',
+    linkExpired:        'Review link not found or has expired.',
+    linkContact:        'If you believe this is a mistake, please contact the team that sent you this link.',
+    failedLoad:         'Failed to load document.',
+    failedReview:       'Failed to load review.',
+    overview:           'Overview',
+    daysLeft:           d => `${d}d left`,
+    lblProject:         'Project',
+    lblModule:          'SAP Module',
+    lblIndustry:        'Industry',
+    lblPriority:        'Priority',
+    lblDueDate:         'Due Date',
+    lblPreparedBy:      'Prepared by',
+    tabDescA:           'Custom ABAP development approach — RICEFW objects, technical design, and implementation plan.',
+    tabDescB:           'Standard SAP configuration path — recommended transactions, Customizing settings, and best practices.',
+    tabDescC:           'Customer-facing proposal with executive summary, scope, effort estimates, and investment breakdown.',
+    tabDescD:           'Client-ready specification with use cases, acceptance criteria, and delivery timeline.',
+    tabDescProto:       'Interactive HTML prototype simulating the proposed SAP screen or Fiori app for stakeholder review.',
+  },
+  es: {
+    specReview:         'Revisión de Especificación',
+    funcSpecReview:     'Revisión de Especificación Funcional',
+    docsGenerated:      'Documentos Generados',
+    reviewAll:          n => `Revisa los ${n} documento${n !== 1 ? 's' : ''} antes de enviar tu decisión.`,
+    approveSpecs:       'Aprobar Especificaciones',
+    requestChanges:     'Solicitar Cambios',
+    addFeedback:        'Agregar comentarios…',
+    submitChanges:      'Enviar Cambios',
+    feedbackPh:         'Describe los cambios necesarios…',
+    sending:            'Enviando…',
+    approvedTitle:      'Especificaciones Aprobadas',
+    approvedMsg:        'Gracias por tu revisión. El equipo ha sido notificado de tu aprobación y procederá con la implementación.',
+    feedbackTitle:      'Comentarios Recibidos',
+    feedbackMsg:        'Tu solicitud de cambios fue enviada al equipo. Revisarán tus comentarios y se pondrán en contacto pronto.',
+    linkNotFound:       'Enlace no encontrado',
+    linkExpired:        'El enlace de revisión no fue encontrado o ha expirado.',
+    linkContact:        'Si crees que esto es un error, contacta al equipo que te envió este enlace.',
+    failedLoad:         'No se pudo cargar el documento.',
+    failedReview:       'No se pudo cargar la revisión.',
+    overview:           'Resumen',
+    daysLeft:           d => `${d}d restantes`,
+    lblProject:         'Proyecto',
+    lblModule:          'Módulo SAP',
+    lblIndustry:        'Industria',
+    lblPriority:        'Prioridad',
+    lblDueDate:         'Fecha límite',
+    lblPreparedBy:      'Preparado por',
+    tabDescA:           'Enfoque de desarrollo ABAP personalizado — objetos RICEFW, diseño técnico y plan de implementación.',
+    tabDescB:           'Ruta de configuración SAP estándar — transacciones recomendadas, parametrización Customizing y mejores prácticas.',
+    tabDescC:           'Propuesta orientada al cliente con resumen ejecutivo, alcance, estimaciones de esfuerzo y desglose de inversión.',
+    tabDescD:           'Especificación lista para el cliente con casos de uso, criterios de aceptación y cronograma de entrega.',
+    tabDescProto:       'Prototipo HTML interactivo que simula la pantalla SAP o app Fiori propuesta para revisión de stakeholders.',
+  },
+};
+
+const SUPPORTED_REVIEW_LANGS = ['en', 'es'];
+
+function getInitialReviewLang() {
+  try {
+    const saved = localStorage.getItem('tc_lang');
+    if (saved && REVIEW_LANGS[saved]) return saved;
+  } catch {}
+  const nav = (navigator.language || 'en').split('-')[0];
+  return REVIEW_LANGS[nav] ? nav : 'en';
+}
 
 export default function CustomerSpecReviewView({ token }) {
   const [tokenData, setTokenData]     = useState(null);
@@ -24,7 +98,24 @@ export default function CustomerSpecReviewView({ token }) {
   const [showFeedback, setShowFeedback] = useState(false);
   const [docContents, setDocContents] = useState({});
   const [docLoading, setDocLoading]   = useState({});
+  const [reviewLang, setReviewLang]   = useState(getInitialReviewLang);
   const tabBarRef = useRef(null);
+
+  const L = REVIEW_LANGS[reviewLang] ?? REVIEW_LANGS.en;
+
+  function toggleLang() {
+    const next = SUPPORTED_REVIEW_LANGS[(SUPPORTED_REVIEW_LANGS.indexOf(reviewLang) + 1) % SUPPORTED_REVIEW_LANGS.length];
+    setReviewLang(next);
+    try { localStorage.setItem('tc_lang', next); } catch {}
+  }
+
+  const SPEC_TABS_L = [
+    { key: 'a',     label: 'Spec A',    desc: 'Custom ABAP',      detail: L.tabDescA,     Icon: Code2,          color: '#6366F1' },
+    { key: 'b',     label: 'Spec B',    desc: 'Standard SAP',     detail: L.tabDescB,     Icon: Cpu,            color: '#0EA5E9' },
+    { key: 'c',     label: 'Spec C',    desc: L.lblProject ? 'Customer' : 'Customer', detail: L.tabDescC, Icon: Users, color: '#10B981' },
+    { key: 'd',     label: 'Spec D',    desc: 'Client Spec',      detail: L.tabDescD,     Icon: FileText,       color: '#F59E0B' },
+    { key: 'proto', label: 'Prototype', desc: 'Interactive',      detail: L.tabDescProto, Icon: LayoutTemplate, color: '#EC4899' },
+  ];
 
   useEffect(() => {
     async function load() {
@@ -41,7 +132,7 @@ export default function CustomerSpecReviewView({ token }) {
         }
 
         if (tokenRes.error || !tokenRes.data) {
-          setError('Review link not found or has expired.');
+          setError(REVIEW_LANGS[getInitialReviewLang()]?.linkExpired ?? 'Review link not found or has expired.');
           setLoading(false);
           return;
         }
@@ -81,7 +172,7 @@ export default function CustomerSpecReviewView({ token }) {
           setDocuments(docs ?? []);
         }
       } catch (e) {
-        setError(e.message || 'Failed to load review.');
+        setError(e.message || (REVIEW_LANGS[getInitialReviewLang()]?.failedReview ?? 'Failed to load review.'));
       } finally {
         setLoading(false);
       }
@@ -158,9 +249,9 @@ export default function CustomerSpecReviewView({ token }) {
           <div className="w-14 h-14 rounded-2xl bg-red-900/40 border border-red-700/40 flex items-center justify-center mx-auto mb-4">
             <AlertCircle size={24} className="text-red-400" />
           </div>
-          <h2 className="text-white text-lg font-bold mb-2">Link not found</h2>
+          <h2 className="text-white text-lg font-bold mb-2">{L.linkNotFound}</h2>
           <p className="text-gray-400 text-sm leading-relaxed">{error}</p>
-          <p className="text-gray-500 text-xs mt-3">If you believe this is a mistake, please contact the team that sent you this link.</p>
+          <p className="text-gray-500 text-xs mt-3">{L.linkContact}</p>
         </div>
       </div>
     );
@@ -173,8 +264,8 @@ export default function CustomerSpecReviewView({ token }) {
           <div className="w-16 h-16 rounded-2xl bg-green-900/40 border border-green-700/40 flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 size={28} className="text-green-400" />
           </div>
-          <h2 className="text-white text-xl font-bold mb-2">Specs Approved</h2>
-          <p className="text-gray-400 text-sm leading-relaxed">Thank you for your review. The team has been notified of your approval and will proceed with implementation.</p>
+          <h2 className="text-white text-xl font-bold mb-2">{L.approvedTitle}</h2>
+          <p className="text-gray-400 text-sm leading-relaxed">{L.approvedMsg}</p>
           {tokenData.approved_at && (
             <p className="text-gray-500 text-xs mt-4 flex items-center justify-center gap-1.5">
               <Clock size={11} />{new Date(tokenData.approved_at).toLocaleDateString(undefined, { year:'numeric', month:'long', day:'numeric' })}
@@ -192,8 +283,8 @@ export default function CustomerSpecReviewView({ token }) {
           <div className="w-16 h-16 rounded-2xl bg-amber-900/40 border border-amber-700/40 flex items-center justify-center mx-auto mb-4">
             <MessageSquare size={28} className="text-amber-400" />
           </div>
-          <h2 className="text-white text-xl font-bold mb-2">Feedback Received</h2>
-          <p className="text-gray-400 text-sm leading-relaxed">Your change request has been sent to the team. They will review your feedback and reach out shortly.</p>
+          <h2 className="text-white text-xl font-bold mb-2">{L.feedbackTitle}</h2>
+          <p className="text-gray-400 text-sm leading-relaxed">{L.feedbackMsg}</p>
           {tokenData.feedback && (
             <div className="mt-4 p-3 rounded-xl text-left" style={{ background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)' }}>
               <p className="text-gray-300 text-xs leading-relaxed">{tokenData.feedback}</p>
@@ -204,7 +295,7 @@ export default function CustomerSpecReviewView({ token }) {
     );
   }
 
-  const availableTabs = SPEC_TABS.filter(tab => tokenData?.doc_ids?.[tab.key]);
+  const availableTabs = SPEC_TABS_L.filter(tab => tokenData?.doc_ids?.[tab.key]);
   const activeDocId = tokenData?.doc_ids?.[activeTab];
   const activeDocContent = activeDocId ? docContents[activeDocId] : undefined;
   const activeDocIsLoading = activeDocId ? docLoading[activeDocId] : false;
@@ -226,14 +317,22 @@ export default function CustomerSpecReviewView({ token }) {
         </div>
       </div>
       <div className="text-right min-w-0 flex-1">
-        <p className="text-gray-400 text-xs">Spec Review</p>
+        <p className="text-gray-400 text-xs">{L.specReview}</p>
         <p className="text-white text-sm font-semibold truncate">{tokenData?.case_title || 'Case Review'}</p>
       </div>
-      {daysLeft !== null && daysLeft <= 7 && (
-        <div className="flex-shrink-0 text-xs text-amber-400 flex items-center gap-1">
-          <Clock size={11} />{daysLeft}d left
-        </div>
-      )}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {daysLeft !== null && daysLeft <= 7 && (
+          <div className="text-xs text-amber-400 flex items-center gap-1">
+            <Clock size={11} />{L.daysLeft(daysLeft)}
+          </div>
+        )}
+        <button onClick={toggleLang} title="Change language"
+          className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-semibold text-gray-400 hover:text-white transition-colors"
+          style={{ background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.12)' }}>
+          <Globe size={11} />
+          {reviewLang.toUpperCase()}
+        </button>
+      </div>
     </header>
   );
 
@@ -244,11 +343,11 @@ export default function CustomerSpecReviewView({ token }) {
         <textarea value={feedback} onChange={e => setFeedback(e.target.value)}
           className="w-full mb-3 p-3 rounded-xl text-sm text-white resize-none focus:outline-none"
           style={{ background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.15)' }}
-          rows={2} placeholder="Describe the changes needed…" autoFocus />
+          rows={2} placeholder={L.feedbackPh} autoFocus />
       )}
       <div className="flex items-center gap-3 justify-between">
         <p className="text-gray-500 text-xs hidden sm:block">
-          Review all {availableTabs.length} spec{availableTabs.length !== 1 ? 's' : ''} before submitting your decision.
+          {L.reviewAll(availableTabs.length)}
         </p>
         <div className="flex items-center gap-2 ml-auto">
           <button
@@ -257,13 +356,13 @@ export default function CustomerSpecReviewView({ token }) {
             className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl text-white disabled:opacity-50 transition-colors"
             style={{ background: showFeedback ? 'rgba(245,158,11,.25)' : 'rgba(255,255,255,.08)', border: '1px solid rgba(245,158,11,.35)' }}>
             <MessageSquare size={13} />
-            {submitting && showFeedback && feedback.trim() ? 'Sending…' : showFeedback ? (feedback.trim() ? 'Submit Changes' : 'Add feedback…') : 'Request Changes'}
+            {submitting && showFeedback && feedback.trim() ? L.sending : showFeedback ? (feedback.trim() ? L.submitChanges : L.addFeedback) : L.requestChanges}
           </button>
           <button onClick={handleApprove} disabled={submitting}
             className="flex items-center gap-2 px-5 py-2 text-xs font-semibold rounded-xl text-white disabled:opacity-50 transition-colors"
             style={{ background: '#16A34A', border: '1px solid rgba(22,163,74,.5)' }}>
             {submitting && !showFeedback ? <Loader2 size={13} className="animate-spin" /> : <ThumbsUp size={13} />}
-            Approve Specs
+            {L.approveSpecs}
           </button>
         </div>
       </div>
@@ -273,12 +372,12 @@ export default function CustomerSpecReviewView({ token }) {
   // ── Overview landing screen ──────────────────────────────────
   if (!activeTab) {
     const meta = [
-      caseDetails?.projects?.name && { icon: FolderOpen, label: 'Project',    value: caseDetails.projects.name },
-      caseDetails?.area_sap       && { icon: Cpu,        label: 'SAP Module', value: caseDetails.area_sap },
-      caseDetails?.area_industry  && { icon: Briefcase,  label: 'Industry',   value: caseDetails.area_industry },
-      caseDetails?.priority       && { icon: Tag,        label: 'Priority',   value: caseDetails.priority.toUpperCase() },
-      caseDetails?.due_date       && { icon: Calendar,   label: 'Due Date',   value: new Date(caseDetails.due_date + 'T00:00:00').toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) },
-      creatorName                 && { icon: User,       label: 'Prepared by', value: creatorName },
+      caseDetails?.projects?.name && { icon: FolderOpen, label: L.lblProject,    value: caseDetails.projects.name },
+      caseDetails?.area_sap       && { icon: Cpu,        label: L.lblModule,     value: caseDetails.area_sap },
+      caseDetails?.area_industry  && { icon: Briefcase,  label: L.lblIndustry,   value: caseDetails.area_industry },
+      caseDetails?.priority       && { icon: Tag,        label: L.lblPriority,   value: caseDetails.priority.toUpperCase() },
+      caseDetails?.due_date       && { icon: Calendar,   label: L.lblDueDate,    value: new Date(caseDetails.due_date + 'T00:00:00').toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) },
+      creatorName                 && { icon: User,       label: L.lblPreparedBy, value: creatorName },
     ].filter(Boolean);
 
     return (
@@ -290,7 +389,7 @@ export default function CustomerSpecReviewView({ token }) {
 
             {/* Case title + description */}
             <div>
-              <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: 'rgba(99,102,241,.8)' }}>Functional Specification Review</p>
+              <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: 'rgba(99,102,241,.8)' }}>{L.funcSpecReview}</p>
               <h1 className="text-2xl font-bold text-white leading-tight mb-3">{tokenData?.case_title || 'Case Review'}</h1>
               {caseDetails?.description && (
                 <p className="text-sm leading-relaxed" style={{ color: 'rgba(209,213,219,.75)' }}>{caseDetails.description}</p>
@@ -319,7 +418,7 @@ export default function CustomerSpecReviewView({ token }) {
             {/* Generated documents */}
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'rgba(156,163,175,.6)' }}>
-                Documents Generated · {availableTabs.length}
+                {L.docsGenerated} · {availableTabs.length}
               </p>
               <div className="space-y-2">
                 {availableTabs.map(tab => (
@@ -363,7 +462,7 @@ export default function CustomerSpecReviewView({ token }) {
         className="flex items-center">
         <button onClick={() => setActiveTab(null)} className="flex-shrink-0 px-3 py-3 text-gray-500 hover:text-white transition-colors text-xs flex items-center gap-1.5 border-r"
           style={{ borderColor: 'rgba(255,255,255,.08)' }}>
-          <ChevronLeft size={14} />Overview
+          <ChevronLeft size={14} />{L.overview}
         </button>
         <button onClick={() => scrollTabs(-1)} className="flex-shrink-0 p-2 text-gray-500 hover:text-white transition-colors">
           <ChevronLeft size={16} />
@@ -397,7 +496,7 @@ export default function CustomerSpecReviewView({ token }) {
         {activeTab && activeDocContent === null && !activeDocIsLoading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 gap-2">
             <AlertCircle size={20} />
-            <p className="text-sm">Failed to load document.</p>
+            <p className="text-sm">{L.failedLoad}</p>
           </div>
         )}
         {activeTab && activeDocContent && (
