@@ -4721,8 +4721,13 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 setRequestSummaryLoading(true);
                 setRequestSummaryError(null);
                 try {
-                  const docBlocks = await buildDocumentBlocks();
+                  // Use buildAllDocBlocks to include case + project docs (not just case docs)
+                  // This ensures project documents like VSS_Order.pdf are also analysed
+                  const docBlocks = await buildAllDocBlocks();
                   const langName = lang === 'es' ? 'Spanish' : lang === 'fr' ? 'French' : lang === 'pt' ? 'Portuguese' : lang === 'de' ? 'German' : 'English';
+                  const docNote = docBlocks.length > 0
+                    ? `IMPORTANT: All ${docBlocks.length} document(s) listed are already provided above as content blocks. Any email, message, or document that mentions "attached files", "see attached", or "adjunto" is referring to the other documents already included in this analysis. Do not say that documents are missing or not received — they are all here.`
+                    : 'No documents attached.';
                   const prompt = `You are an SAP functional consultant analyzing a customer development request.
 
 Case: ${caseData.title}
@@ -4732,27 +4737,29 @@ Industry: ${caseData.area_industry ?? ''}
 Customer Notes / Description:
 ${customerContent || '(see attached documents)'}
 
-Based on the information above and any attached documents, provide a structured analysis in ${langName}.
+${docNote}
+
+Based on ALL the information above and the document content provided, produce a structured analysis in ${langName}.
 
 ## Customer Request Summary
-List 3–6 bullet points summarizing exactly what the customer is asking to be built or configured. Be specific — use module names, transaction codes, field names, and business process terms from the source material.
+List 3–6 bullet points summarizing exactly what the customer is asking to be built or configured. Be specific — use module names, transaction codes, field names, business process names, and actual terminology from the source material.
 
 ## Key Considerations
-List each important technical or business consideration that the development team must be aware of, including:
-- Existing custom solutions, tools, or systems already in place (e.g. custom Z-programs, third-party add-ons, previous enhancements)
+List each important technical or business consideration the development team must be aware of, including:
+- Existing custom solutions, tools, or systems already in place (e.g. VSS, custom Z-programs, third-party add-ons, previous enhancements — always name them explicitly)
 - Integration points with other SAP modules or external systems
 - Important constraints (volume, users, performance, timeline)
 - Out-of-scope items explicitly mentioned
 - Special requirements (language, currency, company codes, organizational units)
 
-Keep each bullet point to 1–2 lines. Use actual names and terminology from the documents.`;
+Keep each bullet point to 1–2 lines. Base every point on actual content from the provided documents, not assumptions.`;
 
-                  const system = 'You are an SAP functional consultant. Produce a clear, structured analysis in markdown. No code blocks. No preamble.';
+                  const system = 'You are an SAP functional consultant. Produce a clear, structured analysis in markdown. No code blocks. No preamble. Never say documents are missing — treat all provided blocks as the complete input.';
                   const result = await callClaude({
                     model: analysisModel, system,
                     messages: [{ role: 'user', content: docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt }],
-                    max_tokens: 1400,
-                  }).catch(_ => callClaude({ model: analysisModel, system, messages: [{ role: 'user', content: prompt }], max_tokens: 1400 }));
+                    max_tokens: 1500,
+                  }).catch(_ => callClaude({ model: analysisModel, system, messages: [{ role: 'user', content: prompt }], max_tokens: 1500 }));
                   setRequestSummary(result);
                 } catch (e) {
                   setRequestSummaryError(e.message);
