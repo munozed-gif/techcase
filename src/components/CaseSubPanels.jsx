@@ -1788,24 +1788,35 @@ ${mdToHtml(markdownContent)}
 
   function buildValidationMarkdown(sap, proposal) {
     if (!sap && !proposal) return '';
+    // Guard: if somehow a stringified JSON was stored, parse it back
+    const safeSap      = typeof sap      === 'string' ? (() => { try { return JSON.parse(sap);      } catch { return null; } })() : sap;
+    const safeProposal = typeof proposal === 'string' ? (() => { try { return JSON.parse(proposal); } catch { return null; } })() : proposal;
+    const safeStr = v => {
+      if (!v) return '';
+      if (typeof v === 'string') return v.trimStart().startsWith('{') ? '' : v;
+      return '';
+    };
     const lines = ['## Analysis Summary\n'];
-    if (sap) {
-      const coverageLabel = sap.coverage === 'full' ? 'Full — standard SAP covers the requirement' : sap.coverage === 'partial' ? 'Partial — gaps require additional work' : 'None — custom development required';
+    if (safeSap) {
+      const coverageLabel = safeSap.coverage === 'full' ? 'Full — standard SAP covers the requirement' : safeSap.coverage === 'partial' ? 'Partial — gaps require additional work' : 'None — custom development required';
       lines.push('### SAP Standard Coverage Check');
       lines.push(`**Coverage:** ${coverageLabel}`);
-      if (sap.summary) lines.push(`**Summary:** ${sap.summary}`);
-      if ((sap.standard_transactions ?? []).length > 0) lines.push(`**Standard Transactions:** ${sap.standard_transactions.join(', ')}`);
-      if ((sap.gaps ?? []).length > 0) lines.push('**Gaps identified:**\n' + sap.gaps.map(g => `- ${g}`).join('\n'));
-      if (sap.recommendation) lines.push(`**Recommendation:** ${sap.recommendation}`);
+      const sumStr = safeStr(safeSap.summary);
+      if (sumStr) lines.push(`**Summary:** ${sumStr}`);
+      if ((safeSap.standard_transactions ?? []).length > 0) lines.push(`**Standard Transactions:** ${safeSap.standard_transactions.join(', ')}`);
+      if ((safeSap.gaps ?? []).length > 0) lines.push('**Gaps identified:**\n' + safeSap.gaps.map(g => `- ${g}`).join('\n'));
+      const recStr = safeStr(safeSap.recommendation);
+      if (recStr) lines.push(`**Recommendation:** ${recStr}`);
       lines.push('');
     }
-    if (proposal) {
+    if (safeProposal) {
       const riskMap = { low: 'Low', medium: 'Medium', high: 'High' };
       lines.push('### Proposal Validation');
-      lines.push(`**Result:** ${proposal.valid ? 'Valid' : 'Has concerns'}  |  **Risk:** ${riskMap[proposal.risk_level] ?? proposal.risk_level}  |  **Score:** ${proposal.score}/10`);
-      if ((proposal.strengths ?? []).length > 0) lines.push('**Strengths:**\n' + proposal.strengths.map(s => `- ${s}`).join('\n'));
-      if ((proposal.concerns ?? []).length > 0) lines.push('**Concerns:**\n' + proposal.concerns.map(c => `- ${c}`).join('\n'));
-      if (proposal.recommendation) lines.push(`**Recommendation:** ${proposal.recommendation}`);
+      lines.push(`**Result:** ${safeProposal.valid ? 'Valid' : 'Has concerns'}  |  **Risk:** ${riskMap[safeProposal.risk_level] ?? safeProposal.risk_level}  |  **Score:** ${safeProposal.score}/10`);
+      if ((safeProposal.strengths ?? []).length > 0) lines.push('**Strengths:**\n' + safeProposal.strengths.map(s => `- ${s}`).join('\n'));
+      if ((safeProposal.concerns ?? []).length > 0) lines.push('**Concerns:**\n' + safeProposal.concerns.map(c => `- ${c}`).join('\n'));
+      const propRec = safeStr(safeProposal.recommendation);
+      if (propRec) lines.push(`**Recommendation:** ${propRec}`);
       lines.push('');
     }
     lines.push('---\n');
@@ -2609,7 +2620,9 @@ CRITICAL CONSTRAINTS — STRICT AS-IS RULE:
 - Include ONLY what the customer explicitly described. If the customer did not ask for it, do NOT include it — no exceptions.
 - Do NOT add objects, screens, transactions, reports, tables, enhancements, user-exits, workflows, notifications, logs, audit trails, or any other element that is not directly stated in the customer's proposal.
 - Do NOT suggest improvements, alternatives, or best practices — this document records what was asked, not what could be better.
-- The screen prototype must show ONLY the screen/interaction the customer described. If they described a field change on a header screen, show that screen. If they described a configuration step, show that. Never default to a report or selection screen unless a report was explicitly requested.
+- INTEGRATION POINT ≠ NEW DEVELOPMENT OBJECT: If the customer mentions that a value or field will be "visible in an existing report", "available in standard reports", or "accessible via existing transaction" — that is only an integration note. Do NOT create a new report program or new report transaction for it. Only create a report object if the customer explicitly asked for a brand-new report to be built.
+- AUDIT TABLES: Never add an audit table, change log table, or history table unless the customer explicitly requested one by name or stated they need an audit trail.
+- PRIMARY SCREEN PROTOTYPE: First prototype the end-user-facing screen where the user interacts with the new field or functionality (the order entry screen, the billing document screen, the sales order header screen). Admin/maintenance screens (SM30 view maintenance, IMG configuration) are secondary and should only appear as additional prototypes AFTER the main end-user screen. Never skip the end-user screen to show only admin or maintenance screens.
 
 Case: ${caseData.title}
 Description: ${caseData.description ?? '(none)'}
