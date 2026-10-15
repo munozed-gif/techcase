@@ -344,11 +344,18 @@ function ResumeImporter({ onExtracted }) {
     setLoading(false);
   }
 
-  function handleConfirm() {
+  async function handleConfirm() {
     if (!pending) return;
-    onExtracted(pending);
-    setPending(null);
-    setDone(true);
+    setLoading(true);
+    try {
+      await onExtracted(pending);
+      setPending(null);
+      setDone(true);
+    } catch (e) {
+      console.error("handleConfirm error:", e);
+      setError("Failed to apply to profile. Please try again.");
+    }
+    setLoading(false);
   }
 
   function handleDiscard() {

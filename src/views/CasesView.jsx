@@ -121,7 +121,8 @@ function CasesView({ auth, initialCaseId }) {
   const visibleCases = auth.isConsultant
     ? cases.filter(c =>
         c.case_assignments?.some(a => a.consultant_id === auth.user?.id) ||
-        c.created_by === auth.user?.id
+        c.created_by === auth.user?.id ||
+        c.manager_id === auth.user?.id
       )
     : auth.isKeyUser
     ? cases.filter(c => c.case_key_users?.some(ku => ku.user_id === auth.user?.id))
