@@ -96,10 +96,10 @@ function ScoreCell({ pts, max, detail, bold = false }) {
       <div className={`text-[11px] ${bold ? "font-black" : "font-bold"}`} style={{ color: clr }}>
         {pts}<span className="text-[9px] font-normal" style={{ color: "#d1d5db" }}>/{max}</span>
       </div>
-      <div className="h-1 bg-gray-100 rounded-full overflow-hidden mt-0.5 mx-auto" style={{ width: 36 }}>
+      <div className="h-1 rounded-full overflow-hidden mt-0.5 mx-auto" style={{ width: 36, background:'var(--t-progress-track)' }}>
         <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: clr }} />
       </div>
-      <div className="text-[8px] text-gray-400 truncate mt-0.5 mx-auto" style={{ maxWidth: 48 }}>{detail}</div>
+      <div className="text-[8px] truncate mt-0.5 mx-auto" style={{ maxWidth: 48, color:'var(--t-text2)' }}>{detail}</div>
     </td>
   );
 }
@@ -125,9 +125,9 @@ function TeamMemberTable({ members, teamBreakdown, totalScore, liveAvailability,
           {members.map((m, mi) => {
             const avail = liveAvailability?.[m.memberId];
             return (
-              <tr key={m.memberId} className="border-t border-gray-100">
+              <tr key={m.memberId} style={{borderTop:'1px solid var(--t-border)'}}>
                 <td className="py-2 pr-3 align-top">
-                  <div className="font-semibold text-gray-900 text-xs truncate" style={{ maxWidth: 110 }}>{m.memberName}</div>
+                  <div className="font-semibold text-xs truncate" style={{ maxWidth: 110, color:'var(--t-text)' }}>{m.memberName}</div>
                   {m.assignedRoleLabels.length > 0 && (
                     <div className="text-[9px] text-indigo-600 font-medium mt-0.5 truncate" style={{ maxWidth: 110 }}>
                       {m.assignedRoleLabels.join(" · ")}
@@ -151,9 +151,9 @@ function TeamMemberTable({ members, teamBreakdown, totalScore, liveAvailability,
           })}
         </tbody>
         <tfoot>
-          <tr className="border-t-2 border-blue-200 bg-blue-50/40">
+          <tr style={{borderTop:'2px solid var(--t-rank-top-border,#BFDBFE)',background:'var(--t-rank-top-list-bg,rgba(219,234,254,0.4))'}}>
             <td className="py-2 pr-3 align-top">
-              <div className="font-bold text-blue-800 text-xs">Team Total</div>
+              <div className="font-bold text-xs" style={{color:'var(--t-text-accent)'}}>Team Total</div>
               <div className="text-[9px] text-gray-400">{members.length} members</div>
             </td>
             {MEMBER_CRITERIA.map(k => {
@@ -304,7 +304,7 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                 <span className="text-[10px] text-gray-400">{fmtTime(lastRecalculated)}</span>
               )}
               <button onClick={recalculate} disabled={recalculating}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 hover:border-gray-300 disabled:opacity-50 transition-colors shadow-sm">
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl disabled:opacity-50 transition-colors shadow-sm" style={{background:'var(--t-card-bg)',border:'1px solid var(--t-border)',color:'var(--t-text2)'}}>
                 <RotateCcw className={`w-3 h-3 ${recalculating ? "animate-spin" : ""}`} />
                 {recalculating ? t("rank.recalculating") : t("rank.recalculate")}
               </button>
@@ -324,11 +324,11 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
               )}
             </div>
           </div>
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-5">
+          <div className="ranking-top-card rounded-2xl p-5" style={{background:'var(--t-rank-top-bg,linear-gradient(135deg,#EFF6FF,#EEF2FF))',border:'2px solid var(--t-rank-top-border,#BFDBFE)'}}>
             <div className="flex items-center gap-4 mb-4">
               <PersonAvatar name={best.consultant?.full_name} avatarUrl={best.consultant?.avatar_url} size={48} />
               <div className="flex-1 min-w-0">
-                <div className="font-bold text-gray-900">{best.consultant?.full_name}</div>
+                <div className="font-bold" style={{color:'var(--t-text)'}}>{best.consultant?.full_name}</div>
                 {best.teamScoring ? (
                   <div className="text-xs text-indigo-600 font-semibold flex items-center gap-1 mt-0.5">
                     <Users size={10} /> Team application · {best.assignedIds?.length ?? 0} members
@@ -379,7 +379,7 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                     <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{t(c.labelKey)}</span>
                     <span className="text-xs font-bold text-blue-700">{c.pts}/{c.max}</span>
                   </div>
-                  <div className="h-1 bg-gray-100 rounded-full mb-1">
+                  <div className="h-1 rounded-full mb-1" style={{background:'var(--t-progress-track)'}}>
                     <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: pct >= 80 ? "#22c55e" : pct >= 50 ? "#3b82f6" : pct >= 25 ? "#f59e0b" : "#ef4444" }} />
                   </div>
                   <div className="text-[10px] text-gray-400">{c.detailKey ? t(c.detailKey) : c.detail}</div>
@@ -411,7 +411,7 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                           <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide truncate">{t(c.labelKey)}</span>
                           <span className="text-xs font-bold text-blue-700 ml-1 flex-shrink-0">{c.pts}/{c.max}</span>
                         </div>
-                        <div className="h-1 bg-gray-100 rounded-full mb-1">
+                        <div className="h-1 rounded-full mb-1" style={{background:'var(--t-progress-track)'}}>
                           <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: pct >= 80 ? "#22c55e" : pct >= 50 ? "#3b82f6" : pct >= 25 ? "#f59e0b" : "#ef4444" }} />
                         </div>
                         <div className="text-[10px] text-gray-400 truncate">{c.detailKey ? t(c.detailKey) : c.detail}</div>
@@ -442,17 +442,16 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
             const medal = i === 0 ? <Trophy size={14} className="text-yellow-500" /> : i === 1 ? <span className="text-[11px] font-bold text-slate-400">2</span> : i === 2 ? <span className="text-[11px] font-bold text-amber-600">3</span> : `#${i + 1}`;
             const conflict = hasLive && app.overcommitted;
             return (
-              <div key={app.id} className={`border rounded-xl p-4 ${
-                conflict ? "border-red-200 bg-red-50/30"
-                : i === 0 ? "border-blue-200 bg-blue-50/30"
-                : "border-gray-100 bg-white"
-              }`}>
+              <div key={app.id} className="border rounded-xl p-4" style={{
+                background: conflict ? 'var(--t-rank-conflict-bg,rgba(254,202,202,0.3))' : i === 0 ? 'var(--t-rank-top-list-bg,rgba(219,234,254,0.3))' : 'var(--t-card-bg)',
+                borderColor: conflict ? 'var(--t-rank-conflict-border,#FECACA)' : i === 0 ? 'var(--t-rank-top-list-border,#BFDBFE)' : 'var(--t-border)',
+              }}>
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center font-bold text-xs flex-shrink-0">{medal}</div>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0" style={{background:'var(--t-progress-track)',color:'var(--t-text2)'}}>{medal}</div>
                   <PersonAvatar name={app.consultant?.full_name} avatarUrl={app.consultant?.avatar_url} size={36} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-sm text-gray-900">{app.consultant?.full_name}</span>
+                      <span className="font-semibold text-sm" style={{color:'var(--t-text)'}}>{app.consultant?.full_name}</span>
                       {app.application_type === "team" && app.team && (
                         <span className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded-full">
                           <Users size={9} /> {app.team.name}
@@ -494,7 +493,7 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                     )}
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <div className="font-black text-gray-900 text-lg">{app.totalScore}<span className="text-xs font-normal text-gray-400">/100</span></div>
+                    <div className="font-black text-lg" style={{color:'var(--t-text)'}}>{app.totalScore}<span className="text-xs font-normal text-gray-400">/100</span></div>
                     <Badge className={APP_STATUS_COLORS[app.status]}>{STATUS_LABEL_KEYS[app.status] ? t(STATUS_LABEL_KEYS[app.status]) : cap(app.status)}</Badge>
                   </div>
                 </div>
@@ -502,11 +501,11 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                 {hasLive && (
                   <div className="flex items-center gap-2 mb-3 text-xs">
                     <span className="text-gray-400 flex-shrink-0">{t("rank.avail_now")}</span>
-                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{background:'var(--t-progress-track)'}}>
                       <div className="h-full rounded-full transition-all"
                         style={{ width: `${app.liveAvailability}%`, backgroundColor: app.liveAvailability === 0 ? "#ef4444" : app.liveAvailability < (app.time_commitment ?? 0) ? "#f59e0b" : "#22c55e" }} />
                     </div>
-                    <span className={`font-semibold flex-shrink-0 ${conflict ? "text-red-600" : "text-gray-700"}`}>{app.liveAvailability}%</span>
+                    <span className={`font-semibold flex-shrink-0 ${conflict ? "text-red-500" : ""}`} style={!conflict?{color:'var(--t-text)'}:{}}>{app.liveAvailability}%</span>
                     <span className="text-gray-400 flex-shrink-0">· committed {app.time_commitment ?? 0}%</span>
                   </div>
                 )}
@@ -519,7 +518,7 @@ function ApplicantRankingSection({ caseData, auth, applications, reviewApplicati
                     const cdetail = c.detailKey ? t(c.detailKey) : c.detail;
                     return (
                       <div key={key} className="flex-1" title={`${clabel}: ${c.pts}/${c.max} — ${cdetail}`}>
-                        <div className="h-8 bg-gray-100 rounded relative overflow-hidden">
+                        <div className="h-8 rounded relative overflow-hidden" style={{background:'var(--t-progress-track)'}}>
                           <div className="absolute bottom-0 w-full rounded transition-all"
                             style={{ height: `${pct}%`, backgroundColor: pct >= 80 ? "#22c55e" : pct >= 50 ? "#3b82f6" : pct >= 25 ? "#f59e0b" : "#ef4444" }} />
                         </div>

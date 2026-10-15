@@ -63,6 +63,13 @@
 }
 
 .arena-dark {
+  /* Ranking component tokens */
+  --t-rank-top-bg:          linear-gradient(135deg,rgba(37,99,235,0.18),rgba(99,102,241,0.15));
+  --t-rank-top-border:      rgba(100,160,220,0.35);
+  --t-rank-top-list-bg:     rgba(37,99,235,0.1);
+  --t-rank-top-list-border: rgba(37,99,235,0.3);
+  --t-rank-conflict-bg:     rgba(239,68,68,0.1);
+  --t-rank-conflict-border: rgba(239,68,68,0.35);
   /* Inline-style backgrounds */
   --t-card-bg:            #0C1522;
   --t-tab-active:         rgba(37,99,235,0.1);
