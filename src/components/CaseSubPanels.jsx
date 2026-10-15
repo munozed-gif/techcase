@@ -4699,12 +4699,6 @@ Respond with ONLY a valid JSON object, no markdown fences:
 
               const customerContent = analysisCustomerContent || caseData.description || '';
 
-              const sourceDocs = [
-                ...inputDocs.map(d => ({ name: d.file_name, size: `${d.file_size_kb} KB`, source: 'Case Document' })),
-                ...(projDocsForDisplay ?? []).map(d => ({ name: d.name ?? d.file_name, source: 'Project Document' })),
-                ...(abapDocsForDisplay ?? []).map(d => ({ name: d.name, source: 'ABAP Standards' })),
-              ];
-
               async function handleBuildCtx() {
                 setCompiledCtxLoading(true);
                 try {
@@ -4788,23 +4782,6 @@ Keep each bullet point to 1–2 lines. Base every point on actual content from t
                       ))}
                     </div>
                   </div>
-
-                  {/* Source documents */}
-                  {sourceDocs.length > 0 && (
-                    <div className="bg-white border border-gray-200 rounded-xl p-4">
-                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Source Documents ({sourceDocs.length})</h4>
-                      <div className="space-y-1">
-                        {sourceDocs.map((d, i) => (
-                          <div key={i} className="flex items-center gap-2 text-xs">
-                            <Paperclip className="w-3 h-3 text-gray-300 flex-shrink-0" />
-                            <span className="text-gray-700 font-medium flex-1 truncate">{d.name}</span>
-                            <span className="text-[10px] text-gray-400 flex-shrink-0">{d.source}</span>
-                            {d.size && <span className="text-[10px] text-gray-400 flex-shrink-0">{d.size}</span>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
 
                   {/* AI Request Summary */}
                   <div className="bg-white border border-gray-200 rounded-xl p-4">
