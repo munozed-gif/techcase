@@ -1143,7 +1143,8 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   }
 
   function buildCaseDocHtml(docTitle, eyebrow, metaItems, markdownContent) {
-    const date = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+    const docLocale = lang === 'es' ? 'es-MX' : lang === 'fr' ? 'fr-FR' : lang === 'pt' ? 'pt-BR' : lang === 'de' ? 'de-DE' : lang === 'it' ? 'it-IT' : lang === 'nl' ? 'nl-NL' : lang === 'pl' ? 'pl-PL' : 'en-US';
+    const date = new Date().toLocaleDateString(docLocale, { year: 'numeric', month: 'long', day: 'numeric' });
     const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const mdToHtml = md => {
       if (!md) return '';
@@ -1301,7 +1302,7 @@ tr:last-child td{border-bottom:none}
 </style>
 </head>
 <body>
-<button class="print-btn" onclick="window.print()">⬇ Guardar como PDF</button>
+<button class="print-btn" onclick="window.print()">${t('spec.save_pdf_btn')}</button>
 <header class="doc-header">
   <div class="eyebrow">${esc(eyebrow)}</div>
   <h1>${esc(docTitle)}<br><em>${esc(caseData.title)}</em></h1>
@@ -1320,7 +1321,8 @@ ${mdToHtml(markdownContent)}
   }
 
   function buildSpecHtml(markdown) {
-    const date = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+    const docLocale2 = lang === 'es' ? 'es-MX' : lang === 'fr' ? 'fr-FR' : lang === 'pt' ? 'pt-BR' : lang === 'de' ? 'de-DE' : 'en-US';
+    const date = new Date().toLocaleDateString(docLocale2, { year: 'numeric', month: 'long', day: 'numeric' });
     return buildCaseDocHtml(
       t("spec.html_title"),
       'SAP Consulting · ' + t("spec.html_title"),
@@ -1405,7 +1407,8 @@ ${mdToHtml(markdownContent)}
     const W = 210, L = 12, R = 198;
     const sapBlue = [26, 75, 140];
     const sapLightBlue = [232, 240, 251];
-    const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const _pdfLocale = lang === 'es' ? 'es-MX' : lang === 'fr' ? 'fr-FR' : lang === 'pt' ? 'pt-BR' : lang === 'de' ? 'de-DE' : 'en-US';
+    const date = new Date().toLocaleDateString(_pdfLocale, { year: 'numeric', month: 'long', day: 'numeric' });
 
     // ── HEADER ──────────────────────────────────────────────────
     doc.setFillColor(...sapBlue);
@@ -1413,7 +1416,7 @@ ${mdToHtml(markdownContent)}
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7.5);
-    doc.text('SAP  /  Functional Specification  /  ' + (caseData.area_sap ?? 'Module'), L, 11);
+    doc.text(t('spec.doc_pdf_breadcrumb') + (caseData.area_sap ?? 'Module'), L, 11);
     doc.setFontSize(16);
     const titleText = (caseData.title ?? 'Case Title');
     doc.text(titleText.length > 65 ? titleText.substring(0, 63) + '...' : titleText, L, 23);
@@ -1750,10 +1753,10 @@ ${mdToHtml(markdownContent)}
     doc.setTextColor(255,255,255);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);
-    doc.text('APPROVAL SIGNATURES', L + 3, y + 5);
+    doc.text(t('spec.doc_approval_signatures').toUpperCase(), L + 3, y + 5);
     y += 9;
     const sigCols = [L, L + 62, L + 124];
-    const sigLabels = ['Functional Analyst', 'ABAP Developer', 'Client / Manager'];
+    const sigLabels = [t('spec.label_sig_analyst'), t('spec.label_sig_dev'), t('spec.label_sig_client')];
     sigLabels.forEach((lbl, i) => {
       const bx = sigCols[i], bw = 56;
       doc.setFillColor(...sapLightBlue);
@@ -1769,7 +1772,7 @@ ${mdToHtml(markdownContent)}
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(150, 170, 200);
       doc.setFontSize(6.5);
-      doc.text('Name / Signature / Date', bx + 3, y + 20);
+      doc.text(t('spec.doc_name_sig_date'), bx + 3, y + 20);
     });
 
     // ── PAGE NUMBERS ─────────────────────────────────────────────
@@ -1779,8 +1782,8 @@ ${mdToHtml(markdownContent)}
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7);
       doc.setTextColor(160, 170, 190);
-      doc.text('TechCase  ·  SAP Functional Specification  ·  ' + (caseData.title ?? '').substring(0, 50), L, 290);
-      doc.text('Page ' + i + ' of ' + pageCount, R, 290, { align: 'right' });
+      doc.text('TechCase  ·  ' + t('spec.html_title') + '  ·  ' + (caseData.title ?? '').substring(0, 50), L, 290);
+      doc.text(t('spec.doc_page') + ' ' + i + ' ' + t('spec.doc_of') + ' ' + pageCount, R, 290, { align: 'right' });
     }
 
     return doc.output('blob');
@@ -1825,7 +1828,8 @@ ${mdToHtml(markdownContent)}
   async function saveSpecAsDocument(markdown, filePrefix, docNote) {
     setSavingDoc(true);
     try {
-      const date = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+      const _dL = lang === 'es' ? 'es-MX' : lang === 'fr' ? 'fr-FR' : lang === 'pt' ? 'pt-BR' : lang === 'de' ? 'de-DE' : 'en-US';
+      const date = new Date().toLocaleDateString(_dL, { year: 'numeric', month: 'long', day: 'numeric' });
       const htmlString = buildCaseDocHtml(
         t("spec.html_title"),
         'SAP Consulting · ' + t("spec.html_title"),
@@ -1860,7 +1864,8 @@ ${mdToHtml(markdownContent)}
     if (!content) return;
     setDownloadingPdf(true);
     try {
-      const date = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+      const _dL2 = lang === 'es' ? 'es-MX' : lang === 'fr' ? 'fr-FR' : lang === 'pt' ? 'pt-BR' : lang === 'de' ? 'de-DE' : 'en-US';
+      const date = new Date().toLocaleDateString(_dL2, { year: 'numeric', month: 'long', day: 'numeric' });
       const htmlString = buildCaseDocHtml(
         t("spec.html_title"),
         'SAP Consulting · ' + t("spec.html_title"),
@@ -1902,7 +1907,8 @@ ${mdToHtml(markdownContent)}
 
       const safeName = (caseData.title ?? 'Spec').replace(/[^a-z0-9]/gi, '_');
       const dateStr  = new Date().toISOString().slice(0, 10);
-      const dateLong = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+      const _dL4 = lang === 'es' ? 'es-MX' : lang === 'fr' ? 'fr-FR' : lang === 'pt' ? 'pt-BR' : lang === 'de' ? 'de-DE' : 'en-US';
+      const dateLong = new Date().toLocaleDateString(_dL4, { year: 'numeric', month: 'long', day: 'numeric' });
       const valSection = buildValidationMarkdown(sap, proposal);
       const baseMeta = [
         { label: t("spec.label_case_id"),  value: '#' + ((caseData.id ?? '').slice(0, 8) || '—') },
@@ -3146,7 +3152,8 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       try {
         const safeName = (caseData.title ?? 'Case').replace(/[^a-z0-9]/gi, '_');
         const dateStr = new Date().toISOString().slice(0, 10);
-        const dateLong = new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+        const _dL3 = lang === 'es' ? 'es-MX' : lang === 'fr' ? 'fr-FR' : lang === 'pt' ? 'pt-BR' : lang === 'de' ? 'de-DE' : 'en-US';
+        const dateLong = new Date().toLocaleDateString(_dL3, { year: 'numeric', month: 'long', day: 'numeric' });
         const baseMeta = [
           { label: t("spec.label_case_id"), value: '#' + ((caseData.id ?? '').slice(0, 8) || '—') },
           { label: t("label.sap_area"),     value: caseData.area_sap ?? '—' },
