@@ -138,11 +138,12 @@ function filterCasesByVisibility(cases, auth, visCfg) {
     const vis = visCfg.getCaseVisibility(c.id, c.client_id);
     if (vis === 'public') return true;
     // Private or internal company — show only if the user is involved
-    const isAssigned = c.case_assignments?.some(a => a.consultant_id === userId);
-    const isKeyUser  = c.case_key_users?.some(ku => ku.user_id === userId);
-    const isInvited  = visCfg.getCaseInvitations(c.id).some(i => i.consultantId === userId);
-    const isCreator  = c.created_by === userId;
-    return isAssigned || isKeyUser || isInvited || isCreator;
+    const isAssigned  = c.case_assignments?.some(a => a.consultant_id === userId);
+    const isKeyUser   = c.case_key_users?.some(ku => ku.user_id === userId);
+    const isInvited   = visCfg.getCaseInvitations(c.id).some(i => i.consultantId === userId);
+    const isCreator   = c.created_by === userId;
+    const isManager   = c.manager_id === userId;
+    return isAssigned || isKeyUser || isInvited || isCreator || isManager;
   });
 }
 
