@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { AlertCircle, CheckCircle2, Clock, MessageSquare, ChevronLeft, ChevronRight, Loader2, ThumbsUp, FileText, Code2, Users, LayoutTemplate, Cpu, ArrowRight, User, Briefcase, Tag, Calendar, FolderOpen, Globe } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
+import { NovaLandingMark } from "./LandingView.jsx";
 
 const REVIEW_LANGS = {
   en: {
@@ -313,14 +314,18 @@ export default function CustomerSpecReviewView({ token }) {
   const HEADER = (
     <header style={{ borderBottom: '1px solid rgba(79,110,247,.2)', background: 'rgba(11,15,26,.97)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 20 }}
       className="px-4 py-3 flex items-center justify-between gap-4">
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center font-bold text-sm text-white"
-          style={{ background: 'linear-gradient(135deg,#4F6EF7,#7C3AED)' }}>
-          {branding.name.charAt(0).toUpperCase()}
-        </div>
-        <div className="min-w-0">
-          <p className="text-white font-semibold text-sm leading-none">{branding.name}</p>
-          <p className="text-gray-500 text-xs mt-0.5">{branding.tagline}</p>
+      <div className="flex items-center gap-2.5 min-w-0">
+        <NovaLandingMark size={32} />
+        <div className="min-w-0 leading-none">
+          {(() => {
+            const parts = branding.name.split(' ');
+            return parts.length > 1
+              ? <span className="font-bold text-sm" style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", letterSpacing:'-.03em' }}>
+                  <span style={{ color:'#4F6EF7' }}>{parts[0]}</span>{' '}
+                  <span style={{ color:'rgba(255,255,255,.85)' }}>{parts.slice(1).join(' ')}</span>
+                </span>
+              : <span className="font-bold text-sm" style={{ color:'#4F6EF7', fontFamily:"'Plus Jakarta Sans',sans-serif", letterSpacing:'-.03em' }}>{branding.name}</span>;
+          })()}
         </div>
       </div>
       <div className="text-right min-w-0 flex-1">
