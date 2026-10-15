@@ -126,11 +126,6 @@ export default function CustomerSpecReviewView({ token }) {
           supabase.from('spec_review_tokens').select('*').eq('token', token).single(),
         ]);
 
-        if (brandRes.data) {
-          const map = Object.fromEntries(brandRes.data.map(r => [r.key, r.value]));
-          setBranding({ name: map.platform_name || 'TechCase', tagline: map.platform_tagline || 'SAP Solutions' });
-        }
-
         if (tokenRes.error || !tokenRes.data) {
           setError(REVIEW_LANGS[getInitialReviewLang()]?.linkExpired ?? 'Review link not found or has expired.');
           setLoading(false);
@@ -139,6 +134,15 @@ export default function CustomerSpecReviewView({ token }) {
 
         const tkn = tokenRes.data;
         setTokenData(tkn);
+
+        // Use branding embedded in token first (RLS blocks anon reads of system_settings)
+        const tokenPlatform = tkn.doc_ids?._platform;
+        if (tokenPlatform?.name) {
+          setBranding({ name: tokenPlatform.name, tagline: tokenPlatform.tagline || 'SAP Solutions' });
+        } else if (brandRes.data?.length) {
+          const map = Object.fromEntries(brandRes.data.map(r => [r.key, r.value]));
+          setBranding({ name: map.platform_name || 'TechCase', tagline: map.platform_tagline || 'SAP Solutions' });
+        }
 
         // Fetch case details (accessible via anon policy for tokens)
         if (tkn.case_id) {
@@ -163,7 +167,10 @@ export default function CustomerSpecReviewView({ token }) {
         }
 
         const docIds = tkn.doc_ids ?? {};
-        const allDocIds = Object.values(docIds).filter(Boolean);
+        const allDocIds = Object.entries(docIds)
+          .filter(([k]) => k !== '_platform')
+          .map(([, v]) => v)
+          .filter(v => v && typeof v === 'string');
         if (allDocIds.length > 0) {
           const { data: docs } = await supabase
             .from('case_documents')

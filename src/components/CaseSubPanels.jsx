@@ -3585,9 +3585,13 @@ Respond with ONLY a valid JSON object, no markdown fences:
     try {
       let createdBy = null;
       try { const { data: { user } } = await supabase.auth.getUser(); createdBy = user?.id ?? null; } catch (_) {}
+      const platformMeta = {
+        name:    ssCtx.settings['platform_name']    || 'TechCase',
+        tagline: ssCtx.settings['platform_tagline'] || 'SAP Solutions',
+      };
       const { data, error } = await supabase
         .from('spec_review_tokens')
-        .insert({ case_id: caseData.id, doc_ids: docIds, case_title: caseData.title ?? '', created_by: createdBy })
+        .insert({ case_id: caseData.id, doc_ids: { ...docIds, _platform: platformMeta }, case_title: caseData.title ?? '', created_by: createdBy })
         .select().single();
       if (error) throw error;
       setShareToken(data);
