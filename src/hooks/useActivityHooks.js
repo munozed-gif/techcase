@@ -23,8 +23,8 @@ function useActivityFeed(visibleCaseIds, userId) {
         : { data: [] },
       ids.length > 0
         ? supabase.from('case_assignments')
-            .select('id, case_id, created_at, time_commitment, consultant_id')
-            .in('case_id', ids).order('created_at', { ascending: false }).limit(30)
+            .select('case_id, time_commitment, consultant_id')
+            .in('case_id', ids).limit(30)
         : { data: [] },
       supabase.from('notifications')
         .select('*').eq('user_id', userId)
@@ -36,8 +36,8 @@ function useActivityFeed(visibleCaseIds, userId) {
         actor_name: c.author?.full_name ?? t("feed.actor_someone"), _key: `comment-${c.id}`, is_unread: false,
       })),
       ...(assignRes.data ?? []).map(a => ({
-        ...a, _type: 'assignment',
-        actor_name: t("feed.actor_consultant"), _key: `assign-${a.id}`, is_unread: false,
+        ...a, _type: 'assignment', created_at: new Date(0).toISOString(),
+        actor_name: t("feed.actor_consultant"), _key: `assign-${a.case_id}-${a.consultant_id}`, is_unread: false,
       })),
       ...(notifRes.data ?? []).map(n => ({
         ...n,
@@ -95,14 +95,13 @@ function useGlobalActivity(visibleCaseIds) {
           .order('created_at', { ascending: false })
           .limit(40),
         supabase.from('case_assignments')
-          .select('id, case_id, created_at, time_commitment, consultant_id')
+          .select('case_id, time_commitment, consultant_id')
           .in('case_id', ids)
-          .order('created_at', { ascending: false })
           .limit(20),
       ]);
       const items = [
         ...(comments ?? []).map(c => ({ ...c, _type: c.progress_update !== null ? 'progress' : 'comment' })),
-        ...(assignments ?? []).map(a => ({ ...a, _type: 'assignment' })),
+        ...(assignments ?? []).map(a => ({ ...a, _type: 'assignment', created_at: new Date(0).toISOString() })),
       ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 40);
       setActivities(items);
       setLoading(false);
