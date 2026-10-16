@@ -194,7 +194,7 @@ export default function CustomerSpecReviewView({ token }) {
     const docId = tokenData.doc_ids?.[activeTab];
     if (!docId || docContents[docId] !== undefined) return;
     const doc = documents.find(d => d.id === docId);
-    if (!doc?.file_url) return;
+    if (!doc?.file_url) { setDocContents(prev => ({ ...prev, [docId]: null })); return; }
     setDocLoading(prev => ({ ...prev, [docId]: true }));
     fetch(doc.file_url)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); })
