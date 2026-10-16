@@ -4430,11 +4430,6 @@ Respond with ONLY a valid JSON object, no markdown fences:
                             </div>
                           </div>
                         )}
-                        {!sapConnTest.capabilities?.length && !sapConnTest.components?.length && (
-                          <div className="px-3 py-2">
-                            <p className="text-xs text-gray-500">No ADT capabilities or software components returned by this SAP system.</p>
-                          </div>
-                        )}
                       </div>
                     )}
                     {/* Action row */}
