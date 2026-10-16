@@ -3174,7 +3174,7 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
         try {
           const protoStyle = genProfile.prototype_style ?? 'auto';
           const protoSys = 'You are an expert UI prototype generator. Output only valid HTML. No markdown, no explanation.';
-          const protoMsgs = [{ role: 'user', content: buildPrototypePrompt(specA || firstSuccess, specB || firstSuccess, protoStyle) }];
+          const protoMsgs = [{ role: 'user', content: buildPrototypePrompt(specC || firstSuccess, specC || firstSuccess, protoStyle) }];
           let protoHtml = await callClaude({ model: protoModel, system: protoSys, messages: protoMsgs, max_tokens: 8000 })
             .catch(e => {
               if (e.message?.includes('did not match the expected pattern')) {
