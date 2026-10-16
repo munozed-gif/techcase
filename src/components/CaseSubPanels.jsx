@@ -892,11 +892,27 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
   const ssCtx = useSystemSettings();
   const genModel       = ssCtx.settings["ai_model"]        ?? 'claude-haiku-5-5';
   const analysisModel  = ssCtx.settings["analysis_model"]  ?? 'claude-haiku-5-5';
+  const sapMcpServerUrl = (ssCtx.settings["sap_mcp_server_url"] ?? '').trim();
   const _protoRaw  = ssCtx.settings["prototype_model"];
   const _SAFE      = 'claude-haiku-5-5';
   const _ALIASES   = { 'claude-haiku-4-5': _SAFE, 'claude-haiku-4-5-20251001': _SAFE, 'claude-haiku-5-5': _SAFE, 'claude-sonnet-4-5': _SAFE, 'claude-sonnet-4-6': _SAFE, 'claude-sonnet-5': _SAFE, 'claude-sonnet-5-5': _SAFE, 'claude-opus-5-5': _SAFE, 'claude-fable-5-1': _SAFE };
   const protoModel = (_protoRaw ? (_ALIASES[_protoRaw] ?? _protoRaw) : null) ?? genModel;
   const liveCheckEnabled = (ssCtx.settings["generation_context"] ?? {}).sap_live_check === true;
+
+  // Build MCP servers config for spec generation when SAP MCP server is configured and connection is verified
+  function buildMcpConfig() {
+    if (!sapMcpServerUrl || !sapConnCfg || !sapConnTest?.ok) return [];
+    try {
+      const token = btoa(JSON.stringify({
+        host:     sapConnCfg.host,
+        username: sapConnCfg.username,
+        password: sapConnCfg.password,
+        client:   sapConnCfg.client ?? '100',
+        ...(sapConnCfg._vpnProxyUrl ? { proxyUrl: sapConnCfg._vpnProxyUrl } : {}),
+      }));
+      return [{ type: 'url', url: `${sapMcpServerUrl}/mcp`, name: 'techcase-sap', authorization_token: token }];
+    } catch { return []; }
+  }
   const { spec, loading: specLoading, saveSpec, refetch } = useCaseSpecification(caseData.id, auth.user?.id);
 
   // Mode selection
@@ -3078,15 +3094,17 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       const sysLiveNote = hasLiveSap
         ? ' Use the live SAP system data (release, software components, capabilities) provided in context to write accurate technical details.'
         : '';
+      const mcpServers = buildMcpConfig();
+      const mcpNote = mcpServers.length ? ' You have live SAP access via tools — use sap_read_source to read existing ABAP objects before referencing or modifying them.' : '';
       const callSpec = async (rawPrompt, extraBlocks = []) => {
         const prompt = sanitizeForJson(rawPrompt);
-        const sys = `You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.${sysLiveNote}`;
+        const sys = `You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.${sysLiveNote}${mcpNote}`;
         const allBlocks = [...abap.blocks, ...extraBlocks, ...docBlocks];
         try {
           const content = allBlocks.length > 0 ? [...allBlocks, { type: 'text', text: prompt }] : prompt;
-          return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 8000 });
+          return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 8000, mcp_servers: mcpServers });
         } catch (_) {
-          return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 8000 });
+          return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 8000, mcp_servers: mcpServers });
         }
       };
       const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
@@ -3223,14 +3241,16 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
       const docBlocks = await buildDocumentBlocks();
       const pdfNames = (documents ?? []).filter(d => (d.file_name ?? '').toLowerCase().endsWith('.pdf') || (d.file_type ?? '').includes('pdf')).map(d => d.file_name);
       const pdfNote = pdfNames.length > 0 ? `\n\n[Reference PDFs attached: ${pdfNames.join(', ')}]` : '';
-      const sys = 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.';
+      const mcpServersD = buildMcpConfig();
+      const mcpNoteD = mcpServersD.length ? ' You have live SAP access via tools — use sap_read_source to read existing ABAP objects before referencing or modifying them.' : '';
+      const sys = `You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.${mcpNoteD}`;
       const callSpec = async (rawPrompt) => {
         const prompt = sanitizeForJson(rawPrompt);
         try {
           const content = docBlocks.length > 0 ? [...docBlocks, { type: 'text', text: prompt }] : prompt;
-          return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 8000 });
+          return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 8000, mcp_servers: mcpServersD });
         } catch (_) {
-          return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 8000 });
+          return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 8000, mcp_servers: mcpServersD });
         }
       };
       const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
@@ -3308,15 +3328,17 @@ OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No
     const pdfNote = pdfNames.length > 0 ? `\n\n[Reference PDFs attached: ${pdfNames.join(', ')}]` : '';
     const needsAbap = profile?.spec_a?.technical_objects || profile?.spec_c?.technical_objects;
     const abap = needsAbap ? await buildAbapStandardsForSpec() : { blocks: [], contextText: '' };
+    const mcpServersR = buildMcpConfig();
+    const mcpNoteR = mcpServersR.length ? ' You have live SAP access via tools — use sap_read_source to read existing ABAP objects before referencing or modifying them.' : '';
     const callSpec = async (rawPrompt, extraBlocks = []) => {
       const prompt = sanitizeForJson(rawPrompt);
-      const sys = 'You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.';
+      const sys = `You are an SAP functional consultant. Write a professional structured functional specification in markdown exactly following the section template.${mcpNoteR}`;
       const allBlocks = [...abap.blocks, ...extraBlocks, ...docBlocks];
       try {
         const content = allBlocks.length > 0 ? [...allBlocks, { type: 'text', text: prompt }] : prompt;
-        return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 8000 });
+        return await callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content }], max_tokens: 8000, mcp_servers: mcpServersR });
       } catch (_) {
-        return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 8000 });
+        return callClaude({ model: genModel, system: sys, messages: [{ role: 'user', content: prompt + pdfNote }], max_tokens: 8000, mcp_servers: mcpServersR });
       }
     };
     const customerContent = sanitizeForJson(analysisCustomerContent || caseData.description || '');
