@@ -1,0 +1,18 @@
+# openfortivpn configuration — /etc/openfortivpn/config
+# Replace all <placeholders> with real values.
+# Permissions: chmod 600 /etc/openfortivpn/config
+
+host = <vpn-host>
+port = 443
+username = <service-account-user>
+password = <service-account-password>
+
+# Get this fingerprint by running openfortivpn once without it.
+# It will show: "Got certificate:  SHA-256:<fingerprint>"
+# Then add it here so the service runs unattended.
+trusted-cert = <sha256-fingerprint>
+
+# Keep the tunnel alive
+set-routes = 1
+set-dns = 0
+pppd-use-peerdns = 0

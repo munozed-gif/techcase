@@ -1,0 +1,9 @@
+[Unit]
+Description=VPN watchdog — checks SAP reachability and restarts VPN if down
+After=openfortivpn.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/techcase/sap-mcp.env
+ExecStart=/usr/local/bin/vpn-watchdog
+User=root

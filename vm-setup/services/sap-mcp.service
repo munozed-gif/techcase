@@ -1,0 +1,28 @@
+[Unit]
+Description=TechCase SAP MCP Server
+After=openfortivpn.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=techcase
+WorkingDirectory=/opt/techcase/sap-mcp-server/sap-mcp-server
+ExecStart=/usr/bin/node index.js
+Restart=always
+RestartSec=10
+
+# SAP + MCP credentials injected from env file — never hardcode here
+EnvironmentFile=/etc/techcase/sap-mcp.env
+
+# Security
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/techcase
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sap-mcp
+
+[Install]
+WantedBy=multi-user.target

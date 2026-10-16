@@ -1,0 +1,21 @@
+[Unit]
+Description=FortiGate SSL VPN client
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/openfortivpn -c /etc/openfortivpn/config
+Restart=always
+RestartSec=30
+# Give it time to establish tunnel before dependent services start
+ExecStartPost=/bin/sleep 10
+
+# Security hardening
+PrivateTmp=yes
+NoNewPrivileges=no
+# openfortivpn needs network and tun capabilities
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
+
+[Install]
+WantedBy=multi-user.target
