@@ -1227,8 +1227,13 @@ function SapInfraStatus({ mcpUrl }) {
     setStatus(null);
     try {
       const res = await fetch(`${base}/status`, { signal: AbortSignal.timeout(8000) });
-      if (!res.ok) { setStatus('error'); return; }
-      setStatus(await res.json());
+      if (res.ok) { setStatus(await res.json()); return; }
+      // Older server without /status — fall back to /health to confirm VM+MCP are up
+      if (res.status === 404) {
+        const h = await fetch(`${base}/health`, { signal: AbortSignal.timeout(5000) });
+        if (h.ok) { setStatus({ vm: true, mcp: true, vpn: null }); return; }
+      }
+      setStatus('error');
     } catch { setStatus('error'); }
     finally { setChecking(false); }
   }
@@ -1256,7 +1261,7 @@ function SapInfraStatus({ mcpUrl }) {
         <div className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-lg px-3 py-1.5">
           {dot(status.vm,  'VM')}
           {dot(status.mcp, 'MCP')}
-          {dot(status.vpn, 'VPN')}
+          {dot(status.vpn, status.vpn === null ? 'VPN?' : 'VPN')}
         </div>
       )}
       {status === 'error' && (
