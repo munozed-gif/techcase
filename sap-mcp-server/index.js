@@ -378,7 +378,7 @@ const httpServer = http.createServer(async (req, res) => {
   // Health check
   if (req.method === 'GET' && req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.1.0', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', health: '/health', status: '/status' } }));
+    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.2.0', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', health: '/health', status: '/status', vpnStart: '/vpn/start', vpnStop: '/vpn/stop' } }));
     return;
   }
 
@@ -395,6 +395,27 @@ const httpServer = http.createServer(async (req, res) => {
     }
     res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ vm: true, mcp: true, vpn, vpnDetail, timestamp: new Date().toISOString() }));
+    return;
+  }
+
+  // VPN control — start or stop the VPN service
+  if (req.method === 'POST' && (req.url === '/vpn/start' || req.url === '/vpn/stop')) {
+    const action = req.url.endsWith('/stop') ? 'stop' : 'start';
+    try {
+      execSync(
+        `sudo systemctl ${action} openfortivpn@vpn 2>/dev/null || sudo systemctl ${action} openfortivpn 2>/dev/null`,
+        { timeout: 12000 }
+      );
+      const out = execSync(
+        'if systemctl is-active --quiet openfortivpn@vpn 2>/dev/null || systemctl is-active --quiet openfortivpn 2>/dev/null; then echo active; else echo inactive; fi',
+        { timeout: 4000 }
+      ).toString().trim();
+      res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, vpn: out === 'active', vpnDetail: out }));
+    } catch (e) {
+      res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: e.message?.slice(0, 200) }));
+    }
     return;
   }
 

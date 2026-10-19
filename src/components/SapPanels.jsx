@@ -1044,6 +1044,21 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl 
     setChecking(false);
   }
 
+  const [vpnActing, setVpnActing] = useState(false);
+
+  async function toggleVpn(action) {
+    if (!mcpBase) return;
+    setVpnActing(true);
+    try {
+      const res = await fetch(`${mcpBase}/vpn/${action}`, { method: 'POST', signal: AbortSignal.timeout(15000) });
+      const d = await res.json();
+      setResult(r => ({ ...r, vpn: d.vpn === true, vpnDetail: d.vpn ? 'active' : (d.error || 'inactive') }));
+    } catch (e) {
+      setResult(r => ({ ...r, vpnDetail: e.message?.slice(0, 60) || 'Request failed' }));
+    }
+    setVpnActing(false);
+  }
+
   const Row = ({ ok, label, detail }) => (
     <div className="flex items-start gap-3 py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
       <span className="mt-0.5">
@@ -1067,8 +1082,32 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl 
       </button>
       {result && (
         <div className="mt-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 divide-y divide-gray-100 dark:divide-gray-700">
-          <Row ok={result.vm}  label="VM" detail={result.vmDetail} />
-          {mcpBase && <Row ok={result.vpn} label="VPN" detail={result.vpnDetail || (result.vpn === null ? 'Update MCP server for VPN status' : result.vpn ? 'Connected' : 'Not connected')} />}
+          <Row ok={result.vm} label="VM" detail={result.vmDetail} />
+          {mcpBase && (
+            <div className="flex items-center gap-2 py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
+              <span className="mt-0.5 shrink-0">
+                {result.vpn === true ? <CheckCircle2 size={15} className="text-green-500" />
+                 : result.vpn === false ? <XCircle size={15} className="text-red-400" />
+                 : <AlertTriangle size={15} className="text-gray-300" />}
+              </span>
+              <div className="flex-1 min-w-0">
+                <span className={`text-xs font-semibold ${result.vpn === true ? 'text-green-700 dark:text-green-400' : result.vpn === false ? 'text-red-600 dark:text-red-400' : 'text-gray-400'}`}>VPN</span>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{result.vpnDetail || (result.vpn === null ? 'Update MCP server for VPN status' : result.vpn ? 'Connected' : 'Not connected')}</p>
+              </div>
+              {result.vpn === false && (
+                <button onClick={() => toggleVpn('start')} disabled={vpnActing}
+                  className="shrink-0 px-2 py-1 rounded text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                  {vpnActing ? 'Starting…' : 'Start VPN'}
+                </button>
+              )}
+              {result.vpn === true && (
+                <button onClick={() => toggleVpn('stop')} disabled={vpnActing}
+                  className="shrink-0 px-2 py-1 rounded text-xs font-medium bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                  {vpnActing ? 'Stopping…' : 'Stop VPN'}
+                </button>
+              )}
+            </div>
+          )}
           <Row ok={result.sap} label="SAP Connection" detail={result.sapDetail} />
         </div>
       )}
