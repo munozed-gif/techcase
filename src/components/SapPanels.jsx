@@ -1010,7 +1010,7 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl 
         if (res.ok) {
           const d = await res.json();
           vm = true; vmDetail = d.timestamp ? `Responded at ${new Date(d.timestamp).toLocaleTimeString()}` : 'Online';
-          if (isVpn) { vpn = d.vpn === true; vpnDetail = d.vpnDetail || (vpn ? 'active' : 'inactive'); }
+          vpn = d.vpn === true; vpnDetail = d.vpnDetail || (vpn ? 'active' : 'inactive');
         } else if (res.status === 404) {
           const h = await fetch(`${mcpBase}/health`, { signal: AbortSignal.timeout(5000) }).catch(() => null);
           if (h?.ok) { vm = true; vmDetail = 'Online (update server for VPN check)'; if (isVpn) { vpn = null; vpnDetail = 'Update MCP server to enable'; } }
@@ -1063,7 +1063,7 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl 
       {result && (
         <div className="mt-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 divide-y divide-gray-100 dark:divide-gray-700">
           <Row ok={result.vm}  label="VM" detail={result.vmDetail} />
-          {result.isVpn && <Row ok={result.vpn} label="VPN" detail={result.vpnDetail} />}
+          {mcpBase && <Row ok={result.vpn} label="VPN" detail={result.vpnDetail || (result.vpn === null ? 'Update MCP server for VPN status' : result.vpn ? 'Connected' : 'Not connected')} />}
           <Row ok={result.sap} label="SAP Connection" detail={result.sapDetail} />
         </div>
       )}
