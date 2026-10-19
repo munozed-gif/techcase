@@ -990,6 +990,52 @@ function AbapTemplateSection({ projectId, canEdit }) {
   );
 }
 
+function VpnStatusBanner({ linkedConn, isVpn, mcpUrl }) {
+  const [vpnStatus, setVpnStatus] = useState(null); // null | true | false | 'checking'
+
+  async function checkVpn() {
+    const base = (mcpUrl ?? '').trim().replace(/\/mcp\/?$/, '').replace(/\/$/, '');
+    if (!base) return;
+    setVpnStatus('checking');
+    try {
+      const res = await fetch(`${base}/status`, { signal: AbortSignal.timeout(8000) });
+      if (res.ok) { const d = await res.json(); setVpnStatus(d.vpn === true); }
+      else setVpnStatus(false);
+    } catch { setVpnStatus(false); }
+  }
+
+  return (
+    <div className="flex items-start gap-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl px-3 py-2.5 text-xs text-blue-700 dark:text-blue-300">
+      <Activity size={13} className="mt-0.5 flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        {isVpn ? (
+          <span>
+            Connect via <strong>{linkedConn.meta?.conn_name || 'VPN'}</strong>
+            {linkedConn.meta?.remote_gateway ? <> — gateway: <strong>{linkedConn.meta.remote_gateway}</strong></> : ''}
+            {linkedConn.meta?.vpn_client ? ` (${linkedConn.meta.vpn_client})` : ''} before testing.
+          </span>
+        ) : (
+          <span>Using <strong>{linkedConn.db_type.toUpperCase()}</strong> connection at <strong>{linkedConn.host}</strong>.</span>
+        )}
+        {isVpn && mcpUrl && (
+          <div className="mt-1.5 flex items-center gap-2">
+            <button
+              onClick={checkVpn}
+              disabled={vpnStatus === 'checking'}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-700 bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 hover:border-blue-400 disabled:opacity-50 transition-all"
+            >
+              {vpnStatus === 'checking' ? <RefreshCw size={10} className="animate-spin" /> : <Activity size={10} />}
+              Check VPN
+            </button>
+            {vpnStatus === true  && <span className="flex items-center gap-1 text-green-600 dark:text-green-400"><CheckCircle2 size={11} /> Connected</span>}
+            {vpnStatus === false && <span className="flex items-center gap-1 text-red-500"><XCircle size={11} /> Not connected</span>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // PROJECT-OWNED SAP PANEL (no client linked)
 // ============================================================
 function ProjectOwnSapPanel({ projectId, auth }) {
@@ -1241,25 +1287,12 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                         </div>
                       </div>
 
-                      {/* VPN reminder banner */}
+                      {/* VPN / connection banner with live status check */}
                       {(() => {
                         const linkedConn = env.connectionId ? projectConns.find(c => c.id === env.connectionId) : null;
                         if (!linkedConn) return null;
                         const isVpn = linkedConn.db_type === 'vpn';
-                        return (
-                          <div className="flex items-start gap-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl px-3 py-2.5 text-xs text-blue-700 dark:text-blue-300">
-                            <Activity size={13} className="mt-0.5 flex-shrink-0" />
-                            {isVpn ? (
-                              <span>
-                                Connect via <strong>{linkedConn.meta?.conn_name || 'VPN'}</strong>
-                                {linkedConn.meta?.remote_gateway ? <> — gateway: <strong>{linkedConn.meta.remote_gateway}</strong></> : ''}
-                                {linkedConn.meta?.vpn_client ? ` (${linkedConn.meta.vpn_client})` : ''} before testing.
-                              </span>
-                            ) : (
-                              <span>Using <strong>{linkedConn.db_type.toUpperCase()}</strong> connection at <strong>{linkedConn.host}</strong>.</span>
-                            )}
-                          </div>
-                        );
+                        return <VpnStatusBanner linkedConn={linkedConn} isVpn={isVpn} mcpUrl={ssCtx.settings['sap_mcp_server_url']} />;
                       })()}
 
                       {canEdit && (
