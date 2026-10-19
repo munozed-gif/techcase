@@ -990,19 +990,48 @@ function AbapTemplateSection({ projectId, canEdit }) {
   );
 }
 
-function VpnStatusBanner({ linkedConn, isVpn, mcpUrl }) {
-  const [vpnStatus, setVpnStatus] = useState(null); // null | true | false | 'checking'
+function VpnStatusBanner({ linkedConn, isVpn, mcpUrl, env }) {
+  const [checking, setChecking] = useState(false);
+  const [infra, setInfra] = useState(null); // null | { vm, vpn, sap }
 
-  async function checkVpn() {
+  async function checkAll() {
     const base = (mcpUrl ?? '').trim().replace(/\/mcp\/?$/, '').replace(/\/$/, '');
-    if (!base) return;
-    setVpnStatus('checking');
-    try {
-      const res = await fetch(`${base}/status`, { signal: AbortSignal.timeout(8000) });
-      if (res.ok) { const d = await res.json(); setVpnStatus(d.vpn === true); }
-      else setVpnStatus(false);
-    } catch { setVpnStatus(false); }
+    setChecking(true);
+    setInfra(null);
+    let vm = false, vpn = false, sap = false;
+
+    // 1. VM + VPN via /status
+    if (base) {
+      try {
+        const res = await fetch(`${base}/status`, { signal: AbortSignal.timeout(8000) });
+        if (res.ok) { const d = await res.json(); vm = true; vpn = d.vpn === true; }
+        else if (res.status === 404) {
+          const h = await fetch(`${base}/health`, { signal: AbortSignal.timeout(5000) }).catch(() => null);
+          if (h?.ok) { vm = true; vpn = null; }
+        }
+      } catch { /* vm stays false */ }
+    }
+
+    // 2. SAP connection check (only if we have credentials)
+    if (env?.host && env?.username && env?.password) {
+      try {
+        const result = await sapLiveCheck(env);
+        sap = !result?.error;
+      } catch { sap = false; }
+    }
+
+    setInfra({ vm, vpn, sap });
+    setChecking(false);
   }
+
+  const dot = (val, label) => (
+    <span className="flex items-center gap-1 text-xs">
+      {val === true  ? <CheckCircle2 size={12} className="text-green-500" />
+       : val === false ? <XCircle size={12} className="text-red-400" />
+       : <AlertTriangle size={12} className="text-gray-300" />}
+      <span className={val === true ? 'text-green-700 dark:text-green-400' : val === false ? 'text-red-500' : 'text-gray-400'}>{label}</span>
+    </span>
+  );
 
   return (
     <div className="flex items-start gap-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl px-3 py-2.5 text-xs text-blue-700 dark:text-blue-300">
@@ -1017,20 +1046,23 @@ function VpnStatusBanner({ linkedConn, isVpn, mcpUrl }) {
         ) : (
           <span>Using <strong>{linkedConn.db_type.toUpperCase()}</strong> connection at <strong>{linkedConn.host}</strong>.</span>
         )}
-        {isVpn && mcpUrl && (
-          <div className="mt-1.5 flex items-center gap-2">
-            <button
-              onClick={checkVpn}
-              disabled={vpnStatus === 'checking'}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-700 bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 hover:border-blue-400 disabled:opacity-50 transition-all"
-            >
-              {vpnStatus === 'checking' ? <RefreshCw size={10} className="animate-spin" /> : <Activity size={10} />}
-              Check VPN
-            </button>
-            {vpnStatus === true  && <span className="flex items-center gap-1 text-green-600 dark:text-green-400"><CheckCircle2 size={11} /> Connected</span>}
-            {vpnStatus === false && <span className="flex items-center gap-1 text-red-500"><XCircle size={11} /> Not connected</span>}
-          </div>
-        )}
+        <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+          <button
+            onClick={checkAll}
+            disabled={checking}
+            className="flex items-center gap-1 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-700 bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 hover:border-blue-400 disabled:opacity-50 transition-all"
+          >
+            {checking ? <RefreshCw size={10} className="animate-spin" /> : <Activity size={10} />}
+            Check connection
+          </button>
+          {infra && (
+            <div className="flex items-center gap-3 bg-white dark:bg-gray-800 border border-blue-100 dark:border-blue-700 rounded-md px-2 py-0.5">
+              {dot(infra.vm,  'VM')}
+              {isVpn && dot(infra.vpn, infra.vpn === null ? 'VPN?' : 'VPN')}
+              {dot(infra.sap, 'SAP')}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1302,7 +1334,7 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                         if (!linkedConn) return null;
                         const isVpn = linkedConn.db_type === 'vpn';
                         const effectiveMcpUrl = env.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url'];
-                        return <VpnStatusBanner linkedConn={linkedConn} isVpn={isVpn} mcpUrl={effectiveMcpUrl} />;
+                        return <VpnStatusBanner linkedConn={linkedConn} isVpn={isVpn} mcpUrl={effectiveMcpUrl} env={enrichEnvWithVpn(env)} />;
                       })()}
 
                       {canEdit && (
