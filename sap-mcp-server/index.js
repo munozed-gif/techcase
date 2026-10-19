@@ -387,7 +387,7 @@ const httpServer = http.createServer(async (req, res) => {
     let vpn = false;
     let vpnDetail = '';
     try {
-      const out = execSync('systemctl is-active openfortivpn@vpn 2>/dev/null || systemctl is-active openfortivpn 2>/dev/null || echo inactive', { timeout: 4000 }).toString().trim();
+      const out = execSync('if systemctl is-active --quiet openfortivpn@vpn 2>/dev/null || systemctl is-active --quiet openfortivpn 2>/dev/null; then echo active; else echo inactive; fi', { timeout: 4000 }).toString().trim();
       vpn = out === 'active';
       vpnDetail = out;
     } catch (e) {
