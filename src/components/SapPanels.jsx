@@ -990,6 +990,87 @@ function AbapTemplateSection({ projectId, canEdit }) {
   );
 }
 
+function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl }) {
+  const [checking, setChecking] = useState(false);
+  const [result, setResult] = useState(null); // null | { vm, vpn, sap, vmDetail, vpnDetail, sapDetail }
+
+  const linkedConn = env.connectionId ? projectConns.find(c => c.id === env.connectionId) : null;
+  const isVpn = linkedConn?.db_type === 'vpn';
+  const mcpBase = (env.mcp_server_url?.trim() || globalMcpUrl || '').replace(/\/mcp\/?$/, '').replace(/\/$/, '').trim();
+
+  async function check() {
+    setChecking(true);
+    setResult(null);
+    let vm = false, vpn = null, sap = false;
+    let vmDetail = '', vpnDetail = '', sapDetail = '';
+
+    if (mcpBase) {
+      try {
+        const res = await fetch(`${mcpBase}/status`, { signal: AbortSignal.timeout(8000) });
+        if (res.ok) {
+          const d = await res.json();
+          vm = true; vmDetail = d.timestamp ? `Responded at ${new Date(d.timestamp).toLocaleTimeString()}` : 'Online';
+          if (isVpn) { vpn = d.vpn === true; vpnDetail = d.vpnDetail || (vpn ? 'active' : 'inactive'); }
+        } else if (res.status === 404) {
+          const h = await fetch(`${mcpBase}/health`, { signal: AbortSignal.timeout(5000) }).catch(() => null);
+          if (h?.ok) { vm = true; vmDetail = 'Online (update server for VPN check)'; if (isVpn) { vpn = null; vpnDetail = 'Update MCP server to enable'; } }
+          else { vmDetail = `HTTP ${res.status}`; }
+        } else { vmDetail = `HTTP ${res.status}`; }
+      } catch (e) { vmDetail = 'Unreachable — check URL or tunnel'; }
+    } else { vmDetail = 'No MCP server URL configured'; }
+
+    if (env.host && env.username && env.password) {
+      try {
+        const r = await sapLiveCheck(enrichEnvWithVpn(env));
+        if (!r?.error) {
+          sap = true;
+          sapDetail = r.systemInfo || 'Connected';
+        } else {
+          sap = false;
+          sapDetail = r.error === 401 ? 'HTTP 401 — wrong credentials'
+            : r.error === 403 ? 'HTTP 403 — no ADT authorization'
+            : r.error === 404 ? 'HTTP 404 — ADT not active (check SICF)'
+            : `HTTP ${r.error}`;
+        }
+      } catch (e) { sap = false; sapDetail = e.message?.slice(0, 80) || 'Connection failed'; }
+    } else { sapDetail = 'Enter host, username and password to test'; }
+
+    setResult({ vm, vpn, sap, vmDetail, vpnDetail, sapDetail, isVpn });
+    setChecking(false);
+  }
+
+  const Row = ({ ok, label, detail }) => (
+    <div className="flex items-start gap-3 py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
+      <span className="mt-0.5">
+        {ok === true  ? <CheckCircle2 size={15} className="text-green-500" />
+         : ok === false ? <XCircle size={15} className="text-red-400" />
+         : <AlertTriangle size={15} className="text-gray-300" />}
+      </span>
+      <div className="flex-1 min-w-0">
+        <span className={`text-xs font-semibold ${ok === true ? 'text-green-700 dark:text-green-400' : ok === false ? 'text-red-600 dark:text-red-400' : 'text-gray-400'}`}>{label}</span>
+        {detail && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{detail}</p>}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="mt-2">
+      <button onClick={check} disabled={checking}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 text-xs text-gray-600 dark:text-gray-300 hover:border-blue-300 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all bg-white dark:bg-gray-800">
+        {checking ? <RefreshCw size={12} className="animate-spin" /> : <Activity size={12} />}
+        Check infrastructure status
+      </button>
+      {result && (
+        <div className="mt-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 divide-y divide-gray-100 dark:divide-gray-700">
+          <Row ok={result.vm}  label="VM" detail={result.vmDetail} />
+          {result.isVpn && <Row ok={result.vpn} label="VPN" detail={result.vpnDetail} />}
+          <Row ok={result.sap} label="SAP Connection" detail={result.sapDetail} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function VpnStatusBanner({ linkedConn, isVpn, mcpUrl, env }) {
   const [checking, setChecking] = useState(false);
   const [infra, setInfra] = useState(null); // null | { vm, vpn, sap }
@@ -1374,10 +1455,12 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                             placeholder={ssCtx.settings['sap_mcp_server_url'] ? `Global: ${ssCtx.settings['sap_mcp_server_url']}` : 'https://your-mcp-server.trycloudflare.com'}
                             className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
                           <p className="text-xs text-gray-400 mt-0.5">Leave blank to use the global MCP server URL from AI Configuration settings.</p>
+                          {/* Detailed infra status check */}
+                          <EnvInfraStatusCard env={env} enrichEnvWithVpn={enrichEnvWithVpn} projectConns={projectConns} globalMcpUrl={ssCtx.settings['sap_mcp_server_url']} />
                         </div>
                       </div>
 
-                      {/* VPN / connection banner with live status check */}
+                      {/* VPN / connection banner */}
                       {(() => {
                         const linkedConn = env.connectionId ? projectConns.find(c => c.id === env.connectionId) : null;
                         if (!linkedConn) return null;
