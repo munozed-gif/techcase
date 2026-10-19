@@ -1010,7 +1010,7 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl 
         if (res.ok) {
           const d = await res.json();
           vm = true; vmDetail = d.timestamp ? `Responded at ${new Date(d.timestamp).toLocaleTimeString()}` : 'Online';
-          vpn = d.vpn === true; vpnDetail = d.vpnDetail || (vpn ? 'active' : 'inactive');
+          vpn = d.vpn === true; vpnDetail = vpn ? 'active' : 'inactive';
         } else if (res.status === 404) {
           const h = await fetch(`${mcpBase}/health`, { signal: AbortSignal.timeout(5000) }).catch(() => null);
           if (h?.ok) { vm = true; vmDetail = 'Online (update server for VPN check)'; if (isVpn) { vpn = null; vpnDetail = 'Update MCP server to enable'; } }
