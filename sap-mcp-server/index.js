@@ -17,6 +17,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { z } from 'zod';
 import http from 'http';
+import { execSync } from 'child_process';
 
 const PORT = Number(process.env.PORT ?? 3100);
 
@@ -377,7 +378,23 @@ const httpServer = http.createServer(async (req, res) => {
   // Health check
   if (req.method === 'GET' && req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.1.0', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', health: '/health' } }));
+    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.1.0', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', health: '/health', status: '/status' } }));
+    return;
+  }
+
+  // Infrastructure status: VM reachable, MCP running, VPN connected
+  if (req.method === 'GET' && (req.url === '/status' || req.url === '/status/')) {
+    let vpn = false;
+    let vpnDetail = '';
+    try {
+      const out = execSync('systemctl is-active openfortivpn@vpn 2>/dev/null || systemctl is-active openfortivpn 2>/dev/null || echo inactive', { timeout: 4000 }).toString().trim();
+      vpn = out === 'active';
+      vpnDetail = out;
+    } catch (e) {
+      vpnDetail = e.message?.slice(0, 80) ?? 'error';
+    }
+    res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ vm: true, mcp: true, vpn, vpnDetail, timestamp: new Date().toISOString() }));
     return;
   }
 

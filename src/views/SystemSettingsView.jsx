@@ -1216,6 +1216,58 @@ function SettingsRolesTab({ ssCtx }) {
   );
 }
 
+function SapInfraStatus({ mcpUrl }) {
+  const [status, setStatus] = useState(null); // null | { vm, mcp, vpn, vpnDetail, timestamp } | 'error'
+  const [checking, setChecking] = useState(false);
+
+  async function check() {
+    const base = (mcpUrl ?? '').trim().replace(/\/mcp\/?$/, '').replace(/\/$/, '');
+    if (!base) return;
+    setChecking(true);
+    setStatus(null);
+    try {
+      const res = await fetch(`${base}/status`, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) { setStatus('error'); return; }
+      setStatus(await res.json());
+    } catch { setStatus('error'); }
+    finally { setChecking(false); }
+  }
+
+  const dot = (ok, label) => (
+    <span className="flex items-center gap-1.5 text-xs">
+      {ok === true  ? <CheckCircle2 size={13} className="text-green-500 shrink-0" />
+       : ok === false ? <XCircle size={13} className="text-red-400 shrink-0" />
+       : <AlertCircle size={13} className="text-gray-300 shrink-0" />}
+      <span className={ok === true ? 'text-green-700' : ok === false ? 'text-red-500' : 'text-gray-400'}>{label}</span>
+    </span>
+  );
+
+  return (
+    <div className="mt-2 flex items-center gap-3 flex-wrap">
+      <button
+        onClick={check}
+        disabled={checking || !(mcpUrl ?? '').trim()}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-blue-300 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+      >
+        {checking ? <RefreshCw size={12} className="animate-spin" /> : <Activity size={12} />}
+        Check infrastructure
+      </button>
+      {status && status !== 'error' && (
+        <div className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-lg px-3 py-1.5">
+          {dot(status.vm,  'VM')}
+          {dot(status.mcp, 'MCP')}
+          {dot(status.vpn, 'VPN')}
+        </div>
+      )}
+      {status === 'error' && (
+        <span className="flex items-center gap-1 text-xs text-red-500">
+          <XCircle size={13} /> Unreachable — check the URL or tunnel
+        </span>
+      )}
+    </div>
+  );
+}
+
 function SettingsGenerationTab({ ssCtx }) {
   const { t } = useT();
   const [activeProfile, setActiveProfile] = useState("basic");
@@ -1350,6 +1402,7 @@ function SettingsGenerationTab({ ssCtx }) {
             className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
           />
           <p className="text-xs text-gray-400 mt-1">URL of the TechCase SAP MCP server. When set, ABAP code generation connects to SAP live for reading and writing objects.</p>
+          <SapInfraStatus mcpUrl={form.sap_mcp_server_url} />
         </div>
       </div>
 
