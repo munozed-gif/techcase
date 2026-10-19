@@ -1087,6 +1087,7 @@ function ProjectOwnSapPanel({ projectId, auth }) {
   const [adtWarnings, setAdtWarnings] = useState({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [infraChecks, setInfraChecks] = useState({}); // { [envId]: { checking, vm, vpn, sap } }
 
   const sapProjectEnv = ssCtx.settings['sap_project_env'] ?? {};
   const selectedEnvId = sapProjectEnv[projectId] ?? '';
@@ -1139,6 +1140,30 @@ function ProjectOwnSapPanel({ projectId, auth }) {
     const linkedConn = env.connectionId ? projectConns.find(c => c.id === env.connectionId) : null;
     const vpnProxyUrl = linkedConn?.db_type === 'vpn' ? linkedConn.meta?.proxy_url?.trim() : null;
     return vpnProxyUrl ? { ...env, _vpnProxyUrl: vpnProxyUrl } : env;
+  }
+
+
+  async function checkInfra(env, e) {
+    e.stopPropagation();
+    const linkedConn = env.connectionId ? projectConns.find(c => c.id === env.connectionId) : null;
+    const isVpn = linkedConn?.db_type === 'vpn';
+    const mcpUrl = (env.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url'] || '').trim().replace(/\/mcp\/?$/, '').replace(/\/$/, '');
+    setInfraChecks(p => ({ ...p, [env.id]: { checking: true } }));
+    let vm = false, vpn = null, sap = false;
+    if (mcpUrl) {
+      try {
+        const res = await fetch(mcpUrl + '/status', { signal: AbortSignal.timeout(8000) });
+        if (res.ok) { const d = await res.json(); vm = true; vpn = isVpn ? d.vpn === true : null; }
+        else if (res.status === 404) {
+          const h = await fetch(mcpUrl + '/health', { signal: AbortSignal.timeout(5000) }).catch(() => null);
+          if (h?.ok) { vm = true; }
+        }
+      } catch { /* vm stays false */ }
+    }
+    if (env.host && env.username && env.password) {
+      try { const r = await sapLiveCheck(enrichEnvWithVpn(env)); sap = !r?.error; } catch { sap = false; }
+    }
+    setInfraChecks(p => ({ ...p, [env.id]: { checking: false, vm, vpn, sap, isVpn } }));
   }
 
   async function testConnection(env) {
@@ -1227,6 +1252,30 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                     {env.host && <span className="text-xs text-gray-400 truncate hidden sm:block max-w-[180px]">{env.host}</span>}
                     {testStatus === 'ok'   && <CheckCircle2 size={13} className="text-green-500 flex-shrink-0" />}
                     {testStatus === 'fail' && <XCircle size={13} className="text-red-400 flex-shrink-0" />}
+                    {/* Infra status dots */}
+                    {(() => {
+                      const ic = infraChecks[env.id];
+                      if (!ic || ic.checking) return (
+                        ic?.checking
+                          ? <RefreshCw size={12} className="animate-spin text-gray-400 flex-shrink-0" />
+                          : null
+                      );
+                      const dot = (val) => val === true
+                        ? <CheckCircle2 size={12} className="text-green-500" />
+                        : val === false
+                        ? <XCircle size={12} className="text-red-400" />
+                        : <span className="w-2 h-2 rounded-full bg-gray-200 inline-block" />;
+                      return (
+                        <span className="flex items-center gap-1 flex-shrink-0 ml-1" title="VM / VPN / SAP">
+                          {dot(ic.vm)}{ic.isVpn && dot(ic.vpn)}{dot(ic.sap)}
+                        </span>
+                      );
+                    })()}
+                    <button onClick={e => checkInfra(env, e)}
+                      title="Check VM, VPN and SAP connection"
+                      className="flex-shrink-0 p-1 rounded text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors">
+                      <Activity size={13} />
+                    </button>
                     {canEdit && !isDefault && (
                       <button onClick={e => { e.stopPropagation(); handleSelectDefault(env.id); }}
                         className="text-xs text-blue-500 hover:text-blue-700 flex-shrink-0 ml-1 px-2 py-1 rounded hover:bg-blue-50">
