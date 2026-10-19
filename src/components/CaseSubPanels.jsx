@@ -901,7 +901,8 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
 
   // Build MCP servers config for spec generation when SAP MCP server is configured and connection is verified
   function buildMcpConfig() {
-    if (!sapMcpServerUrl || !sapConnCfg || !sapConnTest?.ok) return [];
+    const effectiveMcpUrl = (sapConnCfg?.mcp_server_url?.trim() || sapMcpServerUrl).trim();
+    if (!effectiveMcpUrl || !sapConnCfg || !sapConnTest?.ok) return [];
     try {
       const token = btoa(JSON.stringify({
         host:     sapConnCfg.host,
@@ -910,7 +911,7 @@ function SpecificationTab({ caseData, auth, documents, addDocument, deleteDocume
         client:   sapConnCfg.client ?? '100',
         ...(sapConnCfg._vpnProxyUrl ? { proxyUrl: sapConnCfg._vpnProxyUrl } : {}),
       }));
-      return [{ type: 'url', url: `${sapMcpServerUrl}/mcp`, name: 'techcase-sap', authorization_token: token }];
+      return [{ type: 'url', url: `${effectiveMcpUrl}/mcp`, name: 'techcase-sap', authorization_token: token }];
     } catch { return []; }
   }
   const { spec, loading: specLoading, saveSpec, refetch } = useCaseSpecification(caseData.id, auth.user?.id);

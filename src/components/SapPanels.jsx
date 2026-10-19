@@ -1285,6 +1285,15 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                             ))}
                           </select>
                         </div>
+                        <div className="sm:col-span-2">
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                            SAP MCP Server URL <span className="text-gray-400 font-normal">(optional — overrides global setting)</span>
+                          </label>
+                          <input value={env.mcp_server_url ?? ''} onChange={e => updateEnvField(env.id, 'mcp_server_url', e.target.value)} disabled={!canEdit}
+                            placeholder={ssCtx.settings['sap_mcp_server_url'] ? `Global: ${ssCtx.settings['sap_mcp_server_url']}` : 'https://your-mcp-server.trycloudflare.com'}
+                            className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
+                          <p className="text-xs text-gray-400 mt-0.5">Leave blank to use the global MCP server URL from AI Configuration settings.</p>
+                        </div>
                       </div>
 
                       {/* VPN / connection banner with live status check */}
@@ -1292,7 +1301,8 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                         const linkedConn = env.connectionId ? projectConns.find(c => c.id === env.connectionId) : null;
                         if (!linkedConn) return null;
                         const isVpn = linkedConn.db_type === 'vpn';
-                        return <VpnStatusBanner linkedConn={linkedConn} isVpn={isVpn} mcpUrl={ssCtx.settings['sap_mcp_server_url']} />;
+                        const effectiveMcpUrl = env.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url'];
+                        return <VpnStatusBanner linkedConn={linkedConn} isVpn={isVpn} mcpUrl={effectiveMcpUrl} />;
                       })()}
 
                       {canEdit && (
@@ -2631,7 +2641,7 @@ Output ONLY the ABAP source code, no explanations.`;
           system: 'You are an expert SAP ABAP developer. Output only clean ABAP source code.',
           messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
           max_tokens: 8000,
-          mcp_servers: buildSapMcpConfig(sapConfig, ssCtx.settings['sap_mcp_server_url']),
+          mcp_servers: buildSapMcpConfig(sapConfig, sapConfig?.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url']),
         });
         const code = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
         updateObj(obj.id, { status: 'generated', generatedCode: code });
@@ -3801,7 +3811,7 @@ Output ONLY the ABAP source code, no explanations. Follow the coding standards a
         system: 'You are an expert SAP ABAP developer. Output only clean, compilable ABAP source code. Follow all coding standards provided in the user message without exception.',
         messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
         max_tokens: 4000,
-        mcp_servers: buildSapMcpConfig(sapConfig, ssCtx.settings['sap_mcp_server_url']),
+        mcp_servers: buildSapMcpConfig(sapConfig, sapConfig?.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url']),
       });
       const code = typeof resp === 'string' ? resp : (resp.content?.[0]?.text ?? '');
       setActField(act.id, { generating: false, generatedCode: code });
