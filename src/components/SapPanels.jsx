@@ -1000,6 +1000,34 @@ function AbapTemplateSection({ projectId, canEdit }) {
   );
 }
 
+function McpRestartButton({ mcpUrl }) {
+  const [state, setState] = useState('idle'); // idle | restarting | done | error
+  const base = (mcpUrl || '').replace(/\/mcp\/?$/, '').replace(/\/$/, '').trim();
+  if (!base) return null;
+
+  async function restart() {
+    setState('restarting');
+    try {
+      await fetch(`${base}/restart`, { method: 'POST', signal: AbortSignal.timeout(5000) }).catch(() => {});
+      setState('done');
+    } catch {
+      setState('error');
+    }
+    setTimeout(() => setState('idle'), 4000);
+  }
+
+  return (
+    <button onClick={restart} disabled={state === 'restarting'} title="Restart MCP server"
+      className={`shrink-0 flex items-center gap-1 px-2.5 py-2 rounded-xl border text-xs font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed
+        ${state === 'done' ? 'border-green-300 text-green-600 bg-green-50 dark:bg-green-900/20 dark:border-green-700'
+        : state === 'error' ? 'border-orange-300 text-orange-500 bg-orange-50 dark:bg-orange-900/20'
+        : 'border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:text-blue-600 hover:border-blue-300 bg-white dark:bg-gray-700'}`}>
+      <RefreshCw size={13} className={state === 'restarting' ? 'animate-spin' : ''} />
+      <span className="hidden sm:inline">{state === 'restarting' ? 'Restarting…' : state === 'done' ? 'Sent' : state === 'error' ? 'Unreachable' : 'Restart MCP'}</span>
+    </button>
+  );
+}
+
 function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl, onUpdateMcpUrl }) {
   const [checking, setChecking] = useState(false);
   const [result, setResult] = useState(null); // null | { vm, vpn, sap, vmDetail, vpnDetail, sapDetail }
@@ -1597,9 +1625,12 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                             SAP MCP Server URL <span className="text-gray-400 font-normal">(optional — overrides global setting)</span>
                           </label>
-                          <input value={env.mcp_server_url ?? ''} onChange={e => updateEnvField(env.id, 'mcp_server_url', e.target.value)} disabled={!canEdit}
-                            placeholder={ssCtx.settings['sap_mcp_server_url'] ? `Global: ${ssCtx.settings['sap_mcp_server_url']}` : 'https://your-mcp-server.trycloudflare.com'}
-                            className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
+                          <div className="flex gap-2 items-center">
+                            <input value={env.mcp_server_url ?? ''} onChange={e => updateEnvField(env.id, 'mcp_server_url', e.target.value)} disabled={!canEdit}
+                              placeholder={ssCtx.settings['sap_mcp_server_url'] ? `Global: ${ssCtx.settings['sap_mcp_server_url']}` : 'https://your-mcp-server.trycloudflare.com'}
+                              className="flex-1 min-w-0 border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
+                            <McpRestartButton mcpUrl={env.mcp_server_url?.trim() || ssCtx.settings['sap_mcp_server_url']} />
+                          </div>
                           <p className="text-xs text-gray-400 mt-0.5">Leave blank to use the global MCP server URL from AI Configuration settings.</p>
                           {/* Detailed infra status check */}
                           <EnvInfraStatusCard env={env} enrichEnvWithVpn={enrichEnvWithVpn} projectConns={projectConns} globalMcpUrl={ssCtx.settings['sap_mcp_server_url']} onUpdateMcpUrl={(url) => updateEnvField(env.id, 'mcp_server_url', url)} />
