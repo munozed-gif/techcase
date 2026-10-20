@@ -1031,10 +1031,9 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl 
 
     if (env.host && env.username && env.password) {
       try {
-        // Route SAP check through MCP server proxy so it goes via VM/VPN, not direct from browser
         const enriched = enrichEnvWithVpn(env);
-        const sapCfg = mcpBase && !enriched.proxyUrl?.trim() && !enriched._vpnProxyUrl
-          ? { ...enriched, proxyUrl: `${mcpBase}/sap-proxy` }
+        const sapCfg = !enriched.proxyUrl?.trim() && !enriched._vpnProxyUrl
+          ? { ...enriched, proxyUrl: `${window.location.origin}/api/sap-proxy` }
           : enriched;
         const r = await sapLiveCheck(sapCfg);
         if (r && r.error == null) {
@@ -1323,11 +1322,11 @@ function ProjectOwnSapPanel({ projectId, auth }) {
     if (env.host && env.username && env.password) {
       try {
         const enriched = enrichEnvWithVpn(env);
-        const sapCfg = mcpUrl && !enriched.proxyUrl?.trim() && !enriched._vpnProxyUrl
-          ? { ...enriched, proxyUrl: `${mcpUrl}/sap-proxy` }
+        const sapCfg = !enriched.proxyUrl?.trim() && !enriched._vpnProxyUrl
+          ? { ...enriched, proxyUrl: `${window.location.origin}/api/sap-proxy` }
           : enriched;
         const r = await sapLiveCheck(sapCfg);
-        sap = !r?.error;
+        sap = r && r.error == null;
       } catch { sap = false; }
     }
     setInfraChecks(p => ({ ...p, [env.id]: { checking: false, vm, vpn, sap, isVpn } }));
