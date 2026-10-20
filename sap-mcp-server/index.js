@@ -402,6 +402,30 @@ const httpServer = http.createServer(async (req, res) => {
   if (req.method === 'POST' && (req.url === '/vpn/start' || req.url === '/vpn/stop')) {
     const action = req.url.endsWith('/stop') ? 'stop' : 'start';
     try {
+      // Parse optional VPN credentials from request body
+      let vpnCfg = null;
+      try {
+        const chunks = [];
+        for await (const chunk of req) chunks.push(chunk);
+        const raw = Buffer.concat(chunks).toString().trim();
+        if (raw) vpnCfg = JSON.parse(raw);
+      } catch { /* no body or invalid JSON */ }
+
+      // Write /etc/openfortivpn/vpn.conf from credentials if provided
+      if (action === 'start' && vpnCfg?.host) {
+        const lines = [
+          `host = ${vpnCfg.host}`,
+          `port = ${vpnCfg.port || '443'}`,
+          `username = ${vpnCfg.username || ''}`,
+          `password = ${vpnCfg.password || ''}`,
+        ];
+        if (vpnCfg.trusted_cert) lines.push(`trusted-cert = ${vpnCfg.trusted_cert}`);
+        const configContent = lines.join('\n') + '\n';
+        execSync('sudo mkdir -p /etc/openfortivpn', { timeout: 3000 });
+        execSync('sudo tee /etc/openfortivpn/vpn.conf', { input: configContent, timeout: 5000 });
+        execSync('sudo chmod 600 /etc/openfortivpn/vpn.conf', { timeout: 3000 });
+      }
+
       execSync(
         `sudo systemctl ${action} openfortivpn@vpn 2>/dev/null || sudo systemctl ${action} openfortivpn 2>/dev/null`,
         { timeout: 12000 }

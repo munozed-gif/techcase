@@ -1050,7 +1050,28 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl 
     if (!mcpBase) return;
     setVpnActing(true);
     try {
-      const res = await fetch(`${mcpBase}/vpn/${action}`, { method: 'POST', signal: AbortSignal.timeout(15000) });
+      let body;
+      if (action === 'start') {
+        const vpnConn = (linkedConn?.db_type === 'vpn' ? linkedConn : null)
+          ?? projectConns.find(c => c.db_type === 'vpn');
+        if (vpnConn) {
+          const rawHost = vpnConn.meta?.remote_gateway?.trim() || vpnConn.host?.trim() || '';
+          const [gHost, gPort] = rawHost.includes(':') ? rawHost.split(':') : [rawHost, String(vpnConn.port || '443')];
+          body = JSON.stringify({
+            host: gHost,
+            port: gPort,
+            username: vpnConn.username || '',
+            password: vpnConn.meta?.password || '',
+            trusted_cert: vpnConn.meta?.trusted_cert || '',
+          });
+        }
+      }
+      const res = await fetch(`${mcpBase}/vpn/${action}`, {
+        method: 'POST',
+        headers: body ? { 'Content-Type': 'application/json' } : {},
+        body,
+        signal: AbortSignal.timeout(15000),
+      });
       const d = await res.json();
       setResult(r => ({ ...r, vpn: d.vpn === true, vpnDetail: d.vpn ? 'active' : (d.error || 'inactive') }));
     } catch (e) {

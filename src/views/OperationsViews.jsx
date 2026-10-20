@@ -987,9 +987,17 @@ function VpnProfileFields({ meta = {}, onChange }) {
         <div>
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Remote Gateway</label>
           <input type="text" value={meta.remote_gateway ?? ''} onChange={e => set('remote_gateway', e.target.value)}
-            placeholder="gtspfw.example.com"
+            placeholder="gtspfw.example.com:10443"
             className="w-full bg-gray-100 dark:bg-gray-700 border-0 rounded-xl px-4 py-3 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-slate-400 shadow-sm" />
         </div>
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+          Trusted Certificate <span className="font-normal text-gray-400">(SHA256 fingerprint — from first openfortivpn connection attempt)</span>
+        </label>
+        <input type="text" value={meta.trusted_cert ?? ''} onChange={e => set('trusted_cert', e.target.value)}
+          placeholder="a1b2c3d4e5f6..."
+          className="w-full bg-gray-100 dark:bg-gray-700 border-0 rounded-xl px-4 py-3 text-sm font-mono text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-slate-400 shadow-sm" />
       </div>
       <div>
         <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
