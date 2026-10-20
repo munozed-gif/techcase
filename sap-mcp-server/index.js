@@ -17,6 +17,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { z } from 'zod';
 import http from 'http';
+import https from 'https';
 import { execSync } from 'child_process';
 
 const PORT = Number(process.env.PORT ?? 3100);
@@ -317,6 +318,108 @@ const CORS_HEADERS = {
   'Access-Control-Max-Age': '86400',
 };
 
+// Make an HTTPS request to SAP, bypassing self-signed cert errors.
+// Returns a Promise<{ status, headers, body: Buffer }>.
+function httpsRequest(targetUrl, opts = {}, bodyBuf) {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(targetUrl);
+    const reqOpts = {
+      hostname: parsed.hostname,
+      port: parsed.port || 443,
+      path: parsed.pathname + parsed.search,
+      method: opts.method || 'GET',
+      headers: opts.headers || {},
+      rejectUnauthorized: false,
+      timeout: opts.timeout || 15000,
+    };
+    const req = https.request(reqOpts, sapRes => {
+      const chunks = [];
+      sapRes.on('data', c => chunks.push(c));
+      sapRes.on('end', () => resolve({ status: sapRes.statusCode, headers: sapRes.headers, body: Buffer.concat(chunks) }));
+    });
+    req.on('timeout', () => { req.destroy(); reject(new Error('SAP request timed out')); });
+    req.on('error', reject);
+    if (bodyBuf?.length) req.write(bodyBuf);
+    req.end();
+  });
+}
+
+async function handleSapInfo(req, res) {
+  if (req.method === 'OPTIONS') { res.writeHead(204, CORS_HEADERS); res.end(); return; }
+  if (req.method !== 'POST') { res.writeHead(405, CORS_HEADERS); res.end(); return; }
+
+  // Parse body
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  let body;
+  try { body = JSON.parse(Buffer.concat(chunks).toString()); } catch {
+    res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: false, error: 'Invalid JSON body' }));
+    return;
+  }
+
+  const { host, username, password, client = '100' } = body;
+  if (!host || !username || !password) {
+    res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: false, error: 'host, username and password are required' }));
+    return;
+  }
+
+  const base = host.startsWith('http') ? host.replace(/\/$/, '') : `https://${host}`;
+  const auth = Buffer.from(`${username}:${password}`).toString('base64');
+  const headers = {
+    Authorization: `Basic ${auth}`,
+    'sap-client': String(client),
+    Accept: 'application/xml, text/xml, */*',
+    'X-CSRF-Token': 'Fetch',
+  };
+
+  try {
+    // First try /sap/bc/adt/system/settings (richer info)
+    let sapRes = await httpsRequest(`${base}/sap/bc/adt/system/settings`, { headers, timeout: 15000 });
+    // Fall back to discovery if settings returns 404
+    if (sapRes.status === 404) {
+      sapRes = await httpsRequest(`${base}/sap/bc/adt/discovery`, { headers, timeout: 15000 });
+    }
+    const xml = sapRes.body.toString('utf8');
+
+    if (sapRes.status === 401) {
+      res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, status: 401, error: 'HTTP 401 — wrong credentials' }));
+      return;
+    }
+    if (sapRes.status === 403) {
+      res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, status: 403, error: 'HTTP 403 — no ADT authorization' }));
+      return;
+    }
+    if (sapRes.status === 404) {
+      res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, status: 404, error: 'HTTP 404 — ADT service not active (check SICF)' }));
+      return;
+    }
+    if (sapRes.status < 200 || sapRes.status >= 300) {
+      res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, status: sapRes.status, error: `HTTP ${sapRes.status}` }));
+      return;
+    }
+
+    // Parse SAP system info from XML
+    const sid     = xml.match(/systemId="([^"]+)"/)?.[1] ?? xml.match(/<adt:systemId>([^<]+)/)?.[1] ?? '';
+    const release = xml.match(/release="([^"]+)"/)?.[1] ?? xml.match(/<adt:abapLanguageVersion[^>]*>([^<]+)/)?.[1] ?? '';
+    const sp      = xml.match(/\bsp="([^"]+)"/)?.[1] ?? '';
+    const desc    = xml.match(/<title[^>]*>([^<]+)/)?.[1]?.trim() ?? '';
+    const parts   = [sid && `SID: ${sid}`, desc, release && `Release ${release}`, sp && `SP ${sp}`].filter(Boolean);
+    const systemInfo = parts.join(' | ') || `Connected (HTTP ${sapRes.status})`;
+
+    res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, systemInfo, status: sapRes.status }));
+  } catch (e) {
+    res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: false, error: e.message?.slice(0, 120) || 'SAP connection failed' }));
+  }
+}
+
 async function handleSapProxy(req, res) {
   // Preflight
   if (req.method === 'OPTIONS') {
@@ -349,23 +452,17 @@ async function handleSapProxy(req, res) {
   }
 
   try {
-    const sapRes = await fetch(targetUrl, {
-      method: req.method,
-      headers: forwardHeaders,
-      body: body?.length ? body : undefined,
-    });
-
-    const buf = Buffer.from(await sapRes.arrayBuffer());
+    const sapRes = await httpsRequest(targetUrl, { method: req.method, headers: forwardHeaders, timeout: 15000 }, body);
 
     // Build response headers: CORS overrides + SAP response headers
     const outHeaders = { ...CORS_HEADERS };
     const SKIP_RES = new Set(['transfer-encoding', 'connection', 'keep-alive', 'access-control-allow-origin']);
-    for (const [k, v] of sapRes.headers.entries()) {
+    for (const [k, v] of Object.entries(sapRes.headers)) {
       if (!SKIP_RES.has(k.toLowerCase())) outHeaders[k] = v;
     }
 
     res.writeHead(sapRes.status, outHeaders);
-    res.end(buf);
+    res.end(sapRes.body);
   } catch (e) {
     res.writeHead(502, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: `SAP proxy error: ${e.message}` }));
@@ -378,7 +475,7 @@ const httpServer = http.createServer(async (req, res) => {
   // Health check
   if (req.method === 'GET' && req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.2.0', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', health: '/health', status: '/status', vpnStart: '/vpn/start', vpnStop: '/vpn/stop' } }));
+    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.3.0', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', sapInfo: '/sap-info', health: '/health', status: '/status', restart: '/restart', vpnStart: '/vpn/start', vpnStop: '/vpn/stop' } }));
     return;
   }
 
@@ -443,6 +540,20 @@ const httpServer = http.createServer(async (req, res) => {
     return;
   }
 
+  // Graceful restart: respond first, then exit so systemd restarts the process
+  if (req.method === 'POST' && req.url === '/restart') {
+    res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, message: 'Restarting…' }));
+    setTimeout(() => process.exit(0), 120);
+    return;
+  }
+
+  // SAP info check — POST {host, username, password, client} → {ok, systemInfo}
+  if (req.url === '/sap-info') {
+    await handleSapInfo(req, res);
+    return;
+  }
+
   // SAP CORS proxy — browser sends ADT requests here instead of directly to SAP
   if (req.url?.startsWith('/sap-proxy')) {
     await handleSapProxy(req, res);
@@ -493,6 +604,9 @@ const httpServer = http.createServer(async (req, res) => {
 httpServer.listen(PORT, () => {
   console.log(`TechCase SAP MCP Server running on port ${PORT}`);
   console.log(`  MCP endpoint : http://localhost:${PORT}/mcp`);
+  console.log(`  SAP info     : http://localhost:${PORT}/sap-info  (POST {host,username,password,client})`);
   console.log(`  SAP proxy    : http://localhost:${PORT}/sap-proxy  (enter this as Proxy URL in TechCase)`);
   console.log(`  Health check : http://localhost:${PORT}/health`);
+  console.log(`  Status       : http://localhost:${PORT}/status`);
+  console.log(`  Restart      : http://localhost:${PORT}/restart  (POST)`);
 });
