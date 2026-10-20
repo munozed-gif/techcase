@@ -1032,8 +1032,8 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl 
     if (env.host && env.username && env.password) {
       try {
         const enriched = enrichEnvWithVpn(env);
-        const sapCfg = !enriched.proxyUrl?.trim() && !enriched._vpnProxyUrl
-          ? { ...enriched, proxyUrl: `${window.location.origin}/api/sap-proxy` }
+        const sapCfg = mcpBase && !enriched.proxyUrl?.trim() && !enriched._vpnProxyUrl
+          ? { ...enriched, proxyUrl: `${mcpBase}/sap-proxy` }
           : enriched;
         const r = await sapLiveCheck(sapCfg);
         if (r && r.error == null) {
@@ -1322,8 +1322,8 @@ function ProjectOwnSapPanel({ projectId, auth }) {
     if (env.host && env.username && env.password) {
       try {
         const enriched = enrichEnvWithVpn(env);
-        const sapCfg = !enriched.proxyUrl?.trim() && !enriched._vpnProxyUrl
-          ? { ...enriched, proxyUrl: `${window.location.origin}/api/sap-proxy` }
+        const sapCfg = mcpUrl && !enriched.proxyUrl?.trim() && !enriched._vpnProxyUrl
+          ? { ...enriched, proxyUrl: `${mcpUrl}/sap-proxy` }
           : enriched;
         const r = await sapLiveCheck(sapCfg);
         sap = r && r.error == null;
