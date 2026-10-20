@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Activity, AlertCircle, Bell, Check, CheckCircle2, Clock, Database, DollarSign,
-  Download, FileText, FolderOpen, Mail, Pencil, Phone, SlidersHorizontal,
+  Download, Eye, EyeOff, FileText, FolderOpen, Mail, Pencil, Phone, SlidersHorizontal,
   Target, Trash2, User, Users, X, XCircle,
 } from "lucide-react";
 import { supabase } from "../lib/supabase.js";
@@ -925,6 +925,7 @@ function SapProfileBadges({ meta = {} }) {
 }
 
 function VpnProfileFields({ meta = {}, onChange }) {
+  const [showPw, setShowPw] = useState(false);
   const set = (k, v) => onChange({ ...meta, [k]: v });
   const protocols = [
     { value: 'ssl',   label: 'SSL-VPN' },
@@ -980,9 +981,15 @@ function VpnProfileFields({ meta = {}, onChange }) {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Password</label>
-          <input type="password" value={meta.password ?? ''} onChange={e => set('password', e.target.value)}
-            placeholder="VPN password"
-            className="w-full bg-gray-100 dark:bg-gray-700 border-0 rounded-xl px-4 py-3 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-slate-400 shadow-sm" />
+          <div className="relative">
+            <input type={showPw ? "text" : "password"} value={meta.password ?? ''} onChange={e => set('password', e.target.value)}
+              placeholder="VPN password"
+              className="w-full bg-gray-100 dark:bg-gray-700 border-0 rounded-xl px-4 py-3 pr-10 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-slate-400 shadow-sm" />
+            <button type="button" onClick={() => setShowPw(v => !v)}
+              className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+              {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Remote Gateway</label>
