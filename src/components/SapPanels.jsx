@@ -1029,10 +1029,12 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl 
         const r = await sapLiveCheck(sapCfg);
         if (!r?.error) {
           sap = true;
-          sapDetail = r.systemInfo || 'Connected';
+          const info = r.systemInfo || '';
+          sapDetail = info || `Connected (${env.host || 'SAP'})`;
         } else {
           sap = false;
-          sapDetail = r.error === 401 ? 'HTTP 401 — wrong credentials'
+          sapDetail = r.error === 0 ? (r.message?.slice(0, 100) || 'Connection failed — check VPN and SAP host')
+            : r.error === 401 ? 'HTTP 401 — wrong credentials'
             : r.error === 403 ? 'HTTP 403 — no ADT authorization'
             : r.error === 404 ? 'HTTP 404 — ADT not active (check SICF)'
             : `HTTP ${r.error}`;
@@ -1089,7 +1091,7 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl 
       </span>
       <div className="flex-1 min-w-0">
         <span className={`text-xs font-semibold ${ok === true ? 'text-green-700 dark:text-green-400' : ok === false ? 'text-red-600 dark:text-red-400' : 'text-gray-400'}`}>{label}</span>
-        {detail && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{detail}</p>}
+        {detail && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 break-words">{detail}</p>}
       </div>
     </div>
   );
