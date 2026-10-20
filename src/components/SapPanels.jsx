@@ -1037,18 +1037,19 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl 
           ? { ...enriched, proxyUrl: `${mcpBase}/sap-proxy` }
           : enriched;
         const r = await sapLiveCheck(sapCfg);
-        if (!r?.error) {
+        if (r && r.error == null) {
           sap = true;
           const info = r.systemInfo || '';
-          const hostFallback = env.host ? `(${env.host})` : '';
-          sapDetail = info !== 'Connected' ? info : `Connected ${hostFallback}`.trim();
+          const hostFallback = env.host ? ` (${env.host})` : '';
+          sapDetail = info || `Connected${hostFallback}`;
         } else {
           sap = false;
-          sapDetail = r.error === 0 ? (r.message?.slice(0, 100) || 'Connection failed — check VPN and SAP host')
-            : r.error === 401 ? 'HTTP 401 — wrong credentials'
-            : r.error === 403 ? 'HTTP 403 — no ADT authorization'
-            : r.error === 404 ? 'HTTP 404 — ADT not active (check SICF)'
-            : `HTTP ${r.error}`;
+          const errCode = r?.error;
+          sapDetail = errCode === 0 ? (r?.message?.slice(0, 100) || 'Connection failed — check VPN and SAP host')
+            : errCode === 401 ? 'HTTP 401 — wrong credentials'
+            : errCode === 403 ? 'HTTP 403 — no ADT authorization'
+            : errCode === 404 ? 'HTTP 404 — ADT not active (check SICF)'
+            : `HTTP ${errCode}`;
         }
       } catch (e) { sap = false; sapDetail = e.message?.slice(0, 80) || 'Connection failed'; }
     } else { sapDetail = 'Enter host, username and password to test'; }
