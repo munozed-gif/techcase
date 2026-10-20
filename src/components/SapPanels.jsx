@@ -1000,13 +1000,38 @@ function AbapTemplateSection({ projectId, canEdit }) {
   );
 }
 
-function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl }) {
+function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl, onUpdateMcpUrl }) {
   const [checking, setChecking] = useState(false);
   const [result, setResult] = useState(null); // null | { vm, vpn, sap, vmDetail, vpnDetail, sapDetail }
+  const [refreshingUrl, setRefreshingUrl] = useState(false);
+  const [refreshMsg, setRefreshMsg] = useState('');
 
   const linkedConn = env.connectionId ? projectConns.find(c => c.id === env.connectionId) : null;
   const isVpn = linkedConn?.db_type === 'vpn';
   const mcpBase = (env.mcp_server_url?.trim() || globalMcpUrl || '').replace(/\/mcp\/?$/, '').replace(/\/$/, '').trim();
+
+  async function refreshTunnelUrl() {
+    setRefreshingUrl(true);
+    setRefreshMsg('');
+    try {
+      const { data, error } = await supabase
+        .from('vm_tunnel_registry')
+        .select('tunnel_url, updated_at')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!data?.tunnel_url) { setRefreshMsg('No URL registered yet — start cloudflared on VM first'); return; }
+      const newUrl = data.tunnel_url.replace(/\/$/, '');
+      const ageMins = Math.round((Date.now() - new Date(data.updated_at).getTime()) / 60000);
+      if (onUpdateMcpUrl) onUpdateMcpUrl(newUrl);
+      setRefreshMsg(`URL updated (registered ${ageMins}m ago) — click Check again`);
+    } catch (e) {
+      setRefreshMsg(e.message?.slice(0, 80) || 'Lookup failed');
+    } finally {
+      setRefreshingUrl(false);
+    }
+  }
 
   async function check() {
     setChecking(true);
@@ -1137,7 +1162,22 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl 
       </button>
       {result && (
         <div className="mt-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 divide-y divide-gray-100 dark:divide-gray-700">
-          <Row ok={result.vm} label="VM" detail={result.vmDetail} />
+          <div className="flex items-start gap-3 py-2 border-b border-gray-100 dark:border-gray-700">
+            <span className="mt-0.5 shrink-0">
+              {result.vm ? <CheckCircle2 size={15} className="text-green-500" /> : <XCircle size={15} className="text-red-400" />}
+            </span>
+            <div className="flex-1 min-w-0">
+              <span className={`text-xs font-semibold ${result.vm ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>VM</span>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 break-words">{result.vmDetail}</p>
+              {refreshMsg && <p className="text-xs text-blue-500 dark:text-blue-400 mt-0.5">{refreshMsg}</p>}
+            </div>
+            {result.vm === false && onUpdateMcpUrl && (
+              <button onClick={refreshTunnelUrl} disabled={refreshingUrl}
+                className="shrink-0 px-2 py-1 rounded text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                {refreshingUrl ? <RefreshCw size={11} className="animate-spin" /> : 'New URL'}
+              </button>
+            )}
+          </div>
           {mcpBase && (
             <div className="flex items-center gap-2 py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
               <span className="mt-0.5 shrink-0">
@@ -1562,7 +1602,7 @@ function ProjectOwnSapPanel({ projectId, auth }) {
                             className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 dark:disabled:bg-gray-800 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500" />
                           <p className="text-xs text-gray-400 mt-0.5">Leave blank to use the global MCP server URL from AI Configuration settings.</p>
                           {/* Detailed infra status check */}
-                          <EnvInfraStatusCard env={env} enrichEnvWithVpn={enrichEnvWithVpn} projectConns={projectConns} globalMcpUrl={ssCtx.settings['sap_mcp_server_url']} />
+                          <EnvInfraStatusCard env={env} enrichEnvWithVpn={enrichEnvWithVpn} projectConns={projectConns} globalMcpUrl={ssCtx.settings['sap_mcp_server_url']} onUpdateMcpUrl={(url) => updateEnvField(env.id, 'mcp_server_url', url)} />
                         </div>
                       </div>
 
