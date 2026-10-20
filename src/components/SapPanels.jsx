@@ -1031,24 +1031,45 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl 
 
     if (env.host && env.username && env.password) {
       try {
-        const enriched = enrichEnvWithVpn(env);
-        const sapCfg = mcpBase && !enriched.proxyUrl?.trim() && !enriched._vpnProxyUrl
-          ? { ...enriched, proxyUrl: `${mcpBase}/sap-proxy` }
-          : enriched;
-        const r = await sapLiveCheck(sapCfg);
-        if (r && r.error == null) {
-          sap = true;
-          const info = r.systemInfo || '';
-          const hostFallback = env.host ? ` (${env.host})` : '';
-          sapDetail = info || `Connected${hostFallback}`;
+        // Use /sap-info on the MCP server: https module + cert bypass + timeout, no CORS preflight issues
+        if (mcpBase) {
+          const r = await fetch(`${mcpBase}/sap-info`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              host: env.host,
+              username: env.username,
+              password: env.password,
+              client: env.client || '100',
+            }),
+            signal: AbortSignal.timeout(18000),
+          }).then(res => res.json()).catch(e => ({ ok: false, error: e.message }));
+          if (r?.ok) {
+            sap = true;
+            const info = r.systemInfo || '';
+            sapDetail = info || `Connected (${env.host})`;
+          } else {
+            sap = false;
+            sapDetail = r?.status === 401 ? 'HTTP 401 — wrong credentials'
+              : r?.status === 403 ? 'HTTP 403 — no ADT authorization'
+              : r?.status === 404 ? 'HTTP 404 — ADT not active (check SICF)'
+              : r?.error || `HTTP ${r?.status || 'error'}`;
+          }
         } else {
-          sap = false;
-          const errCode = r?.error;
-          sapDetail = errCode === 0 ? (r?.message?.slice(0, 100) || 'Connection failed — check VPN and SAP host')
-            : errCode === 401 ? 'HTTP 401 — wrong credentials'
-            : errCode === 403 ? 'HTTP 403 — no ADT authorization'
-            : errCode === 404 ? 'HTTP 404 — ADT not active (check SICF)'
-            : `HTTP ${errCode}`;
+          // Fallback: direct sapLiveCheck (no MCP server configured)
+          const enriched = enrichEnvWithVpn(env);
+          const r = await sapLiveCheck(enriched);
+          if (r && r.error == null) {
+            sap = true;
+            sapDetail = r.systemInfo || `Connected (${env.host})`;
+          } else {
+            sap = false;
+            const errCode = r?.error;
+            sapDetail = errCode === 401 ? 'HTTP 401 — wrong credentials'
+              : errCode === 403 ? 'HTTP 403 — no ADT authorization'
+              : errCode === 404 ? 'HTTP 404 — ADT not active (check SICF)'
+              : r?.message?.slice(0, 100) || `HTTP ${errCode}`;
+          }
         }
       } catch (e) { sap = false; sapDetail = e.message?.slice(0, 80) || 'Connection failed'; }
     } else { sapDetail = 'Enter host, username and password to test'; }
