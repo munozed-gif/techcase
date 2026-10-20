@@ -346,22 +346,15 @@ async function sapLiveCheck(config) {
 
     // ADT uses namespace-prefixed elements/attrs: <atom:title>, adtcore:release="...", etc.
     // All regexes match the attribute value regardless of prefix (e.g. adtcore:release="757")
-    const title  = xml.match(/<(?:\w+:)?title[^>]*>([^<]+)/)?.[1]?.trim() ?? '';
-    const ver    = xml.match(/(?::)?release="([^"]+)"/)?.[1] ?? xml.match(/version="([^"]+)"/)?.[1] ?? '';
-    const spVer  = xml.match(/(?::)?sp="([^"]+)"/)?.[1] ?? '';
-    const sid    = xml.match(/systemId="([^"]+)"/i)?.[1] ?? '';
-    const client = xml.match(/(?::)?client="(\d+)"/i)?.[1] ?? xml.match(/sap-client[^=]*=\s*"?(\d{3})/)?.[1] ?? '';
+    let title  = xml.match(/<(?:\w+:)?title[^>]*>([^<]+)/)?.[1]?.trim() ?? '';
+    let ver    = xml.match(/(?::)?release="([^"]+)"/)?.[1] ?? xml.match(/version="([^"]+)"/)?.[1] ?? '';
+    let spVer  = xml.match(/(?::)?sp="([^"]+)"/)?.[1] ?? '';
+    let sid    = xml.match(/systemId="([^"]+)"/i)?.[1] ?? '';
+    let client = xml.match(/(?::)?client="(\d+)"/i)?.[1] ?? xml.match(/sap-client[^=]*=\s*"?(\d{3})/)?.[1] ?? '';
 
-    const parts = [
-      sid ? `SID: ${sid}` : title,
-      ver && `Release ${ver}`,
-      spVer && `SP ${spVer}`,
-      client && `Client ${client}`,
-    ].filter(Boolean);
-    const systemInfo = parts.join(' | ') || 'Connected';
     const capabilities = _inferCapabilities(xml);
 
-    // Second call: software component list from system settings
+    // Second call: software component list + version fallback from system settings
     let components = [];
     try {
       const settRes = await sapApiRequest(config, '/sap/bc/adt/system/settings', {
@@ -369,6 +362,12 @@ async function sapLiveCheck(config) {
       });
       if (settRes.ok) {
         const settXml = await settRes.text();
+        // Also extract version attributes if not found in discovery XML
+        if (!ver)    ver    = settXml.match(/(?::)?release="([^"]+)"/)?.[1] ?? settXml.match(/version="([^"]+)"/)?.[1] ?? '';
+        if (!spVer)  spVer  = settXml.match(/(?::)?sp="([^"]+)"/)?.[1] ?? '';
+        if (!sid)    sid    = settXml.match(/systemId="([^"]+)"/i)?.[1] ?? '';
+        if (!client) client = settXml.match(/(?::)?client="(\d+)"/i)?.[1] ?? '';
+        if (!title)  title  = settXml.match(/<(?:\w+:)?title[^>]*>([^<]+)/)?.[1]?.trim() ?? '';
         // Match <adtbase:softwareComponent name="..."> or <softwareComponent name="...">
         const compMatches = [...settXml.matchAll(/softwareComponent[^>]+name="([^"]+)"/gi)];
         if (compMatches.length) {
@@ -380,6 +379,17 @@ async function sapLiveCheck(config) {
         }
       }
     } catch { /* system/settings is optional — ignore failures */ }
+
+    // Build systemInfo after both calls so we have all available attributes
+    const parts = [
+      sid ? `SID: ${sid}` : title,
+      ver && `Release ${ver}`,
+      spVer && `SP ${spVer}`,
+      client && `Client ${client}`,
+    ].filter(Boolean);
+    // If no version info from ADT, show top software components as proof of live connection
+    const compSummary = !ver && components.length ? `Components: ${components.slice(0, 3).join(', ')}` : '';
+    const systemInfo = parts.join(' | ') || compSummary || 'Connected';
 
     return { systemInfo, capabilities, components, sid, client };
   } catch (e) { return { error: 0, message: e?.message ?? String(e) }; }
@@ -1030,7 +1040,8 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl 
         if (!r?.error) {
           sap = true;
           const info = r.systemInfo || '';
-          sapDetail = info || `Connected (${env.host || 'SAP'})`;
+          const hostFallback = env.host ? `(${env.host})` : '';
+          sapDetail = info !== 'Connected' ? info : `Connected ${hostFallback}`.trim();
         } else {
           sap = false;
           sapDetail = r.error === 0 ? (r.message?.slice(0, 100) || 'Connection failed — check VPN and SAP host')
