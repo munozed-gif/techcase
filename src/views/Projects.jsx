@@ -3131,20 +3131,20 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                 {project.case_lifecycle
                   ? <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">{t("project.this_project")}</span>
                   : <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-semibold">{t("project.company_inherited")}</span>}
-                {canEditLifecycle && !projOverrideAllowed && !auth.isAdmin && (
+                {!canEditLifecycle && !projOverrideAllowed && (
                   <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold flex items-center gap-1">
                     <Lock size={13} className="inline mr-1" />{t("project.override_locked")}
                   </span>
                 )}
               </div>
 
-              {canEditLifecycle && !projOverrideAllowed && !auth.isAdmin && (
+              {!canEditLifecycle && !projOverrideAllowed && (
                 <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-sm text-amber-700">
                   {t("project.lifecycle_lock_msg")}
                 </div>
               )}
 
-              {canEditLifecycle && (projOverrideAllowed || auth.isAdmin) && (
+              {canEditLifecycle && (
                 <>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                     {tmplList.map(tmpl => {
