@@ -2151,7 +2151,7 @@ ${tableHtml(['Role','Name','Signature','Date'],[
   }, [allActivitiesDone]);
 
   const sysLcDefault = ssCtxCD.settings?.["default_lifecycle_config"];
-  const caseOverrideAllowed = clientLifecycle?.allow_case_override ?? sysLcDefault?.case?.allow_override ?? true;
+  const caseOverrideAllowed = !caseData.client_id ? true : (clientLifecycle?.allow_case_override ?? sysLcDefault?.case?.allow_override ?? true);
   const caseVisibility = visCfg.getCaseVisibility(caseData.id, caseData.client_id);
 
   const allTabs = [
@@ -5400,7 +5400,7 @@ ${tableHtml(['Role','Name','Signature','Date'],[
                     {tab.id === "lifecycle" && perms.can("view_lifecycle") && (() => {
         if (lcMode === null) return <div className="flex justify-center py-10"><Spinner /></div>;
         const sysLcDefault = ssCtxCD.settings?.["default_lifecycle_config"];
-        const caseOverrideAllowed = clientLifecycle?.allow_case_override ?? sysLcDefault?.case?.allow_override ?? true;
+        const caseOverrideAllowed = !caseData.client_id ? true : (clientLifecycle?.allow_case_override ?? sysLcDefault?.case?.allow_override ?? true);
         const tmplList = caseLcTemplates.length ? caseLcTemplates : Object.entries(LIFECYCLE_PRESETS).map(([k, v]) => ({ key: k, ...v }));
         const inheritedPreset = caseData.case_lifecycle?.preset ?? parentCaseLifecycle?.preset ?? projectLifecycle?.preset ?? clientLifecycle?.preset ?? "standard";
         const previewStages = getCaseTmplStages(lcMode);
