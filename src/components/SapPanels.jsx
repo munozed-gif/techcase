@@ -1187,10 +1187,11 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
     setDeploying(true);
     setDeployMsg('Uploading…');
     try {
+      // text/plain avoids CORS preflight (no OPTIONS request needed)
       const r = await fetch(`${mcpBase}/update`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ script: mcpServerScript }),
+        headers: { 'Content-Type': 'text/plain' },
+        body: mcpServerScript,
         signal: AbortSignal.timeout(20000),
       }).then(res => res.json()).catch(e => ({ ok: false, error: e.message }));
       if (r.ok) {

@@ -601,8 +601,10 @@ const httpServer = http.createServer(async (req, res) => {
     try {
       const chunks = [];
       for await (const chunk of req) chunks.push(chunk);
-      const body = JSON.parse(Buffer.concat(chunks).toString());
-      const script = body.script;
+      // Accept both text/plain (no CORS preflight) and application/json
+      const raw = Buffer.concat(chunks).toString();
+      let script;
+      try { script = JSON.parse(raw).script; } catch { script = raw; }
       if (!script || script.length < 500) {
         res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: false, error: 'Invalid or empty script content' }));
