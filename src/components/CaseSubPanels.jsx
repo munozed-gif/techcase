@@ -4209,16 +4209,6 @@ Respond with ONLY a valid JSON object, no markdown fences:
                 onClick={() => setActiveNode(0)}
               />
 
-              {/* Node 6: Compiled Context Preview */}
-              <NodeBtn id={6} icon={Code2}
-                title={t("spec.compiled_ctx_lbl") || "Compiled Context"}
-                sub={compiledCtxPreview ? (t("spec.compiled_ctx_ready") || "Context ready") : (t("spec.compiled_ctx_sub") || "Assembled prompt context")}
-                status={compiledCtxPreview ? 'complete' : 'pending'}
-                isActive={activeNode===6}
-                canClick={true}
-                onClick={() => setActiveNode(6)}
-              />
-
               {/* Node 5: Live SAP Connection (only when live check is enabled in settings) */}
               {liveCheckEnabled && (
                 <NodeBtn id={5} icon={Zap}
@@ -4240,6 +4230,16 @@ Respond with ONLY a valid JSON object, no markdown fences:
                   }}
                 />
               )}
+
+              {/* Node 6: Compiled Context Preview */}
+              <NodeBtn id={6} icon={Code2}
+                title={t("spec.compiled_ctx_lbl") || "Compiled Context"}
+                sub={compiledCtxPreview ? (t("spec.compiled_ctx_ready") || "Context ready") : (t("spec.compiled_ctx_sub") || "Assembled prompt context")}
+                status={compiledCtxPreview ? 'complete' : 'pending'}
+                isActive={activeNode===6}
+                canClick={true}
+                onClick={() => setActiveNode(6)}
+              />
 
               {/* Node 1: SAP Verification */}
               <NodeBtn id={1} icon={CheckCircle2}
