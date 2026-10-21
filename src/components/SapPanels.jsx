@@ -14,7 +14,6 @@ import { callClaude, logEvent } from "../lib/utils.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { Input, Modal, Select, Textarea } from "../components/ui.jsx";
 import { fmtDate, fmt } from "../lib/uiUtils.jsx";
-import mcpServerScript from "../../sap-mcp-server/index.js?raw";
 
 function useClientProfile(userId) {
   const [profile, setProfile] = useState(null);
@@ -1185,14 +1184,13 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
   async function deployServer() {
     if (!mcpBase || deploying) return;
     setDeploying(true);
-    setDeployMsg('Uploading…');
+    setDeployMsg('Deploying…');
     try {
-      // text/plain avoids CORS preflight (no OPTIONS request needed)
-      const r = await fetch(`${mcpBase}/update`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: mcpServerScript,
-        signal: AbortSignal.timeout(20000),
+      // GET with query param = simple CORS request, no preflight needed.
+      // VM pulls the script from our own API endpoint server-to-server.
+      const src = encodeURIComponent(`${window.location.origin}/api/mcp-script`);
+      const r = await fetch(`${mcpBase}/self-update?src=${src}`, {
+        signal: AbortSignal.timeout(25000),
       }).then(res => res.json()).catch(e => ({ ok: false, error: e.message }));
       if (r.ok) {
         setDeployMsg('Updated — server restarting…');

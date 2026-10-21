@@ -596,6 +596,34 @@ const httpServer = http.createServer(async (req, res) => {
     return;
   }
 
+  // Self-update via pull: GET /self-update?src=<url> — server fetches script from URL and restarts
+  if (req.method === 'GET' && req.url?.startsWith('/self-update')) {
+    try {
+      const srcUrl = new URL(req.url, 'http://localhost').searchParams.get('src');
+      if (!srcUrl) {
+        res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'Missing src parameter' }));
+        return;
+      }
+      const resp = await fetch(srcUrl, { signal: AbortSignal.timeout(15000) });
+      const script = await resp.text();
+      if (!script || script.length < 500) {
+        res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'Fetched script is empty or too short' }));
+        return;
+      }
+      const selfPath = fileURLToPath(import.meta.url);
+      writeFileSync(selfPath, script, 'utf8');
+      res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, message: 'Script updated — restarting in 1s…', bytes: script.length }));
+      setTimeout(() => process.exit(0), 1000);
+    } catch (e) {
+      res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: e.message?.slice(0, 200) }));
+    }
+    return;
+  }
+
   // Self-update: receive new index.js content, write to disk, restart
   if (req.method === 'POST' && req.url === '/update') {
     try {

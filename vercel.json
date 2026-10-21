@@ -8,6 +8,7 @@
     "api/stripe-checkout.js":  { "maxDuration": 10 },
     "api/stripe-webhook.js":   { "maxDuration": 10 },
     "api/stripe-setup.js":     { "maxDuration": 30 },
-    "api/sap-proxy.js":        { "maxDuration": 30 }
+    "api/sap-proxy.js":        { "maxDuration": 30 },
+    "api/mcp-script.js":       { "maxDuration": 10, "includeFiles": "sap-mcp-server/index.js" }
   }
 }
