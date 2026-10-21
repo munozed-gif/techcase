@@ -3119,7 +3119,7 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
         {/* Lifecycle */}
         {tab.id === "lifecycle" && canEdit && (() => {
           const sysLcDefault = _importSS?.["default_lifecycle_config"];
-          const projOverrideAllowed = clientLcConfig?.allow_project_override ?? sysLcDefault?.project?.allow_override ?? true;
+          const projOverrideAllowed = !project.client_id ? true : (clientLcConfig?.allow_project_override ?? sysLcDefault?.project?.allow_override ?? true);
           const tmplList = lcTemplates2.length ? lcTemplates2 : Object.entries(LIFECYCLE_PRESETS).map(([k, v]) => ({ key: k, ...v }));
           const previewStages = getProjTmplStages(projLcMode);
           const previewActive = previewStages.filter(s => !s.is_terminal);
@@ -3131,20 +3131,20 @@ Priority must be one of: low, medium, high, urgent. est_hours is a number or nul
                 {project.case_lifecycle
                   ? <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">{t("project.this_project")}</span>
                   : <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-semibold">{t("project.company_inherited")}</span>}
-                {canEditLifecycle && !projOverrideAllowed && (
+                {canEditLifecycle && !projOverrideAllowed && !auth.isAdmin && (
                   <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold flex items-center gap-1">
                     <Lock size={13} className="inline mr-1" />{t("project.override_locked")}
                   </span>
                 )}
               </div>
 
-              {canEditLifecycle && !projOverrideAllowed && (
+              {canEditLifecycle && !projOverrideAllowed && !auth.isAdmin && (
                 <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-sm text-amber-700">
                   {t("project.lifecycle_lock_msg")}
                 </div>
               )}
 
-              {canEditLifecycle && projOverrideAllowed && (
+              {canEditLifecycle && (projOverrideAllowed || auth.isAdmin) && (
                 <>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                     {tmplList.map(tmpl => {
