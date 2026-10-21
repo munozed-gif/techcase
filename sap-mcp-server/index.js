@@ -383,6 +383,11 @@ async function handleSapInfo(req, res) {
     }
     const xml = sapRes.body.toString('utf8');
 
+    // Extract SID + client from SAP_SESSIONID_{SID}_{CLIENT} cookie (most reliable source)
+    const cookieHeader = [sapRes.headers['set-cookie']].flat().join(' ');
+    const cookieSid    = cookieHeader.match(/SAP_SESSIONID_([A-Z0-9]{2,3})_\d+/)?.[1] ?? '';
+    const cookieClient = cookieHeader.match(/SAP_SESSIONID_[A-Z0-9]+_(\d+)/)?.[1] ?? '';
+
     if (sapRes.status === 401) {
       res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: false, status: 401, error: 'HTTP 401 — wrong credentials' }));
@@ -405,16 +410,16 @@ async function handleSapInfo(req, res) {
     }
 
     // Parse SAP system info from XML — namespace-agnostic: matches adt:, adtcore:, or no prefix
-    const xAttr = (xml, name) => xml.match(new RegExp(`(?:^|\\s)(?:[^:>"\\s]+:)?${name}="([^"]+)"`))?.[1] ?? '';
-    const xElem = (xml, name) => xml.match(new RegExp(`<(?:[^:>]+:)?${name}[^>]*>([^<]+)`))?.[1]?.trim() ?? '';
-    const xAny  = (xml, name) => xAttr(xml, name) || xElem(xml, name);
+    const xAttr = (x, name) => x.match(new RegExp(`(?:^|\\s)(?:[^:>"\\s]+:)?${name}="([^"]+)"`))?.[1] ?? '';
+    const xElem = (x, name) => x.match(new RegExp(`<(?:[^:>]+:)?${name}[^>]*>([^<]+)`))?.[1]?.trim() ?? '';
+    const xAny  = (x, name) => xAttr(x, name) || xElem(x, name);
 
-    const sid     = xAny(xml, 'systemId') || xAttr(xml, 'SystemId');
+    // Cookie is most reliable; fall back to XML attrs, then request body
+    const sid     = cookieSid || xAny(xml, 'systemId') || xAttr(xml, 'SystemId');
     const release = xAny(xml, 'systemRelease') || xAny(xml, 'abapRelease') || xAny(xml, 'release');
     const sp      = xAny(xml, 'spLevel') || xAny(xml, 'abapSP') || xAttr(xml, 'sp');
-    // client from XML (may shadow body client, use body value as fallback)
     const xmlClient = xAny(xml, 'client');
-    const resolvedClient = xmlClient || client;
+    const resolvedClient = cookieClient || xmlClient || client;
     const desc    = xElem(xml, 'title') || xAttr(xml, 'title');
 
     // Map numeric abapRelease (e.g. "756") to readable label when possible
@@ -435,7 +440,7 @@ async function handleSapInfo(req, res) {
     const systemInfo = parts.join(' | ') || (desc ? `Connected — ${desc}` : `Connected (HTTP ${sapRes.status})`);
 
     res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, systemInfo, status: sapRes.status, debug: { sid, release, sp, resolvedClient, desc, xmlSnippet: xml.slice(0, 600) } }));
+    res.end(JSON.stringify({ ok: true, systemInfo, status: sapRes.status, debug: { sid, cookieSid, release, sp, resolvedClient, desc, xmlSnippet: xml.slice(0, 600) } }));
   } catch (e) {
     res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: false, error: e.message?.slice(0, 120) || 'SAP connection failed' }));
@@ -497,7 +502,7 @@ const httpServer = http.createServer(async (req, res) => {
   // Health check
   if (req.method === 'GET' && req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.3.2', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', sapInfo: '/sap-info', health: '/health', status: '/status', restart: '/restart', vpnStart: '/vpn/start', vpnStop: '/vpn/stop' } }));
+    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.3.3', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', sapInfo: '/sap-info', health: '/health', status: '/status', restart: '/restart', vpnStart: '/vpn/start', vpnStop: '/vpn/stop' } }));
     return;
   }
 
