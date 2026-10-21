@@ -3451,16 +3451,16 @@ ${tableHtml(['Role','Name','Signature','Date'],[
         <div className="space-y-4">
           <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
             {comments.map(c => (
-              <div key={c.id} className={`rounded-xl p-4 text-sm border ${c.is_internal ? "bg-amber-50 border-amber-200" : "bg-gray-50 border-gray-100"}`}>
+              <div key={c.id} className={`rounded-xl p-4 text-sm border ${c.is_internal ? "bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800" : "bg-gray-50 dark:bg-gray-800/50 border-gray-100 dark:border-gray-700"}`}>
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
                     <PersonAvatar name={c.author?.full_name} avatarUrl={c.author?.avatar_url} size={24} />
-                    <span className="font-medium text-gray-900">{c.author?.full_name ?? t("reports.unknown")}</span>
-                    {c.is_internal && <Badge className="bg-amber-200 text-amber-800">{t("case.badge_internal")}</Badge>}
+                    <span className="font-medium text-gray-900 dark:text-gray-100">{c.author?.full_name ?? t("reports.unknown")}</span>
+                    {c.is_internal && <Badge className="bg-amber-100 text-amber-900 dark:bg-amber-400 dark:text-amber-950">{t("case.badge_internal")}</Badge>}
                   </div>
                   <span className="text-xs text-gray-400">{fmtDate(c.created_at)}</span>
                 </div>
-                <p className="text-gray-700 leading-relaxed">{c.body}</p>
+                <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{c.body}</p>
                 <div className="flex gap-4 mt-2 text-xs text-gray-400">
                   {c.hours_logged > 0 && <span className="flex items-center gap-0.5"><Clock className="w-3 h-3 inline-block" /> {t("cd.hrs_logged").replace("{n}", c.hours_logged)}</span>}
                   {c.progress_update !== null && <span className="flex items-center gap-0.5"><TrendingUp className="w-3 h-3 inline-block" /> {t("cd.progress_to").replace("{n}", c.progress_update)}</span>}
