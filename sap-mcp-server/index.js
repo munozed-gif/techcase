@@ -540,7 +540,7 @@ const httpServer = http.createServer(async (req, res) => {
           `host = ${vpnCfg.host}`,
           `port = ${vpnCfg.port || '443'}`,
           `username = ${vpnCfg.username || ''}`,
-          `password = ${vpnCfg.password || ''}`,
+          `password = "${(vpnCfg.password || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`,
         ];
         if (vpnCfg.trusted_cert) lines.push(`trusted-cert = ${vpnCfg.trusted_cert}`);
         const configContent = lines.join('\n') + '\n';
