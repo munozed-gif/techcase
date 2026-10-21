@@ -482,7 +482,7 @@ function CasesView({ auth, initialCaseId }) {
           {displayed.map(c => (
             <div key={c.id}
               className="rounded-2xl cursor-pointer transition-all hover:shadow-md p-5 overflow-hidden min-w-0"
-              style={(() => { const cc = selectedCases.has(c.id) ? { border: 'rgba(96,165,250,0.55)', bg: 'rgba(37,99,235,0.15)' } : (CASE_CARD_COLORS[c.status] ?? { border: 'rgba(100,160,220,0.25)', bg: 'rgba(12,21,34,0.4)' }); return { border: `1.5px solid ${cc.border}`, backgroundColor: cc.bg }; })()}
+              style={(() => { const cc = selectedCases.has(c.id) ? { border: 'rgba(96,165,250,0.55)', bg: 'rgba(37,99,235,0.15)' } : (CASE_CARD_COLORS[c.status] ?? { border: 'rgba(156,163,175,0.32)', bg: 'rgba(100,116,139,0.08)' }); return { border: `1.5px solid ${cc.border}`, backgroundColor: cc.bg }; })()}
               onClick={() => setSelected(c)}>
               {(() => {
                 const StatusIcon = STATUS_CARD_ICONS[c.status] ?? Tag;
@@ -501,16 +501,16 @@ function CasesView({ auth, initialCaseId }) {
                     <ProjectAvatar project={c.project ?? { name: c.client?.client_profiles?.company_name || c.client?.full_name || c.title, client: c.client }} size={40} className="flex-shrink-0 self-start mt-0.5" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline gap-2 mb-1 flex-wrap">
-                        <h3 className="font-semibold text-gray-900 truncate">{c.title}</h3>
-                        {c.priority && <span className="text-xs text-gray-400 font-medium capitalize flex-shrink-0">{PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}</span>}
+                        <h3 className="font-semibold text-gray-900 dark:text-white truncate">{c.title}</h3>
+                        {c.priority && <span className="text-xs text-gray-500 dark:text-gray-400 font-medium capitalize flex-shrink-0">{PRIORITY_LABEL_KEYS[c.priority] ? t(PRIORITY_LABEL_KEYS[c.priority]) : cap(c.priority)}</span>}
                       </div>
                       {c.project?.name && (
                         <p className="text-xs text-blue-600 font-medium truncate flex items-center gap-1 mb-1">
                           <FolderKanban size={11} className="flex-shrink-0" />{c.project.name}
                         </p>
                       )}
-                      <p className="text-sm text-gray-500 line-clamp-2">{c.description}</p>
-                      <div className="flex items-center gap-4 mt-3 text-xs text-gray-400 flex-wrap">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{c.description}</p>
+                      <div className="flex items-center gap-4 mt-3 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
                         {c.skills_required?.length > 0 && (
                           <span>{t("label.skills")}: {c.skills_required.slice(0, 3).join(", ")}{c.skills_required.length > 3 ? "…" : ""}</span>
                         )}
