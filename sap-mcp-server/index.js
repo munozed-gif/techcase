@@ -501,6 +501,13 @@ async function handleSapProxy(req, res) {
 // ── HTTP server ────────────────────────────────────────────────────────────
 
 const httpServer = http.createServer(async (req, res) => {
+  // Global CORS preflight — must be first so every endpoint handles OPTIONS
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, CORS_HEADERS);
+    res.end();
+    return;
+  }
+
   // Health check
   if (req.method === 'GET' && req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
