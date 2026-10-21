@@ -2452,29 +2452,67 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
     if (!sapConnCfg || sapConnTest === 'testing') return;
     setSapConnTest('testing');
     const lsKey = `sap_test_${caseData.id}`;
+    const mcpBase = ((sapConnCfg.mcp_server_url?.trim() || sapMcpServerUrl) || '')
+      .replace(/\/mcp\/?$/, '').replace(/\/$/, '').trim();
     try {
-      const result = await sapLiveCheck(sapConnCfg);
-      if (result && !result.error) {
-        const next = {
-          ok: true,
-          info: result.systemInfo ?? result.description ?? 'Connected',
-          capabilities: result.capabilities ?? [],
-          components: result.components ?? [],
-          sid: result.sid ?? null,
-        };
-        setSapConnTest(next);
-        try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
+      if (mcpBase) {
+        // Route through MCP server — server-side, bypasses CORS, uses VM's VPN access
+        const r = await fetch(`${mcpBase}/sap-info`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            host:     sapConnCfg.host,
+            username: sapConnCfg.username,
+            password: sapConnCfg.password,
+            client:   sapConnCfg.client || '100',
+          }),
+          signal: AbortSignal.timeout(35000),
+        }).then(res => res.json()).catch(e => ({ ok: false, error: e.message }));
+        if (r?.ok) {
+          const next = {
+            ok: true,
+            info: r.systemInfo || `Connected (${sapConnCfg.host})`,
+            capabilities: r.capabilities ?? [],
+            components:   r.components ?? [],
+            sid: r.debug?.sid ?? null,
+          };
+          setSapConnTest(next);
+          try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
+        } else {
+          const status = r?.status;
+          const msg = status === 401 ? 'HTTP 401 — Wrong username, password or client (MANDT).'
+            : status === 403 ? 'HTTP 403 — User lacks ADT authorizations.'
+            : status === 404 ? 'HTTP 404 — ADT service not active (check SICF).'
+            : r?.error || `HTTP ${status || 'error'}`;
+          const next = { ok: false, message: msg };
+          setSapConnTest(next);
+          try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
+        }
       } else {
-        const status = result?.error;
-        const msg = status === 401 ? 'HTTP 401 — Wrong username, password or client (MANDT).'
-          : status === 403 ? 'HTTP 403 — User lacks ADT authorizations.'
-          : status === 404 ? 'HTTP 404 — ADT service not active (check SICF).'
-          : status ? `HTTP ${status} — SAP returned an error.`
-          : result?.message ? `Proxy error: ${result.message}`
-          : 'Connection failed.';
-        const next = { ok: false, message: msg };
-        setSapConnTest(next);
-        try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
+        // Fallback: direct browser → SAP via sapLiveCheck (CORS-limited, no VPN)
+        const result = await sapLiveCheck(sapConnCfg);
+        if (result && !result.error) {
+          const next = {
+            ok: true,
+            info: result.systemInfo ?? result.description ?? 'Connected',
+            capabilities: result.capabilities ?? [],
+            components:   result.components ?? [],
+            sid: result.sid ?? null,
+          };
+          setSapConnTest(next);
+          try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
+        } else {
+          const status = result?.error;
+          const msg = status === 401 ? 'HTTP 401 — Wrong username, password or client (MANDT).'
+            : status === 403 ? 'HTTP 403 — User lacks ADT authorizations.'
+            : status === 404 ? 'HTTP 404 — ADT service not active (check SICF).'
+            : status ? `HTTP ${status} — SAP returned an error.`
+            : result?.message ? `Proxy error: ${result.message}`
+            : 'Connection failed.';
+          const next = { ok: false, message: msg };
+          setSapConnTest(next);
+          try { localStorage.setItem(lsKey, JSON.stringify(next)); } catch {}
+        }
       }
     } catch (e) {
       const next = { ok: false, message: e.message };
