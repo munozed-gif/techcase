@@ -1102,7 +1102,7 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
               password: env.password,
               client: env.client || '100',
             }),
-            signal: AbortSignal.timeout(18000),
+            signal: AbortSignal.timeout(35000),
           }).then(res => res.json()).catch(e => ({ ok: false, error: e.message }));
           if (r?.ok) {
             sap = true;

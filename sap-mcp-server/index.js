@@ -330,7 +330,7 @@ function httpsRequest(targetUrl, opts = {}, bodyBuf) {
       method: opts.method || 'GET',
       headers: opts.headers || {},
       rejectUnauthorized: false,
-      timeout: opts.timeout || 15000,
+      timeout: opts.timeout || 30000,
     };
     const req = https.request(reqOpts, sapRes => {
       const chunks = [];
@@ -376,10 +376,10 @@ async function handleSapInfo(req, res) {
 
   try {
     // First try /sap/bc/adt/system/settings (richer info)
-    let sapRes = await httpsRequest(`${base}/sap/bc/adt/system/settings`, { headers, timeout: 15000 });
+    let sapRes = await httpsRequest(`${base}/sap/bc/adt/system/settings`, { headers, timeout: 30000 });
     // Fall back to discovery if settings returns 404
     if (sapRes.status === 404) {
-      sapRes = await httpsRequest(`${base}/sap/bc/adt/discovery`, { headers, timeout: 15000 });
+      sapRes = await httpsRequest(`${base}/sap/bc/adt/discovery`, { headers, timeout: 30000 });
     }
     const xml = sapRes.body.toString('utf8');
 
@@ -479,7 +479,7 @@ async function handleSapProxy(req, res) {
   }
 
   try {
-    const sapRes = await httpsRequest(targetUrl, { method: req.method, headers: forwardHeaders, timeout: 15000 }, body);
+    const sapRes = await httpsRequest(targetUrl, { method: req.method, headers: forwardHeaders, timeout: 30000 }, body);
 
     // Build response headers: CORS overrides + SAP response headers
     const outHeaders = { ...CORS_HEADERS };
