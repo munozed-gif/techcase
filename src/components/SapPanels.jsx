@@ -14,6 +14,7 @@ import { callClaude, logEvent } from "../lib/utils.js";
 import { Badge, Spinner } from "../components/ProfileComponents.jsx";
 import { Input, Modal, Select, Textarea } from "../components/ui.jsx";
 import { fmtDate, fmt } from "../lib/uiUtils.jsx";
+import mcpServerScript from "../../sap-mcp-server/index.js?raw";
 
 function useClientProfile(userId) {
   const [profile, setProfile] = useState(null);
@@ -1040,6 +1041,8 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
   const [result, setResult] = useState(null); // null | { vm, vpn, sap, vmDetail, vpnDetail, sapDetail }
   const [refreshingUrl, setRefreshingUrl] = useState(false);
   const [refreshMsg, setRefreshMsg] = useState('');
+  const [deploying, setDeploying] = useState(false);
+  const [deployMsg, setDeployMsg] = useState('');
 
   const linkedConn = env.connectionId ? projectConns.find(c => c.id === env.connectionId) : null;
   const isVpn = linkedConn?.db_type === 'vpn';
@@ -1179,6 +1182,32 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
     setVpnActing(false);
   }
 
+  async function deployServer() {
+    if (!mcpBase || deploying) return;
+    setDeploying(true);
+    setDeployMsg('Uploading…');
+    try {
+      const r = await fetch(`${mcpBase}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ script: mcpServerScript }),
+        signal: AbortSignal.timeout(20000),
+      }).then(res => res.json()).catch(e => ({ ok: false, error: e.message }));
+      if (r.ok) {
+        setDeployMsg('Updated — server restarting…');
+        await new Promise(resolve => setTimeout(resolve, 4000));
+        setDeployMsg('');
+        check();
+      } else {
+        setDeployMsg(`Failed: ${r.error?.slice(0, 80) || 'unknown error'}`);
+      }
+    } catch (e) {
+      setDeployMsg(`Error: ${e.message?.slice(0, 60)}`);
+    } finally {
+      setDeploying(false);
+    }
+  }
+
   const Row = ({ ok, label, detail }) => (
     <div className="flex items-start gap-3 py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
       <span className="mt-0.5">
@@ -1250,6 +1279,18 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
             </div>
           )}
           <Row ok={result.sap} label="SAP Connection" detail={result.sapDetail} />
+          {result.vm && mcpBase && (
+            <div className="py-2 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <span className="text-xs font-semibold text-gray-400">Server Version</span>
+                {deployMsg && <p className={`text-xs mt-0.5 ${deployMsg.startsWith('Failed') || deployMsg.startsWith('Error') ? 'text-red-400' : 'text-blue-400'}`}>{deployMsg}</p>}
+              </div>
+              <button onClick={deployServer} disabled={deploying}
+                className="shrink-0 px-2 py-1 rounded text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1">
+                {deploying ? <><RefreshCw size={10} className="animate-spin" />Deploying…</> : '⬆ Deploy to VM'}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

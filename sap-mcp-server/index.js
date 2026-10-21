@@ -19,6 +19,8 @@ import { z } from 'zod';
 import http from 'http';
 import https from 'https';
 import { execSync } from 'child_process';
+import { writeFileSync } from 'fs';
+import { fileURLToPath } from 'url';
 
 const PORT = Number(process.env.PORT ?? 3100);
 
@@ -502,7 +504,7 @@ const httpServer = http.createServer(async (req, res) => {
   // Health check
   if (req.method === 'GET' && req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.3.3', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', sapInfo: '/sap-info', health: '/health', status: '/status', restart: '/restart', vpnStart: '/vpn/start', vpnStop: '/vpn/stop' } }));
+    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.4.0', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', sapInfo: '/sap-info', health: '/health', status: '/status', restart: '/restart', update: '/update', vpnStart: '/vpn/start', vpnStop: '/vpn/stop', vpnRestart: '/vpn/restart' } }));
     return;
   }
 
@@ -584,6 +586,30 @@ const httpServer = http.createServer(async (req, res) => {
     res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true, message: 'Restarting…' }));
     setTimeout(() => process.exit(0), 120);
+    return;
+  }
+
+  // Self-update: receive new index.js content, write to disk, restart
+  if (req.method === 'POST' && req.url === '/update') {
+    try {
+      const chunks = [];
+      for await (const chunk of req) chunks.push(chunk);
+      const body = JSON.parse(Buffer.concat(chunks).toString());
+      const script = body.script;
+      if (!script || script.length < 500) {
+        res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'Invalid or empty script content' }));
+        return;
+      }
+      const selfPath = fileURLToPath(import.meta.url);
+      writeFileSync(selfPath, script, 'utf8');
+      res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, message: 'Script updated — restarting in 1s…', bytes: script.length }));
+      setTimeout(() => process.exit(0), 1000);
+    } catch (e) {
+      res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: e.message?.slice(0, 200) }));
+    }
     return;
   }
 
