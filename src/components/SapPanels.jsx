@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import mcpScript from '../../sap-mcp-server/index.js?raw';
 import {
   Activity, AlertTriangle, ArrowRight, Check, CheckCircle2, ChevronRight,
   Clock, Code2, Copy, Eye, FileCode2, FileText, FolderOpen, LayoutGrid, Loader2,
@@ -1186,24 +1187,12 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
     setDeploying(true);
     setDeployMsg('Deploying…');
     try {
-      // GET with query param = simple CORS request, no preflight needed.
-      // VM pulls the script from our own API endpoint server-to-server.
-      // Vercel commit-specific preview URLs (abc-hash-project.vercel.app) may be
-      // stale deployments without /api/mcp-script. Prefer the production URL instead.
-      const _origin = (() => {
-        const o = import.meta.env.VITE_APP_URL || window.location.origin;
-        try {
-          const h = new URL(o).hostname;
-          if (h.endsWith('.vercel.app')) {
-            const base = h.replace('.vercel.app', '');
-            const lastSeg = base.split('-').at(-1);
-            if (lastSeg && lastSeg !== base) return `${o.split('//')[0]}//${lastSeg}.vercel.app`;
-          }
-        } catch {}
-        return o;
-      })();
-      const src = encodeURIComponent(`${_origin}/api/mcp-script`);
-      const r = await fetch(`${mcpBase}/self-update?src=${src}`, {
+      // POST with Content-Type: text/plain is a simple CORS request — no preflight.
+      // We push the bundled script directly so the VM needs no external URL.
+      const r = await fetch(`${mcpBase}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: mcpScript,
         signal: AbortSignal.timeout(25000),
       }).then(res => res.json()).catch(e => ({ ok: false, error: e.message }));
       if (r.ok) {

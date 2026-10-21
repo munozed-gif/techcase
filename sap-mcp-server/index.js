@@ -511,7 +511,7 @@ const httpServer = http.createServer(async (req, res) => {
   // Health check
   if (req.method === 'GET' && req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.4.0', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', sapInfo: '/sap-info', health: '/health', status: '/status', restart: '/restart', update: '/update', vpnStart: '/vpn/start', vpnStop: '/vpn/stop', vpnRestart: '/vpn/restart' } }));
+    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.5.0', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', sapInfo: '/sap-info', health: '/health', status: '/status', restart: '/restart', update: '/update', vpnStart: '/vpn/start', vpnStop: '/vpn/stop', vpnRestart: '/vpn/restart' } }));
     return;
   }
 
@@ -606,8 +606,13 @@ const httpServer = http.createServer(async (req, res) => {
         return;
       }
       const resp = await fetch(srcUrl, { signal: AbortSignal.timeout(15000) });
+      if (!resp.ok) {
+        res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: `Source URL returned HTTP ${resp.status}` }));
+        return;
+      }
       const script = await resp.text();
-      if (!script || script.length < 500) {
+      if (!script || script.length < 500 || !script.includes('import ')) {
         res.writeHead(400, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: false, error: 'Fetched script is empty or too short' }));
         return;
@@ -664,8 +669,8 @@ const httpServer = http.createServer(async (req, res) => {
 
   // Only handle /mcp
   if (!req.url?.startsWith('/mcp')) {
-    res.writeHead(404);
-    res.end('Not found');
+    res.writeHead(404, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Not found' }));
     return;
   }
 
