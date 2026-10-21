@@ -404,24 +404,18 @@ async function handleSapInfo(req, res) {
       return;
     }
 
-    // Parse SAP system info from XML — try multiple attribute and element name formats
-    const sid = (
-      xml.match(/(?:adt:)?systemId="([^"]+)"/)?.[1] ??
-      xml.match(/<(?:adt:)?systemId>([^<]+)/)?.[1] ??
-      xml.match(/SystemId="([^"]+)"/i)?.[1] ?? ''
-    );
-    const release = (
-      xml.match(/(?:adt:)?abapRelease="([^"]+)"/)?.[1] ??
-      xml.match(/(?:adt:)?release="([^"]+)"/)?.[1] ??
-      xml.match(/<(?:adt:)?release>([^<]+)/)?.[1] ?? ''
-    );
-    const sp = (
-      xml.match(/(?:adt:)?abapSP="([^"]+)"/)?.[1] ??
-      xml.match(/\bsp="([^"]+)"/)?.[1] ??
-      xml.match(/<(?:adt:)?sp>([^<]+)/)?.[1] ?? ''
-    );
-    const client = xml.match(/(?:adt:)?client="([^"]+)"/)?.[1] ?? '';
-    const desc   = xml.match(/<(?:atom:|adt:)?title[^>]*>([^<]+)/)?.[1]?.trim() ?? '';
+    // Parse SAP system info from XML — namespace-agnostic: matches adt:, adtcore:, or no prefix
+    const xAttr = (xml, name) => xml.match(new RegExp(`(?:^|\\s)(?:[^:>"\\s]+:)?${name}="([^"]+)"`))?.[1] ?? '';
+    const xElem = (xml, name) => xml.match(new RegExp(`<(?:[^:>]+:)?${name}[^>]*>([^<]+)`))?.[1]?.trim() ?? '';
+    const xAny  = (xml, name) => xAttr(xml, name) || xElem(xml, name);
+
+    const sid     = xAny(xml, 'systemId') || xAttr(xml, 'SystemId');
+    const release = xAny(xml, 'systemRelease') || xAny(xml, 'abapRelease') || xAny(xml, 'release');
+    const sp      = xAny(xml, 'spLevel') || xAny(xml, 'abapSP') || xAttr(xml, 'sp');
+    // client from XML (may shadow body client, use body value as fallback)
+    const xmlClient = xAny(xml, 'client');
+    const resolvedClient = xmlClient || client;
+    const desc    = xElem(xml, 'title') || xAttr(xml, 'title');
 
     // Map numeric abapRelease (e.g. "756") to readable label when possible
     const releaseLabel = /^\d{3}$/.test(release)
@@ -429,17 +423,19 @@ async function handleSapInfo(req, res) {
       : release;
     const spLabel = sp ? `SP ${sp.replace(/^0+/, '') || '00'}` : '';
 
+    // Exclude BOPF-style component names that aren't useful system identifiers
+    const usefulDesc = desc && !desc.toLowerCase().includes('system') && desc.length < 50 && !/^[A-Z_]{3,}$/.test(desc) ? desc : '';
     const parts = [
       sid && `SID: ${sid}`,
-      client && `Client ${client}`,
-      desc && !desc.toLowerCase().includes('system') ? desc : '',
+      resolvedClient && `Client ${resolvedClient}`,
       releaseLabel && `Release ${releaseLabel}`,
       spLabel,
+      !sid && !releaseLabel && usefulDesc,
     ].filter(Boolean);
-    const systemInfo = parts.join(' | ') || `Connected (HTTP ${sapRes.status})`;
+    const systemInfo = parts.join(' | ') || (desc ? `Connected — ${desc}` : `Connected (HTTP ${sapRes.status})`);
 
     res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, systemInfo, status: sapRes.status, debug: { sid, release, sp, client, desc, xmlSnippet: xml.slice(0, 300) } }));
+    res.end(JSON.stringify({ ok: true, systemInfo, status: sapRes.status, debug: { sid, release, sp, resolvedClient, desc, xmlSnippet: xml.slice(0, 600) } }));
   } catch (e) {
     res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: false, error: e.message?.slice(0, 120) || 'SAP connection failed' }));
@@ -501,7 +497,7 @@ const httpServer = http.createServer(async (req, res) => {
   // Health check
   if (req.method === 'GET' && req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.3.1', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', sapInfo: '/sap-info', health: '/health', status: '/status', restart: '/restart', vpnStart: '/vpn/start', vpnStop: '/vpn/stop' } }));
+    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.3.2', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', sapInfo: '/sap-info', health: '/health', status: '/status', restart: '/restart', vpnStart: '/vpn/start', vpnStop: '/vpn/stop' } }));
     return;
   }
 
