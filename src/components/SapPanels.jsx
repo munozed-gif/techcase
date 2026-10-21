@@ -1188,7 +1188,21 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
     try {
       // GET with query param = simple CORS request, no preflight needed.
       // VM pulls the script from our own API endpoint server-to-server.
-      const src = encodeURIComponent(`${window.location.origin}/api/mcp-script`);
+      // Vercel commit-specific preview URLs (abc-hash-project.vercel.app) may be
+      // stale deployments without /api/mcp-script. Prefer the production URL instead.
+      const _origin = (() => {
+        const o = import.meta.env.VITE_APP_URL || window.location.origin;
+        try {
+          const h = new URL(o).hostname;
+          if (h.endsWith('.vercel.app')) {
+            const base = h.replace('.vercel.app', '');
+            const lastSeg = base.split('-').at(-1);
+            if (lastSeg && lastSeg !== base) return `${o.split('//')[0]}//${lastSeg}.vercel.app`;
+          }
+        } catch {}
+        return o;
+      })();
+      const src = encodeURIComponent(`${_origin}/api/mcp-script`);
       const r = await fetch(`${mcpBase}/self-update?src=${src}`, {
         signal: AbortSignal.timeout(25000),
       }).then(res => res.json()).catch(e => ({ ok: false, error: e.message }));
