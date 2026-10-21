@@ -640,6 +640,47 @@ const httpServer = http.createServer(async (req, res) => {
   }
 });
 
+// ── Cloudflare tunnel URL auto-registration ────────────────────────────────
+
+const SUPABASE_URL = 'https://xwiduokkkoaxrhfyuwye.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3aWR1b2tra29heHJoZnl1d3llIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3Nzg4ODIsImV4cCI6MjEwNTM1NDg4Mn0.odiyfucEQgyaVr8D8dXW0l9qGn7LHxqYvfmCaV2qGcI';
+
+async function registerTunnelUrl() {
+  await new Promise(r => setTimeout(r, 10000));
+  for (let i = 0; i < 15; i++) {
+    try {
+      const journal = execSync('journalctl -u cloudflared-tunnel --no-pager -n 100 2>/dev/null', { timeout: 5000 }).toString();
+      const m = journal.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
+      if (m) {
+        const tunnelUrl = m[0];
+        const body = JSON.stringify({ tunnel_url: tunnelUrl });
+        await new Promise((resolve, reject) => {
+          const url = new URL(`${SUPABASE_URL}/rest/v1/vm_tunnel_registry`);
+          const options = {
+            hostname: url.hostname, port: 443, path: url.pathname, method: 'POST',
+            headers: {
+              'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
+              'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates',
+              'Content-Length': Buffer.byteLength(body),
+            },
+          };
+          const req = https.request(options, res => {
+            res.resume();
+            res.on('end', resolve);
+          });
+          req.on('error', reject);
+          req.write(body);
+          req.end();
+        });
+        console.log(`Tunnel URL registered: ${tunnelUrl}`);
+        return;
+      }
+    } catch (e) { /* ignore */ }
+    await new Promise(r => setTimeout(r, 4000));
+  }
+  console.warn('Could not detect cloudflared tunnel URL for registration');
+}
+
 httpServer.listen(PORT, () => {
   console.log(`TechCase SAP MCP Server running on port ${PORT}`);
   console.log(`  MCP endpoint : http://localhost:${PORT}/mcp`);
@@ -648,4 +689,5 @@ httpServer.listen(PORT, () => {
   console.log(`  Health check : http://localhost:${PORT}/health`);
   console.log(`  Status       : http://localhost:${PORT}/status`);
   console.log(`  Restart      : http://localhost:${PORT}/restart  (POST)`);
+  registerTunnelUrl().catch(() => {});
 });
