@@ -522,9 +522,9 @@ const httpServer = http.createServer(async (req, res) => {
     return;
   }
 
-  // VPN control — start or stop the VPN service
-  if (req.method === 'POST' && (req.url === '/vpn/start' || req.url === '/vpn/stop')) {
-    const action = req.url.endsWith('/stop') ? 'stop' : 'start';
+  // VPN control — start, stop, or restart the VPN service
+  if (req.method === 'POST' && (req.url === '/vpn/start' || req.url === '/vpn/stop' || req.url === '/vpn/restart')) {
+    const action = req.url.endsWith('/stop') ? 'stop' : req.url.endsWith('/restart') ? 'restart' : 'start';
     try {
       // Parse optional VPN credentials from request body
       let vpnCfg = null;
@@ -564,7 +564,7 @@ const httpServer = http.createServer(async (req, res) => {
 
       execSync(
         `sudo systemctl ${action} openfortivpn@vpn 2>/dev/null || sudo systemctl ${action} openfortivpn 2>/dev/null`,
-        { timeout: 12000 }
+        { timeout: 25000 }
       );
       const out = execSync(
         'if systemctl is-active --quiet openfortivpn@vpn 2>/dev/null || systemctl is-active --quiet openfortivpn 2>/dev/null; then echo active; else echo inactive; fi',

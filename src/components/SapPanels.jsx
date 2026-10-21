@@ -1145,7 +1145,7 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
     setVpnActing(true);
     try {
       let body;
-      if (action === 'start') {
+      if (action === 'start' || action === 'restart') {
         const vpnConn = (linkedConn?.db_type === 'vpn' ? linkedConn : null)
           ?? projectConns.find(c => c.db_type === 'vpn');
         if (vpnConn) {
@@ -1164,12 +1164,17 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
         method: 'POST',
         headers: body ? { 'Content-Type': 'application/json' } : {},
         body,
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(35000),
       });
       const d = await res.json();
-      setResult(r => ({ ...r, vpn: d.vpn === true, vpnDetail: d.vpn ? 'active' : (d.error || 'inactive') }));
+      if (d.ok === false) {
+        // Command failed — keep current VPN status, surface the error
+        setResult(r => ({ ...r, vpnDetail: `Failed: ${d.error?.slice(0, 80) || 'unknown error'}` }));
+      } else {
+        setResult(r => ({ ...r, vpn: d.vpn === true, vpnDetail: d.vpn ? 'active' : 'inactive' }));
+      }
     } catch (e) {
-      setResult(r => ({ ...r, vpnDetail: e.message?.slice(0, 60) || 'Request failed' }));
+      setResult(r => ({ ...r, vpnDetail: `Error: ${e.message?.slice(0, 60) || 'Request failed'}` }));
     }
     setVpnActing(false);
   }
@@ -1231,10 +1236,16 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
                 </button>
               )}
               {result.vpn === true && (
-                <button onClick={() => toggleVpn('stop')} disabled={vpnActing}
-                  className="shrink-0 px-2 py-1 rounded text-xs font-medium bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                  {vpnActing ? 'Stopping…' : 'Stop VPN'}
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button onClick={() => toggleVpn('restart')} disabled={vpnActing}
+                    className="px-2 py-1 rounded text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                    {vpnActing ? 'Working…' : 'Restart VPN'}
+                  </button>
+                  <button onClick={() => toggleVpn('stop')} disabled={vpnActing}
+                    className="px-2 py-1 rounded text-xs font-medium bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                    {vpnActing ? 'Working…' : 'Stop VPN'}
+                  </button>
+                </div>
               )}
             </div>
           )}
