@@ -404,16 +404,42 @@ async function handleSapInfo(req, res) {
       return;
     }
 
-    // Parse SAP system info from XML
-    const sid     = xml.match(/systemId="([^"]+)"/)?.[1] ?? xml.match(/<adt:systemId>([^<]+)/)?.[1] ?? '';
-    const release = xml.match(/release="([^"]+)"/)?.[1] ?? xml.match(/<adt:abapLanguageVersion[^>]*>([^<]+)/)?.[1] ?? '';
-    const sp      = xml.match(/\bsp="([^"]+)"/)?.[1] ?? '';
-    const desc    = xml.match(/<title[^>]*>([^<]+)/)?.[1]?.trim() ?? '';
-    const parts   = [sid && `SID: ${sid}`, desc, release && `Release ${release}`, sp && `SP ${sp}`].filter(Boolean);
+    // Parse SAP system info from XML — try multiple attribute and element name formats
+    const sid = (
+      xml.match(/(?:adt:)?systemId="([^"]+)"/)?.[1] ??
+      xml.match(/<(?:adt:)?systemId>([^<]+)/)?.[1] ??
+      xml.match(/SystemId="([^"]+)"/i)?.[1] ?? ''
+    );
+    const release = (
+      xml.match(/(?:adt:)?abapRelease="([^"]+)"/)?.[1] ??
+      xml.match(/(?:adt:)?release="([^"]+)"/)?.[1] ??
+      xml.match(/<(?:adt:)?release>([^<]+)/)?.[1] ?? ''
+    );
+    const sp = (
+      xml.match(/(?:adt:)?abapSP="([^"]+)"/)?.[1] ??
+      xml.match(/\bsp="([^"]+)"/)?.[1] ??
+      xml.match(/<(?:adt:)?sp>([^<]+)/)?.[1] ?? ''
+    );
+    const client = xml.match(/(?:adt:)?client="([^"]+)"/)?.[1] ?? '';
+    const desc   = xml.match(/<(?:atom:|adt:)?title[^>]*>([^<]+)/)?.[1]?.trim() ?? '';
+
+    // Map numeric abapRelease (e.g. "756") to readable label when possible
+    const releaseLabel = /^\d{3}$/.test(release)
+      ? ({ '756': '2023', '757': '2024', '758': '2025', '755': '2022', '754': '2021', '753': '2020' }[release] ?? release)
+      : release;
+    const spLabel = sp ? `SP ${sp.replace(/^0+/, '') || '00'}` : '';
+
+    const parts = [
+      sid && `SID: ${sid}`,
+      client && `Client ${client}`,
+      desc && !desc.toLowerCase().includes('system') ? desc : '',
+      releaseLabel && `Release ${releaseLabel}`,
+      spLabel,
+    ].filter(Boolean);
     const systemInfo = parts.join(' | ') || `Connected (HTTP ${sapRes.status})`;
 
     res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, systemInfo, status: sapRes.status }));
+    res.end(JSON.stringify({ ok: true, systemInfo, status: sapRes.status, debug: { sid, release, sp, client, desc, xmlSnippet: xml.slice(0, 300) } }));
   } catch (e) {
     res.writeHead(200, { ...CORS_HEADERS, 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: false, error: e.message?.slice(0, 120) || 'SAP connection failed' }));
@@ -475,7 +501,7 @@ const httpServer = http.createServer(async (req, res) => {
   // Health check
   if (req.method === 'GET' && req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.3.0', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', sapInfo: '/sap-info', health: '/health', status: '/status', restart: '/restart', vpnStart: '/vpn/start', vpnStop: '/vpn/stop' } }));
+    res.end(JSON.stringify({ status: 'ok', server: 'techcase-sap-mcp', version: '1.3.1', endpoints: { mcp: '/mcp', proxy: '/sap-proxy', sapInfo: '/sap-info', health: '/health', status: '/status', restart: '/restart', vpnStart: '/vpn/start', vpnStop: '/vpn/stop' } }));
     return;
   }
 
