@@ -5420,18 +5420,18 @@ ${tableHtml(['Role','Name','Signature','Date'],[
                 : clientLifecycle
                 ? <span className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full font-semibold">{t("case.lc_company")}</span>
                 : <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-semibold">{t("case.lc_default")}</span>}
-              {!caseOverrideAllowed && (
+              {!caseOverrideAllowed && !auth.isAdmin && (
                 <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-semibold"><Lock size={10} className="mr-0.5 inline" />{t("case.override_locked")}</span>
               )}
             </div>
 
-            {perms.can("edit_lifecycle") && !caseOverrideAllowed && (
+            {perms.can("edit_lifecycle") && !caseOverrideAllowed && !auth.isAdmin && (
               <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-sm text-amber-700">
                 {t("case.lifecycle_lock_msg")}
               </div>
             )}
 
-            {perms.can("edit_lifecycle") && caseOverrideAllowed && (
+            {perms.can("edit_lifecycle") && (caseOverrideAllowed || auth.isAdmin) && (
               <>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {tmplList.map(tmpl => {
