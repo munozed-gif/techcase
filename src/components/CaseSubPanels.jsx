@@ -2324,7 +2324,8 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
     await Promise.all(fetches);
 
     // Live SAP system check (hard gate — blocks generation if SAP is unreachable)
-    if (genCtx.sap_live_check && caseData.client_id) {
+    // Resolve the active SAP environment first so its liveCheckOnGenerate toggle can override the system setting
+    if (caseData.client_id) {
       const [{ data: sapCfgRow }, { data: sapProjEnvRow }, { data: sapCaseEnvRow }] = await Promise.all([
         supabase.from('system_settings').select('value').eq('key', 'sap_integration').maybeSingle(),
         supabase.from('system_settings').select('value').eq('key', 'sap_project_env').maybeSingle(),
@@ -2338,43 +2339,47 @@ Important: Use realistic Z object names, actual SAP table names (BKPF, BSEG, KNA
       const sapCfg = selectedEnvId
         ? (sapEnvs.find(e => e.id === selectedEnvId) ?? sapEnvs[0] ?? null)
         : (sapEnvs[0] ?? null);
-      if (!sapCfg?.host || !sapCfg?.username) {
-        throw new Error('SAP live check is enabled but no SAP environment is configured for this case. Configure credentials in SAP Integration settings or disable SAP live check.');
-      }
-      const liveData = await sapLiveCheck(sapCfg);
-      if (liveData?.error !== undefined) {
-        const detail = liveData.message ? ` (${liveData.message})` : liveData.error ? ` (HTTP ${liveData.error})` : '';
-        throw new Error(`SAP live check failed — cannot generate documents without a live connection.${detail}`);
-      }
-      extra.sapLiveData = liveData;
-      // For modification/update cases, try to fetch existing ABAP object source
-      const combinedText = caseData.title + ' ' + (caseData.description ?? '');
-      const isModification = /modif|updat|enhanc|extend|fix|correct|adjust/i.test(combinedText);
-      if (isModification) {
-        // Collect all Z/Y object names from both title and description (up to 3)
-        const objMatches = [...combinedText.matchAll(/\b([ZY][A-Z0-9_]{1,30})\b/g)]
-          .map(m => m[1])
-          .filter((v, i, a) => a.indexOf(v) === i)
-          .slice(0, 3);
-        if (objMatches.length) {
-          const typeHint = detectSapObjectType(combinedText);
-          const typesToTry = typeHint
-            ? [typeHint, 'program', 'class', 'function_module', 'table'].filter((v, i, a) => a.indexOf(v) === i)
-            : ['program', 'class', 'function_module', 'table'];
-          let found = false;
-          for (const objName of objMatches) {
-            for (const objType of typesToTry) {
-              const src = await sapFetchSource(sapCfg, objType, objName).catch(() => null);
-              if (src) {
-                extra.sapLiveData = { ...extra.sapLiveData, existingSource: src, existingObjectName: objName, existingObjectType: objType };
-                found = true;
-                break;
+      // Per-environment toggle overrides the system-level sap_live_check setting
+      const envLiveCheck = sapCfg?.liveCheckOnGenerate;
+      const shouldLiveCheck = envLiveCheck !== undefined ? envLiveCheck : genCtx.sap_live_check;
+      if (shouldLiveCheck) {
+        if (!sapCfg?.host || !sapCfg?.username) {
+          throw new Error('SAP live check is enabled but no SAP environment is configured for this case. Configure credentials in SAP Integration settings or disable SAP live check.');
+        }
+        const liveData = await sapLiveCheck(sapCfg);
+        if (liveData?.error !== undefined) {
+          const detail = liveData.message ? ` (${liveData.message})` : liveData.error ? ` (HTTP ${liveData.error})` : '';
+          throw new Error(`SAP live check failed — cannot generate documents without a live connection.${detail}`);
+        }
+        extra.sapLiveData = liveData;
+        // For modification/update cases, try to fetch existing ABAP object source
+        const combinedText = caseData.title + ' ' + (caseData.description ?? '');
+        const isModification = /modif|updat|enhanc|extend|fix|correct|adjust/i.test(combinedText);
+        if (isModification) {
+          const objMatches = [...combinedText.matchAll(/\b([ZY][A-Z0-9_]{1,30})\b/g)]
+            .map(m => m[1])
+            .filter((v, i, a) => a.indexOf(v) === i)
+            .slice(0, 3);
+          if (objMatches.length) {
+            const typeHint = detectSapObjectType(combinedText);
+            const typesToTry = typeHint
+              ? [typeHint, 'program', 'class', 'function_module', 'table'].filter((v, i, a) => a.indexOf(v) === i)
+              : ['program', 'class', 'function_module', 'table'];
+            let found = false;
+            for (const objName of objMatches) {
+              for (const objType of typesToTry) {
+                const src = await sapFetchSource(sapCfg, objType, objName).catch(() => null);
+                if (src) {
+                  extra.sapLiveData = { ...extra.sapLiveData, existingSource: src, existingObjectName: objName, existingObjectType: objType };
+                  found = true;
+                  break;
+                }
               }
+              if (found) break;
             }
-            if (found) break;
-          }
-          if (!found) {
-            extra.sapLiveData = { ...extra.sapLiveData, existingObjectMissing: true, existingObjectName: objMatches[0] };
+            if (!found) {
+              extra.sapLiveData = { ...extra.sapLiveData, existingObjectMissing: true, existingObjectName: objMatches[0] };
+            }
           }
         }
       }
