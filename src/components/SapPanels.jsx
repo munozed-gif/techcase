@@ -1098,7 +1098,7 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
     setNodes({ ...liveNodes.current });
   }
 
-  async function diagnoseFailure(nodeKey) {
+  async function diagnoseFailure(nodeKey, diagContext = {}) {
     setDiagnosing(true);
     try {
       const nodeMeta = { vm: 'Virtual Machine', vpn: 'VPN', mcp: 'MCP Server', sap: 'SAP Connection' };
@@ -1109,12 +1109,20 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
         .map(k => `  ${nodeMeta[k]}: OK — ${liveNodes.current[k].detail}`)
         .join('\n') || '  (none)';
 
+      const { preDiag, postDiag } = diagContext;
+      let diagSection = '';
+      if (postDiag) {
+        diagSection = `\n\nActual VM diagnostic output (post-crash):\n${String(postDiag).slice(0, 900)}`;
+      } else if (preDiag?.journal) {
+        diagSection = `\n\nVM diagnostic data (captured before restart):\nJournal: ${preDiag.journal.slice(0, 600)}\nPort: ${preDiag.portDetail || 'N/A'}\nMemory: ${preDiag.memory || 'N/A'}\nNode procs: ${preDiag.nodeProcs || 'none'}`;
+      }
+
       const prompt = `TechCase infrastructure check failed at: ${nodeMeta[nodeKey]}
 Error: ${failedNode.detail}
 Log:
 ${logText}
 Prior nodes that passed:
-${prevPassed}
+${prevPassed}${diagSection}
 
 Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
 
@@ -1122,7 +1130,7 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
         model: diagnosisModel,
         system: 'You are a DevOps assistant for TechCase. The stack: Node.js MCP server on AWS EC2 Ubuntu, exposed via Cloudflare Quick Tunnel, FortiClient VPN to SAP. Diagnose and give concrete fix steps.',
         messages: [{ role: 'user', content: prompt }],
-        max_tokens: 500,
+        max_tokens: 600,
       });
       if (result) setAiDiagnosis(result.trim());
     } catch { /* best-effort */ }
@@ -1336,6 +1344,13 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       addLog('mcp', 'Health check failed — attempting restart…', 'warn');
       setLiveNode('mcp', { ...liveNodes.current.mcp, status: 'fixing', detail: 'Restarting MCP server…' });
 
+      // Grab diagnostics before restart while server may still respond to requests
+      let preDiag = null;
+      try {
+        const dr = await fetch(`${currentMcpBase}/diagnostics`, { signal: AbortSignal.timeout(4000) });
+        if (dr.ok) { preDiag = await dr.json(); addLog('mcp', 'Pre-restart diagnostics captured', 'info'); }
+      } catch {}
+
       // Step 1: send /restart (works if process is alive but unhealthy; also tries systemctl)
       const restartSent = await fetch(`${currentMcpBase}/restart`, { method: 'POST', signal: AbortSignal.timeout(5000) })
         .then(r => r.ok).catch(() => false);
@@ -1415,7 +1430,32 @@ Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
       addLog('mcp', 'MCP server not responding. SAP check skipped.', 'error');
       setStoppedAt('mcp');
       setRunning(false);
-      diagnoseFailure('mcp');
+      // Async: fetch VM crash logs via queue, then run AI diagnosis with real data
+      (async () => {
+        let postDiag = null;
+        try {
+          const { data: dqData, error: dqErr } = await supabase
+            .from('vm_command_queue')
+            .insert({ command: 'get_diagnostics', status: 'pending' })
+            .select('id').single();
+          if (!dqErr && dqData?.id) {
+            addLog('mcp', 'Fetching VM crash logs… (up to 90s)', 'info');
+            const t0 = Date.now();
+            while (Date.now() - t0 < 90000) {
+              await new Promise(r => setTimeout(r, 5000));
+              const { data: qRow } = await supabase
+                .from('vm_command_queue').select('status, result').eq('id', dqData.id).single();
+              if (qRow?.status === 'done' && qRow?.result) {
+                postDiag = qRow.result;
+                addLog('mcp', 'VM crash logs received ✓ — running AI analysis…', 'success');
+                break;
+              }
+            }
+            if (!postDiag) addLog('mcp', 'VM logs timed out — using available data for analysis', 'warn');
+          }
+        } catch {}
+        diagnoseFailure('mcp', { preDiag, postDiag });
+      })();
       return;
     }
 
