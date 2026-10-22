@@ -584,7 +584,7 @@ async function htmlStringToPdfBlob(htmlString) {
   }
 }
 
-function MarkdownAccordion({ text }) {
+function MarkdownAccordion({ text, defaultAllOpen = false }) {
   const sections = [];
   if (text) {
     const lines = text.split('\n');
@@ -608,7 +608,7 @@ function MarkdownAccordion({ text }) {
 
   const [open, setOpen] = useState(() => {
     const init = {};
-    sections.forEach((_, i) => { init[i] = i === 0; });
+    sections.forEach((_, i) => { init[i] = defaultAllOpen || i === 0; });
     return init;
   });
 
@@ -4933,7 +4933,7 @@ ${result}`;
                     )}
                     {requestSummary && !requestSummaryLoading && (
                       <div className="overflow-y-auto max-h-[420px]">
-                        <MarkdownAccordion text={requestSummary} />
+                        <MarkdownAccordion text={requestSummary} defaultAllOpen />
                       </div>
                     )}
                   </div>
