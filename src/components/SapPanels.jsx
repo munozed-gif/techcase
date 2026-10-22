@@ -1058,6 +1058,8 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
   const [stoppedAt, setStoppedAt] = useState(null);
   const [deploying, setDeploying] = useState(false);
   const [deployMsg, setDeployMsg] = useState('');
+  const [aiDiagnosis, setAiDiagnosis] = useState(() => { try { const s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s)?.aiDiagnosis ?? null : null; } catch { return null; } });
+  const [diagnosing, setDiagnosing] = useState(false);
   const cancelRef = useRef(false);
 
   const getMcpBase = () =>
@@ -1065,9 +1067,9 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
 
   useEffect(() => {
     if (checkedAt) {
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ nodes, checkedAt })); } catch {}
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ nodes, checkedAt, aiDiagnosis })); } catch {}
     }
-  }, [nodes, checkedAt]);
+  }, [nodes, checkedAt, aiDiagnosis]);
 
   function ts() { return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }); }
 
@@ -1087,11 +1089,43 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
     setNodes({ ...liveNodes.current });
   }
 
+  async function diagnoseFailure(nodeKey) {
+    setDiagnosing(true);
+    try {
+      const nodeMeta = { vm: 'Virtual Machine', vpn: 'VPN', mcp: 'MCP Server', sap: 'SAP Connection' };
+      const failedNode = liveNodes.current[nodeKey];
+      const logText = failedNode.log?.map(e => `  [${e.level.toUpperCase()}] ${e.ts}  ${e.msg}`).join('\n') || '  (no log)';
+      const prevPassed = ['vm', 'vpn', 'mcp', 'sap']
+        .filter(k => k !== nodeKey && liveNodes.current[k].status === 'ok')
+        .map(k => `  ${nodeMeta[k]}: OK — ${liveNodes.current[k].detail}`)
+        .join('\n') || '  (none)';
+
+      const prompt = `TechCase infrastructure check failed at: ${nodeMeta[nodeKey]}
+Error: ${failedNode.detail}
+Log:
+${logText}
+Prior nodes that passed:
+${prevPassed}
+
+Give 3-5 numbered steps to fix this. Be brief and specific. No preamble.`;
+
+      const result = await callClaude({
+        model: 'claude-haiku-5-5',
+        system: 'You are a DevOps assistant for TechCase. The stack: Node.js MCP server on AWS EC2 Ubuntu, exposed via Cloudflare Quick Tunnel, FortiClient VPN to SAP. Diagnose and give concrete fix steps.',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 500,
+      });
+      if (result) setAiDiagnosis(result.trim());
+    } catch { /* best-effort */ }
+    finally { setDiagnosing(false); }
+  }
+
   async function run() {
     if (running) return;
     cancelRef.current = false;
     setRunning(true);
     setStoppedAt(null);
+    setAiDiagnosis(null);
     setDeployMsg('');
     const now = new Date().toISOString();
     setCheckedAt(now);
@@ -1111,6 +1145,7 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
       addLog('vm', 'No MCP server URL — configure it in SAP integration settings', 'error');
       setStoppedAt('vm');
       setRunning(false);
+      diagnoseFailure('vm');
       return;
     }
 
@@ -1158,6 +1193,7 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
       addLog('vm', 'Could not reach VM after URL refresh. Check AWS console.', 'error');
       setStoppedAt('vm');
       setRunning(false);
+      diagnoseFailure('vm');
       return;
     }
 
@@ -1217,6 +1253,7 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
           setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'error', detail: `Cannot start: ${errMsg.slice(0, 80)}` });
           setStoppedAt('vpn');
           setRunning(false);
+          diagnoseFailure('vpn');
           return;
         }
         if (sd.vpn === true) {
@@ -1232,6 +1269,7 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
         setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'error', detail: `Start failed: ${e.message?.slice(0, 60)}` });
         setStoppedAt('vpn');
         setRunning(false);
+        diagnoseFailure('vpn');
         return;
       }
 
@@ -1240,6 +1278,7 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
         addLog('vpn', 'VPN failed to connect. Check credentials and gateway. Infrastructure check stopped.', 'error');
         setStoppedAt('vpn');
         setRunning(false);
+        diagnoseFailure('vpn');
         return;
       }
       setLiveNode('vpn', { ...liveNodes.current.vpn, status: 'ok', detail: 'VPN started successfully' });
@@ -1275,6 +1314,7 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
       addLog('mcp', 'MCP server not responding. SAP check skipped.', 'error');
       setStoppedAt('mcp');
       setRunning(false);
+      diagnoseFailure('mcp');
       return;
     }
 
@@ -1514,13 +1554,33 @@ function EnvInfraStatusCard({ env, enrichEnvWithVpn, projectConns, globalMcpUrl,
         })}
       </div>
 
-      {/* Stop banner */}
+      {/* Stop banner + AI diagnosis */}
       {stoppedAt && !running && (
-        <div className="mt-1.5 flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/50">
-          <AlertTriangle size={12} className="text-red-400 shrink-0" />
-          <p className="text-[11px] text-red-600 dark:text-red-400">
-            Stopped at <strong>{NODE_META.find(n => n.key === stoppedAt)?.label}</strong>. Fix the issue above and run check again.
-          </p>
+        <div className="mt-1.5 rounded-lg border border-red-100 dark:border-red-800/50 bg-red-50 dark:bg-red-900/20 overflow-hidden">
+          <div className="flex items-center gap-2 px-3 py-2">
+            <AlertTriangle size={12} className="text-red-400 shrink-0" />
+            <p className="text-[11px] text-red-600 dark:text-red-400">
+              Stopped at <strong>{NODE_META.find(n => n.key === stoppedAt)?.label}</strong>
+              {diagnosing ? ' — asking AI for diagnosis…' : aiDiagnosis ? ' — see steps below' : ''}
+            </p>
+            {diagnosing && <RefreshCw size={10} className="animate-spin text-blue-400 ml-auto shrink-0" />}
+          </div>
+          {(diagnosing || aiDiagnosis) && (
+            <div className="border-t border-red-100 dark:border-red-800/30 px-3 py-2.5">
+              {diagnosing && !aiDiagnosis && (
+                <div className="flex items-center gap-2">
+                  <RefreshCw size={10} className="animate-spin text-blue-400" />
+                  <span className="text-[11px] text-blue-500 dark:text-blue-400">Analyzing issue with AI…</span>
+                </div>
+              )}
+              {aiDiagnosis && (
+                <>
+                  <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 mb-1.5 uppercase tracking-wide">AI Diagnosis</p>
+                  <div className="text-[11px] text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">{aiDiagnosis}</div>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
